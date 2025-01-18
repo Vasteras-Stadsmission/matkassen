@@ -1,0 +1,19 @@
+{
+    "scripts": {
+        "prepare": "husky",
+        "lint": "npx eslint .",
+        "format": "prettier --write .",
+        "format-check": "prettier --check ."
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.18.0",
+        "eslint": "^9.18.0",
+        "eslint-plugin-react": "^7.37.4",
+        "globals": "^15.14.0",
+        "husky": "^9.1.7",
+        "typescript-eslint": "^8.20.0"
+    },
+    "dependencies": {
+        "prettier": "^3.4.2"
+    }
+}
