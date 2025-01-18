@@ -1,5 +1,4 @@
-node_modules/
-backend/dist/
-frontend/dist/
-
-.env*
+.idea
+.vscode
+.DS_Store
+node_modules
