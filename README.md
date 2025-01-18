@@ -2,6 +2,10 @@
 
 Matkassen is a web application for a food parcel system.
 
+## Repository rules
+This repository has a protected `main` branch. To have something pushed to `main` you will have to create a pull request.
+To keep the git commit history in `main` clean, we use the **squash and merge** pattern using PR title and body as commit title and body.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
