@@ -1,83 +1,180 @@
 import Image from "next/image";
+import { connection } from "next/server";
 
-export default function Home() {
+async function getPokemon() {
+    await connection();
+
+    const apiKey = global.secrets.apiKey || "None for demo";
+    const randomNumber = Math.floor(Math.random() * 100) + 1;
+
+    return await fetch(`https://api.vercel.app/pokemon/${randomNumber}`, {
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+        },
+    }).then(r => r.json());
+}
+
+export default async function Home() {
+    const secretKey = process.env.SECRET_KEY;
+    const pokemon = await getPokemon();
+
     return (
-        <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-            <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-                <Image
-                    className="dark:invert"
-                    src="/next.svg"
-                    alt="Next.js logo"
-                    width={180}
-                    height={38}
-                    priority
-                />
-                <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-                    <li className="mb-2">
-                        Get started by editing{" "}
-                        <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-                            app/page.tsx
-                        </code>
-                        .
-                    </li>
-                    <li>Save and see your changes instantly.</li>
-                </ol>
+        <section>
+            <h1>Next.js Self Hosted Demo</h1>
+            <p>
+                This is a demo of a Next.js application hosted on Ubuntu Linux. It also includes a
+                Postgres database and an Nginx proxy.{" "}
+                <a href="https://github.com/leerob/next-self-host">View the code</a>.
+            </p>
 
-                <div className="flex gap-4 items-center flex-col sm:flex-row">
-                    <a
-                        className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-                        href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        <Image
-                            className="dark:invert"
-                            src="/vercel.svg"
-                            alt="Vercel logomark"
-                            width={20}
-                            height={20}
-                        />
-                        Deploy now
-                    </a>
-                    <a
-                        className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-                        href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        Read our docs
-                    </a>
-                </div>
-            </main>
-            <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-                <a
-                    className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-                    href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <Image aria-hidden src="/file.svg" alt="File icon" width={16} height={16} />
-                    Learn
+            <h3>Data Fetching</h3>
+            <p>Random Pokemon: {pokemon.name}</p>
+            <p>
+                This value was retrieved with <code>fetch</code> from an API. This page is served
+                dynamically, fetching a random Pokemon on each request. Reload to see a new Pokemon.
+            </p>
+
+            <h3>Image Optimization</h3>
+            <Image
+                src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b"
+                width={480 / 2}
+                height={320 / 2}
+                alt="Coding"
+            />
+            <p>
+                Next.js supports image optimization out of the box with <code>next start</code>. The
+                image above is using the default image optimization on the Next.js server.
+            </p>
+
+            <h3>Streaming</h3>
+            <p>
+                The Next.js App router supports streaming responses. This demo uses
+                <code>Suspense</code> with an <code>async</code> component to stream in different
+                components with a delay. We let Nginx handle compression for our application, and
+                then disable proxy buffering to enable streamed responses.
+            </p>
+            <p>
+                <a href="/streaming">View the demo</a>
+            </p>
+            <p>
+                <a href="https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming">
+                    Read the docs
                 </a>
-                <a
-                    className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-                    href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <Image aria-hidden src="/window.svg" alt="Window icon" width={16} height={16} />
-                    Examples
+            </p>
+
+            <h3>Postgres Database</h3>
+            <p>
+                This route reads and writes to our Postgres database, which is in its own Docker
+                container. It uses Drizzle for the ORM. There is also a cron job that resets the
+                demo data every 10 minutes. You can manually hit the endpoint the cron uses by
+                sending a <code>POST</code> to{" "}
+                <a href="https://nextselfhost.dev/db/clear">
+                    <code>/db/clear</code>
                 </a>
-                <a
-                    className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-                    href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <Image aria-hidden src="/globe.svg" alt="Globe icon" width={16} height={16} />
-                    Go to nextjs.org →
+            </p>
+            <p>
+                <a href="/db">View the demo</a>
+            </p>
+
+            <h3>Caching / Incremental Static Regeneration</h3>
+            <p>
+                By default, Next.js ISR uses an <code>lru-cache</code> and stores cached entries in
+                memory. This works without configuration, for both caching data as well as ISR, in
+                both the Pages and App Router.
+            </p>
+            <p>
+                If you prefer to override the cache location, you can store entries in something
+                like Redis. For multi-container applications, this is strongly recommended, but for
+                this single container app it’s not necessary.
+            </p>
+            <p>
+                For this demo, we have a route that retrieves data with <code>fetch</code> from an
+                API, then adds a time-based <code>revalidate</code> time of 10 seconds. This
+                indicates it will be "fresh" for a maximum of that time. You can view the{" "}
+                <code>s-maxage=10, stale-while-revalidate=31536000</code> response header for the
+                page.
+            </p>
+            <p>
+                The default <code>stale-while-revalidate</code> time for static pages that do not
+                specify a <code>revalidate</code> time is 1 year, however, this can also be{" "}
+                <a href="https://nextjs.org/docs/canary/app/api-reference/next-config-js/swrDelta">
+                    configured
+                </a>{" "}
+                with <code>swrDelta</code> in <code>next.config.ts</code>.
+            </p>
+            <p>
+                <a href="/isr">View the demo</a>
+            </p>
+            <p>
+                <a href="https://nextjs.org/docs/app/building-your-application/deploying#caching-and-isr">
+                    Read the docs
                 </a>
-            </footer>
-        </div>
+            </p>
+
+            <h3>Middleware</h3>
+            <p>
+                The <code>/protected</code> route is protected by a cookie. You will be redirected
+                back to <code>/</code>. To view the route, add the <code>protected=1</code> cookie
+                in the browser.
+            </p>
+            <p>
+                Middleware does not have access to all Node.js APIs. It is designed to run before
+                all routes in your application. However, we are planning to allow support for using
+                the entire Node.js runtime, which can be necessary when using some third-party
+                libraries.
+            </p>
+            <p>
+                It is not recommended to do checks like fetching user information from your database
+                inside of Middleware. Instead, these checks should happen before queries or
+                mutations. Checking for an auth cookie in Middleware in the{" "}
+                <a href="https://nextjs.org/docs/app/building-your-application/authentication#protecting-routes-with-middleware">
+                    preferred pattern
+                </a>
+                .
+            </p>
+            <p>
+                <a href="/protected">View the demo</a>
+            </p>
+            <p>
+                <a href="https://nextjs.org/docs/app/building-your-application/deploying#middleware">
+                    Read the docs
+                </a>
+            </p>
+
+            <h3>Server Startup</h3>
+            <p>
+                Next.js includes an <code>instrumentation</code> file that runs some code when the
+                server starts.
+            </p>
+            <p>
+                This instrumentation file will be stabilized in Next.js 15. A common use case is
+                reading secrets from remote locations like Vault or 1Password. You can try this by
+                setting the appropriate variables in your <code>.env</code> file for Vault, though
+                it's not required for the demo.
+            </p>
+            <p>
+                <a href="https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation">
+                    Read the docs
+                </a>
+            </p>
+
+            <h3>Environment Variables</h3>
+            <p>
+                Next.js supports loading environment variables from <code>.env</code> files.
+            </p>
+            <p>
+                When reading values from a Server Component, you can ensure that the env var is read
+                dynamically every time. For container setups, a common use case here is to provide
+                different env vars per environment, with the same Docker image.
+            </p>
+            <p>
+                This value was read from <code>process.env</code>: <code>{secretKey}</code>
+            </p>
+            <p>
+                <a href="https://nextjs.org/docs/app/building-your-application/deploying#environment-variables">
+                    Read the docs
+                </a>
+            </p>
+        </section>
     );
 }
