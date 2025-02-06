@@ -1,6 +1,7 @@
 # matkassen
 
 Matkassen is a web application for a food parcel system.
+Matkassen is based on https://github.com/leerob/next-self-host: Next.js, Postgres, Nginx, docker and deploying strategy for a VPS.
 
 ## Repository rules
 
@@ -95,7 +96,13 @@ CREATE TABLE IF NOT EXISTS "todos" (
 
 For pushing subsequent updates, I also provided an `update.sh` script as an example.
 
-## Running Locally
+## Developing Locally
+
+Make sure the database is up and running in the docker container (`docker-compose up -d db`), then run `bun dev`.
+
+Note: you don't want to have the web service up and running in the docker container, since you want to have that locally to change files and reload the website etc.
+
+## Running Locally (as if it was in a VPS)
 
 If you want to run this setup locally using Docker, you can follow these steps:
 
