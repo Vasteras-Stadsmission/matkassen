@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import Image from "next/image";
 import { connection } from "next/server";
 
@@ -16,6 +17,7 @@ async function getPokemon() {
 
 export default async function Home() {
     const secretKey = process.env.SECRET_KEY;
+    const session = await auth()
     const pokemon = await getPokemon();
 
     return (
