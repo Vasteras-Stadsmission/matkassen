@@ -23,9 +23,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (res.status === 204) {
                     return true;
                 }
-                return false;
+                // Redirect to the error page with a query parameter indicating the error reason
+                return `/auth/error?error=not-org-member`;
             }
-            return true;
+            return `/auth/error?error=invalid-account-provider`;
         },
     },
 });
