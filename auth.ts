@@ -11,7 +11,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 const organization = process.env.GITHUB_ORG!;
                 const username = profile?.login;
                 const res = await fetch(
-                    `https://api.github.com/orgs/${organization}/members?per_page=100`,
+                    `https://api.github.com/orgs/${organization}/members/${username}`,
                     {
                         headers: {
                             "Accept": "application/vnd.github+json",
@@ -20,9 +20,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         },
                     },
                 );
-                const responseBody = await res.json();
-                // Return true if any member has a login that matches the username.
-                return responseBody.some((member: { login: string }) => member.login === username);
+                if (res.status === 204) {
+                    return true;
+                }
+                return false;
             }
             return true;
         },
