@@ -4,23 +4,25 @@ import GitHub from "next-auth/providers/github";
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [GitHub],
     callbacks: {
-        async signIn({ user, account, profile }) {
+        async signIn({ account, profile }) {
             if (account?.provider === "github") {
-                console.log("signIn", { user, account, profile });
+                // Verify that the user is a public member of the organization
+                // https://docs.github.com/en/rest/members/members#check-organization-membership-for-a-user
                 const organization = process.env.GITHUB_ORG!;
                 const username = profile?.login;
-                // GitHub returns 204 for a valid org membership
                 const res = await fetch(
-                    `https://api.github.com/orgs/${organization}/members/${username}`,
+                    `https://api.github.com/orgs/${organization}/members?per_page=100`,
                     {
                         headers: {
-                            Accept: "application/vnd.github.v3+json",
-                            Authorization: `token ${account.access_token!}`,
+                            "Accept": "application/vnd.github+json",
+                            "Authorization": `Bearer ${account.access_token!}`,
+                            "X-GitHub-Api-Version": "2022-11-28",
                         },
                     },
                 );
-                console.log("signIn res", res);
-                return res.status === 204;
+                const responseBody = await res.json();
+                // Return true if any member has a login that matches the username.
+                return responseBody.some((member: { login: string }) => member.login === username);
             }
             return true;
         },
