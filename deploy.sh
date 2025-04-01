@@ -1,13 +1,12 @@
 #!/bin/bash
 
 # Env Vars
-POSTGRES_USER="myuser"
-POSTGRES_PASSWORD=$(openssl rand -base64 12)  # Generate a random 12-character password
-POSTGRES_DB="mydatabase"
-SECRET_KEY="my-secret" # for the demo app
-NEXT_PUBLIC_SAFE_KEY="safe-key" # for the demo app
-DOMAIN_NAME="matkassen.dev" # replace with your own
-EMAIL="your-email@example.com" # replace with your own
+# POSTGRES_USER # exported from GitHub Actions
+# POSTGRES_PASSWORD # exported from GitHub Actions
+# POSTGRES_DB # exported from GitHub Actions
+# EMAIL # exported from GitHub Actions
+DOMAIN_NAME="matkassen.org"
+GITHUB_ORG=vasteras-stadsmission
 
 # Script Vars
 REPO_URL="https://github.com/Vasteras-Stadsmission/matkassen.git"
@@ -36,7 +35,7 @@ sudo apt install docker-ce -y
 
 # Install Docker Compose
 sudo rm -f /usr/local/bin/docker-compose
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.34.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 
 # Wait for the file to be fully downloaded before proceeding
 if [ ! -f /usr/local/bin/docker-compose ]; then
@@ -82,10 +81,10 @@ echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=$POSTGRES_DB" >> "$APP_DIR/.env"
 echo "DATABASE_URL=$DATABASE_URL" >> "$APP_DIR/.env"
 echo "DATABASE_URL_EXTERNAL=$DATABASE_URL_EXTERNAL" >> "$APP_DIR/.env"
-
-# These are just for the demo of env vars
-echo "SECRET_KEY=$SECRET_KEY" >> "$APP_DIR/.env"
-echo "NEXT_PUBLIC_SAFE_KEY=$NEXT_PUBLIC_SAFE_KEY" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_ID=$GITHUB_ID" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_SECRET=$GITHUB_SECRET" >> "$APP_DIR/.env"
+echo "AUTH_SECRET=$AUTH_SECRET" >> "$APP_DIR/.env"
+echo "GITHUB_ORG=$GITHUB_ORG" >> "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y
@@ -169,11 +168,4 @@ fi
 echo "Deployment complete. Your Next.js app and PostgreSQL database are now running.
 Next.js is available at https://$DOMAIN_NAME, and the PostgreSQL database is accessible from the web service.
 
-The .env file has been created with the following values:
-- POSTGRES_USER
-- POSTGRES_PASSWORD (randomly generated)
-- POSTGRES_DB
-- DATABASE_URL
-- DATABASE_URL_EXTERNAL
-- SECRET_KEY
-- NEXT_PUBLIC_SAFE_KEY"
+The .env file has been created..."
