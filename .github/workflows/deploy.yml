@@ -19,6 +19,7 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
+                      mkdir -p ~/myapp
                       cd ~/myapp || git clone https://github.com/Vasteras-Stadsmission/matkassen.git ~/myapp && cd ~/myapp
                       # Export GitHub secrets into environment variables
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
