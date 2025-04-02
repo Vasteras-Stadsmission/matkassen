@@ -76,15 +76,16 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
 # Create the .env file inside the app directory (~/myapp/.env)
-echo "POSTGRES_USER=$POSTGRES_USER" > "$APP_DIR/.env"
-echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> "$APP_DIR/.env"
-echo "POSTGRES_DB=$POSTGRES_DB" >> "$APP_DIR/.env"
-echo "DATABASE_URL=$DATABASE_URL" >> "$APP_DIR/.env"
-echo "DATABASE_URL_EXTERNAL=$DATABASE_URL_EXTERNAL" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_ID=$GITHUB_ID" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_SECRET=$GITHUB_SECRET" >> "$APP_DIR/.env"
-echo "AUTH_SECRET=$AUTH_SECRET" >> "$APP_DIR/.env"
-echo "GITHUB_ORG=$GITHUB_ORG" >> "$APP_DIR/.env"
+echo "POSTGRES_USER=\"$POSTGRES_USER\"" > "$APP_DIR/.env"
+echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
+echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
+echo "DATABASE_URL=\"$DATABASE_URL\"" >> "$APP_DIR/.env"
+echo "DATABASE_URL_EXTERNAL=\"$DATABASE_URL_EXTERNAL\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_ID=\"$GITHUB_ID\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_SECRET=\"$GITHUB_SECRET\"" >> "$APP_DIR/.env"
+echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
+echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
+echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y
@@ -156,7 +157,8 @@ sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory (~/myapp)
 cd $APP_DIR
-sudo docker-compose up --build -d
+sudo docker-compose build --no-cache
+sudo docker-compose up -d
 
 # Check if Docker Compose started correctly
 if ! sudo docker-compose ps | grep "Up"; then
