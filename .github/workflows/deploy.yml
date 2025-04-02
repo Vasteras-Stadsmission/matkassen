@@ -19,9 +19,7 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
-                      mkdir -p ~/myapp
-                      cd ~/myapp || git clone https://github.com/Vasteras-Stadsmission/matkassen.git ~/myapp && cd ~/myapp
-                      # Export GitHub secrets into environment variables
+                      echo "Export GitHub secrets into environment variables"
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
                       export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
                       export POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
@@ -29,6 +27,13 @@ jobs:
                       export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
-                      # Run the deploy script
+
+                      echo "Cloning the repository"
+                      git clone https://github.com/Vasteras-Stadsmission/matkassen.git ~/myapp
+
+                      echo "Change directory to the app folder"
+                      cd ~/myapp
+
+                      echo "Run the deploy script"
                       chmod +x deploy.sh
                       ./deploy.sh
