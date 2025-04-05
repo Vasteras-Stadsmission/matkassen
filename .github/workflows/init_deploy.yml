@@ -2,7 +2,7 @@ name: Initial deploy to Elastx
 
 on:
     workflow_dispatch:
-    - main
+        - main
 
 jobs:
     deploy:
