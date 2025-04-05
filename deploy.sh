@@ -1,35 +1,47 @@
 #!/bin/bash
 
-# Env Vars
-# POSTGRES_USER # exported from GitHub Actions
-# POSTGRES_PASSWORD # exported from GitHub Actions
-# POSTGRES_DB # exported from GitHub Actions
-# EMAIL # exported from GitHub Actions
-DOMAIN_NAME="matkassen.org"
-GITHUB_ORG=vasteras-stadsmission
+# Verify that the environment variables are set
+for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET; do
+  if [ -z "${!var}" ]; then
+    echo "Error: $var environment variable is not set"
+    exit 1
+  fi
+done
 
 # Script Vars
+DOMAIN_NAME="matkassen.org"
+GITHUB_ORG=vasteras-stadsmission
+PROJECT_NAME=matkassen
 REPO_URL="https://github.com/Vasteras-Stadsmission/matkassen.git"
-APP_DIR=~/myapp
+APP_DIR=~/$PROJECT_NAME
 SWAP_SIZE="1G"  # Swap size of 1GB
 
 # Update package list and upgrade existing packages
 sudo apt update && sudo apt upgrade -y
 
-# Add Swap Space
-echo "Adding swap space..."
-sudo fallocate -l $SWAP_SIZE /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
+# Check if swap file already exists
+if [ -f /swapfile ] || grep -q '/swapfile' /proc/swaps; then
+  echo "Swap file already exists. Skipping swap creation."
+else
+  # Add Swap Space
+  echo "Adding swap space..."
+  sudo fallocate -l $SWAP_SIZE /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
 
-# Make swap permanent
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  # Make swap permanent
+  if ! grep -q '/swapfile' /etc/fstab; then
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  fi
+fi
 
 # Install Docker
 sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" -y
+# Download and store Docker's GPG key in a keyring (replaces apt-key usage)
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+# Add Docker repo with the signed-by option pointing to the saved keyring
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt update
 sudo apt install docker-ce -y
 
@@ -49,8 +61,8 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Verify Docker Compose installation
-docker-compose --version
-if [ $? -ne 0 ]; then
+docker compose version
+if [ $? -ne 0; then
   echo "Docker Compose installation failed. Exiting."
   exit 1
 fi
@@ -75,7 +87,7 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 # For external tools (like Drizzle Studio)
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
-# Create the .env file inside the app directory (~/myapp/.env)
+# Create the .env file inside the app directory (~/matkassen/.env)
 echo "POSTGRES_USER=\"$POSTGRES_USER\"" > "$APP_DIR/.env"
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
@@ -90,16 +102,19 @@ echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env"
 # Install Nginx
 sudo apt install nginx -y
 
+# Disable default Nginx site to prevent conflicts
+sudo rm -f /etc/nginx/sites-enabled/default
+
 # Remove old Nginx config (if it exists)
-sudo rm -f /etc/nginx/sites-available/myapp
-sudo rm -f /etc/nginx/sites-enabled/myapp
+sudo rm -f /etc/nginx/sites-available/$PROJECT_NAME
+sudo rm -f /etc/nginx/sites-enabled/$PROJECT_NAME
 
 # Stop Nginx temporarily to allow Certbot to run in standalone mode
 sudo systemctl stop nginx
 
 # Obtain SSL certificate using Certbot standalone mode
 sudo apt install certbot -y
-sudo certbot certonly --standalone -d $DOMAIN_NAME --non-interactive --agree-tos -m $EMAIL
+sudo certbot certonly --standalone -d $DOMAIN_NAME,www.$DOMAIN_NAME --non-interactive --agree-tos -m $EMAIL
 
 # Ensure SSL files exist or generate them
 if [ ! -f /etc/letsencrypt/options-ssl-nginx.conf ]; then
@@ -110,26 +125,64 @@ if [ ! -f /etc/letsencrypt/ssl-dhparams.pem ]; then
   sudo openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048
 fi
 
+# Set up automatic SSL certificate renewal
+echo "Setting up automatic SSL certificate renewal..."
+
+# Install certbot-nginx plugin
+sudo apt install python3-certbot-nginx -y
+
+# Create pre and post renewal hooks to handle Nginx restart
+sudo mkdir -p /etc/letsencrypt/renewal-hooks/pre
+sudo mkdir -p /etc/letsencrypt/renewal-hooks/post
+
+# Create pre-renewal hook to stop Nginx
+sudo cat > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh <<'EOHOOK'
+#!/bin/bash
+systemctl stop nginx
+EOHOOK
+sudo chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
+
+# Create post-renewal hook to start Nginx
+sudo cat > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh <<'EOHOOK'
+#!/bin/bash
+systemctl start nginx
+EOHOOK
+sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
+
+# Setup automated renewal cron job that runs twice daily
+echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew
+
 # Create Nginx config with reverse proxy, SSL support, rate limiting, and streaming support
-sudo cat > /etc/nginx/sites-available/myapp <<EOL
+sudo cat > /etc/nginx/sites-available/$PROJECT_NAME <<EOL
 limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
 
+# Redirect HTTP traffic to HTTPS
 server {
     listen 80;
-    server_name $DOMAIN_NAME;
+    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
 
     # Redirect all HTTP requests to HTTPS
     return 301 https://\$host\$request_uri;
 }
 
+# Serve HTTPS traffic
 server {
     listen 443 ssl;
-    server_name $DOMAIN_NAME;
+    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
 
     ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Security headers
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; form-action 'self'; upgrade-insecure-requests;" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()" always;
 
     # Enable rate limiting
     limit_req zone=mylimit burst=20 nodelay;
@@ -150,21 +203,24 @@ server {
 EOL
 
 # Create symbolic link if it doesn't already exist
-sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/myapp
+sudo ln -s /etc/nginx/sites-available/$PROJECT_NAME /etc/nginx/sites-enabled/$PROJECT_NAME
 
 # Restart Nginx to apply the new configuration
 sudo systemctl restart nginx
 
-# Build and run the Docker containers from the app directory (~/myapp)
+# Build and run the Docker containers from the app directory
 cd $APP_DIR
-sudo docker-compose build --no-cache
-sudo docker-compose up -d
+sudo docker compose build --no-cache
+sudo docker compose up -d
 
 # Check if Docker Compose started correctly
-if ! sudo docker-compose ps | grep "Up"; then
-  echo "Docker containers failed to start. Check logs with 'docker-compose logs'."
+if ! sudo docker compose ps | grep "Up"; then
+  echo "Docker containers failed to start. Check logs with 'docker compose logs'."
   exit 1
 fi
+
+# Cleanup old Docker images and containers
+sudo docker system prune -af
 
 # Output final message
 echo "Deployment complete. Your Next.js app and PostgreSQL database are now running.

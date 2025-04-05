@@ -96,43 +96,6 @@ CREATE TABLE IF NOT EXISTS "todos" (
 
 For pushing subsequent updates, I also provided an `update.sh` script as an example.
 
-## nginx config on VPS
-
-This is the nginx configuration needed on the VPS
-Make sure that the certs are are the below location. They should have been created by deploy.sh
-
-```sh
-# /etc/nginx/sites-available/matkassen
-
-# Redirect HTTP traffic to HTTPS
-server {
-    listen 80;
-    server_name matkassen.org www.matkassen.org;
-    return 301 https://$host$request_uri;
-}
-
-# Serve HTTPS traffic
-server {
-    listen 443 ssl;
-    server_name matkassen.org www.matkassen.org;
-
-    ssl_certificate /etc/letsencrypt/live/matkassen.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/matkassen.org/privkey.pem;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
 ## Developing Locally
 
 Make sure the database is up and running in the docker container (`docker-compose up -d db`), then run `bun dev`.
