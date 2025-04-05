@@ -7,10 +7,11 @@
 # EMAIL # exported from GitHub Actions
 DOMAIN_NAME="matkassen.org"
 GITHUB_ORG=vasteras-stadsmission
+PROJECT_NAME=matkassen
 
 # Script Vars
 REPO_URL="https://github.com/Vasteras-Stadsmission/matkassen.git"
-APP_DIR=~/myapp
+APP_DIR=~/$PROJECT_NAME
 SWAP_SIZE="1G"  # Swap size of 1GB
 
 # Update package list and upgrade existing packages
@@ -75,7 +76,7 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 # For external tools (like Drizzle Studio)
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
-# Create the .env file inside the app directory (~/myapp/.env)
+# Create the .env file inside the app directory (~/matkassen/.env)
 echo "POSTGRES_USER=\"$POSTGRES_USER\"" > "$APP_DIR/.env"
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
@@ -90,9 +91,12 @@ echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env"
 # Install Nginx
 sudo apt install nginx -y
 
+# Disable default Nginx site to prevent conflicts
+sudo rm -f /etc/nginx/sites-enabled/default
+
 # Remove old Nginx config (if it exists)
-sudo rm -f /etc/nginx/sites-available/myapp
-sudo rm -f /etc/nginx/sites-enabled/myapp
+sudo rm -f /etc/nginx/sites-available/$PROJECT_NAME
+sudo rm -f /etc/nginx/sites-enabled/$PROJECT_NAME
 
 # Stop Nginx temporarily to allow Certbot to run in standalone mode
 sudo systemctl stop nginx
@@ -110,21 +114,50 @@ if [ ! -f /etc/letsencrypt/ssl-dhparams.pem ]; then
   sudo openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048
 fi
 
+# Set up automatic SSL certificate renewal
+echo "Setting up automatic SSL certificate renewal..."
+
+# Install certbot-nginx plugin
+sudo apt install python3-certbot-nginx -y
+
+# Create pre and post renewal hooks to handle Nginx restart
+sudo mkdir -p /etc/letsencrypt/renewal-hooks/pre
+sudo mkdir -p /etc/letsencrypt/renewal-hooks/post
+
+# Create pre-renewal hook to stop Nginx
+sudo cat > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh <<'EOHOOK'
+#!/bin/bash
+systemctl stop nginx
+EOHOOK
+sudo chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
+
+# Create post-renewal hook to start Nginx
+sudo cat > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh <<'EOHOOK'
+#!/bin/bash
+systemctl start nginx
+EOHOOK
+sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
+
+# Setup automated renewal cron job that runs twice daily
+echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew
+
 # Create Nginx config with reverse proxy, SSL support, rate limiting, and streaming support
-sudo cat > /etc/nginx/sites-available/myapp <<EOL
+sudo cat > /etc/nginx/sites-available/$PROJECT_NAME <<EOL
 limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
 
+# Redirect HTTP traffic to HTTPS
 server {
     listen 80;
-    server_name $DOMAIN_NAME;
+    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
 
     # Redirect all HTTP requests to HTTPS
     return 301 https://\$host\$request_uri;
 }
 
+# Serve HTTPS traffic
 server {
     listen 443 ssl;
-    server_name $DOMAIN_NAME;
+    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
 
     ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
@@ -150,12 +183,12 @@ server {
 EOL
 
 # Create symbolic link if it doesn't already exist
-sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/myapp
+sudo ln -s /etc/nginx/sites-available/$PROJECT_NAME /etc/nginx/sites-enabled/$PROJECT_NAME
 
 # Restart Nginx to apply the new configuration
 sudo systemctl restart nginx
 
-# Build and run the Docker containers from the app directory (~/myapp)
+# Build and run the Docker containers from the app directory
 cd $APP_DIR
 sudo docker-compose build --no-cache
 sudo docker-compose up -d
