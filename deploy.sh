@@ -61,8 +61,8 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Verify Docker Compose installation
-docker-compose --version
-if [ $? -ne 0 ]; then
+docker compose version
+if [ $? -ne 0; then
   echo "Docker Compose installation failed. Exiting."
   exit 1
 fi
@@ -210,12 +210,12 @@ sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory
 cd $APP_DIR
-sudo docker-compose build --no-cache
-sudo docker-compose up -d
+sudo docker compose build --no-cache
+sudo docker compose up -d
 
 # Check if Docker Compose started correctly
-if ! sudo docker-compose ps | grep "Up"; then
-  echo "Docker containers failed to start. Check logs with 'docker-compose logs'."
+if ! sudo docker compose ps | grep "Up"; then
+  echo "Docker containers failed to start. Check logs with 'docker compose logs'."
   exit 1
 fi
 
