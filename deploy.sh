@@ -19,15 +19,22 @@ SWAP_SIZE="1G"  # Swap size of 1GB
 # Update package list and upgrade existing packages
 sudo apt update && sudo apt upgrade -y
 
-# Add Swap Space
-echo "Adding swap space..."
-sudo fallocate -l $SWAP_SIZE /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
+# Check if swap file already exists
+if [ -f /swapfile ] || grep -q '/swapfile' /proc/swaps; then
+  echo "Swap file already exists. Skipping swap creation."
+else
+  # Add Swap Space
+  echo "Adding swap space..."
+  sudo fallocate -l $SWAP_SIZE /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
 
-# Make swap permanent
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  # Make swap permanent
+  if ! grep -q '/swapfile' /etc/fstab; then
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  fi
+fi
 
 # Install Docker
 sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
