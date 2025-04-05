@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# Env Vars
-# POSTGRES_USER # exported from GitHub Actions
-# POSTGRES_PASSWORD # exported from GitHub Actions
-# POSTGRES_DB # exported from GitHub Actions
-# EMAIL # exported from GitHub Actions
+# Verify that the environment variables are set
+for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET; do
+  if [ -z "${!var}" ]; then
+    echo "Error: $var environment variable is not set"
+    exit 1
+  fi
+done
+
+# Script Vars
 DOMAIN_NAME="matkassen.org"
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
-
-# Script Vars
 REPO_URL="https://github.com/Vasteras-Stadsmission/matkassen.git"
 APP_DIR=~/$PROJECT_NAME
 SWAP_SIZE="1G"  # Swap size of 1GB
@@ -29,8 +31,10 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 # Install Docker
 sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" -y
+# Download and store Docker's GPG key in a keyring (replaces apt-key usage)
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+# Add Docker repo with the signed-by option pointing to the saved keyring
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt update
 sudo apt install docker-ce -y
 
@@ -103,7 +107,7 @@ sudo systemctl stop nginx
 
 # Obtain SSL certificate using Certbot standalone mode
 sudo apt install certbot -y
-sudo certbot certonly --standalone -d $DOMAIN_NAME --non-interactive --agree-tos -m $EMAIL
+sudo certbot certonly --standalone -d $DOMAIN_NAME,www.$DOMAIN_NAME --non-interactive --agree-tos -m $EMAIL
 
 # Ensure SSL files exist or generate them
 if [ ! -f /etc/letsencrypt/options-ssl-nginx.conf ]; then
