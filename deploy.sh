@@ -210,6 +210,9 @@ if ! sudo docker-compose ps | grep "Up"; then
   exit 1
 fi
 
+# Cleanup old Docker images and containers
+sudo docker system prune -af
+
 # Output final message
 echo "Deployment complete. Your Next.js app and PostgreSQL database are now running.
 Next.js is available at https://$DOMAIN_NAME, and the PostgreSQL database is accessible from the web service.
