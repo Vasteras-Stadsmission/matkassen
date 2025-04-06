@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Verify that the environment variables are set
-for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET; do
+for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME; do
   if [ -z "${!var}" ]; then
     echo "Error: $var environment variable is not set"
     exit 1
@@ -9,7 +9,16 @@ for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH
 done
 
 # Script Vars
-DOMAIN_NAME="matkassen.org"
+if [[ "$DOMAIN_NAME" == "matkassen.org" ]]; then
+  # For production, include www subdomain
+  DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
+  CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
+else
+  # For staging, don't include www
+  DOMAIN_NAMES="$DOMAIN_NAME"
+  CERTBOT_DOMAINS="-d $DOMAIN_NAME"
+fi
+
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
 REPO_URL="https://github.com/Vasteras-Stadsmission/matkassen.git"
@@ -115,7 +124,7 @@ sudo rm -f /etc/nginx/sites-enabled/$PROJECT_NAME
 sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
 server {
     listen 80;
-    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
+    server_name $DOMAIN_NAMES;
 
     location / {
         return 200 "Server is being configured";
@@ -131,7 +140,7 @@ sudo systemctl restart nginx
 
 # Use certbot with the nginx plugin to automatically handle certificates and configuration
 sudo apt install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos -m $EMAIL
+sudo certbot --nginx $CERTBOT_DOMAINS --non-interactive --agree-tos -m $EMAIL
 
 # Ensure SSL files exist or generate them
 if [ ! -f /etc/letsencrypt/options-ssl-nginx.conf ]; then
@@ -173,7 +182,7 @@ limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
 # Redirect HTTP traffic to HTTPS
 server {
     listen 80;
-    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
+    server_name $DOMAIN_NAMES;
 
     # Redirect all HTTP requests to HTTPS
     return 301 https://\$host\$request_uri;
@@ -182,7 +191,7 @@ server {
 # Serve HTTPS traffic
 server {
     listen 443 ssl;
-    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
+    server_name $DOMAIN_NAMES;
 
     ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
