@@ -45,11 +45,17 @@ jobs:
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
 
+                      echo "Checking if app directory exists"
+                      if [ -d ~/matkassen ]; then
+                        echo "Directory exists, removing it"
+                        rm -rf ~/matkassen
+                      fi
+
                       echo "Cloning the repository"
-                      git clone https://github.com/Vasteras-Stadsmission/matkassen.git ~/myapp
+                      git clone https://github.com/Vasteras-Stadsmission/matkassen.git ~/matkassen
 
                       echo "Change directory to the app folder"
-                      cd ~/myapp
+                      cd ~/matkassen
 
                       echo "Run the deploy script"
                       chmod +x deploy.sh
