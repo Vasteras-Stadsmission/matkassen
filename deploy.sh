@@ -106,7 +106,6 @@ echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" >> "$APP_DIR/.env"
 echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
-echo "AUTH_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"
 echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
 echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env" # Needed for Certbot
 
