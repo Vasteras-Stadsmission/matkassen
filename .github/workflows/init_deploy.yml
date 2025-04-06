@@ -2,6 +2,15 @@ name: Initial deploy to Elastx
 
 on:
     workflow_dispatch:
+        inputs:
+            environment:
+                description: 'Target environment'
+                required: true
+                type: choice
+                options:
+                  - production
+                  - staging
+                default: 'staging'
 
 jobs:
     deploy:
@@ -11,10 +20,19 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Set server host based on environment
+              id: set-host
+              run: |
+                if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+                  echo "server_host=${{ secrets.SERVER_HOST_PRODUCTION }}" >> $GITHUB_OUTPUT
+                else
+                  echo "server_host=${{ secrets.SERVER_HOST_STAGING }}" >> $GITHUB_OUTPUT
+                fi
+
             - name: Deploy via SSH
               uses: appleboy/ssh-action@v1.2.2
               with:
-                  host: ${{ secrets.SERVER_HOST }}
+                  host: ${{ steps.set-host.outputs.server_host }}
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
