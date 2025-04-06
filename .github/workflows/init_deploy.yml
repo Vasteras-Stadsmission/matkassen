@@ -2,6 +2,15 @@ name: Initial deploy to Elastx
 
 on:
     workflow_dispatch:
+        inputs:
+            environment:
+                description: "Target environment"
+                required: true
+                type: choice
+                options:
+                    - production
+                    - staging
+                default: "staging"
 
 jobs:
     deploy:
@@ -11,10 +20,19 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Set server host based on environment
+              id: set-host
+              run: |
+                  if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+                    echo "server_host=${{ secrets.SERVER_HOST_PRODUCTION }}" >> $GITHUB_OUTPUT
+                  else
+                    echo "server_host=${{ secrets.SERVER_HOST_STAGING }}" >> $GITHUB_OUTPUT
+                  fi
+
             - name: Deploy via SSH
               uses: appleboy/ssh-action@v1.2.2
               with:
-                  host: ${{ secrets.SERVER_HOST }}
+                  host: ${{ steps.set-host.outputs.server_host }}
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
@@ -27,11 +45,17 @@ jobs:
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
 
+                      echo "Checking if app directory exists"
+                      if [ -d ~/matkassen ]; then
+                        echo "Directory exists, removing it"
+                        rm -rf ~/matkassen
+                      fi
+
                       echo "Cloning the repository"
-                      git clone https://github.com/Vasteras-Stadsmission/matkassen.git ~/myapp
+                      git clone https://github.com/Vasteras-Stadsmission/matkassen.git ~/matkassen
 
                       echo "Change directory to the app folder"
-                      cd ~/myapp
+                      cd ~/matkassen
 
                       echo "Run the deploy script"
                       chmod +x deploy.sh
