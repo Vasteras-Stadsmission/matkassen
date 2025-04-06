@@ -21,4 +21,15 @@ jobs:
               run: bun install --frozen-lockfile
 
             - name: Build
+              env:
+                POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+                POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+                POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+                EMAIL: ${{ secrets.EMAIL }}
+                AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+                AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+                AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+                AUTH_URL: ${{ secrets.AUTH_URL }}
+                DATABASE_URL: ${{ secrets.DATABASE_URL }}
+                DATABASE_URL_EXTERNAL: ${{ secrets.DATABASE_URL_EXTERNAL }}
               run: bun run build
