@@ -150,24 +150,24 @@ sudo mkdir -p /etc/letsencrypt/renewal-hooks/pre
 sudo mkdir -p /etc/letsencrypt/renewal-hooks/post
 
 # Create pre-renewal hook to stop Nginx
-sudo cat > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh <<'EOHOOK'
+sudo tee /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh > /dev/null <<'EOHOOK'
 #!/bin/bash
 systemctl stop nginx
 EOHOOK
 sudo chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
 
 # Create post-renewal hook to start Nginx
-sudo cat > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh <<'EOHOOK'
+sudo tee /etc/letsencrypt/renewal-hooks/post/start-nginx.sh > /dev/null <<'EOHOOK'
 #!/bin/bash
 systemctl start nginx
 EOHOOK
 sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
 
 # Setup automated renewal cron job that runs twice daily
-echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew
+echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew > /dev/null
 
 # Now, replace the Nginx config with the full configuration including security headers
-sudo cat > /etc/nginx/sites-available/$PROJECT_NAME <<EOL
+sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
 limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
 
 # Redirect HTTP traffic to HTTPS
