@@ -62,7 +62,7 @@ sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Verify Docker Compose installation
 docker compose version
-if [ $? -ne 0; then
+if [ $? -ne 0 ]; then
   echo "Docker Compose installation failed. Exiting."
   exit 1
 fi
@@ -111,12 +111,27 @@ sudo rm -f /etc/nginx/sites-enabled/default
 sudo rm -f /etc/nginx/sites-available/$PROJECT_NAME
 sudo rm -f /etc/nginx/sites-enabled/$PROJECT_NAME
 
-# Stop Nginx temporarily to allow Certbot to run in standalone mode
-sudo systemctl stop nginx
+# Create a temporary basic Nginx config for initial setup
+sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
+server {
+    listen 80;
+    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
 
-# Obtain SSL certificate using Certbot standalone mode
-sudo apt install certbot -y
-sudo certbot certonly --standalone -d $DOMAIN_NAME,www.$DOMAIN_NAME --non-interactive --agree-tos -m $EMAIL
+    location / {
+        return 200 "Server is being configured";
+    }
+}
+EOL
+
+# Enable the temporary configuration
+sudo ln -s /etc/nginx/sites-available/$PROJECT_NAME /etc/nginx/sites-enabled/$PROJECT_NAME
+
+# Start Nginx with temporary config
+sudo systemctl restart nginx
+
+# Use certbot with the nginx plugin to automatically handle certificates and configuration
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos -m $EMAIL
 
 # Ensure SSL files exist or generate them
 if [ ! -f /etc/letsencrypt/options-ssl-nginx.conf ]; then
@@ -129,9 +144,6 @@ fi
 
 # Set up automatic SSL certificate renewal
 echo "Setting up automatic SSL certificate renewal..."
-
-# Install certbot-nginx plugin
-sudo apt install python3-certbot-nginx -y
 
 # Create pre and post renewal hooks to handle Nginx restart
 sudo mkdir -p /etc/letsencrypt/renewal-hooks/pre
@@ -154,7 +166,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
 # Setup automated renewal cron job that runs twice daily
 echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew
 
-# Create Nginx config with reverse proxy, SSL support, rate limiting, and streaming support
+# Now, replace the Nginx config with the full configuration including security headers
 sudo cat > /etc/nginx/sites-available/$PROJECT_NAME <<EOL
 limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
 
@@ -204,10 +216,7 @@ server {
 }
 EOL
 
-# Create symbolic link if it doesn't already exist
-sudo ln -s /etc/nginx/sites-available/$PROJECT_NAME /etc/nginx/sites-enabled/$PROJECT_NAME
-
-# Restart Nginx to apply the new configuration
+# Restart Nginx to apply the updated configuration
 sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory
