@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# This script sets up a Next.js app with PostgreSQL and Nginx on an Ubuntu server.
+# It installs Docker, Docker Compose, and Certbot for SSL certificates.
+# It also configures Nginx with security headers and rate limiting.
+# It assumes that the server is running Ubuntu and has a public IP address.
+
 # Verify that the environment variables are set
 for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME; do
   if [ -z "${!var}" ]; then
