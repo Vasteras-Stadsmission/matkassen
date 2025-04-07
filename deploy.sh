@@ -240,7 +240,7 @@ sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory
 cd $APP_DIR
-sudo docker compose build --no-cache
+sudo COMPOSE_BAKE=true docker compose build --no-cache
 sudo docker compose up -d
 
 # Check if Docker Compose started correctly
