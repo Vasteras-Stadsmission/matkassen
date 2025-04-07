@@ -111,6 +111,8 @@ echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" >> "$APP_DIR/.env"
 echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
+echo "AUTH_URL=https://matkassen.org/api/auth" >> "$APP_DIR/.env"
+echo "AUTH_REDIRECT_PROXY_URL=https://matkassen.org/api/auth" >> "$APP_DIR/.env"
 echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
 echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env" # Needed for Certbot
 
@@ -203,7 +205,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     # Security headers
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; form-action 'self'; upgrade-insecure-requests;" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; form-action 'self' https://github.com; upgrade-insecure-requests;" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-XSS-Protection "1; mode=block" always;

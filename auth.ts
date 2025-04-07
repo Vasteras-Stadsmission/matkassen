@@ -2,15 +2,7 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-    providers: [
-        GitHub({
-            // Use the production URL as the redirect proxy (works for staging and localhost as well)
-            redirectProxyUrl:
-                process.env.NODE_ENV === "production"
-                    ? undefined
-                    : "https://matkassen.org/api/auth/callback/github",
-        }),
-    ],
+    providers: [GitHub],
     callbacks: {
         authorized: async ({ auth }) => {
             // Logged in users are authenticated, otherwise redirect to login page
