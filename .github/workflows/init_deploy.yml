@@ -14,11 +14,23 @@ on:
 
 jobs:
     deploy:
+        name: Deploy to ${{ github.event.inputs.environment }}
         if: github.ref == 'refs/heads/main'
         runs-on: ubuntu-latest
+        environment: ${{ github.event.inputs.environment }}
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
+
+            - name: Display target environment
+              run: |
+                  echo "=================================="
+                  echo "DEPLOYING TO ${{ github.event.inputs.environment }} ENVIRONMENT"
+                  echo "=================================="
+
+            - name: Add to workflow summary
+              run: |
+                  echo "## 🚀 Deploying to ${{ github.event.inputs.environment }} environment" >> $GITHUB_STEP_SUMMARY
 
             - name: Set server host based on environment
               id: set-host
