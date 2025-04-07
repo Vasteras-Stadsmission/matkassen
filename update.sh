@@ -14,6 +14,9 @@ APP_DIR=~/$PROJECT_NAME
 if [ -d "$APP_DIR" ]; then
   echo "Pulling latest changes from the repository..."
   cd $APP_DIR
+  echo "Discarding any local changes..."
+  git reset --hard HEAD
+  git clean -fd
   git pull origin main
 else
   echo "App directory not found. Please run deploy.sh first."
