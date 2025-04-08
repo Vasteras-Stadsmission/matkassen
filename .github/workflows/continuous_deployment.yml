@@ -6,33 +6,20 @@ on:
 
 jobs:
     deploy-to-staging:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Deploy to staging
-              uses: appleboy/ssh-action@v1.2.2
-              with:
-                  host: ${{ secrets.SERVER_HOST_STAGING }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  script: |
-                      cd ~/matkassen
-                      git pull origin main
-                      chmod +x update.sh
-                      ./update.sh
+        uses: ./.github/workflows/deploy.yml
+        with:
+            environment: staging
+        secrets:
+            SERVER_HOST: ${{ secrets.SERVER_HOST_STAGING }}
+            SERVER_USER: ${{ secrets.SERVER_USER }}
+            SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
 
     manual-deploy-to-production:
         needs: deploy-to-staging
-        environment: production
-        runs-on: ubuntu-latest
-        steps:
-            - name: Deploy to production
-              uses: appleboy/ssh-action@v1.2.2
-              with:
-                  host: ${{ secrets.SERVER_HOST_PRODUCTION }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  script: |
-                      cd ~/matkassen
-                      git pull origin main
-                      chmod +x update.sh
-                      ./update.sh
+        uses: ./.github/workflows/deploy.yml
+        with:
+            environment: production
+        secrets:
+            SERVER_HOST: ${{ secrets.SERVER_HOST_PRODUCTION }}
+            SERVER_USER: ${{ secrets.SERVER_USER }}
+            SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
