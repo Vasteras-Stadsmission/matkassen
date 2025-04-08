@@ -6,7 +6,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     callbacks: {
         authorized: async ({ auth }) => {
             // Logged in users are authenticated, otherwise redirect to login page
-            return !!auth?.user;
+            return !!auth;
         },
         async signIn({ account, profile }) {
             if (account?.provider === "github") {
