@@ -102,19 +102,19 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
 # Create the .env file inside the app directory (~/matkassen/.env)
-echo "POSTGRES_USER=\"$POSTGRES_USER\"" > "$APP_DIR/.env"
-echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
-echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
-echo "DATABASE_URL=\"$DATABASE_URL\"" >> "$APP_DIR/.env"
-echo "DATABASE_URL_EXTERNAL=\"$DATABASE_URL_EXTERNAL\"" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" > "$APP_DIR/.env"
 echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
+echo "AUTH_REDIRECT_PROXY_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
 echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
 echo "AUTH_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
-echo "AUTH_REDIRECT_PROXY_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
-echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
+echo "DATABASE_URL=\"$DATABASE_URL\"" >> "$APP_DIR/.env"
+echo "DATABASE_URL_EXTERNAL=\"$DATABASE_URL_EXTERNAL\"" >> "$APP_DIR/.env"
 echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env" # Needed for Certbot
+echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
+echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
+echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
+echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y
