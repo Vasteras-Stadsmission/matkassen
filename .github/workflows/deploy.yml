@@ -1,0 +1,54 @@
+# This workflow is triggered by Continuous Deployment and lies in a separate file to minimize code duplication.
+
+name: Deploy
+
+on:
+    workflow_call:
+        inputs:
+            environment:
+                required: true
+                type: string
+        secrets:
+            SERVER_HOST:
+                required: true
+            SERVER_USER:
+                required: true
+            SERVER_SSH_KEY:
+                required: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        environment: ${{ inputs.environment }}
+        steps:
+            - name: Deploy to ${{ inputs.environment }}
+              uses: appleboy/ssh-action@v1.2.2
+              with:
+                  host: ${{ secrets.SERVER_HOST }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  script: |
+                      cd ~/matkassen
+
+                      echo "Pulling latest changes from the repository..."
+                      git reset --hard HEAD
+                      git clean -fd
+                      git pull origin main
+
+                      echo "Checking for .env file..."
+                      if [ ! -f ".env" ]; then
+                        echo "ERROR: .env file not found"
+                        exit 1
+                      fi
+
+                      echo "Rebuilding and restarting Docker containers..."
+                      sudo COMPOSE_BAKE=true docker compose build
+                      sudo docker compose up -d
+
+                      echo "Verifying containers are running..."
+                      if ! sudo docker compose ps | grep "Up"; then
+                        echo "Docker containers failed to start. Check logs with 'docker compose logs'."
+                        exit 1
+                      fi
+
+                      echo "Deployment to ${{ inputs.environment }} complete."
