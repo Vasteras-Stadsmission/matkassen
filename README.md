@@ -47,6 +47,7 @@ docker compose -f docker-compose.dev.yml logs
 Updating `schema.ts` followed by running `bun run db:push` inside the docker container will migrate the database directly without the need for migration `.sql` files (see https://orm.drizzle.team/docs/drizzle-kit-push).
 
 To trigger the update from outside the container run:
+
 ```sh
 sudo docker compose exec web bun run db:push
 ```
@@ -58,6 +59,7 @@ However, you might want to use the above command when devloping locally.
 ## Helpful Commands
 
 Note that sudo is needed when executing the commands on the VPS.
+
 - `sudo docker compose ps` – check status of Docker containers
 - `sudo docker compose logs web` – view Next.js output logs
 - `sudo systemctl restart nginx` - restart nginx
