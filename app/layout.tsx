@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Next.js Self Hosted Demo",
-    description: "This is hosted on Ubuntu Linux with Nginx as a reverse proxy.",
+    title: "Matkassen",
+    description: "Food parcel handout administration app.",
 };
 
 export default function RootLayout({

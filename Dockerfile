@@ -13,10 +13,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN bun run build
 
-# Stage 3: Production server
+# Stage 3: Create the production image
 FROM base AS runner
 WORKDIR /app
-ENV NODE_ENV=production
 
 # Auth.js requirements
 ENV PORT 3000
