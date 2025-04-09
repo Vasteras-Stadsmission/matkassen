@@ -96,26 +96,24 @@ CREATE TABLE IF NOT EXISTS "todos" (
 
 For pushing subsequent updates, I also provided an `update.sh` script as an example.
 
-## Developing Locally
+## Developing Locally with hot reloads
 
-Make sure the database is up and running in the docker container (`docker-compose up -d db`), then run `bun dev`.
+When devloping locally you can use a similar setup as in the production environment. However, instead of using `./docker-compose.yml` which makes use of `./Dockerfile`, you will instead use the combo `./docker-compose.dev.yml` and `.Dockerfile.dev`.
 
-Note: you don't want to have the web service up and running in the docker container, since you want to have that locally to change files and reload the website etc.
+Here are some useful commands
 
-## Running Locally (as if it was in a VPS)
+```sh
+# Start containers
+docker compose -f docker-compose.dev.yml up
 
-If you want to run this setup locally using Docker, you can follow these steps:
+# Rebuild and start (delegate builds to bake for better performance)
+COMPOSE_BAKE=true docker compose -f docker-compose.dev.yml up --build
 
-```bash
-docker-compose up -d
-```
+# Stop containers
+docker compose -f docker-compose.dev.yml down
 
-This will start both services and make your Next.js app available at `http://localhost:3000` with the PostgreSQL database running in the background. We also create a network so that our two containers can communicate with each other.
-
-If you want to view the contents of the local database, you can use Drizzle Studio:
-
-```bash
-bun run db:studio
+# View logs
+docker compose -f docker-compose.dev.yml logs
 ```
 
 ## Handling Postgres DB

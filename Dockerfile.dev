@@ -1,0 +1,19 @@
+# This Dockerfile is used for development purposes, i.e. in combination with `docker-compose.dev.yml`
+
+FROM oven/bun:alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock ./
+
+# Install dependencies
+RUN bun install
+
+# Auth.js requirements
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+# The rest will be mounted at runtime
+EXPOSE 3000
+CMD ["bunx", "next", "dev"]
