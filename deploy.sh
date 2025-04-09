@@ -249,6 +249,10 @@ if ! sudo docker compose ps | grep "Up"; then
   exit 1
 fi
 
+# Wait for the database to be ready
+echo "Applying database schema changes..."
+sudo docker compose exec web bun run db:push
+
 # Cleanup old Docker images and containers
 sudo docker system prune -af
 
