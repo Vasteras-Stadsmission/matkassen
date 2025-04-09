@@ -8,7 +8,8 @@
         "start": "next start",
         "lint": "next lint",
         "format-check": "prettier --check .",
-        "format": "prettier --write ."
+        "format": "prettier --write .",
+        "db:push": "npx drizzle-kit push"
     },
     "dependencies": {
         "@types/pg": "^8.11.11",
