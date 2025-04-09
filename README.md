@@ -8,93 +8,19 @@ Matkassen is based on https://github.com/leerob/next-self-host: Next.js, Postgre
 This repository has a protected `main` branch. To have something pushed to `main` you will have to create a pull request.
 To keep the git commit history in `main` clean, we use the **squash and merge** pattern using PR title and body as commit title and body.
 
-# Next.js Self Hosting Example
-
-This repo shows how to deploy a Next.js app and a PostgreSQL database on a Ubuntu Linux server using Docker and Nginx. It showcases using several features of Next.js like caching, ISR, environment variables, and more.
-
-[**📹 Watch the tutorial (45m)**](https://www.youtube.com/watch?v=sIVL4JMqRfc)
-
-[![Self Hosting Video Thumbnail](https://img.youtube.com/vi/sIVL4JMqRfc/0.jpg)](https://www.youtube.com/watch?v=sIVL4JMqRfc)
-
 ## Prerequisites
 
 1. Purchase a domain name
 2. Purchase a Linux Ubuntu server (e.g. [droplet](https://www.digitalocean.com/products/droplets))
 3. Create an `A` DNS record pointing to your server IPv4 address
 
-## Quickstart
+## Continuous integration and deployment
 
-1. **SSH into your server**:
+This project runs on both a staging and production environment.
 
-    ```bash
-    ssh -i ~/.ssh/your.pem ubuntu@185.24.134.140
-    ```
+This repo contains GitHub actions which will automatically deploy your app to the staging environment when you push to the `main` branch (see `.github/workflows/continuous_deployment.yml`). To deploy to the production environment, you need to manually allow the deployment (requires certain GitHub privileges).
 
-2. **Download the deployment script**:
-
-    ```bash
-    curl -o ~/deploy.sh https://github.com/Vasteras-Stadsmission/matkassen/blob/main/deploy.sh
-    ```
-
-    You can then modify the email and domain name variables inside of the script to use your own.
-
-3. **Run the deployment script**:
-
-    ```bash
-    chmod +x ~/deploy.sh
-    ./deploy.sh
-    ```
-
-## Supported Features
-
-This demo tries to showcase many different Next.js features.
-
-- Image Optimization
-- Streaming
-- Talking to a Postgres database
-- Caching
-- Incremental Static Regeneration
-- Reading environment variables
-- Using Middleware
-- Running code on server startup
-- A cron that hits a Route Handler
-
-View the demo at https://nextselfhost.dev to see further explanations.
-
-## Deploy Script
-
-I've included a Bash script which does the following:
-
-1. Installs all the necessary packages for your server
-1. Installs Docker, Docker Compose, and Nginx
-1. Clones this repository
-1. Generates an SSL certificate
-1. Builds your Next.js application from the Dockerfile
-1. Sets up Nginx and configures HTTPS and rate limting
-1. Sets up a cron which clears the database every 10m
-1. Creates a `.env` file with your Postgres database creds
-
-Once the deployment completes, your Next.js app will be available at:
-
-```
-http://your-provided-domain.com
-```
-
-Both the Next.js app and PostgreSQL database will be up and running in Docker containers. To set up your database, you could install `npm` inside your Postgres container and use the Drizzle scripts, or you can use `psql`:
-
-```bash
-docker exec -it myapp-db-1 sh
-apk add --no-cache postgresql-client
-psql -U myuser -d mydatabase -c '
-CREATE TABLE IF NOT EXISTS "todos" (
-  "id" serial PRIMARY KEY NOT NULL,
-  "content" varchar(255) NOT NULL,
-  "completed" boolean DEFAULT false,
-  "created_at" timestamp DEFAULT now()
-);'
-```
-
-For pushing subsequent updates, I also provided an `update.sh` script as an example.
+Note, first-time deployment to a VPS is handled using GitHub action `./.github/workflows/init_deploy.yml`, which is triggered manually in GitHub.
 
 ## Developing Locally with hot reloads
 
@@ -118,18 +44,26 @@ docker compose -f docker-compose.dev.yml logs
 
 ## Handling Postgres DB
 
-Updating `schema.ts` followed by running `bun run db:push` outside the docker container will migrate the database directly without the need for migration `.sql` files (see https://orm.drizzle.team/docs/drizzle-kit-push).
+Updating `schema.ts` followed by running `bun run db:push` inside the docker container will migrate the database directly without the need for migration `.sql` files (see https://orm.drizzle.team/docs/drizzle-kit-push).
+
+To trigger the update from outside the container run:
+```sh
+sudo docker compose exec web bun run db:push
+```
+
+This is made automatically on deployment (initial and incremental).
+
+However, you might want to use the above command when devloping locally.
 
 ## Helpful Commands
 
-- `docker-compose ps` – check status of Docker containers
-- `docker-compose logs web` – view Next.js output logs
-- `docker-compose logs cron` – view cron logs
-- `docker-compose down` - shut down the Docker containers
-- `docker-compose up -d` - start containers in the background
+Note that sudo is needed when executing the commands on the VPS.
+- `sudo docker compose ps` – check status of Docker containers
+- `sudo docker compose logs web` – view Next.js output logs
 - `sudo systemctl restart nginx` - restart nginx
-- `docker exec -it myapp-web-1 sh` - enter Next.js Docker container
-- `docker exec -it myapp-db-1 psql -U myuser -d mydatabase` - enter Postgres db
+- `sudo docker compose exec web sh` - enter Next.js Docker container
+- `sudo docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB` - enter Postgres db
+- `sudo docker compose exec web bun run db:push` - perform DB schema update
 
 ## Other Resources
 
