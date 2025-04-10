@@ -49,7 +49,11 @@ fi
 
 # Wait for the database to be ready
 echo "Applying database schema changes..."
-sudo docker compose exec web bun run db:push
+sudo docker compose exec web bun run db:push --force
+if [ $? -ne 0 ]; then
+  echo "Database schema changes failed. Check logs with 'docker compose logs'."
+  exit 1
+fi
 
 # Cleanup old Docker images and containers
 sudo docker system prune -af

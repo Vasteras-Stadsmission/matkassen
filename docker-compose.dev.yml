@@ -20,6 +20,7 @@ services:
             - /app/node_modules # Don't overwrite node_modules
         environment:
             - NODE_ENV=development # Enables hot reloading
+            - DRIZZLE_SCHEMA_PATH=./app/db/schema.ts
 
     db:
         image: postgres:latest

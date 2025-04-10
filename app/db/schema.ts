@@ -5,5 +5,4 @@ export const todos = pgTable("todos", {
     content: varchar("content", { length: 255 }).notNull(),
     completed: boolean("completed").default(false),
     createdAt: timestamp("created_at").defaultNow(),
-    isCalle: boolean("is_calle").default(false),
 });
