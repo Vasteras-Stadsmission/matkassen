@@ -44,12 +44,12 @@ docker compose -f docker-compose.dev.yml logs
 
 ## Handling Postgres DB
 
-Updating `schema.ts` followed by running `bun run db:push` inside the docker container will migrate the database directly without the need for migration `.sql` files (see https://orm.drizzle.team/docs/drizzle-kit-push).
+Updating `schema.ts` followed by running `bun run db:push --force` inside the docker container will migrate the database directly without the need for migration `.sql` files (see https://orm.drizzle.team/docs/drizzle-kit-push).
 
 To trigger the update from outside the container run:
 
 ```sh
-sudo docker compose exec web bun run db:push
+sudo docker compose exec web bun run db:push --force
 ```
 
 This is made automatically on deployment (initial and incremental).
@@ -65,7 +65,7 @@ Note that sudo is needed when executing the commands on the VPS.
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
 - `sudo docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB` - enter Postgres db
-- `sudo docker compose exec web bun run db:push` - perform DB schema update
+- `sudo docker compose exec web bun run db:push` - perform DB schema update, prompts user to accept data loss, if any
 
 ## Other Resources
 
