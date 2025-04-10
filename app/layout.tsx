@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
+import "@mantine/core/styles.css";
+
+import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
 
 export const metadata: Metadata = {
     title: "Matkassen",
     description: "Food parcel handout administration app.",
+    icons: {
+        icon: "/favicon.svg",
+    },
 };
 
-export default function RootLayout({
-    children,
-}: Readonly<{
-    children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en">
+        <html lang="en" {...mantineHtmlProps}>
             <head>
-                <link
-                    rel="stylesheet"
-                    href="https://cdn.jsdelivr.net/npm/@exampledev/new.css@1.1.2/new.min.css"
-                />
+                <ColorSchemeScript />
             </head>
-            <body>{children}</body>
+            <body>
+                <MantineProvider>{children}</MantineProvider>
+            </body>
         </html>
     );
 }

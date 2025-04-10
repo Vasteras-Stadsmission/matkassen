@@ -32,6 +32,11 @@ const nextConfig: NextConfig = {
     // Optional: override the default (1 year) `stale-while-revalidate`
     // header time for static pages
     // swrDelta: 3600 // seconds
+
+    experimental: {
+        // Enable tree-shaking for mantine
+        optimizePackageImports: ["@mantine/core", "@mantine/hooks"],
+    },
 };
 
 export default nextConfig;
