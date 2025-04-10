@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Image from "next/image";
 import { Burger, Button, Container, Group } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import classes from "./HeaderSimple.module.css";
@@ -12,7 +13,7 @@ const links = [
     { link: "/create-recipient", label: "Ny mottagare +" },
 ];
 
-export async function HeaderSimple() {
+export function HeaderSimple() {
     const [opened, { toggle }] = useDisclosure(false);
     const [active, setActive] = useState(links[0].link);
 
@@ -35,7 +36,7 @@ export async function HeaderSimple() {
         <header className={classes.header}>
             <Container size="md" className={classes.inner}>
                 <Group className={classes.logo}>
-                    <img src="/favicon.svg" alt="Logo" height={30} />
+                    <Image src="/favicon.svg" alt="Logo" width={30} height={30} />
                     <h2>matkassen</h2>
                 </Group>
                 <Group gap={5} visibleFrom="xs">
