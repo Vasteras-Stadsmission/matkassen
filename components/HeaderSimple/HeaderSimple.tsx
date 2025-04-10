@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Burger, Button, Container, Group } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import classes from "./HeaderSimple.module.css";
+import UserAvatar from "../UserAvatar";
+import { SignOutButton } from "../SignOutButton";
 
 const links = [
-    { link: "/about", label: "Features" },
-    { link: "/pricing", label: "Pricing" },
-    { link: "/learn", label: "Learn" },
-    { link: "/community", label: "Community" },
+    { link: "/recipients", label: "Mottagare" },
+    { link: "/schedule", label: "Schema" },
+    { link: "/handout-locations", label: "Utlämningsställen" },
+    { link: "/create-recipient", label: "Ny mottagare +" },
 ];
 
-export function HeaderSimple() {
+export async function HeaderSimple() {
     const [opened, { toggle }] = useDisclosure(false);
     const [active, setActive] = useState(links[0].link);
 
@@ -32,17 +34,24 @@ export function HeaderSimple() {
     return (
         <header className={classes.header}>
             <Container size="md" className={classes.inner}>
-                {/* <MantineLogo size={28} /> */}
+                <Group className={classes.logo}>
+                    <img src="/favicon.svg" alt="Logo" height={30} />
+                    <h2>matkassen</h2>
+                </Group>
                 <Group gap={5} visibleFrom="xs">
                     {items}
                 </Group>
-
-                <Group visibleFrom="sm">
-                    <Button variant="default">Log in</Button>
-                </Group>
-
+                <UserAvatar />
+                <SignOutButton />
+                <ScanQRCodeLink />
                 <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
             </Container>
         </header>
     );
 }
+
+const ScanQRCodeLink = () => (
+    <a href="https://scanapp.org/" target="_blank" rel="noreferrer">
+        <Button variant="outline">Skanna QR-kod</Button>
+    </a>
+);
