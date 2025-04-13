@@ -3,7 +3,8 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "next dev --turbopack",
+        "dev": "docker compose -f docker-compose.dev.yml up db && next dev --turbopack",
+        "dev:containers-only": "COMPOSE_BAKE=true docker compose -f docker-compose.dev.yml up --build",
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
