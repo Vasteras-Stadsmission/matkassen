@@ -22,7 +22,7 @@ This repo contains GitHub actions which will automatically deploy your app to th
 
 Note, first-time deployment to a VPS is handled using GitHub action `./.github/workflows/init_deploy.yml`, which is triggered manually in GitHub.
 
-## Developing locally
+## Local Development Modes
 
 First you need to setup your environment:
 
