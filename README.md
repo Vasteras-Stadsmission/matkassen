@@ -22,25 +22,20 @@ This repo contains GitHub actions which will automatically deploy your app to th
 
 Note, first-time deployment to a VPS is handled using GitHub action `./.github/workflows/init_deploy.yml`, which is triggered manually in GitHub.
 
-## Developing Locally with hot reloads
+## Developing locally
 
-When devloping locally you can use a similar setup as in the production environment. However, instead of using `./docker-compose.yml` which makes use of `./Dockerfile`, you will instead use the combo `./docker-compose.dev.yml` and `.Dockerfile.dev`.
+First you need to setup your environment:
+1. Copy the `.env.example` file to create your own `.env` file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Update the values in the .env file accordingly.
 
-Here are some useful commands
+Now, you choose between our two primary development modes:
+1. `bun run dev`: Next.js is running locally and db in a container (faster dev experience)
+2. `bun run dev:containers-only`: A similar setup as in the production environment where both Next.js and db is running in (separate) containers.
 
-```sh
-# Start containers
-docker compose -f docker-compose.dev.yml up
-
-# Rebuild and start (delegate builds to bake for better performance)
-COMPOSE_BAKE=true docker compose -f docker-compose.dev.yml up --build
-
-# Stop containers
-docker compose -f docker-compose.dev.yml down
-
-# View logs
-docker compose -f docker-compose.dev.yml logs
-```
+Note that in neither of these two modes will you have nginx running, as in production.
 
 ## Handling Postgres DB
 
