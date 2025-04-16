@@ -16,4 +16,11 @@ ENV HOSTNAME="0.0.0.0"
 
 # The rest will be mounted at runtime
 EXPOSE 3000
-CMD ["bunx", "next", "dev"]
+CMD sh -c "\
+    sleep 3 && \
+    echo 'Running database migrations...' && \
+    bunx drizzle-kit push --force && \
+    echo 'Database migrations completed.' && \
+    echo 'Starting Next.js...' && \
+    bunx next dev \
+"
