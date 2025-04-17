@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# This script updates the Next.js app by pulling the latest changes from the Git repository,
-# rebuilding the Docker containers, and restarting them.
-# It assumes that the app is already set up with Docker and Docker Compose.
+# This script updates the Next.js app, rebuilding the Docker containers and restarting them.
+# It assumes that the app is already set up with Docker and Docker Compose
+# and that the git repository is already up to date (handled by CI/CD workflow).
 # It also assumes that the .env file is already created and contains the necessary environment variables.
 
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
-REPO_URL="https://github.com/Vasteras-Stadsmission/matkassen.git"
 APP_DIR=~/$PROJECT_NAME
 
 # For Docker internal communication ("db" is the name of Postgres container)
@@ -35,6 +34,13 @@ echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
 # Verify .env file was created successfully
 [ -f "$APP_DIR/.env" ] || { echo "ERROR: Failed to create .env file"; exit 1; }
 
+# Check if migration files exist in the repository
+if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
+  echo "No migration files found in the repository. This is unexpected as migrations should be checked in."
+  echo "Please make sure migrations are generated locally and committed to the repository."
+  exit 1
+fi
+
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
 cd $APP_DIR
@@ -47,16 +53,20 @@ if ! sudo docker compose ps | grep "Up"; then
   exit 1
 fi
 
-# Wait for the database to be ready
-echo "Applying database schema changes..."
-sudo docker compose exec web bun run db:push --force
+# Run migrations directly rather than waiting for the migration container
+echo "Running database migrations synchronously..."
+cd $APP_DIR
+sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
+sudo docker compose exec -T web bun run db:migrate
 if [ $? -ne 0 ]; then
-  echo "Database schema changes failed. Check logs with 'docker compose logs'."
+  echo "❌ Migration failed. See error messages above."
   exit 1
+else
+  echo "✅ Database migrations completed successfully."
 fi
 
 # Cleanup old Docker images and containers
 sudo docker system prune -af
 
 # Output final message
-echo "Update complete. Your Next.js app has been updated with the latest changes."
+echo "Update complete. Your Next.js app has been updated with the latest changes and database migrations have been applied."

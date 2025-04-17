@@ -6,7 +6,6 @@ services:
             - "3000:3000"
         environment:
             - NODE_ENV=production
-            - DRIZZLE_SCHEMA_PATH=/usr/src/app/db/schema.ts
         env_file:
             - .env
         depends_on:

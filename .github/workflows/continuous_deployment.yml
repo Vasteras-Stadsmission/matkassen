@@ -33,8 +33,19 @@ jobs:
                           git reset --hard HEAD
                           git clean -fd
                           git pull origin main
+
+                          # Make sure update script is executable
                           chmod +x update.sh
+
+                          # Run the update.sh script which will apply migrations
                           ./update.sh
+
+                          # Check migration status
+                          if ! docker compose logs migration | grep "Migrations completed successfully"; then
+                              echo "⚠️ Warning: Migrations may not have completed successfully. Check logs."
+                          else
+                              echo "✅ Database migrations applied successfully"
+                          fi
                       else
                           echo "App directory not found"
                           exit 1
@@ -70,8 +81,19 @@ jobs:
                           git reset --hard HEAD
                           git clean -fd
                           git pull origin main
+
+                          # Make sure update script is executable
                           chmod +x update.sh
+
+                          # Run the update.sh script which will apply migrations
                           ./update.sh
+
+                          # Check migration status
+                          if ! docker compose logs migration | grep "Migrations completed successfully"; then
+                              echo "⚠️ Warning: Migrations may not have completed successfully. Check logs."
+                          else
+                              echo "✅ Database migrations applied successfully"
+                          fi
                       else
                           echo "App directory not found"
                           exit 1

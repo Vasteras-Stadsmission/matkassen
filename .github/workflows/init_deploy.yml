@@ -80,4 +80,13 @@ jobs:
                       echo "Run the deploy script"
                       chmod +x deploy.sh
                       ./deploy.sh
+
+                      # Check migration status
+                      echo "Verifying migration status..."
+                      if ! docker compose logs migration | grep "Migrations completed successfully"; then
+                          echo "⚠️ Warning: Migrations may not have completed successfully. Check logs."
+                      else
+                          echo "✅ Database migrations applied successfully"
+                      fi
+
                       echo "Deployment completed"

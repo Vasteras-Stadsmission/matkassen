@@ -39,19 +39,25 @@ Now, you choose between our two primary development modes:
 
 Note that in neither of these two modes will you have nginx running, as in production.
 
-## Handling Postgres DB
+## Database Migration Workflow
 
-Updating `schema.ts` followed by running `bun run db:push --force` inside the docker container will migrate the database directly without the need for migration `.sql` files (see https://orm.drizzle.team/docs/drizzle-kit-push).
+The project uses Drizzle ORM with a migration-based approach:
 
-To trigger the update from outside the container run:
+1. **Making Schema Changes**:
+   - Update the schema definition in `app/db/schema.ts`
+   - Generate SQL migration files with `bun run db:generate`
+   - Migration files will be created in the `migrations` directory
 
-```sh
-sudo docker compose exec web bun run db:push --force
-```
+2. **Applying Migrations**:
+   - Run `bun run db:migrate` to apply migration files to the database
+   - In Docker environments, migrations run automatically on startup
 
-This is made automatically on deployment (initial and incremental).
+3. **Migration in Development**:
+   - When using `bun run dev` or `bun run dev:containers-only`, migrations apply automatically before the web service starts
 
-However, you might want to use the above command when devloping locally.
+1. **Migration in Production**:
+   - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
+   - All migrations are tracked in version control for better history management
 
 ## Helpful Commands
 
@@ -62,4 +68,5 @@ Note that sudo is needed when executing the commands on the VPS.
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
 - `sudo docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB` - enter Postgres db
-- `sudo docker compose exec web bun run db:push` - perform DB schema update, prompts user to accept data loss, if any
+- `bun run db:generate` - generate new migration files from schema changes
+- `bun run db:migrate` - apply migrations to the database manually
