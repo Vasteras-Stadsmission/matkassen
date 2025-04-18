@@ -8,6 +8,13 @@
       "when": 1744919703126,
       "tag": "0000_fancy_brood",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1744977704561,
+      "tag": "0001_wandering_punisher",
+      "breakpoints": true
     }
   ]
 }
