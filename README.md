@@ -44,20 +44,23 @@ Note that in neither of these two modes will you have nginx running, as in produ
 The project uses Drizzle ORM with a migration-based approach:
 
 1. **Making Schema Changes**:
-   - Update the schema definition in `app/db/schema.ts`
-   - Generate SQL migration files with `bun run db:generate`
-   - Migration files will be created in the `migrations` directory
+
+    - Update the schema definition in `app/db/schema.ts`
+    - Generate SQL migration files with `bun run db:generate`
+    - Migration files will be created in the `migrations` directory
 
 2. **Applying Migrations**:
-   - Run `bun run db:migrate` to apply migration files to the database
-   - In Docker environments, migrations run automatically on startup
+
+    - Run `bun run db:migrate` to apply migration files to the database
+    - In Docker environments, migrations run automatically on startup
 
 3. **Migration in Development**:
-   - When using `bun run dev` or `bun run dev:containers-only`, migrations apply automatically before the web service starts
 
-1. **Migration in Production**:
-   - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
-   - All migrations are tracked in version control for better history management
+    - When using `bun run dev` or `bun run dev:containers-only`, migrations apply automatically before the web service starts
+
+4. **Migration in Production**:
+    - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
+    - All migrations are tracked in version control for better history management
 
 ## Helpful Commands
 
