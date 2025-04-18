@@ -10,7 +10,7 @@ export async function addHouseholdAction(formData: FormData) {
     const lastName = formData.get("last_name") as string;
     const phoneNumber = formData.get("phone_number") as string;
     const locale = formData.get("locale") as string;
-    const postalCode = Number(formData.get("postal_code"));
+    const postalCode = formData.get("postal_code") as string;
 
     await db.insert(households).values({
         first_name: firstName,
