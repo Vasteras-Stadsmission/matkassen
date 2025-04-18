@@ -1,0 +1,235 @@
+"use server";
+
+import { db } from "@/app/db/drizzle";
+import {
+    households,
+    householdMembers,
+    householdDietaryRestrictions,
+    dietaryRestrictions,
+    householdAdditionalNeeds,
+    additionalNeeds,
+    pets,
+    foodParcels,
+    pickupLocations,
+    petSpeciesEnum,
+} from "@/app/db/schema";
+import { nanoid } from "@/app/db/schema";
+import { eq } from "drizzle-orm";
+
+// Define types for our form data
+interface Household {
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    locale: string;
+    postal_code: string;
+}
+
+interface HouseholdMember {
+    id?: string;
+    age: number;
+    sex: string;
+}
+
+interface DietaryRestriction {
+    id: string;
+    name: string;
+    isCustom?: boolean;
+}
+
+interface AdditionalNeed {
+    id: string;
+    need: string;
+    isCustom?: boolean;
+}
+
+// Update Pet interface to use the correct species type
+interface Pet {
+    id?: string;
+    species: "dog" | "cat" | "bunny" | "bird";
+}
+
+interface FoodParcel {
+    id?: string;
+    pickupDate: Date;
+    pickupEarliestTime: Date;
+    pickupLatestTime: Date;
+}
+
+interface FoodParcels {
+    pickupLocationId: string;
+    totalCount: number;
+    weekday: string;
+    repeatValue: string;
+    startDate: Date;
+    parcels: FoodParcel[];
+}
+
+interface FormData {
+    household: Household;
+    members: HouseholdMember[];
+    dietaryRestrictions: DietaryRestriction[];
+    additionalNeeds: AdditionalNeed[];
+    pets: Pet[];
+    foodParcels: FoodParcels;
+}
+
+interface CreateHouseholdResult {
+    success: boolean;
+    householdId?: string;
+    error?: string;
+}
+
+export async function createHousehold(data: FormData): Promise<CreateHouseholdResult> {
+    try {
+        // Start transaction to ensure all related data is created atomically
+        return await db.transaction(async tx => {
+            // 1. Create the household
+            const [household] = await tx
+                .insert(households)
+                .values({
+                    first_name: data.household.first_name,
+                    last_name: data.household.last_name,
+                    phone_number: data.household.phone_number,
+                    locale: data.household.locale || "sv",
+                    postal_code: data.household.postal_code,
+                })
+                .returning();
+
+            const householdId = household.id;
+
+            // 2. Add household members
+            if (data.members.length > 0) {
+                await tx.insert(householdMembers).values(
+                    data.members.map((member: HouseholdMember) => ({
+                        household_id: householdId,
+                        age: member.age,
+                        sex: member.sex,
+                    })),
+                );
+            }
+
+            // 3. Add dietary restrictions
+            if (data.dietaryRestrictions.length > 0) {
+                // First, create any new dietary restrictions that don't exist yet
+                const customRestrictions = data.dietaryRestrictions.filter(
+                    (r: DietaryRestriction) => r.isCustom,
+                );
+
+                for (const restriction of customRestrictions) {
+                    const [existingRestriction] = await tx
+                        .select()
+                        .from(dietaryRestrictions)
+                        .where(eq(dietaryRestrictions.name, restriction.name))
+                        .limit(1);
+
+                    if (!existingRestriction) {
+                        await tx.insert(dietaryRestrictions).values({
+                            id: restriction.id,
+                            name: restriction.name,
+                        });
+                    }
+                }
+
+                // Then link all restrictions to the household
+                await tx.insert(householdDietaryRestrictions).values(
+                    data.dietaryRestrictions.map((restriction: DietaryRestriction) => ({
+                        household_id: householdId,
+                        dietary_restriction_id: restriction.id,
+                    })),
+                );
+            }
+
+            // 4. Add pets - Fixed with correct typing
+            if (data.pets.length > 0) {
+                // Create an array of values first with correct typing
+                const petsData = data.pets.map((pet: Pet) => ({
+                    household_id: householdId,
+                    species: pet.species, // Now this is correctly typed as "dog" | "cat" | "bunny" | "bird"
+                }));
+
+                await tx.insert(pets).values(petsData);
+            }
+
+            // 5. Add additional needs
+            if (data.additionalNeeds.length > 0) {
+                // First, create any new additional needs that don't exist yet
+                const customNeeds = data.additionalNeeds.filter((n: AdditionalNeed) => n.isCustom);
+
+                for (const need of customNeeds) {
+                    const [existingNeed] = await tx
+                        .select()
+                        .from(additionalNeeds)
+                        .where(eq(additionalNeeds.need, need.need))
+                        .limit(1);
+
+                    if (!existingNeed) {
+                        await tx.insert(additionalNeeds).values({
+                            id: need.id,
+                            need: need.need,
+                        });
+                    }
+                }
+
+                // Then link all needs to the household
+                await tx.insert(householdAdditionalNeeds).values(
+                    data.additionalNeeds.map((need: AdditionalNeed) => ({
+                        household_id: householdId,
+                        additional_need_id: need.id,
+                    })),
+                );
+            }
+
+            // 6. Add food parcels
+            if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
+                await tx.insert(foodParcels).values(
+                    data.foodParcels.parcels.map((parcel: FoodParcel) => ({
+                        household_id: householdId,
+                        pickup_location_id: data.foodParcels.pickupLocationId,
+                        pickup_date_time_earliest: parcel.pickupEarliestTime,
+                        pickup_date_time_latest: parcel.pickupLatestTime,
+                        is_picked_up: false,
+                    })),
+                );
+            }
+
+            return { success: true, householdId };
+        });
+    } catch (error: unknown) {
+        console.error("Error creating household:", error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error occurred",
+        };
+    }
+}
+
+// Helper function to get all dietary restrictions
+export async function getDietaryRestrictions() {
+    try {
+        return await db.select().from(dietaryRestrictions);
+    } catch (error) {
+        console.error("Error fetching dietary restrictions:", error);
+        return [];
+    }
+}
+
+// Helper function to get all additional needs
+export async function getAdditionalNeeds() {
+    try {
+        return await db.select().from(additionalNeeds);
+    } catch (error) {
+        console.error("Error fetching additional needs:", error);
+        return [];
+    }
+}
+
+// Helper function to get all pickup locations
+export async function getPickupLocations() {
+    try {
+        return await db.select().from(pickupLocations);
+    } catch (error) {
+        console.error("Error fetching pickup locations:", error);
+        return [];
+    }
+}

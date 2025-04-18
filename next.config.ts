@@ -29,13 +29,12 @@ const nextConfig: NextConfig = {
     // compression here so we can prevent buffering
     // streaming responses
     compress: false,
-    // Optional: override the default (1 year) `stale-while-revalidate`
-    // header time for static pages
-    // swrDelta: 3600 // seconds
 
     experimental: {
         // Enable tree-shaking for mantine
         optimizePackageImports: ["@mantine/core", "@mantine/hooks"],
+        // Improve resource loading
+        optimizeCss: true,
     },
 };
 

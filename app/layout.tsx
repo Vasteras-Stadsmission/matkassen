@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "@mantine/core/styles.css";
 
-import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
-
 export const metadata: Metadata = {
     title: "Matkassen",
     description: "Food parcel handout administration app.",
@@ -11,15 +9,8 @@ export const metadata: Metadata = {
     },
 };
 
+import { RootLayoutClient } from "./layout.client";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-    return (
-        <html lang="en" {...mantineHtmlProps}>
-            <head>
-                <ColorSchemeScript />
-            </head>
-            <body>
-                <MantineProvider>{children}</MantineProvider>
-            </body>
-        </html>
-    );
+    return <RootLayoutClient>{children}</RootLayoutClient>;
 }

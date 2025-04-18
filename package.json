@@ -11,7 +11,7 @@
         "lint": "next lint",
         "format-check": "prettier --check .",
         "format": "prettier --write .",
-        "db:generate": "npx drizzle-kit generate",
+        "db:generate": "bun drizzle-kit generate",
         "db:migrate": "bun drizzle-kit migrate"
     },
     "dependencies": {
@@ -20,7 +20,9 @@
         "@mantine/dates": "^7.17.4",
         "@mantine/form": "^7.17.4",
         "@mantine/hooks": "^7.17.4",
+        "@tabler/icons-react": "^3.31.0",
         "@types/pg": "^8.11.13",
+        "critters": "^0.0.23",
         "dayjs": "^1.11.13",
         "dotenv": "^16.5.0",
         "drizzle-orm": "^0.42.0",
@@ -37,7 +39,7 @@
         "@types/react": "^19.1.2",
         "@types/react-dom": "^19.1.2",
         "drizzle-kit": "^0.30.6",
-        "eslint": "^9.24.0",
+        "eslint": "^9.25.0",
         "eslint-config-next": "15.1.5",
         "postcss": "^8.5.3",
         "postcss-preset-mantine": "^1.17.0",
