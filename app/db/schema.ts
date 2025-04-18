@@ -8,7 +8,7 @@ import {
     boolean,
     pgEnum,
     check,
-    foreignKey,
+    primaryKey,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -27,25 +27,30 @@ export const households = pgTable(
         id: text("id")
             .primaryKey()
             .notNull()
-            .$defaultFn(() => nanoid(6)),
+            .$defaultFn(() => nanoid(8)),
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(), // will determine end of lifecycle
         first_name: varchar("first_name", { length: 50 }).notNull(),
         last_name: varchar("last_name", { length: 50 }).notNull(),
         phone_number: varchar("phone_number", { length: 20 }).notNull(),
         locale: varchar("locale", { length: 2 }).notNull(),
-        postal_code: integer("postal_code").notNull(),
+        postal_code: varchar("postal_code", { length: 5 }).notNull(),
     },
-    table => [check("postal_code_check", sql`${table.postal_code} BETWEEN 10000 AND 99999`)],
+    table => [
+        check(
+            "households_postal_code_check",
+            sql`LENGTH(${table.postal_code}) = 5 AND ${table.postal_code} ~ '^[0-9]{5}$'`,
+        ),
+    ],
 );
 
 export const householdComments = pgTable("household_comments", {
     id: text("id")
         .primaryKey()
         .notNull()
-        .$defaultFn(() => nanoid(6)),
+        .$defaultFn(() => nanoid(8)),
     household_id: text("household_id")
         .notNull()
-        .references(() => households.id),
+        .references(() => households.id, { onDelete: "cascade" }),
     created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     comment: text("comment").notNull(),
 });
@@ -54,46 +59,51 @@ export const householdMembers = pgTable("household_members", {
     id: text("id")
         .primaryKey()
         .notNull()
-        .$defaultFn(() => nanoid(6)),
+        .$defaultFn(() => nanoid(8)),
     created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     household_id: text("household_id")
         .notNull()
-        .references(() => households.id),
+        .references(() => households.id, { onDelete: "cascade" }),
     age: integer("age").notNull(),
-    sex: sexEnum("sex"),
+    sex: sexEnum("sex").notNull(),
 });
 
 export const pets = pgTable("pets", {
     id: text("id")
         .primaryKey()
         .notNull()
-        .$defaultFn(() => nanoid(6)),
+        .$defaultFn(() => nanoid(8)),
     created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     household_id: text("household_id")
         .notNull()
-        .references(() => households.id),
+        .references(() => households.id, { onDelete: "cascade" }),
     species: petSpeciesEnum("species").notNull(),
 });
 
-export const foodParcels = pgTable("food_parcels", {
-    id: text("id")
-        .primaryKey()
-        .notNull()
-        .$defaultFn(() => nanoid(6)),
-    household_id: text("household_id")
-        .notNull()
-        .references(() => households.id),
-    pickup_location: text("pickup_location")
-        .notNull()
-        .references(() => pickupLocations.id),
-    pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-    pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-    is_picked_up: boolean("is_picked_up").notNull().default(false),
-    url_uid: text("url_uid")
-        .notNull()
-        .unique()
-        .$defaultFn(() => nanoid(6)), // For shared urls
-});
+export const foodParcels = pgTable(
+    "food_parcels",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        household_id: text("household_id")
+            .notNull()
+            .references(() => households.id, { onDelete: "cascade" }),
+        pickup_location_id: text("pickup_location_id")
+            .notNull()
+            .references(() => pickupLocations.id),
+        pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
+        pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
+        is_picked_up: boolean("is_picked_up").notNull().default(false),
+    },
+    table => [
+        check(
+            "pickup_time_range_check",
+            sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
+        ),
+    ],
+);
 
 export const pickupLocations = pgTable(
     "pickup_locations",
@@ -101,10 +111,10 @@ export const pickupLocations = pgTable(
         id: text("id")
             .primaryKey()
             .notNull()
-            .$defaultFn(() => nanoid(6)),
+            .$defaultFn(() => nanoid(8)),
         name: text("name").notNull(), // e.g., Västerås Stadsmission, Klara Kyrka, Frihamnskyrkan...
         street_address: text("street_address").notNull(),
-        postal_code: integer("postal_code").notNull(),
+        postal_code: varchar("postal_code", { length: 5 }).notNull(),
         parcels_max_per_day: integer("parcels_max_per_day"), // might be null if no max
         contact_name: varchar("contact_name", { length: 50 }),
         contact_email: varchar("contact_email", { length: 255 }),
@@ -112,9 +122,12 @@ export const pickupLocations = pgTable(
     },
     table => {
         return [
-            check("postal_code_check", sql`${table.postal_code} BETWEEN 10000 AND 99999`),
             check(
-                "email_format_check",
+                "pickup_locations_postal_code_check",
+                sql`LENGTH(${table.postal_code}) = 5 AND ${table.postal_code} ~ '^[0-9]{5}$'`,
+            ),
+            check(
+                "pickup_locations_email_format_check",
                 sql`${table.contact_email} ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'`,
             ),
         ];
@@ -124,73 +137,45 @@ export const pickupLocations = pgTable(
 export const householdDietaryRestrictions = pgTable(
     "household_dietary_restrictions",
     {
-        id: text("id")
-            .primaryKey()
-            .notNull()
-            .$defaultFn(() => nanoid(6)),
         household_id: text("household_id")
             .notNull()
-            .references(() => households.id),
+            .references(() => households.id, { onDelete: "cascade" }),
         dietary_restriction_id: text("dietary_restriction_id")
             .notNull()
-            .references(() => dietaryRestrictions.id),
+            .references(() => dietaryRestrictions.id, { onDelete: "restrict" }),
     },
-    table => [
-        foreignKey({
-            name: "household_dietary_restrictions_household_id_fk",
-            columns: [table.household_id],
-            foreignColumns: [households.id],
-        }).onDelete("cascade"),
-
-        foreignKey({
-            name: "household_dietary_restrictions_restriction_id_fk",
-            columns: [table.dietary_restriction_id],
-            foreignColumns: [dietaryRestrictions.id],
-        }).onDelete("restrict"),
-    ],
+    table => ({
+        pk: primaryKey({ columns: [table.household_id, table.dietary_restriction_id] }),
+    }),
 );
 
 export const dietaryRestrictions = pgTable("dietary_restrictions", {
     id: text("id")
         .primaryKey()
         .notNull()
-        .$defaultFn(() => nanoid(6)),
+        .$defaultFn(() => nanoid(8)),
     name: text("name").notNull(), // e.g., gluten, lactose, pork...
 });
 
 export const householdAdditionalNeeds = pgTable(
     "household_additional_needs",
     {
-        id: text("id")
-            .primaryKey()
-            .notNull()
-            .$defaultFn(() => nanoid(6)),
         household_id: text("household_id")
             .notNull()
-            .references(() => households.id),
+            .references(() => households.id, { onDelete: "cascade" }),
         additional_need_id: text("additional_need_id")
             .notNull()
-            .references(() => additionalNeeds.id),
+            .references(() => additionalNeeds.id, { onDelete: "restrict" }),
     },
-    table => [
-        foreignKey({
-            name: "household_additional_needs_household_id_fk",
-            columns: [table.household_id],
-            foreignColumns: [households.id],
-        }).onDelete("cascade"),
-
-        foreignKey({
-            name: "household_additional_needs_need_id_fk",
-            columns: [table.additional_need_id],
-            foreignColumns: [additionalNeeds.id],
-        }).onDelete("restrict"),
-    ],
+    table => ({
+        pk: primaryKey({ columns: [table.household_id, table.additional_need_id] }),
+    }),
 );
 
 export const additionalNeeds = pgTable("additional_needs", {
     id: text("id")
         .primaryKey()
         .notNull()
-        .$defaultFn(() => nanoid(6)),
+        .$defaultFn(() => nanoid(8)),
     need: text("need").notNull(), // e.g., diapers, bus pass, cleaning supplies...
 });
