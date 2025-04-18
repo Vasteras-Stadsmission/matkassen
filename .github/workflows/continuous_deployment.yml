@@ -7,6 +7,9 @@ on:
 jobs:
     deploy-to-staging:
         runs-on: ubuntu-latest
+        environment:
+            name: staging
+            url: https://staging.matkassen.org
         steps:
             - name: Deploy to staging
               uses: appleboy/ssh-action@v1.2.2
@@ -52,7 +55,9 @@ jobs:
 
     manual-deploy-to-production:
         needs: deploy-to-staging
-        environment: production
+        environment:
+            name: production
+            url: https://matkassen.org
         runs-on: ubuntu-latest
         steps:
             - name: Deploy to production
