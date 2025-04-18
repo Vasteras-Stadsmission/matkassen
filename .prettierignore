@@ -1,0 +1,13 @@
+# Build output
+.next/
+node_modules/
+out/
+
+# Drizzle generated files
+migrations/**/*.sql
+migrations/meta/**/*.json
+migrations/meta/_journal.json
+
+# Other common files to ignore
+.DS_Store
+*.log
