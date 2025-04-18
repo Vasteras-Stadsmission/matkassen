@@ -34,17 +34,16 @@ jobs:
                           git clean -fd
                           git pull origin main
 
-                          # Make sure update script is executable
-                          chmod +x update.sh
-
                           # Run the update.sh script which will apply migrations
+                          chmod +x update.sh
                           ./update.sh
+                          UPDATE_STATUS=$?
 
-                          # Check migration status
-                          if ! docker compose logs migration | grep "Migrations completed successfully"; then
-                              echo "⚠️ Warning: Migrations may not have completed successfully. Check logs."
+                          if [ $UPDATE_STATUS -ne 0 ]; then
+                              echo "❌ Deployment failed with status: $UPDATE_STATUS"
+                              exit $UPDATE_STATUS
                           else
-                              echo "✅ Database migrations applied successfully"
+                              echo "✅ Successfully deployed all updates."
                           fi
                       else
                           echo "App directory not found"
@@ -82,17 +81,16 @@ jobs:
                           git clean -fd
                           git pull origin main
 
-                          # Make sure update script is executable
-                          chmod +x update.sh
-
                           # Run the update.sh script which will apply migrations
+                          chmod +x update.sh
                           ./update.sh
+                          UPDATE_STATUS=$?
 
-                          # Check migration status
-                          if ! docker compose logs migration | grep "Migrations completed successfully"; then
-                              echo "⚠️ Warning: Migrations may not have completed successfully. Check logs."
+                          if [ $UPDATE_STATUS -ne 0 ]; then
+                              echo "❌ Deployment failed with status: $UPDATE_STATUS"
+                              exit $UPDATE_STATUS
                           else
-                              echo "✅ Database migrations applied successfully"
+                              echo "✅ Successfully deployed all updates."
                           fi
                       else
                           echo "App directory not found"
