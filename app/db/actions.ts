@@ -17,7 +17,7 @@ export async function addHouseholdAction(formData: FormData) {
         last_name: lastName,
         phone_number: phoneNumber,
         locale: locale,
-        postal_code: postalCode
+        postal_code: postalCode,
     });
     revalidatePath("/db");
 }
