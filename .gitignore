@@ -42,3 +42,7 @@ next-env.d.ts
 
 # for demo
 .cache
+
+# Ensure migrations are tracked
+!/migrations/
+!/migrations/**

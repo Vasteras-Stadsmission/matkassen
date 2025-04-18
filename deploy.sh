@@ -4,6 +4,7 @@
 # It installs Docker, Docker Compose, and Certbot for SSL certificates.
 # It also configures Nginx with security headers and rate limiting.
 # It assumes that the server is running Ubuntu and has a public IP address.
+# It also assumes the repository is already cloned (handled by CI/CD workflow).
 
 # Verify that the environment variables are set
 for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME; do
@@ -26,7 +27,6 @@ fi
 
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
-REPO_URL="https://github.com/Vasteras-Stadsmission/matkassen.git"
 APP_DIR=~/$PROJECT_NAME
 SWAP_SIZE="1G"  # Swap size of 1GB
 
@@ -85,14 +85,11 @@ fi
 sudo systemctl enable docker
 sudo systemctl start docker
 
-# Clone the Git repository
-if [ -d "$APP_DIR" ]; then
-  echo "Directory $APP_DIR already exists. Pulling latest changes..."
-  cd $APP_DIR && git pull
-else
-  echo "Cloning repository from $REPO_URL..."
-  git clone $REPO_URL $APP_DIR
-  cd $APP_DIR
+# Verify migrations directory exists and contains files
+if [ ! -d "$APP_DIR/migrations" ] || [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
+  echo "No migration files found in the repository. This is unexpected as migrations should be checked in."
+  echo "Please make sure migrations are generated locally and committed to the repository."
+  exit 1
 fi
 
 # For Docker internal communication ("db" is the name of Postgres container)
@@ -249,12 +246,16 @@ if ! sudo docker compose ps | grep "Up"; then
   exit 1
 fi
 
-# Wait for the database to be ready
-echo "Applying database schema changes..."
-sudo docker compose exec web bun run db:push --force
+# Run migrations directly rather than waiting for the migration container
+echo "Running database migrations synchronously..."
+cd $APP_DIR
+sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
+sudo docker compose exec -T web bun run db:migrate
 if [ $? -ne 0 ]; then
-  echo "Database schema changes failed. Check logs with 'docker compose logs'."
+  echo "❌ Migration failed. See error messages above."
   exit 1
+else
+  echo "✅ Database migrations completed successfully."
 fi
 
 # Cleanup old Docker images and containers
@@ -264,4 +265,4 @@ sudo docker system prune -af
 echo "Deployment complete. Your Next.js app and PostgreSQL database are now running.
 Next.js is available at https://$DOMAIN_NAME, and the PostgreSQL database is accessible from the web service.
 
-The .env file has been created..."
+The .env file has been created with your environment variables and database migrations have been applied."

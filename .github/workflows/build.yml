@@ -20,6 +20,23 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
+            # Check for schema changes without migration files
+            - name: Verify migration files
+              env:
+                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+                  POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+                  POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+                  DATABASE_URL: postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
+              run: |
+                  # Check if there are schema changes that need migration files
+                  SCHEMA_CHANGES=$(bun run drizzle-kit check:pg)
+                  if [[ $SCHEMA_CHANGES == *"Schema drift detected"* ]]; then
+                    echo "⚠️ Schema changes detected but no migration files found."
+                    echo "Run 'bun run db:generate' locally to create migration files and commit them."
+                    exit 1
+                  fi
+                  echo "✅ Migration files are up to date with schema."
+
             - name: Build
               env:
                   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
