@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Burger, Button, Container, Group, Text, Box, Loader, Transition } from "@mantine/core";
+import { Burger, Button, Container, Group, Text, Box, Drawer } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRouter, usePathname } from "next/navigation";
 import classes from "./HeaderSimple.module.css";
 import { UserAvatarWrapper } from "../UserAvatarWrapper";
 import { SignOutButton } from "../SignOutButton";
+import { NavigationLink } from "../NavigationUtils";
 
 interface NavLink {
     link: string;
@@ -33,9 +34,8 @@ const ScanQRCodeLink = () => (
 export function HeaderSimple() {
     const router = useRouter();
     const pathname = usePathname();
-    const [opened, { toggle }] = useDisclosure(false);
+    const [opened, { toggle, close }] = useDisclosure(false);
     const [active, setActive] = useState("");
-    const [isPending, startTransition] = useTransition();
 
     // Initialize the active state based on the current path
     useEffect(() => {
@@ -51,55 +51,57 @@ export function HeaderSimple() {
         }
     }, [pathname]);
 
-    const handleNavigation = (link: NavLink) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+    const handleNavigation = (link: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
 
         // Set the active state
-        setActive(link.link);
+        setActive(link);
 
         // Only transition if we're not already on this page
-        if (pathname !== link.link) {
-            startTransition(() => {
-                router.push(link.link);
-            });
+        if (pathname !== link) {
+            router.push(link);
+        }
+
+        // Close mobile menu if open
+        if (opened) {
+            close();
         }
     };
-
-    const handleHomeNavigation = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        e.preventDefault();
-        setActive(HOME_LINK);
-
-        // Only transition if we're not already on the home page
-        if (pathname !== HOME_LINK) {
-            startTransition(() => {
-                router.push(HOME_LINK);
-            });
-        }
-    };
-
-    const items = links.map(link => (
-        <a
-            key={link.label}
-            href={link.link}
-            className={classes.link}
-            data-active={active === link.link || undefined}
-            onClick={handleNavigation(link)}
-        >
-            {link.label}
-        </a>
-    ));
 
     const isHomeActive = active === HOME_LINK;
+
+    // Desktop navigation links
+    const desktopLinks = links.map(link => (
+        <NavigationLink
+            key={link.label}
+            href={link.link}
+            label={link.label}
+            active={active === link.link}
+            onClick={handleNavigation(link.link)}
+            className={classes.link}
+        />
+    ));
+
+    // Mobile navigation links
+    const mobileLinks = links.map(link => (
+        <NavigationLink
+            key={link.label}
+            href={link.link}
+            label={link.label}
+            active={active === link.link}
+            onClick={handleNavigation(link.link)}
+            className={classes.mobileLink}
+        />
+    ));
 
     return (
         <>
             <header className={classes.header}>
                 <Container size="md" className={classes.inner}>
                     <Box className={classes.logoContainer}>
-                        <Box
-                            component="a"
+                        <a
                             href="/"
-                            onClick={handleHomeNavigation}
+                            onClick={handleNavigation(HOME_LINK)}
                             className={classes.logo}
                             data-active={isHomeActive || undefined}
                         >
@@ -107,42 +109,38 @@ export function HeaderSimple() {
                             <Text component="span" fw={500} size="lg" ml={8}>
                                 matkassen
                             </Text>
-                        </Box>
+                        </a>
                     </Box>
                     <Group gap={5} visibleFrom="xs">
-                        {items}
+                        {desktopLinks}
                     </Group>
-                    <UserAvatarWrapper />
-                    <SignOutButton />
-                    <ScanQRCodeLink />
+                    <Group gap={5} visibleFrom="xs">
+                        <UserAvatarWrapper />
+                        <SignOutButton />
+                        <ScanQRCodeLink />
+                    </Group>
                     <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
                 </Container>
             </header>
 
-            {/* Modern full-screen transition overlay */}
-            <Transition mounted={isPending} transition="fade" duration={300}>
-                {styles => (
-                    <Box
-                        style={{
-                            ...styles,
-                            position: "fixed",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: "rgba(255, 255, 255, 0.85)",
-                            backdropFilter: "blur(8px)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            zIndex: 9999,
-                            pointerEvents: "all",
-                        }}
-                    >
-                        <Loader size="xl" variant="dots" color="blue" />
-                    </Box>
-                )}
-            </Transition>
+            {/* Mobile menu drawer */}
+            <Drawer
+                opened={opened}
+                onClose={close}
+                title="Navigation"
+                size="xs"
+                hiddenFrom="xs"
+                zIndex={1000}
+            >
+                <div className={classes.mobileMenu}>
+                    {mobileLinks}
+                    <div className={classes.mobileActions}>
+                        <ScanQRCodeLink />
+                        <UserAvatarWrapper />
+                        <SignOutButton />
+                    </div>
+                </div>
+            </Drawer>
         </>
     );
 }

@@ -9,76 +9,20 @@ import {
     householdAdditionalNeeds,
     additionalNeeds,
     pets,
+    petSpecies,
     foodParcels,
     pickupLocations,
-    petSpeciesEnum,
 } from "@/app/db/schema";
-import { nanoid } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
-
-// Define types for our form data
-interface Household {
-    first_name: string;
-    last_name: string;
-    phone_number: string;
-    locale: string;
-    postal_code: string;
-}
-
-interface HouseholdMember {
-    id?: string;
-    age: number;
-    sex: string;
-}
-
-interface DietaryRestriction {
-    id: string;
-    name: string;
-    isCustom?: boolean;
-}
-
-interface AdditionalNeed {
-    id: string;
-    need: string;
-    isCustom?: boolean;
-}
-
-// Update Pet interface to use the correct species type
-interface Pet {
-    id?: string;
-    species: "dog" | "cat" | "bunny" | "bird";
-}
-
-interface FoodParcel {
-    id?: string;
-    pickupDate: Date;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
-}
-
-interface FoodParcels {
-    pickupLocationId: string;
-    totalCount: number;
-    weekday: string;
-    repeatValue: string;
-    startDate: Date;
-    parcels: FoodParcel[];
-}
-
-interface FormData {
-    household: Household;
-    members: HouseholdMember[];
-    dietaryRestrictions: DietaryRestriction[];
-    additionalNeeds: AdditionalNeed[];
-    pets: Pet[];
-    foodParcels: FoodParcels;
-}
-
-interface CreateHouseholdResult {
-    success: boolean;
-    householdId?: string;
-    error?: string;
-}
+import {
+    FormData,
+    HouseholdMember,
+    DietaryRestriction,
+    AdditionalNeed,
+    Pet,
+    FoodParcel,
+    CreateHouseholdResult,
+} from "./types";
 
 export async function createHousehold(data: FormData): Promise<CreateHouseholdResult> {
     try {
@@ -140,15 +84,14 @@ export async function createHousehold(data: FormData): Promise<CreateHouseholdRe
                 );
             }
 
-            // 4. Add pets - Fixed with correct typing
+            // 4. Add pets
             if (data.pets.length > 0) {
-                // Create an array of values first with correct typing
-                const petsData = data.pets.map((pet: Pet) => ({
-                    household_id: householdId,
-                    species: pet.species, // Now this is correctly typed as "dog" | "cat" | "bunny" | "bird"
-                }));
-
-                await tx.insert(pets).values(petsData);
+                await tx.insert(pets).values(
+                    data.pets.map((pet: Pet) => ({
+                        household_id: householdId,
+                        species: pet.species,
+                    })),
+                );
             }
 
             // 5. Add additional needs
@@ -230,6 +173,19 @@ export async function getPickupLocations() {
         return await db.select().from(pickupLocations);
     } catch (error) {
         console.error("Error fetching pickup locations:", error);
+        return [];
+    }
+}
+
+/**
+ * Fetches all available pet species from the database
+ * @returns Array of pet species
+ */
+export async function getPetSpecies() {
+    try {
+        return await db.select().from(petSpecies);
+    } catch (error) {
+        console.error("Error fetching pet species:", error);
         return [];
     }
 }

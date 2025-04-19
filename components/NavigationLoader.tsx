@@ -1,56 +1,81 @@
-import { useEffect, useState } from "react";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Box, Loader, Transition } from "@mantine/core";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Box, Loader, Text, Group, Transition } from "@mantine/core";
 
 export function NavigationLoader() {
+    const [isNavigating, setIsNavigating] = useState(false);
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const [isNavigating, setIsNavigating] = useState(false);
-    const [navigationTimeout, setNavigationTimeout] = useState<NodeJS.Timeout | null>(null);
 
-    // Reset navigation state when the URL changes
+    // Track navigation based on URL changes
     useEffect(() => {
-        if (isNavigating) {
-            setIsNavigating(false);
-            if (navigationTimeout) {
-                clearTimeout(navigationTimeout);
-                setNavigationTimeout(null);
-            }
-        }
-    }, [pathname, searchParams, isNavigating, navigationTimeout]);
+        // When pathname or searchParams change, navigation has completed
+        setIsNavigating(false);
+    }, [pathname, searchParams]);
 
-    // Listen for navigation start event
+    // Event listener for navigation start
+    const handleNavigationStart = useCallback(() => {
+        setIsNavigating(true);
+    }, []);
+
     useEffect(() => {
-        const handleNavigationStart = () => {
-            console.log("Navigation started"); // Debug log
-            // Only show loader if navigation takes longer than 100ms
-            // This prevents flashing the loader for quick navigations
-            const timeout = setTimeout(() => {
-                console.log("Setting isNavigating to true"); // Debug log
-                setIsNavigating(true);
-            }, 100);
-            setNavigationTimeout(timeout);
-        };
-
-        // Listen for navigation events from Next.js
+        // Listen for custom navigation events
         document.addEventListener("navigation-start", handleNavigationStart);
 
-        // Try to dispatch a test event to ensure everything is working
-        setTimeout(() => {
-            console.log("Component mounted, navigation system ready"); // Debug log
-        }, 500);
+        // Create a more reliable way to detect Next.js navigation end
+        if (typeof window !== "undefined") {
+            // Monitor for DOM changes that might indicate page load completion
+            const observer = new MutationObserver(mutations => {
+                // Check if mutations include changes to main content
+                const significantChange = mutations.some(
+                    mutation =>
+                        mutation.target.nodeName === "MAIN" ||
+                        mutation.target.id === "main-content" ||
+                        mutation.addedNodes.length > 3,
+                );
 
-        // Cleanup
+                if (significantChange && isNavigating) {
+                    // Important DOM changes usually indicate navigation has completed
+                    setIsNavigating(false);
+                }
+            });
+
+            // Observe the main content area for changes
+            const mainElement = document.querySelector("main");
+            if (mainElement) {
+                observer.observe(mainElement, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                });
+            }
+
+            return () => {
+                observer.disconnect();
+                document.removeEventListener("navigation-start", handleNavigationStart);
+            };
+        }
+
         return () => {
             document.removeEventListener("navigation-start", handleNavigationStart);
-            if (navigationTimeout) {
-                clearTimeout(navigationTimeout);
-            }
         };
-    }, [navigationTimeout]);
+    }, [handleNavigationStart, isNavigating]);
+
+    // Shorter auto-hide timeout (1.5 seconds instead of 3)
+    useEffect(() => {
+        if (!isNavigating) return;
+
+        const timeout = setTimeout(() => {
+            setIsNavigating(false);
+        }, 1500); // 1.5 second timeout is usually enough
+
+        return () => clearTimeout(timeout);
+    }, [isNavigating]);
 
     return (
-        <Transition mounted={isNavigating} transition="fade" duration={400}>
+        <Transition mounted={isNavigating} transition="fade" duration={200}>
             {styles => (
                 <Box
                     style={{
@@ -60,17 +85,16 @@ export function NavigationLoader() {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: "rgba(255, 255, 255, 0.7)",
+                        backgroundColor: "rgba(255, 255, 255, 0.75)",
+                        backdropFilter: "blur(4px)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        zIndex: 9999, // Increased z-index to ensure it's above everything
+                        zIndex: 9999,
+                        pointerEvents: "all",
                     }}
                 >
-                    <Group>
-                        <Loader color="blue" size="md" />
-                        <Text>Laddar sidan...</Text>
-                    </Group>
+                    <Loader size="xl" variant="dots" color="blue" />
                 </Box>
             )}
         </Transition>

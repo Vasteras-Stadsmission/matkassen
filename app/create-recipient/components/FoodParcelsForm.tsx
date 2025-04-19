@@ -8,30 +8,23 @@ import {
     Title,
     Text,
     Card,
-    NumberInput,
     Select,
     Table,
+    SegmentedControl,
+    Box,
+    Stack,
 } from "@mantine/core";
-import { DateInput, TimeInput } from "@mantine/dates";
+import { DateInput, DatePickerInput, TimeInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { nanoid } from "@/app/db/schema";
-import { IconCalendarEvent, IconCheck, IconClock } from "@tabler/icons-react";
+import { IconCalendarEvent, IconRefresh, IconClock, IconCalendar } from "@tabler/icons-react";
 import { getPickupLocations } from "../actions";
+import { FoodParcels, FoodParcel } from "../types";
+import CounterInput from "@/components/CounterInput";
 
-interface FoodParcel {
-    id?: string;
-    pickupDate: Date;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
-}
-
-interface FoodParcels {
-    pickupLocationId: string;
-    totalCount: number;
-    weekday: string;
-    repeatValue: string;
-    startDate: Date;
-    parcels: FoodParcel[];
+interface ValidationError {
+    field: string;
+    message: string;
 }
 
 interface PickupLocation {
@@ -42,6 +35,7 @@ interface PickupLocation {
 interface FoodParcelsFormProps {
     data: FoodParcels;
     updateData: (data: FoodParcels) => void;
+    error?: ValidationError | null;
 }
 
 // Week days
@@ -62,9 +56,10 @@ const REPEAT_OPTIONS = [
     { value: "monthly", label: "Varje månad" },
 ];
 
-export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormProps) {
+export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
     const [loading, setLoading] = useState(true);
+    const [locationError, setLocationError] = useState<string | null>(null);
 
     // Use the data from parent component or initialize with defaults
     const [formState, setFormState] = useState<FoodParcels>({
@@ -75,6 +70,15 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         parcels: data.parcels || [],
     });
+
+    // Set validation error if provided from parent
+    useEffect(() => {
+        if (error && error.field === "pickupLocationId") {
+            setLocationError(error.message);
+        } else {
+            setLocationError(null);
+        }
+    }, [error]);
 
     // Fetch pickup locations on component mount
     useEffect(() => {
@@ -111,6 +115,12 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
 
         fetchData();
     }, []);
+
+    // Clear location error when user selects a location
+    const handleLocationChange = (value: string | null) => {
+        setLocationError(null);
+        handleParameterChange("pickupLocationId", value);
+    };
 
     // Generate food parcels based on schedule parameters
     const generateParcels = (): FoodParcel[] => {
@@ -185,6 +195,33 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
         updateData(updatedState);
     };
 
+    // Update pickup date for a specific parcel
+    const updateParcelDate = (index: number, date: Date) => {
+        const updatedParcels = [...formState.parcels];
+
+        // Keep the same time but update the date
+        const earliestTime = new Date(updatedParcels[index].pickupEarliestTime);
+        const latestTime = new Date(updatedParcels[index].pickupLatestTime);
+
+        // Set new date but keep original times
+        const newEarliestTime = new Date(date);
+        newEarliestTime.setHours(earliestTime.getHours(), earliestTime.getMinutes(), 0, 0);
+
+        const newLatestTime = new Date(date);
+        newLatestTime.setHours(latestTime.getHours(), latestTime.getMinutes(), 0, 0);
+
+        updatedParcels[index] = {
+            ...updatedParcels[index],
+            pickupDate: date,
+            pickupEarliestTime: newEarliestTime,
+            pickupLatestTime: newLatestTime,
+        };
+
+        const updatedState = { ...formState, parcels: updatedParcels };
+        setFormState(updatedState);
+        updateData(updatedState);
+    };
+
     // Format date for display
     const formatDate = (date: Date | string | null | undefined) => {
         if (!date) return "";
@@ -223,12 +260,255 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
         return newDate;
     };
 
+    // Round time to nearest 15 minutes
+    const roundToNearest15Minutes = (date: Date): Date => {
+        const minutes = date.getMinutes();
+        const roundedMinutes = Math.round(minutes / 15) * 15;
+
+        const newDate = new Date(date);
+        newDate.setMinutes(roundedMinutes);
+        return newDate;
+    };
+
     // Generate parcels on first load
     useEffect(() => {
         if (formState.parcels.length === 0) {
             applyChanges();
         }
     }, []);
+
+    // Convert weekday options to format needed for SegmentedControl
+    const weekdayOptions = WEEKDAYS.map(day => ({
+        value: day.value,
+        label: day.label,
+    }));
+
+    // Convert repeat options to format needed for SegmentedControl
+    const repeatOptions = REPEAT_OPTIONS.map(option => ({
+        value: option.value,
+        label: option.label,
+    }));
+
+    const calendarStyles = (theme: any) => ({
+        input: {
+            cursor: "pointer",
+        },
+        root: { maxWidth: "100%" },
+        calendarHeader: {
+            padding: "0.25rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+        },
+        calendarHeaderControl: {
+            "padding": "0.25rem",
+            "width": "24px",
+            "height": "24px",
+            "fontSize": "0.8rem",
+            "display": "flex",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "&:hover": {
+                backgroundColor: theme.colors.gray[1],
+                borderRadius: "50%",
+            },
+        },
+        calendarHeaderControlIcon: {
+            width: "16px",
+            height: "16px",
+        },
+        day: {
+            height: "2rem",
+            width: "2rem",
+            fontSize: "0.85rem",
+            margin: "0.1rem",
+            borderRadius: theme.radius.sm,
+        },
+        calendarHeaderLevel: {
+            height: "1.75rem",
+            fontSize: "0.9rem",
+            fontWeight: 600,
+            textAlign: "center",
+            flex: 1,
+        },
+        monthPickerControl: {
+            fontSize: "0.85rem",
+            padding: "0.4rem 0.5rem",
+            borderRadius: theme.radius.sm,
+        },
+        yearPickerControl: {
+            fontSize: "0.85rem",
+            padding: "0.4rem 0.5rem",
+            borderRadius: theme.radius.sm,
+        },
+        monthPicker: { padding: "0.25rem" },
+        yearPicker: { padding: "0.25rem" },
+        weekdaysRow: {
+            fontSize: "0.75rem",
+            color: theme.colors.gray[6],
+            fontWeight: 500,
+            paddingBottom: "0.15rem",
+        },
+        monthsList: {
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "0.25rem",
+        },
+        yearsList: {
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "0.25rem",
+        },
+        calendar: {
+            maxWidth: "280px", // Limit calendar width to prevent excessive space
+        },
+    });
+
+    // Create a custom time component with only 15-minute intervals
+    const TimePickerInput = ({
+        value,
+        onChange,
+        label,
+    }: {
+        value: string;
+        onChange: (value: string) => void;
+        label?: string;
+    }) => {
+        // Parse the current hours and minutes
+        const [hours, minutes] = value.split(":").map(Number);
+
+        // List of allowed minute values (15-minute intervals)
+        const minuteOptions = ["00", "15", "30", "45"];
+
+        // Generate hour options (00-23)
+        const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, "0"));
+
+        // Handle time selection
+        const handleTimeChange = (newHours: string, newMinutes: string) => {
+            onChange(`${newHours}:${newMinutes}`);
+        };
+
+        const [isOpen, setIsOpen] = useState(false);
+
+        return (
+            <div style={{ position: "relative" }}>
+                <div
+                    onClick={() => setIsOpen(!isOpen)}
+                    style={{
+                        cursor: "pointer",
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
+                    }}
+                >
+                    <TimeInput
+                        value={value}
+                        onChange={e => {}} // Handled by our custom picker
+                        leftSection={<IconClock size="1rem" />}
+                        rightSectionWidth={0} // Remove right icon
+                        readOnly // Make it read-only since we use our custom picker
+                        styles={{
+                            input: {
+                                cursor: "pointer",
+                            },
+                            wrapper: {
+                                cursor: "pointer",
+                                width: "100%",
+                            },
+                        }}
+                        aria-label={label || "Select time"}
+                    />
+                </div>
+
+                {isOpen && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            zIndex: 1000,
+                            backgroundColor: "white",
+                            border: "1px solid #eee",
+                            borderRadius: "4px",
+                            boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                            display: "flex",
+                            width: "220px",
+                            marginTop: "8px",
+                        }}
+                    >
+                        {/* Hours column */}
+                        <div
+                            style={{
+                                flex: 1,
+                                borderRight: "1px solid #eee",
+                                maxHeight: "250px",
+                                overflowY: "auto",
+                            }}
+                        >
+                            {hourOptions.map(hour => (
+                                <div
+                                    key={hour}
+                                    onClick={() => {
+                                        handleTimeChange(hour, minutes.toString().padStart(2, "0"));
+                                        setIsOpen(false);
+                                    }}
+                                    style={{
+                                        padding: "8px 16px",
+                                        cursor: "pointer",
+                                        backgroundColor:
+                                            hour === hours.toString().padStart(2, "0")
+                                                ? "#e6f7ff"
+                                                : "transparent",
+                                        fontWeight:
+                                            hour === hours.toString().padStart(2, "0")
+                                                ? "bold"
+                                                : "normal",
+                                        textAlign: "center",
+                                    }}
+                                >
+                                    {hour}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Minutes column */}
+                        <div
+                            style={{
+                                flex: 1,
+                                maxHeight: "250px",
+                                overflowY: "auto",
+                            }}
+                        >
+                            {minuteOptions.map(minute => (
+                                <div
+                                    key={minute}
+                                    onClick={() => {
+                                        handleTimeChange(hours.toString().padStart(2, "0"), minute);
+                                        setIsOpen(false);
+                                    }}
+                                    style={{
+                                        padding: "8px 16px",
+                                        cursor: "pointer",
+                                        backgroundColor:
+                                            minute === minutes.toString().padStart(2, "0")
+                                                ? "#e6f7ff"
+                                                : "transparent",
+                                        fontWeight:
+                                            minute === minutes.toString().padStart(2, "0")
+                                                ? "bold"
+                                                : "normal",
+                                        textAlign: "center",
+                                    }}
+                                >
+                                    {minute}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <Card withBorder p="md" radius="md">
@@ -249,62 +529,110 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
                     placeholder="Välj hämtplats"
                     data={pickupLocations}
                     value={formState.pickupLocationId}
-                    onChange={value => handleParameterChange("pickupLocationId", value)}
+                    onChange={handleLocationChange}
                     withAsterisk
+                    error={locationError}
                 />
 
-                <NumberInput
-                    label="Antal matkassar"
-                    placeholder="Ange antal matkassar"
-                    value={formState.totalCount}
-                    onChange={value => handleParameterChange("totalCount", value)}
-                    min={1}
-                    max={52}
-                    withAsterisk
-                />
+                <div>
+                    <Text fw={500} size="sm" mb={7}>
+                        Antal matkassar{" "}
+                        <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
+                    </Text>
+                    <CounterInput
+                        value={formState.totalCount}
+                        onChange={value => handleParameterChange("totalCount", value)}
+                        min={1}
+                        max={52}
+                    />
+                </div>
 
-                <Select
-                    label="Veckodag för hämtning"
-                    placeholder="Välj veckodag"
-                    data={WEEKDAYS}
-                    value={formState.weekday}
-                    onChange={value => handleParameterChange("weekday", value)}
-                    withAsterisk
-                />
+                <Stack gap="xs">
+                    <Text fw={500} size="sm" mb={0}>
+                        Standard veckodag{" "}
+                        <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
+                    </Text>
+                    <SegmentedControl
+                        fullWidth
+                        value={formState.weekday}
+                        onChange={value => handleParameterChange("weekday", value)}
+                        data={weekdayOptions}
+                    />
+                </Stack>
 
-                <Select
-                    label="Upprepning"
-                    placeholder="Välj hur ofta"
-                    data={REPEAT_OPTIONS}
-                    value={formState.repeatValue}
-                    onChange={value => handleParameterChange("repeatValue", value)}
-                    withAsterisk
-                />
+                <Stack gap="xs">
+                    <Text fw={500} size="sm" mb={0}>
+                        Upprepning <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
+                    </Text>
+                    <SegmentedControl
+                        fullWidth
+                        value={formState.repeatValue}
+                        onChange={value => handleParameterChange("repeatValue", value)}
+                        data={repeatOptions}
+                    />
+                </Stack>
 
-                <DateInput
+                <DatePickerInput
                     label="Startdatum"
                     placeholder="Välj startdatum"
                     value={formState.startDate}
-                    onChange={value => handleParameterChange("startDate", value)}
+                    onChange={value => value && handleParameterChange("startDate", value)}
                     minDate={new Date()}
                     withAsterisk
                     leftSection={<IconCalendarEvent size="1rem" />}
+                    popoverProps={{
+                        shadow: "md",
+                        withinPortal: true,
+                        width: 280, // Control popover width
+                        styles: {
+                            dropdown: {
+                                padding: "0.5rem",
+                            },
+                        },
+                    }}
+                    styles={calendarStyles}
+                    getDayProps={date => ({
+                        sx: theme => {
+                            const day = date.getDay();
+                            const isWeekend = day === 0 || day === 6;
+                            const isSelected =
+                                date.toDateString() === formState.startDate.toDateString();
+
+                            return {
+                                "color": isWeekend ? theme.colors.red[6] : undefined,
+                                "backgroundColor": isSelected ? theme.colors.blue[6] : undefined,
+                                "color": isSelected ? "white" : undefined,
+                                "fontWeight": isSelected ? 500 : undefined,
+                                "&:hover": {
+                                    backgroundColor: isSelected
+                                        ? theme.colors.blue[6]
+                                        : theme.colors.gray[0],
+                                },
+                            };
+                        },
+                    })}
                 />
             </SimpleGrid>
 
-            <Group justify="center" mb="xl">
-                <Button onClick={applyChanges} leftSection={<IconCheck size="1rem" />} color="blue">
+            <Group justify="center" mb="md">
+                <Button
+                    onClick={applyChanges}
+                    leftSection={<IconRefresh size="1rem" />}
+                    color="teal"
+                    variant="outline"
+                >
                     Uppdatera schema
                 </Button>
             </Group>
 
             {formState.parcels.length > 0 && (
                 <>
-                    <Title order={5} mt="xl" mb="sm">
+                    <Title order={5} mt="md" mb="sm">
                         Schemalagda matkassar
                     </Title>
                     <Text size="sm" mb="md" color="dimmed">
-                        Anpassa hämttider för varje matkasse nedan. Standardhämttid är 12:00-13:00.
+                        Klicka på datum eller tider för att anpassa varje matkasse. Standardhämttid
+                        är 12:00-13:00.
                     </Text>
 
                     <Table striped highlightOnHover>
@@ -318,13 +646,64 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
                         <Table.Tbody>
                             {formState.parcels.map((parcel, index) => (
                                 <Table.Tr key={parcel.id || index}>
-                                    <Table.Td>{formatDate(parcel.pickupDate)}</Table.Td>
                                     <Table.Td>
-                                        <TimeInput
-                                            leftSection={<IconClock size="1rem" />}
+                                        <DatePickerInput
+                                            placeholder="Välj datum"
+                                            value={new Date(parcel.pickupDate)}
+                                            onChange={date => date && updateParcelDate(index, date)}
+                                            minDate={new Date()}
+                                            valueFormat="DD MMM YYYY"
+                                            leftSection={<IconCalendar size="1rem" />}
+                                            popoverProps={{
+                                                shadow: "md",
+                                                withinPortal: true,
+                                                width: 280, // Control popover width
+                                                styles: {
+                                                    dropdown: {
+                                                        padding: "0.5rem",
+                                                    },
+                                                },
+                                            }}
+                                            styles={theme => ({
+                                                ...calendarStyles(theme),
+                                                input: {
+                                                    cursor: "pointer",
+                                                    color: "var(--mantine-color-blue-6)",
+                                                    fontWeight: 500,
+                                                    textDecoration: "underline",
+                                                },
+                                            })}
+                                            getDayProps={date => ({
+                                                sx: theme => {
+                                                    const day = date.getDay();
+                                                    const isWeekend = day === 0 || day === 6;
+                                                    const isSelected =
+                                                        date.toDateString() ===
+                                                        new Date(parcel.pickupDate).toDateString();
+
+                                                    return {
+                                                        "color": isWeekend
+                                                            ? theme.colors.red[6]
+                                                            : undefined,
+                                                        "backgroundColor": isSelected
+                                                            ? theme.colors.blue[6]
+                                                            : undefined,
+                                                        "color": isSelected ? "white" : undefined,
+                                                        "fontWeight": isSelected ? 500 : undefined,
+                                                        "&:hover": {
+                                                            backgroundColor: isSelected
+                                                                ? theme.colors.blue[6]
+                                                                : theme.colors.gray[0],
+                                                        },
+                                                    };
+                                                },
+                                            })}
+                                        />
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <TimePickerInput
                                             value={formatTimeForInput(parcel.pickupEarliestTime)}
-                                            onChange={e => {
-                                                const timeStr = e.currentTarget.value;
+                                            onChange={timeStr => {
                                                 if (timeStr) {
                                                     const newDate = parseTimeString(
                                                         timeStr,
@@ -337,14 +716,13 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
                                                     );
                                                 }
                                             }}
+                                            label="Tidigast hämttid"
                                         />
                                     </Table.Td>
                                     <Table.Td>
-                                        <TimeInput
-                                            leftSection={<IconClock size="1rem" />}
+                                        <TimePickerInput
                                             value={formatTimeForInput(parcel.pickupLatestTime)}
-                                            onChange={e => {
-                                                const timeStr = e.currentTarget.value;
+                                            onChange={timeStr => {
                                                 if (timeStr) {
                                                     const newDate = parseTimeString(
                                                         timeStr,
@@ -357,6 +735,7 @@ export default function FoodParcelsForm({ data, updateData }: FoodParcelsFormPro
                                                     );
                                                 }
                                             }}
+                                            label="Senast hämttid"
                                         />
                                     </Table.Td>
                                 </Table.Tr>

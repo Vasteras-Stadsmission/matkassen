@@ -136,7 +136,7 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
     if (loading) {
         return (
             <Card withBorder p="md" radius="md">
-                <Group position="center" py="xl">
+                <Group justify="center" py="xl">
                     <Loader size="md" />
                     <Text>Laddar ytterligare behov...</Text>
                 </Group>
@@ -154,16 +154,14 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
                 till egna behov.
             </Text>
 
-            <Title order={5} mb="sm">
-                Välj från vanliga behov
-            </Title>
             <Group mt="md">
                 {availableNeeds.map(item => (
                     <Chip
                         key={item.id}
                         checked={isSelected(item.id)}
                         onChange={() => toggleNeed(item.id)}
-                        variant="filled"
+                        variant={isSelected(item.id) ? "filled" : "outline"}
+                        color={isSelected(item.id) ? "blue" : "gray"}
                         radius="sm"
                     >
                         {item.need}
@@ -172,10 +170,7 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
                                 size="xs"
                                 color="red"
                                 ml={5}
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    removeNeed(item.id);
-                                }}
+                                onClick={() => removeNeed(item.id)}
                             >
                                 <IconTrash size="0.8rem" />
                             </ActionIcon>
@@ -191,37 +186,20 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
                 <Group align="flex-end">
                     <TextInput
                         label="Nytt behov"
-                        placeholder="T.ex. Rakhyvlar, Barnmat, etc."
+                        placeholder="T.ex. Rakhyvlar, Schampo, etc."
                         style={{ flex: 1 }}
                         {...form.getInputProps("newNeed")}
                     />
-                    <Button type="submit" leftIcon={<IconPlus size="1rem" />}>
+                    <Button
+                        type="submit"
+                        leftSection={<IconPlus size="1rem" />}
+                        variant="light"
+                        color="teal"
+                    >
                         Lägg till
                     </Button>
                 </Group>
             </form>
-
-            {needs.length > 0 && (
-                <>
-                    <Title order={5} mt="xl" mb="sm">
-                        Valda behov:
-                    </Title>
-                    <Group mt="sm">
-                        {needs.map(item => (
-                            <Chip
-                                key={item.id}
-                                checked
-                                onChange={() => toggleNeed(item.id)}
-                                variant="filled"
-                                color="blue"
-                                radius="sm"
-                            >
-                                {item.need}
-                            </Chip>
-                        ))}
-                    </Group>
-                </>
-            )}
         </Card>
     );
 }

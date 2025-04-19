@@ -1,5 +1,8 @@
 "use client";
 
+import { forwardRef } from 'react';
+import { Text, Box } from '@mantine/core';
+
 /**
  * Utility functions for handling navigation events
  */
@@ -44,3 +47,26 @@ export const enhanceNextNavigation = (router: any) => {
     console.log("Next.js router enhanced for navigation events");
     return router;
 };
+
+interface NavigationLinkProps extends React.ComponentPropsWithoutRef<'a'> {
+  label: string;
+  active?: boolean;
+  className?: string;
+}
+
+// Create a reusable Navigation Link component
+export const NavigationLink = forwardRef<HTMLAnchorElement, NavigationLinkProps>(
+  ({ label, active, className, ...others }, ref) => {
+    return (
+      <Box
+        component="a"
+        ref={ref}
+        className={className}
+        data-active={active || undefined}
+        {...others}
+      >
+        <Text component="span">{label}</Text>
+      </Box>
+    );
+  }
+);

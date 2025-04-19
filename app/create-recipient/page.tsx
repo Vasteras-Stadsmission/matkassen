@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
     Container,
     Title,
@@ -8,14 +8,16 @@ import {
     Group,
     Button,
     Card,
-    rem,
     Loader,
     Center,
     Text,
     Alert,
+    Notification,
+    Box,
 } from "@mantine/core";
-import { IconCheck, IconAlertCircle } from "@tabler/icons-react";
+import { IconCheck, IconAlertCircle, IconArrowRight, IconArrowLeft } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
+import { useDisclosure } from "@mantine/hooks";
 import HouseholdForm from "./components/HouseholdForm";
 import MembersForm from "./components/MembersForm";
 import DietaryRestrictionsForm from "./components/DietaryRestrictionsForm";
@@ -24,67 +26,25 @@ import PetsForm from "./components/PetsForm";
 import FoodParcelsForm from "./components/FoodParcelsForm";
 import ReviewForm from "./components/ReviewForm";
 import { createHousehold } from "./actions";
-
-// Define types for our form data
-interface Household {
-    first_name: string;
-    last_name: string;
-    phone_number: string;
-    locale: string;
-    postal_code: string;
-}
-
-interface HouseholdMember {
-    id?: string;
-    age: number;
-    sex: string;
-}
-
-interface DietaryRestriction {
-    id: string;
-    name: string;
-    isCustom?: boolean;
-}
-
-interface AdditionalNeed {
-    id: string;
-    need: string;
-    isCustom?: boolean;
-}
-
-interface Pet {
-    id?: string;
-    species: string;
-}
-
-interface FoodParcel {
-    id?: string;
-    pickupDate: Date;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
-}
-
-interface FoodParcels {
-    pickupLocationId: string;
-    totalCount: number;
-    weekday: string;
-    repeatValue: string;
-    startDate: Date;
-    parcels: FoodParcel[];
-}
-
-interface FormData {
-    household: Household;
-    members: HouseholdMember[];
-    dietaryRestrictions: DietaryRestriction[];
-    additionalNeeds: AdditionalNeed[];
-    pets: Pet[];
-    foodParcels: FoodParcels;
-}
+import {
+    FormData,
+    Household,
+    HouseholdMember,
+    DietaryRestriction,
+    AdditionalNeed,
+    Pet,
+    FoodParcels,
+} from "./types";
 
 // Define type for submit status
 interface SubmitStatus {
     type: "success" | "error";
+    message: string;
+}
+
+// Define type for validation errors
+interface ValidationError {
+    field: string;
     message: string;
 }
 
@@ -93,6 +53,9 @@ export default function CreateRecipientPage() {
     const [active, setActive] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<SubmitStatus | null>(null);
+    const [validationError, setValidationError] = useState<ValidationError | null>(null);
+    const [showError, { open: openError, close: closeError }] = useDisclosure(false);
+
     const [formData, setFormData] = useState<FormData>({
         household: {
             first_name: "",
@@ -116,11 +79,15 @@ export default function CreateRecipientPage() {
     });
 
     const nextStep = () => {
+        // Clear any previous validation errors
+        setValidationError(null);
+        closeError();
+
         // Validate current step before proceeding
         if (active === 0 && !validateHouseholdStep()) return;
         if (active === 5 && !validateFoodParcelsStep()) return;
 
-        setActive(current => (current < 6 ? current + 1 : current));
+        setActive(current => (current < 7 ? current + 1 : current));
     };
 
     const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
@@ -136,22 +103,38 @@ export default function CreateRecipientPage() {
         const { first_name, last_name, phone_number, postal_code } = formData.household;
 
         if (!first_name || first_name.trim().length < 2) {
-            alert("Förnamn måste vara minst 2 tecken");
+            setValidationError({
+                field: "first_name",
+                message: "Förnamn måste vara minst 2 tecken",
+            });
+            openError();
             return false;
         }
 
         if (!last_name || last_name.trim().length < 2) {
-            alert("Efternamn måste vara minst 2 tecken");
+            setValidationError({
+                field: "last_name",
+                message: "Efternamn måste vara minst 2 tecken",
+            });
+            openError();
             return false;
         }
 
         if (!phone_number || !/^\d{8,12}$/.test(phone_number)) {
-            alert("Ange ett giltigt telefonnummer (8-12 siffror)");
+            setValidationError({
+                field: "phone_number",
+                message: "Ange ett giltigt telefonnummer (8-12 siffror)",
+            });
+            openError();
             return false;
         }
 
         if (!postal_code || !/^\d{5}$/.test(postal_code)) {
-            alert("Postnummer måste bestå av 5 siffror");
+            setValidationError({
+                field: "postal_code",
+                message: "Postnummer måste bestå av 5 siffror",
+            });
+            openError();
             return false;
         }
 
@@ -162,7 +145,11 @@ export default function CreateRecipientPage() {
         const { pickupLocationId } = formData.foodParcels;
 
         if (!pickupLocationId) {
-            alert("Välj en hämtplats");
+            setValidationError({
+                field: "pickupLocationId",
+                message: "Välj en hämtplats",
+            });
+            openError();
             return false;
         }
 
@@ -202,13 +189,15 @@ export default function CreateRecipientPage() {
     };
 
     return (
-        <Container size="lg" py="xl">
-            <Title order={2} mb="xl" ta="center">
-                Registrera ny mottagare
-            </Title>
+        <Container size="lg" py="md">
+            <Box mb="md">
+                <Title order={2} ta="center">
+                    Registrera ny mottagare
+                </Title>
+            </Box>
 
             {submitting && (
-                <Center my="xl">
+                <Center my="md">
                     <Group>
                         <Loader size="md" />
                         <Text>Skapar ny mottagare...</Text>
@@ -227,18 +216,38 @@ export default function CreateRecipientPage() {
                     }
                     title={submitStatus.type === "success" ? "Klart!" : "Fel"}
                     color={submitStatus.type === "success" ? "green" : "red"}
-                    mb="lg"
+                    mb="md"
                 >
                     {submitStatus.message}
                 </Alert>
             )}
 
-            <Card withBorder radius="md" p="xl" mb="xl">
+            {showError && validationError && (
+                <Notification
+                    icon={<IconAlertCircle size="1.1rem" />}
+                    color="red"
+                    title="Valideringsfel"
+                    mb="md"
+                    onClose={closeError}
+                >
+                    {validationError.message}
+                </Notification>
+            )}
+
+            <Card withBorder radius="md" p="md" mb="md">
                 <Stepper active={active} onStepClick={setActive} size="sm">
                     <Stepper.Step label="Grunduppgifter" description="Kontaktinformation">
                         <HouseholdForm
                             data={formData.household}
                             updateData={(data: Household) => updateFormData("household", data)}
+                            error={
+                                validationError?.field === "first_name" ||
+                                validationError?.field === "last_name" ||
+                                validationError?.field === "phone_number" ||
+                                validationError?.field === "postal_code"
+                                    ? validationError
+                                    : null
+                            }
                         />
                     </Stepper.Step>
 
@@ -280,22 +289,53 @@ export default function CreateRecipientPage() {
                         <FoodParcelsForm
                             data={formData.foodParcels}
                             updateData={(data: FoodParcels) => updateFormData("foodParcels", data)}
+                            error={
+                                validationError?.field === "pickupLocationId"
+                                    ? validationError
+                                    : null
+                            }
                         />
                     </Stepper.Step>
 
-                    <Stepper.Completed>
+                    <Stepper.Step label="Sammanfattning" description="Granska och skicka">
                         <ReviewForm formData={formData} onSubmit={handleSubmit} />
-                    </Stepper.Completed>
+                    </Stepper.Step>
                 </Stepper>
 
                 {active !== 6 && (
-                    <Group justify="center" mt={rem(30)}>
+                    <Group justify="center" mt="md">
                         {active !== 0 && (
-                            <Button variant="default" onClick={prevStep}>
+                            <Button
+                                variant="default"
+                                onClick={prevStep}
+                                leftSection={<IconArrowLeft size="1rem" />}
+                            >
                                 Tillbaka
                             </Button>
                         )}
-                        <Button onClick={nextStep}>Nästa steg</Button>
+                        <Button onClick={nextStep} rightSection={<IconArrowRight size="1rem" />}>
+                            Nästa steg
+                        </Button>
+                    </Group>
+                )}
+
+                {active === 6 && (
+                    <Group justify="center" mt="md">
+                        <Button
+                            variant="default"
+                            onClick={prevStep}
+                            leftSection={<IconArrowLeft size="1rem" />}
+                        >
+                            Tillbaka
+                        </Button>
+                        <Button
+                            onClick={handleSubmit}
+                            color="green"
+                            loading={submitting}
+                            rightSection={<IconCheck size="1rem" />}
+                        >
+                            Skapa ny mottagare
+                        </Button>
                     </Group>
                 )}
             </Card>

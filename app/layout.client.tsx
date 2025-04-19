@@ -3,9 +3,19 @@
 import { useEffect } from "react";
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps, AppShell } from "@mantine/core";
 import { HeaderSimple } from "@/components/HeaderSimple/HeaderSimple";
+import { NavigationLoader } from "@/components/NavigationLoader";
+import { useRouter } from "next/navigation";
+import { enhanceNextNavigation } from "@/components/NavigationUtils";
 import { SessionProvider } from "next-auth/react";
 
 export function RootLayoutClient({ children }: { children: React.ReactNode }) {
+    const router = useRouter();
+
+    useEffect(() => {
+        // Enhance router with navigation events
+        enhanceNextNavigation(router);
+    }, [router]);
+
     return (
         <html lang="en" {...mantineHtmlProps}>
             <head>
@@ -17,6 +27,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
             <body>
                 <SessionProvider>
                     <MantineProvider>
+                        <NavigationLoader />
                         <AppShell header={{ height: 60 }} padding="md">
                             <AppShell.Header>
                                 <HeaderSimple />

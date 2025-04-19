@@ -1,27 +1,25 @@
 "use client";
 
-import { useState } from "react";
 import {
-    TextInput,
-    SimpleGrid,
     Group,
     Button,
     Title,
     Text,
     Card,
     NumberInput,
-    Select,
+    SegmentedControl,
     ActionIcon,
+    List,
+    Box,
+    Stack,
+    Paper,
+    Alert,
+    Flex,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { nanoid } from "@/app/db/schema";
-import { IconTrash } from "@tabler/icons-react";
-
-interface HouseholdMember {
-    id?: string;
-    age: number;
-    sex: string;
-}
+import { IconTrash, IconUserPlus, IconInfoCircle } from "@tabler/icons-react";
+import { HouseholdMember } from "../types";
 
 interface MembersFormProps {
     data: HouseholdMember[];
@@ -29,12 +27,11 @@ interface MembersFormProps {
 }
 
 export default function MembersForm({ data, updateData }: MembersFormProps) {
-    const [members, setMembers] = useState<HouseholdMember[]>(data || []);
-
+    // Initialize with data from parent, this makes members persist when navigating back
     const addMemberForm = useForm({
         initialValues: {
             age: "",
-            sex: "",
+            sex: "male",
         },
         validate: {
             age: value => (value === "" || value < 0 ? "Ålder måste anges" : null),
@@ -49,15 +46,15 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
             sex: values.sex,
         };
 
-        const updatedMembers = [...members, newMember];
-        setMembers(updatedMembers);
+        const updatedMembers = [...data, newMember];
         updateData(updatedMembers);
         addMemberForm.reset();
+        // Reset to default value after adding a member
+        addMemberForm.setFieldValue("sex", "male");
     };
 
     const removeMember = (index: number) => {
-        const updatedMembers = members.filter((_, i) => i !== index);
-        setMembers(updatedMembers);
+        const updatedMembers = data.filter((_, i) => i !== index);
         updateData(updatedMembers);
     };
 
@@ -71,57 +68,97 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
                 matmängd och särskilda behov.
             </Text>
 
-            {members.length > 0 && (
-                <>
-                    <Title order={5} mt="md" mb="xs">
+            {data.length === 0 && (
+                <Alert
+                    icon={<IconInfoCircle size="1rem" />}
+                    title="Inga medlemmar har lagts till än"
+                    color="blue"
+                    mb="md"
+                >
+                    Fyll i åldern och välj kön för varje hushållsmedlem och klicka sedan på
+                    &quot;Lägg till person&quot; för att lägga till dem i listan.
+                </Alert>
+            )}
+
+            {data.length > 0 && (
+                <Box mb="md">
+                    <Title order={5} mb="xs">
                         Registrerade medlemmar:
                     </Title>
-                    {members.map((member, index) => (
-                        <Group key={member.id || index} mb="xs" position="apart">
-                            <Text>
-                                {member.age} år,{" "}
-                                {member.sex === "male"
-                                    ? "Man"
-                                    : member.sex === "female"
-                                      ? "Kvinna"
-                                      : "Annat"}
-                            </Text>
-                            <ActionIcon color="red" onClick={() => removeMember(index)}>
-                                <IconTrash size="1rem" />
-                            </ActionIcon>
-                        </Group>
-                    ))}
-                </>
+                    <Paper withBorder p="sm" radius="md">
+                        <List spacing="xs">
+                            {data.map((member, index) => (
+                                <List.Item
+                                    key={member.id || index}
+                                    icon={
+                                        <ActionIcon
+                                            color="red"
+                                            onClick={() => removeMember(index)}
+                                            size="sm"
+                                        >
+                                            <IconTrash size="1rem" />
+                                        </ActionIcon>
+                                    }
+                                >
+                                    <Text>
+                                        {member.age} år,{" "}
+                                        {member.sex === "male"
+                                            ? "Man"
+                                            : member.sex === "female"
+                                              ? "Kvinna"
+                                              : "Annat"}
+                                    </Text>
+                                </List.Item>
+                            ))}
+                        </List>
+                    </Paper>
+                </Box>
             )}
 
             <form onSubmit={addMemberForm.onSubmit(addMember)}>
-                <Title order={5} mt="xl" mb="md">
-                    Lägg till medlem
-                </Title>
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    <NumberInput
-                        label="Ålder"
-                        placeholder="Ange ålder"
-                        withAsterisk
-                        min={0}
-                        max={120}
-                        {...addMemberForm.getInputProps("age")}
-                    />
-                    <Select
-                        label="Kön"
-                        placeholder="Välj kön"
-                        withAsterisk
-                        data={[
-                            { value: "male", label: "Man" },
-                            { value: "female", label: "Kvinna" },
-                            { value: "other", label: "Annat" },
-                        ]}
-                        {...addMemberForm.getInputProps("sex")}
-                    />
-                </SimpleGrid>
-                <Group position="right" mt="md">
-                    <Button type="submit">Lägg till medlem</Button>
-                </Group>
+                <Paper p="md" withBorder radius="md" shadow="xs">
+                    <Title order={6} mb="md">
+                        Lägg till en person
+                    </Title>
+
+                    <Flex align="flex-end" gap="md" wrap="wrap">
+                        <Box>
+                            <NumberInput
+                                label="Ålder"
+                                placeholder="Ålder"
+                                withAsterisk
+                                min={0}
+                                max={120}
+                                {...addMemberForm.getInputProps("age")}
+                                styles={{ wrapper: { width: "120px" } }}
+                            />
+                        </Box>
+
+                        <Box>
+                            <Text fw={500} size="sm" mb={7}>
+                                Kön <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
+                            </Text>
+                            <SegmentedControl
+                                data={[
+                                    { value: "male", label: "Man" },
+                                    { value: "female", label: "Kvinna" },
+                                    { value: "other", label: "Annat" },
+                                ]}
+                                {...addMemberForm.getInputProps("sex")}
+                            />
+                        </Box>
+
+                        <Button
+                            type="submit"
+                            variant="light"
+                            color="teal"
+                            leftSection={<IconUserPlus size="1rem" />}
+                            ml="auto"
+                        >
+                            Lägg till person
+                        </Button>
+                    </Flex>
+                </Paper>
             </form>
         </Card>
     );

@@ -22,6 +22,27 @@
       "when": 1745005282777,
       "tag": "0002_bizarre_reptil",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1745062757069,
+      "tag": "0003_nasty_husk",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1745063742060,
+      "tag": "0004_bright_proemial_gods",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1745064072929,
+      "tag": "0005_far_nick_fury",
+      "breakpoints": true
     }
   ]
 }

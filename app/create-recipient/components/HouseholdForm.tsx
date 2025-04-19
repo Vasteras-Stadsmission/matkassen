@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { TextInput, SimpleGrid, Group, Title, Text, Card } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { Household } from "../types";
 
-interface Household {
-    first_name: string;
-    last_name: string;
-    phone_number: string;
-    locale: string;
-    postal_code: string;
+interface ValidationError {
+    field: string;
+    message: string;
 }
 
 interface HouseholdFormProps {
     data: Household;
     updateData: (data: Household) => void;
+    error?: ValidationError | null;
 }
 
-export default function HouseholdForm({ data, updateData }: HouseholdFormProps) {
+export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
     const form = useForm({
         initialValues: {
             first_name: data.first_name || "",
@@ -33,17 +32,47 @@ export default function HouseholdForm({ data, updateData }: HouseholdFormProps) 
                 value.trim().length < 2 ? "Efternamn måste vara minst 2 tecken" : null,
             phone_number: value =>
                 /^\d{8,12}$/.test(value) ? null : "Ange ett giltigt telefonnummer (8-12 siffror)",
-            postal_code: value =>
-                /^\d{5}$/.test(value) ? null : "Postkod måste bestå av 5 siffror",
+            postal_code: value => {
+                const stripped = value.replace(/\s/g, "");
+                return /^\d{5}$/.test(stripped) ? null : "Postnummer måste bestå av 5 siffror";
+            },
         },
     });
 
-    // Update parent component when form values change
-    useEffect(() => {
+    const handlePostalCodeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        let value = event.target.value.replace(/\D/g, "");
+        if (value.length > 5) {
+            value = value.slice(0, 5);
+        }
+        form.setFieldValue("postal_code", value);
+    };
+
+    const formatPostalCode = (value: string) => {
+        if (!value) return "";
+        const digits = value.replace(/\D/g, "");
+        if (digits.length <= 3) return digits;
+        return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    };
+
+    const updateParentData = useCallback(() => {
         if (form.isDirty()) {
             updateData(form.values);
         }
-    }, [form.values, updateData]);
+    }, [form.isDirty, form.values, updateData]);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            updateParentData();
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [form.values, updateParentData]);
+
+    useEffect(() => {
+        if (error && error.field) {
+            form.setFieldError(error.field, error.message);
+        }
+    }, [error, form]);
 
     return (
         <Card withBorder p="md" radius="md">
@@ -77,9 +106,14 @@ export default function HouseholdForm({ data, updateData }: HouseholdFormProps) 
                     />
                     <TextInput
                         label="Postnummer"
-                        placeholder="12345"
+                        placeholder="123 45"
                         withAsterisk
-                        {...form.getInputProps("postal_code")}
+                        value={formatPostalCode(form.values.postal_code)}
+                        onChange={handlePostalCodeChange}
+                        error={form.errors.postal_code}
+                        inputMode="numeric"
+                        maxLength={6}
+                        inputWrapperOrder={["label", "error", "input", "description"]}
                     />
                 </SimpleGrid>
             </form>

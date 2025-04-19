@@ -35,7 +35,16 @@ const nextConfig: NextConfig = {
         optimizePackageImports: ["@mantine/core", "@mantine/hooks"],
         // Improve resource loading
         optimizeCss: true,
+        // PPR is only available in canary versions, so removing it
+        // ppr: true,
     },
+
+    // Optimize performance through better caching and fewer redirects
+    poweredByHeader: false,
+    reactStrictMode: true,
+
+    // Enhanced static optimization
+    staticPageGenerationTimeout: 120,
 };
 
 export default nextConfig;
