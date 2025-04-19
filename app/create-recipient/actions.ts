@@ -48,30 +48,43 @@ export async function createHousehold(data: FormData): Promise<CreateHouseholdRe
                     data.members.map((member: HouseholdMember) => ({
                         household_id: householdId,
                         age: member.age,
-                        sex: member.sex,
+                        sex: member.sex as "male" | "female" | "other",
                     })),
                 );
             }
 
             // 3. Add dietary restrictions
             if (data.dietaryRestrictions.length > 0) {
-                // First, create any new dietary restrictions that don't exist yet
-                const customRestrictions = data.dietaryRestrictions.filter(
-                    (r: DietaryRestriction) => r.isCustom,
-                );
-
-                for (const restriction of customRestrictions) {
+                // First, ensure all dietary restrictions exist in the database
+                for (const restriction of data.dietaryRestrictions) {
+                    // Check if the dietary restriction already exists
                     const [existingRestriction] = await tx
                         .select()
                         .from(dietaryRestrictions)
-                        .where(eq(dietaryRestrictions.name, restriction.name))
+                        .where(eq(dietaryRestrictions.id, restriction.id))
                         .limit(1);
 
+                    // If not found by ID, check by name (for dummy data with r1, r2, etc.)
                     if (!existingRestriction) {
-                        await tx.insert(dietaryRestrictions).values({
-                            id: restriction.id,
-                            name: restriction.name,
-                        });
+                        const [existingByName] = await tx
+                            .select()
+                            .from(dietaryRestrictions)
+                            .where(eq(dietaryRestrictions.name, restriction.name))
+                            .limit(1);
+
+                        // If found by name, use its ID instead
+                        if (existingByName) {
+                            restriction.id = existingByName.id;
+                        } else {
+                            // If not found at all, insert a new entry
+                            const [inserted] = await tx
+                                .insert(dietaryRestrictions)
+                                .values({
+                                    name: restriction.name,
+                                })
+                                .returning();
+                            restriction.id = inserted.id;
+                        }
                     }
                 }
 
@@ -87,9 +100,10 @@ export async function createHousehold(data: FormData): Promise<CreateHouseholdRe
             // 4. Add pets
             if (data.pets.length > 0) {
                 await tx.insert(pets).values(
-                    data.pets.map((pet: Pet) => ({
+                    data.pets.map((pet: any) => ({
                         household_id: householdId,
-                        species: pet.species,
+                        // Handle both potential formats (petSpeciesId or species)
+                        pet_species_id: pet.petSpeciesId || pet.species,
                     })),
                 );
             }

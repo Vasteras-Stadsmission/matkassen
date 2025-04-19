@@ -34,7 +34,7 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
             sex: "male",
         },
         validate: {
-            age: value => (value === "" || value < 0 ? "Ålder måste anges" : null),
+            age: value => (value === "" || Number(value) < 0 ? "Ålder måste anges" : null),
             sex: value => (!value ? "Välj kön" : null),
         },
     });

@@ -54,35 +54,15 @@ export default function DietaryRestrictionsForm({
         async function fetchData() {
             try {
                 const dbRestrictions = await getDietaryRestrictions();
-
-                // If we don't have any restrictions in the DB, use dummy data
-                if (dbRestrictions.length === 0) {
-                    setAvailableRestrictions([
-                        { id: "r1", name: "Gluten" },
-                        { id: "r2", name: "Laktos" },
-                        { id: "r3", name: "Nötter" },
-                        { id: "r4", name: "Ägg" },
-                        { id: "r5", name: "Fisk" },
-                        { id: "r6", name: "Vegetarian" },
-                        { id: "r7", name: "Vegan" },
-                        { id: "r8", name: "Fläskkött" },
-                    ]);
-                } else {
+                if (dbRestrictions.length > 0) {
                     setAvailableRestrictions(dbRestrictions);
+                } else {
+                    console.error("No dietary restrictions found in the database");
+                    setAvailableRestrictions([]);
                 }
             } catch (error) {
                 console.error("Error fetching dietary restrictions:", error);
-                // Fallback to dummy data
-                setAvailableRestrictions([
-                    { id: "r1", name: "Gluten" },
-                    { id: "r2", name: "Laktos" },
-                    { id: "r3", name: "Nötter" },
-                    { id: "r4", name: "Ägg" },
-                    { id: "r5", name: "Fisk" },
-                    { id: "r6", name: "Vegetarian" },
-                    { id: "r7", name: "Vegan" },
-                    { id: "r8", name: "Fläskkött" },
-                ]);
+                setAvailableRestrictions([]);
             } finally {
                 setLoading(false);
             }
@@ -255,24 +235,16 @@ export default function DietaryRestrictionsForm({
                 title={
                     <Group>
                         <IconAlertCircle size="1.3rem" color="orange" />
-                        <Text fw={600}>Bekräfta ny matrestriktion</Text>
+                        <Text fw={600}>Lägg till matrestriktion</Text>
                     </Group>
                 }
                 centered
             >
                 <Stack>
-                    <Text>
-                        Du lägger till en ny matrestriktion som kommer att sparas i databasen och
-                        vara tillgänglig för alla andra hushåll också.
-                    </Text>
+                    <Text>Vill du lägga till följande matrestriktion i din ansökan?</Text>
 
                     <Text fw={600} size="lg" ta="center">
                         "{newRestriction?.name}"
-                    </Text>
-
-                    <Text>
-                        Är du säker på att namnet är korrekt stavat och att denna matrestriktion
-                        behöver läggas till?
                     </Text>
 
                     <Group justify="apart" mt="md">
@@ -280,7 +252,7 @@ export default function DietaryRestrictionsForm({
                             Avbryt
                         </Button>
                         <Button color="green" onClick={confirmCustomRestriction}>
-                            Ja, lägg till
+                            Lägg till
                         </Button>
                     </Group>
                 </Stack>
@@ -293,29 +265,24 @@ export default function DietaryRestrictionsForm({
                 title={
                     <Group>
                         <IconAlertCircle size="1.3rem" color="red" />
-                        <Text fw={600}>Bekräfta borttagning</Text>
+                        <Text fw={600}>Ta bort matrestriktion</Text>
                     </Group>
                 }
                 centered
             >
                 <Stack>
-                    <Text>
-                        Du håller på att ta bort en matrestriktion från systemet. Detta kommer
-                        påverka alla hushåll som har denna restriktion.
-                    </Text>
+                    <Text>Vill du ta bort följande matrestriktion från din ansökan?</Text>
 
                     <Text fw={600} size="lg" ta="center">
                         "{restrictionToDelete?.name}"
                     </Text>
-
-                    <Text>Är du säker på att du vill ta bort denna matrestriktion permanent?</Text>
 
                     <Group justify="apart" mt="md">
                         <Button variant="outline" onClick={closeDeleteModal}>
                             Avbryt
                         </Button>
                         <Button color="red" onClick={confirmRemoveRestriction}>
-                            Ja, ta bort
+                            Ta bort
                         </Button>
                     </Group>
                 </Stack>

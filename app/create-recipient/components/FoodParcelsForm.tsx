@@ -11,11 +11,10 @@ import {
     Select,
     Table,
     SegmentedControl,
-    Box,
     Stack,
+    Popover,
 } from "@mantine/core";
-import { DateInput, DatePickerInput, TimeInput } from "@mantine/dates";
-import { useForm } from "@mantine/form";
+import { DatePickerInput, TimeInput } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
 import { IconCalendarEvent, IconRefresh, IconClock, IconCalendar } from "@tabler/icons-react";
 import { getPickupLocations } from "../actions";
@@ -391,49 +390,66 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         const [isOpen, setIsOpen] = useState(false);
 
         return (
-            <div style={{ position: "relative" }}>
-                <div
-                    onClick={() => setIsOpen(!isOpen)}
-                    style={{
-                        cursor: "pointer",
-                        position: "relative",
-                        display: "flex",
-                        alignItems: "center",
-                    }}
-                >
-                    <TimeInput
-                        value={value}
-                        onChange={e => {}} // Handled by our custom picker
-                        leftSection={<IconClock size="1rem" />}
-                        rightSectionWidth={0} // Remove right icon
-                        readOnly // Make it read-only since we use our custom picker
-                        styles={{
-                            input: {
-                                cursor: "pointer",
-                            },
-                            wrapper: {
-                                cursor: "pointer",
-                                width: "100%",
-                            },
+            <Popover
+                opened={isOpen}
+                onChange={setIsOpen}
+                width={220}
+                position="bottom-start"
+                withinPortal
+                shadow="md"
+            >
+                <Popover.Target>
+                    <div
+                        onClick={() => setIsOpen(!isOpen)}
+                        style={{
+                            cursor: "pointer",
+                            position: "relative",
+                            display: "flex",
+                            alignItems: "center",
+                            userSelect: "none", // Prevent text selection
                         }}
-                        aria-label={label || "Select time"}
-                    />
-                </div>
-
-                {isOpen && (
+                    >
+                        <TimeInput
+                            value={value}
+                            onChange={e => {}} // Handled by our custom picker
+                            leftSection={<IconClock size="1rem" />}
+                            rightSectionWidth={0} // Remove right icon
+                            readOnly // Make it read-only since we use our custom picker
+                            styles={{
+                                input: {
+                                    cursor: "pointer",
+                                    userSelect: "none", // Prevent text selection in input
+                                    WebkitUserSelect: "none", // For Safari
+                                    MozUserSelect: "none", // For Firefox
+                                    msUserSelect: "none", // For IE/Edge
+                                },
+                                wrapper: {
+                                    cursor: "pointer",
+                                    width: "100%",
+                                    userSelect: "none", // Prevent text selection in wrapper
+                                },
+                                section: {
+                                    pointerEvents: "none", // Make icon non-interactive
+                                },
+                            }}
+                            aria-label={label || "Select time"}
+                            onClick={e => {
+                                // Prevent default selection behavior
+                                e.preventDefault();
+                                setIsOpen(!isOpen);
+                            }}
+                            onMouseDown={e => {
+                                // Prevent text selection on mouse down
+                                e.preventDefault();
+                            }}
+                        />
+                    </div>
+                </Popover.Target>
+                <Popover.Dropdown>
                     <div
                         style={{
-                            position: "absolute",
-                            top: "100%",
-                            left: 0,
-                            zIndex: 1000,
-                            backgroundColor: "white",
-                            border: "1px solid #eee",
-                            borderRadius: "4px",
-                            boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
                             display: "flex",
-                            width: "220px",
-                            marginTop: "8px",
+                            width: "100%",
                         }}
                     >
                         {/* Hours column */}
@@ -505,8 +521,8 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             ))}
                         </div>
                     </div>
-                )}
-            </div>
+                </Popover.Dropdown>
+            </Popover>
         );
     };
 
@@ -590,27 +606,48 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             },
                         },
                     }}
-                    styles={calendarStyles}
-                    getDayProps={date => ({
-                        sx: theme => {
-                            const day = date.getDay();
-                            const isWeekend = day === 0 || day === 6;
-                            const isSelected =
-                                date.toDateString() === formState.startDate.toDateString();
-
-                            return {
-                                "color": isWeekend ? theme.colors.red[6] : undefined,
-                                "backgroundColor": isSelected ? theme.colors.blue[6] : undefined,
-                                "color": isSelected ? "white" : undefined,
-                                "fontWeight": isSelected ? 500 : undefined,
-                                "&:hover": {
-                                    backgroundColor: isSelected
-                                        ? theme.colors.blue[6]
-                                        : theme.colors.gray[0],
-                                },
-                            };
+                    styles={{
+                        calendarHeader: {
+                            padding: "0.25rem",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
                         },
-                    })}
+                        day: {
+                            height: "2rem",
+                            width: "2rem",
+                            fontSize: "0.85rem",
+                            margin: "0.1rem",
+                            borderRadius: "4px",
+                        },
+                        weekdaysRow: {
+                            fontSize: "0.75rem",
+                            color: "gray",
+                            fontWeight: 500,
+                            paddingBottom: "0.15rem",
+                        },
+                        calendarHeaderLevel: {
+                            height: "1.75rem",
+                            fontSize: "0.9rem",
+                            fontWeight: 600,
+                            textAlign: "center",
+                            flex: 1,
+                        },
+                    }}
+                    getDayProps={date => {
+                        const day = date.getDay();
+                        const isWeekend = day === 0 || day === 6;
+                        const isSelected =
+                            date.toDateString() === formState.startDate.toDateString();
+
+                        return {
+                            style: {
+                                color: isWeekend ? "red" : isSelected ? "white" : undefined,
+                                backgroundColor: isSelected ? "#228be6" : undefined,
+                                fontWeight: isSelected ? 500 : undefined,
+                            },
+                        };
+                    }}
                 />
             </SimpleGrid>
 
@@ -664,40 +701,55 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                     },
                                                 },
                                             }}
-                                            styles={theme => ({
-                                                ...calendarStyles(theme),
+                                            styles={{
                                                 input: {
                                                     cursor: "pointer",
-                                                    color: "var(--mantine-color-blue-6)",
-                                                    fontWeight: 500,
-                                                    textDecoration: "underline",
+                                                    color: "inherit",
+                                                    fontWeight: "normal",
+                                                    textDecoration: "none",
                                                 },
-                                            })}
-                                            getDayProps={date => ({
-                                                sx: theme => {
-                                                    const day = date.getDay();
-                                                    const isWeekend = day === 0 || day === 6;
-                                                    const isSelected =
-                                                        date.toDateString() ===
-                                                        new Date(parcel.pickupDate).toDateString();
+                                                calendarHeader: {
+                                                    padding: "0.25rem",
+                                                    display: "flex",
+                                                    justifyContent: "space-between",
+                                                    alignItems: "center",
+                                                },
+                                                day: {
+                                                    height: "2rem",
+                                                    width: "2rem",
+                                                    fontSize: "0.85rem",
+                                                    margin: "0.1rem",
+                                                    borderRadius: "4px",
+                                                },
+                                                calendarHeaderLevel: {
+                                                    height: "1.75rem",
+                                                    fontSize: "0.9rem",
+                                                    fontWeight: 600,
+                                                    textAlign: "center",
+                                                    flex: 1,
+                                                },
+                                            }}
+                                            getDayProps={date => {
+                                                const day = date.getDay();
+                                                const isWeekend = day === 0 || day === 6;
+                                                const isSelected =
+                                                    date.toDateString() ===
+                                                    new Date(parcel.pickupDate).toDateString();
 
-                                                    return {
-                                                        "color": isWeekend
-                                                            ? theme.colors.red[6]
+                                                return {
+                                                    style: {
+                                                        color: isWeekend
+                                                            ? "red"
+                                                            : isSelected
+                                                              ? "white"
+                                                              : undefined,
+                                                        backgroundColor: isSelected
+                                                            ? "#228be6"
                                                             : undefined,
-                                                        "backgroundColor": isSelected
-                                                            ? theme.colors.blue[6]
-                                                            : undefined,
-                                                        "color": isSelected ? "white" : undefined,
-                                                        "fontWeight": isSelected ? 500 : undefined,
-                                                        "&:hover": {
-                                                            backgroundColor: isSelected
-                                                                ? theme.colors.blue[6]
-                                                                : theme.colors.gray[0],
-                                                        },
-                                                    };
-                                                },
-                                            })}
+                                                        fontWeight: isSelected ? 500 : undefined,
+                                                    },
+                                                };
+                                            }}
                                         />
                                     </Table.Td>
                                     <Table.Td>

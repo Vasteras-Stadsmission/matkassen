@@ -68,33 +68,7 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
             try {
                 const species = await getPetSpecies();
 
-                // If we don't have any species in the DB, use dummy data
-                if (species.length === 0) {
-                    const dummySpecies = [
-                        { id: "p1", name: "Hund" },
-                        { id: "p2", name: "Katt" },
-                        { id: "p3", name: "Kanin" },
-                        { id: "p4", name: "Fågel" },
-                        { id: "p5", name: "Fisk" },
-                        { id: "p6", name: "Hamster" },
-                    ];
-                    setPetTypes(dummySpecies);
-
-                    // Initialize counts based on the dummy species
-                    const counts: Record<string, number> = {};
-                    dummySpecies.forEach(type => {
-                        counts[type.id] = 0;
-                    });
-
-                    // Set initial counts from data
-                    data.forEach(pet => {
-                        if (counts.hasOwnProperty(pet.species)) {
-                            counts[pet.species] = pet.count || 0;
-                        }
-                    });
-
-                    setPetCounts(counts);
-                } else {
+                if (species.length > 0) {
                     setPetTypes(species);
 
                     // Initialize counts based on the fetched species
@@ -111,34 +85,15 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                     });
 
                     setPetCounts(counts);
+                } else {
+                    console.error("No pet species found in the database");
+                    setPetTypes([]);
+                    setPetCounts({});
                 }
             } catch (error) {
                 console.error("Error fetching pet species:", error);
-                // Fallback to dummy data
-                const dummySpecies = [
-                    { id: "p1", name: "Hund" },
-                    { id: "p2", name: "Katt" },
-                    { id: "p3", name: "Kanin" },
-                    { id: "p4", name: "Fågel" },
-                    { id: "p5", name: "Fisk" },
-                    { id: "p6", name: "Hamster" },
-                ];
-                setPetTypes(dummySpecies);
-
-                // Initialize counts based on the dummy species
-                const counts: Record<string, number> = {};
-                dummySpecies.forEach(type => {
-                    counts[type.id] = 0;
-                });
-
-                // Set initial counts from data
-                data.forEach(pet => {
-                    if (counts.hasOwnProperty(pet.species)) {
-                        counts[pet.species] = pet.count || 0;
-                    }
-                });
-
-                setPetCounts(counts);
+                setPetTypes([]);
+                setPetCounts({});
             } finally {
                 setIsLoading(false);
             }
@@ -293,12 +248,12 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                 matsortimentet.
             </Text>
 
-            <Stack spacing="md">
+            <Stack gap="md">
                 {petTypes.map(petType => (
                     <Group
                         key={petType.id}
-                        position="apart"
-                        spacing="xs"
+                        justify="apart"
+                        gap="xs"
                         style={{ borderBottom: "1px solid #f1f1f1", paddingBottom: "8px" }}
                     >
                         <Group>
@@ -355,24 +310,16 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                 title={
                     <Group>
                         <IconAlertCircle size="1.3rem" color="orange" />
-                        <Text fw={600}>Bekräfta ny husdjurstyp</Text>
+                        <Text fw={600}>Lägg till husdjurstyp</Text>
                     </Group>
                 }
                 centered
             >
                 <Stack>
-                    <Text>
-                        Du lägger till en ny husdjurstyp som kommer att sparas i databasen och vara
-                        tillgänglig för alla andra hushåll också.
-                    </Text>
+                    <Text>Vill du lägga till följande husdjurstyp i din ansökan?</Text>
 
                     <Text fw={600} size="lg" ta="center">
                         "{newPetType?.name}"
-                    </Text>
-
-                    <Text>
-                        Är du säker på att namnet är korrekt stavat och att denna husdjurstyp
-                        behöver läggas till?
                     </Text>
 
                     <Group justify="apart" mt="md">
@@ -380,7 +327,7 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                             Avbryt
                         </Button>
                         <Button color="green" onClick={confirmCustomPetType}>
-                            Ja, lägg till
+                            Lägg till
                         </Button>
                     </Group>
                 </Stack>
@@ -393,29 +340,24 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                 title={
                     <Group>
                         <IconAlertCircle size="1.3rem" color="red" />
-                        <Text fw={600}>Bekräfta borttagning</Text>
+                        <Text fw={600}>Ta bort husdjurstyp</Text>
                     </Group>
                 }
                 centered
             >
                 <Stack>
-                    <Text>
-                        Du håller på att ta bort en husdjurstyp från systemet. Detta kommer påverka
-                        alla hushåll som har denna djurtyp.
-                    </Text>
+                    <Text>Vill du ta bort följande husdjurstyp från din ansökan?</Text>
 
                     <Text fw={600} size="lg" ta="center">
                         "{petTypeToDelete?.name}"
                     </Text>
-
-                    <Text>Är du säker på att du vill ta bort denna husdjurstyp permanent?</Text>
 
                     <Group justify="apart" mt="md">
                         <Button variant="outline" onClick={closeDeleteModal}>
                             Avbryt
                         </Button>
                         <Button color="red" onClick={confirmRemovePetType}>
-                            Ja, ta bort
+                            Ta bort
                         </Button>
                     </Group>
                 </Stack>

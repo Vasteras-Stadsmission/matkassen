@@ -271,8 +271,8 @@ export default function CreateRecipientPage() {
 
                     <Stepper.Step label="Husdjur" description="Information om husdjur">
                         <PetsForm
-                            data={formData.pets}
-                            updateData={(data: Pet[]) => updateFormData("pets", data)}
+                            data={formData.pets as any}
+                            updateData={(data: any) => updateFormData("pets", data)}
                         />
                     </Stepper.Step>
 
@@ -298,7 +298,7 @@ export default function CreateRecipientPage() {
                     </Stepper.Step>
 
                     <Stepper.Step label="Sammanfattning" description="Granska och skicka">
-                        <ReviewForm formData={formData} onSubmit={handleSubmit} />
+                        <ReviewForm formData={formData as any} onSubmit={handleSubmit} />
                     </Stepper.Step>
                 </Stepper>
 

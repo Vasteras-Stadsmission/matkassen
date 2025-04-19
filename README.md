@@ -54,11 +54,21 @@ The project uses Drizzle ORM with a migration-based approach:
     - Run `bun run db:migrate` to apply migration files to the database
     - In Docker environments, migrations run automatically on startup
 
-3. **Migration in Development**:
+3. **Custom SQL Migrations**:
+
+    - If you want to ship custom DDL changes or seed data separately from your schema diffs, run:
+      ```sh
+      bunx drizzle-kit generate --custom --name=seed-users
+      ```
+    - This creates an empty migration file (e.g., `0006_seed-users.sql`) under your migrations folder
+    - You can fill this file with custom INSERT, UPDATE, or DDL statements
+    - Custom migrations are applied in sequence along with schema migrations
+
+4. **Migration in Development**:
 
     - When using `bun run dev` or `bun run dev:containers-only`, migrations apply automatically before the web service starts
 
-4. **Migration in Production**:
+5. **Migration in Production**:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
     - All migrations are tracked in version control for better history management
 

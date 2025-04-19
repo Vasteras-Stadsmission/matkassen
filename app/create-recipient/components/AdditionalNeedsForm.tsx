@@ -49,34 +49,15 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
             try {
                 const dbNeeds = await getAdditionalNeeds();
 
-                // If we don't have any needs in the DB, use dummy data
-                if (dbNeeds.length === 0) {
-                    setAvailableNeeds([
-                        { id: "n1", need: "Blöjor" },
-                        { id: "n2", need: "Tamponger/bindor" },
-                        { id: "n3", need: "Kattmat" },
-                        { id: "n4", need: "Hundmat" },
-                        { id: "n5", need: "Rengöringsmedel" },
-                        { id: "n6", need: "Tvål" },
-                        { id: "n7", need: "Tandkräm" },
-                        { id: "n8", need: "Toalettpapper" },
-                    ]);
-                } else {
+                if (dbNeeds.length > 0) {
                     setAvailableNeeds(dbNeeds);
+                } else {
+                    console.error("No additional needs found in the database");
+                    setAvailableNeeds([]);
                 }
             } catch (error) {
                 console.error("Error fetching additional needs:", error);
-                // Fallback to dummy data
-                setAvailableNeeds([
-                    { id: "n1", need: "Blöjor" },
-                    { id: "n2", need: "Tamponger/bindor" },
-                    { id: "n3", need: "Kattmat" },
-                    { id: "n4", need: "Hundmat" },
-                    { id: "n5", need: "Rengöringsmedel" },
-                    { id: "n6", need: "Tvål" },
-                    { id: "n7", need: "Tandkräm" },
-                    { id: "n8", need: "Toalettpapper" },
-                ]);
+                setAvailableNeeds([]);
             } finally {
                 setLoading(false);
             }
