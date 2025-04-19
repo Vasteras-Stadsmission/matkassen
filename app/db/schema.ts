@@ -19,7 +19,6 @@ export const nanoid = (length = 14) => {
 };
 
 export const sexEnum = pgEnum("sex", ["male", "female", "other"]);
-export const petSpeciesEnum = pgEnum("pet_species", ["dog", "cat", "bunny", "bird"]);
 
 export const households = pgTable(
     "households",
@@ -68,6 +67,16 @@ export const householdMembers = pgTable("household_members", {
     sex: sexEnum("sex").notNull(),
 });
 
+// Pet species table similar to dietary_restrictions
+export const petSpecies = pgTable("pet_species_types", {
+    id: text("id")
+        .primaryKey()
+        .notNull()
+        .$defaultFn(() => nanoid(8)),
+    name: text("name").notNull().unique(), // e.g., dog, cat, bunny, bird...
+});
+
+// Updated pets table to reference pet_species instead of using enum
 export const pets = pgTable("pets", {
     id: text("id")
         .primaryKey()
@@ -77,34 +86,12 @@ export const pets = pgTable("pets", {
     household_id: text("household_id")
         .notNull()
         .references(() => households.id, { onDelete: "cascade" }),
-    species: petSpeciesEnum("species").notNull(),
+    pet_species_id: text("pet_species_id")
+        .notNull()
+        .references(() => petSpecies.id, { onDelete: "restrict" }),
 });
 
-export const foodParcels = pgTable(
-    "food_parcels",
-    {
-        id: text("id")
-            .primaryKey()
-            .notNull()
-            .$defaultFn(() => nanoid(8)),
-        household_id: text("household_id")
-            .notNull()
-            .references(() => households.id, { onDelete: "cascade" }),
-        pickup_location_id: text("pickup_location_id")
-            .notNull()
-            .references(() => pickupLocations.id),
-        pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-        pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-        is_picked_up: boolean("is_picked_up").notNull().default(false),
-    },
-    table => [
-        check(
-            "pickup_time_range_check",
-            sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
-        ),
-    ],
-);
-
+// Moved pickupLocations before foodParcels to resolve circular reference
 export const pickupLocations = pgTable(
     "pickup_locations",
     {
@@ -132,6 +119,31 @@ export const pickupLocations = pgTable(
             ),
         ];
     },
+);
+
+export const foodParcels = pgTable(
+    "food_parcels",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        household_id: text("household_id")
+            .notNull()
+            .references(() => households.id, { onDelete: "cascade" }),
+        pickup_location_id: text("pickup_location_id")
+            .notNull()
+            .references(() => pickupLocations.id),
+        pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
+        pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
+        is_picked_up: boolean("is_picked_up").notNull().default(false),
+    },
+    table => [
+        check(
+            "pickup_time_range_check",
+            sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
+        ),
+    ],
 );
 
 export const householdDietaryRestrictions = pgTable(

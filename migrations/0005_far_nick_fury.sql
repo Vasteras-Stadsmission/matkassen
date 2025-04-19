@@ -1,0 +1,2 @@
+-- The pet_species_types table is already created in the earlier migrations
+-- No operations needed as the schema is now aligned with the database structure
