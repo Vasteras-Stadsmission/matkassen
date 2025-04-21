@@ -39,6 +39,35 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         },
     });
 
+    useEffect(() => {
+        if (data) {
+            const isFirstNameDifferent =
+                data.first_name !== form.values.first_name && data.first_name;
+            const isLastNameDifferent = data.last_name !== form.values.last_name && data.last_name;
+            const isPhoneNumberDifferent =
+                data.phone_number !== form.values.phone_number && data.phone_number;
+            const isPostalCodeDifferent =
+                data.postal_code !== form.values.postal_code && data.postal_code;
+            const isLocaleDifferent = data.locale !== form.values.locale && data.locale;
+
+            if (
+                isFirstNameDifferent ||
+                isLastNameDifferent ||
+                isPhoneNumberDifferent ||
+                isPostalCodeDifferent ||
+                isLocaleDifferent
+            ) {
+                form.setValues({
+                    first_name: data.first_name || form.values.first_name,
+                    last_name: data.last_name || form.values.last_name,
+                    phone_number: data.phone_number || form.values.phone_number,
+                    postal_code: data.postal_code || form.values.postal_code,
+                    locale: data.locale || form.values.locale,
+                });
+            }
+        }
+    }, [data, form]);
+
     const handlePostalCodeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         let value = event.target.value.replace(/\D/g, "");
         if (value.length > 5) {
