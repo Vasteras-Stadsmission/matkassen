@@ -1,38 +1,33 @@
 "use client";
 
 import {
-    Card,
     Title,
     Text,
+    Card,
     Group,
-    Divider,
-    Badge,
+    Paper,
     Box,
+    SimpleGrid,
+    ThemeIcon,
+    Badge,
     Code,
     Loader,
-    SimpleGrid,
-    Paper,
-    Avatar,
-    Grid,
-    ThemeIcon,
-    Flex,
+    Button,
 } from "@mantine/core";
-import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getPickupLocations } from "../actions";
 import {
     IconUser,
     IconPhone,
-    IconCalendarEvent,
-    IconClock,
-    IconBuilding,
     IconMailbox,
     IconMars,
     IconVenus,
     IconGenderBigender,
-    IconPaw,
+    IconBuilding,
+    IconCalendarEvent,
+    IconClock,
 } from "@tabler/icons-react";
 import { FormData } from "../types";
+import { getPickupLocations } from "../actions";
 
 // Interface for pickup location data from DB
 interface PickupLocation {
@@ -43,22 +38,12 @@ interface PickupLocation {
 
 interface ReviewFormProps {
     formData: FormData;
-    onSubmit: () => Promise<void>;
+    onSubmit?: () => void;
 }
 
 export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
-    const router = useRouter();
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
-
-    const handleSubmit = async () => {
-        try {
-            await onSubmit();
-            router.push("/households"); // Redirect to households page after successful submission
-        } catch (error) {
-            console.error("Error submitting form:", error);
-        }
-    };
 
     // Format date for display
     const formatDate = (date: Date | string | null | undefined) => {
@@ -378,6 +363,14 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                     </Paper>
                 </Box>
             </SimpleGrid>
+
+            {onSubmit && (
+                <Group justify="center" mt="xl">
+                    <Button color="green" size="md" onClick={onSubmit}>
+                        Spara hushåll
+                    </Button>
+                </Group>
+            )}
         </Card>
     );
 }

@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { enhanceNextNavigation } from "@/components/NavigationUtils";
 import { SessionProvider } from "next-auth/react";
 import { HeaderSimple } from "@/components/HeaderSimple/HeaderSimple";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 
-export function ClientProviders({ children }: { children: React.ReactNode }) {
+// This component uses router and should be wrapped in Suspense
+function ClientProvidersContent({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     useEffect(() => {
@@ -42,5 +43,13 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
                 </AppShell>
             </MantineProvider>
         </SessionProvider>
+    );
+}
+
+export function ClientProviders({ children }: { children: React.ReactNode }) {
+    return (
+        <Suspense fallback={<div>Loading application...</div>}>
+            <ClientProvidersContent>{children}</ClientProvidersContent>
+        </Suspense>
     );
 }

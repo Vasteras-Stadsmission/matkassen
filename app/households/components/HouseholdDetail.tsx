@@ -5,7 +5,6 @@ import {
     Title,
     Text,
     Group,
-    Divider,
     Badge,
     Box,
     Code,
@@ -68,7 +67,7 @@ interface HouseholdDetailProps {
         pickupLocation: {
             id: string;
             name: string;
-            address: string;
+            address?: string;
         } | null;
     };
 }

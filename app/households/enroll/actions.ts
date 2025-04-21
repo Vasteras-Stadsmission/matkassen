@@ -19,7 +19,6 @@ import {
     HouseholdMember,
     DietaryRestriction,
     AdditionalNeed,
-    Pet,
     FoodParcel,
     EnrollHouseholdResult,
 } from "./types";
@@ -77,13 +76,13 @@ export async function enrollHousehold(data: FormData): Promise<EnrollHouseholdRe
                             restriction.id = existingByName.id;
                         } else {
                             // If not found at all, insert a new entry
-                            const [inserted] = await tx
+                            const [newRestriction] = await tx
                                 .insert(dietaryRestrictions)
                                 .values({
                                     name: restriction.name,
                                 })
                                 .returning();
-                            restriction.id = inserted.id;
+                            restriction.id = newRestriction.id;
                         }
                     }
                 }
@@ -125,7 +124,7 @@ export async function enrollHousehold(data: FormData): Promise<EnrollHouseholdRe
                             pet.species = existingByName.id;
                         } else {
                             // If not found at all, insert a new entry
-                            const [inserted] = await tx
+                            await tx
                                 .insert(petSpecies)
                                 .values({
                                     id: pet.species,
@@ -140,7 +139,7 @@ export async function enrollHousehold(data: FormData): Promise<EnrollHouseholdRe
 
                 // Then add all pets to the database
                 await tx.insert(pets).values(
-                    data.pets.map((pet: any) => ({
+                    data.pets.map(pet => ({
                         household_id: householdId,
                         pet_species_id: pet.species,
                     })),

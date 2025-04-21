@@ -3,8 +3,9 @@
 import { useSession } from "next-auth/react";
 import { Container, Title, Text, Button, Group, Card } from "@mantine/core";
 import { useRouter } from "next/navigation";
+import { Suspense } from "react";
 
-export default function Home() {
+function HomeContent() {
     const { data: session, status } = useSession();
     const router = useRouter();
 
@@ -44,5 +45,13 @@ export default function Home() {
                 )}
             </Card>
         </Container>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <HomeContent />
+        </Suspense>
     );
 }

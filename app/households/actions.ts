@@ -13,8 +13,7 @@ import {
     householdDietaryRestrictions,
     householdAdditionalNeeds,
 } from "../db/schema";
-import { eq, and, gte, desc, asc } from "drizzle-orm";
-import { sexEnum } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {

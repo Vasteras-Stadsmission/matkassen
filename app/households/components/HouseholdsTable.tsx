@@ -1,17 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DataTable } from "mantine-datatable";
-import {
-    Modal,
-    Button,
-    TextInput,
-    Group,
-    Box,
-    LoadingOverlay,
-    ActionIcon,
-    Tooltip,
-} from "@mantine/core";
+import { Modal, TextInput, Box, LoadingOverlay, ActionIcon, Tooltip } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconSearch, IconX, IconEye } from "@tabler/icons-react";
 import { getHouseholdDetails } from "../actions";
@@ -39,19 +30,48 @@ interface HouseholdDetail {
         locale: string;
         postal_code: string;
     };
-    members: any[];
-    dietaryRestrictions: any[];
-    additionalNeeds: any[];
-    pets: any[];
-    foodParcels: any;
-    pickupLocation: any;
+    members: {
+        id?: string;
+        age: number;
+        sex: string;
+    }[];
+    dietaryRestrictions: {
+        id: string;
+        name: string;
+    }[];
+    additionalNeeds: {
+        id: string;
+        need: string;
+    }[];
+    pets: {
+        id?: string;
+        species: string;
+        speciesName?: string;
+    }[];
+    foodParcels: {
+        pickupLocationId: string;
+        totalCount: number;
+        weekday: string;
+        repeatValue: string;
+        startDate: Date;
+        parcels: {
+            id?: string;
+            pickupDate: Date;
+            pickupEarliestTime: Date;
+            pickupLatestTime: Date;
+            isPickedUp?: boolean;
+        }[];
+    };
+    pickupLocation: {
+        id: string;
+        name: string;
+        address?: string;
+    } | null;
 }
 
-export default function HouseholdsTable({ initialHouseholds }: { initialHouseholds: Household[] }) {
-    const [households, setHouseholds] = useState<Household[]>(initialHouseholds);
-    const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(initialHouseholds);
+export default function HouseholdsTable({ households }: { households: Household[] }) {
+    const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
-    const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null);
     const [householdDetail, setHouseholdDetail] = useState<HouseholdDetail | null>(null);
     const [opened, { open, close }] = useDisclosure(false);
     const [loading, setLoading] = useState(false);
@@ -61,26 +81,29 @@ export default function HouseholdsTable({ initialHouseholds }: { initialHousehol
     });
 
     // Format date for display
-    const formatDate = (date: string | Date | null | undefined) => {
+    const formatDate = useCallback((date: string | Date | null | undefined) => {
         if (!date) return "-";
         return new Date(date).toLocaleDateString("sv-SE");
-    };
+    }, []);
 
     // Format time for display
-    const formatTime = (date: string | Date | null | undefined) => {
+    const formatTime = useCallback((date: string | Date | null | undefined) => {
         if (!date) return "";
         return new Date(date).toLocaleTimeString("sv-SE", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: false,
         });
-    };
+    }, []);
 
     // Format full date and time
-    const formatDateTime = (date: string | Date | null | undefined) => {
-        if (!date) return "-";
-        return `${formatDate(date)} ${formatTime(date)}`;
-    };
+    const formatDateTime = useCallback(
+        (date: string | Date | null | undefined) => {
+            if (!date) return "-";
+            return `${formatDate(date)} ${formatTime(date)}`;
+        },
+        [formatDate, formatTime],
+    );
 
     // Format postal code as XXX XX
     const formatPostalCode = (postalCode: string) => {
@@ -128,7 +151,6 @@ export default function HouseholdsTable({ initialHouseholds }: { initialHousehol
 
     // Handle row click to open detail modal
     const handleRowClick = async (householdId: string) => {
-        setSelectedHousehold(householdId);
         setLoading(true);
         open();
 
@@ -167,31 +189,37 @@ export default function HouseholdsTable({ initialHouseholds }: { initialHousehol
         });
 
         setFilteredHouseholds(filtered);
-    }, [search, households]);
+    }, [search, households, formatDate, formatDateTime]);
 
     // Handle sorting
     useEffect(() => {
-        let sorted = [...households];
+        const sorted = [...households];
         const { columnAccessor, direction } = sortStatus;
 
-        sorted.sort((a: any, b: any) => {
-            let aValue = a[columnAccessor];
-            let bValue = b[columnAccessor];
+        sorted.sort((a: Household, b: Household) => {
+            const aValue = a[columnAccessor as keyof Household];
+            const bValue = b[columnAccessor as keyof Household];
 
             // Handle date comparisons
             if (columnAccessor.includes("Date")) {
-                aValue = aValue ? new Date(aValue).getTime() : 0;
-                bValue = bValue ? new Date(bValue).getTime() : 0;
+                const aTime = aValue ? new Date(aValue).getTime() : 0;
+                const bTime = bValue ? new Date(bValue).getTime() : 0;
+
+                if (direction === "asc") {
+                    return aTime > bTime ? 1 : -1;
+                } else {
+                    return aTime < bTime ? 1 : -1;
+                }
             } else {
                 // Handle string comparisons
-                aValue = aValue?.toString().toLowerCase() || "";
-                bValue = bValue?.toString().toLowerCase() || "";
-            }
+                const aString = aValue?.toString().toLowerCase() || "";
+                const bString = bValue?.toString().toLowerCase() || "";
 
-            if (direction === "asc") {
-                return aValue > bValue ? 1 : -1;
-            } else {
-                return aValue < bValue ? 1 : -1;
+                if (direction === "asc") {
+                    return aString > bString ? 1 : -1;
+                } else {
+                    return aString < bString ? 1 : -1;
+                }
             }
         });
 
@@ -201,7 +229,6 @@ export default function HouseholdsTable({ initialHouseholds }: { initialHousehol
     // Close modal and reset selected household
     const handleCloseModal = () => {
         close();
-        setSelectedHousehold(null);
         setHouseholdDetail(null);
     };
 

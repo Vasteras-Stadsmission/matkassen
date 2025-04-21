@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
-import { TextInput, SimpleGrid, Group, Title, Text, Card } from "@mantine/core";
+import { TextInput, SimpleGrid, Title, Text, Card } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { Household } from "../types";
 
@@ -58,7 +58,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         if (form.isDirty()) {
             updateData(form.values);
         }
-    }, [form.isDirty, form.values, updateData]);
+    }, [form, updateData]);
 
     useEffect(() => {
         const timeoutId = setTimeout(() => {

@@ -1,6 +1,7 @@
 import { forwardRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+
 interface NavigationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
     label: string;
     active?: boolean;
@@ -46,26 +47,29 @@ export const dispatchNavigationStart = () => {
     document.dispatchEvent(event);
 };
 
-export const enhanceNextNavigation = (router: any) => {
-    if (!router || typeof router.push !== "function") {
+export const enhanceNextNavigation = (router: unknown) => {
+    if (!router || typeof (router as Record<string, unknown>).push !== "function") {
         console.warn("Router not available or does not have push method");
         return router;
     }
 
     // Store original methods
-    const originalPush = router.push;
-    const originalReplace = router.replace;
+    const typedRouter = router as {
+        push: (...args: unknown[]) => unknown;
+        replace: (...args: unknown[]) => unknown;
+    };
+
+    const originalPush = typedRouter.push;
+    const originalReplace = typedRouter.replace;
 
     // Override router.push to dispatch event before navigation
-    router.push = function (...args: any[]) {
-        const path = args[0];
+    typedRouter.push = function (...args: unknown[]) {
         dispatchNavigationStart();
         return originalPush.apply(this, args);
     };
 
     // Override router.replace to dispatch event before navigation
-    router.replace = function (...args: any[]) {
-        const path = args[0];
+    typedRouter.replace = function (...args: unknown[]) {
         dispatchNavigationStart();
         return originalReplace.apply(this, args);
     };

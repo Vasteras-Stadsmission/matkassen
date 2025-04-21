@@ -8,7 +8,6 @@ import {
     Text,
     Card,
     TextInput,
-    Chip,
     ActionIcon,
     Loader,
     Modal,
@@ -101,7 +100,7 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
         };
 
         fetchPetSpecies();
-    }, []); // Remove data dependency to prevent excessive re-fetching
+    }, [data]); // Added data dependency
 
     // Make sure to include any custom pet types that are already in the data array
     useEffect(() => {
@@ -142,7 +141,7 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                 setSpeciesNameMap(newSpeciesNames);
             }
         }
-    }, [data, isLoading, petTypes]);
+    }, [data, isLoading, petTypes, speciesNameMap]);
 
     // Function to set count directly for a specific pet type
     const setCount = (petTypeId: string, value: number) => {

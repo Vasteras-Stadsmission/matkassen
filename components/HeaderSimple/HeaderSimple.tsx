@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Burger, Button, Container, Group, Text, Box, Drawer } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import classes from "./HeaderSimple.module.css";
 import { UserAvatarWrapper } from "../UserAvatarWrapper";
 import { SignOutButton } from "../SignOutButton";
@@ -99,7 +100,7 @@ export function HeaderSimple() {
             <header className={classes.header}>
                 <Container size="md" className={classes.inner}>
                     <Box className={classes.logoContainer}>
-                        <a
+                        <Link
                             href="/"
                             onClick={handleNavigation(HOME_LINK)}
                             className={classes.logo}
@@ -109,7 +110,7 @@ export function HeaderSimple() {
                             <Text component="span" fw={500} size="lg" ml={8}>
                                 matkassen
                             </Text>
-                        </a>
+                        </Link>
                     </Box>
                     <Group gap={5} visibleFrom="xs">
                         {desktopLinks}

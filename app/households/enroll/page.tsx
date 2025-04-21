@@ -32,7 +32,6 @@ import {
     HouseholdMember,
     DietaryRestriction,
     AdditionalNeed,
-    Pet,
     FoodParcels,
 } from "./types";
 
@@ -92,7 +91,7 @@ export default function EnrollHouseholdPage() {
 
     const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
 
-    const updateFormData = (section: keyof FormData, data: any) => {
+    const updateFormData = (section: keyof FormData, data: unknown) => {
         setFormData(prev => ({
             ...prev,
             [section]: data,
@@ -101,7 +100,7 @@ export default function EnrollHouseholdPage() {
         // Clear validation error when pickup location is updated
         if (
             section === "foodParcels" &&
-            data.pickupLocationId &&
+            (data as FoodParcels).pickupLocationId &&
             validationError?.field === "pickupLocationId"
         ) {
             setValidationError(null);
@@ -281,8 +280,8 @@ export default function EnrollHouseholdPage() {
 
                     <Stepper.Step label="Husdjur" description="Information om husdjur">
                         <PetsForm
-                            data={formData.pets as any}
-                            updateData={(data: any) => updateFormData("pets", data)}
+                            data={formData.pets}
+                            updateData={data => updateFormData("pets", data)}
                         />
                     </Stepper.Step>
 
@@ -308,7 +307,7 @@ export default function EnrollHouseholdPage() {
                     </Stepper.Step>
 
                     <Stepper.Step label="Sammanfattning" description="Granska och skicka">
-                        <ReviewForm formData={formData as any} onSubmit={handleSubmit} />
+                        <ReviewForm formData={formData} onSubmit={handleSubmit} />
                     </Stepper.Step>
                 </Stepper>
 

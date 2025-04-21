@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     SimpleGrid,
     Group,
@@ -57,7 +57,6 @@ const REPEAT_OPTIONS = [
 
 export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
-    const [loading, setLoading] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
 
     // Use the data from parent component or initialize with defaults
@@ -125,8 +124,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     { value: "loc1", label: "Västerås Stadsmission" },
                     { value: "loc2", label: "Klara Kyrka" },
                 ]);
-            } finally {
-                setLoading(false);
             }
         }
 
@@ -140,11 +137,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     };
 
     // Generate food parcels based on schedule parameters
-    const generateParcels = (): FoodParcel[] => {
+    const generateParcels = useCallback((): FoodParcel[] => {
         const { totalCount, weekday, repeatValue, startDate } = formState;
         const parcels: FoodParcel[] = [];
 
-        let currentDate = new Date(startDate);
+        const currentDate = new Date(startDate);
         // Set to the specified weekday if it's not already
         const currentWeekday = currentDate.getDay();
         const targetWeekday = parseInt(weekday);
@@ -184,20 +181,20 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }
 
         return parcels;
-    };
+    }, [formState]);
 
     // Update state when parameters change
-    const handleParameterChange = (field: keyof FoodParcels, value: any) => {
+    const handleParameterChange = (field: keyof FoodParcels, value: unknown) => {
         setFormState(prev => ({ ...prev, [field]: value }));
     };
 
     // Apply changes and generate parcels
-    const applyChanges = () => {
+    const applyChanges = useCallback(() => {
         const parcels = generateParcels();
         const updatedState = { ...formState, parcels };
         setFormState(updatedState);
         updateData(updatedState);
-    };
+    }, [formState, generateParcels, updateData]);
 
     // Update pickup time for a specific parcel
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
@@ -239,27 +236,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         updateData(updatedState);
     };
 
-    // Format date for display
-    const formatDate = (date: Date | string | null | undefined) => {
-        if (!date) return "";
-        return new Date(date).toLocaleDateString("sv-SE", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long",
-        });
-    };
-
-    // Format time for display
-    const formatTime = (date: Date | string | null | undefined) => {
-        if (!date) return "";
-        return new Date(date).toLocaleTimeString("sv-SE", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-        });
-    };
-
     // Helper function to convert Date to string in HH:mm format for TimeInput
     const formatTimeForInput = (date: Date): string => {
         return date.toLocaleTimeString("en-GB", {
@@ -277,22 +253,12 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         return newDate;
     };
 
-    // Round time to nearest 15 minutes
-    const roundToNearest15Minutes = (date: Date): Date => {
-        const minutes = date.getMinutes();
-        const roundedMinutes = Math.round(minutes / 15) * 15;
-
-        const newDate = new Date(date);
-        newDate.setMinutes(roundedMinutes);
-        return newDate;
-    };
-
     // Generate parcels on first load
     useEffect(() => {
         if (formState.parcels.length === 0) {
             applyChanges();
         }
-    }, []);
+    }, [formState.parcels.length, applyChanges]);
 
     // Convert weekday options to format needed for SegmentedControl
     const weekdayOptions = WEEKDAYS.map(day => ({
@@ -354,7 +320,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     >
                         <TimeInput
                             value={value}
-                            onChange={e => {}} // Handled by our custom picker
+                            onChange={() => {}} // Handled by our custom picker
                             leftSection={<IconClock size="1rem" />}
                             rightSectionWidth={0} // Remove right icon
                             readOnly // Make it read-only since we use our custom picker
