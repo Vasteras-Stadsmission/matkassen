@@ -1,25 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-    SimpleGrid,
-    Group,
-    Button,
-    Title,
-    Text,
-    Card,
-    Select,
-    Table,
-    SegmentedControl,
-    Stack,
-    Popover,
-} from "@mantine/core";
-import { DatePickerInput, TimeInput } from "@mantine/dates";
+import { SimpleGrid, Title, Text, Card, Select, Table, Stack, Box } from "@mantine/core";
+import { DatePicker, DatePickerInput, TimeInput } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
-import { IconCalendarEvent, IconRefresh, IconClock, IconCalendar } from "@tabler/icons-react";
+import { IconClock, IconCalendar } from "@tabler/icons-react";
 import { getPickupLocations } from "../actions";
 import { FoodParcels, FoodParcel } from "../types";
-import CounterInput from "@/components/CounterInput";
 
 interface ValidationError {
     field: string;
@@ -37,24 +24,6 @@ interface FoodParcelsFormProps {
     error?: ValidationError | null;
 }
 
-// Week days
-const WEEKDAYS = [
-    { value: "1", label: "Måndag" },
-    { value: "2", label: "Tisdag" },
-    { value: "3", label: "Onsdag" },
-    { value: "4", label: "Torsdag" },
-    { value: "5", label: "Fredag" },
-    { value: "6", label: "Lördag" },
-    { value: "0", label: "Söndag" },
-];
-
-// Repeat options
-const REPEAT_OPTIONS = [
-    { value: "weekly", label: "Varje vecka" },
-    { value: "biweekly", label: "Varannan vecka" },
-    { value: "monthly", label: "Varje månad" },
-];
-
 export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
     const [locationError, setLocationError] = useState<string | null>(null);
@@ -69,6 +38,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         parcels: data.parcels || [],
     });
 
+    // Array of selected dates for the multi-date picker
+    const [selectedDates, setSelectedDates] = useState<Date[]>(
+        data.parcels?.map(parcel => new Date(parcel.pickupDate)) || [],
+    );
+
     // Update formState when parent data changes (e.g., when navigating back to this step)
     useEffect(() => {
         // Clear location error if we have a pickupLocationId
@@ -79,10 +53,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         setFormState(prevState => ({
             ...prevState,
             pickupLocationId: data.pickupLocationId || prevState.pickupLocationId,
-            totalCount: data.totalCount || prevState.totalCount,
-            weekday: data.weekday || prevState.weekday,
-            repeatValue: data.repeatValue || prevState.repeatValue,
-            startDate: data.startDate ? new Date(data.startDate) : prevState.startDate,
             parcels: data.parcels?.length > 0 ? data.parcels : prevState.parcels,
         }));
     }, [data]);
@@ -136,52 +106,39 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         handleParameterChange("pickupLocationId", value);
     };
 
-    // Generate food parcels based on schedule parameters
+    // Generate food parcels based on selected dates
     const generateParcels = useCallback((): FoodParcel[] => {
-        const { totalCount, weekday, repeatValue, startDate } = formState;
-        const parcels: FoodParcel[] = [];
+        return selectedDates.map(date => {
+            // Look for an existing parcel with this date
+            const existingParcel = formState.parcels.find(
+                p => new Date(p.pickupDate).toDateString() === new Date(date).toDateString(),
+            );
 
-        const currentDate = new Date(startDate);
-        // Set to the specified weekday if it's not already
-        const currentWeekday = currentDate.getDay();
-        const targetWeekday = parseInt(weekday);
-        const daysToAdd = (targetWeekday + 7 - currentWeekday) % 7;
+            if (existingParcel) {
+                // Keep the existing parcel with its time settings
+                return { ...existingParcel };
+            }
 
-        if (daysToAdd > 0) {
-            currentDate.setDate(currentDate.getDate() + daysToAdd);
-        }
-
-        for (let i = 0; i < totalCount; i++) {
-            // Default pickup times (12:00-13:00)
-            const earliestTime = new Date(currentDate);
+            // Create a new parcel with default times
+            const earliestTime = new Date(date);
             earliestTime.setHours(12, 0, 0);
 
-            const latestTime = new Date(currentDate);
+            const latestTime = new Date(date);
             latestTime.setHours(13, 0, 0);
 
-            parcels.push({
+            return {
                 id: nanoid(8),
-                pickupDate: new Date(currentDate),
+                pickupDate: new Date(date),
                 pickupEarliestTime: earliestTime,
                 pickupLatestTime: latestTime,
-            });
+            };
+        });
+    }, [selectedDates, formState.parcels]);
 
-            // Calculate next date based on repeat option
-            switch (repeatValue) {
-                case "weekly":
-                    currentDate.setDate(currentDate.getDate() + 7);
-                    break;
-                case "biweekly":
-                    currentDate.setDate(currentDate.getDate() + 14);
-                    break;
-                case "monthly":
-                    currentDate.setMonth(currentDate.getMonth() + 1);
-                    break;
-            }
-        }
-
-        return parcels;
-    }, [formState]);
+    // Handle multiple dates selection
+    const handleDatesChange = (dates: Date[]) => {
+        setSelectedDates(dates);
+    };
 
     // Update state when parameters change
     const handleParameterChange = (field: keyof FoodParcels, value: unknown) => {
@@ -191,10 +148,21 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     // Apply changes and generate parcels
     const applyChanges = useCallback(() => {
         const parcels = generateParcels();
-        const updatedState = { ...formState, parcels };
-        setFormState(updatedState);
-        updateData(updatedState);
-    }, [formState, generateParcels, updateData]);
+        const updatedState = {
+            ...formState,
+            parcels,
+            totalCount: selectedDates.length,
+        };
+
+        // Only update if there's an actual change to avoid loops
+        if (
+            JSON.stringify(updatedState.parcels) !== JSON.stringify(formState.parcels) ||
+            updatedState.totalCount !== formState.totalCount
+        ) {
+            setFormState(updatedState);
+            updateData(updatedState);
+        }
+    }, [formState, generateParcels, updateData, selectedDates.length]);
 
     // Update pickup time for a specific parcel
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
@@ -253,187 +221,22 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         return newDate;
     };
 
-    // Generate parcels on first load
+    // Update selectedDates when parcels change from parent
     useEffect(() => {
-        if (formState.parcels.length === 0) {
+        if (
+            data.parcels?.length > 0 &&
+            JSON.stringify(data.parcels) !== JSON.stringify(formState.parcels)
+        ) {
+            setSelectedDates(data.parcels.map(parcel => new Date(parcel.pickupDate)));
+        }
+    }, [data.parcels, formState.parcels]);
+
+    // Generate parcels when selected dates change
+    useEffect(() => {
+        if (selectedDates.length > 0) {
             applyChanges();
         }
-    }, [formState.parcels.length, applyChanges]);
-
-    // Convert weekday options to format needed for SegmentedControl
-    const weekdayOptions = WEEKDAYS.map(day => ({
-        value: day.value,
-        label: day.label,
-    }));
-
-    // Convert repeat options to format needed for SegmentedControl
-    const repeatOptions = REPEAT_OPTIONS.map(option => ({
-        value: option.value,
-        label: option.label,
-    }));
-
-    // Create a custom time component with only 15-minute intervals
-    const TimePickerInput = ({
-        value,
-        onChange,
-        label,
-    }: {
-        value: string;
-        onChange: (value: string) => void;
-        label?: string;
-    }) => {
-        // Parse the current hours and minutes
-        const [hours, minutes] = value.split(":").map(Number);
-
-        // List of allowed minute values (15-minute intervals)
-        const minuteOptions = ["00", "15", "30", "45"];
-
-        // Generate hour options (00-23)
-        const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, "0"));
-
-        // Handle time selection
-        const handleTimeChange = (newHours: string, newMinutes: string) => {
-            onChange(`${newHours}:${newMinutes}`);
-        };
-
-        const [isOpen, setIsOpen] = useState(false);
-
-        return (
-            <Popover
-                opened={isOpen}
-                onChange={setIsOpen}
-                width={220}
-                position="bottom-start"
-                withinPortal
-                shadow="md"
-            >
-                <Popover.Target>
-                    <div
-                        onClick={() => setIsOpen(!isOpen)}
-                        style={{
-                            cursor: "pointer",
-                            position: "relative",
-                            display: "flex",
-                            alignItems: "center",
-                            userSelect: "none", // Prevent text selection
-                        }}
-                    >
-                        <TimeInput
-                            value={value}
-                            onChange={() => {}} // Handled by our custom picker
-                            leftSection={<IconClock size="1rem" />}
-                            rightSectionWidth={0} // Remove right icon
-                            readOnly // Make it read-only since we use our custom picker
-                            styles={{
-                                input: {
-                                    cursor: "pointer",
-                                    userSelect: "none", // Prevent text selection in input
-                                    WebkitUserSelect: "none", // For Safari
-                                    MozUserSelect: "none", // For Firefox
-                                    msUserSelect: "none", // For IE/Edge
-                                },
-                                wrapper: {
-                                    cursor: "pointer",
-                                    width: "100%",
-                                    userSelect: "none", // Prevent text selection in wrapper
-                                },
-                                section: {
-                                    pointerEvents: "none", // Make icon non-interactive
-                                },
-                            }}
-                            aria-label={label || "Select time"}
-                            onClick={e => {
-                                // Prevent default selection behavior
-                                e.preventDefault();
-                                setIsOpen(!isOpen);
-                            }}
-                            onMouseDown={e => {
-                                // Prevent text selection on mouse down
-                                e.preventDefault();
-                            }}
-                        />
-                    </div>
-                </Popover.Target>
-                <Popover.Dropdown>
-                    <div
-                        style={{
-                            display: "flex",
-                            width: "100%",
-                        }}
-                    >
-                        {/* Hours column */}
-                        <div
-                            style={{
-                                flex: 1,
-                                borderRight: "1px solid #eee",
-                                maxHeight: "250px",
-                                overflowY: "auto",
-                            }}
-                        >
-                            {hourOptions.map(hour => (
-                                <div
-                                    key={hour}
-                                    onClick={() => {
-                                        handleTimeChange(hour, minutes.toString().padStart(2, "0"));
-                                        setIsOpen(false);
-                                    }}
-                                    style={{
-                                        padding: "8px 16px",
-                                        cursor: "pointer",
-                                        backgroundColor:
-                                            hour === hours.toString().padStart(2, "0")
-                                                ? "#e6f7ff"
-                                                : "transparent",
-                                        fontWeight:
-                                            hour === hours.toString().padStart(2, "0")
-                                                ? "bold"
-                                                : "normal",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {hour}
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Minutes column */}
-                        <div
-                            style={{
-                                flex: 1,
-                                maxHeight: "250px",
-                                overflowY: "auto",
-                            }}
-                        >
-                            {minuteOptions.map(minute => (
-                                <div
-                                    key={minute}
-                                    onClick={() => {
-                                        handleTimeChange(hours.toString().padStart(2, "0"), minute);
-                                        setIsOpen(false);
-                                    }}
-                                    style={{
-                                        padding: "8px 16px",
-                                        cursor: "pointer",
-                                        backgroundColor:
-                                            minute === minutes.toString().padStart(2, "0")
-                                                ? "#e6f7ff"
-                                                : "transparent",
-                                        fontWeight:
-                                            minute === minutes.toString().padStart(2, "0")
-                                                ? "bold"
-                                                : "normal",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {minute}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </Popover.Dropdown>
-            </Popover>
-        );
-    };
+    }, [selectedDates, applyChanges]);
 
     return (
         <Card withBorder p="md" radius="md">
@@ -448,7 +251,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 Inställningar för schemaläggning
             </Title>
 
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mb="lg">
+            <SimpleGrid cols={{ base: 1, sm: 1 }} spacing="md" mb="lg">
                 <Select
                     label="Hämtplats"
                     placeholder="Välj hämtplats"
@@ -459,96 +262,37 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     error={locationError}
                 />
 
-                <div>
+                <Stack>
                     <Text fw={500} size="sm" mb={7}>
-                        Antal matkassar{" "}
+                        Välj datum för matkassar{" "}
                         <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
                     </Text>
-                    <CounterInput
-                        value={formState.totalCount}
-                        onChange={value => handleParameterChange("totalCount", value)}
-                        min={1}
-                        max={52}
-                    />
-                </div>
-
-                <Stack gap="xs">
-                    <Text fw={500} size="sm" mb={0}>
-                        Standard veckodag{" "}
-                        <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
+                    <Box
+                        style={{
+                            height: "290px", // Set a fixed height for the calendar container
+                            overflow: "hidden", // Prevent any overflow
+                        }}
+                    >
+                        <DatePicker
+                            type="multiple"
+                            value={selectedDates}
+                            onChange={handleDatesChange}
+                            minDate={new Date()}
+                            numberOfColumns={2}
+                        />
+                    </Box>
+                    <Text size="xs" c="dimmed">
+                        Välj alla datum när hushållet ska få en matkasse
                     </Text>
-                    <SegmentedControl
-                        fullWidth
-                        value={formState.weekday}
-                        onChange={value => handleParameterChange("weekday", value)}
-                        data={weekdayOptions}
-                    />
                 </Stack>
-
-                <Stack gap="xs">
-                    <Text fw={500} size="sm" mb={0}>
-                        Upprepning <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
-                    </Text>
-                    <SegmentedControl
-                        fullWidth
-                        value={formState.repeatValue}
-                        onChange={value => handleParameterChange("repeatValue", value)}
-                        data={repeatOptions}
-                    />
-                </Stack>
-
-                <DatePickerInput
-                    label="Startdatum"
-                    placeholder="Välj startdatum"
-                    value={formState.startDate}
-                    onChange={value => value && handleParameterChange("startDate", value)}
-                    minDate={new Date()}
-                    withAsterisk
-                    leftSection={<IconCalendarEvent size="1rem" />}
-                    popoverProps={{
-                        shadow: "md",
-                        withinPortal: true,
-                        width: 280, // Control popover width
-                        styles: {
-                            dropdown: {
-                                padding: "0.5rem",
-                            },
-                        },
-                    }}
-                    getDayProps={date => {
-                        const day = date.getDay();
-                        const isWeekend = day === 0 || day === 6;
-                        const isSelected =
-                            date.toDateString() === formState.startDate.toDateString();
-
-                        return {
-                            style: {
-                                color: isWeekend ? "red" : isSelected ? "white" : undefined,
-                                backgroundColor: isSelected ? "#228be6" : undefined,
-                                fontWeight: isSelected ? 500 : undefined,
-                            },
-                        };
-                    }}
-                />
             </SimpleGrid>
-
-            <Group justify="center" mb="md">
-                <Button
-                    onClick={applyChanges}
-                    leftSection={<IconRefresh size="1rem" />}
-                    color="teal"
-                    variant="outline"
-                >
-                    Uppdatera schema
-                </Button>
-            </Group>
 
             {formState.parcels.length > 0 && (
                 <>
                     <Title order={5} mt="md" mb="sm">
                         Schemalagda matkassar
                     </Title>
-                    <Text size="sm" mb="md" color="dimmed">
+                    <Text size="sm" mb="md" c="dimmed">
                         Klicka på datum eller tider för att anpassa varje matkasse. Standardhämttid
                         är 12:00-13:00.
                     </Text>
@@ -571,52 +315,15 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                             onChange={date => date && updateParcelDate(index, date)}
                                             minDate={new Date()}
                                             valueFormat="DD MMM YYYY"
+                                            size="xs"
                                             leftSection={<IconCalendar size="1rem" />}
-                                            popoverProps={{
-                                                shadow: "md",
-                                                withinPortal: true,
-                                                width: 280, // Control popover width
-                                                styles: {
-                                                    dropdown: {
-                                                        padding: "0.5rem",
-                                                    },
-                                                },
-                                            }}
-                                            styles={{
-                                                input: {
-                                                    cursor: "pointer",
-                                                    color: "inherit",
-                                                    fontWeight: "normal",
-                                                    textDecoration: "none",
-                                                },
-                                            }}
-                                            getDayProps={date => {
-                                                const day = date.getDay();
-                                                const isWeekend = day === 0 || day === 6;
-                                                const isSelected =
-                                                    date.toDateString() ===
-                                                    new Date(parcel.pickupDate).toDateString();
-
-                                                return {
-                                                    style: {
-                                                        color: isWeekend
-                                                            ? "red"
-                                                            : isSelected
-                                                              ? "white"
-                                                              : undefined,
-                                                        backgroundColor: isSelected
-                                                            ? "#228be6"
-                                                            : undefined,
-                                                        fontWeight: isSelected ? 500 : undefined,
-                                                    },
-                                                };
-                                            }}
                                         />
                                     </Table.Td>
                                     <Table.Td>
-                                        <TimePickerInput
+                                        <TimeInput
                                             value={formatTimeForInput(parcel.pickupEarliestTime)}
-                                            onChange={timeStr => {
+                                            onChange={event => {
+                                                const timeStr = event.currentTarget.value;
                                                 if (timeStr) {
                                                     const newDate = parseTimeString(
                                                         timeStr,
@@ -629,13 +336,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                     );
                                                 }
                                             }}
-                                            label="Tidigast hämttid"
+                                            size="xs"
+                                            leftSection={<IconClock size="1rem" />}
+                                            aria-label="Tidigast hämttid"
                                         />
                                     </Table.Td>
                                     <Table.Td>
-                                        <TimePickerInput
+                                        <TimeInput
                                             value={formatTimeForInput(parcel.pickupLatestTime)}
-                                            onChange={timeStr => {
+                                            onChange={event => {
+                                                const timeStr = event.currentTarget.value;
                                                 if (timeStr) {
                                                     const newDate = parseTimeString(
                                                         timeStr,
@@ -648,7 +358,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                     );
                                                 }
                                             }}
-                                            label="Senast hämttid"
+                                            size="xs"
+                                            leftSection={<IconClock size="1rem" />}
+                                            aria-label="Senast hämttid"
                                         />
                                     </Table.Td>
                                 </Table.Tr>

@@ -1,12 +1,19 @@
 "use client";
 
 import { AppShell, MantineProvider } from "@mantine/core";
+import { DatesProvider } from "@mantine/dates";
 import { NavigationLoader } from "@/components/NavigationLoader";
 import { useRouter } from "next/navigation";
 import { enhanceNextNavigation } from "@/components/NavigationUtils";
 import { SessionProvider } from "next-auth/react";
 import { HeaderSimple } from "@/components/HeaderSimple/HeaderSimple";
 import { useEffect, Suspense } from "react";
+// Import dayjs and the Swedish locale
+import dayjs from "dayjs";
+import "dayjs/locale/sv";
+
+// Register the Swedish locale
+dayjs.locale("sv");
 
 // This component uses router and should be wrapped in Suspense
 function ClientProvidersContent({ children }: { children: React.ReactNode }) {
@@ -34,13 +41,21 @@ function ClientProvidersContent({ children }: { children: React.ReactNode }) {
     return (
         <SessionProvider>
             <MantineProvider forceColorScheme="light">
-                <NavigationLoader />
-                <AppShell header={{ height: 60 }} padding="md">
-                    <AppShell.Header>
-                        <HeaderSimple />
-                    </AppShell.Header>
-                    <AppShell.Main>{children}</AppShell.Main>
-                </AppShell>
+                <DatesProvider
+                    settings={{
+                        locale: "sv",
+                        timezone: "Europe/Stockholm",
+                        firstDayOfWeek: 1, // Monday as first day of week (0 is Sunday, 1 is Monday)
+                    }}
+                >
+                    <NavigationLoader />
+                    <AppShell header={{ height: 60 }} padding="md">
+                        <AppShell.Header>
+                            <HeaderSimple />
+                        </AppShell.Header>
+                        <AppShell.Main>{children}</AppShell.Main>
+                    </AppShell>
+                </DatesProvider>
             </MantineProvider>
         </SessionProvider>
     );

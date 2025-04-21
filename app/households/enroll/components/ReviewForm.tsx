@@ -39,9 +39,10 @@ interface PickupLocation {
 interface ReviewFormProps {
     formData: FormData;
     onSubmit?: () => void;
+    isEditing?: boolean;
 }
 
-export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
+export default function ReviewForm({ formData, onSubmit, isEditing = false }: ReviewFormProps) {
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
 
@@ -120,7 +121,9 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                 Sammanfattning
             </Title>
             <Text c="dimmed" size="sm" mb="lg">
-                Granska all information innan du sparar det nya hushållet.
+                {isEditing
+                    ? "Granska all information innan du uppdaterar hushållet."
+                    : "Granska all information innan du sparar det nya hushållet."}
             </Text>
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
@@ -364,7 +367,7 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                 </Box>
             </SimpleGrid>
 
-            {onSubmit && (
+            {onSubmit && !isEditing && (
                 <Group justify="center" mt="xl">
                     <Button color="green" size="md" onClick={onSubmit}>
                         Spara hushåll

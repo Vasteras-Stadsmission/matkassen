@@ -49,7 +49,7 @@ export default function HouseholdsPage() {
                 Hushåll
             </Title>
             <Text c="dimmed" mb="xl">
-                Hantera matkassens hushåll och deras information
+                Hantera hushåll och deras information
             </Text>
             <Box>
                 {loading ? (

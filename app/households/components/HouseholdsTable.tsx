@@ -2,11 +2,21 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { DataTable } from "mantine-datatable";
-import { Modal, TextInput, Box, LoadingOverlay, ActionIcon, Tooltip } from "@mantine/core";
+import {
+    Modal,
+    TextInput,
+    Box,
+    LoadingOverlay,
+    ActionIcon,
+    Tooltip,
+    Title,
+    Group,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconSearch, IconX, IconEye } from "@tabler/icons-react";
+import { IconSearch, IconX, IconEye, IconEdit } from "@tabler/icons-react";
 import { getHouseholdDetails } from "../actions";
 import HouseholdDetail from "./HouseholdDetail";
+import { useRouter } from "next/navigation";
 
 interface Household {
     id: string;
@@ -70,6 +80,7 @@ interface HouseholdDetail {
 }
 
 export default function HouseholdsTable({ households }: { households: Household[] }) {
+    const router = useRouter();
     const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
     const [householdDetail, setHouseholdDetail] = useState<HouseholdDetail | null>(null);
@@ -162,6 +173,12 @@ export default function HouseholdsTable({ households }: { households: Household[
         } finally {
             setLoading(false);
         }
+    };
+
+    // Handle navigation to edit page
+    const handleEditClick = (householdId: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row click handler from firing
+        router.push(`/households/${householdId}/edit`);
     };
 
     // Filter households based on search term
@@ -263,17 +280,28 @@ export default function HouseholdsTable({ households }: { households: Household[
                     {
                         accessor: "actions",
                         title: "",
-                        width: 80,
+                        width: 120,
                         render: household => (
-                            <Tooltip label="Visa detaljer" withArrow position="left">
-                                <ActionIcon
-                                    color="blue"
-                                    variant="subtle"
-                                    onClick={() => handleRowClick(household.id)}
-                                >
-                                    <IconEye size={18} />
-                                </ActionIcon>
-                            </Tooltip>
+                            <Group gap="xs">
+                                <Tooltip label="Visa detaljer" withArrow position="left">
+                                    <ActionIcon
+                                        color="blue"
+                                        variant="subtle"
+                                        onClick={() => handleRowClick(household.id)}
+                                    >
+                                        <IconEye size={18} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Redigera hushåll" withArrow position="right">
+                                    <ActionIcon
+                                        color="yellow"
+                                        variant="subtle"
+                                        onClick={e => handleEditClick(household.id, e)}
+                                    >
+                                        <IconEdit size={18} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
                         ),
                     },
                     { accessor: "first_name", title: "Förnamn", sortable: true },
@@ -320,8 +348,14 @@ export default function HouseholdsTable({ households }: { households: Household[
             <Modal
                 opened={opened}
                 onClose={handleCloseModal}
-                title="Hushållsinformation"
-                size="xl"
+                title={
+                    <Title order={2} fw={700} ta="center" c="blue.8">
+                        {householdDetail
+                            ? `Hushållsinformation - ${householdDetail.household.first_name} ${householdDetail.household.last_name}`
+                            : "Hushållsinformation"}
+                    </Title>
+                }
+                size="80%"
                 centered
             >
                 <LoadingOverlay visible={loading} />

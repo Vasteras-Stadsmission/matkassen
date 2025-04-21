@@ -1,17 +1,6 @@
 "use client";
 
-import {
-    Card,
-    Title,
-    Text,
-    Group,
-    Badge,
-    Box,
-    Code,
-    SimpleGrid,
-    Paper,
-    ThemeIcon,
-} from "@mantine/core";
+import { Card, Title, Text, Group, Badge, Box, SimpleGrid, Paper, ThemeIcon } from "@mantine/core";
 import {
     IconUser,
     IconPhone,
@@ -22,7 +11,6 @@ import {
     IconMars,
     IconVenus,
     IconGenderBigender,
-    IconPaw,
     IconLanguage,
 } from "@tabler/icons-react";
 
@@ -107,6 +95,15 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
         return weekdays[new Date(date).getDay()];
     };
 
+    // Check if date is in the past
+    const isDateInPast = (date: Date | string) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const compareDate = new Date(date);
+        compareDate.setHours(0, 0, 0, 0);
+        return compareDate < today;
+    };
+
     // Locale code to full language name in Swedish
     const getLanguageName = (locale: string) => {
         const languageMap: Record<string, string> = {
@@ -138,6 +135,30 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
         };
 
         return languageMap[locale] || locale; // Return the code itself if not found in the map
+    };
+
+    // Count pets by species
+    const countPetsBySpecies = () => {
+        const petCounts = new Map<string, number>();
+
+        householdDetail.pets.forEach(pet => {
+            const species = pet.speciesName || pet.species;
+            petCounts.set(species, (petCounts.get(species) || 0) + 1);
+        });
+
+        return petCounts;
+    };
+
+    // Get unique pet species with counts
+    const uniquePetsWithCount = () => {
+        const petCounts = countPetsBySpecies();
+        const uniquePets: { species: string; count: number }[] = [];
+
+        petCounts.forEach((count, species) => {
+            uniquePets.push({ species, count });
+        });
+
+        return uniquePets;
     };
 
     return (
@@ -185,7 +206,7 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                             Medlemmar ({householdDetail.members.length})
                         </Title>
                         {householdDetail.members.length > 0 ? (
-                            <Group gap="xs">
+                            <Group gap="xs" wrap="wrap">
                                 {householdDetail.members.map((member, index) => {
                                     // Choose appropriate icon and color based on age and gender
                                     let iconColor = "gray";
@@ -194,13 +215,15 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                                     // Gender icons
                                     if (member.sex === "male") {
                                         iconColor = "blue";
-                                        genderIcon = <IconMars size={20} />;
+                                        genderIcon = <IconMars size={24} strokeWidth={2} />;
                                     } else if (member.sex === "female") {
                                         iconColor = "pink";
-                                        genderIcon = <IconVenus size={20} />;
+                                        genderIcon = <IconVenus size={24} strokeWidth={2} />;
                                     } else {
                                         iconColor = "grape";
-                                        genderIcon = <IconGenderBigender size={20} />;
+                                        genderIcon = (
+                                            <IconGenderBigender size={24} strokeWidth={2} />
+                                        );
                                     }
 
                                     return (
@@ -210,23 +233,26 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                                             p="xs"
                                             withBorder
                                             shadow="xs"
+                                            style={{ minWidth: "auto" }}
                                         >
                                             <Group gap="xs" wrap="nowrap">
                                                 <Badge
-                                                    size="lg"
+                                                    size="md"
                                                     radius="xl"
                                                     variant="light"
                                                     color={iconColor}
-                                                    rightSection={genderIcon}
-                                                />
-                                                <Text>{member.age} år</Text>
+                                                    style={{ width: 30, height: 30, padding: 0 }}
+                                                >
+                                                    {genderIcon}
+                                                </Badge>
+                                                <Text size="m">{member.age} år</Text>
                                             </Group>
                                         </Paper>
                                     );
                                 })}
                             </Group>
                         ) : (
-                            <Text c="dimmed" size="sm">
+                            <Text c="dimmed" size="m">
                                 Inga medlemmar tillagda
                             </Text>
                         )}
@@ -238,27 +264,26 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                             Husdjur ({householdDetail.pets.length})
                         </Title>
                         {householdDetail.pets.length > 0 ? (
-                            <Group wrap="wrap" gap="md">
-                                {householdDetail.pets.map((pet, index) => (
+                            <Group wrap="wrap" gap="xs">
+                                {uniquePetsWithCount().map((pet, index) => (
                                     <Paper
-                                        key={pet.id || index}
+                                        key={index}
                                         radius="md"
                                         p="xs"
                                         withBorder
                                         shadow="xs"
+                                        style={{ minWidth: "auto" }}
                                     >
                                         <Group gap="xs" wrap="nowrap">
                                             <Badge
-                                                size="lg"
+                                                size="md"
                                                 radius="xl"
                                                 variant="light"
                                                 color="blue"
                                             >
-                                                <IconPaw size={12} />
+                                                {pet.count}
                                             </Badge>
-                                            <Text size="sm" fw={500}>
-                                                {pet.speciesName || pet.species}
-                                            </Text>
+                                            <Text size="m">{pet.species}</Text>
                                         </Group>
                                     </Paper>
                                 ))}
@@ -282,14 +307,14 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                                         key={restriction.id}
                                         color="blue"
                                         variant="filled"
-                                        size="md"
+                                        size="lg"
                                     >
                                         {restriction.name}
                                     </Badge>
                                 ))}
                             </Group>
                         ) : (
-                            <Text c="dimmed" size="sm">
+                            <Text c="dimmed" size="md">
                                 Inga matrestriktioner tillagda
                             </Text>
                         )}
@@ -303,13 +328,13 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                         {householdDetail.additionalNeeds.length > 0 ? (
                             <Group gap="xs">
                                 {householdDetail.additionalNeeds.map(need => (
-                                    <Badge key={need.id} color="cyan" variant="filled" size="md">
+                                    <Badge key={need.id} color="cyan" variant="filled" size="lg">
                                         {need.need}
                                     </Badge>
                                 ))}
                             </Group>
                         ) : (
-                            <Text c="dimmed" size="sm">
+                            <Text c="dimmed" size="md">
                                 Inga ytterligare behov tillagda
                             </Text>
                         )}
@@ -330,7 +355,7 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                                 <ThemeIcon size="md" variant="light" color="grape">
                                     <IconBuilding size={16} />
                                 </ThemeIcon>
-                                <Text size="sm" fw={500}>
+                                <Text size="md" fw={500}>
                                     {householdDetail.pickupLocation.name}
                                 </Text>
                             </Group>
@@ -340,48 +365,72 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                         {householdDetail.foodParcels.parcels &&
                         householdDetail.foodParcels.parcels.length > 0 ? (
                             <div>
-                                {householdDetail.foodParcels.parcels.map((parcel, index) => (
-                                    <Paper
-                                        key={parcel.id || index}
-                                        withBorder
-                                        p="xs"
-                                        radius="sm"
-                                        mb={
-                                            index === householdDetail.foodParcels.parcels.length - 1
-                                                ? 0
-                                                : "xs"
-                                        }
-                                    >
-                                        <Group justify="space-between" wrap="nowrap">
-                                            <Group gap="xs">
-                                                <ThemeIcon size="md" variant="light" color="indigo">
-                                                    <IconCalendarEvent size={16} />
-                                                </ThemeIcon>
-                                                <div>
-                                                    <Text fw={500} size="sm">
-                                                        {getWeekdayName(parcel.pickupDate)}
-                                                    </Text>
-                                                    <Code>{formatDate(parcel.pickupDate)}</Code>
-                                                </div>
-                                            </Group>
-                                            <Group gap="xs">
-                                                <ThemeIcon size="md" variant="light" color="indigo">
-                                                    <IconClock size={16} />
-                                                </ThemeIcon>
-                                                <Code>
-                                                    {formatTime(parcel.pickupEarliestTime)}-
-                                                    {formatTime(parcel.pickupLatestTime)}
-                                                </Code>
-                                            </Group>
-                                        </Group>
+                                {householdDetail.foodParcels.parcels.map((parcel, index) => {
+                                    const isPast = isDateInPast(parcel.pickupDate);
+                                    const missedPickup = isPast && !parcel.isPickedUp;
 
-                                        {parcel.isPickedUp && (
-                                            <Badge mt="xs" color="green" variant="light">
-                                                Uthämtad
-                                            </Badge>
-                                        )}
-                                    </Paper>
-                                ))}
+                                    return (
+                                        <Paper
+                                            key={parcel.id || index}
+                                            withBorder
+                                            p="xs"
+                                            radius="sm"
+                                            mb={
+                                                index ===
+                                                householdDetail.foodParcels.parcels.length - 1
+                                                    ? 0
+                                                    : "xs"
+                                            }
+                                            bg={isPast ? "gray.0" : undefined}
+                                            opacity={isPast ? 0.8 : 1}
+                                        >
+                                            <Group justify="space-between" wrap="nowrap">
+                                                <Group gap="xs">
+                                                    <ThemeIcon
+                                                        size="md"
+                                                        variant="light"
+                                                        color={isPast ? "gray" : "indigo"}
+                                                    >
+                                                        <IconCalendarEvent size={16} />
+                                                    </ThemeIcon>
+                                                    <div>
+                                                        <Text fw={500} size="md">
+                                                            {getWeekdayName(parcel.pickupDate)}
+                                                        </Text>
+                                                        <Text fw={500} size="md">
+                                                            {formatDate(parcel.pickupDate)}
+                                                        </Text>
+                                                    </div>
+                                                </Group>
+                                                <Group gap="xs">
+                                                    <ThemeIcon
+                                                        size="md"
+                                                        variant="light"
+                                                        color={isPast ? "gray" : "indigo"}
+                                                    >
+                                                        <IconClock size={16} />
+                                                    </ThemeIcon>
+                                                    <Text fw={500} size="md">
+                                                        {formatTime(parcel.pickupEarliestTime)}-
+                                                        {formatTime(parcel.pickupLatestTime)}
+                                                    </Text>
+                                                </Group>
+                                            </Group>
+
+                                            {parcel.isPickedUp && (
+                                                <Badge mt="xs" color="green" variant="light">
+                                                    Uthämtad
+                                                </Badge>
+                                            )}
+
+                                            {missedPickup && (
+                                                <Badge mt="xs" color="red" variant="light">
+                                                    Ej uthämtad
+                                                </Badge>
+                                            )}
+                                        </Paper>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <Text c="dimmed" size="sm">
