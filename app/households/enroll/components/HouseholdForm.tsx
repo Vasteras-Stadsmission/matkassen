@@ -81,7 +81,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             </Title>
             <Text c="dimmed" size="sm" mb="lg">
                 Fyll i grundläggande kontaktuppgifter för hushållet. Dessa uppgifter används för att
-                kontakta mottagaren.
+                kontakta hushållet.
             </Text>
 
             <form>

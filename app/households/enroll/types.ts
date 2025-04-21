@@ -1,4 +1,4 @@
-// Types for the create-recipient feature
+// Types for the household enrollment feature
 export interface Household {
     first_name: string;
     last_name: string;
@@ -25,20 +25,17 @@ export interface AdditionalNeed {
     isCustom?: boolean;
 }
 
-// Updated to match the new database schema
 export interface PetSpecies {
     id: string;
     name: string;
     isCustom?: boolean;
 }
 
-// Updated to reference PetSpecies instead of having species enum
 export interface Pet {
     id?: string;
-    petSpeciesId: string;
-    species?: string; // For compatibility with PetsForm
+    species: string; // For compatibility with PetsForm
     speciesName?: string; // For display purposes
-    count?: number; // For PetsForm usage
+    count: number;
 }
 
 export interface FoodParcel {
@@ -66,7 +63,7 @@ export interface FormData {
     foodParcels: FoodParcels;
 }
 
-export interface CreateHouseholdResult {
+export interface EnrollHouseholdResult {
     success: boolean;
     householdId?: string;
     error?: string;

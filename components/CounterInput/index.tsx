@@ -49,7 +49,7 @@ export function CounterInput({
     const iconSize = size === "xs" ? "0.8rem" : size === "sm" ? "0.9rem" : "1rem";
 
     return (
-        <Group spacing="xs">
+        <Group gap="xs">
             <ActionIcon
                 color="gray"
                 variant="light"

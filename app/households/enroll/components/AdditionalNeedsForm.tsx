@@ -16,12 +16,7 @@ import { useForm } from "@mantine/form";
 import { nanoid } from "@/app/db/schema";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { getAdditionalNeeds } from "../actions";
-
-interface AdditionalNeed {
-    id: string;
-    need: string;
-    isCustom?: boolean;
-}
+import { AdditionalNeed } from "../types";
 
 interface AdditionalNeedsFormProps {
     data: AdditionalNeed[];

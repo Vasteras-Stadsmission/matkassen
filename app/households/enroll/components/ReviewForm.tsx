@@ -32,76 +32,18 @@ import {
     IconGenderBigender,
     IconPaw,
 } from "@tabler/icons-react";
-
-// Import all the types we defined in other components
-interface Household {
-    first_name: string;
-    last_name: string;
-    phone_number: string;
-    locale: string;
-    postal_code: string;
-}
-
-interface HouseholdMember {
-    id?: string;
-    age: number;
-    sex: string;
-}
-
-interface DietaryRestriction {
-    id: string;
-    name: string;
-    isCustom?: boolean;
-}
-
-interface AdditionalNeed {
-    id: string;
-    need: string;
-    isCustom?: boolean;
-}
-
-interface Pet {
-    id?: string;
-    species: string;
-    speciesName?: string;
-    count?: number;
-}
-
-interface FoodParcel {
-    id?: string;
-    pickupDate: Date;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
-}
-
-interface FoodParcels {
-    pickupLocationId: string;
-    totalCount: number;
-    weekday: string;
-    repeatValue: string;
-    startDate: Date;
-    parcels: FoodParcel[];
-}
-
-interface FormData {
-    household: Household;
-    members: HouseholdMember[];
-    dietaryRestrictions: DietaryRestriction[];
-    additionalNeeds: AdditionalNeed[];
-    pets: Pet[];
-    foodParcels: FoodParcels;
-}
-
-interface ReviewFormProps {
-    formData: FormData;
-    onSubmit: () => Promise<void>;
-}
+import { FormData } from "../types";
 
 // Interface for pickup location data from DB
 interface PickupLocation {
     id: string;
     name: string;
     street_address?: string;
+}
+
+interface ReviewFormProps {
+    formData: FormData;
+    onSubmit: () => Promise<void>;
 }
 
 export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
@@ -112,7 +54,7 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
     const handleSubmit = async () => {
         try {
             await onSubmit();
-            router.push("/recipients"); // Redirect to recipients page after successful submission
+            router.push("/households"); // Redirect to households page after successful submission
         } catch (error) {
             console.error("Error submitting form:", error);
         }
@@ -193,7 +135,7 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                 Sammanfattning
             </Title>
             <Text c="dimmed" size="sm" mb="lg">
-                Granska all information innan du sparar den nya mottagaren.
+                Granska all information innan du sparar det nya hushållet.
             </Text>
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">

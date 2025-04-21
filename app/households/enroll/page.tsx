@@ -25,7 +25,7 @@ import AdditionalNeedsForm from "./components/AdditionalNeedsForm";
 import PetsForm from "./components/PetsForm";
 import FoodParcelsForm from "./components/FoodParcelsForm";
 import ReviewForm from "./components/ReviewForm";
-import { createHousehold } from "./actions";
+import { enrollHousehold } from "./actions";
 import {
     FormData,
     Household,
@@ -48,7 +48,7 @@ interface ValidationError {
     message: string;
 }
 
-export default function CreateRecipientPage() {
+export default function EnrollHouseholdPage() {
     const router = useRouter();
     const [active, setActive] = useState(0);
     const [submitting, setSubmitting] = useState(false);
@@ -172,14 +172,14 @@ export default function CreateRecipientPage() {
             setSubmitStatus(null);
 
             // Submit data to the server
-            const result = await createHousehold(formData);
+            const result = await enrollHousehold(formData);
 
             if (result.success) {
-                setSubmitStatus({ type: "success", message: "Ny mottagare har skapats!" });
+                setSubmitStatus({ type: "success", message: "Nytt hushåll har registrerats!" });
 
                 // Redirect after a short delay
                 setTimeout(() => {
-                    router.push("/recipients");
+                    router.push("/households");
                 }, 1500);
             } else {
                 setSubmitStatus({
@@ -191,7 +191,7 @@ export default function CreateRecipientPage() {
             console.error("Error submitting form:", error);
             setSubmitStatus({
                 type: "error",
-                message: "Ett fel uppstod vid skapande av mottagare.",
+                message: "Ett fel uppstod vid registrering av hushåll.",
             });
         } finally {
             setSubmitting(false);
@@ -202,7 +202,7 @@ export default function CreateRecipientPage() {
         <Container size="lg" py="md">
             <Box mb="md">
                 <Title order={2} ta="center">
-                    Registrera ny mottagare
+                    Registrera nytt hushåll
                 </Title>
             </Box>
 
@@ -210,7 +210,7 @@ export default function CreateRecipientPage() {
                 <Center my="md">
                     <Group>
                         <Loader size="md" />
-                        <Text>Skapar ny mottagare...</Text>
+                        <Text>Skapar nytt hushåll...</Text>
                     </Group>
                 </Center>
             )}
@@ -344,7 +344,7 @@ export default function CreateRecipientPage() {
                             loading={submitting}
                             rightSection={<IconCheck size="1rem" />}
                         >
-                            Spara mottagare
+                            Spara hushåll
                         </Button>
                     </Group>
                 )}

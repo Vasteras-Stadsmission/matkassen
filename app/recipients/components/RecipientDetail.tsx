@@ -9,17 +9,10 @@ import {
     Badge,
     Box,
     Code,
-    Loader,
     SimpleGrid,
     Paper,
-    Avatar,
-    Grid,
     ThemeIcon,
-    Flex,
 } from "@mantine/core";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { getPickupLocations } from "../actions";
 import {
     IconUser,
     IconPhone,
@@ -31,93 +24,56 @@ import {
     IconVenus,
     IconGenderBigender,
     IconPaw,
+    IconLanguage,
 } from "@tabler/icons-react";
 
-// Import all the types we defined in other components
-interface Household {
-    first_name: string;
-    last_name: string;
-    phone_number: string;
-    locale: string;
-    postal_code: string;
-}
-
-interface HouseholdMember {
-    id?: string;
-    age: number;
-    sex: string;
-}
-
-interface DietaryRestriction {
-    id: string;
-    name: string;
-    isCustom?: boolean;
-}
-
-interface AdditionalNeed {
-    id: string;
-    need: string;
-    isCustom?: boolean;
-}
-
-interface Pet {
-    id?: string;
-    species: string;
-    speciesName?: string;
-    count?: number;
-}
-
-interface FoodParcel {
-    id?: string;
-    pickupDate: Date;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
-}
-
-interface FoodParcels {
-    pickupLocationId: string;
-    totalCount: number;
-    weekday: string;
-    repeatValue: string;
-    startDate: Date;
-    parcels: FoodParcel[];
-}
-
-interface FormData {
-    household: Household;
-    members: HouseholdMember[];
-    dietaryRestrictions: DietaryRestriction[];
-    additionalNeeds: AdditionalNeed[];
-    pets: Pet[];
-    foodParcels: FoodParcels;
-}
-
-interface ReviewFormProps {
-    formData: FormData;
-    onSubmit: () => Promise<void>;
-}
-
-// Interface for pickup location data from DB
-interface PickupLocation {
-    id: string;
-    name: string;
-    street_address?: string;
-}
-
-export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
-    const router = useRouter();
-    const [pickupLocationName, setPickupLocationName] = useState<string>("");
-    const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
-
-    const handleSubmit = async () => {
-        try {
-            await onSubmit();
-            router.push("/recipients"); // Redirect to recipients page after successful submission
-        } catch (error) {
-            console.error("Error submitting form:", error);
-        }
+interface RecipientDetailProps {
+    recipientDetail: {
+        household: {
+            first_name: string;
+            last_name: string;
+            phone_number: string;
+            locale: string;
+            postal_code: string;
+        };
+        members: Array<{
+            id?: string;
+            age: number;
+            sex: string;
+        }>;
+        dietaryRestrictions: Array<{
+            id: string;
+            name: string;
+        }>;
+        additionalNeeds: Array<{
+            id: string;
+            need: string;
+        }>;
+        pets: Array<{
+            id?: string;
+            species: string;
+            speciesName?: string;
+        }>;
+        foodParcels: {
+            pickupLocationId: string;
+            totalCount: number;
+            parcels: Array<{
+                id?: string;
+                pickupDate: Date | string;
+                pickupEarliestTime: Date | string;
+                pickupLatestTime: Date | string;
+                isPickedUp?: boolean;
+            }>;
+        };
+        pickupLocation: {
+            id: string;
+            name: string;
+            address: string;
+        } | null;
     };
+}
 
+export default function RecipientDetail({ recipientDetail }: RecipientDetailProps) {
     // Format date for display
     const formatDate = (date: Date | string | null | undefined) => {
         if (!date) return "";
@@ -152,50 +108,41 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
         return weekdays[new Date(date).getDay()];
     };
 
-    // Fetch pickup location name when the component mounts
-    useEffect(() => {
-        const fetchLocationName = async () => {
-            if (formData.foodParcels?.pickupLocationId) {
-                try {
-                    setIsLoadingLocation(true);
-                    const locations = await getPickupLocations();
-
-                    // Find matching location by ID
-                    const location = locations.find(
-                        (loc: PickupLocation) => loc.id === formData.foodParcels.pickupLocationId,
-                    );
-
-                    if (location) {
-                        setPickupLocationName(location.name);
-                    } else {
-                        // Fallback if location not found
-                        setPickupLocationName(
-                            `Hämtplats (ID: ${formData.foodParcels.pickupLocationId})`,
-                        );
-                    }
-                } catch (error) {
-                    console.error("Error fetching pickup location:", error);
-                    setPickupLocationName(
-                        `Hämtplats (ID: ${formData.foodParcels.pickupLocationId})`,
-                    );
-                } finally {
-                    setIsLoadingLocation(false);
-                }
-            }
+    // Locale code to full language name in Swedish
+    const getLanguageName = (locale: string) => {
+        const languageMap: Record<string, string> = {
+            sv: "Svenska",
+            en: "Engelska",
+            de: "Tyska",
+            fr: "Franska",
+            es: "Spanska",
+            fi: "Finska",
+            no: "Norska",
+            da: "Danska",
+            pl: "Polska",
+            ru: "Ryska",
+            ar: "Arabiska",
+            fa: "Persiska",
+            ti: "Tigrinja",
+            so: "Somaliska",
+            am: "Amhariska",
+            ku: "Kurdiska",
+            tr: "Turkiska",
+            uk: "Ukrainska",
+            ro: "Rumänska",
+            th: "Thailändska",
+            zh: "Kinesiska",
+            vi: "Vietnamesiska",
+            ur: "Urdu",
+            hi: "Hindi",
+            bn: "Bengali",
         };
 
-        fetchLocationName();
-    }, [formData.foodParcels?.pickupLocationId]);
+        return languageMap[locale] || locale; // Return the code itself if not found in the map
+    };
 
     return (
         <Card withBorder p="md" radius="md" shadow="sm">
-            <Title order={3} mb="xs">
-                Sammanfattning
-            </Title>
-            <Text c="dimmed" size="sm" mb="lg">
-                Granska all information innan du sparar den nya mottagaren.
-            </Text>
-
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
                 {/* Left Column - All sections except Matkassar */}
                 <Box>
@@ -209,31 +156,38 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                                 <IconUser size={16} />
                             </ThemeIcon>
                             <Text>
-                                {formData.household.first_name} {formData.household.last_name}
+                                {recipientDetail.household.first_name}{" "}
+                                {recipientDetail.household.last_name}
                             </Text>
                         </Group>
                         <Group gap="xs" mb="xs">
                             <ThemeIcon size="md" variant="light" color="blue">
                                 <IconPhone size={16} />
                             </ThemeIcon>
-                            <Text>{formData.household.phone_number}</Text>
+                            <Text>{recipientDetail.household.phone_number}</Text>
                         </Group>
-                        <Group gap="xs">
+                        <Group gap="xs" mb="xs">
                             <ThemeIcon size="md" variant="light" color="blue">
                                 <IconMailbox size={16} />
                             </ThemeIcon>
-                            <Text>{formatPostalCode(formData.household.postal_code)}</Text>
+                            <Text>{formatPostalCode(recipientDetail.household.postal_code)}</Text>
+                        </Group>
+                        <Group gap="xs" mb="xs">
+                            <ThemeIcon size="md" variant="light" color="blue">
+                                <IconLanguage size={16} />
+                            </ThemeIcon>
+                            <Text>{getLanguageName(recipientDetail.household.locale)}</Text>
                         </Group>
                     </Paper>
 
                     {/* Household Members */}
                     <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
-                            Medlemmar ({formData.members.length})
+                            Medlemmar ({recipientDetail.members.length})
                         </Title>
-                        {formData.members.length > 0 ? (
+                        {recipientDetail.members.length > 0 ? (
                             <Group gap="xs">
-                                {formData.members.map((member, index) => {
+                                {recipientDetail.members.map((member, index) => {
                                     // Choose appropriate icon and color based on age and gender
                                     let iconColor = "gray";
                                     let genderIcon;
@@ -282,11 +236,11 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                     {/* Pets */}
                     <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
-                            Husdjur ({formData.pets.length})
+                            Husdjur ({recipientDetail.pets.length})
                         </Title>
-                        {formData.pets.length > 0 ? (
+                        {recipientDetail.pets.length > 0 ? (
                             <Group wrap="wrap" gap="md">
-                                {formData.pets.map((pet, index) => (
+                                {recipientDetail.pets.map((pet, index) => (
                                     <Paper
                                         key={pet.id || index}
                                         radius="md"
@@ -301,7 +255,7 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                                                 variant="light"
                                                 color="blue"
                                             >
-                                                {pet.count || 1}
+                                                <IconPaw size={12} />
                                             </Badge>
                                             <Text size="sm" fw={500}>
                                                 {pet.speciesName || pet.species}
@@ -320,11 +274,11 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                     {/* Dietary Restrictions */}
                     <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
-                            Matrestriktioner ({formData.dietaryRestrictions.length})
+                            Matrestriktioner ({recipientDetail.dietaryRestrictions.length})
                         </Title>
-                        {formData.dietaryRestrictions.length > 0 ? (
+                        {recipientDetail.dietaryRestrictions.length > 0 ? (
                             <Group gap="xs">
-                                {formData.dietaryRestrictions.map(restriction => (
+                                {recipientDetail.dietaryRestrictions.map(restriction => (
                                     <Badge
                                         key={restriction.id}
                                         color="blue"
@@ -345,11 +299,11 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                     {/* Additional Needs */}
                     <Paper withBorder p="md" radius="md">
                         <Title order={5} mb="md">
-                            Ytterligare behov ({formData.additionalNeeds.length})
+                            Ytterligare behov ({recipientDetail.additionalNeeds.length})
                         </Title>
-                        {formData.additionalNeeds.length > 0 ? (
+                        {recipientDetail.additionalNeeds.length > 0 ? (
                             <Group gap="xs">
-                                {formData.additionalNeeds.map(need => (
+                                {recipientDetail.additionalNeeds.map(need => (
                                     <Badge key={need.id} color="cyan" variant="filled" size="md">
                                         {need.need}
                                     </Badge>
@@ -368,37 +322,33 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                     {/* Food Parcels */}
                     <Paper withBorder p="md" radius="md" h="100%">
                         <Title order={5} mb="sm">
-                            Matkassar ({formData.foodParcels.parcels?.length || 0})
+                            Matkassar ({recipientDetail.foodParcels.parcels?.length || 0})
                         </Title>
 
                         {/* Location info */}
-                        {isLoadingLocation ? (
-                            <Group mb="md">
-                                <Loader size="xs" />
-                                <Text size="sm">Hämtar information om hämtplats...</Text>
-                            </Group>
-                        ) : pickupLocationName ? (
+                        {recipientDetail.pickupLocation ? (
                             <Group mb="md" gap="xs">
                                 <ThemeIcon size="md" variant="light" color="grape">
                                     <IconBuilding size={16} />
                                 </ThemeIcon>
                                 <Text size="sm" fw={500}>
-                                    {pickupLocationName}
+                                    {recipientDetail.pickupLocation.name}
                                 </Text>
                             </Group>
                         ) : null}
 
                         {/* Parcels list */}
-                        {formData.foodParcels.parcels && formData.foodParcels.parcels.length > 0 ? (
+                        {recipientDetail.foodParcels.parcels &&
+                        recipientDetail.foodParcels.parcels.length > 0 ? (
                             <div>
-                                {formData.foodParcels.parcels.map((parcel, index) => (
+                                {recipientDetail.foodParcels.parcels.map((parcel, index) => (
                                     <Paper
                                         key={parcel.id || index}
                                         withBorder
                                         p="xs"
                                         radius="sm"
                                         mb={
-                                            index === formData.foodParcels.parcels.length - 1
+                                            index === recipientDetail.foodParcels.parcels.length - 1
                                                 ? 0
                                                 : "xs"
                                         }
@@ -425,6 +375,12 @@ export default function ReviewForm({ formData, onSubmit }: ReviewFormProps) {
                                                 </Code>
                                             </Group>
                                         </Group>
+
+                                        {parcel.isPickedUp && (
+                                            <Badge mt="xs" color="green" variant="light">
+                                                Uthämtad
+                                            </Badge>
+                                        )}
                                     </Paper>
                                 ))}
                             </div>

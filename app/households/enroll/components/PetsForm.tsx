@@ -20,19 +20,7 @@ import { nanoid } from "@/app/db/schema";
 import { IconPlus, IconTrash, IconAlertCircle } from "@tabler/icons-react";
 import { getPetSpecies } from "../actions";
 import CounterInput from "@/components/CounterInput";
-
-interface PetSpecies {
-    id: string;
-    name: string;
-    isCustom?: boolean;
-}
-
-interface Pet {
-    id?: string;
-    species: string;
-    speciesName?: string; // Added to preserve pet species name
-    count: number;
-}
+import { Pet, PetSpecies } from "../types";
 
 interface PetsFormProps {
     data: Pet[];

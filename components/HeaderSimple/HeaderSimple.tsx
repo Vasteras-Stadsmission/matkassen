@@ -16,10 +16,10 @@ interface NavLink {
 }
 
 const links: NavLink[] = [
-    { link: "/recipients", label: "Mottagare" },
+    { link: "/households", label: "Hushåll" },
     { link: "/schedule", label: "Schema" },
     { link: "/handout-locations", label: "Utlämningsställen" },
-    { link: "/create-recipient", label: "Ny mottagare +" },
+    { link: "/households/enroll", label: "Nytt hushåll +" },
 ];
 
 // Special home link for the logo

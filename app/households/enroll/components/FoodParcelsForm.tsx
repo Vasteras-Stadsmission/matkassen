@@ -306,81 +306,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         label: option.label,
     }));
 
-    const calendarStyles = (theme: any) => ({
-        input: {
-            cursor: "pointer",
-        },
-        root: { maxWidth: "100%" },
-        calendarHeader: {
-            padding: "0.25rem",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-        },
-        calendarHeaderControl: {
-            "padding": "0.25rem",
-            "width": "24px",
-            "height": "24px",
-            "fontSize": "0.8rem",
-            "display": "flex",
-            "alignItems": "center",
-            "justifyContent": "center",
-            "&:hover": {
-                backgroundColor: theme.colors.gray[1],
-                borderRadius: "50%",
-            },
-        },
-        calendarHeaderControlIcon: {
-            width: "16px",
-            height: "16px",
-        },
-        day: {
-            height: "2rem",
-            width: "2rem",
-            fontSize: "0.85rem",
-            margin: "0.1rem",
-            borderRadius: theme.radius.sm,
-        },
-        calendarHeaderLevel: {
-            height: "1.75rem",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            textAlign: "center",
-            flex: 1,
-        },
-        monthPickerControl: {
-            fontSize: "0.85rem",
-            padding: "0.4rem 0.5rem",
-            borderRadius: theme.radius.sm,
-        },
-        yearPickerControl: {
-            fontSize: "0.85rem",
-            padding: "0.4rem 0.5rem",
-            borderRadius: theme.radius.sm,
-        },
-        monthPicker: { padding: "0.25rem" },
-        yearPicker: { padding: "0.25rem" },
-        weekdaysRow: {
-            fontSize: "0.75rem",
-            color: theme.colors.gray[6],
-            fontWeight: 500,
-            paddingBottom: "0.15rem",
-        },
-        monthsList: {
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "0.25rem",
-        },
-        yearsList: {
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "0.25rem",
-        },
-        calendar: {
-            maxWidth: "280px", // Limit calendar width to prevent excessive space
-        },
-    });
-
     // Create a custom time component with only 15-minute intervals
     const TimePickerInput = ({
         value,
@@ -624,34 +549,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             },
                         },
                     }}
-                    styles={{
-                        calendarHeader: {
-                            padding: "0.25rem",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                        },
-                        day: {
-                            height: "2rem",
-                            width: "2rem",
-                            fontSize: "0.85rem",
-                            margin: "0.1rem",
-                            borderRadius: "4px",
-                        },
-                        weekdaysRow: {
-                            fontSize: "0.75rem",
-                            color: "gray",
-                            fontWeight: 500,
-                            paddingBottom: "0.15rem",
-                        },
-                        calendarHeaderLevel: {
-                            height: "1.75rem",
-                            fontSize: "0.9rem",
-                            fontWeight: 600,
-                            textAlign: "center",
-                            flex: 1,
-                        },
-                    }}
                     getDayProps={date => {
                         const day = date.getDay();
                         const isWeekend = day === 0 || day === 6;
@@ -725,26 +622,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                     color: "inherit",
                                                     fontWeight: "normal",
                                                     textDecoration: "none",
-                                                },
-                                                calendarHeader: {
-                                                    padding: "0.25rem",
-                                                    display: "flex",
-                                                    justifyContent: "space-between",
-                                                    alignItems: "center",
-                                                },
-                                                day: {
-                                                    height: "2rem",
-                                                    width: "2rem",
-                                                    fontSize: "0.85rem",
-                                                    margin: "0.1rem",
-                                                    borderRadius: "4px",
-                                                },
-                                                calendarHeaderLevel: {
-                                                    height: "1.75rem",
-                                                    fontSize: "0.9rem",
-                                                    fontWeight: 600,
-                                                    textAlign: "center",
-                                                    flex: 1,
                                                 },
                                             }}
                                             getDayProps={date => {

@@ -15,6 +15,7 @@
         "dayjs": "^1.11.13",
         "dotenv": "^16.5.0",
         "drizzle-orm": "^0.42.0",
+        "mantine-datatable": "^7.17.1",
         "next": "15.2.4",
         "next-auth": "^5.0.0-beta.25",
         "pg": "^8.14.1",
@@ -28,7 +29,7 @@
         "@types/react": "^19.1.2",
         "@types/react-dom": "^19.1.2",
         "drizzle-kit": "^0.30.6",
-        "eslint": "^9.24.0",
+        "eslint": "^9.25.0",
         "eslint-config-next": "15.1.5",
         "postcss": "^8.5.3",
         "postcss-preset-mantine": "^1.17.0",
@@ -677,6 +678,8 @@
     "loose-envify": ["loose-envify@1.4.0", "", { "dependencies": { "js-tokens": "^3.0.0 || ^4.0.0" }, "bin": { "loose-envify": "cli.js" } }, "sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q=="],
 
     "lru-cache": ["lru-cache@10.4.3", "", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
+
+    "mantine-datatable": ["mantine-datatable@7.17.1", "", { "peerDependencies": { "@mantine/core": ">=7.14", "@mantine/hooks": ">=7.14", "clsx": ">=2", "react": ">=18.2" } }, "sha512-5GBpSTZyvVGqe2TqEaBYrZQyQjLgHuMqkb2wry+wPvwalRY0oFKG1kdFd43bxch9FOG0K0CREEa6+cYIDby55Q=="],
 
     "math-intrinsics": ["math-intrinsics@1.1.0", "", {}, "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="],
 

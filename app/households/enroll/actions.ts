@@ -21,10 +21,10 @@ import {
     AdditionalNeed,
     Pet,
     FoodParcel,
-    CreateHouseholdResult,
+    EnrollHouseholdResult,
 } from "./types";
 
-export async function createHousehold(data: FormData): Promise<CreateHouseholdResult> {
+export async function enrollHousehold(data: FormData): Promise<EnrollHouseholdResult> {
     try {
         // Start transaction to ensure all related data is created atomically
         return await db.transaction(async tx => {
@@ -192,7 +192,7 @@ export async function createHousehold(data: FormData): Promise<CreateHouseholdRe
             return { success: true, householdId };
         });
     } catch (error: unknown) {
-        console.error("Error creating household:", error);
+        console.error("Error enrolling household:", error);
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error occurred",
