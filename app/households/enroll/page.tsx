@@ -86,7 +86,7 @@ export default function EnrollHouseholdPage() {
         if (active === 0 && !validateHouseholdStep()) return;
         if (active === 5 && !validateFoodParcelsStep()) return;
 
-        setActive(current => (current < 7 ? current + 1 : current));
+        setActive(current => (current < 6 ? current + 1 : current));
     };
 
     const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
