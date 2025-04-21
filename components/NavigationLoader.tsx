@@ -32,7 +32,8 @@ export function NavigationLoader() {
                 const significantChange = mutations.some(
                     mutation =>
                         mutation.target.nodeName === "MAIN" ||
-                        (mutation.target instanceof HTMLElement && mutation.target.id === "main-content") ||
+                        (mutation.target instanceof HTMLElement &&
+                            mutation.target.id === "main-content") ||
                         mutation.addedNodes.length > 3,
                 );
 

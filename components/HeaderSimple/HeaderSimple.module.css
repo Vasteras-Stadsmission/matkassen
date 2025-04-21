@@ -27,7 +27,7 @@
 }
 
 .logoContainer:has(.logo[data-active])::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: 0;
     left: 0;
@@ -59,7 +59,7 @@
     }
 
     [data-mantine-color-scheme] &[data-active]::after {
-        content: '';
+        content: "";
         position: absolute;
         bottom: -15px;
         left: 0;

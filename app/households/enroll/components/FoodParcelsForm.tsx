@@ -290,7 +290,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             {formState.parcels.length > 0 && (
                 <>
                     <Title order={5} mt="md" mb="sm">
-                        Schemalagda matkassar
+                        Schemalagda matkassar ({selectedDates.length})
                     </Title>
                     <Text size="sm" mb="md" c="dimmed">
                         Klicka på datum eller tider för att anpassa varje matkasse. Standardhämttid
@@ -300,68 +300,97 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     <Table striped highlightOnHover>
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>Datum</Table.Th>
-                                <Table.Th>Tidigast hämttid</Table.Th>
-                                <Table.Th>Senast hämttid</Table.Th>
+                                <Table.Th>Datum och hämttid</Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
                             {formState.parcels.map((parcel, index) => (
                                 <Table.Tr key={parcel.id || index}>
                                     <Table.Td>
-                                        <DatePickerInput
-                                            placeholder="Välj datum"
-                                            value={new Date(parcel.pickupDate)}
-                                            onChange={date => date && updateParcelDate(index, date)}
-                                            minDate={new Date()}
-                                            valueFormat="DD MMM YYYY"
-                                            size="xs"
-                                            leftSection={<IconCalendar size="1rem" />}
-                                        />
-                                    </Table.Td>
-                                    <Table.Td>
-                                        <TimeInput
-                                            value={formatTimeForInput(parcel.pickupEarliestTime)}
-                                            onChange={event => {
-                                                const timeStr = event.currentTarget.value;
-                                                if (timeStr) {
-                                                    const newDate = parseTimeString(
-                                                        timeStr,
-                                                        parcel.pickupDate,
-                                                    );
-                                                    updateParcelTime(
-                                                        index,
-                                                        "pickupEarliestTime",
-                                                        newDate,
-                                                    );
-                                                }
-                                            }}
-                                            size="xs"
-                                            leftSection={<IconClock size="1rem" />}
-                                            aria-label="Tidigast hämttid"
-                                        />
-                                    </Table.Td>
-                                    <Table.Td>
-                                        <TimeInput
-                                            value={formatTimeForInput(parcel.pickupLatestTime)}
-                                            onChange={event => {
-                                                const timeStr = event.currentTarget.value;
-                                                if (timeStr) {
-                                                    const newDate = parseTimeString(
-                                                        timeStr,
-                                                        parcel.pickupDate,
-                                                    );
-                                                    updateParcelTime(
-                                                        index,
-                                                        "pickupLatestTime",
-                                                        newDate,
-                                                    );
-                                                }
-                                            }}
-                                            size="xs"
-                                            leftSection={<IconClock size="1rem" />}
-                                            aria-label="Senast hämttid"
-                                        />
+                                        <Stack>
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    maxWidth: "700px",
+                                                    gap: "8px",
+                                                    alignItems: "flex-end",
+                                                }}
+                                            >
+                                                <div style={{ width: "250px", flexShrink: 0 }}>
+                                                    <DatePickerInput
+                                                        placeholder="Välj datum"
+                                                        value={new Date(parcel.pickupDate)}
+                                                        onChange={date =>
+                                                            date && updateParcelDate(index, date)
+                                                        }
+                                                        minDate={new Date()}
+                                                        valueFormat="DD MMM YYYY"
+                                                        size="xs"
+                                                        leftSection={<IconCalendar size="1rem" />}
+                                                    />
+                                                </div>
+                                                <div style={{ width: "140px" }}>
+                                                    <Box>
+                                                        <Text size="xs" fw={500} pb={5}>
+                                                            Tidigast
+                                                        </Text>
+                                                        <TimeInput
+                                                            value={formatTimeForInput(
+                                                                parcel.pickupEarliestTime,
+                                                            )}
+                                                            onChange={event => {
+                                                                const timeStr =
+                                                                    event.currentTarget.value;
+                                                                if (timeStr) {
+                                                                    const newDate = parseTimeString(
+                                                                        timeStr,
+                                                                        parcel.pickupDate,
+                                                                    );
+                                                                    updateParcelTime(
+                                                                        index,
+                                                                        "pickupEarliestTime",
+                                                                        newDate,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            size="xs"
+                                                            leftSection={<IconClock size="1rem" />}
+                                                            aria-label="Tidigast hämttid"
+                                                        />
+                                                    </Box>
+                                                </div>
+                                                <div style={{ width: "140px" }}>
+                                                    <Box>
+                                                        <Text size="xs" fw={500} pb={5}>
+                                                            Senast
+                                                        </Text>
+                                                        <TimeInput
+                                                            value={formatTimeForInput(
+                                                                parcel.pickupLatestTime,
+                                                            )}
+                                                            onChange={event => {
+                                                                const timeStr =
+                                                                    event.currentTarget.value;
+                                                                if (timeStr) {
+                                                                    const newDate = parseTimeString(
+                                                                        timeStr,
+                                                                        parcel.pickupDate,
+                                                                    );
+                                                                    updateParcelTime(
+                                                                        index,
+                                                                        "pickupLatestTime",
+                                                                        newDate,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            size="xs"
+                                                            leftSection={<IconClock size="1rem" />}
+                                                            aria-label="Senast hämttid"
+                                                        />
+                                                    </Box>
+                                                </div>
+                                            </div>
+                                        </Stack>
                                     </Table.Td>
                                 </Table.Tr>
                             ))}

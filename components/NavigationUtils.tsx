@@ -1,7 +1,6 @@
 import { forwardRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-
 interface NavigationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
     label: string;
     active?: boolean;

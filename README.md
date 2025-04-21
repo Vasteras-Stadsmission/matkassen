@@ -57,9 +57,9 @@ The project uses Drizzle ORM with a migration-based approach:
 3. **Custom SQL Migrations**:
 
     - If you want to ship custom DDL changes or seed data separately from your schema diffs, run:
-      ```sh
-      bunx drizzle-kit generate --custom --name=seed-users
-      ```
+        ```sh
+        bunx drizzle-kit generate --custom --name=seed-users
+        ```
     - This creates an empty migration file (e.g., `0006_seed-users.sql`) under your migrations folder
     - You can fill this file with custom INSERT, UPDATE, or DDL statements
     - Custom migrations are applied in sequence along with schema migrations
