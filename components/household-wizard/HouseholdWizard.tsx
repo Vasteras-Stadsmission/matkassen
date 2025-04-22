@@ -246,8 +246,8 @@ export default function HouseholdWizard({
                         ? "Ett fel uppstod vid registrering av hushåll."
                         : "Ett fel uppstod vid uppdatering av hushåll.",
             });
-            setSubmitting(false); // Only stop the spinner if there's an error
-        }
+        } finally {
+            setSubmitting(false); // Ensure spinner stops in both success and error cases
     };
 
     // Handle initial loading and error states
