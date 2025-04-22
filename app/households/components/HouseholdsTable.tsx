@@ -349,7 +349,7 @@ export default function HouseholdsTable({ households }: { households: Household[
                 opened={opened}
                 onClose={handleCloseModal}
                 title={
-                    <Title order={2} fw={700} ta="center" c="blue.8">
+                    <Title order={2} fw={700} ta="center" c="blue.8" component="div">
                         {householdDetail
                             ? `Hushållsinformation - ${householdDetail.household.first_name} ${householdDetail.household.last_name}`
                             : "Hushållsinformation"}
