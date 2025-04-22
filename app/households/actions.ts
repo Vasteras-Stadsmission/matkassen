@@ -12,8 +12,11 @@ import {
     pickupLocations,
     householdDietaryRestrictions,
     householdAdditionalNeeds,
+    householdComments,
 } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
+import { Comment } from "./enroll/types";
+import { auth } from "@/auth";
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
@@ -128,6 +131,18 @@ export async function getHouseholdDetails(householdId: string) {
         .where(eq(foodParcels.household_id, householdId))
         .orderBy(foodParcels.pickup_date_time_latest);
 
+    // Get comments
+    const commentsData = await db
+        .select({
+            id: householdComments.id,
+            comment: householdComments.comment,
+            created_at: householdComments.created_at,
+            author_github_username: householdComments.author_github_username,
+        })
+        .from(householdComments)
+        .where(eq(householdComments.household_id, householdId))
+        .orderBy(desc(householdComments.created_at));
+
     // Prepare food parcels structure in the format expected by the UI
     const parcels = foodParcelsData.map(parcel => ({
         id: parcel.id,
@@ -184,5 +199,55 @@ export async function getHouseholdDetails(householdId: string) {
                       address: foodParcelsData[0].locationAddress,
                   }
                 : null,
+        comments: commentsData,
     };
+}
+
+// Function to add a comment to a household
+export async function addHouseholdComment(
+    householdId: string,
+    comment: string,
+): Promise<Comment | null> {
+    if (!comment.trim()) {
+        return null;
+    }
+
+    try {
+        // Get the current user from the session
+        const session = await auth();
+        // Get the GitHub username from the name field, which contains the GitHub username
+        const githubUsername = session?.user?.name || "anonymous";
+
+        // Insert the comment with the github username
+        const [newComment] = await db
+            .insert(householdComments)
+            .values({
+                household_id: householdId,
+                comment: comment.trim(),
+                author_github_username: githubUsername,
+            })
+            .returning();
+
+        return newComment;
+    } catch (error) {
+        console.error("Error adding household comment:", error);
+        return null;
+    }
+}
+
+// Function to delete a comment
+export async function deleteHouseholdComment(commentId: string): Promise<boolean> {
+    try {
+        // Delete the comment with the given ID
+        const result = await db
+            .delete(householdComments)
+            .where(eq(householdComments.id, commentId))
+            .returning({ id: householdComments.id });
+
+        // Return true if a comment was deleted, false otherwise
+        return result.length > 0;
+    } catch (error) {
+        console.error("Error deleting household comment:", error);
+        return false;
+    }
 }

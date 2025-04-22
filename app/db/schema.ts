@@ -51,6 +51,7 @@ export const householdComments = pgTable("household_comments", {
         .notNull()
         .references(() => households.id, { onDelete: "cascade" }),
     created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    author_github_username: varchar("author_github_username", { length: 50 }).notNull(),
     comment: text("comment").notNull(),
 });
 

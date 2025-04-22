@@ -11,6 +11,7 @@ import {
     pets,
     petSpecies,
     foodParcels,
+    householdComments,
 } from "@/app/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { FormData } from "../../enroll/types";
@@ -50,6 +51,7 @@ export async function getHouseholdFormData(householdId: string): Promise<FormDat
                 startDate: details.foodParcels.startDate || new Date(),
                 parcels: details.foodParcels.parcels,
             },
+            comments: details.comments,
         };
     } catch (error) {
         console.error("Error getting household form data:", error);
@@ -153,6 +155,18 @@ async function getHouseholdEditData(householdId: string) {
         .where(eq(foodParcels.household_id, householdId))
         .orderBy(foodParcels.pickup_date_time_latest);
 
+    // Get comments
+    const commentsData = await db
+        .select({
+            id: householdComments.id,
+            comment: householdComments.comment,
+            created_at: householdComments.created_at,
+            author_github_username: householdComments.author_github_username,
+        })
+        .from(householdComments)
+        .where(eq(householdComments.household_id, householdId))
+        .orderBy(householdComments.created_at);
+
     // Get weekday and repeat pattern (from first food parcel)
     let weekday = "1"; // Default to Monday
     let repeatValue = "weekly"; // Default to weekly
@@ -225,6 +239,7 @@ async function getHouseholdEditData(householdId: string) {
         additionalNeeds: additionalNeedsData,
         pets: transformedPets,
         foodParcels: foodParcelsFormatted,
+        comments: commentsData,
     };
 }
 
@@ -365,6 +380,7 @@ export async function updateHousehold(
                         .where(eq(additionalNeeds.need, need.need))
                         .limit(1);
 
+                    // If not found, create it
                     if (!existingNeed) {
                         await tx.insert(additionalNeeds).values({
                             id: need.id,
@@ -408,6 +424,26 @@ export async function updateHousehold(
                             is_picked_up: false,
                         })),
                 );
+            }
+
+            // 7. Handle comments - add new comments if any were added during editing
+            if (data.comments && data.comments.length > 0) {
+                // Filter out any comments that already have an ID (meaning they already exist in the DB)
+                // and only add the ones that don't have an ID (new comments added during editing)
+                const newComments = data.comments.filter(c => !c.id && c.comment.trim() !== "");
+
+                if (newComments.length > 0) {
+                    await Promise.all(
+                        newComments.map(comment =>
+                            tx.insert(householdComments).values({
+                                household_id: householdId,
+                                comment: comment.comment.trim(),
+                                author_github_username:
+                                    comment.author_github_username || "anonymous",
+                            }),
+                        ),
+                    );
+                }
             }
 
             return { success: true, householdId };
