@@ -246,8 +246,8 @@ export default function HouseholdWizard({
                         ? "Ett fel uppstod vid registrering av hushåll."
                         : "Ett fel uppstod vid uppdatering av hushåll.",
             });
-        } finally {
-            setSubmitting(false); // Ensure spinner stops in both success and error cases
+            setSubmitting(false);
+        }
     };
 
     // Handle initial loading and error states
@@ -386,11 +386,7 @@ export default function HouseholdWizard({
                     </Stepper.Step>
 
                     <Stepper.Step label="Sammanfattning" description="Granska och skicka">
-                        <ReviewForm
-                            formData={formData}
-                            onSubmit={handleSubmit}
-                            isEditing={mode === "edit"}
-                        />
+                        <ReviewForm formData={formData} isEditing={mode === "edit"} />
                     </Stepper.Step>
                 </Stepper>
 

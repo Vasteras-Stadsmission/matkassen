@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     SimpleGrid,
     Title,
@@ -13,20 +13,12 @@ import {
     Tooltip,
     Group,
     Button,
-    Divider,
     Paper,
     ActionIcon,
 } from "@mantine/core";
 import { DatePicker, TimeInput } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
-import {
-    IconClock,
-    IconCalendar,
-    IconAlertCircle,
-    IconWand,
-    IconCheck,
-    IconX,
-} from "@tabler/icons-react";
+import { IconClock, IconCalendar, IconWand, IconCheck, IconX } from "@tabler/icons-react";
 import { getPickupLocations } from "../actions";
 import { FoodParcels, FoodParcel } from "../types";
 
@@ -214,10 +206,10 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         };
 
         // Validate time ranges
-        let errorKey = `${index}-${field}`;
-        let oppositeField =
+        const errorKey = `${index}-${field}`;
+        const oppositeField =
             field === "pickupEarliestTime" ? "pickupLatestTime" : "pickupEarliestTime";
-        let oppositeErrorKey = `${index}-${oppositeField}`;
+        const oppositeErrorKey = `${index}-${oppositeField}`;
 
         // Clear current field error
         const newTimeErrors = { ...timeErrors };
@@ -366,101 +358,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const cancelBulkTimeEdit = () => {
         setBulkTimeMode(false);
         setBulkTimeError(null);
-    };
-
-    // Custom time input component with tooltip error and improved input handling
-    const TimeInputWithTooltip = ({
-        value,
-        onChange,
-        errorMessage,
-        label,
-    }: {
-        value: string;
-        onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-        errorMessage?: string;
-        label: string;
-    }) => {
-        // Add internal state for the input value
-        const [inputValue, setInputValue] = useState(value || "");
-        // Add timeout ref to handle debounce
-        const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-        // Update internal state when external value changes
-        useEffect(() => {
-            if (value !== undefined) {
-                setInputValue(value);
-            }
-        }, [value]);
-
-        // Handle user input with debounce
-        const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            if (!e || !e.currentTarget) return;
-
-            const newValue = e.currentTarget.value;
-            setInputValue(newValue);
-
-            // Clear previous timeout
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-            }
-
-            // Create a synthetic event to pass to onChange since the original one may be nullified
-            // after the timeout
-            const syntheticEvent = {
-                currentTarget: {
-                    value: newValue,
-                },
-            } as React.ChangeEvent<HTMLInputElement>;
-
-            // Set new timeout to update parent component after user stops typing
-            timeoutRef.current = setTimeout(() => {
-                onChange(syntheticEvent);
-            }, 500); // Wait 500ms for user to finish typing
-        };
-
-        return (
-            <Box>
-                <Text size="xs" fw={500} pb={5}>
-                    {label}
-                </Text>
-                <Tooltip
-                    label={errorMessage}
-                    color="red"
-                    position="top"
-                    withArrow
-                    opened={!!errorMessage}
-                    withinPortal
-                >
-                    <TimeInput
-                        value={inputValue}
-                        onChange={handleTimeChange}
-                        size="xs"
-                        leftSection={<IconClock size="1rem" />}
-                        aria-label={label}
-                        styles={theme => ({
-                            input: {
-                                ...(errorMessage
-                                    ? {
-                                          "borderColor": theme.colors.red[6],
-                                          "&:focus": {
-                                              borderColor: theme.colors.red[6],
-                                          },
-                                      }
-                                    : {}),
-                            },
-                            wrapper: {
-                                width: "100%",
-                            },
-                        })}
-                        rightSection={
-                            errorMessage ? (
-                                <IconAlertCircle size="1rem" color="red" style={{ opacity: 0.8 }} />
-                            ) : null
-                        }
-                    />
-                </Tooltip>
-            </Box>
-        );
     };
 
     return (

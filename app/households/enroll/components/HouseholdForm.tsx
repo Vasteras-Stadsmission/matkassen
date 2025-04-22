@@ -63,7 +63,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                 form.setValues(formValues);
             }
         }
-    }, [data]);
+    }, [data, form]);
 
     const handlePostalCodeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         let value = event.target.value.replace(/\D/g, "");
