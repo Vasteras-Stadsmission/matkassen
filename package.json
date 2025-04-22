@@ -20,6 +20,7 @@
         "@mantine/dates": "^7.17.4",
         "@mantine/form": "^7.17.4",
         "@mantine/hooks": "^7.17.4",
+        "@mantine/notifications": "^7.17.4",
         "@tabler/icons-react": "^3.31.0",
         "@types/pg": "^8.11.13",
         "critters": "^0.0.23",

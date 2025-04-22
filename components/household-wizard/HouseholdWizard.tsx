@@ -226,15 +226,16 @@ export default function HouseholdWizard({
                             : "Hushållet har uppdaterats!",
                 });
 
-                // Redirect after a short delay
-                setTimeout(() => {
-                    router.push("/households");
-                }, 1500);
+                // Navigate to destination with success message in query params
+                router.push(
+                    `/households?success=true&action=${mode}&householdName=${encodeURIComponent(formData.household.first_name + " " + formData.household.last_name)}`,
+                );
             } else {
                 setSubmitStatus({
                     type: "error",
                     message: `Ett fel uppstod: ${result.error || "Okänt fel"}`,
                 });
+                setSubmitting(false); // Only stop the spinner if there's an error
             }
         } catch (error) {
             console.error(`Error ${mode === "create" ? "creating" : "updating"} household:`, error);
@@ -245,7 +246,6 @@ export default function HouseholdWizard({
                         ? "Ett fel uppstod vid registrering av hushåll."
                         : "Ett fel uppstod vid uppdatering av hushåll.",
             });
-        } finally {
             setSubmitting(false);
         }
     };
@@ -386,11 +386,7 @@ export default function HouseholdWizard({
                     </Stepper.Step>
 
                     <Stepper.Step label="Sammanfattning" description="Granska och skicka">
-                        <ReviewForm
-                            formData={formData}
-                            onSubmit={handleSubmit}
-                            isEditing={mode === "edit"}
-                        />
+                        <ReviewForm formData={formData} isEditing={mode === "edit"} />
                     </Stepper.Step>
                 </Stepper>
 

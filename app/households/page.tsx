@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Container, Title, Text, Box, Loader, Center } from "@mantine/core";
+import { useSearchParams } from "next/navigation";
+import { notifications } from "@mantine/notifications";
+import { IconCheck } from "@tabler/icons-react";
 import HouseholdsTable from "./components/HouseholdsTable";
 import { getHouseholds } from "./actions";
 
@@ -21,9 +24,36 @@ interface Household {
 }
 
 export default function HouseholdsPage() {
+    const searchParams = useSearchParams();
+    const success = searchParams.get("success");
+    const action = searchParams.get("action");
+    const householdName = searchParams.get("householdName");
+
     const [households, setHouseholds] = useState<Household[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Show success notification when redirected with success parameters
+    useEffect(() => {
+        if (success === "true" && householdName) {
+            // Small delay to ensure the notifications system is fully initialized
+            setTimeout(() => {
+                const message =
+                    action === "create"
+                        ? `Nytt hushåll "${householdName}" har registrerats!`
+                        : `Hushållet "${householdName}" har uppdaterats!`;
+
+                notifications.show({
+                    id: "household-success",
+                    title: "Klart!",
+                    message,
+                    color: "green",
+                    icon: <IconCheck size="1.1rem" />,
+                    autoClose: 5000,
+                });
+            }, 100);
+        }
+    }, [success, action, householdName]);
 
     useEffect(() => {
         async function fetchData() {

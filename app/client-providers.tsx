@@ -2,6 +2,7 @@
 
 import { AppShell, MantineProvider } from "@mantine/core";
 import { DatesProvider } from "@mantine/dates";
+import { Notifications } from "@mantine/notifications";
 import { NavigationLoader } from "@/components/NavigationLoader";
 import { useRouter } from "next/navigation";
 import { enhanceNextNavigation } from "@/components/NavigationUtils";
@@ -41,6 +42,7 @@ function ClientProvidersContent({ children }: { children: React.ReactNode }) {
     return (
         <SessionProvider>
             <MantineProvider forceColorScheme="light">
+                <Notifications position="top-right" zIndex={1000} />
                 <DatesProvider
                     settings={{
                         locale: "sv",

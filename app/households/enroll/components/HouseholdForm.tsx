@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { TextInput, SimpleGrid, Title, Text, Card } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { Household } from "../types";
@@ -17,6 +17,8 @@ interface HouseholdFormProps {
 }
 
 export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
+    const isUpdatingRef = useRef(false);
+
     const form = useForm({
         initialValues: {
             first_name: data.first_name || "",
@@ -40,30 +42,25 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
     });
 
     useEffect(() => {
-        if (data) {
-            const isFirstNameDifferent =
-                data.first_name !== form.values.first_name && data.first_name;
-            const isLastNameDifferent = data.last_name !== form.values.last_name && data.last_name;
-            const isPhoneNumberDifferent =
-                data.phone_number !== form.values.phone_number && data.phone_number;
-            const isPostalCodeDifferent =
-                data.postal_code !== form.values.postal_code && data.postal_code;
-            const isLocaleDifferent = data.locale !== form.values.locale && data.locale;
+        if (isUpdatingRef.current) return;
 
-            if (
-                isFirstNameDifferent ||
-                isLastNameDifferent ||
-                isPhoneNumberDifferent ||
-                isPostalCodeDifferent ||
-                isLocaleDifferent
-            ) {
-                form.setValues({
-                    first_name: data.first_name || form.values.first_name,
-                    last_name: data.last_name || form.values.last_name,
-                    phone_number: data.phone_number || form.values.phone_number,
-                    postal_code: data.postal_code || form.values.postal_code,
-                    locale: data.locale || form.values.locale,
-                });
+        if (data) {
+            const formValues = {
+                first_name: data.first_name || form.values.first_name,
+                last_name: data.last_name || form.values.last_name,
+                phone_number: data.phone_number || form.values.phone_number,
+                postal_code: data.postal_code || form.values.postal_code,
+                locale: data.locale || form.values.locale,
+            };
+
+            const hasChanges = Object.keys(formValues).some(
+                key =>
+                    formValues[key as keyof typeof formValues] !==
+                    form.values[key as keyof typeof form.values],
+            );
+
+            if (hasChanges) {
+                form.setValues(formValues);
             }
         }
     }, [data, form]);
@@ -85,14 +82,18 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
 
     const updateParentData = useCallback(() => {
         if (form.isDirty()) {
+            isUpdatingRef.current = true;
             updateData(form.values);
+            setTimeout(() => {
+                isUpdatingRef.current = false;
+            }, 200);
         }
     }, [form, updateData]);
 
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             updateParentData();
-        }, 100);
+        }, 300);
 
         return () => clearTimeout(timeoutId);
     }, [form.values, updateParentData]);

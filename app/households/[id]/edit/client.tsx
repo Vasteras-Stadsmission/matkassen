@@ -34,11 +34,20 @@ export default function EditHouseholdClient({ id }: { id: string }) {
     }, [id]);
 
     const handleSubmit = async (formData: FormData) => {
-        const result = await updateHousehold(id, formData);
-        return {
-            success: result.success,
-            error: result.error,
-        };
+        try {
+            const result = await updateHousehold(id, formData);
+            console.log("Update result:", result); // Add logging to help debug
+            return {
+                success: result.success,
+                error: result.error,
+            };
+        } catch (error) {
+            console.error("Error in handleSubmit:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error occurred",
+            };
+        }
     };
 
     // Build the title based on the loaded data

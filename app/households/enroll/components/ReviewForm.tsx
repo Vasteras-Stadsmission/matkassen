@@ -12,7 +12,6 @@ import {
     Badge,
     Code,
     Loader,
-    Button,
 } from "@mantine/core";
 import { useState, useEffect } from "react";
 import {
@@ -38,11 +37,10 @@ interface PickupLocation {
 
 interface ReviewFormProps {
     formData: FormData;
-    onSubmit?: () => void;
     isEditing?: boolean;
 }
 
-export default function ReviewForm({ formData, onSubmit, isEditing = false }: ReviewFormProps) {
+export default function ReviewForm({ formData, isEditing = false }: ReviewFormProps) {
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
 
@@ -366,14 +364,6 @@ export default function ReviewForm({ formData, onSubmit, isEditing = false }: Re
                     </Paper>
                 </Box>
             </SimpleGrid>
-
-            {onSubmit && !isEditing && (
-                <Group justify="center" mt="xl">
-                    <Button color="green" size="md" onClick={onSubmit}>
-                        Spara hushåll
-                    </Button>
-                </Group>
-            )}
         </Card>
     );
 }
