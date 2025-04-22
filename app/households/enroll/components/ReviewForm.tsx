@@ -366,14 +366,6 @@ export default function ReviewForm({ formData, onSubmit, isEditing = false }: Re
                     </Paper>
                 </Box>
             </SimpleGrid>
-
-            {onSubmit && !isEditing && (
-                <Group justify="center" mt="xl">
-                    <Button color="green" size="md" onClick={onSubmit}>
-                        Spara hushåll
-                    </Button>
-                </Group>
-            )}
         </Card>
     );
 }

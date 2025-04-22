@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
+import "@mantine/notifications/styles.css"; // Add notifications styles
 import "mantine-datatable/styles.css";
 import { ColorSchemeScript } from "@mantine/core";
 import { ClientProviders } from "./client-providers";
