@@ -12,6 +12,7 @@ import {
     petSpecies,
     foodParcels,
     pickupLocations,
+    householdComments,
 } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import {
@@ -185,6 +186,22 @@ export async function enrollHousehold(data: FormData): Promise<EnrollHouseholdRe
                         pickup_date_time_latest: parcel.pickupLatestTime,
                         is_picked_up: false,
                     })),
+                );
+            }
+
+            // 7. Add comments
+            if (data.comments && data.comments.length > 0) {
+                await Promise.all(
+                    data.comments
+                        .filter(comment => comment.comment.trim() !== "")
+                        .map(comment =>
+                            tx.insert(householdComments).values({
+                                household_id: householdId,
+                                comment: comment.comment.trim(),
+                                author_github_username:
+                                    comment.author_github_username || "anonymous",
+                            }),
+                        ),
                 );
             }
 

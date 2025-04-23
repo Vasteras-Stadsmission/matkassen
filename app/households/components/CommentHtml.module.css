@@ -1,0 +1,15 @@
+.comment {
+    padding: var(--mantine-spacing-lg);
+    line-height: 1.5;
+}
+
+.body {
+    padding-top: var(--mantine-spacing-sm);
+    padding-left: calc(var(--mantine-spacing-md) + 28px);
+}
+
+.content {
+    & > p:last-child {
+        margin-bottom: 0;
+    }
+}

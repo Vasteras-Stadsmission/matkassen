@@ -25,8 +25,9 @@ import {
     IconCalendarEvent,
     IconClock,
 } from "@tabler/icons-react";
-import { FormData } from "../types";
+import { FormData, Comment } from "../types";
 import { getPickupLocations } from "../actions";
+import HouseholdComments from "../../components/HouseholdComments";
 
 // Interface for pickup location data from DB
 interface PickupLocation {
@@ -38,9 +39,16 @@ interface PickupLocation {
 interface ReviewFormProps {
     formData: FormData;
     isEditing?: boolean;
+    onAddComment?: (comment: string) => Promise<Comment | null | undefined>;
+    onDeleteComment?: (commentId: string) => Promise<void>;
 }
 
-export default function ReviewForm({ formData, isEditing = false }: ReviewFormProps) {
+export default function ReviewForm({
+    formData,
+    isEditing = false,
+    onAddComment,
+    onDeleteComment,
+}: ReviewFormProps) {
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
 
@@ -271,7 +279,7 @@ export default function ReviewForm({ formData, isEditing = false }: ReviewFormPr
                     </Paper>
 
                     {/* Additional Needs */}
-                    <Paper withBorder p="md" radius="md">
+                    <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
                             Ytterligare behov ({formData.additionalNeeds.length})
                         </Title>
@@ -289,12 +297,21 @@ export default function ReviewForm({ formData, isEditing = false }: ReviewFormPr
                             </Text>
                         )}
                     </Paper>
+
+                    {/* Comments Section - Moved to left column and wrapped in Paper */}
+                    <Paper withBorder p="md" radius="md" mb="md">
+                        <HouseholdComments
+                            comments={formData.comments || []}
+                            onAddComment={onAddComment}
+                            onDeleteComment={onDeleteComment}
+                        />
+                    </Paper>
                 </Box>
 
-                {/* Right Column - Only Matkassar */}
+                {/* Right Column - Food Parcels only */}
                 <Box>
                     {/* Food Parcels */}
-                    <Paper withBorder p="md" radius="md" h="100%">
+                    <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="sm">
                             Matkassar ({formData.foodParcels.parcels?.length || 0})
                         </Title>
