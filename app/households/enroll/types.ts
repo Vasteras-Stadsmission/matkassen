@@ -55,18 +55,17 @@ export interface FoodParcels {
     parcels: FoodParcel[];
 }
 
-// Define GithubUserData here to avoid circular dependency
 export interface GithubUserData {
     avatar_url: string;
     name: string | null;
 }
 
 export interface Comment {
-    id: string;
-    comment: string;
-    created_at: Date | string;
+    id?: string;
+    created_at?: Date;
     author_github_username: string;
-    githubUserData?: GithubUserData;
+    comment: string;
+    githubUserData?: GithubUserData | null;
 }
 
 export interface FormData {

@@ -15,6 +15,8 @@ import {
 } from "@/app/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { FormData } from "../../enroll/types";
+import { auth } from "@/auth";
+import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -167,6 +169,23 @@ async function getHouseholdEditData(householdId: string) {
         .where(eq(householdComments.household_id, householdId))
         .orderBy(householdComments.created_at);
 
+    // Fetch GitHub user data for all comments in one batch
+    const usernames = commentsData.map(comment => comment.author_github_username).filter(Boolean);
+
+    const githubUserDataMap = await fetchMultipleGithubUserData(usernames);
+
+    // Attach GitHub user data to comments
+    const comments = commentsData.map(comment => {
+        const githubUserData = comment.author_github_username
+            ? githubUserDataMap[comment.author_github_username] || null
+            : null;
+
+        return {
+            ...comment,
+            githubUserData,
+        };
+    });
+
     // Get weekday and repeat pattern (from first food parcel)
     let weekday = "1"; // Default to Monday
     let repeatValue = "weekly"; // Default to weekly
@@ -239,7 +258,7 @@ async function getHouseholdEditData(householdId: string) {
         additionalNeeds: additionalNeedsData,
         pets: transformedPets,
         foodParcels: foodParcelsFormatted,
-        comments: commentsData,
+        comments,
     };
 }
 
@@ -454,5 +473,41 @@ export async function updateHousehold(
             success: false,
             error: error instanceof Error ? error.message : "Unknown error occurred",
         };
+    }
+}
+
+// Add comment to a household (for edit page)
+export async function addComment(householdId: string, commentText: string) {
+    if (!commentText.trim()) return null;
+
+    try {
+        // Get the current user from the session
+        const session = await auth();
+        const username = session?.user?.name || "anonymous";
+
+        // Insert the comment
+        const [comment] = await db
+            .insert(householdComments)
+            .values({
+                household_id: householdId,
+                comment: commentText.trim(),
+                author_github_username: username,
+            })
+            .returning();
+
+        // Fetch GitHub user data for the comment author
+        let githubUserData = null;
+        if (username && username !== "anonymous") {
+            githubUserData = await fetchGithubUserData(username);
+        }
+
+        // Return the comment with GitHub user data
+        return {
+            ...comment,
+            githubUserData,
+        };
+    } catch (error) {
+        console.error("Error adding comment:", error);
+        return null;
     }
 }

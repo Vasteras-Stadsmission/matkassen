@@ -1,22 +1,68 @@
 "use server";
 
-import { db } from "../db/drizzle";
+import { cache } from "react";
+import { db } from "@/app/db/drizzle";
 import {
     households,
     householdMembers,
+    householdDietaryRestrictions,
     dietaryRestrictions,
+    householdAdditionalNeeds,
     additionalNeeds,
-    petSpecies,
     pets,
+    petSpecies,
     foodParcels,
     pickupLocations,
-    householdDietaryRestrictions,
-    householdAdditionalNeeds,
     householdComments,
-} from "../db/schema";
-import { eq, desc } from "drizzle-orm";
-import { Comment } from "./enroll/types";
+} from "@/app/db/schema";
+import { asc, eq } from "drizzle-orm";
 import { auth } from "@/auth";
+import { Comment, GithubUserData } from "./enroll/types";
+
+// Cache GitHub user data fetching
+export const fetchGithubUserData = cache(
+    async (username: string): Promise<GithubUserData | null> => {
+        if (!username) return null;
+
+        try {
+            const response = await fetch(`https://api.github.com/users/${username}`, {
+                headers: {
+                    // Add auth token if available
+                    ...(process.env.GITHUB_TOKEN
+                        ? { Authorization: `token ${process.env.GITHUB_TOKEN}` }
+                        : {}),
+                },
+                // Cache response for 24 hours
+                next: { revalidate: 86400 },
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                return {
+                    avatar_url: userData.avatar_url,
+                    name: userData.name,
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error(`Error fetching GitHub user: ${username}`, error);
+            return null;
+        }
+    },
+);
+
+// Fetch GitHub user data for multiple usernames at once
+export async function fetchMultipleGithubUserData(usernames: string[]) {
+    if (!usernames || usernames.length === 0) return {};
+
+    const uniqueUsernames = [...new Set(usernames.filter(Boolean))];
+    const userDataEntries = await Promise.all(
+        uniqueUsernames.map(async username => [username, await fetchGithubUserData(username)]),
+    );
+
+    // Build a map of username -> user data
+    return Object.fromEntries(userDataEntries.filter(([, data]) => data !== null));
+}
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
@@ -58,149 +104,174 @@ export async function getHouseholds() {
     return householdsWithParcels;
 }
 
-// Function to get detailed information about a specific household
+// Enhanced function to get household details with GitHub data
 export async function getHouseholdDetails(householdId: string) {
-    // Get basic household information
-    const household = await db
-        .select()
-        .from(households)
-        .where(eq(households.id, householdId))
-        .then(results => results[0] || null);
+    try {
+        // Get household basic info
+        const [household] = await db
+            .select({
+                id: households.id,
+                first_name: households.first_name,
+                last_name: households.last_name,
+                phone_number: households.phone_number,
+                locale: households.locale,
+                postal_code: households.postal_code,
+            })
+            .from(households)
+            .where(eq(households.id, householdId))
+            .limit(1);
 
-    if (!household) {
+        if (!household) {
+            return null;
+        }
+
+        // Get household members
+        const members = await db
+            .select({
+                id: householdMembers.id,
+                age: householdMembers.age,
+                sex: householdMembers.sex,
+            })
+            .from(householdMembers)
+            .where(eq(householdMembers.household_id, householdId));
+
+        // Get household dietary restrictions
+        const dietaryRestrictionsResult = await db
+            .select({
+                id: dietaryRestrictions.id,
+                name: dietaryRestrictions.name,
+            })
+            .from(householdDietaryRestrictions)
+            .innerJoin(
+                dietaryRestrictions,
+                eq(householdDietaryRestrictions.dietary_restriction_id, dietaryRestrictions.id),
+            )
+            .where(eq(householdDietaryRestrictions.household_id, householdId));
+
+        // Get household additional needs
+        const additionalNeedsResult = await db
+            .select({
+                id: additionalNeeds.id,
+                need: additionalNeeds.need,
+            })
+            .from(householdAdditionalNeeds)
+            .innerJoin(
+                additionalNeeds,
+                eq(householdAdditionalNeeds.additional_need_id, additionalNeeds.id),
+            )
+            .where(eq(householdAdditionalNeeds.household_id, householdId));
+
+        // Get household pets with species info
+        const householdPets = await db
+            .select({
+                id: pets.id,
+                species: petSpecies.id,
+                speciesName: petSpecies.name,
+            })
+            .from(pets)
+            .innerJoin(petSpecies, eq(pets.pet_species_id, petSpecies.id))
+            .where(eq(pets.household_id, householdId));
+
+        // Get food parcels
+        const foodParcelsResult = await db
+            .select({
+                id: foodParcels.id,
+                pickup_location_id: foodParcels.pickup_location_id,
+                pickup_date_time_earliest: foodParcels.pickup_date_time_earliest,
+                pickup_date_time_latest: foodParcels.pickup_date_time_latest,
+                is_picked_up: foodParcels.is_picked_up,
+            })
+            .from(foodParcels)
+            .where(eq(foodParcels.household_id, householdId))
+            .orderBy(asc(foodParcels.pickup_date_time_earliest));
+
+        // Get pickup location info
+        let pickupLocation = null;
+        if (foodParcelsResult.length > 0) {
+            const locationId = foodParcelsResult[0].pickup_location_id;
+            [pickupLocation] = await db
+                .select({
+                    id: pickupLocations.id,
+                    name: pickupLocations.name,
+                    address: pickupLocations.street_address,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, locationId))
+                .limit(1);
+        }
+
+        // Build week pattern info based on first food parcel date
+        let weekday = "1"; // Default to Monday
+        const repeatValue = "weekly"; // Default to weekly
+        let startDate = new Date(); // Default to current date
+
+        if (foodParcelsResult.length > 0) {
+            const firstParcel = foodParcelsResult[0];
+            startDate = firstParcel.pickup_date_time_earliest;
+            // Get day of week (0 = Sunday, 1 = Monday, etc.)
+            weekday = new Date(startDate).getDay().toString();
+            // Convert 0 (Sunday) to 7 to match the expected format
+            if (weekday === "0") weekday = "7";
+        }
+
+        // Get comments
+        const commentsResult = await db
+            .select({
+                id: householdComments.id,
+                created_at: householdComments.created_at,
+                author_github_username: householdComments.author_github_username,
+                comment: householdComments.comment,
+            })
+            .from(householdComments)
+            .where(eq(householdComments.household_id, householdId))
+            .orderBy(asc(householdComments.created_at));
+
+        // Fetch GitHub user data for all comments in one batch
+        const usernames = commentsResult
+            .map(comment => comment.author_github_username)
+            .filter(Boolean);
+
+        const githubUserDataMap = await fetchMultipleGithubUserData(usernames);
+
+        // Attach GitHub user data to comments
+        const comments = commentsResult.map(comment => {
+            const githubUserData = comment.author_github_username
+                ? githubUserDataMap[comment.author_github_username] || null
+                : null;
+
+            return {
+                ...comment,
+                githubUserData,
+            };
+        });
+
+        return {
+            household,
+            members,
+            dietaryRestrictions: dietaryRestrictionsResult,
+            additionalNeeds: additionalNeedsResult,
+            pets: householdPets,
+            foodParcels: {
+                pickupLocationId: pickupLocation?.id || "",
+                totalCount: foodParcelsResult.length,
+                weekday: weekday,
+                repeatValue: repeatValue,
+                startDate: startDate,
+                parcels: foodParcelsResult.map(parcel => ({
+                    id: parcel.id,
+                    pickupDate: parcel.pickup_date_time_earliest,
+                    pickupEarliestTime: parcel.pickup_date_time_earliest,
+                    pickupLatestTime: parcel.pickup_date_time_latest,
+                    isPickedUp: parcel.is_picked_up,
+                })),
+            },
+            pickupLocation,
+            comments,
+        };
+    } catch (error) {
+        console.error("Error fetching household details:", error);
         return null;
     }
-
-    // Get household members
-    const members = await db
-        .select()
-        .from(householdMembers)
-        .where(eq(householdMembers.household_id, householdId));
-
-    // Get dietary restrictions
-    const dietaryRestrictionsData = await db
-        .select({
-            id: dietaryRestrictions.id,
-            name: dietaryRestrictions.name,
-        })
-        .from(householdDietaryRestrictions)
-        .innerJoin(
-            dietaryRestrictions,
-            eq(householdDietaryRestrictions.dietary_restriction_id, dietaryRestrictions.id),
-        )
-        .where(eq(householdDietaryRestrictions.household_id, householdId));
-
-    // Get additional needs
-    const additionalNeedsData = await db
-        .select({
-            id: additionalNeeds.id,
-            need: additionalNeeds.need,
-        })
-        .from(householdAdditionalNeeds)
-        .innerJoin(
-            additionalNeeds,
-            eq(householdAdditionalNeeds.additional_need_id, additionalNeeds.id),
-        )
-        .where(eq(householdAdditionalNeeds.household_id, householdId));
-
-    // Get pets with species names
-    const petsData = await db
-        .select({
-            id: pets.id,
-            species: petSpecies.id,
-            speciesName: petSpecies.name,
-        })
-        .from(pets)
-        .innerJoin(petSpecies, eq(pets.pet_species_id, petSpecies.id))
-        .where(eq(pets.household_id, householdId));
-
-    // Get food parcels with pickup location
-    const foodParcelsData = await db
-        .select({
-            id: foodParcels.id,
-            pickupLocationId: foodParcels.pickup_location_id,
-            pickupDate: foodParcels.pickup_date_time_earliest,
-            pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-            pickupLatestTime: foodParcels.pickup_date_time_latest,
-            isPickedUp: foodParcels.is_picked_up,
-            locationName: pickupLocations.name,
-            locationAddress: pickupLocations.street_address,
-        })
-        .from(foodParcels)
-        .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
-        .where(eq(foodParcels.household_id, householdId))
-        .orderBy(foodParcels.pickup_date_time_latest);
-
-    // Get comments
-    const commentsData = await db
-        .select({
-            id: householdComments.id,
-            comment: householdComments.comment,
-            created_at: householdComments.created_at,
-            author_github_username: householdComments.author_github_username,
-        })
-        .from(householdComments)
-        .where(eq(householdComments.household_id, householdId))
-        .orderBy(desc(householdComments.created_at));
-
-    // Prepare food parcels structure in the format expected by the UI
-    const parcels = foodParcelsData.map(parcel => ({
-        id: parcel.id,
-        pickupDate: parcel.pickupDate,
-        pickupEarliestTime: parcel.pickupEarliestTime,
-        pickupLatestTime: parcel.pickupLatestTime,
-        isPickedUp: parcel.isPickedUp,
-    }));
-
-    // Group by weekday to match the format expected by ReviewForm
-    const foodParcelsFormatted = {
-        pickupLocationId: foodParcelsData.length > 0 ? foodParcelsData[0].pickupLocationId : "",
-        totalCount: parcels.length,
-        // These fields aren't used in the detail view but included for structure compatibility
-        weekday: "",
-        repeatValue: "",
-        startDate: new Date(),
-        parcels: parcels,
-    };
-
-    // Return complete household details in a format that matches ReviewForm expectations
-    return {
-        household: {
-            first_name: household.first_name,
-            last_name: household.last_name,
-            phone_number: household.phone_number,
-            locale: household.locale,
-            postal_code: household.postal_code,
-        },
-        members: members.map(member => ({
-            id: member.id,
-            age: member.age,
-            sex: member.sex,
-        })),
-        dietaryRestrictions: dietaryRestrictionsData.map(restriction => ({
-            id: restriction.id,
-            name: restriction.name,
-        })),
-        additionalNeeds: additionalNeedsData.map(need => ({
-            id: need.id,
-            need: need.need,
-        })),
-        pets: petsData.map(pet => ({
-            id: pet.id,
-            species: pet.species,
-            speciesName: pet.speciesName,
-        })),
-        foodParcels: foodParcelsFormatted,
-        pickupLocation:
-            foodParcelsData.length > 0
-                ? {
-                      id: foodParcelsData[0].pickupLocationId,
-                      name: foodParcelsData[0].locationName,
-                      address: foodParcelsData[0].locationAddress,
-                  }
-                : null,
-        comments: commentsData,
-    };
 }
 
 // Function to add a comment to a household
@@ -219,7 +290,7 @@ export async function addHouseholdComment(
         const githubUsername = session?.user?.name || "anonymous";
 
         // Insert the comment with the github username
-        const [newComment] = await db
+        const [dbComment] = await db
             .insert(householdComments)
             .values({
                 household_id: householdId,
@@ -227,6 +298,22 @@ export async function addHouseholdComment(
                 author_github_username: githubUsername,
             })
             .returning();
+
+        // Create a properly typed Comment object
+        const newComment: Comment = {
+            id: dbComment.id,
+            created_at: dbComment.created_at,
+            author_github_username: dbComment.author_github_username,
+            comment: dbComment.comment,
+        };
+
+        // Fetch GitHub user data for the new comment
+        if (githubUsername && githubUsername !== "anonymous") {
+            const githubUserData = await fetchGithubUserData(githubUsername);
+            if (githubUserData) {
+                newComment.githubUserData = githubUserData;
+            }
+        }
 
         return newComment;
     } catch (error) {

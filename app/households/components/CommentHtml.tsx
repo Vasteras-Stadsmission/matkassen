@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
     Avatar,
     Group,
@@ -19,12 +19,6 @@ import classes from "./CommentHtml.module.css";
 import { useDisclosure } from "@mantine/hooks";
 import { Comment } from "../enroll/types";
 
-// GitHub user data interface - kept internal to avoid circular dependency
-interface GithubUserData {
-    avatar_url: string;
-    name: string | null;
-}
-
 // Used when creating a new comment before sending to server
 export interface NewCommentData {
     comment: string;
@@ -36,40 +30,8 @@ interface CommentHtmlProps {
 }
 
 export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
-    // Use pre-fetched GitHub user data if available, otherwise fetch it on the fly
-    const [githubUser, setGithubUser] = useState<GithubUserData | null>(
-        comment.githubUserData || null,
-    );
     const [isDeleting, setIsDeleting] = useState(false);
     const [opened, { open, close }] = useDisclosure(false);
-
-    // Fetch GitHub user info for avatar if we have a username and don't already have the data
-    useEffect(() => {
-        const fetchGithubUser = async () => {
-            if (!comment.author_github_username || comment.githubUserData) return;
-
-            try {
-                const response = await fetch(
-                    `https://api.github.com/users/${comment.author_github_username}`,
-                );
-                if (response.ok) {
-                    const userData = await response.json();
-                    setGithubUser(userData);
-                } else {
-                    console.error(`Failed to fetch GitHub user: ${comment.author_github_username}`);
-                }
-            } catch (error) {
-                console.error(
-                    `Error fetching GitHub user: ${comment.author_github_username}`,
-                    error,
-                );
-            }
-        };
-
-        if (comment.author_github_username && !comment.githubUserData) {
-            fetchGithubUser();
-        }
-    }, [comment.author_github_username, comment.githubUserData]);
 
     // Format date for display using ISO format
     const formatDate = (date: Date | string | undefined) => {
@@ -125,6 +87,7 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
         }
     };
 
+    const githubUser = comment.githubUserData;
     const avatarUrl = githubUser?.avatar_url;
 
     // Display "Namn Okänt" if no full name is available

@@ -91,31 +91,40 @@ export default function EditHouseholdClient({ id }: { id: string }) {
         try {
             if (!comment.trim()) return;
 
-            const newComment = await addHouseholdComment(id, comment);
+            // Add comment and get response
+            const response = await addHouseholdComment(id, comment);
 
-            if (newComment) {
-                // If the comment has a GitHub username, fetch user data
-                const commentWithUserData = { ...newComment };
-                if (newComment.author_github_username) {
-                    const githubUserData = await fetchGithubUserData(
-                        newComment.author_github_username,
-                    );
-                    if (githubUserData) {
-                        commentWithUserData.githubUserData = githubUserData;
-                    }
-                }
+            if (!response) return undefined;
 
-                // Update the initialData with the new comment
-                setInitialData(prev => {
-                    if (!prev) return prev;
-                    return {
-                        ...prev,
-                        comments: [...(prev.comments || []), commentWithUserData],
-                    };
-                });
-                return commentWithUserData;
+            const newComment: Comment = {
+                author_github_username: response.author_github_username || "anonymous",
+                comment: response.comment,
+            };
+
+            if (response.id) newComment.id = response.id;
+            if (response.created_at) newComment.created_at = response.created_at;
+            if (response.githubUserData) newComment.githubUserData = response.githubUserData;
+
+            // If we need to fetch GitHub data
+            if (
+                !newComment.githubUserData &&
+                newComment.author_github_username &&
+                newComment.author_github_username !== "anonymous"
+            ) {
+                const userData = await fetchGithubUserData(newComment.author_github_username);
+                if (userData) newComment.githubUserData = userData;
             }
-            return undefined;
+
+            // Update local state
+            setInitialData(prev => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    comments: [...(prev.comments || []), newComment],
+                };
+            });
+
+            return newComment;
         } catch (error) {
             console.error("Error adding comment during edit:", error);
             return undefined;
