@@ -8,7 +8,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import classes from "./HeaderSimple.module.css";
 import { UserAvatarWrapper } from "../UserAvatarWrapper";
-import { SignOutButton } from "../SignOutButton";
+import { AuthButton } from "../AuthButton";
 import { NavigationLink } from "../NavigationUtils";
 
 interface NavLink {
@@ -117,7 +117,7 @@ export function HeaderSimple() {
                     </Group>
                     <Group gap={5} visibleFrom="xs">
                         <UserAvatarWrapper />
-                        <SignOutButton />
+                        <AuthButton />
                         <ScanQRCodeLink />
                     </Group>
                     <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
@@ -138,7 +138,7 @@ export function HeaderSimple() {
                     <div className={classes.mobileActions}>
                         <ScanQRCodeLink />
                         <UserAvatarWrapper />
-                        <SignOutButton />
+                        <AuthButton />
                     </div>
                 </div>
             </Drawer>

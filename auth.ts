@@ -32,5 +32,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
             return `/auth/error?error=invalid-account-provider`;
         },
+        // Redirect to home page after successful authentication
+        async redirect({ url, baseUrl }) {
+            // If url starts with the base url, proceed as normal
+            if (url.startsWith(baseUrl)) return url;
+            // Otherwise, redirect to the home page
+            return baseUrl;
+        },
     },
 });
