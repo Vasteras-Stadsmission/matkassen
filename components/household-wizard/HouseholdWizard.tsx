@@ -257,6 +257,14 @@ export default function HouseholdWizard({
         }
     };
 
+    // Function to handle adding comments through the parent handler if provided
+    const handleAddComment = async (comment: string) => {
+        if (onAddComment) {
+            return await onAddComment(comment);
+        }
+        return undefined;
+    };
+
     // Handle initial loading and error states
     if (isLoading) {
         return (
