@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Avatar,
     Group,
@@ -14,10 +14,9 @@ import {
     Stack,
 } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
-import DOMPurify from "isomorphic-dompurify";
-import classes from "./CommentHtml.module.css";
 import { useDisclosure } from "@mantine/hooks";
 import { Comment } from "../enroll/types";
+import classes from "./CommentHtml.module.css";
 
 // Used when creating a new comment before sending to server
 export interface NewCommentData {
@@ -32,6 +31,19 @@ interface CommentHtmlProps {
 export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [opened, { open, close }] = useDisclosure(false);
+    // State to store sanitized HTML
+    const [sanitizedHtml, setSanitizedHtml] = useState("");
+
+    // Load DOMPurify only on client-side
+    useEffect(() => {
+        // Dynamic import of DOMPurify only on client side
+        import("isomorphic-dompurify").then(DOMPurifyModule => {
+            const DOMPurify = DOMPurifyModule.default;
+            // Process and sanitize the comment text
+            const processedComment = processCommentText(comment.comment);
+            setSanitizedHtml(DOMPurify.sanitize(processedComment));
+        });
+    }, [comment.comment]);
 
     // Format date for display using ISO format
     const formatDate = (date: Date | string | undefined) => {
@@ -47,11 +59,6 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
             minute: "2-digit",
             second: "2-digit",
         }).format(dateObj);
-    };
-
-    // Safely sanitize HTML content
-    const createMarkup = (html: string) => {
-        return { __html: DOMPurify.sanitize(html) };
     };
 
     // Replace common patterns with HTML
@@ -93,8 +100,6 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
     // Display "Namn Okänt" if no full name is available
     const displayName = githubUser?.name || "Namn Okänt";
 
-    const processedComment = processCommentText(comment.comment);
-
     return (
         <>
             <Paper withBorder radius="md" className={classes.comment}>
@@ -134,7 +139,7 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
                 <TypographyStylesProvider className={classes.body}>
                     <div
                         className={classes.content}
-                        dangerouslySetInnerHTML={createMarkup(processedComment)}
+                        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
                     />
                 </TypographyStylesProvider>
             </Paper>

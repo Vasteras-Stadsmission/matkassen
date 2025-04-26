@@ -182,17 +182,43 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const isDateExcluded = useCallback(
         (date: Date): boolean => {
             const localDate = new Date(date);
+            const dateForComparison = new Date(localDate);
+            dateForComparison.setHours(0, 0, 0, 0);
+
+            // Always allow dates that are already selected - this is critical for deselection
+            const isAlreadySelected = selectedDates.some(selectedDate => {
+                const selected = new Date(selectedDate);
+                selected.setHours(0, 0, 0, 0);
+                return selected.getTime() === dateForComparison.getTime();
+            });
+
+            if (isAlreadySelected) {
+                return false; // Never exclude dates that are already selected
+            }
+
+            // For unselected dates, perform the capacity check
             const year = localDate.getFullYear();
             const month = String(localDate.getMonth() + 1).padStart(2, "0");
             const day = String(localDate.getDate()).padStart(2, "0");
             const dateKey = `${year}-${month}-${day}`;
+            const dateString = localDate.toDateString();
 
+            // Count parcels from database
             const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+
+            // Count selected dates for this same day in the current session
+            const selectedDateCount = selectedDates.filter(
+                selectedDate => new Date(selectedDate).toDateString() === dateString,
+            ).length;
+
+            // Calculate total count (database + selected in current session)
+            const totalCount = dbParcelCount + selectedDateCount;
             const maxPerDay = capacityData?.maxPerDay || null;
 
-            return maxPerDay !== null && dbParcelCount >= maxPerDay;
+            // Exclude unselected dates that would exceed capacity
+            return maxPerDay !== null && totalCount >= maxPerDay;
         },
-        [capacityData],
+        [capacityData, selectedDates],
     );
 
     const renderDay = (date: Date) => {
@@ -202,14 +228,21 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         const month = String(localDate.getMonth() + 1).padStart(2, "0");
         const day = String(localDate.getDate()).padStart(2, "0");
         const dateKey = `${year}-${month}-${day}`;
+        const dateString = localDate.toDateString();
 
+        // Count parcels from database
         const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+
+        // Count selected dates for this same day in the current session (excluding the current date if it's selected)
+        const selectedDateCount = selectedDates.filter(
+            selectedDate => new Date(selectedDate).toDateString() === dateString,
+        ).length;
+
+        // Calculate total count (database + selected in current session)
+        const totalCount = dbParcelCount + selectedDateCount;
         const maxPerDay = capacityData?.maxPerDay || null;
 
-        const isFullyBooked = isDateExcluded(date);
-
-        const isNearlyFull =
-            !isFullyBooked && maxPerDay !== null && dbParcelCount >= Math.floor(maxPerDay * 0.8);
+        const isFullyBooked = maxPerDay !== null && totalCount >= maxPerDay;
 
         const dayOfWeek = localDate.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -249,12 +282,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 textDecoration: "line-through",
                 opacity: 0.7,
                 fontWeight: 400,
-            };
-        } else if (isNearlyFull) {
-            dayStyle = {
-                backgroundColor: "var(--mantine-color-yellow-0)",
-                color: "var(--mantine-color-yellow-8)",
-                fontWeight: 500,
             };
         }
 
@@ -386,8 +413,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     }, [selectedDates, formState.parcels]);
 
     const handleDatesChange = (dates: Date[]) => {
-        setSelectedDates(dates);
-
+        // If the user is trying to add a new date (length has increased)
         if (dates.length > selectedDates.length) {
             const addedDate = dates.find(
                 newDate =>
@@ -404,31 +430,52 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 const month = String(localDate.getMonth() + 1).padStart(2, "0");
                 const day = String(localDate.getDate()).padStart(2, "0");
                 const dateKey = `${year}-${month}-${day}`;
-
-                const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
-                const maxPerDay = capacityData?.maxPerDay || null;
-
                 const dateString = localDate.toDateString();
+
+                // Count parcels from database
+                const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+
+                // Count existing selected dates for this same day
                 const existingDateCount = selectedDates.filter(
                     selectedDate => new Date(selectedDate).toDateString() === dateString,
                 ).length;
 
+                // Total count including the new date being added (+1)
                 const totalCount = dbParcelCount + existingDateCount + 1;
+                const maxPerDay = capacityData?.maxPerDay || null;
                 const isAvailable = maxPerDay === null || totalCount <= maxPerDay;
 
+                // If the date is unavailable (at or over capacity), don't add it
                 if (!isAvailable && maxPerDay !== null) {
+                    // Revert the selection by removing the date that was just added
                     setTimeout(() => {
                         setSelectedDates(prevDates =>
-                            prevDates.filter(
-                                date =>
-                                    new Date(date).toDateString() !==
-                                    new Date(addedDate).toDateString(),
-                            ),
+                            prevDates.filter(date => new Date(date).toDateString() !== dateString),
                         );
+
+                        // Optionally show a notification that the date is at capacity
+                        setCapacityNotification({
+                            date: localDate,
+                            message: `Max antal (${maxPerDay}) matkassar bokade för detta datum`,
+                            isAvailable: false,
+                        });
+
+                        if (capacityNotificationTimeoutRef.current) {
+                            clearTimeout(capacityNotificationTimeoutRef.current);
+                        }
+
+                        capacityNotificationTimeoutRef.current = setTimeout(() => {
+                            setCapacityNotification(null);
+                        }, 5000);
                     }, 0);
+
+                    return;
                 }
             }
         }
+
+        // If we got here, the selection change is valid
+        setSelectedDates(dates);
     };
 
     const handleParameterChange = (field: keyof FoodParcels, value: unknown) => {

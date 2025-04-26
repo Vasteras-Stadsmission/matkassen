@@ -391,8 +391,8 @@ export async function getPickupLocationCapacityForRange(
             .where(
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
-                    sql`${foodParcels.pickup_date_time_earliest} >= ${start}`,
-                    sql`${foodParcels.pickup_date_time_earliest} <= ${end}`,
+                    sql`${foodParcels.pickup_date_time_earliest} >= ${start.toISOString()}`,
+                    sql`${foodParcels.pickup_date_time_earliest} <= ${end.toISOString()}`,
                 ),
             );
 
