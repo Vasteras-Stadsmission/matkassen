@@ -14,7 +14,7 @@ import {
     pickupLocations,
     householdComments,
 } from "@/app/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import {
     FormData,
     HouseholdMember,
@@ -256,5 +256,173 @@ export async function getPetSpecies() {
     } catch (error) {
         console.error("Error fetching pet species:", error);
         return [];
+    }
+}
+
+/**
+ * Check if a pickup location has reached its maximum capacity for a specific date
+ * @param locationId Pickup location ID
+ * @param date Date to check
+ * @param excludeHouseholdId Optional household ID to exclude from the count
+ * @returns Object containing isAvailable and info about capacity
+ */
+export async function checkPickupLocationCapacity(
+    locationId: string,
+    date: Date,
+    excludeHouseholdId?: string,
+) {
+    try {
+        // Get the location to check if it has a max parcels per day limit
+        const [location] = await db
+            .select()
+            .from(pickupLocations)
+            .where(eq(pickupLocations.id, locationId))
+            .limit(1);
+
+        // If location doesn't exist or has no limit, return available
+        if (!location || location.parcels_max_per_day === null) {
+            return {
+                isAvailable: true,
+                currentCount: 0,
+                maxCount: null,
+                message: "Ingen gräns för denna hämtplats",
+            };
+        }
+
+        // Format date for correct comparison (remove time part)
+        const dateOnly = new Date(date);
+        dateOnly.setHours(0, 0, 0, 0);
+
+        // Extract the year, month, and day from the date for comparison
+        const year = dateOnly.getFullYear();
+        const month = dateOnly.getMonth() + 1; // getMonth() returns 0-11
+        const day = dateOnly.getDate();
+
+        // Use raw SQL for a more precise date comparison that handles timezone information
+        // This extracts year, month, and day from the timestamp to perform the comparison
+        // regardless of time part or timezone
+        const whereConditions = [eq(foodParcels.pickup_location_id, locationId)];
+
+        // Add date comparison conditions
+        whereConditions.push(
+            eq(sql`EXTRACT(YEAR FROM ${foodParcels.pickup_date_time_earliest})::int`, year),
+            eq(sql`EXTRACT(MONTH FROM ${foodParcels.pickup_date_time_earliest})::int`, month),
+            eq(sql`EXTRACT(DAY FROM ${foodParcels.pickup_date_time_earliest})::int`, day),
+        );
+
+        // Exclude the current household's parcels if we're editing an existing household
+        if (excludeHouseholdId) {
+            whereConditions.push(sql`${foodParcels.household_id} != ${excludeHouseholdId}`);
+        }
+
+        // Execute the query with all conditions
+        const parcels = await db
+            .select()
+            .from(foodParcels)
+            .where(and(...whereConditions));
+
+        // Count the parcels
+        const parcelCount = parcels.length;
+        const isAvailable = parcelCount < location.parcels_max_per_day;
+
+        // Return availability info
+        return {
+            isAvailable,
+            currentCount: parcelCount,
+            maxCount: location.parcels_max_per_day,
+            message: isAvailable
+                ? `${parcelCount} av ${location.parcels_max_per_day} bokade`
+                : `Max antal (${location.parcels_max_per_day}) matkassar bokade för detta datum`,
+        };
+    } catch (error) {
+        console.error("Error checking pickup location capacity:", error);
+        // Default to available in case of error, with a warning message
+        return {
+            isAvailable: true,
+            currentCount: 0,
+            maxCount: null,
+            message: "Kunde inte kontrollera kapacitet",
+        };
+    }
+}
+
+/**
+ * Get capacity data for a range of dates in a single query
+ * @param locationId Pickup location ID
+ * @param startDate Start date of the range
+ * @param endDate End date of the range
+ * @returns Object containing capacity data for the range
+ */
+export async function getPickupLocationCapacityForRange(
+    locationId: string,
+    startDate: Date,
+    endDate: Date,
+) {
+    try {
+        // Get the location to check if it has a max parcels per day limit
+        const [location] = await db
+            .select()
+            .from(pickupLocations)
+            .where(eq(pickupLocations.id, locationId))
+            .limit(1);
+
+        // If location doesn't exist or has no limit, return null
+        if (!location || location.parcels_max_per_day === null) {
+            return {
+                hasLimit: false,
+                maxPerDay: null,
+                dateCapacities: {},
+            };
+        }
+
+        // Format dates for comparison
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        // Get all food parcels for this location within the date range
+        const parcels = await db
+            .select({
+                pickupDateEarliest: foodParcels.pickup_date_time_earliest,
+            })
+            .from(foodParcels)
+            .where(
+                and(
+                    eq(foodParcels.pickup_location_id, locationId),
+                    sql`${foodParcels.pickup_date_time_earliest} >= ${start.toISOString()}`,
+                    sql`${foodParcels.pickup_date_time_earliest} <= ${end.toISOString()}`,
+                ),
+            );
+
+        // Count parcels by date
+        const dateCountMap: Record<string, number> = {};
+
+        parcels.forEach(parcel => {
+            const date = new Date(parcel.pickupDateEarliest);
+            // Format to YYYY-MM-DD for consistent comparison
+            const dateKey = date.toISOString().split("T")[0];
+
+            if (!dateCountMap[dateKey]) {
+                dateCountMap[dateKey] = 0;
+            }
+
+            dateCountMap[dateKey]++;
+        });
+
+        // Return capacity info for all dates
+        return {
+            hasLimit: true,
+            maxPerDay: location.parcels_max_per_day,
+            dateCapacities: dateCountMap,
+        };
+    } catch (error) {
+        console.error("Error checking pickup location capacity range:", error);
+        return {
+            hasLimit: false,
+            maxPerDay: null,
+            dateCapacities: {},
+        };
     }
 }

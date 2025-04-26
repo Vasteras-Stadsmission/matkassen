@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
     SimpleGrid,
     Title,
@@ -15,11 +15,23 @@ import {
     Button,
     Paper,
     ActionIcon,
+    Loader,
 } from "@mantine/core";
 import { DatePicker, TimeInput } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
-import { IconClock, IconCalendar, IconWand, IconCheck, IconX } from "@tabler/icons-react";
-import { getPickupLocations } from "../actions";
+import {
+    IconClock,
+    IconCalendar,
+    IconWand,
+    IconCheck,
+    IconX,
+    IconExclamationMark,
+} from "@tabler/icons-react";
+import {
+    getPickupLocations,
+    checkPickupLocationCapacity,
+    getPickupLocationCapacityForRange,
+} from "../actions";
 import { FoodParcels, FoodParcel } from "../types";
 
 interface ValidationError {
@@ -47,7 +59,23 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const [bulkLatestTime, setBulkLatestTime] = useState("13:00");
     const [bulkTimeError, setBulkTimeError] = useState<string | null>(null);
 
-    // Use the data from parent component or initialize with defaults
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    const [_capacityNotification, setCapacityNotification] = useState<{
+        date: Date;
+        message: string;
+        isAvailable: boolean;
+    } | null>(null);
+    const [_checkingCapacity, setCheckingCapacity] = useState(false);
+    /* eslint-enable @typescript-eslint/no-unused-vars */
+    const capacityNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const [capacityData, setCapacityData] = useState<{
+        hasLimit: boolean;
+        maxPerDay: number | null;
+        dateCapacities: Record<string, number>;
+    } | null>(null);
+    const [loadingCapacityData, setLoadingCapacityData] = useState(false);
+
     const [formState, setFormState] = useState<FoodParcels>({
         pickupLocationId: data.pickupLocationId || "",
         totalCount: data.totalCount || 4,
@@ -57,14 +85,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         parcels: data.parcels || [],
     });
 
-    // Array of selected dates for the multi-date picker
     const [selectedDates, setSelectedDates] = useState<Date[]>(
         data.parcels?.map(parcel => new Date(parcel.pickupDate)) || [],
     );
 
-    // Update formState when parent data changes (e.g., when navigating back to this step)
     useEffect(() => {
-        // Clear location error if we have a pickupLocationId
         if (data.pickupLocationId) {
             setLocationError(null);
         }
@@ -76,7 +101,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }));
     }, [data]);
 
-    // Set validation error if provided from parent
     useEffect(() => {
         if (error && error.field === "pickupLocationId") {
             setLocationError(error.message);
@@ -85,20 +109,17 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }
     }, [error]);
 
-    // Fetch pickup locations on component mount
     useEffect(() => {
         async function fetchData() {
             try {
                 const locations = await getPickupLocations();
 
-                // If we don't have any locations in the DB, use dummy data
                 if (locations.length === 0) {
                     setPickupLocations([
                         { value: "loc1", label: "Västerås Stadsmission" },
                         { value: "loc2", label: "Klara Kyrka" },
                     ]);
                 } else {
-                    // Map DB locations to format needed for Select component
                     setPickupLocations(
                         locations.map(loc => ({
                             value: loc.id,
@@ -108,7 +129,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 }
             } catch (error) {
                 console.error("Error fetching pickup locations:", error);
-                // Fallback to dummy data
                 setPickupLocations([
                     { value: "loc1", label: "Västerås Stadsmission" },
                     { value: "loc2", label: "Klara Kyrka" },
@@ -119,37 +139,264 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         fetchData();
     }, []);
 
-    // Clear location error when user selects a location
+    useEffect(() => {
+        return () => {
+            if (capacityNotificationTimeoutRef.current) {
+                clearTimeout(capacityNotificationTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        async function fetchCapacityData() {
+            if (!formState.pickupLocationId) {
+                setCapacityData(null);
+                return;
+            }
+
+            try {
+                setLoadingCapacityData(true);
+
+                const startDate = new Date();
+                const endDate = new Date();
+                endDate.setMonth(endDate.getMonth() + 3);
+
+                const capacityInfo = await getPickupLocationCapacityForRange(
+                    formState.pickupLocationId,
+                    startDate,
+                    endDate,
+                );
+
+                setCapacityData(capacityInfo);
+            } catch (error) {
+                console.error("Error fetching capacity data:", error);
+                setCapacityData(null);
+            } finally {
+                setLoadingCapacityData(false);
+            }
+        }
+
+        fetchCapacityData();
+    }, [formState.pickupLocationId]);
+
+    const isDateExcluded = useCallback(
+        (date: Date): boolean => {
+            const localDate = new Date(date);
+            const dateForComparison = new Date(localDate);
+            dateForComparison.setHours(0, 0, 0, 0);
+
+            // Always allow dates that are already selected - this is critical for deselection
+            const isAlreadySelected = selectedDates.some(selectedDate => {
+                const selected = new Date(selectedDate);
+                selected.setHours(0, 0, 0, 0);
+                return selected.getTime() === dateForComparison.getTime();
+            });
+
+            if (isAlreadySelected) {
+                return false; // Never exclude dates that are already selected
+            }
+
+            // For unselected dates, perform the capacity check
+            const year = localDate.getFullYear();
+            const month = String(localDate.getMonth() + 1).padStart(2, "0");
+            const day = String(localDate.getDate()).padStart(2, "0");
+            const dateKey = `${year}-${month}-${day}`;
+            const dateString = localDate.toDateString();
+
+            // Count parcels from database
+            const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+
+            // Count selected dates for this same day in the current session
+            const selectedDateCount = selectedDates.filter(
+                selectedDate => new Date(selectedDate).toDateString() === dateString,
+            ).length;
+
+            // Calculate total count (database + selected in current session)
+            const totalCount = dbParcelCount + selectedDateCount;
+            const maxPerDay = capacityData?.maxPerDay || null;
+
+            // Exclude unselected dates that would exceed capacity
+            return maxPerDay !== null && totalCount >= maxPerDay;
+        },
+        [capacityData, selectedDates],
+    );
+
+    const renderDay = (date: Date) => {
+        const localDate = new Date(date);
+
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, "0");
+        const day = String(localDate.getDate()).padStart(2, "0");
+        const dateKey = `${year}-${month}-${day}`;
+        const dateString = localDate.toDateString();
+
+        // Count parcels from database
+        const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+
+        // Count selected dates for this same day in the current session (excluding the current date if it's selected)
+        const selectedDateCount = selectedDates.filter(
+            selectedDate => new Date(selectedDate).toDateString() === dateString,
+        ).length;
+
+        // Calculate total count (database + selected in current session)
+        const totalCount = dbParcelCount + selectedDateCount;
+        const maxPerDay = capacityData?.maxPerDay || null;
+
+        const isFullyBooked = maxPerDay !== null && totalCount >= maxPerDay;
+
+        const dayOfWeek = localDate.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dateForComparison = new Date(localDate);
+        dateForComparison.setHours(0, 0, 0, 0);
+        const isToday = dateForComparison.getTime() === today.getTime();
+
+        const isSelected = selectedDates.some(selectedDate => {
+            const selected = new Date(selectedDate);
+            selected.setHours(0, 0, 0, 0);
+            return selected.getTime() === dateForComparison.getTime();
+        });
+
+        let dayStyle: React.CSSProperties = {};
+
+        if (isSelected) {
+            return (
+                <div
+                    style={{
+                        backgroundColor: "var(--mantine-color-blue-filled)",
+                        color: "white",
+                        fontWeight: 500,
+                    }}
+                >
+                    {localDate.getDate()}
+                </div>
+            );
+        }
+
+        if (isFullyBooked) {
+            dayStyle = {
+                backgroundColor: "var(--mantine-color-red-0)",
+                color: "var(--mantine-color-red-8)",
+                textDecoration: "line-through",
+                opacity: 0.7,
+                fontWeight: 400,
+            };
+        }
+
+        if (isWeekend && !isFullyBooked) {
+            dayStyle = {
+                ...dayStyle,
+                opacity: dayStyle.opacity || 0.8,
+                fontWeight: 400,
+            };
+        }
+
+        if (isToday) {
+            dayStyle = {
+                ...dayStyle,
+                fontWeight: 700,
+                textDecoration: dayStyle.textDecoration || "none",
+                border: "1px solid var(--mantine-color-blue-5)",
+            };
+        }
+
+        return <div style={dayStyle}>{localDate.getDate()}</div>;
+    };
+
     const handleLocationChange = (value: string | null) => {
         setLocationError(null);
 
-        // When a value is selected, update the form state and notify parent
         if (value) {
             const updatedState = {
                 ...formState,
                 pickupLocationId: value,
             };
             setFormState(updatedState);
-            updateData(updatedState); // Make sure parent is updated immediately
+            updateData(updatedState);
         } else {
             handleParameterChange("pickupLocationId", value);
         }
     };
 
-    // Generate food parcels based on selected dates
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    const _checkDateCapacity = useCallback(
+        async (date: Date) => {
+            if (!formState.pickupLocationId) {
+                return { isAvailable: true };
+            }
+
+            try {
+                setCheckingCapacity(true);
+
+                const capacity = await checkPickupLocationCapacity(
+                    formState.pickupLocationId,
+                    date,
+                );
+
+                const dateString = new Date(date).toDateString();
+                const existingDateCount = selectedDates.filter(
+                    selectedDate => new Date(selectedDate).toDateString() === dateString,
+                ).length;
+
+                const adjustedCount = capacity.currentCount + existingDateCount;
+                const stillAvailable =
+                    capacity.maxCount === null || adjustedCount < capacity.maxCount;
+
+                if (capacity.maxCount !== null) {
+                    const isNearCapacity = adjustedCount >= Math.floor(capacity.maxCount * 0.8);
+
+                    const adjustedCapacity = {
+                        ...capacity,
+                        isAvailable: stillAvailable,
+                        currentCount: adjustedCount,
+                        message: stillAvailable
+                            ? `${adjustedCount} av ${capacity.maxCount} bokade`
+                            : `Max antal (${capacity.maxCount}) matkassar bokade för detta datum`,
+                    };
+
+                    if (!stillAvailable || isNearCapacity) {
+                        setCapacityNotification({
+                            date,
+                            message: adjustedCapacity.message,
+                            isAvailable: adjustedCapacity.isAvailable,
+                        });
+
+                        if (capacityNotificationTimeoutRef.current) {
+                            clearTimeout(capacityNotificationTimeoutRef.current);
+                        }
+
+                        capacityNotificationTimeoutRef.current = setTimeout(() => {
+                            setCapacityNotification(null);
+                        }, 5000);
+                    }
+
+                    return adjustedCapacity;
+                }
+
+                return capacity;
+            } catch (error) {
+                console.error("Error checking pickup location capacity:", error);
+                return { isAvailable: true };
+            } finally {
+                setCheckingCapacity(false);
+            }
+        },
+        [formState.pickupLocationId, selectedDates],
+    );
+    /* eslint-enable @typescript-eslint/no-unused-vars */
+
     const generateParcels = useCallback((): FoodParcel[] => {
         return selectedDates.map(date => {
-            // Look for an existing parcel with this date
             const existingParcel = formState.parcels.find(
                 p => new Date(p.pickupDate).toDateString() === new Date(date).toDateString(),
             );
 
             if (existingParcel) {
-                // Keep the existing parcel with its time settings
                 return { ...existingParcel };
             }
 
-            // Create a new parcel with default times
             const earliestTime = new Date(date);
             earliestTime.setHours(12, 0, 0);
 
@@ -165,17 +412,76 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         });
     }, [selectedDates, formState.parcels]);
 
-    // Handle multiple dates selection
     const handleDatesChange = (dates: Date[]) => {
+        // If the user is trying to add a new date (length has increased)
+        if (dates.length > selectedDates.length) {
+            const addedDate = dates.find(
+                newDate =>
+                    !selectedDates.some(
+                        existingDate =>
+                            new Date(existingDate).toDateString() ===
+                            new Date(newDate).toDateString(),
+                    ),
+            );
+
+            if (addedDate) {
+                const localDate = new Date(addedDate);
+                const year = localDate.getFullYear();
+                const month = String(localDate.getMonth() + 1).padStart(2, "0");
+                const day = String(localDate.getDate()).padStart(2, "0");
+                const dateKey = `${year}-${month}-${day}`;
+                const dateString = localDate.toDateString();
+
+                // Count parcels from database
+                const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+
+                // Count existing selected dates for this same day
+                const existingDateCount = selectedDates.filter(
+                    selectedDate => new Date(selectedDate).toDateString() === dateString,
+                ).length;
+
+                // Total count including the new date being added (+1)
+                const totalCount = dbParcelCount + existingDateCount + 1;
+                const maxPerDay = capacityData?.maxPerDay || null;
+                const isAvailable = maxPerDay === null || totalCount <= maxPerDay;
+
+                // If the date is unavailable (at or over capacity), don't add it
+                if (!isAvailable && maxPerDay !== null) {
+                    // Revert the selection by removing the date that was just added
+                    setTimeout(() => {
+                        setSelectedDates(prevDates =>
+                            prevDates.filter(date => new Date(date).toDateString() !== dateString),
+                        );
+
+                        // Optionally show a notification that the date is at capacity
+                        setCapacityNotification({
+                            date: localDate,
+                            message: `Max antal (${maxPerDay}) matkassar bokade för detta datum`,
+                            isAvailable: false,
+                        });
+
+                        if (capacityNotificationTimeoutRef.current) {
+                            clearTimeout(capacityNotificationTimeoutRef.current);
+                        }
+
+                        capacityNotificationTimeoutRef.current = setTimeout(() => {
+                            setCapacityNotification(null);
+                        }, 5000);
+                    }, 0);
+
+                    return;
+                }
+            }
+        }
+
+        // If we got here, the selection change is valid
         setSelectedDates(dates);
     };
 
-    // Update state when parameters change
     const handleParameterChange = (field: keyof FoodParcels, value: unknown) => {
         setFormState(prev => ({ ...prev, [field]: value }));
     };
 
-    // Apply changes and generate parcels
     const applyChanges = useCallback(() => {
         const parcels = generateParcels();
         const updatedState = {
@@ -184,7 +490,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             totalCount: selectedDates.length,
         };
 
-        // Only update if there's an actual change to avoid loops
         if (
             JSON.stringify(updatedState.parcels) !== JSON.stringify(formState.parcels) ||
             updatedState.totalCount !== formState.totalCount
@@ -194,28 +499,23 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }
     }, [formState, generateParcels, updateData, selectedDates.length]);
 
-    // Update pickup time for a specific parcel with validation
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
         const updatedParcels = [...formState.parcels];
         const parcel = updatedParcels[index];
 
-        // Make a temporary update to check validation
         const tempParcel = {
             ...parcel,
             [field]: time,
         };
 
-        // Validate time ranges
         const errorKey = `${index}-${field}`;
         const oppositeField =
             field === "pickupEarliestTime" ? "pickupLatestTime" : "pickupEarliestTime";
         const oppositeErrorKey = `${index}-${oppositeField}`;
 
-        // Clear current field error
         const newTimeErrors = { ...timeErrors };
         delete newTimeErrors[errorKey];
 
-        // Perform validation
         if (
             field === "pickupEarliestTime" &&
             tempParcel.pickupEarliestTime >= tempParcel.pickupLatestTime
@@ -227,13 +527,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         ) {
             newTimeErrors[errorKey] = "Senast tid måste vara efter tidigast tid";
         } else {
-            // If this field is now valid, clear any error on the opposite field too
             delete newTimeErrors[oppositeErrorKey];
         }
 
         setTimeErrors(newTimeErrors);
 
-        // Update the parcel regardless of validation to show the user's input
         updatedParcels[index] = tempParcel;
 
         const updatedState = { ...formState, parcels: updatedParcels };
@@ -241,7 +539,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         updateData(updatedState);
     };
 
-    // Helper function to convert Date to string in HH:mm format for TimeInput
     const formatTimeForInput = (date: Date): string => {
         return date.toLocaleTimeString("en-GB", {
             hour: "2-digit",
@@ -250,38 +547,30 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         });
     };
 
-    // Helper function to parse time string to Date
     const parseTimeString = (timeStr: string, baseDate: Date): Date => {
-        // Handle incomplete time input gracefully
         let hours = 0;
         let minutes = 0;
 
         if (!timeStr) {
-            // Default to current values if input is empty
             const current = new Date(baseDate);
             return current;
         }
 
         const parts = timeStr.split(":");
         if (parts.length === 2) {
-            // Normal format "HH:MM"
             hours = parseInt(parts[0], 10) || 0;
             minutes = parseInt(parts[1], 10) || 0;
         } else if (timeStr.length === 1 || timeStr.length === 2) {
-            // Single digit or double digit (interpreted as hours)
             hours = parseInt(timeStr, 10) || 0;
             minutes = 0;
         } else if (timeStr.length === 3) {
-            // Format like "123" -> interpret as 1:23
             hours = parseInt(timeStr.substring(0, 1), 10) || 0;
             minutes = parseInt(timeStr.substring(1), 10) || 0;
         } else if (timeStr.length === 4) {
-            // Format like "1234" -> interpret as 12:34
             hours = parseInt(timeStr.substring(0, 2), 10) || 0;
             minutes = parseInt(timeStr.substring(2), 10) || 0;
         }
 
-        // Enforce valid ranges
         hours = Math.min(Math.max(hours, 0), 23);
         minutes = Math.min(Math.max(minutes, 0), 59);
 
@@ -290,7 +579,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         return newDate;
     };
 
-    // Update selectedDates when parcels change from parent
     useEffect(() => {
         if (
             data.parcels?.length > 0 &&
@@ -300,16 +588,13 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }
     }, [data.parcels, formState.parcels]);
 
-    // Generate parcels when selected dates change
     useEffect(() => {
         if (selectedDates.length > 0) {
             applyChanges();
         }
     }, [selectedDates, applyChanges]);
 
-    // Apply bulk time update to all parcels
     const applyBulkTimeUpdate = () => {
-        // Validate the bulk times
         const earliestParts = bulkEarliestTime.split(":").map(part => parseInt(part, 10));
         const latestParts = bulkLatestTime.split(":").map(part => parseInt(part, 10));
 
@@ -319,7 +604,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         const latestDate = new Date();
         latestDate.setHours(latestParts[0] || 0, latestParts[1] || 0, 0, 0);
 
-        // Check if earliest time is before latest time
         if (earliestDate >= latestDate) {
             setBulkTimeError("Tidigast tid måste vara före senast tid");
             return;
@@ -327,7 +611,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
         setBulkTimeError(null);
 
-        // Update all parcels with the new times
         const updatedParcels = formState.parcels.map(parcel => {
             const newEarliestTime = new Date(parcel.pickupDate);
             newEarliestTime.setHours(earliestParts[0] || 0, earliestParts[1] || 0, 0, 0);
@@ -342,19 +625,15 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             };
         });
 
-        // Update form state and parent data
         const updatedState = { ...formState, parcels: updatedParcels };
         setFormState(updatedState);
         updateData(updatedState);
 
-        // Exit bulk edit mode
         setBulkTimeMode(false);
 
-        // Clear any individual time errors since all times have been updated
         setTimeErrors({});
     };
 
-    // Cancel bulk time editing
     const cancelBulkTimeEdit = () => {
         setBulkTimeMode(false);
         setBulkTimeError(null);
@@ -389,10 +668,12 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         Välj datum för matkassar{" "}
                         <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
                     </Text>
+
                     <Box
                         style={{
-                            height: "290px", // Set a fixed height for the calendar container
-                            overflow: "hidden", // Prevent any overflow
+                            height: "290px",
+                            overflow: "hidden",
+                            position: "relative",
                         }}
                     >
                         <DatePicker
@@ -401,7 +682,73 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             onChange={handleDatesChange}
                             minDate={new Date()}
                             numberOfColumns={2}
+                            renderDay={renderDay}
+                            excludeDate={isDateExcluded}
                         />
+
+                        {loadingCapacityData && formState.pickupLocationId && (
+                            <Box
+                                style={{
+                                    position: "absolute",
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    background: "rgba(255, 255, 255, 0.7)",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    zIndex: 5,
+                                }}
+                            >
+                                <Stack align="center" gap="xs">
+                                    <Loader size="md" />
+                                    <Text size="sm" c="dimmed">
+                                        Laddar tillgänglighet...
+                                    </Text>
+                                </Stack>
+                            </Box>
+                        )}
+
+                        {!formState.pickupLocationId && (
+                            <Tooltip
+                                label="Välj en hämtplats först för att se tillgänglighet"
+                                position="bottom"
+                                withArrow
+                                opened
+                                color="blue"
+                                style={{
+                                    position: "absolute",
+                                    top: "50%",
+                                    left: "50%",
+                                    transform: "translate(-50%, -50%)",
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                <Box
+                                    style={{
+                                        position: "absolute",
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: "rgba(255, 255, 255, 0.5)",
+                                        backdropFilter: "blur(2px)",
+                                        zIndex: 5,
+                                        cursor: "not-allowed",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                    }}
+                                >
+                                    <IconExclamationMark
+                                        size={48}
+                                        color="var(--mantine-color-blue-6)"
+                                        opacity={0.5}
+                                    />
+                                </Box>
+                            </Tooltip>
+                        )}
                     </Box>
                     <Text size="xs" c="dimmed">
                         Välj alla datum när hushållet ska få en matkasse
@@ -614,9 +961,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                                     : "1px solid var(--mantine-color-gray-3)",
                                                             cursor: "pointer",
                                                         }}
-                                                        onClick={() => {
-                                                            // This could be modified to show a more user-friendly time editor if needed
-                                                        }}
+                                                        onClick={() => {}}
                                                     >
                                                         <IconClock
                                                             size="1.2rem"
