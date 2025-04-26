@@ -1,13 +1,11 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Container, Title, Text, Button, Group, Card } from "@mantine/core";
-import { useRouter } from "next/navigation";
+import { Container, Title, Text, Card } from "@mantine/core";
 import { Suspense } from "react";
 
 function HomeContent() {
     const { data: session, status } = useSession();
-    const router = useRouter();
 
     return (
         <Container size="lg" py="xl">
