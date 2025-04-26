@@ -51,6 +51,8 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
             newPetType: value =>
                 !value || value.length < 2 ? "Djurtypen måste vara minst 2 tecken" : null,
         },
+        validateInputOnBlur: true, // Only validate when field loses focus
+        validateInputOnChange: false, // Don't validate while typing
     });
 
     // Fetch pet species from the database
