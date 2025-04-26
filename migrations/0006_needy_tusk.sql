@@ -1,0 +1,1 @@
+ALTER TABLE "household_comments" ADD COLUMN "author_github_username" varchar(50);

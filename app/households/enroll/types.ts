@@ -1,4 +1,5 @@
 // Types for the household enrollment feature
+
 export interface Household {
     first_name: string;
     last_name: string;
@@ -54,6 +55,19 @@ export interface FoodParcels {
     parcels: FoodParcel[];
 }
 
+export interface GithubUserData {
+    avatar_url: string;
+    name: string | null;
+}
+
+export interface Comment {
+    id?: string;
+    created_at?: Date;
+    author_github_username: string;
+    comment: string;
+    githubUserData?: GithubUserData | null;
+}
+
 export interface FormData {
     household: Household;
     members: HouseholdMember[];
@@ -61,6 +75,7 @@ export interface FormData {
     additionalNeeds: AdditionalNeed[];
     pets: Pet[];
     foodParcels: FoodParcels;
+    comments?: Comment[];
 }
 
 export interface EnrollHouseholdResult {

@@ -14,9 +14,10 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconSearch, IconX, IconEye, IconEdit } from "@tabler/icons-react";
-import { getHouseholdDetails } from "../actions";
+import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../actions";
 import HouseholdDetail from "./HouseholdDetail";
 import { useRouter } from "next/navigation";
+import { Comment } from "../enroll/types";
 
 interface Household {
     id: string;
@@ -77,6 +78,7 @@ interface HouseholdDetail {
         name: string;
         address?: string;
     } | null;
+    comments?: Comment[];
 }
 
 export default function HouseholdsTable({ households }: { households: Household[] }) {
@@ -86,6 +88,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     const [householdDetail, setHouseholdDetail] = useState<HouseholdDetail | null>(null);
     const [opened, { open, close }] = useDisclosure(false);
     const [loading, setLoading] = useState(false);
+    const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: "last_name",
         direction: "asc" as "asc" | "desc",
@@ -163,6 +166,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     // Handle row click to open detail modal
     const handleRowClick = async (householdId: string) => {
         setLoading(true);
+        setSelectedHouseholdId(householdId);
         open();
 
         try {
@@ -170,6 +174,44 @@ export default function HouseholdsTable({ households }: { households: Household[
             setHouseholdDetail(details);
         } catch (error) {
             console.error("Error fetching household details:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle adding a comment
+    const handleAddComment = async (comment: string) => {
+        if (!selectedHouseholdId || !comment.trim()) return;
+
+        try {
+            setLoading(true);
+            const newComment = await addHouseholdComment(selectedHouseholdId, comment);
+
+            // Refresh household details to include the new comment
+            const updatedDetails = await getHouseholdDetails(selectedHouseholdId);
+            setHouseholdDetail(updatedDetails);
+
+            return newComment;
+        } catch (error) {
+            console.error("Error adding comment:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle deleting a comment
+    const handleDeleteComment = async (commentId: string): Promise<void> => {
+        try {
+            setLoading(true);
+            const success = await deleteHouseholdComment(commentId);
+
+            if (success && selectedHouseholdId) {
+                // Refresh household details to update comments
+                const updatedDetails = await getHouseholdDetails(selectedHouseholdId);
+                setHouseholdDetail(updatedDetails);
+            }
+        } catch (error) {
+            console.error("Error deleting comment:", error);
         } finally {
             setLoading(false);
         }
@@ -247,6 +289,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     const handleCloseModal = () => {
         close();
         setHouseholdDetail(null);
+        setSelectedHouseholdId(null);
     };
 
     return (
@@ -359,7 +402,13 @@ export default function HouseholdsTable({ households }: { households: Household[
                 centered
             >
                 <LoadingOverlay visible={loading} />
-                {householdDetail && <HouseholdDetail householdDetail={householdDetail} />}
+                {householdDetail && (
+                    <HouseholdDetail
+                        householdDetail={householdDetail}
+                        onAddComment={handleAddComment}
+                        onDeleteComment={handleDeleteComment}
+                    />
+                )}
             </Modal>
         </>
     );

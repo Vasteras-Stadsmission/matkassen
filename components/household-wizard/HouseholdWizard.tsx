@@ -36,6 +36,7 @@ import {
     DietaryRestriction,
     AdditionalNeed,
     FoodParcels,
+    Comment,
 } from "@/app/households/enroll/types";
 
 // Define type for submit status
@@ -56,12 +57,14 @@ interface HouseholdWizardProps {
     mode: "create" | "edit";
     // Initial data (empty for enrollment, pre-populated for editing)
     initialData?: FormData;
-    // Household ID (only needed for edit mode)
-    householdId?: string;
     // Title to display at the top
     title: string | React.ReactNode;
     // Submit function (different for enrollment vs editing)
     onSubmit: (data: FormData) => Promise<{ success: boolean; error?: string }>;
+    // Optional function to add comments (passed from the parent for edit mode)
+    onAddComment?: (comment: string) => Promise<Comment | undefined>;
+    // Optional function to delete comments (passed from the parent for edit mode)
+    onDeleteComment?: (commentId: string) => Promise<void>;
     // Initial loading state
     isLoading?: boolean;
     // Error message if initial data loading failed
@@ -77,6 +80,8 @@ export default function HouseholdWizard({
     initialData,
     title,
     onSubmit,
+    onAddComment,
+    onDeleteComment,
     isLoading = false,
     loadError = null,
     submitButtonColor = "green",
@@ -111,6 +116,7 @@ export default function HouseholdWizard({
                 startDate: new Date(),
                 parcels: [],
             },
+            comments: [],
         },
     );
 
@@ -387,7 +393,12 @@ export default function HouseholdWizard({
                     </Stepper.Step>
 
                     <Stepper.Step label="Sammanfattning" description="Granska och skicka">
-                        <ReviewForm formData={formData} isEditing={mode === "edit"} />
+                        <ReviewForm
+                            formData={formData}
+                            isEditing={mode === "edit"}
+                            onAddComment={handleAddComment}
+                            onDeleteComment={onDeleteComment}
+                        />
                     </Stepper.Step>
                 </Stepper>
 

@@ -1,0 +1,1 @@
+ALTER TABLE "household_comments" ALTER COLUMN "author_github_username" SET NOT NULL;

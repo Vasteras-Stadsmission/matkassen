@@ -11,9 +11,12 @@ import {
     pets,
     petSpecies,
     foodParcels,
+    householdComments,
 } from "@/app/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { FormData } from "../../enroll/types";
+import { auth } from "@/auth";
+import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -50,6 +53,7 @@ export async function getHouseholdFormData(householdId: string): Promise<FormDat
                 startDate: details.foodParcels.startDate || new Date(),
                 parcels: details.foodParcels.parcels,
             },
+            comments: details.comments,
         };
     } catch (error) {
         console.error("Error getting household form data:", error);
@@ -153,6 +157,35 @@ async function getHouseholdEditData(householdId: string) {
         .where(eq(foodParcels.household_id, householdId))
         .orderBy(foodParcels.pickup_date_time_latest);
 
+    // Get comments
+    const commentsData = await db
+        .select({
+            id: householdComments.id,
+            comment: householdComments.comment,
+            created_at: householdComments.created_at,
+            author_github_username: householdComments.author_github_username,
+        })
+        .from(householdComments)
+        .where(eq(householdComments.household_id, householdId))
+        .orderBy(householdComments.created_at);
+
+    // Fetch GitHub user data for all comments in one batch
+    const usernames = commentsData.map(comment => comment.author_github_username).filter(Boolean);
+
+    const githubUserDataMap = await fetchMultipleGithubUserData(usernames);
+
+    // Attach GitHub user data to comments
+    const comments = commentsData.map(comment => {
+        const githubUserData = comment.author_github_username
+            ? githubUserDataMap[comment.author_github_username] || null
+            : null;
+
+        return {
+            ...comment,
+            githubUserData,
+        };
+    });
+
     // Get weekday and repeat pattern (from first food parcel)
     let weekday = "1"; // Default to Monday
     let repeatValue = "weekly"; // Default to weekly
@@ -225,6 +258,7 @@ async function getHouseholdEditData(householdId: string) {
         additionalNeeds: additionalNeedsData,
         pets: transformedPets,
         foodParcels: foodParcelsFormatted,
+        comments,
     };
 }
 
@@ -365,6 +399,7 @@ export async function updateHousehold(
                         .where(eq(additionalNeeds.need, need.need))
                         .limit(1);
 
+                    // If not found, create it
                     if (!existingNeed) {
                         await tx.insert(additionalNeeds).values({
                             id: need.id,
@@ -410,6 +445,26 @@ export async function updateHousehold(
                 );
             }
 
+            // 7. Handle comments - add new comments if any were added during editing
+            if (data.comments && data.comments.length > 0) {
+                // Filter out any comments that already have an ID (meaning they already exist in the DB)
+                // and only add the ones that don't have an ID (new comments added during editing)
+                const newComments = data.comments.filter(c => !c.id && c.comment.trim() !== "");
+
+                if (newComments.length > 0) {
+                    await Promise.all(
+                        newComments.map(comment =>
+                            tx.insert(householdComments).values({
+                                household_id: householdId,
+                                comment: comment.comment.trim(),
+                                author_github_username:
+                                    comment.author_github_username || "anonymous",
+                            }),
+                        ),
+                    );
+                }
+            }
+
             return { success: true, householdId };
         });
     } catch (error: unknown) {
@@ -418,5 +473,41 @@ export async function updateHousehold(
             success: false,
             error: error instanceof Error ? error.message : "Unknown error occurred",
         };
+    }
+}
+
+// Add comment to a household (for edit page)
+export async function addComment(householdId: string, commentText: string) {
+    if (!commentText.trim()) return null;
+
+    try {
+        // Get the current user from the session
+        const session = await auth();
+        const username = session?.user?.name || "anonymous";
+
+        // Insert the comment
+        const [comment] = await db
+            .insert(householdComments)
+            .values({
+                household_id: householdId,
+                comment: commentText.trim(),
+                author_github_username: username,
+            })
+            .returning();
+
+        // Fetch GitHub user data for the comment author
+        let githubUserData = null;
+        if (username && username !== "anonymous") {
+            githubUserData = await fetchGithubUserData(username);
+        }
+
+        // Return the comment with GitHub user data
+        return {
+            ...comment,
+            githubUserData,
+        };
+    } catch (error) {
+        console.error("Error adding comment:", error);
+        return null;
     }
 }

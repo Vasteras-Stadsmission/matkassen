@@ -13,6 +13,8 @@ import {
     IconGenderBigender,
     IconLanguage,
 } from "@tabler/icons-react";
+import HouseholdComments from "./HouseholdComments";
+import { Comment } from "../enroll/types";
 
 interface HouseholdDetailProps {
     householdDetail: {
@@ -57,10 +59,17 @@ interface HouseholdDetailProps {
             name: string;
             address?: string;
         } | null;
+        comments?: Comment[];
     };
+    onAddComment?: (comment: string) => Promise<Comment | null | undefined>;
+    onDeleteComment?: (commentId: string) => Promise<void>;
 }
 
-export default function HouseholdDetail({ householdDetail }: HouseholdDetailProps) {
+export default function HouseholdDetail({
+    householdDetail,
+    onAddComment,
+    onDeleteComment,
+}: HouseholdDetailProps) {
     // Format date for display
     const formatDate = (date: Date | string | null | undefined) => {
         if (!date) return "";
@@ -321,7 +330,7 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                     </Paper>
 
                     {/* Additional Needs */}
-                    <Paper withBorder p="md" radius="md">
+                    <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
                             Ytterligare behov ({householdDetail.additionalNeeds.length})
                         </Title>
@@ -339,12 +348,25 @@ export default function HouseholdDetail({ householdDetail }: HouseholdDetailProp
                             </Text>
                         )}
                     </Paper>
+
+                    {/* Comments Section */}
+                    <Paper withBorder p="md" radius="md" mb="md">
+                        <Title order={5} mb="md">
+                            Kommentarer ({householdDetail.comments?.length || 0})
+                        </Title>
+                        <HouseholdComments
+                            comments={householdDetail.comments || []}
+                            onAddComment={onAddComment}
+                            onDeleteComment={onDeleteComment}
+                            showTitle={false}
+                        />
+                    </Paper>
                 </Box>
 
                 {/* Right Column - Only Matkassar */}
                 <Box>
                     {/* Food Parcels */}
-                    <Paper withBorder p="md" radius="md" h="100%">
+                    <Paper withBorder p="md" radius="md" h="100%" mb="md">
                         <Title order={5} mb="sm">
                             Matkassar ({householdDetail.foodParcels.parcels?.length || 0})
                         </Title>
