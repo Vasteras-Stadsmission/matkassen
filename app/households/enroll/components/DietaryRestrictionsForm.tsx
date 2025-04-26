@@ -47,6 +47,8 @@ export default function DietaryRestrictionsForm({
             newRestriction: value =>
                 !value || value.length < 2 ? "Matrestriktionen måste vara minst 2 tecken" : null,
         },
+        validateInputOnBlur: true, // Only validate when field loses focus
+        validateInputOnChange: false, // Don't validate while typing
     });
 
     // Fetch dietary restrictions from database

@@ -25,7 +25,7 @@ interface MembersFormProps {
 }
 
 export default function MembersForm({ data, updateData }: MembersFormProps) {
-    // Initialize with data from parent, this makes members persist when navigating back
+    // Initialize with data from parent, using Mantine's useForm with improved validation options
     const addMemberForm = useForm({
         initialValues: {
             age: "",
@@ -35,6 +35,8 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
             age: value => (value === "" || Number(value) < 0 ? "Ålder måste anges" : null),
             sex: value => (!value ? "Välj kön" : null),
         },
+        validateInputOnBlur: true, // Only validate when field loses focus
+        validateInputOnChange: false, // Don't validate while typing
     });
 
     const addMember = (values: { age: string | number; sex: string }) => {
@@ -120,7 +122,7 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
                     </Title>
 
                     <Flex align="flex-end" gap="md" wrap="wrap">
-                        <Box>
+                        <Box style={{ minHeight: "75px" }}>
                             <NumberInput
                                 label="Ålder"
                                 placeholder="Ålder"

@@ -36,6 +36,8 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
             newNeed: value =>
                 !value || value.length < 2 ? "Behovet måste vara minst 2 tecken" : null,
         },
+        validateInputOnBlur: true, // Only validate when field loses focus
+        validateInputOnChange: false, // Don't validate while typing
     });
 
     // Fetch additional needs from database

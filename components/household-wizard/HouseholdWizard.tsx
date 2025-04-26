@@ -127,16 +127,74 @@ export default function HouseholdWizard({
         }
     }, [initialData]);
 
+    // Function to handle navigation between steps with appropriate validation
     const nextStep = () => {
         // Clear any previous validation errors
         setValidationError(null);
         closeError();
 
-        // Validate current step before proceeding
-        if (active === 0 && !validateHouseholdStep()) return;
-        if (active === 5 && !validateFoodParcelsStep()) return;
+        // Check if we need to validate the current step
+        if (active === 0) {
+            // Validate household step
+            const { first_name, last_name, phone_number, postal_code } = formData.household;
 
-        setActive(current => (current < 7 ? current + 1 : current));
+            // Check first name
+            if (!first_name || first_name.trim().length < 2) {
+                setValidationError({
+                    field: "first_name",
+                    message: "Förnamn måste vara minst 2 tecken",
+                });
+                openError();
+                return;
+            }
+
+            // Check last name
+            if (!last_name || last_name.trim().length < 2) {
+                setValidationError({
+                    field: "last_name",
+                    message: "Efternamn måste vara minst 2 tecken",
+                });
+                openError();
+                return;
+            }
+
+            // Check phone number
+            if (!phone_number || !/^\d{8,12}$/.test(phone_number)) {
+                setValidationError({
+                    field: "phone_number",
+                    message: "Ange ett giltigt telefonnummer (8-12 siffror)",
+                });
+                openError();
+                return;
+            }
+
+            // Check postal code
+            const cleanPostalCode = postal_code.replace(/\s/g, "");
+            if (!cleanPostalCode || !/^\d{5}$/.test(cleanPostalCode)) {
+                setValidationError({
+                    field: "postal_code",
+                    message: "Postnummer måste bestå av 5 siffror",
+                });
+                openError();
+                return;
+            }
+        }
+
+        // For food parcels step, validate pickup location
+        if (active === 5) {
+            const { pickupLocationId } = formData.foodParcels;
+            if (!pickupLocationId) {
+                setValidationError({
+                    field: "pickupLocationId",
+                    message: "Välj en hämtplats",
+                });
+                openError();
+                return;
+            }
+        }
+
+        // If all validations pass, move to the next step
+        setActive(current => (current < 6 ? current + 1 : current));
     };
 
     const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
@@ -156,90 +214,6 @@ export default function HouseholdWizard({
             setValidationError(null);
             closeError();
         }
-    };
-
-    // Function to add a comment from the review step
-    const handleAddComment = async (comment: string) => {
-        if (!comment.trim()) return;
-
-        // If parent provided onAddComment function (in edit mode), use it
-        if (onAddComment) {
-            const newComment = await onAddComment(comment);
-            return newComment;
-        } else {
-            // Otherwise handle locally (in create mode)
-            const newComment: Comment = {
-                id: crypto.randomUUID(), // Generate a temporary ID
-                comment: comment.trim(),
-                created_at: new Date(),
-                author_github_username: "anonymous", // Use a default username for locally created comments
-            };
-
-            // Add the comment to the form data
-            setFormData(prev => ({
-                ...prev,
-                comments: [...(prev.comments || []), newComment],
-            }));
-
-            return newComment;
-        }
-    };
-
-    const validateHouseholdStep = () => {
-        const { first_name, last_name, phone_number, postal_code } = formData.household;
-
-        if (!first_name || first_name.trim().length < 2) {
-            setValidationError({
-                field: "first_name",
-                message: "Förnamn måste vara minst 2 tecken",
-            });
-            openError();
-            return false;
-        }
-
-        if (!last_name || last_name.trim().length < 2) {
-            setValidationError({
-                field: "last_name",
-                message: "Efternamn måste vara minst 2 tecken",
-            });
-            openError();
-            return false;
-        }
-
-        if (!phone_number || !/^\d{8,12}$/.test(phone_number)) {
-            setValidationError({
-                field: "phone_number",
-                message: "Ange ett giltigt telefonnummer (8-12 siffror)",
-            });
-            openError();
-            return false;
-        }
-
-        if (!postal_code || !/^\d{5}$/.test(postal_code)) {
-            setValidationError({
-                field: "postal_code",
-                message: "Postnummer måste bestå av 5 siffror",
-            });
-            openError();
-            return false;
-        }
-
-        return true;
-    };
-
-    const validateFoodParcelsStep = () => {
-        const { pickupLocationId } = formData.foodParcels;
-
-        if (!pickupLocationId) {
-            setValidationError({
-                field: "pickupLocationId",
-                message: "Välj en hämtplats",
-            });
-            openError();
-            return false;
-        }
-
-        return true;
     };
 
     const handleSubmit = async () => {
@@ -281,6 +255,14 @@ export default function HouseholdWizard({
             });
             setSubmitting(false);
         }
+    };
+
+    // Function to handle adding comments through the parent handler if provided
+    const handleAddComment = async (comment: string) => {
+        if (onAddComment) {
+            return await onAddComment(comment);
+        }
+        return undefined;
     };
 
     // Handle initial loading and error states
