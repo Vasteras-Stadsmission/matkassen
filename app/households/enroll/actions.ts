@@ -392,8 +392,8 @@ export async function getPickupLocationCapacityForRange(
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
                     sql`${foodParcels.pickup_date_time_earliest} >= ${start}`,
-                    sql`${foodParcels.pickup_date_time_earliest} <= ${end}`
-                )
+                    sql`${foodParcels.pickup_date_time_earliest} <= ${end}`,
+                ),
             );
 
         // Count parcels by date
