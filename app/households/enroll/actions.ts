@@ -388,7 +388,13 @@ export async function getPickupLocationCapacityForRange(
                 pickupDateEarliest: foodParcels.pickup_date_time_earliest,
             })
             .from(foodParcels)
-            .where(eq(foodParcels.pickup_location_id, locationId));
+            .where(
+                and(
+                    eq(foodParcels.pickup_location_id, locationId),
+                    sql`${foodParcels.pickup_date_time_earliest} >= ${start}`,
+                    sql`${foodParcels.pickup_date_time_earliest} <= ${end}`
+                )
+            );
 
         // Count parcels by date
         const dateCountMap: Record<string, number> = {};
