@@ -72,7 +72,6 @@ export default function EditHouseholdClient({ id }: { id: string }) {
     const handleSubmit = async (formData: FormData) => {
         try {
             const result = await updateHousehold(id, formData);
-            console.log("Update result:", result); // Add logging to help debug
             return {
                 success: result.success,
                 error: result.error,

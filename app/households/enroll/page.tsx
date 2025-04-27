@@ -8,7 +8,6 @@ export default function EnrollHouseholdPage() {
     const handleSubmit = async (formData: FormData) => {
         try {
             const result = await enrollHousehold(formData);
-            console.log("Enrollment result:", result); // Add logging to help debug
             return {
                 success: result.success,
                 error: result.error,
