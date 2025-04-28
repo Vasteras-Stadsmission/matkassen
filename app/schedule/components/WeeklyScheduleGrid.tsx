@@ -20,6 +20,12 @@ import { IconArrowBackUp, IconCheck } from "@tabler/icons-react";
 import TimeSlotCell from "./TimeSlotCell";
 import PickupCard from "./PickupCard";
 import { FoodParcel, updateFoodParcelSchedule } from "@/app/schedule/actions";
+import {
+    formatDateToYMD,
+    formatStockholmDate,
+    isPastTimeSlot,
+    toStockholmTime,
+} from "@/app/utils/date-utils";
 
 const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
     const hour = Math.floor(i / 2) + 8; // Start from 8:00
@@ -85,7 +91,7 @@ export default function WeeklyScheduleGrid({
 
         // Initialize empty slots for all dates and times
         weekDates.forEach(date => {
-            const dateKey = date.toISOString().split("T")[0];
+            const dateKey = formatDateToYMD(date);
             newParcelsBySlot[dateKey] = {};
             newParcelCountByDate[dateKey] = 0;
 
@@ -96,7 +102,7 @@ export default function WeeklyScheduleGrid({
 
         // Place parcels in their respective slots
         foodParcels.forEach(parcel => {
-            const dateKey = parcel.pickupDate.toISOString().split("T")[0];
+            const dateKey = formatDateToYMD(parcel.pickupDate);
 
             // Count parcels by date
             if (!newParcelCountByDate[dateKey]) {
@@ -105,8 +111,9 @@ export default function WeeklyScheduleGrid({
             newParcelCountByDate[dateKey]++;
 
             // Determine time slot based on earliest pickup time
-            const hours = parcel.pickupEarliestTime.getHours();
-            const minutes = parcel.pickupEarliestTime.getMinutes();
+            const pickupTime = toStockholmTime(parcel.pickupEarliestTime);
+            const hours = pickupTime.getHours();
+            const minutes = pickupTime.getMinutes();
             const minuteRounded = minutes < 30 ? "00" : "30";
             const timeSlot = `${hours.toString().padStart(2, "0")}:${minuteRounded}`;
 
@@ -143,6 +150,20 @@ export default function WeeklyScheduleGrid({
         // Find the dragged parcel
         const parcel = foodParcels.find(p => p.id === parcelId);
         if (!parcel) return;
+
+        // Check if the source time slot is in the past
+        const isPastSource = isPastTimeSlot(
+            parcel.pickupDate,
+            formatTime(parcel.pickupEarliestTime),
+        );
+        if (isPastSource) {
+            showNotification({
+                title: "Schemaläggning misslyckades",
+                message: "Det går inte att boka om matstöd från en tidpunkt i det förflutna.",
+                color: "red",
+            });
+            return;
+        }
 
         // Parse target slot information
         try {
@@ -221,8 +242,7 @@ export default function WeeklyScheduleGrid({
             }
 
             // Check if the target time slot is in the past
-            const now = new Date();
-            if (startDateTime <= now) {
+            if (isPastTimeSlot(date, timeStr)) {
                 showNotification({
                     title: "Schemaläggning misslyckades",
                     message: "Det går inte att boka matstöd i det förflutna.",
@@ -232,10 +252,12 @@ export default function WeeklyScheduleGrid({
             }
 
             // Skip if time slot is the same as the current one
+            const parcelDateYMD = formatDateToYMD(parcel.pickupDate);
+            const targetDateYMD = formatDateToYMD(date);
+            const parcelTimeFormatted = formatTime(parcel.pickupEarliestTime);
+
             const isSameTimeSlot =
-                parcel.pickupDate.toDateString() === date.toDateString() &&
-                parcel.pickupEarliestTime.getHours() === hours &&
-                parcel.pickupEarliestTime.getMinutes() === minutes;
+                parcelDateYMD === targetDateYMD && parcelTimeFormatted === timeStr;
 
             if (isSameTimeSlot) {
                 return;
@@ -298,28 +320,23 @@ export default function WeeklyScheduleGrid({
 
     // Check if a date is in the past (entire day)
     const isPastDate = (date: Date) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const compareDate = new Date(date);
-        compareDate.setHours(0, 0, 0, 0);
-        return compareDate < today;
+        const stockholmToday = toStockholmTime(new Date());
+        stockholmToday.setHours(0, 0, 0, 0);
+
+        const stockholmCompareDate = toStockholmTime(date);
+        stockholmCompareDate.setHours(0, 0, 0, 0);
+
+        return stockholmCompareDate < stockholmToday;
     };
 
     // Format date for display
     const formatDate = (date: Date) => {
-        return date.toLocaleDateString("sv-SE", {
-            month: "short",
-            day: "numeric",
-        });
+        return formatStockholmDate(date, "MMM d");
     };
 
     // Format time for display
     const formatTime = (date: Date) => {
-        return date.toLocaleTimeString("sv-SE", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-        });
+        return formatStockholmDate(date, "HH:mm");
     };
 
     return (
@@ -341,7 +358,9 @@ export default function WeeklyScheduleGrid({
 
                             {weekDates.map((date, index) => {
                                 // Check if Saturday or Sunday (5 = Saturday, 6 = Sunday)
-                                const isWeekend = date.getDay() === 6 || date.getDay() === 0;
+                                const dateInStockholm = toStockholmTime(date);
+                                const dayOfWeek = dateInStockholm.getDay();
+                                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0;
                                 const isPast = isPastDate(date);
 
                                 // Determine background color for day header
@@ -374,11 +393,10 @@ export default function WeeklyScheduleGrid({
                                                     top: 4,
                                                     right: 4,
                                                 }}
+                                                data-testid="capacity-indicator"
                                             >
-                                                {parcelCountByDate[
-                                                    date.toISOString().split("T")[0]
-                                                ] || 0}
-                                                /{maxParcelsPerDay || "∞"}
+                                                {parcelCountByDate[formatDateToYMD(date)] || 0}/
+                                                {maxParcelsPerDay || "∞"}
                                             </Text>
 
                                             <Text fw={500} ta="center" size="sm">
@@ -425,7 +443,7 @@ export default function WeeklyScheduleGrid({
 
                                         {/* Day columns */}
                                         {weekDates.map((date, dayIndex) => {
-                                            const dateKey = date.toISOString().split("T")[0];
+                                            const dateKey = formatDateToYMD(date);
                                             const parcelsInSlot =
                                                 parcelsBySlot[dateKey]?.[timeSlot] || [];
                                             const isOverCapacity =

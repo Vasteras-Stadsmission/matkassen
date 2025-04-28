@@ -4,9 +4,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-if (!process.env.DATABASE_URL) {
+// Check if we're running in a test environment
+const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.BUN_ENV === "test";
+
+// Only require DATABASE_URL in non-test environments
+if (!process.env.DATABASE_URL && !isTestEnvironment) {
     throw new Error("DATABASE_URL environment variable is not set");
 }
 
-export const client = postgres(process.env.DATABASE_URL);
-export const db = drizzle(client);
+// Use a mock or real client based on environment
+export const client = isTestEnvironment
+    ? ({} as ReturnType<typeof postgres>) // Mock client for tests
+    : postgres(process.env.DATABASE_URL as string);
+
+export const db = isTestEnvironment
+    ? ({} as ReturnType<typeof drizzle>) // Mock DB for tests
+    : drizzle(client);

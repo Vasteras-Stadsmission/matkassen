@@ -3,6 +3,7 @@
 import { Paper, Stack } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { FoodParcel } from "@/app/schedule/actions";
+import { isPastTimeSlot } from "@/app/utils/date-utils";
 import PickupCard from "./PickupCard";
 
 interface TimeSlotCellProps {
@@ -22,17 +23,8 @@ export default function TimeSlotCell({
     isOverCapacity = false,
     dayIndex = 0, // Default to 0 for backward compatibility
 }: TimeSlotCellProps) {
-    // Check if the time slot is in the past
-    const isPastTimeSlot = () => {
-        const now = new Date();
-        const slotTime = new Date(date);
-        const [hours, minutes] = time.split(":").map(Number);
-        slotTime.setHours(hours, minutes, 0, 0);
-
-        return slotTime < now;
-    };
-
-    const isPast = isPastTimeSlot();
+    // Check if the time slot is in the past using our timezone-aware utility
+    const isPast = isPastTimeSlot(date, time);
 
     // Setup droppable container with day index included
     const { setNodeRef, isOver } = useDroppable({

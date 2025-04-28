@@ -28,6 +28,8 @@
         "@tabler/icons-react": "^3.31.0",
         "@types/pg": "^8.11.13",
         "critters": "^0.0.23",
+        "date-fns": "^4.1.0",
+        "date-fns-tz": "^3.2.0",
         "dayjs": "^1.11.13",
         "dotenv": "^16.5.0",
         "drizzle-orm": "^0.42.0",

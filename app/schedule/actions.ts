@@ -2,7 +2,8 @@
 
 import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
-import { and, between, eq, sql } from "drizzle-orm";
+import { and, between, eq, ne, sql } from "drizzle-orm";
+import { fromStockholmTime, toStockholmTime } from "@/app/utils/date-utils";
 
 export interface FoodParcel {
     id: string;
@@ -51,12 +52,9 @@ export async function getFoodParcelsForWeek(
     weekEnd: Date,
 ): Promise<FoodParcel[]> {
     try {
-        // Get start and end of the week (Monday to Sunday)
-        const startDate = new Date(weekStart);
-        startDate.setHours(0, 0, 0, 0);
-
-        const endDate = new Date(weekEnd);
-        endDate.setHours(23, 59, 59, 999);
+        // Get start and end of the week in UTC for database query
+        const startDate = weekStart;
+        const endDate = weekEnd;
 
         // Query food parcels for this location and week
         const parcelsData = await db
@@ -79,9 +77,11 @@ export async function getFoodParcelsForWeek(
             )
             .orderBy(foodParcels.pickup_date_time_earliest);
 
-        // Transform the data to the expected format
+        // Transform the data to the expected format with proper timezone handling
         return parcelsData.map(parcel => {
-            const pickupDate = new Date(parcel.pickupEarliestTime);
+            // Create Stockholm timezone date for the pickup date
+            const pickupTimeStockholm = toStockholmTime(new Date(parcel.pickupEarliestTime));
+            const pickupDate = new Date(pickupTimeStockholm);
             pickupDate.setHours(0, 0, 0, 0);
 
             return {
@@ -108,12 +108,18 @@ export async function getTimeslotCounts(
     date: Date,
 ): Promise<Record<string, number>> {
     try {
-        // Get start and end of the date
-        const startDate = new Date(date);
-        startDate.setHours(0, 0, 0, 0);
+        // Get start and end of the date in Stockholm timezone, then convert to UTC for DB query
+        const dateInStockholm = toStockholmTime(date);
 
-        const endDate = new Date(date);
-        endDate.setHours(23, 59, 59, 999);
+        const startDateStockholm = new Date(dateInStockholm);
+        startDateStockholm.setHours(0, 0, 0, 0);
+
+        const endDateStockholm = new Date(dateInStockholm);
+        endDateStockholm.setHours(23, 59, 59, 999);
+
+        // Convert to UTC for database query
+        const startDate = fromStockholmTime(startDateStockholm);
+        const endDate = fromStockholmTime(endDateStockholm);
 
         // Query food parcels for this location and date
         const parcels = await db
@@ -128,11 +134,11 @@ export async function getTimeslotCounts(
                 ),
             );
 
-        // Count parcels by time slot (30-minute slots)
+        // Count parcels by time slot (30-minute slots) using Stockholm time
         const timeslotCounts: Record<string, number> = {};
 
         parcels.forEach(parcel => {
-            const time = new Date(parcel.pickupEarliestTime);
+            const time = toStockholmTime(new Date(parcel.pickupEarliestTime));
             const hour = time.getHours();
             const minutes = time.getMinutes() < 30 ? 0 : 30;
             const key = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
@@ -163,69 +169,81 @@ export async function updateFoodParcelSchedule(
     },
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        // Check if the timeslot is available (not exceeding max capacity)
-        const [parcel] = await db
-            .select({
-                locationId: foodParcels.pickup_location_id,
-            })
-            .from(foodParcels)
-            .where(eq(foodParcels.id, parcelId))
-            .limit(1);
-
-        if (!parcel) {
-            return { success: false, error: "Food parcel not found" };
-        }
-
-        // Get the location's max parcels per day
-        const [location] = await db
-            .select({
-                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-            })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, parcel.locationId))
-            .limit(1);
-
-        if (location.maxParcelsPerDay !== null) {
-            // Get the number of parcels for this date (excluding the current one)
-            const startDate = new Date(newTimeslot.date);
-            startDate.setHours(0, 0, 0, 0);
-
-            const endDate = new Date(newTimeslot.date);
-            endDate.setHours(23, 59, 59, 999);
-
-            const parcelsCount = await db
+        // We'll use a transaction to make the capacity check and update atomic
+        // This prevents race conditions where two parallel operations could both pass the capacity check
+        return await db.transaction(async tx => {
+            // Check if the timeslot is available (not exceeding max capacity)
+            const [parcel] = await tx
                 .select({
-                    count: sql<number>`count(*)`,
+                    locationId: foodParcels.pickup_location_id,
                 })
                 .from(foodParcels)
-                .where(
-                    and(
-                        eq(foodParcels.pickup_location_id, parcel.locationId),
-                        between(foodParcels.pickup_date_time_earliest, startDate, endDate),
-                        sql`${foodParcels.id} != ${parcelId}`,
-                    ),
-                );
+                .where(eq(foodParcels.id, parcelId))
+                .limit(1);
 
-            const count = parcelsCount[0]?.count || 0;
-
-            if (count >= location.maxParcelsPerDay) {
-                return {
-                    success: false,
-                    error: `Max capacity (${location.maxParcelsPerDay}) reached for this date`,
-                };
+            if (!parcel) {
+                return { success: false, error: "Food parcel not found" };
             }
-        }
 
-        // Update the food parcel's schedule
-        await db
-            .update(foodParcels)
-            .set({
-                pickup_date_time_earliest: newTimeslot.startTime,
-                pickup_date_time_latest: newTimeslot.endTime,
-            })
-            .where(eq(foodParcels.id, parcelId));
+            // Get the location's max parcels per day
+            const [location] = await tx
+                .select({
+                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, parcel.locationId))
+                .limit(1);
 
-        return { success: true };
+            if (location.maxParcelsPerDay !== null) {
+                // Get the date in Stockholm timezone for consistent comparison
+                const dateInStockholm = toStockholmTime(newTimeslot.date);
+
+                // Get the start and end of the date in Stockholm timezone
+                const startDateStockholm = new Date(dateInStockholm);
+                startDateStockholm.setHours(0, 0, 0, 0);
+
+                const endDateStockholm = new Date(dateInStockholm);
+                endDateStockholm.setHours(23, 59, 59, 999);
+
+                // Convert to UTC for database query
+                const startDate = fromStockholmTime(startDateStockholm);
+                const endDate = fromStockholmTime(endDateStockholm);
+
+                // Using FOR UPDATE to lock the rows we're counting
+                // This ensures serializable isolation for this capacity check
+                const [{ count }] = await tx
+                    .select({ count: sql<number>`count(*)` })
+                    .from(foodParcels)
+                    .where(
+                        and(
+                            eq(foodParcels.pickup_location_id, parcel.locationId),
+                            between(foodParcels.pickup_date_time_earliest, startDate, endDate),
+                            ne(foodParcels.id, parcelId),
+                        ),
+                    )
+                    .for("update") // Postgres row-lock
+                    .execute();
+
+                if (count >= location.maxParcelsPerDay) {
+                    return {
+                        success: false,
+                        error: `Max capacity (${location.maxParcelsPerDay}) reached for this date`,
+                    };
+                }
+            }
+
+            // Update the food parcel's schedule
+            // Since we're in a transaction, this won't commit until all checks have passed
+            await tx
+                .update(foodParcels)
+                .set({
+                    pickup_date_time_earliest: newTimeslot.startTime,
+                    pickup_date_time_latest: newTimeslot.endTime,
+                })
+                .where(eq(foodParcels.id, parcelId));
+
+            return { success: true };
+        });
     } catch (error) {
         console.error("Error updating food parcel schedule:", error);
         return {
@@ -233,34 +251,4 @@ export async function updateFoodParcelSchedule(
             error: error instanceof Error ? error.message : "Unknown error occurred",
         };
     }
-}
-
-/**
- * Get ISO week number for a date
- */
-export async function getISOWeekNumber(date: Date): Promise<number> {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNumber = Math.floor(1 + 0.5 + (d.getTime() - yearStart.getTime()) / 86400000 / 7);
-    return weekNumber;
-}
-
-/**
- * Get the start and end dates of the ISO week containing the given date
- */
-export async function getWeekDates(date: Date): Promise<{ start: Date; end: Date }> {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
-
-    const start = new Date(d.setDate(diff));
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(d);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
 }

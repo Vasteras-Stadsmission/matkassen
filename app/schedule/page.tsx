@@ -24,15 +24,9 @@ import {
     IconCalendarDue,
     IconClock,
 } from "@tabler/icons-react";
-import {
-    FoodParcel,
-    PickupLocation,
-    getFoodParcelsForWeek,
-    getISOWeekNumber,
-    getPickupLocations,
-    getWeekDates,
-} from "./actions";
+import { FoodParcel, PickupLocation, getFoodParcelsForWeek, getPickupLocations } from "./actions";
 import WeeklyScheduleGrid from "./components/WeeklyScheduleGrid";
+import { getISOWeekNumber, getWeekDates } from "@/app/utils/date-utils";
 
 const DEFAULT_MAX_PARCELS_PER_SLOT = 4;
 
@@ -79,14 +73,15 @@ export default function SchedulePage() {
         };
 
         loadLocations();
-    }, [selectedLocationId]);
+    }, [selectedLocationId]); // Adding selectedLocationId to dependency array
 
     // Update week dates when current date changes
     useEffect(() => {
         const updateWeekDates = async () => {
             try {
-                const { start, end } = await getWeekDates(currentDate);
-                const weekNumber = await getISOWeekNumber(currentDate);
+                // Use timezone-aware function to get the week dates
+                const { start, end } = getWeekDates(currentDate);
+                const weekNumber = getISOWeekNumber(currentDate);
                 const year = currentDate.getFullYear();
 
                 // Generate an array of dates for the week
