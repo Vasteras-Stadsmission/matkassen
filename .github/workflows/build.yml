@@ -37,6 +37,11 @@ jobs:
                   fi
                   echo "✅ Migration files are up to date with schema."
 
+            - name: Run tests
+              env:
+                  BUN_ENV: test
+              run: bun test
+
             - name: Build
               env:
                   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
