@@ -209,8 +209,7 @@ export async function updateFoodParcelSchedule(
                 const startDate = fromStockholmTime(startDateStockholm);
                 const endDate = fromStockholmTime(endDateStockholm);
 
-                // Using FOR UPDATE to lock the rows we're counting
-                // This ensures serializable isolation for this capacity check
+                // Count food parcels for this date (excluding the one we're updating)
                 const [{ count }] = await tx
                     .select({ count: sql<number>`count(*)` })
                     .from(foodParcels)
@@ -221,7 +220,6 @@ export async function updateFoodParcelSchedule(
                             ne(foodParcels.id, parcelId),
                         ),
                     )
-                    .for("update") // Postgres row-lock
                     .execute();
 
                 if (count >= location.maxParcelsPerDay) {
