@@ -1,6 +1,7 @@
 "use client";
 
 import { Paper, Stack } from "@mantine/core";
+import { ReactNode } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { FoodParcel } from "@/app/schedule/actions";
 import { isPastTimeSlot } from "@/app/utils/date-utils";
@@ -9,10 +10,17 @@ import PickupCard from "./PickupCard";
 interface TimeSlotCellProps {
     date: Date;
     time: string;
-    parcels: FoodParcel[];
+    parcels: (
+        | FoodParcel
+        | {
+              element: ReactNode;
+              id: string;
+              [key: string]: any;
+          }
+    )[];
     maxParcelsPerSlot: number;
     isOverCapacity?: boolean;
-    dayIndex?: number; // Add dayIndex parameter
+    dayIndex?: number;
 }
 
 export default function TimeSlotCell({
@@ -59,9 +67,13 @@ export default function TimeSlotCell({
         >
             {/* Parcels stack */}
             <Stack gap={4}>
-                {parcels.map(parcel => (
-                    <PickupCard key={parcel.id} foodParcel={parcel} isCompact={true} />
-                ))}
+                {parcels.map(parcel =>
+                    "element" in parcel ? (
+                        <div key={parcel.id}>{parcel.element}</div>
+                    ) : (
+                        <PickupCard key={parcel.id} foodParcel={parcel} isCompact={true} />
+                    ),
+                )}
             </Stack>
         </Paper>
     );

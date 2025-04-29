@@ -19,6 +19,7 @@ import { showNotification } from "@mantine/notifications";
 import { IconArrowBackUp, IconCheck } from "@tabler/icons-react";
 import TimeSlotCell from "./TimeSlotCell";
 import PickupCard from "./PickupCard";
+import ReschedulePickupModal from "./ReschedulePickupModal";
 import { FoodParcel, updateFoodParcelSchedule } from "@/app/schedule/actions";
 import {
     formatDateToYMD,
@@ -68,6 +69,12 @@ export default function WeeklyScheduleGrid({
         endDateTime: Date;
     } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // State for reschedule outside of week modal
+    const [rescheduleModalOpened, { open: openRescheduleModal, close: closeRescheduleModal }] =
+        useDisclosure(false);
+    const [selectedParcelForReschedule, setSelectedParcelForReschedule] =
+        useState<FoodParcel | null>(null);
 
     // Count parcels by date for capacity limits
     const [parcelCountByDate, setParcelCountByDate] = useState<Record<string, number>>({});
@@ -151,6 +158,13 @@ export default function WeeklyScheduleGrid({
         const parcel = foodParcels.find(p => p.id === parcelId);
         if (!parcel) return;
 
+        // Check if we're dropping on another parcel (or self) instead of a time slot
+        if (!targetSlotId.startsWith("day-")) {
+            // If the target ID doesn't start with "day-", it's likely a parcel ID
+            // This happens when dropping directly on another parcel or on the same parcel
+            return;
+        }
+
         // Check if the source time slot is in the past
         const isPastSource = isPastTimeSlot(
             parcel.pickupDate,
@@ -167,15 +181,6 @@ export default function WeeklyScheduleGrid({
 
         // Parse target slot information
         try {
-            // Skip if target ID doesn't match our expected format
-            if (!targetSlotId.startsWith("day-")) {
-                console.error(
-                    "Invalid target slot ID format, doesn't start with 'day-':",
-                    targetSlotId,
-                );
-                return;
-            }
-
             // Parse the format: day-{dayIndex}-{dateStr}-{timeStr}
             const parts = targetSlotId.split("-");
             if (parts.length < 4) {
@@ -339,6 +344,26 @@ export default function WeeklyScheduleGrid({
         return formatStockholmDate(date, "HH:mm");
     };
 
+    // Handler for reschedule button clicks
+    const handleRescheduleClick = (parcel: FoodParcel) => {
+        // Check if the source time slot is in the past
+        const isPastSource = isPastTimeSlot(
+            parcel.pickupDate,
+            formatTime(parcel.pickupEarliestTime),
+        );
+        if (isPastSource) {
+            showNotification({
+                title: "Schemaläggning misslyckades",
+                message: "Det går inte att boka om matstöd från en tidpunkt i det förflutna.",
+                color: "red",
+            });
+            return;
+        }
+
+        setSelectedParcelForReschedule(parcel);
+        openRescheduleModal();
+    };
+
     return (
         <>
             <DndContext
@@ -458,7 +483,19 @@ export default function WeeklyScheduleGrid({
                                                     <TimeSlotCell
                                                         date={date}
                                                         time={timeSlot}
-                                                        parcels={parcelsInSlot}
+                                                        parcels={parcelsInSlot.map(parcel => ({
+                                                            ...parcel,
+                                                            element: (
+                                                                <PickupCard
+                                                                    key={parcel.id}
+                                                                    foodParcel={parcel}
+                                                                    isCompact={true}
+                                                                    onReschedule={
+                                                                        handleRescheduleClick
+                                                                    }
+                                                                />
+                                                            ),
+                                                        }))}
                                                         maxParcelsPerSlot={maxParcelsPerSlot || 3}
                                                         isOverCapacity={isOverCapacity}
                                                         dayIndex={dayIndex}
@@ -528,6 +565,13 @@ export default function WeeklyScheduleGrid({
                     </Box>
                 )}
             </Modal>
+
+            <ReschedulePickupModal
+                opened={rescheduleModalOpened}
+                onClose={closeRescheduleModal}
+                foodParcel={selectedParcelForReschedule}
+                onRescheduled={onParcelRescheduled}
+            />
         </>
     );
 }
