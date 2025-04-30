@@ -426,6 +426,24 @@ describe("WeeklyScheduleGrid Component", () => {
         // Mock the Date constructor
         global.Date = class extends RealDate {
             constructor(...args: any[]) {
+                if (args.length === 0) {
+                    super();
+                } else if (args.length === 1) {
+                    super(args[0]);
+                } else if (args.length === 2) {
+                    super(args[0], args[1]);
+                } else if (args.length === 3) {
+                    super(args[0], args[1], args[2]);
+                } else if (args.length === 4) {
+                    super(args[0], args[1], args[2], args[3]);
+                } else if (args.length === 5) {
+                    super(args[0], args[1], args[2], args[3], args[4]);
+                } else if (args.length === 6) {
+                    super(args[0], args[1], args[2], args[3], args[4], args[5]);
+                } else if (args.length === 7) {
+                    super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+                }
+
                 // When called with specific dates we're testing, return fixed dates
                 if (args.length === 1 && typeof args[0] === "string") {
                     return new RealDate(args[0]);
@@ -443,7 +461,7 @@ describe("WeeklyScheduleGrid Component", () => {
                     );
                 }
                 // For any other case, pass through to the real Date
-                return new RealDate(...args);
+                // Note: this return is not needed since super() will handle it
             }
 
             // Make sure static methods also work
@@ -613,11 +631,42 @@ describe("WeeklyScheduleGrid Component", () => {
             constructor(...args: any[]) {
                 if (args.length === 0) {
                     super();
-                    return mockDate;
+                } else if (args.length === 1) {
+                    super(args[0]);
+                } else if (args.length === 2) {
+                    super(args[0], args[1]);
+                } else if (args.length === 3) {
+                    super(args[0], args[1], args[2]);
+                } else if (args.length === 4) {
+                    super(args[0], args[1], args[2], args[3]);
+                } else if (args.length === 5) {
+                    super(args[0], args[1], args[2], args[3], args[4]);
+                } else if (args.length === 6) {
+                    super(args[0], args[1], args[2], args[3], args[4], args[5]);
+                } else if (args.length === 7) {
+                    super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
                 }
-                // Call super with individual arguments instead of using spread
-                super(args.length > 0 ? args[0] : undefined);
+
+                // When called with specific dates we're testing, return fixed dates
+                if (args.length === 1 && typeof args[0] === "string") {
+                    return new RealDate(args[0]);
+                }
+                // When called with year, month, day format
+                if (args.length >= 3) {
+                    const [year, month, day, ...rest] = args;
+                    return new RealDate(
+                        new RealDate(
+                            year,
+                            month,
+                            day,
+                            ...(rest as [number, number, number]),
+                        ).toISOString(),
+                    );
+                }
+                // For any other case, pass through to the real Date
+                // Note: this return is not needed since super() will handle it
             }
+
             static now() {
                 return mockDate.getTime();
             }
@@ -673,10 +722,42 @@ describe("WeeklyScheduleGrid Component", () => {
                 constructor(...args: any[]) {
                     if (args.length === 0) {
                         super();
-                        return mockDate;
+                    } else if (args.length === 1) {
+                        super(args[0]);
+                    } else if (args.length === 2) {
+                        super(args[0], args[1]);
+                    } else if (args.length === 3) {
+                        super(args[0], args[1], args[2]);
+                    } else if (args.length === 4) {
+                        super(args[0], args[1], args[2], args[3]);
+                    } else if (args.length === 5) {
+                        super(args[0], args[1], args[2], args[3], args[4]);
+                    } else if (args.length === 6) {
+                        super(args[0], args[1], args[2], args[3], args[4], args[5]);
+                    } else if (args.length === 7) {
+                        super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
                     }
-                    super(args.length > 0 ? args[0] : undefined);
+
+                    // When called with specific dates we're testing, return fixed dates
+                    if (args.length === 1 && typeof args[0] === "string") {
+                        return new RealDate(args[0]);
+                    }
+                    // When called with year, month, day format
+                    if (args.length >= 3) {
+                        const [year, month, day, ...rest] = args;
+                        return new RealDate(
+                            new RealDate(
+                                year,
+                                month,
+                                day,
+                                ...(rest as [number, number, number]),
+                            ).toISOString(),
+                        );
+                    }
+                    // For any other case, pass through to the real Date
+                    // Note: this return is not needed since super() will handle it
                 }
+
                 static now() {
                     return mockDate.getTime();
                 }

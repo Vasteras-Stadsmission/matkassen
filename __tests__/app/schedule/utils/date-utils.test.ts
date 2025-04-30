@@ -3,21 +3,21 @@ import { getISOWeekNumber, getWeekDates } from "@/app/utils/date-utils";
 
 // Since we're using the actual functions, we need to provide stubs for the dependencies
 mock("date-fns-tz", () => ({
-    toZonedTime: date => date,
-    fromZonedTime: date => date,
-    formatInTimeZone: (date, tz, format) => date.toISOString(),
+    toZonedTime: (date: Date | number | string) => date,
+    fromZonedTime: (date: Date | number | string) => date,
+    formatInTimeZone: (date: Date | number | string, tz: string, format: string) => date.toString(),
     getTimezoneOffset: () => 0,
 }));
 
 mock("date-fns", () => ({
-    getISOWeek: date => {
+    getISOWeek: (date: Date) => {
         const dateStr = date.toISOString().split("T")[0];
         if (dateStr === "2025-01-15") return 3;
         if (dateStr === "2024-12-31") return 1;
         if (dateStr === "2025-07-15") return 29;
         return 1;
     },
-    startOfWeek: (date, options) => {
+    startOfWeek: (date: Date, options?: { weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6 }) => {
         const dateStr = date.toISOString().split("T")[0];
 
         if (dateStr === "2025-04-16") return new Date("2025-04-13T00:00:00.000Z");
@@ -28,7 +28,7 @@ mock("date-fns", () => ({
 
         return new Date(date);
     },
-    endOfWeek: (date, options) => {
+    endOfWeek: (date: Date, options?: { weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6 }) => {
         const dateStr = date.toISOString().split("T")[0];
 
         if (dateStr === "2025-04-16") return new Date("2025-04-19T23:59:59.999Z");
@@ -39,8 +39,8 @@ mock("date-fns", () => ({
 
         return new Date(date);
     },
-    startOfDay: date => date,
-    endOfDay: date => date,
+    startOfDay: (date: Date) => date,
+    endOfDay: (date: Date) => date,
     format: () => "",
     parseISO: () => new Date(),
     formatISO: () => "",
@@ -57,6 +57,24 @@ describe("Schedule Date Utilities", () => {
         // Mock the Date constructor
         global.Date = class extends RealDate {
             constructor(...args: any[]) {
+                if (args.length === 0) {
+                    super();
+                } else if (args.length === 1) {
+                    super(args[0]);
+                } else if (args.length === 2) {
+                    super(args[0], args[1]);
+                } else if (args.length === 3) {
+                    super(args[0], args[1], args[2]);
+                } else if (args.length === 4) {
+                    super(args[0], args[1], args[2], args[3]);
+                } else if (args.length === 5) {
+                    super(args[0], args[1], args[2], args[3], args[4]);
+                } else if (args.length === 6) {
+                    super(args[0], args[1], args[2], args[3], args[4], args[5]);
+                } else if (args.length === 7) {
+                    super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+                }
+
                 // When called with specific dates we're testing, return fixed dates
                 if (args.length === 1 && typeof args[0] === "string") {
                     return new RealDate(args[0]);
@@ -66,22 +84,22 @@ describe("Schedule Date Utilities", () => {
                     const [year, month, day, ...rest] = args;
                     return new RealDate(
                         new RealDate(
-                            year,
-                            month,
-                            day,
+                            year as number,
+                            month as number,
+                            day as number,
                             ...(rest as [number, number, number]),
                         ).toISOString(),
                     );
                 }
                 // For any other case, pass through to the real Date
-                return new RealDate(...args);
+                // Note: this return is not needed since super() will handle it
             }
 
             // Make sure static methods also work
             static now() {
                 return RealDate.now();
             }
-        } as DateConstructor;
+        } as unknown as DateConstructor;
     });
 
     afterEach(() => {
