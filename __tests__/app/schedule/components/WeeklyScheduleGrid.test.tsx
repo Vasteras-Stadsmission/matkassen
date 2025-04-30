@@ -1,13 +1,19 @@
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
+import { Window } from "happy-dom";
+import React from "react";
+import { render, waitFor } from "@testing-library/react";
+import { FoodParcel } from "@/app/schedule/actions";
+
 // Mock dependencies using Bun's mock function
 let mockUpdateFoodParcelScheduleFn = {
     calls: [] as any[],
     mockReset() {
         this.calls = [];
     },
-    mockResolvedValue(value: any) {
+    mockResolvedValue: function (value: any) {
         this.result = value;
     },
-    result: { success: true },
+    result: { success: true, error: undefined },
 };
 const mockUpdateFoodParcelSchedule = (...args: any[]) => {
     mockUpdateFoodParcelScheduleFn.calls.push(args);
@@ -31,12 +37,6 @@ const mockShowNotification = (...args: any[]) => {
 mock("@mantine/notifications", () => ({
     showNotification: mockShowNotification,
 }));
-
-import { describe, expect, it, beforeEach, afterEach } from "bun:test";
-import { Window } from "happy-dom";
-import React from "react";
-import { render, waitFor } from "@testing-library/react";
-import { FoodParcel } from "@/app/schedule/actions";
 
 // Set up happy-dom
 const window = new Window();
@@ -100,7 +100,7 @@ const TestableReschedulePickupModal = ({
         if (!foodParcel) return;
 
         try {
-            const result = await updateFoodParcelSchedule(foodParcel.id, {
+            const result = await mockUpdateFoodParcelSchedule(foodParcel.id, {
                 date,
                 startTime,
                 endTime,
@@ -244,7 +244,7 @@ const TestableWeeklyScheduleGrid = ({
         }
 
         try {
-            const result = await updateFoodParcelSchedule(parcelId, {
+            const result = await mockUpdateFoodParcelSchedule(parcelId, {
                 date,
                 startTime: startDateTime,
                 endTime: endDateTime,
@@ -571,14 +571,16 @@ describe("WeeklyScheduleGrid Component", () => {
 
     it("prevents moving parcels to time slots in the past", async () => {
         // Mock the current date to be April 27, 2025
-        const realDate = Date;
+        const realDate = global.Date;
         const mockDate = new Date("2025-04-27T12:00:00Z");
-        global.Date = class extends Date {
-            constructor(...args) {
+        global.Date = class extends realDate {
+            constructor(...args: any[]) {
                 if (args.length === 0) {
-                    return mockDate; // Return fixed date for new Date()
+                    super();
+                    return mockDate;
                 }
-                return new realDate(...args);
+                // Call super with individual arguments instead of using spread
+                super(args.length > 0 ? args[0] : undefined);
             }
             static now() {
                 return mockDate.getTime();
@@ -628,16 +630,16 @@ describe("WeeklyScheduleGrid Component", () => {
 
     describe("ReschedulePickupModal functionality", () => {
         it("prevents rescheduling food parcels from past time slots", async () => {
-            // This test works fine, so keep it unchanged
             // Mock the current date to be April 20, 2025 (after the Monday parcel)
-            const realDate = Date;
+            const realDate = global.Date;
             const mockDate = new Date("2025-04-20T12:00:00Z");
-            global.Date = class extends Date {
-                constructor(...args) {
+            global.Date = class extends realDate {
+                constructor(...args: any[]) {
                     if (args.length === 0) {
-                        return mockDate; // Return fixed date for new Date()
+                        super();
+                        return mockDate;
                     }
-                    return new realDate(...args);
+                    super(args.length > 0 ? args[0] : undefined);
                 }
                 static now() {
                     return mockDate.getTime();
