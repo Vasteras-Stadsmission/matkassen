@@ -49,34 +49,41 @@ mock("date-fns", () => ({
 
 describe("Schedule Date Utilities", () => {
     let RealDate: DateConstructor;
-    
+
     beforeEach(() => {
         // Store the real Date constructor
         RealDate = global.Date;
-        
+
         // Mock the Date constructor
         global.Date = class extends RealDate {
             constructor(...args: any[]) {
                 // When called with specific dates we're testing, return fixed dates
-                if (args.length === 1 && typeof args[0] === 'string') {
+                if (args.length === 1 && typeof args[0] === "string") {
                     return new RealDate(args[0]);
                 }
                 // When called with year, month, day format
                 if (args.length >= 3) {
                     const [year, month, day, ...rest] = args;
-                    return new RealDate(new RealDate(year, month, day, ...(rest as [number, number, number])).toISOString());
+                    return new RealDate(
+                        new RealDate(
+                            year,
+                            month,
+                            day,
+                            ...(rest as [number, number, number]),
+                        ).toISOString(),
+                    );
                 }
                 // For any other case, pass through to the real Date
                 return new RealDate(...args);
             }
-            
+
             // Make sure static methods also work
             static now() {
                 return RealDate.now();
             }
         } as DateConstructor;
     });
-    
+
     afterEach(() => {
         // Restore the original Date
         global.Date = RealDate;
