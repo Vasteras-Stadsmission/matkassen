@@ -77,38 +77,6 @@ export default function ReschedulePickupModal({
         });
     };
 
-    // Parse time string and create a Date object
-    const parseTimeString = (timeStr: string, baseDate: Date): Date => {
-        let hours = 0;
-        let minutes = 0;
-
-        if (!timeStr) {
-            return new Date(baseDate);
-        }
-
-        const parts = timeStr.split(":");
-        if (parts.length === 2) {
-            hours = parseInt(parts[0], 10) || 0;
-            minutes = parseInt(parts[1], 10) || 0;
-        } else if (timeStr.length === 1 || timeStr.length === 2) {
-            hours = parseInt(timeStr, 10) || 0;
-            minutes = 0;
-        } else if (timeStr.length === 3) {
-            hours = parseInt(timeStr.substring(0, 1), 10) || 0;
-            minutes = parseInt(timeStr.substring(1), 10) || 0;
-        } else if (timeStr.length === 4) {
-            hours = parseInt(timeStr.substring(0, 2), 10) || 0;
-            minutes = parseInt(timeStr.substring(2), 10) || 0;
-        }
-
-        hours = Math.min(Math.max(hours, 0), 23);
-        minutes = Math.min(Math.max(minutes, 0), 59);
-
-        const newDate = new Date(baseDate);
-        newDate.setHours(hours, minutes, 0, 0);
-        return newDate;
-    };
-
     // Format date for display
     const formatDate = (date: Date) => {
         return formatStockholmDate(date, "d MMM yyyy");

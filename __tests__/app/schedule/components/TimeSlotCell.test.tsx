@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { describe, expect, it, beforeEach, afterEach, mock } from "bun:test";
 import { Window } from "happy-dom";
 import React, { ReactNode } from "react";
 import { render } from "@testing-library/react";
@@ -159,15 +159,46 @@ const getByText = (container: HTMLElement, text: string): HTMLElement => {
 };
 
 describe("TimeSlotCell Component", () => {
+    let RealDate: DateConstructor;
     const mockDate = new Date("2025-04-16");
     const mockTime = "12:00";
 
     beforeEach(() => {
+        // Store the real Date constructor
+        RealDate = global.Date;
+        
+        // Mock the Date constructor
+        global.Date = class extends RealDate {
+            constructor(...args: any[]) {
+                // When called with specific dates we're testing, return fixed dates
+                if (args.length === 1 && typeof args[0] === 'string') {
+                    return new RealDate(args[0]);
+                }
+                // When called with year, month, day format
+                if (args.length >= 3) {
+                    const [year, month, day, ...rest] = args;
+                    return new RealDate(new RealDate(year, month, day, ...(rest as [number, number, number])).toISOString());
+                }
+                // For any other case, pass through to the real Date
+                return new RealDate(...args);
+            }
+            
+            // Make sure static methods also work
+            static now() {
+                return RealDate.now();
+            }
+        } as DateConstructor;
+        
         mockIsOver = false;
         mockIsPastTimeSlot = false;
         mockSetNodeRef = mock("setNodeRef");
         lastDroppableId = "";
         lastDisabledValue = false;
+    });
+    
+    afterEach(() => {
+        // Restore the original Date
+        global.Date = RealDate;
     });
 
     const createMockParcel = (id: string, householdName: string): FoodParcel => ({

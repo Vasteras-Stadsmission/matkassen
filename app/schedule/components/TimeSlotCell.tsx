@@ -15,7 +15,7 @@ interface TimeSlotCellProps {
         | {
               element: ReactNode;
               id: string;
-              [key: string]: any;
+              [key: string]: unknown;
           }
     )[];
     maxParcelsPerSlot: number;
