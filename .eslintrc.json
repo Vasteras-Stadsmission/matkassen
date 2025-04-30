@@ -3,7 +3,6 @@
 
     "overrides": [
         {
-            // everything below <root>/__tests__/ … and *.test|spec.* files
             "files": ["**/__tests__/**/*.{js,ts,tsx}", "**/*.{test,spec}.{js,ts,tsx}"],
             "env": { "jest": true },
             "plugins": ["jest"],
@@ -11,9 +10,5 @@
             /* put per-test tweaks here, e.g.
            "rules": { "@typescript-eslint/no-unsafe-call": "off" } */
         }
-    ],
-
-    "rules": {
-        "react/no-unescaped-entities": "off"
-    }
+    ]
 }
