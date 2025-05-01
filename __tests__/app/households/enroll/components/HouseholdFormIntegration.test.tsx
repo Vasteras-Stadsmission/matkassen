@@ -2,7 +2,7 @@
 import React from "react";
 import { describe, expect, it, mock } from "bun:test";
 import { Window } from "happy-dom";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import HouseholdForm from "@/app/households/enroll/components/HouseholdForm";
 
@@ -40,7 +40,7 @@ describe("HouseholdForm Integration", () => {
         };
 
         // Render with wrapper and explicit error
-        const result = render(
+        const { getByText } = render(
             <TestWrapper>
                 <HouseholdForm
                     data={initialData}
@@ -51,7 +51,8 @@ describe("HouseholdForm Integration", () => {
         );
 
         // Verify that error messages are displayed when provided via props
-        expect(result.container.textContent).toContain("Felaktigt postnummer");
+        // Check that the element exists by expecting it not to be undefined
+        expect(getByText("Felaktigt postnummer")).toBeTruthy();
     });
 
     // Direct test of the formatting function from HouseholdForm
