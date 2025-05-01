@@ -1,6 +1,7 @@
 import { addHouseholdAction, deleteHouseholdAction } from "./actions";
 import { db } from "./drizzle";
 import { households } from "./schema";
+import { SUPPORTED_LOCALES, getLanguageName } from "@/app/constants/languages";
 
 export const dynamic = "force-dynamic";
 
@@ -55,16 +56,15 @@ export default async function Home() {
 
                     <div>
                         <label htmlFor="locale" className="block">
-                            Locale (2-letter code):
+                            Language/Locale:
                         </label>
-                        <input
-                            type="text"
-                            id="locale"
-                            name="locale"
-                            required
-                            maxLength={2}
-                            className="border p-1 w-full"
-                        />
+                        <select id="locale" name="locale" required className="border p-1 w-full">
+                            {SUPPORTED_LOCALES.map(locale => (
+                                <option key={locale} value={locale}>
+                                    {getLanguageName(locale)}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>
@@ -104,8 +104,9 @@ export default async function Home() {
                                         {household.first_name} {household.last_name}
                                     </strong>
                                     <div className="text-sm text-gray-600">
-                                        Phone: {household.phone_number} | Locale: {household.locale}{" "}
-                                        | Postal: {household.postal_code}
+                                        Phone: {household.phone_number} | Language:{" "}
+                                        {getLanguageName(household.locale)} | Postal:{" "}
+                                        {household.postal_code}
                                     </div>
                                 </div>
                                 <form action={deleteHouseholdAction}>

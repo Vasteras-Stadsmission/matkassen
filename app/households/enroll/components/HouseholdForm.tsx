@@ -6,6 +6,7 @@ import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
 import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
+import { getLanguageSelectOptions } from "@/app/constants/languages";
 
 interface ValidationError {
     field: string;
@@ -30,35 +31,6 @@ interface FormValues {
 // Using fast-deep-equal for robust deep comparison of objects
 function objectsEqual<T>(a: T, b: T): boolean {
     return deepEqual(a, b);
-}
-
-// Helper function to get language name in Swedish
-function getLanguageName(locale: string): string {
-    const languageMap: Record<string, string> = {
-        sv: "Svenska",
-        en: "Engelska",
-        ar: "Arabiska",
-        fa: "Persiska",
-        ku: "Kurdiska",
-        es: "Spanska",
-        fr: "Franska",
-        de: "Tyska",
-        el: "Grekiska",
-        sw: "Swahili",
-        so: "Somaliska",
-        so_so: "Sydsomaliska",
-        uk: "Ukrainska",
-        ru: "Ryska",
-        ka: "Georgiska",
-        fi: "Finska",
-        it: "Italienska",
-        th: "Thailändska",
-        vi: "Vietnamesiska",
-        pl: "Polska",
-        hy: "Armeniska",
-    };
-
-    return languageMap[locale] || locale;
 }
 
 export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
@@ -213,38 +185,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                         <Select
                             label="Språk"
                             placeholder="Välj språk"
-                            data={[
-                                // Place Swedish at the top of the list
-                                { value: "sv", label: "Svenska" },
-                                // Sort the rest of the languages alphabetically
-                                ...[
-                                    "en",
-                                    "ar",
-                                    "fa",
-                                    "ku",
-                                    "es",
-                                    "fr",
-                                    "de",
-                                    "el",
-                                    "sw",
-                                    "so",
-                                    "so_so",
-                                    "uk",
-                                    "ru",
-                                    "ka",
-                                    "fi",
-                                    "it",
-                                    "th",
-                                    "vi",
-                                    "pl",
-                                    "hy",
-                                ]
-                                    .map(locale => ({
-                                        value: locale,
-                                        label: getLanguageName(locale),
-                                    }))
-                                    .sort((a, b) => a.label.localeCompare(b.label, "sv")),
-                            ]}
+                            data={getLanguageSelectOptions()}
                             {...form.getInputProps("locale")}
                         />
                     </Box>
