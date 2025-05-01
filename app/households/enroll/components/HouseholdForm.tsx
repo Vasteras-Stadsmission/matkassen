@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { TextInput, SimpleGrid, Title, Text, Card, Box } from "@mantine/core";
+import { useEffect, useRef, useMemo } from "react";
+import { TextInput, SimpleGrid, Title, Text, Card, Box, Select } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
 import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
+import { getLanguageSelectOptions } from "@/app/constants/languages";
 
 interface ValidationError {
     field: string;
@@ -33,6 +34,9 @@ function objectsEqual<T>(a: T, b: T): boolean {
 }
 
 export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
+    // Standardized field container style
+    const fieldContainerStyle = { minHeight: "85px" };
+
     // Use Mantine's useForm for proper form handling
     const form = useForm<FormValues>({
         initialValues: {
@@ -57,6 +61,9 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         validateInputOnBlur: true,
         validateInputOnChange: false,
     });
+
+    // Memoize the language options to prevent unnecessary recalculations on re-renders
+    const languageOptions = useMemo(() => getLanguageSelectOptions(), []);
 
     // Create a stable ref to the form object to prevent infinite loops
     const formRef = useRef(form);
@@ -140,7 +147,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
 
             <form>
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    <Box style={{ minHeight: "85px" }}>
+                    <Box style={fieldContainerStyle}>
                         <TextInput
                             label="Förnamn"
                             placeholder="Ange förnamn"
@@ -149,7 +156,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                         />
                     </Box>
 
-                    <Box style={{ minHeight: "85px" }}>
+                    <Box style={fieldContainerStyle}>
                         <TextInput
                             label="Efternamn"
                             placeholder="Ange efternamn"
@@ -158,7 +165,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                         />
                     </Box>
 
-                    <Box style={{ minHeight: "85px" }}>
+                    <Box style={fieldContainerStyle}>
                         <TextInput
                             label="Telefonnummer"
                             placeholder="Ange telefonnummer"
@@ -167,7 +174,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                         />
                     </Box>
 
-                    <Box style={{ minHeight: "85px" }}>
+                    <Box style={fieldContainerStyle}>
                         <TextInput
                             label="Postnummer"
                             placeholder="123 45"
@@ -177,6 +184,15 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                             onChange={handlePostalCodeChange}
                             inputMode="numeric"
                             maxLength={6}
+                        />
+                    </Box>
+
+                    <Box style={fieldContainerStyle}>
+                        <Select
+                            label="Språk"
+                            placeholder="Välj språk"
+                            data={languageOptions}
+                            {...form.getInputProps("locale")}
                         />
                     </Box>
                 </SimpleGrid>
