@@ -5,6 +5,7 @@ import { TextInput, SimpleGrid, Title, Text, Card, Box } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
 import { Household } from "../types";
+import deepEqual from "fast-deep-equal";
 
 interface ValidationError {
     field: string;
@@ -26,16 +27,9 @@ interface FormValues {
     postal_code: string;
 }
 
-// Simple utility function for shallow object comparison
-function objectsEqual<T extends Record<string, unknown>>(a: T, b: T): boolean {
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
-
-    if (keysA.length !== keysB.length) {
-        return false;
-    }
-
-    return keysA.every(key => a[key] === b[key]);
+// Using fast-deep-equal for robust deep comparison of objects
+function objectsEqual<T>(a: T, b: T): boolean {
+    return deepEqual(a, b);
 }
 
 export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
@@ -178,10 +172,9 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                             label="Postnummer"
                             placeholder="123 45"
                             withAsterisk
+                            {...form.getInputProps("postal_code", { withFocus: true })}
                             value={formatPostalCode(form.values.postal_code)}
                             onChange={handlePostalCodeChange}
-                            onBlur={() => form.validateField("postal_code")}
-                            error={form.errors.postal_code}
                             inputMode="numeric"
                             maxLength={6}
                         />

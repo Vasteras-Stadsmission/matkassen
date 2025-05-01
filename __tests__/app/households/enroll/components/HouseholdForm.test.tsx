@@ -1,6 +1,8 @@
 import React from "react";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
 import { Window } from "happy-dom";
+import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 
 // Create a window environment for the tests
 const window = new Window();
@@ -78,7 +80,6 @@ mock.module("@mantine/form", () => {
 
 // Import component under test
 import HouseholdForm from "@/app/households/enroll/components/HouseholdForm";
-import { render } from "@testing-library/react";
 
 describe("HouseholdForm Component", () => {
     beforeEach(() => {
@@ -164,3 +165,7 @@ describe("HouseholdForm Component", () => {
         ).toBeTruthy();
     });
 });
+
+// Create a separate file for integration tests to avoid module mocking conflicts
+// filename: __tests__/app/households/enroll/components/HouseholdFormIntegration.test.tsx
+// We'll create this in a separate step
