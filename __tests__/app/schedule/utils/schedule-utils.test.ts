@@ -1,7 +1,7 @@
 import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 
 // Mock the database functionality
-mock("@/app/db/drizzle", () => ({
+mock.module("@/app/db/drizzle", () => ({
     db: {
         select: () => ({
             from: () => ({

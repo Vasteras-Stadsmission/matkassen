@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { TextInput, SimpleGrid, Title, Text, Card, Box } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useDebouncedValue } from "@mantine/hooks";
 import { Household } from "../types";
+import deepEqual from "fast-deep-equal";
 
 interface ValidationError {
     field: string;
@@ -16,9 +18,23 @@ interface HouseholdFormProps {
     error?: ValidationError | null;
 }
 
+// Define a type for the form values
+interface FormValues {
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    locale: string;
+    postal_code: string;
+}
+
+// Using fast-deep-equal for robust deep comparison of objects
+function objectsEqual<T>(a: T, b: T): boolean {
+    return deepEqual(a, b);
+}
+
 export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
     // Use Mantine's useForm for proper form handling
-    const form = useForm({
+    const form = useForm<FormValues>({
         initialValues: {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
@@ -42,21 +58,60 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         validateInputOnChange: false,
     });
 
+    // Create a stable ref to the form object to prevent infinite loops
+    const formRef = useRef(form);
+
+    // Use Mantine's useDebouncedValue hook to debounce form value changes
+    // This will cancel previous timeouts when new changes arrive within the 300ms window
+    const [debouncedValues] = useDebouncedValue(form.values, 300);
+
+    // Update form values when data changes (e.g., when async data loads)
+    useEffect(() => {
+        const currentForm = formRef.current;
+        const currentValues = {
+            first_name: currentForm.values.first_name,
+            last_name: currentForm.values.last_name,
+            phone_number: currentForm.values.phone_number,
+            locale: currentForm.values.locale,
+            postal_code: currentForm.values.postal_code,
+        };
+
+        const dataValues = {
+            first_name: data.first_name || "",
+            last_name: data.last_name || "",
+            phone_number: data.phone_number || "",
+            locale: data.locale || "sv",
+            postal_code: data.postal_code || "",
+        };
+
+        // Only update form values if they are actually different
+        if (!objectsEqual(currentValues, dataValues)) {
+            currentForm.setValues(dataValues);
+        }
+    }, [data]);
+
     // Handle validation errors from parent
     useEffect(() => {
         if (error && error.field) {
-            form.setFieldError(error.field, error.message);
+            formRef.current.setFieldError(error.field, error.message);
         }
-    }, [error, form]);
+    }, [error]);
 
-    // Update parent when form values change
+    // Update parent with debounced values
     useEffect(() => {
-        const handler = setTimeout(() => {
-            updateData(form.values);
-        }, 300);
+        const dataValues = {
+            first_name: data.first_name || "",
+            last_name: data.last_name || "",
+            phone_number: data.phone_number || "",
+            locale: data.locale || "sv",
+            postal_code: data.postal_code || "",
+        };
 
-        return () => clearTimeout(handler);
-    }, [form.values, updateData]);
+        // Only call updateData if the debounced values actually changed
+        if (!objectsEqual(debouncedValues, dataValues)) {
+            updateData(debouncedValues);
+        }
+    }, [debouncedValues, updateData, data]);
 
     // Format postal code with space after 3 digits
     const formatPostalCode = (value: string) => {
@@ -117,10 +172,9 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                             label="Postnummer"
                             placeholder="123 45"
                             withAsterisk
+                            {...form.getInputProps("postal_code", { withFocus: true })}
                             value={formatPostalCode(form.values.postal_code)}
                             onChange={handlePostalCodeChange}
-                            onBlur={() => form.validateField("postal_code")}
-                            error={form.errors.postal_code}
                             inputMode="numeric"
                             maxLength={6}
                         />
