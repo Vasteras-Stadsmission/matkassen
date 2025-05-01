@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { TextInput, SimpleGrid, Title, Text, Card, Box } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useDebouncedValue } from "@mantine/hooks";
 import { Household } from "../types";
 
 interface ValidationError {
@@ -16,9 +17,30 @@ interface HouseholdFormProps {
     error?: ValidationError | null;
 }
 
+// Define a type for the form values
+interface FormValues {
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    locale: string;
+    postal_code: string;
+}
+
+// Simple utility function for shallow object comparison
+function objectsEqual<T extends Record<string, unknown>>(a: T, b: T): boolean {
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+
+    if (keysA.length !== keysB.length) {
+        return false;
+    }
+
+    return keysA.every(key => a[key] === b[key]);
+}
+
 export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
     // Use Mantine's useForm for proper form handling
-    const form = useForm({
+    const form = useForm<FormValues>({
         initialValues: {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
@@ -42,15 +64,22 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         validateInputOnChange: false,
     });
 
+    // Create a stable ref to the form object to prevent infinite loops
+    const formRef = useRef(form);
+
+    // Use Mantine's useDebouncedValue hook to debounce form value changes
+    // This will cancel previous timeouts when new changes arrive within the 300ms window
+    const [debouncedValues] = useDebouncedValue(form.values, 300);
+
     // Update form values when data changes (e.g., when async data loads)
     useEffect(() => {
-        // Use JSON.stringify to do a deep comparison of values to prevent unnecessary updates
+        const currentForm = formRef.current;
         const currentValues = {
-            first_name: form.values.first_name,
-            last_name: form.values.last_name,
-            phone_number: form.values.phone_number,
-            locale: form.values.locale,
-            postal_code: form.values.postal_code,
+            first_name: currentForm.values.first_name,
+            last_name: currentForm.values.last_name,
+            phone_number: currentForm.values.phone_number,
+            locale: currentForm.values.locale,
+            postal_code: currentForm.values.postal_code,
         };
 
         const dataValues = {
@@ -62,47 +91,33 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         };
 
         // Only update form values if they are actually different
-        if (JSON.stringify(currentValues) !== JSON.stringify(dataValues)) {
-            form.setValues(dataValues);
+        if (!objectsEqual(currentValues, dataValues)) {
+            currentForm.setValues(dataValues);
         }
-    }, [data, form]); // Added form to dependencies
+    }, [data]);
 
     // Handle validation errors from parent
     useEffect(() => {
         if (error && error.field) {
-            form.setFieldError(error.field, error.message);
+            formRef.current.setFieldError(error.field, error.message);
         }
-    }, [error, form]);
+    }, [error]);
 
-    // Update parent when form values change
+    // Update parent with debounced values
     useEffect(() => {
-        // Debounce updates to parent component
-        const handler = setTimeout(() => {
-            // Only update parent if values actually changed from initial values
-            const currentValues = {
-                first_name: form.values.first_name,
-                last_name: form.values.last_name,
-                phone_number: form.values.phone_number,
-                locale: form.values.locale,
-                postal_code: form.values.postal_code,
-            };
+        const dataValues = {
+            first_name: data.first_name || "",
+            last_name: data.last_name || "",
+            phone_number: data.phone_number || "",
+            locale: data.locale || "sv",
+            postal_code: data.postal_code || "",
+        };
 
-            const dataValues = {
-                first_name: data.first_name || "",
-                last_name: data.last_name || "",
-                phone_number: data.phone_number || "",
-                locale: data.locale || "sv",
-                postal_code: data.postal_code || "",
-            };
-
-            // Only call updateData if values actually changed
-            if (JSON.stringify(currentValues) !== JSON.stringify(dataValues)) {
-                updateData(form.values);
-            }
-        }, 300);
-
-        return () => clearTimeout(handler);
-    }, [form.values, updateData, data]);
+        // Only call updateData if the debounced values actually changed
+        if (!objectsEqual(debouncedValues, dataValues)) {
+            updateData(debouncedValues);
+        }
+    }, [debouncedValues, updateData, data]);
 
     // Format postal code with space after 3 digits
     const formatPostalCode = (value: string) => {
