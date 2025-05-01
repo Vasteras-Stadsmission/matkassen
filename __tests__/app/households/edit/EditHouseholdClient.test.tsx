@@ -14,7 +14,7 @@ global.navigator = window.navigator as any;
 const AppRouterContext = React.createContext<any>(null);
 const PathnameContext = React.createContext<string>("");
 
-// Mock the router implementation using proper Bun mock syntax
+// Mock the router implementation
 const mockPush = mock(() => Promise.resolve(true));
 const mockRouter = {
     push: mockPush,
@@ -942,8 +942,11 @@ mock.module("@/components/household-wizard/HouseholdWizard", () => ({
     },
 }));
 
-// Mock hooks
-const mockDisclosure = () => [false, { open: mock(() => {}), close: mock(() => {}) }];
+// Mock hooks with proper typing
+const mockOpen = mock<() => void>(() => {});
+const mockClose = mock<() => void>(() => {});
+const mockDisclosure = () => [false, { open: mockOpen, close: mockClose }];
+
 mock.module("@mantine/hooks", () => ({
     useDisclosure: mockDisclosure,
 }));

@@ -66,7 +66,7 @@ const MockStack = ({ children, ...props }: MockStackProps) => (
 );
 
 let mockIsOver = false;
-let mockSetNodeRef = mock("setNodeRef");
+let mockSetNodeRef = mock(() => {});
 let mockIsPastTimeSlot = false;
 let lastDroppableId = "";
 let lastDisabledValue = false;
@@ -216,7 +216,7 @@ describe("TimeSlotCell Component", () => {
 
         mockIsOver = false;
         mockIsPastTimeSlot = false;
-        mockSetNodeRef = mock("setNodeRef");
+        mockSetNodeRef = mock(() => {});
         lastDroppableId = "";
         lastDisabledValue = false;
     });

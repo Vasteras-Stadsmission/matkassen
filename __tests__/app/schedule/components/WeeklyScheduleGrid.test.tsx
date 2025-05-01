@@ -22,7 +22,7 @@ const mockUpdateFoodParcelSchedule = (...args: any[]) => {
 
 // Mock actions - IMPORTANT: This needs to be before any imports that use it
 import { mock } from "bun:test";
-mock("@/app/schedule/actions", () => ({
+mock.module("@/app/schedule/actions", () => ({
     updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
     FoodParcel: {},
 }));
@@ -34,7 +34,7 @@ const mockShowNotification = (...args: any[]) => {
 };
 
 // Mock notifications at the earliest point
-mock("@mantine/notifications", () => ({
+mock.module("@mantine/notifications", () => ({
     showNotification: mockShowNotification,
 }));
 
@@ -375,7 +375,7 @@ const TestableWeeklyScheduleGrid = ({
 };
 
 // Mock actions
-mock("@/app/schedule/actions", () => ({
+mock.module("@/app/schedule/actions", () => ({
     updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
 }));
 
