@@ -42,6 +42,31 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         validateInputOnChange: false,
     });
 
+    // Update form values when data changes (e.g., when async data loads)
+    useEffect(() => {
+        // Use JSON.stringify to do a deep comparison of values to prevent unnecessary updates
+        const currentValues = {
+            first_name: form.values.first_name,
+            last_name: form.values.last_name,
+            phone_number: form.values.phone_number,
+            locale: form.values.locale,
+            postal_code: form.values.postal_code,
+        };
+
+        const dataValues = {
+            first_name: data.first_name || "",
+            last_name: data.last_name || "",
+            phone_number: data.phone_number || "",
+            locale: data.locale || "sv",
+            postal_code: data.postal_code || "",
+        };
+
+        // Only update form values if they are actually different
+        if (JSON.stringify(currentValues) !== JSON.stringify(dataValues)) {
+            form.setValues(dataValues);
+        }
+    }, [data, form]); // Added form to dependencies
+
     // Handle validation errors from parent
     useEffect(() => {
         if (error && error.field) {
@@ -51,12 +76,33 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
 
     // Update parent when form values change
     useEffect(() => {
+        // Debounce updates to parent component
         const handler = setTimeout(() => {
-            updateData(form.values);
+            // Only update parent if values actually changed from initial values
+            const currentValues = {
+                first_name: form.values.first_name,
+                last_name: form.values.last_name,
+                phone_number: form.values.phone_number,
+                locale: form.values.locale,
+                postal_code: form.values.postal_code,
+            };
+
+            const dataValues = {
+                first_name: data.first_name || "",
+                last_name: data.last_name || "",
+                phone_number: data.phone_number || "",
+                locale: data.locale || "sv",
+                postal_code: data.postal_code || "",
+            };
+
+            // Only call updateData if values actually changed
+            if (JSON.stringify(currentValues) !== JSON.stringify(dataValues)) {
+                updateData(form.values);
+            }
         }, 300);
 
         return () => clearTimeout(handler);
-    }, [form.values, updateData]);
+    }, [form.values, updateData, data]);
 
     // Format postal code with space after 3 digits
     const formatPostalCode = (value: string) => {
