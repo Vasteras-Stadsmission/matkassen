@@ -1,4 +1,3 @@
-// filepath: /Users/niklasmagnusson/git/matkassen/__tests__/app/households/enroll/components/HouseholdForm.test.tsx
 import React from "react";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
 import { Window } from "happy-dom";

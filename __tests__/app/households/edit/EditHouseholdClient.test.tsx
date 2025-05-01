@@ -1,5 +1,4 @@
-// filepath: /Users/niklasmagnusson/git/matkassen/__tests__/app/households/edit/EditHouseholdClient.test.tsx
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { Window } from "happy-dom";
 import React from "react";
 import { render, act, waitFor } from "@testing-library/react";
