@@ -5,7 +5,25 @@
 
 version: 2
 updates:
-  - package-ecosystem: "bun" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "bun"
+    directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5 # don’t let the bot flood you
+    groups:                     # roll minor+patch releases into one PR
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Track base images in Dockerfile and docker-compose
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      ignore:                    # avoid breaking jumps to Node LTS-next
+        - dependency-name: "node"
+          update-types: ["version-update:semver-major"]
