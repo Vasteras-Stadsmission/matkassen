@@ -88,3 +88,24 @@ export function formatDateToYMD(date: Date): string {
 export function formatTime(date: Date): string {
     return formatInTimeZone(date, TIMEZONE, "HH:mm");
 }
+
+/**
+ * Format a date with localized month name (d MMMM yyyy)
+ * @param date The date to format
+ * @param t The translation function to use for month names
+ * @returns Formatted date string like "6 June 2025" or "6 juni 2025" based on locale
+ */
+export function formatDateWithLocalizedMonth(
+    date: Date,
+    getLocalizedMonth: (monthIndex: number) => string,
+): string {
+    const stockholmDate = toStockholmTime(date);
+    const day = stockholmDate.getDate();
+    const month = stockholmDate.getMonth(); // 0-11
+    const year = stockholmDate.getFullYear();
+
+    // Get the localized month name using the passed translation function
+    const monthName = getLocalizedMonth(month);
+
+    return `${day} ${monthName} ${year}`;
+}

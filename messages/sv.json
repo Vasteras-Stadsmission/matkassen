@@ -1,0 +1,379 @@
+{
+    "common": {
+        "matkassen": "matkassen",
+        "welcome": "Välkommen till Matkassen",
+        "description": "Administrationssystem för distribution av matkassar",
+        "authStatus": "Autentiseringsstatus",
+        "loggedInAs": "Du är inloggad som",
+        "loginToAccess": "Logga in för att få tillgång till applikationens funktioner",
+        "languages": {
+            "sv": "Svenska"
+        }
+    },
+    "auth": {
+        "login": "Logga in",
+        "logout": "Logga ut"
+    },
+    "navigation": {
+        "matkassen": "Matkassen",
+        "households": "Hushåll",
+        "schedule": "Schema",
+        "locations": "Utlämningsställen",
+        "newHousehold": "Nytt hushåll +",
+        "scanQrCode": "Skanna QR-kod",
+        "navigation": "Navigation"
+    },
+    "households": {
+        "title": "Hushåll",
+        "description": "Hantera hushåll och deras information",
+        "newHousehold": "Nytt hushåll har registrerats!",
+        "updatedHousehold": "Hushållet har uppdaterats!",
+        "search": {
+            "placeholder": "Sök hushåll..."
+        },
+        "modal": {
+            "loading": "Laddar...",
+            "title": "Hushållsdetaljer: {firstName} {lastName}"
+        },
+        "actions": {
+            "view": "Visa",
+            "edit": "Redigera"
+        },
+        "table": {
+            "firstName": "Förnamn",
+            "lastName": "Efternamn",
+            "phoneNumber": "Telefonnummer",
+            "language": "Språk",
+            "postalCode": "Postnummer",
+            "firstParcel": "Första matkasse",
+            "lastParcel": "Sista matkasse",
+            "nextParcel": "Nästa matkasse",
+            "actions": {
+                "viewDetails": "Visa detaljer",
+                "edit": "Redigera hushåll",
+                "search": "Sök hushåll..."
+            }
+        },
+        "errors": {
+            "notFound": "Kunde inte hitta hushållet. Kontrollera att ID är korrekt.",
+            "createError": "Ett fel uppstod vid registrering av hushåll.",
+            "updateError": "Ett fel uppstod vid uppdatering av hushåll."
+        }
+    },
+    "householdForm": {
+        "basics": "Grunduppgifter",
+        "basicDescription": "Fyll i grundläggande kontaktuppgifter för hushållet. Dessa uppgifter används för att kontakta hushållet.",
+        "firstName": "Förnamn",
+        "enterFirstName": "Ange förnamn",
+        "lastName": "Efternamn",
+        "enterLastName": "Ange efternamn",
+        "phoneNumber": "Telefonnummer",
+        "enterPhoneNumber": "Ange telefonnummer",
+        "postalCode": "Postnummer",
+        "language": "Språk",
+        "selectLanguage": "Välj språk",
+        "validation": {
+            "firstNameLength": "Förnamn måste vara minst 2 tecken",
+            "lastNameLength": "Efternamn måste vara minst 2 tecken",
+            "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
+            "postalCodeFormat": "Postnummer måste bestå av 5 siffror"
+        }
+    },
+    "members": {
+        "title": "Medlemmar i hushållet",
+        "description": "Lägg till alla medlemmar i hushållet. Dessa uppgifter används för att beräkna matmängd och särskilda behov.",
+        "noMembers": "Inga medlemmar har lagts till än",
+        "registered": "Registrerade medlemmar:",
+        "addPerson": "Lägg till person",
+        "age": "Ålder",
+        "ageUnit": "år",
+        "addInstructions": "Fyll i ålder och välj kön för varje hushållsmedlem och klicka sedan på \"Lägg till person\" för att lägga till dem i listan.",
+        "gender": {
+            "label": "Kön",
+            "male": "Man",
+            "female": "Kvinna",
+            "other": "Annat"
+        },
+        "validation": {
+            "ageRequired": "Ålder krävs",
+            "genderRequired": "Könsval krävs"
+        }
+    },
+    "dietaryRestrictions": {
+        "title": "Matrestriktioner",
+        "description": "Välj matrestriktioner som gäller för hushållet. Du kan välja från listan eller lägga till egna restriktioner.",
+        "loading": "Laddar matrestriktioner...",
+        "noRestrictions": "Inga matrestriktioner tillagda",
+        "addNew": "Lägg till ny restriktion",
+        "newRestriction": "Ny matrestriktion",
+        "placeholderExample": "T.ex. Jordgubbar, Soja, etc.",
+        "add": "Lägg till",
+        "addConfirmTitle": "Lägg till matrestriktion",
+        "addConfirmQuestion": "Vill du lägga till följande matrestriktion i din ansökan?",
+        "removeConfirmTitle": "Ta bort matrestriktion",
+        "removeConfirmQuestion": "Vill du ta bort följande matrestriktion från din ansökan?",
+        "cancel": "Avbryt",
+        "remove": "Ta bort",
+        "validation": {
+            "minLength": "Matrestriktion måste vara minst 2 tecken"
+        }
+    },
+    "pets": {
+        "title": "Husdjur",
+        "description": "Registrera husdjur som finns i hushållet. Detta hjälper oss att anpassa matsortimentet.",
+        "noPets": "Inga husdjur tillagda",
+        "loading": "Laddar husdjurstyper...",
+        "addNew": "Lägg till ny typ av husdjur",
+        "newPetType": "Ny typ av husdjur",
+        "placeholderExample": "T.ex. Marsvin, Ödla, etc.",
+        "add": "Lägg till",
+        "addConfirmTitle": "Lägg till husdjurstyp",
+        "addConfirmQuestion": "Vill du lägga till följande husdjurstyp i din ansökan?",
+        "removeConfirmTitle": "Ta bort husdjurstyp",
+        "removeConfirmQuestion": "Vill du ta bort följande husdjurstyp från din ansökan?",
+        "cancel": "Avbryt",
+        "remove": "Ta bort",
+        "defaultPetType": "Husdjurstyp {index}",
+        "unknownPetType": "Okänd",
+        "validation": {
+            "minLength": "Husdjurstyp måste vara minst 2 tecken"
+        }
+    },
+    "additionalNeeds": {
+        "title": "Ytterligare behov",
+        "description": "Välj ytterligare behov som hushållet kan ha. Du kan välja från listan eller lägga till egna behov.",
+        "noNeeds": "Inga ytterligare behov tillagda",
+        "loading": "Laddar ytterligare behov...",
+        "addNew": "Lägg till nytt behov",
+        "newNeed": "Nytt behov",
+        "placeholderExample": "T.ex. Rakhyvlar, Schampo, etc.",
+        "add": "Lägg till",
+        "validation": {
+            "minLength": "Behov måste vara minst 2 tecken"
+        }
+    },
+    "foodParcels": {
+        "title": "Schemalagda matkassar",
+        "description": "Schemalägg matkassar för hushållet med hämtplats och tider.",
+        "settings": "Inställningar för schemaläggning",
+        "pickupLocation": "Hämtplats",
+        "selectLocation": "Välj hämtplats",
+        "selectDates": "Välj datum för matkassar",
+        "loadingAvailability": "Laddar tillgänglighet...",
+        "selectLocationFirst": "Välj en hämtplats först för att se tillgänglighet",
+        "selectDatesHint": "Välj alla datum när hushållet ska få en matkasse",
+        "setBulkTimes": "Sätt alla tider",
+        "editingAllTimes": "Redigerar alla tider",
+        "bulkTimeHint": "Ställ in samma tid för alla matkassar, eller avbryt för att redigera individuellt.",
+        "individualTimeHint": "Klicka på tiderna för att ändra upphämtningstid för varje enskild matkasse.",
+        "time": {
+            "earliest": "Tidigast hämttid",
+            "latest": "Senast hämttid",
+            "updateAll": "Uppdatera alla",
+            "error": "Tidigast tid måste vara före senast tid",
+            "dateAndPickup": "Datum och hämttid"
+        },
+        "errors": {
+            "selectLocation": "Välj en hämtplats"
+        }
+    },
+    "review": {
+        "title": "Sammanfattning",
+        "editDescription": "Granska all information innan du uppdaterar hushållet.",
+        "createDescription": "Granska all information innan du sparar det nya hushållet."
+    },
+    "schedule": {
+        "title": "Schemaläggning av matstöd",
+        "today": "Idag",
+        "weekLabel": "Vecka {week}, {year}",
+        "loading": "Laddar schema...",
+        "noFoodSupport": "Inga matstöd schemalagda denna vecka",
+        "refresh": "Uppdatera",
+        "selectWeek": "Välj vecka",
+        "days": {
+            "monday": "Måndag",
+            "tuesday": "Tisdag",
+            "wednesday": "Onsdag",
+            "thursday": "Torsdag",
+            "friday": "Fredag",
+            "saturday": "Lördag",
+            "sunday": "Söndag"
+        },
+        "pickupTimeLabel": "Tid",
+        "statusLabel": "Status",
+        "pickedUpStatus": "Uthämtad",
+        "notPickedUpStatus": "Ej uthämtad",
+        "reschedule": {
+            "title": "Schemalägg matstöd för {name}",
+            "changed": "Tidpunkt har ändrats från",
+            "to": "till",
+            "from": "Från:",
+            "to2": "Till:",
+            "confirmTitle": "Bekräfta ombokning",
+            "confirmQuestion": "Vill du boka om matstöd för {name}?",
+            "confirm": "Bekräfta ändring",
+            "cancel": "Avbryt",
+            "success": "Schemaläggning uppdaterad",
+            "successMessage": "{name} har schemalagts på ny tid.",
+            "error": "Fel vid schemaläggning",
+            "pastError": "Det går inte att boka matstöd i det förflutna.",
+            "pastSourceError": "Det går inte att boka om matstöd från en tidpunkt i det förflutna.",
+            "genericError": "Ett oväntat fel inträffade.",
+            "outsideWeek": "Schemalägg utanför vecka",
+            "selectDateError": "Du måste välja ett datum",
+            "timeError": "Tidigast tid måste vara före senast tid",
+            "earliestTime": "Tidigast hämttid",
+            "latestTime": "Senast hämttid"
+        }
+    },
+    "householdDetail": {
+        "basics": "Grunduppgifter",
+        "members": "Medlemmar ({count})",
+        "noMembers": "Inga medlemmar tillagda",
+        "pets": "Husdjur ({count})",
+        "noPets": "Inga husdjur tillagda",
+        "dietaryRestrictions": "Matrestriktioner ({count})",
+        "noDietaryRestrictions": "Inga matrestriktioner tillagda",
+        "additionalNeeds": "Ytterligare behov ({count})",
+        "noAdditionalNeeds": "Inga ytterligare behov tillagda",
+        "foodParcels": "Matkassar ({count})",
+        "noFoodParcels": "Inga matkassar schemalagda",
+        "ageUnit": "år",
+        "status": {
+            "pickedUp": "Uthämtad",
+            "notPickedUp": "Ej uthämtad"
+        },
+        "comments": {
+            "title": "Kommentarer ({count})"
+        }
+    },
+    "comments": {
+        "title": "Kommentarer ({count})",
+        "noComments": "Inga kommentarer tillagda",
+        "placeholder": "Lägg till en kommentar om hushållet... (HTML stöds, t.ex. länkar)",
+        "add": "Lägg till"
+    },
+    "wizard": {
+        "stepBasics": "Grunduppgifter",
+        "stepBasicsDescription": "Kontaktinformation",
+        "stepMembers": "Medlemmar",
+        "stepMembersDescription": "Hushållsmedlemmar",
+        "stepDietaryRestrictions": "Matrestriktioner",
+        "stepDietaryRestrictionsDescription": "Specialkost",
+        "stepPets": "Husdjur",
+        "stepPetsDescription": "Information om husdjur",
+        "stepAdditionalNeeds": "Ytterligare behov",
+        "stepAdditionalNeedsDescription": "Särskilda behov",
+        "stepFoodParcels": "Matkassar",
+        "stepFoodParcelsDescription": "Schemaläggning",
+        "stepReview": "Sammanfattning",
+        "stepReviewDescription": "Granska och skicka",
+        "creating": "Skapar nytt hushåll...",
+        "updating": "Uppdaterar hushåll...",
+        "validationError": "Valideringsfel",
+        "nextStep": "Nästa steg",
+        "back": "Tillbaka",
+        "backToList": "Tillbaka till hushållslistan",
+        "saveHousehold": "Spara hushåll",
+        "createHousehold": "Skapa hushåll",
+        "editHousehold": "Redigera hushåll",
+        "updateHousehold": "Uppdatera hushåll",
+        "backToHouseholds": "Tillbaka till hushåll",
+        "steps": {
+            "basics": {
+                "label": "Grunduppgifter",
+                "description": "Kontaktinformation"
+            },
+            "members": {
+                "label": "Medlemmar",
+                "description": "Hushållsmedlemmar"
+            },
+            "diet": {
+                "label": "Matrestriktioner",
+                "description": "Specialkost"
+            },
+            "pets": {
+                "label": "Husdjur",
+                "description": "Information om husdjur"
+            },
+            "needs": {
+                "label": "Ytterligare behov",
+                "description": "Särskilda behov"
+            },
+            "parcels": {
+                "label": "Matkassar",
+                "description": "Schemaläggning"
+            },
+            "review": {
+                "label": "Sammanfattning",
+                "description": "Granska och skicka"
+            }
+        },
+        "navigation": {
+            "next": "Nästa steg",
+            "back": "Tillbaka"
+        },
+        "validation": {
+            "title": "Valideringsfel",
+            "firstNameLength": "Förnamn måste vara minst 2 tecken",
+            "lastNameLength": "Efternamn måste vara minst 2 tecken",
+            "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
+            "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
+            "pickupLocation": "Välj en hämtplats"
+        },
+        "success": {
+            "title": "Klart!",
+            "created": "Nytt hushåll har skapats!",
+            "updated": "Hushållet har uppdaterats!"
+        },
+        "error": {
+            "title": "Fel",
+            "general": "Ett fel uppstod",
+            "unknown": "Okänt fel",
+            "create": "Ett fel uppstod vid skapande av hushåll",
+            "update": "Ett fel uppstod vid uppdatering av hushåll"
+        },
+        "submitting": {
+            "create": "Skapar nytt hushåll...",
+            "update": "Uppdaterar hushåll..."
+        }
+    },
+    "buttons": {
+        "add": "Lägg till",
+        "cancel": "Avbryt",
+        "remove": "Ta bort",
+        "confirm": "Bekräfta"
+    },
+    "languages": {
+        "en": "Engelska",
+        "sv": "Svenska",
+        "english": "Engelska",
+        "swedish": "Svenska",
+        "britishFlag": "Brittisk flagga",
+        "swedishFlag": "Svensk flagga",
+        "switchTo": "Byt till {language}"
+    },
+    "weekdays": {
+        "sunday": "Söndag",
+        "monday": "Måndag",
+        "tuesday": "Tisdag",
+        "wednesday": "Onsdag",
+        "thursday": "Torsdag",
+        "friday": "Fredag",
+        "saturday": "Lördag"
+    },
+    "months": {
+        "january": "januari",
+        "february": "februari",
+        "march": "mars",
+        "april": "april",
+        "may": "maj",
+        "june": "juni",
+        "july": "juli",
+        "august": "augusti",
+        "september": "september",
+        "october": "oktober",
+        "november": "november",
+        "december": "december"
+    }
+}

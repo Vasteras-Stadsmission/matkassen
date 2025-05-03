@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { Box, Loader, Transition } from "@mantine/core";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "@/app/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 
-export function NavigationLoader() {
+// This component contains the search params logic and will be wrapped in Suspense
+function NavigationLoaderContent() {
     const [isNavigating, setIsNavigating] = useState(false);
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -99,5 +101,16 @@ export function NavigationLoader() {
                 </Box>
             )}
         </Transition>
+    );
+}
+
+// Main export component that wraps the content with Suspense
+export function NavigationLoader() {
+    // The loader in the fallback is typically not shown since the component
+    // initializes quickly, but it's there as a safeguard
+    return (
+        <Suspense fallback={null}>
+            <NavigationLoaderContent />
+        </Suspense>
     );
 }

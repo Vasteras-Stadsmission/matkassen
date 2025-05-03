@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import { Window } from "happy-dom";
 import React from "react";
 import { render, waitFor } from "@testing-library/react";
-import { FoodParcel } from "@/app/schedule/actions";
+import { FoodParcel } from "@/app/[locale]/schedule/actions";
 
 // Mock dependencies using Bun's mock function
 let mockUpdateFoodParcelScheduleFn = {

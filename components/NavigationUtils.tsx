@@ -1,5 +1,8 @@
-import { forwardRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+"use client";
+
+import { useEffect, forwardRef, useTransition } from "react";
+import { useRouter } from "@/app/i18n/navigation";
+import PageSkeletonOverlay from "./PageSkeletonOverlay";
 
 interface NavigationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
     label: string;
@@ -8,10 +11,14 @@ interface NavigationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
     prefetch?: boolean;
 }
 
-// Create a reusable Navigation Link component with built-in prefetching
+/**
+ * A navigation link component that shows a skeleton overlay during navigation
+ * Uses React's useTransition to properly track pending state changes
+ */
 export const NavigationLink = forwardRef<HTMLAnchorElement, NavigationLinkProps>(
-    ({ label, active, className, prefetch = true, href, ...others }, ref) => {
+    ({ label, active, className, prefetch = true, href, onClick, ...others }, ref) => {
         const router = useRouter();
+        const [isPending, startTransition] = useTransition();
 
         // Prefetch the linked page if prefetch is true
         useEffect(() => {
@@ -20,58 +27,46 @@ export const NavigationLink = forwardRef<HTMLAnchorElement, NavigationLinkProps>
             }
         }, [href, prefetch, router]);
 
+        const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (onClick) {
+                onClick(e);
+            }
+
+            if (!e.defaultPrevented && typeof href === "string" && href.startsWith("/")) {
+                e.preventDefault();
+                startTransition(() => {
+                    router.push(href);
+                });
+            }
+        };
+
         return (
-            <a
-                ref={ref}
-                className={className}
-                data-active={active || undefined}
-                href={href}
-                {...others}
-            >
-                <span>{label}</span>
-            </a>
+            <>
+                <a
+                    ref={ref}
+                    className={className}
+                    data-active={active || undefined}
+                    href={href}
+                    onClick={handleClick}
+                    {...others}
+                >
+                    <span>{label}</span>
+                </a>
+                {isPending && <PageSkeletonOverlay />}
+            </>
         );
     },
 );
 
 NavigationLink.displayName = "NavigationLink";
 
-// Using CustomEvent with bubbles: true to ensure it propagates properly
+// This function is no longer needed with the useTransition approach
 export const dispatchNavigationStart = () => {
-    const event = new CustomEvent("navigation-start", {
-        bubbles: true,
-        cancelable: true,
-        detail: { timestamp: Date.now() },
-    });
-    document.dispatchEvent(event);
+    console.warn("dispatchNavigationStart is deprecated, use the NavigationLink component instead");
 };
 
+// This function is no longer needed with the useTransition approach
 export const enhanceNextNavigation = (router: unknown) => {
-    if (!router || typeof (router as Record<string, unknown>).push !== "function") {
-        console.warn("Router not available or does not have push method");
-        return router;
-    }
-
-    // Store original methods
-    const typedRouter = router as {
-        push: (...args: unknown[]) => unknown;
-        replace: (...args: unknown[]) => unknown;
-    };
-
-    const originalPush = typedRouter.push;
-    const originalReplace = typedRouter.replace;
-
-    // Override router.push to dispatch event before navigation
-    typedRouter.push = function (...args: unknown[]) {
-        dispatchNavigationStart();
-        return originalPush.apply(this, args);
-    };
-
-    // Override router.replace to dispatch event before navigation
-    typedRouter.replace = function (...args: unknown[]) {
-        dispatchNavigationStart();
-        return originalReplace.apply(this, args);
-    };
-
+    console.warn("enhanceNextNavigation is deprecated, use the NavigationLink component instead");
     return router;
 };

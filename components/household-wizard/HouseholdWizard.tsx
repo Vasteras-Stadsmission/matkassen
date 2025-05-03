@@ -16,17 +16,19 @@ import {
     Box,
 } from "@mantine/core";
 import { IconCheck, IconAlertCircle, IconArrowRight, IconArrowLeft } from "@tabler/icons-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/app/i18n/navigation";
 import { useDisclosure } from "@mantine/hooks";
+import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 
 // Import form components
-import HouseholdForm from "@/app/households/enroll/components/HouseholdForm";
-import MembersForm from "@/app/households/enroll/components/MembersForm";
-import DietaryRestrictionsForm from "@/app/households/enroll/components/DietaryRestrictionsForm";
-import AdditionalNeedsForm from "@/app/households/enroll/components/AdditionalNeedsForm";
-import PetsForm from "@/app/households/enroll/components/PetsForm";
-import FoodParcelsForm from "@/app/households/enroll/components/FoodParcelsForm";
-import ReviewForm from "@/app/households/enroll/components/ReviewForm";
+import HouseholdForm from "@/app/[locale]/households/enroll/components/HouseholdForm";
+import MembersForm from "@/app/[locale]/households/enroll/components/MembersForm";
+import DietaryRestrictionsForm from "@/app/[locale]/households/enroll/components/DietaryRestrictionsForm";
+import AdditionalNeedsForm from "@/app/[locale]/households/enroll/components/AdditionalNeedsForm";
+import PetsForm from "@/app/[locale]/households/enroll/components/PetsForm";
+import FoodParcelsForm from "@/app/[locale]/households/enroll/components/FoodParcelsForm";
+import ReviewForm from "@/app/[locale]/households/enroll/components/ReviewForm";
 
 // Import types
 import {
@@ -37,7 +39,7 @@ import {
     AdditionalNeed,
     FoodParcels,
     Comment,
-} from "@/app/households/enroll/types";
+} from "@/app/[locale]/households/enroll/types";
 
 // Define type for submit status
 interface SubmitStatus {
@@ -57,10 +59,10 @@ interface HouseholdWizardProps {
     mode: "create" | "edit";
     // Initial data (empty for enrollment, pre-populated for editing)
     initialData?: FormData;
-    // Title to display at the top
-    title: string | React.ReactNode;
+    // Title to display at the top (optional, will use default if not provided)
+    title?: string | React.ReactNode;
     // Submit function (different for enrollment vs editing)
-    onSubmit: (data: FormData) => Promise<{ success: boolean; error?: string }>;
+    onSubmit?: (data: FormData) => Promise<{ success: boolean; error?: string }>;
     // Optional function to add comments (passed from the parent for edit mode)
     onAddComment?: (comment: string) => Promise<Comment | undefined>;
     // Optional function to delete comments (passed from the parent for edit mode)
@@ -71,11 +73,11 @@ interface HouseholdWizardProps {
     loadError?: string | null;
     // Button color for final submit button
     submitButtonColor?: string;
-    // Text for the submit button
+    // Text for the submit button (optional, will use default if not provided)
     submitButtonText?: string;
 }
 
-export default function HouseholdWizard({
+export function HouseholdWizard({
     mode,
     initialData,
     title,
@@ -85,14 +87,20 @@ export default function HouseholdWizard({
     isLoading = false,
     loadError = null,
     submitButtonColor = "green",
-    submitButtonText = "Spara hushåll",
+    submitButtonText,
 }: HouseholdWizardProps) {
+    const t = useTranslations("wizard");
+    const locale = useLocale();
     const router = useRouter();
     const [active, setActive] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<SubmitStatus | null>(null);
     const [validationError, setValidationError] = useState<ValidationError | null>(null);
     const [showError, { open: openError, close: closeError }] = useDisclosure(false);
+
+    // Use localized default values if not provided
+    const defaultTitle = mode === "create" ? t("createHousehold") : t("editHousehold");
+    const defaultSubmitButtonText = mode === "create" ? t("saveHousehold") : t("updateHousehold");
 
     // Initialize form data, either from props or with default empty values
     const [formData, setFormData] = useState<FormData>(
@@ -101,7 +109,7 @@ export default function HouseholdWizard({
                 first_name: "",
                 last_name: "",
                 phone_number: "",
-                locale: "sv",
+                locale: locale,
                 postal_code: "",
             },
             members: [],
@@ -142,7 +150,7 @@ export default function HouseholdWizard({
             if (!first_name || first_name.trim().length < 2) {
                 setValidationError({
                     field: "first_name",
-                    message: "Förnamn måste vara minst 2 tecken",
+                    message: t("validation.firstNameLength"),
                 });
                 openError();
                 return;
@@ -152,7 +160,7 @@ export default function HouseholdWizard({
             if (!last_name || last_name.trim().length < 2) {
                 setValidationError({
                     field: "last_name",
-                    message: "Efternamn måste vara minst 2 tecken",
+                    message: t("validation.lastNameLength"),
                 });
                 openError();
                 return;
@@ -162,7 +170,7 @@ export default function HouseholdWizard({
             if (!phone_number || !/^\d{8,12}$/.test(phone_number)) {
                 setValidationError({
                     field: "phone_number",
-                    message: "Ange ett giltigt telefonnummer (8-12 siffror)",
+                    message: t("validation.phoneNumberFormat"),
                 });
                 openError();
                 return;
@@ -173,7 +181,7 @@ export default function HouseholdWizard({
             if (!cleanPostalCode || !/^\d{5}$/.test(cleanPostalCode)) {
                 setValidationError({
                     field: "postal_code",
-                    message: "Postnummer måste bestå av 5 siffror",
+                    message: t("validation.postalCodeFormat"),
                 });
                 openError();
                 return;
@@ -186,7 +194,7 @@ export default function HouseholdWizard({
             if (!pickupLocationId) {
                 setValidationError({
                     field: "pickupLocationId",
-                    message: "Välj en hämtplats",
+                    message: t("validation.pickupLocation"),
                 });
                 openError();
                 return;
@@ -217,6 +225,8 @@ export default function HouseholdWizard({
     };
 
     const handleSubmit = async () => {
+        if (!onSubmit) return;
+
         try {
             setSubmitting(true);
             setSubmitStatus(null);
@@ -227,20 +237,19 @@ export default function HouseholdWizard({
             if (result.success) {
                 setSubmitStatus({
                     type: "success",
-                    message:
-                        mode === "create"
-                            ? "Nytt hushåll har registrerats!"
-                            : "Hushållet har uppdaterats!",
+                    message: mode === "create" ? t("success.created") : t("success.updated"),
                 });
 
                 // Navigate to destination with success message in query params
                 router.push(
-                    `/households?success=true&action=${mode}&householdName=${encodeURIComponent(formData.household.first_name + " " + formData.household.last_name)}`,
+                    `/households?success=true&action=${mode}&householdName=${encodeURIComponent(
+                        formData.household.first_name + " " + formData.household.last_name,
+                    )}`,
                 );
             } else {
                 setSubmitStatus({
                     type: "error",
-                    message: `Ett fel uppstod: ${result.error || "Okänt fel"}`,
+                    message: `${t("error.general")}: ${result.error || t("error.unknown")}`,
                 });
                 setSubmitting(false); // Only stop the spinner if there's an error
             }
@@ -248,10 +257,7 @@ export default function HouseholdWizard({
             console.error(`Error ${mode === "create" ? "creating" : "updating"} household:`, error);
             setSubmitStatus({
                 type: "error",
-                message:
-                    mode === "create"
-                        ? "Ett fel uppstod vid registrering av hushåll."
-                        : "Ett fel uppstod vid uppdatering av hushåll.",
+                message: mode === "create" ? t("error.create") : t("error.update"),
             });
             setSubmitting(false);
         }
@@ -279,12 +285,15 @@ export default function HouseholdWizard({
     if (loadError) {
         return (
             <Container size="lg" py="md">
-                <Alert icon={<IconAlertCircle size="1rem" />} title="Fel" color="red" mb="md">
+                <Alert
+                    icon={<IconAlertCircle size="1rem" />}
+                    title={t("error.title")}
+                    color="red"
+                    mb="md"
+                >
                     {loadError}
                 </Alert>
-                <Button onClick={() => router.push("/households")}>
-                    Tillbaka till hushållslistan
-                </Button>
+                <Button onClick={() => router.push("/households")}>{t("backToHouseholds")}</Button>
             </Container>
         );
     }
@@ -293,7 +302,7 @@ export default function HouseholdWizard({
         <Container size="lg" py="md">
             <Box mb="md">
                 <Title order={2} ta="center" component="div">
-                    {title}
+                    {title || defaultTitle}
                 </Title>
             </Box>
 
@@ -302,7 +311,7 @@ export default function HouseholdWizard({
                     <Group>
                         <Loader size="md" />
                         <Text>
-                            {mode === "create" ? "Skapar nytt hushåll..." : "Uppdaterar hushåll..."}
+                            {mode === "create" ? t("submitting.create") : t("submitting.update")}
                         </Text>
                     </Group>
                 </Center>
@@ -317,7 +326,7 @@ export default function HouseholdWizard({
                             <IconAlertCircle size="1rem" />
                         )
                     }
-                    title={submitStatus.type === "success" ? "Klart!" : "Fel"}
+                    title={submitStatus.type === "success" ? t("success.title") : t("error.title")}
                     color={submitStatus.type === "success" ? "green" : "red"}
                     mb="md"
                 >
@@ -329,7 +338,7 @@ export default function HouseholdWizard({
                 <Notification
                     icon={<IconAlertCircle size="1.1rem" />}
                     color="red"
-                    title="Valideringsfel"
+                    title={t("validation.title")}
                     mb="md"
                     onClose={closeError}
                 >
@@ -339,7 +348,10 @@ export default function HouseholdWizard({
 
             <Card withBorder radius="md" p="md" mb="md">
                 <Stepper active={active} onStepClick={setActive} size="sm">
-                    <Stepper.Step label="Grunduppgifter" description="Kontaktinformation">
+                    <Stepper.Step
+                        label={t("steps.basics.label")}
+                        description={t("steps.basics.description")}
+                    >
                         <HouseholdForm
                             data={formData.household}
                             updateData={(data: Household) => updateFormData("household", data)}
@@ -354,7 +366,10 @@ export default function HouseholdWizard({
                         />
                     </Stepper.Step>
 
-                    <Stepper.Step label="Medlemmar" description="Hushållsmedlemmar">
+                    <Stepper.Step
+                        label={t("steps.members.label")}
+                        description={t("steps.members.description")}
+                    >
                         <MembersForm
                             data={formData.members}
                             updateData={(data: HouseholdMember[]) =>
@@ -363,7 +378,10 @@ export default function HouseholdWizard({
                         />
                     </Stepper.Step>
 
-                    <Stepper.Step label="Matrestriktioner" description="Specialkost">
+                    <Stepper.Step
+                        label={t("steps.diet.label")}
+                        description={t("steps.diet.description")}
+                    >
                         <DietaryRestrictionsForm
                             data={formData.dietaryRestrictions}
                             updateData={(data: DietaryRestriction[]) =>
@@ -372,14 +390,20 @@ export default function HouseholdWizard({
                         />
                     </Stepper.Step>
 
-                    <Stepper.Step label="Husdjur" description="Information om husdjur">
+                    <Stepper.Step
+                        label={t("steps.pets.label")}
+                        description={t("steps.pets.description")}
+                    >
                         <PetsForm
                             data={formData.pets}
                             updateData={data => updateFormData("pets", data)}
                         />
                     </Stepper.Step>
 
-                    <Stepper.Step label="Ytterligare behov" description="Särskilda behov">
+                    <Stepper.Step
+                        label={t("steps.needs.label")}
+                        description={t("steps.needs.description")}
+                    >
                         <AdditionalNeedsForm
                             data={formData.additionalNeeds}
                             updateData={(data: AdditionalNeed[]) =>
@@ -388,7 +412,10 @@ export default function HouseholdWizard({
                         />
                     </Stepper.Step>
 
-                    <Stepper.Step label="Matkassar" description="Schemaläggning">
+                    <Stepper.Step
+                        label={t("steps.parcels.label")}
+                        description={t("steps.parcels.description")}
+                    >
                         <FoodParcelsForm
                             data={formData.foodParcels}
                             updateData={(data: FoodParcels) => updateFormData("foodParcels", data)}
@@ -400,7 +427,10 @@ export default function HouseholdWizard({
                         />
                     </Stepper.Step>
 
-                    <Stepper.Step label="Sammanfattning" description="Granska och skicka">
+                    <Stepper.Step
+                        label={t("steps.review.label")}
+                        description={t("steps.review.description")}
+                    >
                         <ReviewForm
                             formData={formData}
                             isEditing={mode === "edit"}
@@ -418,11 +448,11 @@ export default function HouseholdWizard({
                                 onClick={prevStep}
                                 leftSection={<IconArrowLeft size="1rem" />}
                             >
-                                Tillbaka
+                                {t("navigation.back")}
                             </Button>
                         )}
                         <Button onClick={nextStep} rightSection={<IconArrowRight size="1rem" />}>
-                            Nästa steg
+                            {t("navigation.next")}
                         </Button>
                     </Group>
                 )}
@@ -434,7 +464,7 @@ export default function HouseholdWizard({
                             onClick={prevStep}
                             leftSection={<IconArrowLeft size="1rem" />}
                         >
-                            Tillbaka
+                            {t("navigation.back")}
                         </Button>
                         <Button
                             onClick={handleSubmit}
@@ -442,7 +472,7 @@ export default function HouseholdWizard({
                             loading={submitting}
                             rightSection={<IconCheck size="1rem" />}
                         >
-                            {submitButtonText}
+                            {submitButtonText || defaultSubmitButtonText}
                         </Button>
                     </Group>
                 )}
