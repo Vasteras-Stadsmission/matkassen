@@ -199,6 +199,11 @@ describe("HouseholdForm Component", () => {
             locale: "sv",
         };
 
+        // Create a local formValues variable to track changes
+        let formValues = { ...initialData };
+        // Create a formUpdates array to track update events
+        const formUpdates: Array<{ action: string; values: Household }> = [];
+
         // Render the component
         render(<HouseholdForm data={initialData} updateData={updateDataMock} />);
 
@@ -234,6 +239,9 @@ describe("HouseholdForm Component", () => {
             postal_code: "12345",
             locale: "sv",
         };
+
+        // Create a local formValues variable to track changes
+        let formValues = { ...initialData };
 
         // Render the component
         const result = render(<HouseholdForm data={initialData} updateData={updateDataMock} />);
