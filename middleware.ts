@@ -1,6 +1,11 @@
-export { auth as middleware } from "@/auth";
+import createMiddleware from "next-intl/middleware";
+import { routing } from "@/app/i18n/routing";
 
-// Add a matcher configuration to exclude paths that shouldn't be protected
+// This middleware intercepts requests to `/` and will redirect
+// to a locale-prefixed pathname (e.g. `/en`).
+export default createMiddleware(routing);
+
+// Only run the middleware on the home page
 export const config = {
-    matcher: ["/((?!auth/error|api|_next/static|_next/image|favicon.svg|favicon.ico|$).*)"],
+    matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
 };

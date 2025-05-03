@@ -1,42 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Burger, Button, Container, Group, Text, Box, Drawer } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
-import classes from "./HeaderSimple.module.css";
 import { UserAvatarWrapper } from "../UserAvatarWrapper";
 import { AuthButton } from "../AuthButton";
 import { NavigationLink } from "../NavigationUtils";
+import { TransitionLink } from "../TransitionLink";
+import { LanguageSwitcher } from "../LanguageSwitcher";
+import { useTranslations } from "next-intl";
+import { usePathname } from "@/app/i18n/navigation";
 
-interface NavLink {
-    link: string;
-    label: string;
-}
-
-const links: NavLink[] = [
-    { link: "/households", label: "Hushåll" },
-    { link: "/schedule", label: "Schema" },
-    { link: "/handout-locations", label: "Utlämningsställen" },
-    { link: "/households/enroll", label: "Nytt hushåll +" },
-];
+import classes from "./HeaderSimple.module.css";
 
 // Special home link for the logo
 const HOME_LINK = "/";
 
-const ScanQRCodeLink = () => (
-    <a href="https://scanapp.org/" target="_blank" rel="noreferrer">
-        <Button variant="outline">Skanna QR-kod</Button>
-    </a>
-);
-
 export function HeaderSimple() {
-    const router = useRouter();
     const pathname = usePathname();
     const [opened, { toggle, close }] = useDisclosure(false);
     const [active, setActive] = useState("");
+    const t = useTranslations("navigation");
+    const tCommon = useTranslations("common");
+
+    // Define navigation links with translated labels using useMemo to avoid dependency changes
+    const links = useMemo(
+        () => [
+            { link: "/households", label: t("households") },
+            { link: "/schedule", label: t("schedule") },
+            { link: "/handout-locations", label: t("locations") },
+            { link: "/households/enroll", label: t("newHousehold") },
+        ],
+        [t],
+    );
+
+    // QR Code scanning link component
+    const ScanQRCodeLink = () => (
+        <a href="https://scanapp.org/" target="_blank" rel="noreferrer">
+            <Button variant="outline">{t("scanQrCode")}</Button>
+        </a>
+    );
 
     // Initialize the active state based on the current path
     useEffect(() => {
@@ -44,29 +48,35 @@ export function HeaderSimple() {
             // On home page, no nav link should be active
             setActive(HOME_LINK);
         } else {
-            // Only update if the path corresponds to one of our links
-            const matchingLink = links.find(link => pathname === link.link);
-            if (matchingLink) {
-                setActive(matchingLink.link);
+            // First check for exact matches
+            const exactMatch = links.find(link => link.link === pathname);
+            if (exactMatch) {
+                setActive(exactMatch.link);
+                return;
+            }
+
+            // If we have a nested path like /households/enroll, prioritize the most specific match
+            const matchingLinks = links
+                .filter(link => pathname.startsWith(link.link))
+                .sort((a, b) => b.link.length - a.link.length); // Sort by length descending to get most specific match first
+
+            if (matchingLinks.length > 0) {
+                setActive(matchingLinks[0].link);
             }
         }
-    }, [pathname]);
+    }, [pathname, links]);
 
-    const handleNavigation = (link: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-
+    const handleNavigation = (link: string) => () => {
         // Set the active state
         setActive(link);
-
-        // Only transition if we're not already on this page
-        if (pathname !== link) {
-            router.push(link);
-        }
 
         // Close mobile menu if open
         if (opened) {
             close();
         }
+
+        // The actual navigation will be handled by the NavigationLink component
+        // which uses useTransition to show the skeleton during navigation
     };
 
     const isHomeActive = active === HOME_LINK;
@@ -100,22 +110,22 @@ export function HeaderSimple() {
             <header className={classes.header}>
                 <Container size="md" className={classes.inner}>
                     <Box className={classes.logoContainer}>
-                        <Link
-                            href="/"
-                            onClick={handleNavigation(HOME_LINK)}
+                        <TransitionLink
+                            href={HOME_LINK}
                             className={classes.logo}
                             data-active={isHomeActive || undefined}
                         >
                             <Image src="/favicon.svg" alt="Logo" width={30} height={30} />
                             <Text component="span" fw={500} size="lg" ml={8}>
-                                matkassen
+                                {tCommon("matkassen")}
                             </Text>
-                        </Link>
+                        </TransitionLink>
                     </Box>
-                    <Group gap={5} visibleFrom="xs">
+                    <Group gap={5} className={classes.navLinksContainer} visibleFrom="xs">
                         {desktopLinks}
                     </Group>
-                    <Group gap={5} visibleFrom="xs">
+                    <Group gap={5} className={classes.actionsContainer} visibleFrom="xs">
+                        <LanguageSwitcher />
                         <UserAvatarWrapper />
                         <AuthButton />
                         <ScanQRCodeLink />
@@ -128,7 +138,7 @@ export function HeaderSimple() {
             <Drawer
                 opened={opened}
                 onClose={close}
-                title="Navigation"
+                title={t("navigation")}
                 size="xs"
                 hiddenFrom="xs"
                 zIndex={1000}
@@ -136,6 +146,7 @@ export function HeaderSimple() {
                 <div className={classes.mobileMenu}>
                     {mobileLinks}
                     <div className={classes.mobileActions}>
+                        <LanguageSwitcher />
                         <ScanQRCodeLink />
                         <UserAvatarWrapper />
                         <AuthButton />

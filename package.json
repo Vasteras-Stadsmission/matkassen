@@ -40,6 +40,7 @@
         "mantine-datatable": "^7.17.1",
         "next": "15.2.4",
         "next-auth": "^5.0.0-beta.25",
+        "next-intl": "^4.1.0",
         "pg": "^8.14.1",
         "postgres": "^3.4.5",
         "react": "^19.1.0",

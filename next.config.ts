@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-// import path from 'path';
+import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
     // Recommended: this will reduce output
@@ -43,8 +43,15 @@ const nextConfig: NextConfig = {
     poweredByHeader: false,
     reactStrictMode: true,
 
-    // Enhanced static optimization
-    staticPageGenerationTimeout: 120,
+    // Increase timeout for static generation to avoid errors
+    staticPageGenerationTimeout: 180,
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin({
+    requestConfig: "./app/i18n/request.ts", // Specify the custom path to the request config
+    experimental: {
+        // Provide the path to the messages that you're using in `AppConfig`
+        createMessagesDeclaration: "./messages/en.json",
+    },
+});
+export default withNextIntl(nextConfig);

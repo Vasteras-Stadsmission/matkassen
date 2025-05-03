@@ -1,0 +1,379 @@
+{
+    "common": {
+        "matkassen": "matkassen",
+        "welcome": "Welcome to Matkassen",
+        "description": "Administration system for food parcel distribution",
+        "authStatus": "Authentication status",
+        "loggedInAs": "You are logged in as",
+        "loginToAccess": "Please log in to access the application's features",
+        "languages": {
+            "sv": "Swedish"
+        }
+    },
+    "auth": {
+        "login": "Log in",
+        "logout": "Log out"
+    },
+    "navigation": {
+        "matkassen": "matkassen",
+        "households": "Households",
+        "schedule": "Schedule",
+        "locations": "Locations",
+        "newHousehold": "Add Household +",
+        "scanQrCode": "Scan QR Code",
+        "navigation": "Navigation"
+    },
+    "households": {
+        "title": "Households",
+        "description": "Manage households and their information",
+        "newHousehold": "New household has been registered!",
+        "updatedHousehold": "The household has been updated!",
+        "search": {
+            "placeholder": "Search households..."
+        },
+        "modal": {
+            "loading": "Loading...",
+            "title": "Household Details: {firstName} {lastName}"
+        },
+        "actions": {
+            "view": "View",
+            "edit": "Edit"
+        },
+        "table": {
+            "firstName": "First Name",
+            "lastName": "Last Name",
+            "phoneNumber": "Phone Number",
+            "language": "Language",
+            "postalCode": "Postal Code",
+            "firstParcel": "First Food Parcel",
+            "lastParcel": "Last Food Parcel",
+            "nextParcel": "Next Food Parcel",
+            "actions": {
+                "viewDetails": "View Details",
+                "edit": "Edit Household",
+                "search": "Search households..."
+            }
+        },
+        "errors": {
+            "notFound": "Could not find the household. Please check that the ID is correct.",
+            "createError": "An error occurred while registering the household.",
+            "updateError": "An error occurred while updating the household."
+        }
+    },
+    "householdForm": {
+        "basics": "Basic Information",
+        "basicDescription": "Fill in the basic contact information for the household. This information is used to contact the household.",
+        "firstName": "First Name",
+        "enterFirstName": "Enter first name",
+        "lastName": "Last Name",
+        "enterLastName": "Enter last name",
+        "phoneNumber": "Phone Number",
+        "enterPhoneNumber": "Enter phone number",
+        "postalCode": "Postal Code",
+        "language": "Language",
+        "selectLanguage": "Select language",
+        "validation": {
+            "firstNameLength": "First name must be at least 2 characters",
+            "lastNameLength": "Last name must be at least 2 characters",
+            "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
+            "postalCodeFormat": "Postal code must be 5 digits"
+        }
+    },
+    "members": {
+        "title": "Household Members",
+        "description": "Add all members of the household. This information is used to calculate food quantity and special needs.",
+        "noMembers": "No members have been added yet",
+        "registered": "Registered members:",
+        "addPerson": "Add Person",
+        "age": "Age",
+        "ageUnit": "years",
+        "addInstructions": "Fill in the age and select gender for each household member and then click on \"Add Person\" to add them to the list.",
+        "gender": {
+            "label": "Gender",
+            "male": "Male",
+            "female": "Female",
+            "other": "Other"
+        },
+        "validation": {
+            "ageRequired": "Age is required",
+            "genderRequired": "Gender selection is required"
+        }
+    },
+    "dietaryRestrictions": {
+        "title": "Dietary Restrictions",
+        "description": "Select dietary restrictions that apply to the household. You can choose from the list or add your own restrictions.",
+        "loading": "Loading dietary restrictions...",
+        "noRestrictions": "No dietary restrictions added",
+        "addNew": "Add new restriction",
+        "newRestriction": "New dietary restriction",
+        "placeholderExample": "E.g. Strawberries, Soy, etc.",
+        "add": "Add",
+        "addConfirmTitle": "Add Dietary Restriction",
+        "addConfirmQuestion": "Do you want to add the following dietary restriction to your application?",
+        "removeConfirmTitle": "Remove Dietary Restriction",
+        "removeConfirmQuestion": "Do you want to remove the following dietary restriction from your application?",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "validation": {
+            "minLength": "Dietary restriction must be at least 2 characters"
+        }
+    },
+    "pets": {
+        "title": "Pets",
+        "description": "Register pets in the household. This helps us to adapt the food assortment.",
+        "noPets": "No pets added",
+        "loading": "Loading pet types...",
+        "addNew": "Add new type of pet",
+        "newPetType": "New type of pet",
+        "placeholderExample": "E.g. Guinea Pig, Lizard, etc.",
+        "add": "Add",
+        "addConfirmTitle": "Add Pet Type",
+        "addConfirmQuestion": "Do you want to add the following pet type to your application?",
+        "removeConfirmTitle": "Remove Pet Type",
+        "removeConfirmQuestion": "Do you want to remove the following pet type from your application?",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "defaultPetType": "Pet type {index}",
+        "unknownPetType": "Unknown",
+        "validation": {
+            "minLength": "Pet type must be at least 2 characters"
+        }
+    },
+    "additionalNeeds": {
+        "title": "Additional Needs",
+        "description": "Select additional needs that the household may have. You can choose from the list or add your own needs.",
+        "noNeeds": "No additional needs added",
+        "loading": "Loading additional needs...",
+        "addNew": "Add new need",
+        "newNeed": "New need",
+        "placeholderExample": "E.g. Razors, Shampoo, etc.",
+        "add": "Add",
+        "validation": {
+            "minLength": "Need must be at least 2 characters"
+        }
+    },
+    "foodParcels": {
+        "title": "Scheduled Food Parcels",
+        "description": "Schedule food parcels for the household with pickup location and times.",
+        "settings": "Scheduling Settings",
+        "pickupLocation": "Pickup Location",
+        "selectLocation": "Select pickup location",
+        "selectDates": "Select dates for food parcels",
+        "loadingAvailability": "Loading availability...",
+        "selectLocationFirst": "Select a pickup location first to see availability",
+        "selectDatesHint": "Select all dates when the household should receive a food parcel",
+        "setBulkTimes": "Set all times",
+        "editingAllTimes": "Editing all times",
+        "bulkTimeHint": "Set the same time for all food parcels, or cancel to edit individually.",
+        "individualTimeHint": "Click on the times to change pickup time for each individual food parcel.",
+        "time": {
+            "earliest": "Earliest pickup time",
+            "latest": "Latest pickup time",
+            "updateAll": "Update all",
+            "error": "Earliest time must be before latest time",
+            "dateAndPickup": "Date and pickup time"
+        },
+        "errors": {
+            "selectLocation": "Select a pickup location"
+        }
+    },
+    "review": {
+        "title": "Summary",
+        "editDescription": "Review all information before updating the household.",
+        "createDescription": "Review all information before saving the new household."
+    },
+    "schedule": {
+        "title": "Food Support Scheduling",
+        "today": "Today",
+        "weekLabel": "Week {week}, {year}",
+        "loading": "Loading schedule...",
+        "noFoodSupport": "No food support scheduled this week",
+        "refresh": "Refresh",
+        "selectWeek": "Select Week",
+        "days": {
+            "monday": "Monday",
+            "tuesday": "Tuesday",
+            "wednesday": "Wednesday",
+            "thursday": "Thursday",
+            "friday": "Friday",
+            "saturday": "Saturday",
+            "sunday": "Sunday"
+        },
+        "pickupTimeLabel": "Time",
+        "statusLabel": "Status",
+        "pickedUpStatus": "Picked up",
+        "notPickedUpStatus": "Not picked up",
+        "reschedule": {
+            "title": "Schedule food support for {name}",
+            "changed": "Time has been changed from",
+            "to": "to",
+            "from": "From:",
+            "to2": "To:",
+            "confirmTitle": "Confirm Rescheduling",
+            "confirmQuestion": "Do you want to reschedule food support for {name}?",
+            "confirm": "Confirm Change",
+            "cancel": "Cancel",
+            "success": "Schedule Updated",
+            "successMessage": "{name} has been rescheduled to a new time.",
+            "error": "Scheduling error",
+            "pastError": "Cannot schedule food support in the past.",
+            "pastSourceError": "Cannot reschedule food support from a time in the past.",
+            "genericError": "An unexpected error occurred.",
+            "outsideWeek": "Schedule outside of current week",
+            "selectDateError": "You must select a date",
+            "timeError": "Earliest time must be before latest time",
+            "earliestTime": "Earliest pickup time",
+            "latestTime": "Latest pickup time"
+        }
+    },
+    "householdDetail": {
+        "basics": "Basic Information",
+        "members": "Members ({count})",
+        "noMembers": "No members added",
+        "pets": "Pets ({count})",
+        "noPets": "No pets added",
+        "dietaryRestrictions": "Dietary Restrictions ({count})",
+        "noDietaryRestrictions": "No dietary restrictions added",
+        "additionalNeeds": "Additional Needs ({count})",
+        "noAdditionalNeeds": "No additional needs added",
+        "foodParcels": "Food Parcels ({count})",
+        "noFoodParcels": "No food parcels scheduled",
+        "ageUnit": "years",
+        "status": {
+            "pickedUp": "Picked up",
+            "notPickedUp": "Not picked up"
+        },
+        "comments": {
+            "title": "Comments ({count})"
+        }
+    },
+    "comments": {
+        "title": "Comments ({count})",
+        "noComments": "No comments added",
+        "placeholder": "Add a comment about the household... (HTML is supported, e.g. links)",
+        "add": "Add"
+    },
+    "wizard": {
+        "stepBasics": "Basic Information",
+        "stepBasicsDescription": "Contact Information",
+        "stepMembers": "Members",
+        "stepMembersDescription": "Household Members",
+        "stepDietaryRestrictions": "Dietary Restrictions",
+        "stepDietaryRestrictionsDescription": "Special Diet",
+        "stepPets": "Pets",
+        "stepPetsDescription": "Pet Information",
+        "stepAdditionalNeeds": "Additional Needs",
+        "stepAdditionalNeedsDescription": "Special Needs",
+        "stepFoodParcels": "Food Parcels",
+        "stepFoodParcelsDescription": "Scheduling",
+        "stepReview": "Summary",
+        "stepReviewDescription": "Review and submit",
+        "creating": "Creating new household...",
+        "updating": "Updating household...",
+        "validationError": "Validation Error",
+        "nextStep": "Next Step",
+        "back": "Back",
+        "backToList": "Back to household list",
+        "saveHousehold": "Save Household",
+        "createHousehold": "Create Household",
+        "editHousehold": "Edit Household",
+        "updateHousehold": "Update Household",
+        "backToHouseholds": "Back to Households",
+        "steps": {
+            "basics": {
+                "label": "Basic Information",
+                "description": "Contact Information"
+            },
+            "members": {
+                "label": "Members",
+                "description": "Household Members"
+            },
+            "diet": {
+                "label": "Dietary Restrictions",
+                "description": "Special Diet"
+            },
+            "pets": {
+                "label": "Pets",
+                "description": "Pet Information"
+            },
+            "needs": {
+                "label": "Additional Needs",
+                "description": "Special Needs"
+            },
+            "parcels": {
+                "label": "Food Parcels",
+                "description": "Scheduling"
+            },
+            "review": {
+                "label": "Summary",
+                "description": "Review and submit"
+            }
+        },
+        "navigation": {
+            "next": "Next Step",
+            "back": "Back"
+        },
+        "validation": {
+            "title": "Validation Error",
+            "firstNameLength": "First name must be at least 2 characters",
+            "lastNameLength": "Last name must be at least 2 characters",
+            "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
+            "postalCodeFormat": "Postal code must be 5 digits",
+            "pickupLocation": "Select a pickup location"
+        },
+        "success": {
+            "title": "Success!",
+            "created": "New household has been created!",
+            "updated": "The household has been updated!"
+        },
+        "error": {
+            "title": "Error",
+            "general": "An error occurred",
+            "unknown": "Unknown error",
+            "create": "An error occurred while creating the household",
+            "update": "An error occurred while updating the household"
+        },
+        "submitting": {
+            "create": "Creating new household...",
+            "update": "Updating household..."
+        }
+    },
+    "buttons": {
+        "add": "Add",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "confirm": "Confirm"
+    },
+    "languages": {
+        "en": "English",
+        "sv": "Swedish",
+        "english": "English",
+        "swedish": "Swedish",
+        "britishFlag": "British flag",
+        "swedishFlag": "Swedish flag",
+        "switchTo": "Switch to {language}"
+    },
+    "weekdays": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
+    },
+    "months": {
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
+    }
+}

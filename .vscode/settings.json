@@ -5,5 +5,9 @@
         "**/*.sass",
         "**/*.less",
         "node_modules/@mantine/core/styles.css"
-    ]
+    ],
+    "files.exclude": {
+        "**/.next": true
+    },
+    "editor.formatOnSave": true
 }

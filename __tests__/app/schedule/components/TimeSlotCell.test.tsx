@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach, mock } from "bun:test";
 import { Window } from "happy-dom";
 import React, { ReactNode } from "react";
 import { render } from "@testing-library/react";
-import { FoodParcel } from "@/app/schedule/actions";
+import { FoodParcel } from "@/app/[locale]/schedule/actions";
 
 // Set up happy-dom
 const window = new Window();

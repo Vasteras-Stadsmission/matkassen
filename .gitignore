@@ -46,3 +46,6 @@ next-env.d.ts
 # Ensure migrations are tracked
 !/migrations/
 !/migrations/**
+
+# Ignore generated i18n files
+messages/*.d.json.ts

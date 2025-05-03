@@ -1,7 +1,20 @@
 {
     "extends": ["next/core-web-vitals", "next/typescript"],
     "rules": {
-        "react/no-unescaped-entities": "off"
+        "react/no-unescaped-entities": "off",
+        // Consistently import navigation APIs from `@/i18n/navigation`
+        "no-restricted-imports": [
+            "error",
+            {
+                "name": "next/link",
+                "message": "Please import from `@/i18n/navigation` instead."
+            },
+            {
+                "name": "next/navigation",
+                "importNames": ["redirect", "permanentRedirect", "useRouter", "usePathname"],
+                "message": "Please import from `@/i18n/navigation` instead."
+            }
+        ]
     },
     "overrides": [
         {
@@ -9,8 +22,8 @@
             "env": { "jest": true },
             "plugins": ["jest"],
             "extends": ["plugin:jest/recommended"]
-            /* put per-test tweaks here, e.g.
-           "rules": { "@typescript-eslint/no-unsafe-call": "off" } */
+            // put per-test tweaks here, e.g.
+            //"rules": { "@typescript-eslint/no-unsafe-call": "off" }
         }
     ]
 }
