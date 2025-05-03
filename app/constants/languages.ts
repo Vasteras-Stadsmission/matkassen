@@ -3,88 +3,83 @@ export interface LanguageMapping {
     label: string;
 }
 
-// Language codes mapped to their names in different languages
-export const LANGUAGE_MAP: Record<string, Record<string, string>> = {
-    // Swedish language names
-    sv: {
-        sv: "Svenska",
-        en: "Engelska",
-        ar: "Arabiska",
-        fa: "Persiska",
-        ku: "Kurdiska",
-        es: "Spanska",
-        fr: "Franska",
-        de: "Tyska",
-        el: "Grekiska",
-        sw: "Swahili",
-        so: "Somaliska",
-        so_so: "Sydsomaliska",
-        uk: "Ukrainska",
-        ru: "Ryska",
-        ka: "Georgiska",
-        fi: "Finska",
-        it: "Italienska",
-        th: "Thailändska",
-        vi: "Vietnamesiska",
-        pl: "Polska",
-        hy: "Armeniska",
-    },
-    // English language names
-    en: {
-        sv: "Swedish",
-        en: "English",
-        ar: "Arabic",
-        fa: "Persian",
-        ku: "Kurdish",
-        es: "Spanish",
-        fr: "French",
-        de: "German",
-        el: "Greek",
-        sw: "Swahili",
-        so: "Somali",
-        so_so: "South Somali",
-        uk: "Ukrainian",
-        ru: "Russian",
-        ka: "Georgian",
-        fi: "Finnish",
-        it: "Italian",
-        th: "Thai",
-        vi: "Vietnamese",
-        pl: "Polish",
-        hy: "Armenian",
-    },
-};
+// Define the supported locales
+// We keep track of these explicitly to control which languages are available in the app
+const SUPPORTED_LOCALES = [
+    "sv",
+    "en",
+    "ar",
+    "fa",
+    "ku",
+    "es",
+    "fr",
+    "de",
+    "el",
+    "sw",
+    "so",
+    "so_so",
+    "uk",
+    "ru",
+    "ka",
+    "fi",
+    "it",
+    "th",
+    "vi",
+    "pl",
+    "hy",
+];
 
-// Helper function to get language name in the appropriate locale
+// Helper function to get language name using Intl.DisplayNames
 export function getLanguageName(locale: string, displayLocale: string = "sv"): string {
-    // If the requested display locale isn't supported, fall back to Swedish
-    const languageMap = LANGUAGE_MAP[displayLocale] || LANGUAGE_MAP.sv;
+    try {
+        // Use the Intl.DisplayNames API to get localized language names
+        const displayNames = new Intl.DisplayNames([displayLocale], { type: "language" });
 
-    // Return the language name in the requested display locale, or fall back to the locale code itself
-    return languageMap[locale] || locale;
+        // Special handling for variants like "so_so" which Intl.DisplayNames doesn't support directly
+        if (locale === "so_so") {
+            return displayLocale === "sv" ? "sydsomaliska" : "South Somali";
+        }
+
+        return displayNames.of(locale) || locale;
+    } catch (error) {
+        // Fallback in case Intl.DisplayNames is not supported or throws an error
+        console.warn(`Error getting display name for ${locale} in ${displayLocale}:`, error);
+        return locale;
+    }
 }
 
 // Get all supported locale codes
 export function getSupportedLocales(): string[] {
-    return Object.keys(LANGUAGE_MAP.sv);
+    return SUPPORTED_LOCALES;
 }
 
 // Get language select options with Swedish at the top, rest sorted alphabetically
 export function getLanguageSelectOptions(displayLocale: string = "sv"): LanguageMapping[] {
-    const localeMap = LANGUAGE_MAP[displayLocale] || LANGUAGE_MAP.sv;
     const supportedLocales = getSupportedLocales();
 
     // Place Swedish at the top of the list
-    const options: LanguageMapping[] = [{ value: "sv", label: localeMap.sv }];
+    const options: LanguageMapping[] = [
+        {
+            value: "sv",
+            label: getLanguageName("sv", displayLocale),
+        },
+    ];
 
     // Add the rest of the languages sorted alphabetically
     const otherLocales = supportedLocales.filter(locale => locale !== "sv");
     const sortedOptions = otherLocales
         .map(locale => ({
             value: locale,
-            label: localeMap[locale] || locale,
+            label: getLanguageName(locale, displayLocale),
         }))
         .sort((a, b) => a.label.localeCompare(b.label, displayLocale));
 
     return [...options, ...sortedOptions];
 }
+
+// Export a pre-computed set of language options for common display locales
+// This improves the API by hiding implementation details
+export const languageOptions = {
+    sv: getLanguageSelectOptions("sv"),
+    en: getLanguageSelectOptions("en"),
+};

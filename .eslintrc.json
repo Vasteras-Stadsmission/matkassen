@@ -22,8 +22,8 @@
             "env": { "jest": true },
             "plugins": ["jest"],
             "extends": ["plugin:jest/recommended"]
-            /* put per-test tweaks here, e.g.
-           "rules": { "@typescript-eslint/no-unsafe-call": "off" } */
+            // put per-test tweaks here, e.g.
+            //"rules": { "@typescript-eslint/no-unsafe-call": "off" }
         }
     ]
 }

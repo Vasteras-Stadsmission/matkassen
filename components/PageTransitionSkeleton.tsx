@@ -14,11 +14,40 @@ function SearchParamsHandler() {
 }
 
 /**
+ * Props for the PageTransitionSkeleton component
+ */
+interface PageTransitionSkeletonProps {
+    /**
+     * When true, the skeleton is always shown regardless of navigation state
+     * Useful for Next.js loading states
+     */
+    alwaysMounted?: boolean;
+    /**
+     * Optional preset layout to use
+     * If not provided, it will be determined by the destination path
+     */
+    layout?: "default" | "household" | "schedule" | "handout-locations";
+    /**
+     * Optional custom skeleton content
+     * Takes precedence over layout if provided
+     */
+    children?: React.ReactNode;
+}
+
+/**
  * This component renders skeleton placeholders during page transitions
  * to create a more seamless user experience when navigating between pages.
  * It only replaces the main content area below the header.
+ *
+ * Can be used in two ways:
+ * 1. As a page transition skeleton (default) - shows during navigation
+ * 2. As a loading state (alwaysMounted=true) - shows always
  */
-export function PageTransitionSkeleton() {
+export function PageTransitionSkeleton({
+    alwaysMounted = false,
+    layout,
+    children,
+}: PageTransitionSkeletonProps = {}) {
     const [isNavigating, setIsNavigating] = useState(false);
     const [destinationPath, setDestinationPath] = useState("");
     const pathname = usePathname();
@@ -80,6 +109,8 @@ export function PageTransitionSkeleton() {
 
     // Set up event listeners and observers
     useEffect(() => {
+        if (alwaysMounted) return; // Skip for loading states
+
         // Listen for custom navigation events
         document.addEventListener("navigation-start", handleNavigationStart);
 
@@ -125,22 +156,44 @@ export function PageTransitionSkeleton() {
             document.removeEventListener("navigation-start", handleNavigationStart);
             cleanupLinkCapture();
         };
-    }, [handleNavigationStart, handleLinkCapture, isNavigating]);
+    }, [handleNavigationStart, handleLinkCapture, isNavigating, alwaysMounted]);
 
     // Auto-hide timeout for safety
     useEffect(() => {
-        if (!isNavigating) return;
+        if (!isNavigating || alwaysMounted) return;
 
         const timeout = setTimeout(() => {
             setIsNavigating(false);
         }, 2000); // 2 second timeout as failsafe
 
         return () => clearTimeout(timeout);
-    }, [isNavigating]);
+    }, [isNavigating, alwaysMounted]);
 
-    // Get the appropriate skeleton layout based on the destination path
+    // Determine if the skeleton should be displayed
+    const isMounted = alwaysMounted || isNavigating;
+
+    // Get the appropriate skeleton layout based on the layout prop or destination path
     const getSkeletonContent = () => {
-        // Default skeleton for general pages
+        // Use custom content if provided
+        if (children) {
+            return children;
+        }
+
+        // Use specified layout if provided
+        if (layout) {
+            switch (layout) {
+                case "household":
+                    return <HouseholdPageSkeleton />;
+                case "schedule":
+                    return <SchedulePageSkeleton />;
+                case "handout-locations":
+                    return <HandoutLocationsSkeleton />;
+                default:
+                    return <DefaultPageSkeleton />;
+            }
+        }
+
+        // Fallback to detecting layout from destination path
         if (destinationPath.includes("/households")) {
             return <HouseholdPageSkeleton />;
         } else if (destinationPath.includes("/schedule")) {
@@ -155,12 +208,14 @@ export function PageTransitionSkeleton() {
     return (
         <>
             {/* Wrap the component using searchParams in Suspense */}
-            <Suspense fallback={null}>
-                <SearchParamsWrapper />
-            </Suspense>
+            {!alwaysMounted && (
+                <Suspense fallback={null}>
+                    <SearchParamsWrapper />
+                </Suspense>
+            )}
 
             {/* The main skeleton UI */}
-            <Transition mounted={isNavigating} transition="fade" duration={150}>
+            <Transition mounted={isMounted} transition="fade" duration={150}>
                 {styles => (
                     <Box
                         style={{
@@ -183,6 +238,11 @@ export function PageTransitionSkeleton() {
             </Transition>
         </>
     );
+}
+
+// For backwards compatibility - exports the PageSkeletonOverlay as a wrapper around the main component
+export function PageSkeletonOverlay() {
+    return <PageTransitionSkeleton alwaysMounted={true} />;
 }
 
 // Default page skeleton for general content

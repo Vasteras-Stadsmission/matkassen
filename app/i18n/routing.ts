@@ -6,7 +6,4 @@ export const routing = defineRouting({
 
     // Use Swedish as the default locale
     defaultLocale: "sv",
-
-    // The URL structure for localized routes
-    localePrefix: "always", // makes URLs like /sv/... and /en/...
 });
