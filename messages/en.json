@@ -12,7 +12,20 @@
     },
     "auth": {
         "login": "Log in",
-        "logout": "Log out"
+        "logout": "Log out",
+        "signInTitle": "Sign in to Matkassen",
+        "signInDescription": "Sign in with your GitHub account to access the Matkassen administration system.",
+        "signInWithGitHub": "Sign in with GitHub",
+        "errorTitle": "Authentication Error",
+        "tryAgain": "Try Again",
+        "errors": {
+            "notOrgMember": "You must be a member of the authorized organization to sign in.",
+            "invalidProvider": "Invalid account provider. Please use GitHub.",
+            "configuration": "There is a problem with the authentication configuration. Please contact support.",
+            "accessDenied": "Access denied. You don't have permission to sign in.",
+            "verification": "Verification failed. Please try signing in again.",
+            "default": "An error occurred while signing in. Please try again."
+        }
     },
     "navigation": {
         "matkassen": "matkassen",

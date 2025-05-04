@@ -1,8 +1,31 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
+import type { NextAuthConfig } from "next-auth";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-    providers: [GitHub],
+// Define a more comprehensive Auth.js configuration
+const authConfig: NextAuthConfig = {
+    providers: [
+        GitHub({
+            clientId: process.env.GITHUB_ID,
+            clientSecret: process.env.GITHUB_SECRET,
+            // Disable PKCE to fix the cookie parsing issue
+            authorization: {
+                params: { scope: "read:user user:email read:org" },
+            },
+        }),
+    ],
+    cookies: {
+        // Configure cookies to be properly accessible and secure
+        sessionToken: {
+            name: `next-auth.session-token`,
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                secure: process.env.NODE_ENV === "production",
+            },
+        },
+    },
     callbacks: {
         authorized: async ({ auth }) => {
             // Logged in users are authenticated, otherwise redirect to login page
@@ -40,4 +63,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return baseUrl;
         },
     },
-});
+};
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);

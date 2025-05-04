@@ -12,7 +12,15 @@
     },
     "auth": {
         "login": "Logga in",
-        "logout": "Logga ut"
+        "logout": "Logga ut",
+        "signInTitle": "Logga in på Matkassen",
+        "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matkassens administrationssystem.",
+        "signInWithGitHub": "Logga in med GitHub",
+        "errors": {
+            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen för att logga in.",
+            "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
+            "default": "Ett fel uppstod vid inloggningen. Försök igen."
+        }
     },
     "navigation": {
         "matkassen": "Matkassen",
