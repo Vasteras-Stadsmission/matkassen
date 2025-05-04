@@ -4,6 +4,7 @@ import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
 import { enrollHousehold } from "./actions";
 import { FormData } from "./types";
 import { useTranslations } from "next-intl";
+import { AuthProtectionClient } from "@/components/AuthProtection/client";
 
 export default function EnrollHouseholdPage() {
     const t = useTranslations("wizard");
@@ -25,12 +26,14 @@ export default function EnrollHouseholdPage() {
     };
 
     return (
-        <HouseholdWizard
-            mode="create"
-            title={t("createHousehold")}
-            onSubmit={handleSubmit}
-            submitButtonColor="green"
-            submitButtonText={t("saveHousehold")}
-        />
+        <AuthProtectionClient>
+            <HouseholdWizard
+                mode="create"
+                title={t("createHousehold")}
+                onSubmit={handleSubmit}
+                submitButtonColor="green"
+                submitButtonText={t("saveHousehold")}
+            />
+        </AuthProtectionClient>
     );
 }

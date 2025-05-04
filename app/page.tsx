@@ -1,3 +1,10 @@
-// This file is not needed when using next-intl middleware
-// The middleware will handle the redirection to the default locale
-export { default } from "next/dist/client/components/not-found-error";
+import { redirect } from "@/app/i18n/navigation";
+import { routing } from "./i18n/routing";
+
+export default function RootPage() {
+    // Redirect to the default locale when accessing the root path
+    redirect({
+        href: "/",
+        locale: routing.defaultLocale,
+    });
+}

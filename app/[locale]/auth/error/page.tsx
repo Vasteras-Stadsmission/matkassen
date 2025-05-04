@@ -1,14 +1,14 @@
-import { Suspense } from "react";
 import ErrorContent from "./ErrorContent";
-import { setRequestLocale } from "next-intl/server";
 
-export default function AuthErrorPage({ params: { locale } }: { params: { locale: string } }) {
-    // Enable static rendering
-    setRequestLocale(locale);
+export interface AuthErrorPageProps {
+    searchParams?: {
+        error?: string;
+    };
+}
 
-    return (
-        <Suspense fallback={<div>Loading authentication error details...</div>}>
-            <ErrorContent messageKey="serverError" />
-        </Suspense>
-    );
+export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
+    // The error param can come from the Next.js searchParams
+    const errorType = searchParams?.error;
+
+    return <ErrorContent messageKey={errorType} />;
 }

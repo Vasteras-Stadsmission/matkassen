@@ -1,7 +1,8 @@
+"use client";
+
 import React from "react";
 import { Button } from "@mantine/core";
-import { signOut, useSession } from "next-auth/react";
-import { Link } from "@/app/i18n/navigation";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 
 export function AuthButton() {
@@ -15,11 +16,10 @@ export function AuthButton() {
     if (status === "authenticated") {
         return (
             <Button
-                component="a"
-                href="/api/auth/signout"
                 onClick={e => {
                     e.preventDefault();
-                    signOut();
+                    // Direct call to signOut to avoid locale prefix issues
+                    signOut({ callbackUrl: "/" });
                 }}
             >
                 {t("logout")}
@@ -28,7 +28,13 @@ export function AuthButton() {
     }
 
     return (
-        <Button component={Link} href="/api/auth/signin">
+        <Button
+            onClick={e => {
+                e.preventDefault();
+                // Direct call to signIn to avoid locale prefix issues
+                signIn("github");
+            }}
+        >
             {t("login")}
         </Button>
     );
