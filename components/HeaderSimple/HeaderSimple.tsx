@@ -4,11 +4,10 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Burger, Button, Container, Group, Text, Box, Drawer } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { UserAvatarWrapper } from "../UserAvatarWrapper";
-import { AuthButton } from "../AuthButton";
 import { NavigationLink } from "../NavigationUtils";
 import { TransitionLink } from "../TransitionLink";
 import { LanguageSwitcher } from "../LanguageSwitcher";
+import { AuthDropdown } from "../AuthDropdown/AuthDropdown";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
 
@@ -126,8 +125,7 @@ export function HeaderSimple() {
                     </Group>
                     <Group gap={5} className={classes.actionsContainer} visibleFrom="xs">
                         <LanguageSwitcher />
-                        <UserAvatarWrapper />
-                        <AuthButton />
+                        <AuthDropdown />
                         <ScanQRCodeLink />
                     </Group>
                     <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
@@ -148,8 +146,7 @@ export function HeaderSimple() {
                     <div className={classes.mobileActions}>
                         <LanguageSwitcher />
                         <ScanQRCodeLink />
-                        <UserAvatarWrapper />
-                        <AuthButton />
+                        <AuthDropdown />
                     </div>
                 </div>
             </Drawer>

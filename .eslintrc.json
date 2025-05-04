@@ -2,17 +2,17 @@
     "extends": ["next/core-web-vitals", "next/typescript"],
     "rules": {
         "react/no-unescaped-entities": "off",
-        // Consistently import navigation APIs from `@/i18n/navigation`
+        // Consistently import navigation APIs from `@/app/i18n/navigation`
         "no-restricted-imports": [
             "error",
             {
                 "name": "next/link",
-                "message": "Please import from `@/i18n/navigation` instead."
+                "message": "Please import from `@/app/i18n/navigation` instead."
             },
             {
                 "name": "next/navigation",
                 "importNames": ["redirect", "permanentRedirect", "useRouter", "usePathname"],
-                "message": "Please import from `@/i18n/navigation` instead."
+                "message": "Please import from `@/app/i18n/navigation` instead."
             }
         ]
     },

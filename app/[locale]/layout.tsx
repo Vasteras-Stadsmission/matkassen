@@ -7,6 +7,11 @@ import { routing } from "@/app/i18n/routing";
 import getMessagesFromRequest from "@/app/i18n/request";
 import { LayoutClient } from "./layout.client";
 
+// Define type for params
+type Params = {
+    locale: string;
+};
+
 export function generateStaticParams() {
     return routing.locales.map(locale => ({ locale }));
 }
@@ -16,7 +21,7 @@ export default async function LocaleLayout({
     params,
 }: {
     children: React.ReactNode;
-    params: Promise<{ locale: string }>;
+    params: Params | Promise<Params>;
 }) {
     // Ensure the locale from params is valid
     const { locale } = await params;
