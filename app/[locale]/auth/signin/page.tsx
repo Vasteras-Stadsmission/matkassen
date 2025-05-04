@@ -1,23 +1,38 @@
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+import { redirect } from "@/app/i18n/navigation";
 import { SignInClient } from "./SignInClient";
+
+type SearchParams = {
+    callbackUrl?: string;
+    error?: string;
+};
+
+type Params = {
+    locale: string;
+};
 
 // Server component for handling authentication redirect
 export default async function SignInPage({
     searchParams,
+    params,
 }: {
-    searchParams: { callbackUrl?: string; error?: string };
+    searchParams: SearchParams | Promise<SearchParams>;
+    params: Params | Promise<Params>;
 }) {
     const session = await auth();
 
-    // Get the callback URL from the search params or use the root path
-    const callbackUrl = searchParams.callbackUrl || "/";
+    const { callbackUrl = "/" } = await searchParams;
+    const { locale } = await params;
 
     // Redirect if already authenticated
     if (session) {
-        redirect(callbackUrl);
+        redirect({
+            href: callbackUrl,
+            locale,
+        });
     }
 
     // Pass any error from the search params to the client component
-    return <SignInClient callbackUrl={callbackUrl} errorType={searchParams.error} />;
+    const { error } = await searchParams;
+    return <SignInClient callbackUrl={callbackUrl} errorType={error} />;
 }

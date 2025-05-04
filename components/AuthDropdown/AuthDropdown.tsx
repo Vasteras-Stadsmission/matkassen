@@ -27,6 +27,11 @@ export function AuthDropdown() {
 
     // Logged in state - avatar only with dropdown
     const user = session.user;
+    // If user is not defined, show a default avatar
+    // This can happen if the session is not fully loaded or if the user data is not available
+    if (!user) {
+        return <Avatar size="md" radius="xl" color="blue" />;
+    }
 
     return (
         <Menu shadow="md" width={200} position="bottom-end" withArrow>
