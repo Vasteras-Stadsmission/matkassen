@@ -18,6 +18,9 @@
         "signInWithGitHub": "Sign in with GitHub",
         "errorTitle": "Authentication Error",
         "tryAgain": "Try Again",
+        "account": "Account",
+        "profile": "Profile",
+        "user": "User",
         "errors": {
             "notOrgMember": "You must be a member of the authorized organization to sign in.",
             "invalidProvider": "Invalid account provider. Please use GitHub.",

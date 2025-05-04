@@ -1,0 +1,25 @@
+.user {
+  color: inherit;
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-sm);
+  transition: background-color 100ms ease;
+  cursor: pointer;
+}
+
+.user:hover {
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+}
+
+.avatarButton {
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.avatarButton:hover {
+  transform: scale(1.05);
+}
+
+.usernameItem {
+  padding: 0 var(--mantine-spacing-xs);
+}

@@ -16,6 +16,9 @@
         "signInTitle": "Logga in på Matkassen",
         "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matkassens administrationssystem.",
         "signInWithGitHub": "Logga in med GitHub",
+        "account": "Konto",
+        "profile": "Profil",
+        "user": "Användare",
         "errors": {
             "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen för att logga in.",
             "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
