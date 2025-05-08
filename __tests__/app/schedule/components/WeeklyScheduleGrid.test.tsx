@@ -40,9 +40,10 @@ mock.module("@mantine/notifications", () => ({
 
 // Set up happy-dom
 const window = new Window();
-global.document = window.document;
-global.window = window as any; // Use type assertion to avoid TypeScript errors
-global.navigator = window.navigator as any; // Use type assertion to avoid TypeScript errors
+global.document = window.document as unknown as Document;
+// Use a more general type assertion to satisfy TypeScript's strict typing
+global.window = window as unknown as any;
+global.navigator = window.navigator as unknown as Navigator;
 
 // Create custom query functions for testing
 const queryByTestId = (container: HTMLElement, testId: string): HTMLElement | null => {

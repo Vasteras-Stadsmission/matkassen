@@ -15,8 +15,8 @@ import {
 } from "@tabler/icons-react";
 import HouseholdComments from "@/app/[locale]/households/components/HouseholdComments";
 import { Comment } from "@/app/[locale]/households/enroll/types";
-import { useTranslations } from "next-intl";
-import { getLanguageName } from "@/app/constants/languages";
+import { useTranslations, useLocale } from "next-intl";
+import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 
 interface HouseholdDetailProps {
     householdDetail: {
@@ -74,6 +74,7 @@ export default function InternationalizedHouseholdDetail({
 }: HouseholdDetailProps) {
     const t = useTranslations("householdDetail");
     const tWeekdays = useTranslations("weekdays");
+    const currentLocale = useLocale();
 
     // Format date for display
     const formatDate = (date: Date | string | null | undefined) => {
@@ -155,6 +156,11 @@ export default function InternationalizedHouseholdDetail({
         });
 
         return uniquePets;
+    };
+
+    // Get language name using the proper function from constants
+    const getLanguageName = (locale: string): string => {
+        return getLanguageNameFromLocale(locale, currentLocale);
     };
 
     return (

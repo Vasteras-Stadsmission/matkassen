@@ -12,6 +12,14 @@ export function toStockholmTime(date: Date): Date {
 }
 
 /**
+ * Convert a date to a zoned date in Stockholm timezone
+ * (Alias for toStockholmTime for backward compatibility)
+ */
+export function toStockholmDate(date: Date): Date {
+    return toStockholmTime(date);
+}
+
+/**
  * Convert a Stockholm timezone date to UTC
  */
 export function fromStockholmTime(date: Date): Date {

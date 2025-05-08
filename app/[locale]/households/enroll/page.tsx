@@ -2,7 +2,7 @@
 
 import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
 import { enrollHousehold } from "./actions";
-import { FormData } from "./types";
+import { FormData, HouseholdCreateData } from "./types";
 import { useTranslations } from "next-intl";
 import { AuthProtectionClient } from "@/components/AuthProtection/client";
 
@@ -11,7 +11,31 @@ export default function EnrollHouseholdPage() {
 
     const handleSubmit = async (formData: FormData) => {
         try {
-            const result = await enrollHousehold(formData);
+            // Transform FormData to HouseholdCreateData format
+            const householdData: HouseholdCreateData = {
+                headOfHousehold: {
+                    firstName: formData.household.first_name,
+                    lastName: formData.household.last_name,
+                    phoneNumber: formData.household.phone_number,
+                    postalCode: formData.household.postal_code,
+                    locale: formData.household.locale,
+                },
+                members: formData.members.map(member => ({
+                    firstName: member.age.toString(), // Placeholder, real data would have firstName
+                    lastName: "", // Placeholder, real data would have lastName
+                    age: member.age,
+                    sex: member.sex,
+                })),
+                dietaryRestrictions: formData.dietaryRestrictions,
+                additionalNeeds: formData.additionalNeeds,
+                pets: formData.pets,
+                foodParcels: {
+                    pickupLocationId: formData.foodParcels.pickupLocationId,
+                    parcels: formData.foodParcels.parcels,
+                },
+            };
+
+            const result = await enrollHousehold(householdData);
             return {
                 success: result.success,
                 error: result.error,

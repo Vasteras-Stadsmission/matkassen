@@ -31,6 +31,7 @@ import {
     getPickupLocations,
     checkPickupLocationCapacity,
     getPickupLocationCapacityForRange,
+    getPickupLocationSchedules,
 } from "../actions";
 import { FoodParcels, FoodParcel } from "../types";
 import { useTranslations } from "next-intl";
@@ -51,6 +52,34 @@ interface FoodParcelsFormProps {
     error?: ValidationError | null;
 }
 
+// Types for location schedule
+interface ScheduleDay {
+    weekday: string;
+    isOpen: boolean;
+    openingTime: string | null;
+    closingTime: string | null;
+}
+
+interface Schedule {
+    id: string;
+    name: string;
+    startDate: Date;
+    endDate: Date;
+    days: ScheduleDay[];
+}
+
+interface SpecialDay {
+    date: Date;
+    openingTime: string;
+    closingTime: string;
+    isClosed: boolean;
+}
+
+interface LocationSchedules {
+    schedules: Schedule[];
+    specialDays: SpecialDay[];
+}
+
 export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
     const t = useTranslations("foodParcels");
 
@@ -61,6 +90,8 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const [bulkEarliestTime, setBulkEarliestTime] = useState("12:00");
     const [bulkLatestTime, setBulkLatestTime] = useState("13:00");
     const [bulkTimeError, setBulkTimeError] = useState<string | null>(null);
+    // Add state for location schedules
+    const [locationSchedules, setLocationSchedules] = useState<LocationSchedules | null>(null);
 
     /* eslint-disable @typescript-eslint/no-unused-vars */
     const [_capacityNotification, setCapacityNotification] = useState<{
@@ -182,6 +213,31 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         fetchCapacityData();
     }, [formState.pickupLocationId]);
 
+    // Fetch location schedules when pickup location changes
+    useEffect(() => {
+        async function fetchSchedules() {
+            if (!formState.pickupLocationId) {
+                setLocationSchedules(null);
+                return;
+            }
+
+            try {
+                const schedules = await getPickupLocationSchedules(formState.pickupLocationId);
+                // Cast the schedules object to the LocationSchedules type
+                // This is a temporary solution until we update the API to return the correct type
+                setLocationSchedules({
+                    schedules: schedules.schedules,
+                    specialDays: [], // Add empty specialDays array for compatibility
+                } as unknown as LocationSchedules);
+            } catch (error) {
+                console.error("Error fetching location schedules:", error);
+                setLocationSchedules(null);
+            }
+        }
+
+        fetchSchedules();
+    }, [formState.pickupLocationId]);
+
     const isDateExcluded = useCallback(
         (date: Date): boolean => {
             const localDate = new Date(date);
@@ -197,6 +253,65 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
             if (isAlreadySelected) {
                 return false; // Never exclude dates that are already selected
+            }
+
+            // Check against location schedule
+            if (locationSchedules) {
+                // First check if it's a special day
+                const specialDay = locationSchedules.specialDays.find(
+                    day =>
+                        new Date(day.date).toISOString().split("T")[0] ===
+                        dateForComparison.toISOString().split("T")[0],
+                );
+
+                // If it's a special day marked as closed, exclude it
+                if (specialDay && specialDay.isClosed) {
+                    return true; // Exclude this date
+                }
+
+                // If it's a special day that's open, allow it
+                if (specialDay && !specialDay.isClosed) {
+                    // Don't exclude special days that are open
+                } else {
+                    // Check if this day falls within any schedule and is an open day
+                    const dayOfWeek = localDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                    // Convert JavaScript day of week to our weekday enum format
+                    const weekdayNames = [
+                        "sunday",
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                    ];
+                    const weekday = weekdayNames[dayOfWeek];
+
+                    // Check all schedules
+                    let isOpenOnThisDay = false;
+
+                    for (const schedule of locationSchedules.schedules) {
+                        // Check if date is within schedule's date range
+                        const startDate = new Date(schedule.startDate);
+                        const endDate = new Date(schedule.endDate);
+                        startDate.setHours(0, 0, 0, 0);
+                        endDate.setHours(23, 59, 59, 999);
+
+                        if (dateForComparison >= startDate && dateForComparison <= endDate) {
+                            // Check if this weekday is open in this schedule
+                            const dayConfig = schedule.days.find(day => day.weekday === weekday);
+                            if (dayConfig && dayConfig.isOpen) {
+                                isOpenOnThisDay = true;
+                                break; // Found an open schedule for this day
+                            }
+                        }
+                    }
+
+                    // If no schedule has this day open, exclude it
+                    if (!isOpenOnThisDay) {
+                        return true; // Exclude this date
+                    }
+                }
             }
 
             // For unselected dates, perform the capacity check
@@ -221,7 +336,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             // Exclude unselected dates that would exceed capacity
             return maxPerDay !== null && totalCount >= maxPerDay;
         },
-        [capacityData, selectedDates],
+        [capacityData, selectedDates, locationSchedules],
     );
 
     const renderDay = (date: Date) => {
@@ -262,6 +377,56 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             return selected.getTime() === dateForComparison.getTime();
         });
 
+        // Check if the date is unavailable due to location schedule
+        let isUnavailableDueToSchedule = false;
+        if (locationSchedules) {
+            // First check if it's a special day
+            const specialDay = locationSchedules.specialDays.find(
+                day =>
+                    new Date(day.date).toISOString().split("T")[0] ===
+                    dateForComparison.toISOString().split("T")[0],
+            );
+
+            // If it's a special day marked as closed, it's unavailable
+            if (specialDay && specialDay.isClosed) {
+                isUnavailableDueToSchedule = true;
+            }
+            // If it's not a special day that's open, check regular schedules
+            else if (!specialDay || (specialDay && specialDay.isClosed)) {
+                // Check if this day falls within any schedule and is an open day
+                const weekdayNames = [
+                    "sunday",
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                ];
+                const weekday = weekdayNames[dayOfWeek];
+
+                // Assume unavailable unless we find an open schedule
+                isUnavailableDueToSchedule = true;
+
+                for (const schedule of locationSchedules.schedules) {
+                    // Check if date is within schedule's date range
+                    const startDate = new Date(schedule.startDate);
+                    const endDate = new Date(schedule.endDate);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setHours(23, 59, 59, 999);
+
+                    if (dateForComparison >= startDate && dateForComparison <= endDate) {
+                        // Check if this weekday is open in this schedule
+                        const dayConfig = schedule.days.find(day => day.weekday === weekday);
+                        if (dayConfig && dayConfig.isOpen) {
+                            isUnavailableDueToSchedule = false;
+                            break; // Found an open schedule for this day
+                        }
+                    }
+                }
+            }
+        }
+
         let dayStyle: React.CSSProperties = {};
 
         if (isSelected) {
@@ -278,6 +443,18 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             );
         }
 
+        // Apply style for dates unavailable due to schedule
+        if (isUnavailableDueToSchedule) {
+            dayStyle = {
+                backgroundColor: "var(--mantine-color-gray-2)",
+                color: "var(--mantine-color-gray-6)",
+                textDecoration: "line-through",
+                opacity: 0.5,
+                fontWeight: 400,
+            };
+        }
+
+        // Fully booked dates take precedence in styling
         if (isFullyBooked) {
             dayStyle = {
                 backgroundColor: "var(--mantine-color-red-0)",
@@ -288,7 +465,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             };
         }
 
-        if (isWeekend && !isFullyBooked) {
+        if (isWeekend && !isFullyBooked && !isUnavailableDueToSchedule) {
             dayStyle = {
                 ...dayStyle,
                 opacity: dayStyle.opacity || 0.8,
@@ -686,7 +863,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             minDate={new Date()}
                             numberOfColumns={2}
                             renderDay={renderDay}
-                            excludeDate={isDateExcluded}
+                            excludeDate={isDateExcluded as (date: Date) => boolean}
                         />
 
                         {loadingCapacityData && formState.pickupLocationId && (
@@ -756,6 +933,30 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     <Text size="xs" c="dimmed">
                         {t("selectDatesHint")}
                     </Text>
+
+                    {/* Add legend to explain calendar styling */}
+                    <Box mt="sm">
+                        <Group gap="md">
+                            <Group gap="xs">
+                                <Box w={14} h={14} bg="gray.2" style={{ opacity: 0.5 }}></Box>
+                                <Text size="xs" c="dimmed">
+                                    {t("calendar.unavailableClosedDay")}
+                                </Text>
+                            </Group>
+                            <Group gap="xs">
+                                <Box w={14} h={14} bg="red.0" style={{ opacity: 0.7 }}></Box>
+                                <Text size="xs" c="dimmed">
+                                    {t("calendar.fullyBooked")}
+                                </Text>
+                            </Group>
+                            <Group gap="xs">
+                                <Box w={14} h={14} bg="blue.filled"></Box>
+                                <Text size="xs" c="white">
+                                    {t("calendar.selected")}
+                                </Text>
+                            </Group>
+                        </Group>
+                    </Box>
                 </Stack>
             </SimpleGrid>
 

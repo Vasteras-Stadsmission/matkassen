@@ -9,6 +9,9 @@ import {
     pgEnum,
     check,
     primaryKey,
+    time,
+    date,
+    index,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -19,6 +22,17 @@ export const nanoid = (length = 14) => {
 };
 
 export const sexEnum = pgEnum("sex", ["male", "female", "other"]);
+
+// Define weekday enum for opening hours
+export const weekdayEnum = pgEnum("weekday", [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+]);
 
 export const households = pgTable(
     "households",
@@ -68,7 +82,6 @@ export const householdMembers = pgTable("household_members", {
     sex: sexEnum("sex").notNull(),
 });
 
-// Pet species table similar to dietary_restrictions
 export const petSpecies = pgTable("pet_species_types", {
     id: text("id")
         .primaryKey()
@@ -77,7 +90,6 @@ export const petSpecies = pgTable("pet_species_types", {
     name: text("name").notNull().unique(), // e.g., dog, cat, bunny, bird...
 });
 
-// Updated pets table to reference pet_species instead of using enum
 export const pets = pgTable("pets", {
     id: text("id")
         .primaryKey()
@@ -92,7 +104,6 @@ export const pets = pgTable("pets", {
         .references(() => petSpecies.id, { onDelete: "restrict" }),
 });
 
-// Moved pickupLocations before foodParcels to resolve circular reference
 export const pickupLocations = pgTable(
     "pickup_locations",
     {
@@ -107,6 +118,9 @@ export const pickupLocations = pgTable(
         contact_name: varchar("contact_name", { length: 50 }),
         contact_email: varchar("contact_email", { length: 255 }),
         contact_phone_number: varchar("contact_phone_number", { length: 20 }),
+        default_slot_duration_minutes: integer("default_slot_duration_minutes")
+            .default(15)
+            .notNull(), // Default slot duration in minutes
     },
     table => {
         return [
@@ -120,6 +134,72 @@ export const pickupLocations = pgTable(
             ),
         ];
     },
+);
+
+export const pickupLocationSchedules = pgTable(
+    "pickup_location_schedules",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        pickup_location_id: text("pickup_location_id")
+            .notNull()
+            .references(() => pickupLocations.id, { onDelete: "cascade" }),
+        start_date: date("start_date").notNull(), // First day the schedule is valid
+        end_date: date("end_date").notNull(), // Last day the schedule is valid
+        name: text("name").notNull(), // Optional name for the schedule (e.g., "Summer schedule")
+    },
+    table => [
+        // Ensure end_date is after or equal to start_date
+        check("schedule_date_range_check", sql`${table.start_date} <= ${table.end_date}`),
+
+        // Add index for better performance when querying schedules by pickup location
+        index("idx_pickup_location_schedules_location").on(table.pickup_location_id),
+
+        // This adds a function-based check constraint that prevents overlapping date ranges
+        // for the same pickup location. The constraint uses a subquery to check if any other
+        // schedules for the same location have overlapping date ranges.
+        check(
+            "no_overlapping_schedules_check",
+            sql`
+                NOT EXISTS (
+                    SELECT 1
+                    FROM "pickup_location_schedules" AS existing
+                    WHERE
+                        existing.pickup_location_id = ${table.pickup_location_id}
+                        AND existing.id <> ${table.id}
+                        AND (
+                            (${table.start_date} <= existing.end_date AND ${table.end_date} >= existing.start_date)
+                        )
+                )
+            `,
+        ),
+    ],
+);
+
+// Table for each specific day's opening hours within a schedule
+export const pickupLocationScheduleDays = pgTable(
+    "pickup_location_schedule_days",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        schedule_id: text("schedule_id")
+            .notNull()
+            .references(() => pickupLocationSchedules.id, { onDelete: "cascade" }),
+        weekday: weekdayEnum("weekday").notNull(), // Monday, Tuesday, etc.
+        is_open: boolean("is_open").default(true).notNull(), // Whether location is open on this weekday
+        opening_time: time("opening_time"), // e.g., 09:00, nullable if is_open is false
+        closing_time: time("closing_time"), // e.g., 17:00, nullable if is_open is false
+    },
+    table => [
+        check(
+            "opening_hours_check",
+            sql`NOT ${table.is_open} OR (${table.opening_time} IS NOT NULL AND ${table.closing_time} IS NOT NULL AND ${table.opening_time} < ${table.closing_time})`,
+        ),
+    ],
 );
 
 export const foodParcels = pgTable(

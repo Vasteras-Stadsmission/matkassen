@@ -1,6 +1,6 @@
 "use client";
 
-import { Paper, Stack } from "@mantine/core";
+import { Paper, Stack, Tooltip } from "@mantine/core";
 import { ReactNode } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { FoodParcel } from "@/app/[locale]/schedule/actions";
@@ -21,6 +21,8 @@ interface TimeSlotCellProps {
     maxParcelsPerSlot: number;
     isOverCapacity?: boolean;
     dayIndex?: number;
+    isUnavailable?: boolean;
+    unavailableReason?: string;
 }
 
 export default function TimeSlotCell({
@@ -30,6 +32,8 @@ export default function TimeSlotCell({
     maxParcelsPerSlot,
     isOverCapacity = false,
     dayIndex = 0, // Default to 0 for backward compatibility
+    isUnavailable = false,
+    unavailableReason,
 }: TimeSlotCellProps) {
     // Check if the time slot is in the past using our timezone-aware utility
     const isPast = isPastTimeSlot(date, time);
@@ -37,19 +41,20 @@ export default function TimeSlotCell({
     // Setup droppable container with day index included
     const { setNodeRef, isOver } = useDroppable({
         id: `day-${dayIndex}-${date.toISOString().split("T")[0]}-${time}`,
-        disabled: isPast, // Disable dropping on past time slots
+        disabled: isPast || isUnavailable, // Disable dropping on past or unavailable time slots
     });
 
-    // Determine background color based on capacity, hover state, and past status
+    // Determine background color based on capacity, hover state, and availability status
     const getBgColor = () => {
-        if (isPast) return "gray.2"; // Grey out past time slots
+        if (isPast || isUnavailable) return "gray.2"; // Grey out past or unavailable time slots
         if (isOver) return "blue.0";
         if (isOverCapacity) return "red.0";
         if (parcels.length >= maxParcelsPerSlot * 0.75) return "yellow.0";
         return "white";
     };
 
-    return (
+    // Create the cell content
+    const cellContent = (
         <Paper
             ref={setNodeRef}
             p={4}
@@ -61,8 +66,11 @@ export default function TimeSlotCell({
                 transition: "background-color 0.2s",
                 position: "relative",
                 minHeight: 40,
-                opacity: isPast ? 0.7 : 1, // Reduce opacity for past time slots
-                cursor: isPast ? "not-allowed" : "default", // Change cursor for past time slots
+                opacity: isPast || isUnavailable ? 0.7 : 1, // Reduce opacity for past or unavailable time slots
+                cursor: isPast || isUnavailable ? "not-allowed" : "default", // Change cursor for unavailable time slots
+                backgroundImage: isUnavailable
+                    ? "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.05) 5px, rgba(0,0,0,0.05) 10px)"
+                    : "none", // Add subtle pattern for unavailable slots
             }}
         >
             {/* Parcels stack */}
@@ -77,4 +85,15 @@ export default function TimeSlotCell({
             </Stack>
         </Paper>
     );
+
+    // If the slot is unavailable and we have a reason, wrap it in a tooltip
+    if (isUnavailable && unavailableReason) {
+        return (
+            <Tooltip label={unavailableReason} position="top" withArrow>
+                {cellContent}
+            </Tooltip>
+        );
+    }
+
+    return cellContent;
 }
