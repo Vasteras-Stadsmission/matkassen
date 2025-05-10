@@ -81,12 +81,13 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
     const formatDateRange = (year: number, week: number) => {
         const { startDate, endDate } = getWeekDateRange(year, week);
 
-        // Format dates as DD/MM
+        // Format dates with week numbers for clarity
         const formatDate = (date: Date) => {
-            return format(date, "dd/MM");
+            const weekNum = getISOWeekNumber(date);
+            return `${format(date, "yyyy-MM-dd")} (${t("week")} ${weekNum})`;
         };
 
-        return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+        return `${formatDate(startDate)} — ${formatDate(endDate)}`;
     };
 
     // Get display value for input

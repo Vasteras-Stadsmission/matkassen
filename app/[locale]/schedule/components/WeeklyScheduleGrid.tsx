@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
     DndContext,
     DragEndEvent,
@@ -13,7 +13,18 @@ import {
     DragOverlay,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Box, Grid, Group, Modal, Paper, ScrollArea, Text, Button, Tooltip } from "@mantine/core";
+import {
+    Box,
+    Grid,
+    Group,
+    Modal,
+    Paper,
+    ScrollArea,
+    Text,
+    Button,
+    Tooltip,
+    Code,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
 import { IconArrowBackUp, IconCheck, IconInfoCircle } from "@tabler/icons-react";
@@ -52,11 +63,32 @@ interface TimeSlotGridData {
     timeslots: string[];
 }
 
-const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
-    const hour = Math.floor(i / 2) + 8; // Start from 8:00
+// Define a more comprehensive set of time slots from 06:00 to 22:00
+const ALL_TIME_SLOTS = Array.from({ length: 33 }, (_, i) => {
+    const hour = Math.floor(i / 2) + 6; // Start from 06:00
     const minute = (i % 2) * 30; // 0 or 30 minutes
     return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 });
+
+const DEFAULT_TIME_SLOTS = [
+    "09:00",
+    "09:30",
+    "10:00",
+    "10:30",
+    "11:00",
+    "11:30",
+    "12:00",
+    "12:30",
+    "13:00",
+    "13:30",
+    "14:00",
+    "14:30",
+    "15:00",
+    "15:30",
+    "16:00",
+    "16:30",
+    "17:00",
+];
 
 interface WeeklyScheduleGridProps {
     weekDates: Date[];
@@ -64,6 +96,7 @@ interface WeeklyScheduleGridProps {
     maxParcelsPerDay: number;
     maxParcelsPerSlot?: number;
     onParcelRescheduled: () => void;
+    locationId?: string | null; // Add locationId as prop
 }
 
 export default function WeeklyScheduleGrid({
@@ -72,8 +105,12 @@ export default function WeeklyScheduleGrid({
     maxParcelsPerDay,
     maxParcelsPerSlot = 3,
     onParcelRescheduled,
+    locationId, // Destructure locationId prop
 }: WeeklyScheduleGridProps) {
     const t = useTranslations("schedule") as TranslationFunction;
+
+    // Reference to track the last fetched location ID to prevent duplicate requests
+    const lastFetchedLocationIdRef = useRef<string | null>(null);
 
     const DAYS_OF_WEEK = [
         t("days.monday"),
@@ -122,6 +159,84 @@ export default function WeeklyScheduleGrid({
         [key: string]: string[];
     }>({});
 
+    // Filter TIME_SLOTS to only include those within the location's open hours
+    const [filteredTimeSlots, setFilteredTimeSlots] = useState<string[]>(DEFAULT_TIME_SLOTS);
+
+    // Function to filter time slots based on location schedule - With stable function references
+    const filterTimeSlotsBasedOnSchedule = useCallback(
+        (scheduleInfo: LocationScheduleInfo) => {
+            // Find all days in the week that have any availability
+            const availableDays = weekDates.filter(
+                date => isDateAvailable(date, scheduleInfo).isAvailable,
+            );
+
+            if (availableDays.length === 0) {
+                // If no days are available, keep all default time slots
+                setFilteredTimeSlots(DEFAULT_TIME_SLOTS);
+                return;
+            }
+
+            // Find the earliest opening time and latest closing time across all available days
+            let earliestOpeningTime = "23:59";
+            let latestClosingTime = "00:00";
+
+            availableDays.forEach(date => {
+                const timeRange = getAvailableTimeRange(date, scheduleInfo);
+                if (timeRange.earliestTime && timeRange.latestTime) {
+                    if (timeRange.earliestTime < earliestOpeningTime) {
+                        earliestOpeningTime = timeRange.earliestTime;
+                    }
+                    if (timeRange.latestTime > latestClosingTime) {
+                        latestClosingTime = timeRange.latestTime;
+                    }
+                }
+            });
+
+            // Debug in development mode to see what time ranges we're finding
+            console.log(
+                `[filterTimeSlotsBasedOnSchedule] Earliest opening: ${earliestOpeningTime}, Latest closing: ${latestClosingTime}`,
+            );
+
+            // If we couldn't determine time ranges, use default slots
+            if (earliestOpeningTime === "23:59" || latestClosingTime === "00:00") {
+                setFilteredTimeSlots(DEFAULT_TIME_SLOTS);
+                return;
+            }
+
+            // Convert times to hours and minutes for comparison
+            const [startHour, startMinute] = earliestOpeningTime.split(":").map(Number);
+            const [endHour, endMinute] = latestClosingTime.split(":").map(Number);
+
+            // Calculate time in minutes for easier comparison
+            const startTimeInMinutes = startHour * 60 + startMinute;
+            const endTimeInMinutes = endHour * 60 + endMinute;
+
+            // Generate all valid 30-minute time slots between opening and closing times
+            const validTimeSlots: string[] = [];
+
+            // Loop through the comprehensive ALL_TIME_SLOTS instead of DEFAULT_TIME_SLOTS
+            // This ensures we can handle any opening hours (e.g., 08:00-12:00 or 14:00-19:00)
+            for (const timeSlot of ALL_TIME_SLOTS) {
+                const [slotHour, slotMinute] = timeSlot.split(":").map(Number);
+                const slotTimeInMinutes = slotHour * 60 + slotMinute;
+
+                // Include if slot is within or equal to opening time, and before closing time
+                if (
+                    slotTimeInMinutes >= startTimeInMinutes &&
+                    slotTimeInMinutes < endTimeInMinutes
+                ) {
+                    validTimeSlots.push(timeSlot);
+                }
+            }
+
+            console.log(`[filterTimeSlotsBasedOnSchedule] Valid time slots:`, validTimeSlots);
+
+            // If no valid slots were found, fallback to default
+            setFilteredTimeSlots(validTimeSlots.length > 0 ? validTimeSlots : DEFAULT_TIME_SLOTS);
+        },
+        [weekDates], // Only depend on weekDates
+    );
+
     // Setup DnD sensors
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -145,7 +260,8 @@ export default function WeeklyScheduleGrid({
             newParcelsBySlot[dateKey] = {};
             newParcelCountByDate[dateKey] = 0;
 
-            TIME_SLOTS.forEach(timeSlot => {
+            // Initialize all possible time slots - use ALL_TIME_SLOTS to ensure we cover all possible parcel times
+            ALL_TIME_SLOTS.forEach(timeSlot => {
                 newParcelsBySlot[dateKey][timeSlot] = [];
             });
         });
@@ -168,7 +284,7 @@ export default function WeeklyScheduleGrid({
             const timeSlot = `${hours.toString().padStart(2, "0")}:${minuteRounded}`;
 
             // Add parcel to corresponding slot
-            if (newParcelsBySlot[dateKey] && TIME_SLOTS.includes(timeSlot)) {
+            if (newParcelsBySlot[dateKey]) {
                 if (!newParcelsBySlot[dateKey][timeSlot]) {
                     newParcelsBySlot[dateKey][timeSlot] = [];
                 }
@@ -194,7 +310,7 @@ export default function WeeklyScheduleGrid({
                         isSelected,
                     };
                 }),
-                timeslots: TIME_SLOTS,
+                timeslots: DEFAULT_TIME_SLOTS,
             };
 
             // Update grid state
@@ -254,30 +370,90 @@ export default function WeeklyScheduleGrid({
         [grid?.days, grid?.timeslots],
     );
 
-    // Fetch location schedules when food parcels are loaded
+    // Fetch location schedules when component mounts or when locationId changes
     useEffect(() => {
+        let isMounted = true;
+        let fetchTimeoutId: NodeJS.Timeout | null = null;
+
         async function fetchLocationSchedules() {
-            if (!foodParcels.length) return;
-
             try {
-                // Use the first food parcel's location ID since all parcels in a week view should be for the same location
-                const locationId = foodParcels[0].locationId || foodParcels[0].pickup_location_id;
+                let fetchLocationId: string | undefined;
 
+                // First try to use the locationId prop passed directly from SchedulePageClient
                 if (locationId) {
-                    const scheduleInfo = await getPickupLocationSchedules(locationId);
+                    fetchLocationId = locationId;
+                    console.log(`Using locationId prop: ${fetchLocationId}`);
+                }
+                // If that's not available, try to get it from the food parcels
+                else if (foodParcels.length > 0) {
+                    fetchLocationId =
+                        foodParcels[0].locationId || foodParcels[0].pickup_location_id;
+                    console.log(`Using location ID from food parcels: ${fetchLocationId}`);
+                } else {
+                    console.log("No location ID available, cannot fetch schedules");
+                    return;
+                }
+
+                if (fetchLocationId) {
+                    // To avoid duplicate requests to the same location when component rerenders,
+                    // we'll track the last fetched location ID in a ref
+                    if (lastFetchedLocationIdRef.current === fetchLocationId && locationSchedules) {
+                        console.log(
+                            `Using cached schedule data for location ID: ${fetchLocationId}`,
+                        );
+                        return;
+                    }
+
+                    console.log(`Fetching schedules for location ID: ${fetchLocationId}`);
+                    const scheduleInfo = await getPickupLocationSchedules(fetchLocationId);
+
+                    // Guard against component unmount during async operation
+                    if (!isMounted) return;
+
+                    console.log("Received schedule info:", scheduleInfo);
+
+                    // Update the last fetched location ID ref
+                    lastFetchedLocationIdRef.current = fetchLocationId;
+
                     setLocationSchedules(scheduleInfo);
 
                     // Calculate unavailable timeslots based on the location's schedule
                     const unavailableSlots = calculateUnavailableTimeSlots(scheduleInfo);
                     setUnavailableTimeSlots(unavailableSlots);
+
+                    // Filter the time slots based on location schedules
+                    filterTimeSlotsBasedOnSchedule(scheduleInfo);
                 }
             } catch (error) {
                 console.error("Error fetching location schedules:", error);
             }
         }
 
-        fetchLocationSchedules();
-    }, [foodParcels, calculateUnavailableTimeSlots]);
+        // Add a small delay to avoid multiple rapid calls, helping with "Lifecenter Church" issue
+        // by giving time for any parallel rendering to complete before making the request
+        if (fetchTimeoutId) {
+            clearTimeout(fetchTimeoutId);
+        }
+
+        fetchTimeoutId = setTimeout(() => {
+            fetchLocationSchedules();
+        }, 150); // Small delay to batch potential multiple renders
+
+        // Cleanup function to prevent state updates after unmount
+        return () => {
+            isMounted = false;
+            if (fetchTimeoutId) {
+                clearTimeout(fetchTimeoutId);
+            }
+        };
+    }, [
+        locationId,
+        calculateUnavailableTimeSlots,
+        filterTimeSlotsBasedOnSchedule,
+        // Include foodParcels and locationSchedules as proper dependencies
+        foodParcels,
+        locationSchedules,
+    ]);
 
     // Handle drag start event
     const handleDragStart = (event: DragStartEvent) => {
@@ -440,12 +616,6 @@ export default function WeeklyScheduleGrid({
         }
     };
 
-    // Check if a time slot is unavailable due to location schedule
-    const isTimeSlotUnavailable = (date: Date, timeSlot: string): boolean => {
-        const dateKey = formatDateToYMD(date);
-        return unavailableTimeSlots[dateKey]?.includes(timeSlot) || false;
-    };
-
     // Handle confirmation of rescheduling
     const handleConfirmReschedule = async () => {
         if (!draggedParcel || !targetSlot) return;
@@ -546,10 +716,55 @@ export default function WeeklyScheduleGrid({
                                 const isWeekend = dayOfWeek === 6 || dayOfWeek === 0;
                                 const isPast = isPastDate(date);
 
+                                // Direct debug for week 21
+                                if (isWeek21(date)) {
+                                    console.log(
+                                        `%c[DEBUG] Rendering day ${date.toISOString()} (${DAYS_OF_WEEK[index]})`,
+                                        "background: #ffeb3b; color: black; padding: 2px 4px;",
+                                    );
+                                    console.log(
+                                        `Day of week JS: ${dayOfWeek}, weekday name in DB format: ${getWeekdayName(date)}`,
+                                    );
+
+                                    if (locationSchedules) {
+                                        const availability = isDateAvailable(
+                                            date,
+                                            locationSchedules,
+                                        );
+                                        console.log(
+                                            `Is available according to schedule: ${availability.isAvailable}`,
+                                            availability,
+                                        );
+
+                                        // Check each schedule to find why days might be unavailable
+                                        locationSchedules.schedules.forEach(schedule => {
+                                            const startDate = new Date(schedule.startDate);
+                                            const endDate = new Date(schedule.endDate);
+                                            const isInRange = date >= startDate && date <= endDate;
+                                            console.log(
+                                                `Schedule ${schedule.name} (${startDate.toISOString()} - ${endDate.toISOString()}): ${isInRange ? "IN RANGE" : "out of range"}`,
+                                            );
+
+                                            if (isInRange) {
+                                                const weekdayName = getWeekdayName(date);
+                                                const dayConfig = schedule.days.find(
+                                                    d => d.weekday === weekdayName,
+                                                );
+                                                console.log(
+                                                    `Day config for ${weekdayName}:`,
+                                                    dayConfig,
+                                                );
+                                            }
+                                        });
+                                    } else {
+                                        console.log("No location schedules available");
+                                    }
+                                }
+
                                 // Check if this day is available in the location schedule
                                 const isDateUnavailable = locationSchedules
                                     ? !isDateAvailable(date, locationSchedules).isAvailable
-                                    : false;
+                                    : true; // Default to unavailable if no schedule data
 
                                 // Determine background color for day header
                                 const getBgColor = () => {
@@ -625,7 +840,7 @@ export default function WeeklyScheduleGrid({
                             scrollHideDelay={500}
                         >
                             <Box style={{ width: "100%" }}>
-                                {TIME_SLOTS.map(timeSlot => (
+                                {filteredTimeSlots.map(timeSlot => (
                                     <Grid
                                         columns={32}
                                         gutter="xs"
@@ -656,11 +871,39 @@ export default function WeeklyScheduleGrid({
                                                 maxParcelsPerSlot !== undefined &&
                                                 parcelsInSlot.length > maxParcelsPerSlot;
 
+                                            // Check if this day is unavailable due to being in the past or having no schedule
+                                            const isPast = isPastDate(date);
+
+                                            // Check if this day is unavailable in the location schedule
+                                            const isDateUnavailable = locationSchedules
+                                                ? !isDateAvailable(date, locationSchedules)
+                                                      .isAvailable
+                                                : true; // Default to unavailable if no schedule data
+
                                             // Check if this specific time slot is unavailable
-                                            const isSlotUnavailable = isTimeSlotUnavailable(
-                                                date,
-                                                timeSlot,
-                                            );
+                                            const isSlotUnavailable =
+                                                isPast ||
+                                                isDateUnavailable ||
+                                                unavailableTimeSlots[dateKey]?.includes(timeSlot) ||
+                                                false;
+
+                                            const unavailableReason = isPast
+                                                ? t("pastDateError", {
+                                                      defaultValue: "This date is in the past",
+                                                  })
+                                                : isDateUnavailable
+                                                  ? t("unavailableDay", {
+                                                        defaultValue:
+                                                            "This location is not open on this day",
+                                                    })
+                                                  : unavailableTimeSlots[dateKey]?.includes(
+                                                          timeSlot,
+                                                      )
+                                                    ? t("unavailableSlot", {
+                                                          defaultValue:
+                                                              "This time slot is outside operating hours",
+                                                      })
+                                                    : undefined;
 
                                             return (
                                                 <Grid.Col
@@ -687,11 +930,7 @@ export default function WeeklyScheduleGrid({
                                                         isOverCapacity={isOverCapacity}
                                                         dayIndex={dayIndex}
                                                         isUnavailable={isSlotUnavailable}
-                                                        unavailableReason={
-                                                            isSlotUnavailable
-                                                                ? t("unavailableSlot", {})
-                                                                : undefined
-                                                        }
+                                                        unavailableReason={unavailableReason}
                                                     />
                                                 </Grid.Col>
                                             );
@@ -772,6 +1011,56 @@ export default function WeeklyScheduleGrid({
                 onRescheduled={onParcelRescheduled}
                 locationSchedules={locationSchedules}
             />
+
+            {/* Debug component to display schedule information for week 21 */}
+            {weekDates.length > 0 && isWeek21(weekDates[0]) && (
+                <Box p="md" mt="md" style={{ backgroundColor: "#f9f9f9", borderRadius: 8 }}>
+                    <Text fw={500} mb="md">
+                        Debug Info - Week 21
+                    </Text>
+
+                    <Grid gutter="md">
+                        <Grid.Col span={6}>
+                            <Text size="sm" color="dimmed">
+                                Location Schedules:
+                            </Text>
+                            <Code block>{JSON.stringify(locationSchedules, null, 2)}</Code>
+                        </Grid.Col>
+
+                        <Grid.Col span={6}>
+                            <Text size="sm" color="dimmed">
+                                Unavailable Time Slots:
+                            </Text>
+                            <Code block>{JSON.stringify(unavailableTimeSlots, null, 2)}</Code>
+                        </Grid.Col>
+                    </Grid>
+                </Box>
+            )}
         </>
     );
+}
+
+// Helper function to check if a date is in week 21 of 2025
+function isWeek21(date: Date): boolean {
+    // Week 21 of 2025 is May 19-25
+    const week21Start = new Date("2025-05-19T00:00:00");
+    const week21End = new Date("2025-05-25T23:59:59");
+
+    return date >= week21Start && date <= week21End;
+}
+
+// Helper function to get weekday name in the format used in the database
+function getWeekdayName(date: Date): string {
+    const dayOfWeek = toStockholmTime(date).getDay();
+    // Convert JavaScript's day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
+    // to our database format (monday, tuesday, ..., sunday)
+    return [
+        "sunday", // JS: 0
+        "monday", // JS: 1
+        "tuesday", // JS: 2
+        "wednesday", // JS: 3
+        "thursday", // JS: 4
+        "friday", // JS: 5
+        "saturday", // JS: 6
+    ][dayOfWeek];
 }

@@ -90,6 +90,9 @@ export function ScheduleForm({
     const [overlappingSchedule, setOverlappingSchedule] =
         useState<PickupLocationScheduleWithDays | null>(null);
 
+    // Add local state for the schedule name input to prevent typing lag
+    const [localScheduleName, setLocalScheduleName] = useState<string>(initialValues?.name || "");
+
     // State for week selection
     const [startWeek, setStartWeek] = useState<WeekSelection | null>(() => {
         if (initialValues?.start_date) {
@@ -147,8 +150,13 @@ export function ScheduleForm({
             },
         },
         validateInputOnBlur: true, // Validate inputs on blur instead of on every change
-        validateInputOnChange: ["name", "days", "start_date", "end_date"],
+        validateInputOnChange: ["days", "start_date", "end_date"], // Remove 'name' from validation on change
     });
+
+    // Update the form name value when local name changes, but only on blur
+    const handleScheduleNameBlur = () => {
+        form.setFieldValue("name", localScheduleName);
+    };
 
     // Available time options for select inputs
     const timeOptions = Array.from({ length: 24 * 4 }, (_, i) => {
@@ -205,6 +213,11 @@ export function ScheduleForm({
         },
         [form, startWeek],
     );
+
+    // Helper text to explain the impact on food parcel scheduling
+    // Using a string directly to avoid type errors with translation keys not yet in type definitions
+    const scheduleImpactText =
+        "The schedule you set here will determine when users can pick up food parcels. Only dates and times within your schedule will be available for scheduling on the food parcel page.";
 
     // Memoize the check for overlapping schedules with a separate state to avoid re-renders
     const checkOverlap = useCallback(() => {
@@ -301,7 +314,9 @@ export function ScheduleForm({
                         label={t("scheduleName.label")}
                         placeholder={t("scheduleNamePlaceholder")}
                         required
-                        {...form.getInputProps("name")}
+                        value={localScheduleName} // Use local state value
+                        onChange={event => setLocalScheduleName(event.currentTarget.value)} // Update local state immediately
+                        onBlur={handleScheduleNameBlur} // Update form value on blur
                     />
 
                     {/* Week-based date selection */}
@@ -409,6 +424,11 @@ export function ScheduleForm({
                             </Box>
                         ))}
                     </Paper>
+
+                    {/* Helper text for schedule impact */}
+                    <Text size="sm" c="dimmed">
+                        {scheduleImpactText}
+                    </Text>
 
                     <Group justify="flex-end" mt="md">
                         <Button variant="default" onClick={onCancel} disabled={saving}>

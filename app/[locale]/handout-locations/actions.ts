@@ -115,6 +115,11 @@ export async function getLocation(id: string): Promise<PickupLocationWithAllData
 // Create a new location
 export async function createLocation(locationData: LocationFormInput): Promise<void> {
     try {
+        // Process email to ensure it's either null or a valid format
+        const contact_email = locationData.contact_email?.trim()
+            ? locationData.contact_email.trim()
+            : null;
+
         // Insert the location
         await db.insert(pickupLocations).values({
             name: locationData.name,
@@ -122,7 +127,7 @@ export async function createLocation(locationData: LocationFormInput): Promise<v
             postal_code: locationData.postal_code,
             parcels_max_per_day: locationData.parcels_max_per_day,
             contact_name: locationData.contact_name,
-            contact_email: locationData.contact_email,
+            contact_email: contact_email, // Use processed email value
             contact_phone_number: locationData.contact_phone_number,
             default_slot_duration_minutes: locationData.default_slot_duration_minutes,
         });
@@ -143,6 +148,11 @@ export async function createLocation(locationData: LocationFormInput): Promise<v
 // Update an existing location
 export async function updateLocation(id: string, locationData: LocationFormInput): Promise<void> {
     try {
+        // Process email to ensure it's either null or a valid format
+        const contact_email = locationData.contact_email?.trim()
+            ? locationData.contact_email.trim()
+            : null;
+
         // Update the location
         await db
             .update(pickupLocations)
@@ -152,7 +162,7 @@ export async function updateLocation(id: string, locationData: LocationFormInput
                 postal_code: locationData.postal_code,
                 parcels_max_per_day: locationData.parcels_max_per_day,
                 contact_name: locationData.contact_name,
-                contact_email: locationData.contact_email,
+                contact_email: contact_email, // Use processed email value
                 contact_phone_number: locationData.contact_phone_number,
                 default_slot_duration_minutes: locationData.default_slot_duration_minutes,
             })
@@ -208,11 +218,31 @@ export async function createSchedule(
                     name: scheduleData.name,
                     start_date:
                         scheduleData.start_date instanceof Date
-                            ? scheduleData.start_date.toISOString().split("T")[0]
+                            ? new Date(
+                                  scheduleData.start_date.getFullYear(),
+                                  scheduleData.start_date.getMonth(),
+                                  scheduleData.start_date.getDate(),
+                                  12, // Set to noon to avoid any timezone issues
+                                  0,
+                                  0,
+                                  0,
+                              )
+                                  .toISOString()
+                                  .split("T")[0]
                             : scheduleData.start_date,
                     end_date:
                         scheduleData.end_date instanceof Date
-                            ? scheduleData.end_date.toISOString().split("T")[0]
+                            ? new Date(
+                                  scheduleData.end_date.getFullYear(),
+                                  scheduleData.end_date.getMonth(),
+                                  scheduleData.end_date.getDate(),
+                                  12, // Set to noon to avoid any timezone issues
+                                  0,
+                                  0,
+                                  0,
+                              )
+                                  .toISOString()
+                                  .split("T")[0]
                             : scheduleData.end_date,
                 })
                 .returning();
@@ -274,11 +304,31 @@ export async function updateSchedule(
                     name: scheduleData.name,
                     start_date:
                         scheduleData.start_date instanceof Date
-                            ? scheduleData.start_date.toISOString().split("T")[0]
+                            ? new Date(
+                                  scheduleData.start_date.getFullYear(),
+                                  scheduleData.start_date.getMonth(),
+                                  scheduleData.start_date.getDate(),
+                                  12, // Set to noon to avoid any timezone issues
+                                  0,
+                                  0,
+                                  0,
+                              )
+                                  .toISOString()
+                                  .split("T")[0]
                             : scheduleData.start_date,
                     end_date:
                         scheduleData.end_date instanceof Date
-                            ? scheduleData.end_date.toISOString().split("T")[0]
+                            ? new Date(
+                                  scheduleData.end_date.getFullYear(),
+                                  scheduleData.end_date.getMonth(),
+                                  scheduleData.end_date.getDate(),
+                                  12, // Set to noon to avoid any timezone issues
+                                  0,
+                                  0,
+                                  0,
+                              )
+                                  .toISOString()
+                                  .split("T")[0]
                             : scheduleData.end_date,
                 })
                 .where(eq(pickupLocationSchedules.id, scheduleId))

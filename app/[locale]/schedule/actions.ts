@@ -11,6 +11,7 @@ import {
 } from "@/app/db/schema";
 import { formatStockholmDate, toStockholmTime, fromStockholmTime } from "@/app/utils/date-utils";
 import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
+import { unstable_cache } from "next/cache";
 
 export interface FoodParcel {
     id: string;
@@ -304,61 +305,100 @@ export interface LocationScheduleInfo {
 /**
  * Get all schedules for a pickup location
  */
-export async function getPickupLocationSchedules(
-    locationId: string,
-): Promise<LocationScheduleInfo> {
-    try {
-        const currentDate = new Date();
-        // Use SQL date formatting for correct comparison with database date values
-        const currentDateStr = currentDate.toISOString().split("T")[0];
+export const getPickupLocationSchedules = unstable_cache(
+    async (locationId: string): Promise<LocationScheduleInfo> => {
+        try {
+            const currentDate = new Date();
+            // Use SQL date formatting for correct comparison with database date values
+            const currentDateStr = currentDate.toISOString().split("T")[0];
 
-        // Get all current and upcoming schedules for this location
-        // (end_date is in the future - this includes both active and upcoming schedules)
-        const schedules = await db
-            .select({
-                id: pickupLocationSchedules.id,
-                name: pickupLocationSchedules.name,
-                startDate: pickupLocationSchedules.start_date,
-                endDate: pickupLocationSchedules.end_date,
-            })
-            .from(pickupLocationSchedules)
-            .where(
-                and(
-                    eq(pickupLocationSchedules.pickup_location_id, locationId),
-                    sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
-                ),
+            // Only log in development environment
+            const shouldDebug = process.env.NODE_ENV !== "production";
+
+            if (shouldDebug) {
+                console.log(
+                    `[getPickupLocationSchedules] Fetching schedules for location: ${locationId}, current date: ${currentDateStr}`,
+                );
+            }
+
+            // Get all current and upcoming schedules for this location
+            // (end_date is in the future - this includes both active and upcoming schedules)
+            const schedules = await db
+                .select({
+                    id: pickupLocationSchedules.id,
+                    name: pickupLocationSchedules.name,
+                    startDate: pickupLocationSchedules.start_date,
+                    endDate: pickupLocationSchedules.end_date,
+                })
+                .from(pickupLocationSchedules)
+                .where(
+                    and(
+                        eq(pickupLocationSchedules.pickup_location_id, locationId),
+                        sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
+                    ),
+                );
+
+            if (shouldDebug) {
+                console.log(`[getPickupLocationSchedules] Found ${schedules.length} schedules`);
+
+                // Only log schedule details for debugging specific issues
+                if (process.env.DEBUG_SCHEDULES === "true") {
+                    schedules.forEach(schedule => {
+                        console.log(
+                            `[getPickupLocationSchedules] Schedule: ${schedule.name}, ${schedule.startDate} - ${schedule.endDate}`,
+                        );
+                    });
+                }
+            }
+
+            // For each schedule, get the days it's active
+            const schedulesWithDays = await Promise.all(
+                schedules.map(async schedule => {
+                    const days = await db
+                        .select({
+                            weekday: pickupLocationScheduleDays.weekday,
+                            isOpen: pickupLocationScheduleDays.is_open,
+                            openingTime: pickupLocationScheduleDays.opening_time,
+                            closingTime: pickupLocationScheduleDays.closing_time,
+                        })
+                        .from(pickupLocationScheduleDays)
+                        .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+
+                    if (shouldDebug && process.env.DEBUG_SCHEDULES === "true") {
+                        console.log(
+                            `[getPickupLocationSchedules] Schedule ${schedule.name} has ${days.length} day configurations`,
+                        );
+                        days.forEach(day => {
+                            console.log(
+                                `[getPickupLocationSchedules] Day: ${day.weekday}, isOpen: ${day.isOpen}, hours: ${day.openingTime} - ${day.closingTime}`,
+                            );
+                        });
+                    }
+
+                    return {
+                        ...schedule,
+                        days,
+                    };
+                }),
             );
 
-        // For each schedule, get the days it's active
-        const schedulesWithDays = await Promise.all(
-            schedules.map(async schedule => {
-                const days = await db
-                    .select({
-                        weekday: pickupLocationScheduleDays.weekday,
-                        isOpen: pickupLocationScheduleDays.is_open,
-                        openingTime: pickupLocationScheduleDays.opening_time,
-                        closingTime: pickupLocationScheduleDays.closing_time,
-                    })
-                    .from(pickupLocationScheduleDays)
-                    .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
-
-                return {
-                    ...schedule,
-                    days,
-                };
-            }),
-        );
-
-        return {
-            schedules: schedulesWithDays,
-        };
-    } catch (error) {
-        console.error("Error fetching pickup location schedules:", error);
-        return {
-            schedules: [],
-        };
-    }
-}
+            return {
+                schedules: schedulesWithDays,
+            };
+        } catch (error) {
+            console.error("Error fetching pickup location schedules:", error);
+            return {
+                schedules: [],
+            };
+        }
+    },
+    // Use a simple static key for the cache
+    ["pickup-location-schedules"],
+    {
+        // Cache results for 5 minutes (300 seconds)
+        revalidate: 300,
+    },
+);
 
 /**
  * Check if a pickup location is open on a specific date and time
@@ -556,21 +596,15 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
                 const [startHour, startMinute] = timeRange.earliestTime.split(":").map(Number);
                 const [endHour, endMinute] = timeRange.latestTime.split(":").map(Number);
 
-                // Round up to the nearest 30-minute interval if needed
+                // Always start exactly at opening time (e.g., 09:00) instead of rounding
                 let currentHour = startHour;
                 let currentMinute = startMinute;
 
-                if (currentMinute > 0 && currentMinute < 30) {
-                    currentMinute = 30;
-                } else if (currentMinute > 30) {
-                    currentHour += 1;
-                    currentMinute = 0;
-                }
-
                 // Generate all possible 30-minute slots during open hours
+                // Continue until we reach the closing time (inclusive of the last slot that ends at closing time)
                 while (
                     currentHour < endHour ||
-                    (currentHour === endHour && currentMinute <= endMinute - 30)
+                    (currentHour === endHour && currentMinute < endMinute)
                 ) {
                     const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
                     timeslots.push(timeString);
@@ -605,7 +639,6 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
                 "16:00",
                 "16:30",
                 "17:00",
-                "17:30",
             ];
         }
 

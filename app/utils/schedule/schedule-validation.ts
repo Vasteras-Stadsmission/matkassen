@@ -132,35 +132,36 @@ export function getWeekNumbersInRange(startDate: Date, endDate: Date): number[] 
 }
 
 /**
- * Get the start and end dates of a specific week in a year
+ * Get the start and end dates of a specific ISO week in a year
  * @param year The year
- * @param weekNumber The week number (1-53)
+ * @param weekNumber The ISO week number (1-53)
  * @returns The start date (Monday) and end date (Sunday) of the week
  */
 export function getWeekDateRange(
     year: number,
     weekNumber: number,
 ): { startDate: Date; endDate: Date } {
-    // ISO 8601 date calculation for week-based dates
-    // Find the first Thursday of the year
-    const firstThursday = new Date(year, 0, 1);
+    // Create a date for January 4th of the given year
+    // January 4th is always in week 1 per ISO 8601
+    const jan4 = new Date(year, 0, 4);
 
-    // Adjust to the first Thursday (day 4 where Monday is 1)
-    const dayOffset = firstThursday.getDay();
-    const daysToThursday = dayOffset <= 4 ? 4 - dayOffset : 11 - dayOffset; // 4 = Thursday (0-indexed)
-    firstThursday.setDate(firstThursday.getDate() + daysToThursday);
-
-    // Get the Monday of week 1 (Monday before the first Thursday)
-    const firstMonday = new Date(firstThursday);
-    firstMonday.setDate(firstThursday.getDate() - 3);
+    // Get the Monday of week 1
+    // getDay() returns 0 for Sunday, 1 for Monday, etc.
+    const dayOfWeek = jan4.getDay() || 7; // Convert Sunday (0) to 7
+    const mondayWeek1 = new Date(jan4);
+    mondayWeek1.setDate(jan4.getDate() - dayOfWeek + 1); // Adjust to Monday
 
     // Calculate the Monday of the requested week
-    const targetMonday = new Date(firstMonday);
-    targetMonday.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
+    const targetMonday = new Date(mondayWeek1);
+    targetMonday.setDate(mondayWeek1.getDate() + (weekNumber - 1) * 7);
 
     // Calculate the Sunday of the requested week
     const targetSunday = new Date(targetMonday);
     targetSunday.setDate(targetMonday.getDate() + 6);
+
+    // Set times to beginning and end of day
+    targetMonday.setHours(0, 0, 0, 0);
+    targetSunday.setHours(23, 59, 59, 999);
 
     return {
         startDate: targetMonday,

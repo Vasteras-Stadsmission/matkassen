@@ -206,6 +206,9 @@
         "noFoodSupport": "Inga matstöd schemalagda denna vecka",
         "refresh": "Uppdatera",
         "selectWeek": "Välj vecka",
+        "pastDateError": "Detta datum har redan passerat",
+        "unavailableDay": "Denna plats är inte öppen denna dag",
+        "unavailableSlot": "Denna tid är utanför öppettiderna",
         "days": {
             "monday": "Måndag",
             "tuesday": "Tisdag",

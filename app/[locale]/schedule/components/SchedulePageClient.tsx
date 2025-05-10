@@ -313,6 +313,7 @@ function SchedulePageContent({
                             maxParcelsPerDay={getMaxParcelsPerDay()}
                             maxParcelsPerSlot={DEFAULT_MAX_PARCELS_PER_SLOT}
                             onParcelRescheduled={handleParcelRescheduled}
+                            locationId={selectedLocationId} // Pass the location ID directly
                         />
                     )}
                 </Paper>

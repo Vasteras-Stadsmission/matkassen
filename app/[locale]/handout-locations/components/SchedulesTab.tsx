@@ -74,13 +74,26 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
 
     // Handle deleting a schedule
     const handleDeleteSchedule = async (scheduleId: string) => {
+        // Set loading state
         setIsLoading(true);
         setError(null);
 
         try {
+            // Call the delete API
             await deleteSchedule(scheduleId);
+
+            // Update local state to remove the deleted schedule
             setSchedules(prevSchedules => prevSchedules.filter(s => s.id !== scheduleId));
+
+            // Call the onUpdated callback if provided
             if (onUpdated) onUpdated();
+
+            // Show success notification
+            notifications.show({
+                title: t("locationDeleted"), // Using existing key for deletion success
+                message: t("scheduleDeleteError"), // Using the error message key without parameters
+                color: "green",
+            });
         } catch (err) {
             console.error("Error deleting schedule:", err);
             setError(t("scheduleDeleteError"));
@@ -90,32 +103,34 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
                 color: "red",
             });
         } finally {
+            // Always reset loading state when operation completes
             setIsLoading(false);
         }
     };
 
     return (
         <Stack gap="lg">
-            {/* <Text size="sm">{t("configureEachWeekday")}</Text> */}
-
-            {isLoading && (
-                <Group justify="center" py="md">
-                    <Loader size="sm" />
-                </Group>
-            )}
-
-            {error && (
-                <Paper p="md" withBorder bg="red.0">
-                    <Text c="red">{error}</Text>
-                </Paper>
-            )}
-
+            {/* Show SchedulesList first, so it's always visible */}
             <SchedulesList
                 schedules={schedules}
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
                 onDeleteSchedule={handleDeleteSchedule}
             />
+
+            {/* Show error if any */}
+            {error && (
+                <Paper p="md" withBorder bg="red.0">
+                    <Text c="red">{error}</Text>
+                </Paper>
+            )}
+
+            {/* Loading indicator at the bottom */}
+            {isLoading && (
+                <Group justify="center" py="md">
+                    <Loader size="sm" />
+                </Group>
+            )}
         </Stack>
     );
 }

@@ -171,9 +171,12 @@ describe("Schedule validation functions", () => {
             // Ensure it's actually a valid week and follows the expected pattern
             expect(range.startDate.getDay()).toBe(1); // Monday
 
-            // The range should span 7 days from Monday to Sunday
+            // Calculate days between dates - there should be 6 days difference from Monday to Sunday
+            // We need to use exact date comparison without time components
+            const startDateOnly = new Date(range.startDate.toISOString().split("T")[0]);
+            const endDateOnly = new Date(range.endDate.toISOString().split("T")[0]);
             const diffInDays = Math.round(
-                (range.endDate.getTime() - range.startDate.getTime()) / (1000 * 60 * 60 * 24),
+                (endDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24),
             );
             expect(diffInDays).toBe(6); // 6 days difference from Monday to Sunday
 
@@ -189,11 +192,64 @@ describe("Schedule validation functions", () => {
             expect(range.startDate.getDay()).toBe(1); // Monday
             expect(range.endDate.getDay()).toBe(0); // Sunday
 
-            // The week should span 7 days
+            // Calculate days between dates - there should be 6 days difference
+            const startDateOnly = new Date(range.startDate.toISOString().split("T")[0]);
+            const endDateOnly = new Date(range.endDate.toISOString().split("T")[0]);
             const diffInDays = Math.round(
-                (range.endDate.getTime() - range.startDate.getTime()) / (1000 * 60 * 60 * 24),
+                (endDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24),
             );
             expect(diffInDays).toBe(6); // 6 days difference from Monday to Sunday
+        });
+
+        it("should return correct date range for week 19 in 2025", () => {
+            // Week 19 in 2025 - this was the specific case that had issues
+            const range = getWeekDateRange(2025, 19);
+
+            // Week 19 in 2025 should be May 5 - May 11
+            expect(range.startDate.toISOString().slice(0, 10)).toBe("2025-05-05");
+            expect(range.endDate.toISOString().slice(0, 10)).toBe("2025-05-11");
+        });
+
+        it("should handle timezone edge cases correctly", () => {
+            // Week 19 in 2025 should be May 5 - May 11 regardless of timezone
+            const range = getWeekDateRange(2025, 19);
+
+            // Create date with specific time to test timezone handling
+            const startWithTime = new Date(range.startDate);
+            startWithTime.setHours(0, 0, 0, 0); // Set to midnight
+
+            const endWithTime = new Date(range.endDate);
+            endWithTime.setHours(23, 59, 59, 999); // Set to end of day
+
+            // Extract dates only (YYYY-MM-DD) to ensure timezone doesn't affect the date
+            const startDateOnly = startWithTime.toISOString().split("T")[0];
+            const endDateOnly = endWithTime.toISOString().split("T")[0];
+
+            expect(startDateOnly).toBe("2025-05-05");
+            expect(endDateOnly).toBe("2025-05-11");
+
+            // Regardless of the time part, the day of week should be consistent
+            expect(startWithTime.getDay()).toBe(1); // Monday
+            expect(endWithTime.getDay()).toBe(0); // Sunday
+        });
+
+        it("should consistently return Monday as first day for all weeks of 2025", () => {
+            // Test several weeks throughout the year
+            const weeksToTest = [1, 10, 19, 27, 36, 44, 52];
+
+            for (const week of weeksToTest) {
+                const range = getWeekDateRange(2025, week);
+                expect(range.startDate.getDay()).toBe(1); // Monday
+                expect(range.endDate.getDay()).toBe(0); // Sunday
+
+                // Calculate days between dates correctly - should be 6 days difference
+                const startDateOnly = new Date(range.startDate.toISOString().split("T")[0]);
+                const endDateOnly = new Date(range.endDate.toISOString().split("T")[0]);
+                const diffInDays = Math.round(
+                    (endDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24),
+                );
+                expect(diffInDays).toBe(6);
+            }
         });
     });
 
