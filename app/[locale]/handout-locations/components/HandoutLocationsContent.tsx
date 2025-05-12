@@ -33,42 +33,43 @@ export function HandoutLocationsContent() {
     const errorDeletingMessage = t("errorDeletingMessage");
     const confirmDeleteText = t("confirmDelete");
 
-    // Load locations from the server - completely isolated from any dependencies
-    const loadLocations = useCallback(async (): Promise<void> => {
-        // Only prevent duplicate loading attempts if we're already loading AND have tried before
-        if (isLoading && hasLoadedRef.current) return;
+    // Load locations from the server
+    const loadLocations = useCallback(
+        async (forceReload: boolean = false): Promise<void> => {
+            // Only prevent duplicate loading attempts if we're already loading AND have tried before
+            if (isLoading && hasLoadedRef.current) return;
 
-        // Prevent unnecessary repeated loading when we already have data
-        if (hasLoadedRef.current && locations.length > 0) return;
+            // Skip loading if we already have data, UNLESS forceReload is true
+            if (hasLoadedRef.current && locations.length > 0 && !forceReload) return;
 
-        setIsLoading(true);
-        try {
-            const data = await getLocations();
-            setLocations(data);
-            hasLoadedRef.current = true;
+            setIsLoading(true);
+            try {
+                const data = await getLocations();
+                setLocations(data);
+                hasLoadedRef.current = true;
 
-            // Set the first location as active if available and no active tab is set
-            if (data.length > 0 && !activeTab) {
-                setActiveTab(data[0].id);
+                // Set the first location as active if available and no active tab is set
+                if (data.length > 0 && !activeTab) {
+                    setActiveTab(data[0].id);
+                }
+            } catch (error) {
+                console.error("Failed to load locations:", error);
+                notifications.show({
+                    title: errorLoadingTitle,
+                    message: errorLoadingMessage,
+                    color: "red",
+                });
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error("Failed to load locations:", error);
-            notifications.show({
-                title: errorLoadingTitle,
-                message: errorLoadingMessage,
-                color: "red",
-            });
-        } finally {
-            setIsLoading(false);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, locations.length, activeTab]);
+        },
+        [isLoading, locations.length, activeTab, errorLoadingTitle, errorLoadingMessage],
+    );
 
     // Fetch locations only on initial component mount
     useEffect(() => {
         loadLocations();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [loadLocations]);
 
     // Handle creating a new location - make it a direct function reference
     const handleAddLocation = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -78,40 +79,49 @@ export function HandoutLocationsContent() {
     };
 
     // Handle deleting a location
-    const handleDeleteLocation = useCallback(async (locationId: string) => {
-        if (window.confirm(confirmDeleteText)) {
-            try {
-                await deleteLocation(locationId);
+    const handleDeleteLocation = useCallback(
+        async (locationId: string) => {
+            if (window.confirm(confirmDeleteText)) {
+                try {
+                    await deleteLocation(locationId);
 
-                // Manual state update instead of reloading all locations
-                setLocations(prev => prev.filter(loc => loc.id !== locationId));
+                    // Manual state update instead of reloading all locations
+                    setLocations(prev => prev.filter(loc => loc.id !== locationId));
 
-                notifications.show({
-                    title: locationDeletedTitle,
-                    message: locationDeletedMessage,
-                    color: "green",
-                });
-            } catch (error) {
-                console.error("Failed to delete location:", error);
-                notifications.show({
-                    title: errorDeletingTitle,
-                    message: errorDeletingMessage,
-                    color: "red",
-                });
+                    notifications.show({
+                        title: locationDeletedTitle,
+                        message: locationDeletedMessage,
+                        color: "green",
+                    });
+                } catch (error) {
+                    console.error("Failed to delete location:", error);
+                    notifications.show({
+                        title: errorDeletingTitle,
+                        message: errorDeletingMessage,
+                        color: "red",
+                    });
+                }
             }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        },
+        [
+            confirmDeleteText,
+            errorDeletingMessage,
+            errorDeletingTitle,
+            locationDeletedMessage,
+            locationDeletedTitle,
+        ],
+    );
 
     // Create a stable reference to the reload function for the form
-    const handleReload = () => {
-        loadLocations();
-    };
+    const handleReload = useCallback((): void => {
+        // Force reload when explicitly called
+        loadLocations(true);
+    }, [loadLocations]);
 
     // Handle location form submission (create or edit)
     const handleFormSubmit = () => {
         close();
-        loadLocations();
+        loadLocations(true); // Force reload when creating a new location
     };
 
     // Changing the active tab should NOT trigger a reload
@@ -165,7 +175,18 @@ export function HandoutLocationsContent() {
 
                     {locations.map(location => (
                         <Tabs.Panel key={location.id} value={location.id} pt="xs">
-                            <LocationForm location={location} onSaved={handleReload} />
+                            <LocationForm
+                                location={location}
+                                onSaved={() => handleReload()}
+                                onLocationUpdated={(id, updatedLocation) => {
+                                    // Update the location name in local state immediately
+                                    setLocations(prevLocations =>
+                                        prevLocations.map(loc =>
+                                            loc.id === id ? { ...loc, ...updatedLocation } : loc,
+                                        ),
+                                    );
+                                }}
+                            />
                         </Tabs.Panel>
                     ))}
                 </Tabs>

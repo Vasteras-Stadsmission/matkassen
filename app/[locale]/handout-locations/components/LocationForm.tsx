@@ -23,15 +23,22 @@ import { SchedulesTab } from "./SchedulesTab";
 interface LocationFormProps {
     location?: PickupLocationWithAllData | null;
     onSaved?: () => void;
+    onLocationUpdated?: (id: string, updatedLocation: Partial<PickupLocationWithAllData>) => void;
     isModal?: boolean;
 }
 
-export function LocationForm({ location, onSaved, isModal = false }: LocationFormProps) {
+export function LocationForm({
+    location,
+    onSaved,
+    onLocationUpdated,
+    isModal = false,
+}: LocationFormProps) {
     // Specify the correct namespace for translations
     const t = useTranslations("handoutLocations");
     const [activeTab, setActiveTab] = useState<string | null>("general");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const hasInitializedRef = useRef(false);
+    // We're using this in the useEffect, so we should display it in the UI
+    const [isLoading, setIsLoading] = useState(false);
     const isMountedRef = useRef(true);
 
     // Pre-cache translation strings to avoid recreating functions
@@ -41,8 +48,8 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
     const locationCreatedMessage = t("locationCreatedMessage");
     const locationUpdatedTitle = t("locationUpdated");
     const locationUpdatedMessage = t("locationUpdatedMessage");
-    const errorText = t("errorSaving"); // Using an existing key that works
-    const errorFetchingLocationText = t("errorSavingMessage"); // Using an existing key that works
+    const errorText = t("errorSaving");
+    const errorFetchingLocationText = t("errorSavingMessage");
 
     // Initialize form with location data if it exists
     const form = useForm<LocationFormInput>({
@@ -50,7 +57,6 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
             name: location?.name || "",
             street_address: location?.street_address || "",
             postal_code: location?.postal_code || "",
-            // Always provide a default value (0) instead of allowing undefined for number fields
             parcels_max_per_day: location?.parcels_max_per_day || 0,
             contact_name: location?.contact_name || "",
             contact_email: location?.contact_email || "",
@@ -66,7 +72,6 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
                 return null;
             },
             contact_email: value => {
-                // Set to null if empty to satisfy database constraint
                 if (!value || value.trim() === "") return null;
                 if (!/^\S+@\S+\.\S+$/.test(value)) return t("emailInvalid");
                 return null;
@@ -74,30 +79,34 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
         },
         transformValues: (values): LocationFormInput => ({
             ...values,
-            // Ensure empty email is stored as null rather than empty string
             contact_email: values.contact_email?.trim() || "",
-            // Transform empty or zero values properly for optional number fields
-            // While maintaining the LocationFormInput type
             parcels_max_per_day: values.parcels_max_per_day || 0,
         }),
     });
 
-    // Handle form submission with useCallback to maintain reference stability
+    // Handle form submission
     const handleSubmit = useCallback(
-        async (values: LocationFormInput) => {
+        async (values: LocationFormInput): Promise<void> => {
             if (isSubmitting) return;
-            setIsSubmitting(true);
 
             try {
+                setIsSubmitting(true);
+
                 if (location) {
                     // Update existing location
                     await updateLocation(location.id, values);
 
+                    // Show success notification
                     notifications.show({
                         title: locationUpdatedTitle,
                         message: locationUpdatedMessage,
                         color: "green",
                     });
+
+                    // Call onLocationUpdated callback if provided
+                    if (onLocationUpdated) {
+                        onLocationUpdated(location.id, values);
+                    }
                 } else {
                     // Create new location
                     await createLocation(values);
@@ -114,23 +123,20 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
                     }
                 }
 
-                // Call onSaved callback if provided
-                if (onSaved && isMountedRef.current) {
+                // Call onSaved callback if provided - this will reload the data
+                if (onSaved) {
                     onSaved();
                 }
             } catch (error) {
                 console.error("Error saving location:", error);
-                if (isMountedRef.current) {
-                    notifications.show({
-                        title: errorSavingTitle,
-                        message: errorSavingMessage,
-                        color: "red",
-                    });
-                }
+                notifications.show({
+                    title: errorSavingTitle,
+                    message: errorSavingMessage,
+                    color: "red",
+                });
             } finally {
-                if (isMountedRef.current) {
-                    setIsSubmitting(false);
-                }
+                // Always make sure submitting state is reset
+                setIsSubmitting(false);
             }
         },
         [
@@ -139,6 +145,7 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
             isSubmitting,
             form,
             onSaved,
+            onLocationUpdated,
             errorSavingTitle,
             errorSavingMessage,
             locationCreatedTitle,
@@ -157,45 +164,36 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
 
     // Fetch location data effect - only run once per location change
     useEffect(() => {
-        // Skip if no location ID or already initialized
-        if (!location?.id || hasInitializedRef.current) return;
-
-        const fetchLocationData = async () => {
-            try {
-                // Fetch the location data
-                const locationData = await getLocation(location.id);
-
-                // Set form values with location data
-                if (locationData && isMountedRef.current) {
-                    form.setValues({
-                        name: locationData.name,
-                        street_address: locationData.street_address,
-                        postal_code: locationData.postal_code,
-                        // Ensure we provide a default value (0) for optional number fields
-                        parcels_max_per_day: locationData.parcels_max_per_day ?? 0,
-                        contact_name: locationData.contact_name ?? "",
-                        contact_email: locationData.contact_email ?? "",
-                        contact_phone_number: locationData.contact_phone_number ?? "",
-                        default_slot_duration_minutes:
-                            locationData.default_slot_duration_minutes || 15,
-                    });
-                    hasInitializedRef.current = true;
-                }
-            } catch (error) {
-                console.error("Error fetching location data:", error);
-                if (isMountedRef.current) {
+        // If editing an existing location, fetch the data
+        if (location && location.id && !isModal) {
+            setIsLoading(true);
+            getLocation(location.id)
+                .then(data => {
+                    if (data) {
+                        form.setValues({
+                            name: data.name,
+                            street_address: data.street_address || "",
+                            postal_code: data.postal_code || "",
+                            parcels_max_per_day: data.parcels_max_per_day || null,
+                            contact_name: data.contact_name || "",
+                            contact_email: data.contact_email || "",
+                            contact_phone_number: data.contact_phone_number || "",
+                            default_slot_duration_minutes: data.default_slot_duration_minutes || 15,
+                        });
+                    }
+                    setIsLoading(false);
+                })
+                .catch(err => {
+                    console.error("Failed to fetch location data:", err);
                     notifications.show({
-                        title: errorText,
-                        message: errorFetchingLocationText,
+                        title: errorFetchingLocationText,
+                        message: err.message || errorText,
                         color: "red",
                     });
-                }
-            }
-        };
-
-        fetchLocationData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location?.id]);
+                    setIsLoading(false);
+                });
+        }
+    }, [location, isModal, errorFetchingLocationText, errorText, form]);
 
     // Stable tab change handler
     const handleTabChange = (value: string | null) => {
@@ -204,105 +202,111 @@ export function LocationForm({ location, onSaved, isModal = false }: LocationFor
 
     return (
         <Paper p="md" radius="md" withBorder={!isModal}>
-            <form onSubmit={form.onSubmit(values => handleSubmit(values))}>
-                <Tabs value={activeTab} onChange={handleTabChange}>
-                    <Tabs.List mb="md">
-                        <Tabs.Tab value="general" leftSection={<IconBuilding size={16} />}>
-                            {t("generalInfo")}
-                        </Tabs.Tab>
-                        <Tabs.Tab value="schedules" leftSection={<IconCalendar size={16} />}>
-                            {t("schedules")}
-                        </Tabs.Tab>
-                    </Tabs.List>
+            {isLoading ? (
+                <Stack align="center" p="md">
+                    <Text c="dimmed">{t("loading")}</Text>
+                </Stack>
+            ) : (
+                <form onSubmit={form.onSubmit(values => handleSubmit(values))}>
+                    <Tabs value={activeTab} onChange={handleTabChange}>
+                        <Tabs.List mb="md">
+                            <Tabs.Tab value="general" leftSection={<IconBuilding size={16} />}>
+                                {t("generalInfo")}
+                            </Tabs.Tab>
+                            <Tabs.Tab value="schedules" leftSection={<IconCalendar size={16} />}>
+                                {t("schedules")}
+                            </Tabs.Tab>
+                        </Tabs.List>
 
-                    {/* General Information Tab */}
-                    <Tabs.Panel value="general">
-                        <Stack>
-                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                        {/* General Information Tab */}
+                        <Tabs.Panel value="general">
+                            <Stack>
+                                <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                                    <TextInput
+                                        label={t("name")}
+                                        placeholder={t("namePlaceholder")}
+                                        required
+                                        {...form.getInputProps("name")}
+                                    />
+                                    <TextInput
+                                        label={t("postalCode")}
+                                        placeholder="12345"
+                                        required
+                                        {...form.getInputProps("postal_code")}
+                                    />
+                                </SimpleGrid>
+
                                 <TextInput
-                                    label={t("name")}
-                                    placeholder={t("namePlaceholder")}
+                                    label={t("streetAddress")}
+                                    placeholder={t("streetAddressPlaceholder")}
                                     required
-                                    {...form.getInputProps("name")}
+                                    {...form.getInputProps("street_address")}
                                 />
-                                <TextInput
-                                    label={t("postalCode")}
-                                    placeholder="12345"
-                                    required
-                                    {...form.getInputProps("postal_code")}
-                                />
-                            </SimpleGrid>
 
-                            <TextInput
-                                label={t("streetAddress")}
-                                placeholder={t("streetAddressPlaceholder")}
-                                required
-                                {...form.getInputProps("street_address")}
-                            />
+                                <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                                    <NumberInput
+                                        label={t("maxParcelsPerDay")}
+                                        placeholder={t("maxParcelsPlaceholder")}
+                                        min={0}
+                                        allowDecimal={false}
+                                        allowNegative={false}
+                                        {...form.getInputProps("parcels_max_per_day")}
+                                    />
+                                    <NumberInput
+                                        label={t("defaultSlotDuration")}
+                                        description={t("defaultSlotDurationDescription")}
+                                        placeholder="15"
+                                        min={5}
+                                        step={5}
+                                        required
+                                        allowDecimal={false}
+                                        allowNegative={false}
+                                        {...form.getInputProps("default_slot_duration_minutes")}
+                                    />
+                                </SimpleGrid>
 
-                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                                <NumberInput
-                                    label={t("maxParcelsPerDay")}
-                                    placeholder={t("maxParcelsPlaceholder")}
-                                    min={0}
-                                    allowDecimal={false}
-                                    allowNegative={false}
-                                    {...form.getInputProps("parcels_max_per_day")}
-                                />
-                                <NumberInput
-                                    label={t("defaultSlotDuration")}
-                                    description={t("defaultSlotDurationDescription")}
-                                    placeholder="15"
-                                    min={5}
-                                    step={5}
-                                    required
-                                    allowDecimal={false}
-                                    allowNegative={false}
-                                    {...form.getInputProps("default_slot_duration_minutes")}
-                                />
-                            </SimpleGrid>
+                                <Text fw={600} mt="md">
+                                    {t("contactInfo")}
+                                </Text>
 
-                            <Text fw={600} mt="md">
-                                {t("contactInfo")}
-                            </Text>
+                                <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                                    <TextInput
+                                        label={t("contactName")}
+                                        placeholder={t("contactNamePlaceholder")}
+                                        {...form.getInputProps("contact_name")}
+                                    />
+                                    <TextInput
+                                        label={t("contactEmail")}
+                                        placeholder={t("contactEmailPlaceholder")}
+                                        {...form.getInputProps("contact_email")}
+                                    />
+                                    <TextInput
+                                        label={t("contactPhone")}
+                                        placeholder={t("contactPhonePlaceholder")}
+                                        {...form.getInputProps("contact_phone_number")}
+                                    />
+                                </SimpleGrid>
+                            </Stack>
+                        </Tabs.Panel>
 
-                            <SimpleGrid cols={{ base: 1, sm: 3 }}>
-                                <TextInput
-                                    label={t("contactName")}
-                                    placeholder={t("contactNamePlaceholder")}
-                                    {...form.getInputProps("contact_name")}
-                                />
-                                <TextInput
-                                    label={t("contactEmail")}
-                                    placeholder={t("contactEmailPlaceholder")}
-                                    {...form.getInputProps("contact_email")}
-                                />
-                                <TextInput
-                                    label={t("contactPhone")}
-                                    placeholder={t("contactPhonePlaceholder")}
-                                    {...form.getInputProps("contact_phone_number")}
-                                />
-                            </SimpleGrid>
-                        </Stack>
-                    </Tabs.Panel>
+                        {/* Schedules Tab */}
+                        <Tabs.Panel value="schedules">
+                            {location && <SchedulesTab location={location} onUpdated={onSaved} />}
+                            {!location && (
+                                <Text c="dimmed" ta="center" py="md">
+                                    {t("saveLocationFirst")}
+                                </Text>
+                            )}
+                        </Tabs.Panel>
+                    </Tabs>
 
-                    {/* Schedules Tab */}
-                    <Tabs.Panel value="schedules">
-                        {location && <SchedulesTab location={location} onUpdated={onSaved} />}
-                        {!location && (
-                            <Text c="dimmed" ta="center" py="md">
-                                {t("saveLocationFirst")}
-                            </Text>
-                        )}
-                    </Tabs.Panel>
-                </Tabs>
-
-                <Group justify="flex-end" mt="xl">
-                    <Button type="submit" loading={isSubmitting}>
-                        {location ? t("updateLocation") : t("createLocation")}
-                    </Button>
-                </Group>
-            </form>
+                    <Group justify="flex-end" mt="xl">
+                        <Button type="submit" loading={isSubmitting}>
+                            {location ? t("updateLocation") : t("createLocation")}
+                        </Button>
+                    </Group>
+                </form>
+            )}
         </Paper>
     );
 }

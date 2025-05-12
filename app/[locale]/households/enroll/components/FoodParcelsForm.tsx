@@ -29,9 +29,8 @@ import {
 } from "@tabler/icons-react";
 import {
     getPickupLocations,
-    checkPickupLocationCapacity,
-    getPickupLocationCapacityForRange,
     getPickupLocationSchedules,
+    getPickupLocationCapacityForRange,
 } from "../actions";
 import { FoodParcels, FoodParcel } from "../types";
 import { useTranslations } from "next-intl";
@@ -93,14 +92,13 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     // Add state for location schedules
     const [locationSchedules, setLocationSchedules] = useState<LocationSchedules | null>(null);
 
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    const [_capacityNotification, setCapacityNotification] = useState<{
+    // We need to actually use this variable in the component
+    const [capacityNotification, setCapacityNotification] = useState<{
         date: Date;
         message: string;
         isAvailable: boolean;
     } | null>(null);
-    const [_checkingCapacity, setCheckingCapacity] = useState(false);
-    /* eslint-enable @typescript-eslint/no-unused-vars */
+
     const capacityNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [capacityData, setCapacityData] = useState<{
@@ -191,14 +189,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             try {
                 setLoadingCapacityData(true);
 
-                const startDate = new Date();
-                const endDate = new Date();
-                endDate.setMonth(endDate.getMonth() + 3);
-
+                // Remove unused variables
                 const capacityInfo = await getPickupLocationCapacityForRange(
                     formState.pickupLocationId,
-                    startDate,
-                    endDate,
                 );
 
                 setCapacityData(capacityInfo);
@@ -500,73 +493,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }
     };
 
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    const _checkDateCapacity = useCallback(
-        async (date: Date) => {
-            if (!formState.pickupLocationId) {
-                return { isAvailable: true };
-            }
-
-            try {
-                setCheckingCapacity(true);
-
-                const capacity = await checkPickupLocationCapacity(
-                    formState.pickupLocationId,
-                    date,
-                );
-
-                const dateString = new Date(date).toDateString();
-                const existingDateCount = selectedDates.filter(
-                    selectedDate => new Date(selectedDate).toDateString() === dateString,
-                ).length;
-
-                const adjustedCount = capacity.currentCount + existingDateCount;
-                const stillAvailable =
-                    capacity.maxCount === null || adjustedCount < capacity.maxCount;
-
-                if (capacity.maxCount !== null) {
-                    const isNearCapacity = adjustedCount >= Math.floor(capacity.maxCount * 0.8);
-
-                    const adjustedCapacity = {
-                        ...capacity,
-                        isAvailable: stillAvailable,
-                        currentCount: adjustedCount,
-                        message: stillAvailable
-                            ? `${adjustedCount} av ${capacity.maxCount} bokade`
-                            : `Max antal (${capacity.maxCount}) matkassar bokade för detta datum`,
-                    };
-
-                    if (!stillAvailable || isNearCapacity) {
-                        setCapacityNotification({
-                            date,
-                            message: adjustedCapacity.message,
-                            isAvailable: adjustedCapacity.isAvailable,
-                        });
-
-                        if (capacityNotificationTimeoutRef.current) {
-                            clearTimeout(capacityNotificationTimeoutRef.current);
-                        }
-
-                        capacityNotificationTimeoutRef.current = setTimeout(() => {
-                            setCapacityNotification(null);
-                        }, 5000);
-                    }
-
-                    return adjustedCapacity;
-                }
-
-                return capacity;
-            } catch (error) {
-                console.error("Error checking pickup location capacity:", error);
-                return { isAvailable: true };
-            } finally {
-                setCheckingCapacity(false);
-            }
-        },
-        [formState.pickupLocationId, selectedDates],
-    );
-    /* eslint-enable @typescript-eslint/no-unused-vars */
-
     const generateParcels = useCallback((): FoodParcel[] => {
         return selectedDates.map(date => {
             const existingParcel = formState.parcels.find(
@@ -824,9 +750,35 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             <Title order={3} mb="md">
                 {t("title")}
             </Title>
-            <Text c="dimmed" size="sm" mb="lg">
+            <Text style={{ color: "var(--mantine-color-dimmed)" }} size="sm" mb="lg">
                 {t("description")}
             </Text>
+
+            {/* Show capacity notification when available */}
+            {capacityNotification && (
+                <Paper
+                    p="xs"
+                    withBorder
+                    mb="md"
+                    style={{
+                        backgroundColor: capacityNotification.isAvailable
+                            ? "var(--mantine-color-green-0)"
+                            : "var(--mantine-color-red-0)",
+                        color: capacityNotification.isAvailable
+                            ? "var(--mantine-color-green-8)"
+                            : "var(--mantine-color-red-8)",
+                    }}
+                >
+                    <Group>
+                        {capacityNotification.isAvailable ? (
+                            <IconCheck size="1rem" />
+                        ) : (
+                            <IconExclamationMark size="1rem" />
+                        )}
+                        <Text size="sm">{capacityNotification.message}</Text>
+                    </Group>
+                </Paper>
+            )}
 
             <Title order={5} mb="sm">
                 {t("settings")}
@@ -883,7 +835,10 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             >
                                 <Stack align="center" gap="xs">
                                     <Loader size="md" />
-                                    <Text size="sm" c="dimmed">
+                                    <Text
+                                        size="sm"
+                                        style={{ color: "var(--mantine-color-dimmed)" }}
+                                    >
                                         {t("loadingAvailability")}
                                     </Text>
                                 </Stack>
@@ -896,14 +851,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                 position="bottom"
                                 withArrow
                                 opened
-                                color="blue"
-                                style={{
-                                    position: "absolute",
-                                    top: "50%",
-                                    left: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                    pointerEvents: "none",
-                                }}
+                                style={{ backgroundColor: "var(--mantine-color-blue-6)" }}
                             >
                                 <Box
                                     style={{
@@ -923,14 +871,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                 >
                                     <IconExclamationMark
                                         size={48}
-                                        color="var(--mantine-color-blue-6)"
-                                        opacity={0.5}
+                                        style={{
+                                            color: "var(--mantine-color-blue-6)",
+                                            opacity: 0.5,
+                                        }}
                                     />
                                 </Box>
                             </Tooltip>
                         )}
                     </Box>
-                    <Text size="xs" c="dimmed">
+                    <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
                         {t("selectDatesHint")}
                     </Text>
 
@@ -938,20 +888,41 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     <Box mt="sm">
                         <Group gap="md">
                             <Group gap="xs">
-                                <Box w={14} h={14} bg="gray.2" style={{ opacity: 0.5 }}></Box>
-                                <Text size="xs" c="dimmed">
+                                <Box
+                                    style={{
+                                        width: "14px",
+                                        height: "14px",
+                                        backgroundColor: "var(--mantine-color-gray-2)",
+                                        opacity: 0.5,
+                                    }}
+                                ></Box>
+                                <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
                                     {t("calendar.unavailableClosedDay")}
                                 </Text>
                             </Group>
                             <Group gap="xs">
-                                <Box w={14} h={14} bg="red.0" style={{ opacity: 0.7 }}></Box>
-                                <Text size="xs" c="dimmed">
+                                <Box
+                                    style={{
+                                        width: "14px",
+                                        height: "14px",
+                                        backgroundColor: "var(--mantine-color-red-0)",
+                                        opacity: 0.7,
+                                    }}
+                                ></Box>
+                                <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
                                     {t("calendar.fullyBooked")}
                                 </Text>
                             </Group>
                             <Group gap="xs">
-                                <Box w={14} h={14} bg="blue.filled"></Box>
-                                <Text size="xs" c="white">
+                                <Box
+                                    style={{
+                                        width: "14px",
+                                        height: "14px",
+                                        backgroundColor: "var(--mantine-color-blue-filled)",
+                                        color: "white",
+                                    }}
+                                ></Box>
+                                <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
                                     {t("calendar.selected")}
                                 </Text>
                             </Group>
@@ -971,14 +942,17 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             <Button
                                 leftSection={<IconWand size="1rem" />}
                                 variant="light"
-                                color="indigo"
+                                style={{
+                                    backgroundColor: "var(--mantine-color-indigo-1)",
+                                    color: "var(--mantine-color-indigo-6)",
+                                }}
                                 size="xs"
                                 onClick={() => setBulkTimeMode(true)}
                             >
                                 {t("setBulkTimes")}
                             </Button>
                         ) : (
-                            <Text size="xs" c="dimmed">
+                            <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
                                 {t("editingAllTimes")}
                             </Text>
                         )}
@@ -992,7 +966,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                 </Text>
 
                                 {bulkTimeError && (
-                                    <Text size="xs" c="red">
+                                    <Text size="xs" style={{ color: "var(--mantine-color-red-6)" }}>
                                         {bulkTimeError}
                                     </Text>
                                 )}
@@ -1014,7 +988,8 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                 input: {
                                                     ...(bulkTimeError
                                                         ? {
-                                                              borderColor: theme.colors.red[6],
+                                                              borderColor:
+                                                                  "var(--mantine-color-red-6)",
                                                           }
                                                         : {}),
                                                 },
@@ -1038,7 +1013,8 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                 input: {
                                                     ...(bulkTimeError
                                                         ? {
-                                                              borderColor: theme.colors.red[6],
+                                                              borderColor:
+                                                                  "var(--mantine-color-red-6)",
                                                           }
                                                         : {}),
                                                 },
@@ -1050,7 +1026,10 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                         <Button
                                             size="xs"
                                             leftSection={<IconCheck size="1rem" />}
-                                            color="teal"
+                                            style={{
+                                                backgroundColor: "var(--mantine-color-teal-6)",
+                                                color: "white",
+                                            }}
                                             onClick={applyBulkTimeUpdate}
                                         >
                                             {t("time.updateAll")}
@@ -1059,7 +1038,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                         <ActionIcon
                                             size="lg"
                                             variant="subtle"
-                                            color="gray"
+                                            style={{ color: "var(--mantine-color-gray-6)" }}
                                             onClick={cancelBulkTimeEdit}
                                         >
                                             <IconX size="1rem" />
@@ -1070,14 +1049,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         </Paper>
                     ) : null}
 
-                    <Text size="sm" mb="md" c="dimmed">
+                    <Text size="sm" mb="md" style={{ color: "var(--mantine-color-dimmed)" }}>
                         {bulkTimeMode ? t("bulkTimeHint") : t("individualTimeHint")}
                     </Text>
 
                     <Paper radius="md" withBorder shadow="xs">
                         <Table striped={false} highlightOnHover verticalSpacing="sm">
                             <Table.Thead>
-                                <Table.Tr bg="gray.0">
+                                <Table.Tr
+                                    style={{ backgroundColor: "var(--mantine-color-gray-0)" }}
+                                >
                                     <Table.Th>{t("time.dateAndPickup")}</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
@@ -1114,7 +1095,12 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                             color: "var(--mantine-color-blue-6)",
                                                         }}
                                                     />
-                                                    <Text fw={500} c="gray.8">
+                                                    <Text
+                                                        fw={500}
+                                                        style={{
+                                                            color: "var(--mantine-color-gray-8)",
+                                                        }}
+                                                    >
                                                         {new Date(
                                                             parcel.pickupDate,
                                                         ).toLocaleDateString("sv-SE", {
@@ -1130,7 +1116,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                         timeErrors[`${index}-pickupEarliestTime`] ||
                                                         timeErrors[`${index}-pickupLatestTime`]
                                                     }
-                                                    color="red"
+                                                    style={{
+                                                        color: "white",
+                                                        backgroundColor:
+                                                            "var(--mantine-color-red-6)",
+                                                    }}
                                                     position="top"
                                                     withArrow
                                                     opened={

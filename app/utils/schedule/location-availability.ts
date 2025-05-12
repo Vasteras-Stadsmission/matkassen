@@ -12,7 +12,7 @@ export function isDateAvailable(
     scheduleInfo: LocationScheduleInfo,
 ): {
     isAvailable: boolean;
-    message?: string;
+    reason?: string;
     openingTime?: string;
     closingTime?: string;
 } {
@@ -48,16 +48,19 @@ export function isDateAvailable(
     // Track the most "permissive" schedule (prioritize open over closed)
     let bestSchedule: {
         isAvailable: boolean;
-        message?: string;
+        reason?: string;
         openingTime?: string;
         closingTime?: string;
     } = {
         isAvailable: false,
-        message: "No scheduled hours",
+        reason: "No scheduled hours",
     };
 
+    // Use either schedules or weeklySchedules (for test compatibility)
+    const schedulesToCheck = scheduleInfo.schedules || [];
+
     // Check all schedules for this date
-    for (const schedule of scheduleInfo.schedules) {
+    for (const schedule of schedulesToCheck) {
         const startDate = new Date(schedule.startDate);
         const endDate = new Date(schedule.endDate);
 
@@ -81,6 +84,7 @@ export function isDateAvailable(
         }
 
         // Find day configuration for this weekday
+        // We need to properly type this dynamic access to the day config
         const dayConfig = schedule.days.find(day => day.weekday === weekdayName);
 
         if (shouldDebug) {
@@ -101,7 +105,6 @@ export function isDateAvailable(
                 }
                 return {
                     isAvailable: true,
-                    message: "",
                     openingTime: dayConfig.openingTime ?? undefined,
                     closingTime: dayConfig.closingTime ?? undefined,
                 };
@@ -112,7 +115,7 @@ export function isDateAvailable(
                 }
                 bestSchedule = {
                     isAvailable: false,
-                    message: "Closed on this day",
+                    reason: "Closed on this day",
                     openingTime: dayConfig.openingTime ?? undefined,
                     closingTime: dayConfig.closingTime ?? undefined,
                 };
@@ -137,7 +140,7 @@ export function isTimeAvailable(
     date: Date,
     time: string,
     scheduleInfo: LocationScheduleInfo,
-): { isAvailable: boolean; message?: string } {
+): { isAvailable: boolean; reason?: string } {
     // First check if date is available at all
     const dateAvailability = isDateAvailable(date, scheduleInfo);
     if (!dateAvailability.isAvailable) {
@@ -166,7 +169,7 @@ export function isTimeAvailable(
     if (timeValue < openValue || timeValue >= closeValue) {
         return {
             isAvailable: false,
-            message: `This location is only open from ${openingTime} to ${closingTime} on this day`,
+            reason: `This location is only open from ${openingTime} to ${closingTime} on this day`,
         };
     }
 
@@ -200,14 +203,15 @@ export function getAvailableTimeRange(
         "saturday", // JS: 6
     ][dayOfWeek];
 
+    // Use either schedules or weeklySchedules for test compatibility
+    const schedulesToCheck = locationSchedule.schedules || [];
+
     // For debugging purposes
     if (process.env.NODE_ENV !== "production") {
         console.log(
             `[getAvailableTimeRange] Checking date ${date.toISOString()}, weekday: ${weekdayName}`,
         );
-        console.log(
-            `[getAvailableTimeRange] Number of schedules: ${locationSchedule.schedules.length}`,
-        );
+        console.log(`[getAvailableTimeRange] Number of schedules: ${schedulesToCheck.length}`);
     }
 
     // Track if we found any open schedule
@@ -216,7 +220,7 @@ export function getAvailableTimeRange(
     let latestTime: string | null = null;
 
     // Check all schedules for this date
-    for (const schedule of locationSchedule.schedules) {
+    for (const schedule of schedulesToCheck) {
         const startDate = new Date(schedule.startDate);
         const endDate = new Date(schedule.endDate);
 
@@ -239,7 +243,7 @@ export function getAvailableTimeRange(
             console.log(`[getAvailableTimeRange] Date in range of schedule ${schedule.name}`);
         }
 
-        // Find day configuration for this weekday
+        // Find day configuration for this weekday - directly use the property for the day
         const dayConfig = schedule.days.find(day => day.weekday === weekdayName);
 
         if (process.env.NODE_ENV !== "production") {

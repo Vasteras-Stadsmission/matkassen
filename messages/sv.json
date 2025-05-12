@@ -199,16 +199,17 @@
         "createDescription": "Granska all information innan du sparar det nya hushållet."
     },
     "schedule": {
-        "title": "Schemaläggning av matstöd",
+        "title": "Schemaläggning av matutdelning",
         "today": "Idag",
         "weekLabel": "Vecka {week}, {year}",
         "loading": "Laddar schema...",
-        "noFoodSupport": "Inga matstöd schemalagda denna vecka",
+        "noFoodSupport": "Ingen matutdelning schemalagd den här veckan",
         "refresh": "Uppdatera",
         "selectWeek": "Välj vecka",
         "pastDateError": "Detta datum har redan passerat",
         "unavailableDay": "Denna plats är inte öppen denna dag",
         "unavailableSlot": "Denna tid är utanför öppettiderna",
+        "timeGap": "Tidshopp",
         "days": {
             "monday": "Måndag",
             "tuesday": "Tisdag",
@@ -243,7 +244,18 @@
             "selectDateError": "Du måste välja ett datum",
             "timeError": "Tidigast tid måste vara före senast tid",
             "earliestTime": "Tidigast hämttid",
-            "latestTime": "Senast hämttid"
+            "latestTime": "Senast hämttid",
+            "currentPickup": "Nuvarande upphämtningsdetaljer",
+            "newPickup": "Nya upphämtningsdetaljer",
+            "date": "Datum",
+            "time": "Tid",
+            "newDate": "Nytt datum",
+            "newTime": "Ny tid",
+            "selectDate": "Välj datum",
+            "selectTime": "Välj tid",
+            "dateUnavailable": "Detta datum är inte tillgängligt för upphämtning",
+            "noTimesAvailable": "Inga tillgängliga tider på detta datum",
+            "requiredFields": "Fyll i alla obligatoriska fält"
         }
     },
     "householdDetail": {

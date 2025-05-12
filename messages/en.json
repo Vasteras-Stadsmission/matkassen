@@ -211,6 +211,10 @@
         "noFoodSupport": "No food support scheduled this week",
         "refresh": "Refresh",
         "selectWeek": "Select Week",
+        "pastDateError": "This date has already passed",
+        "unavailableDay": "This location is not open on this day",
+        "unavailableSlot": "This time is outside opening hours",
+        "timeGap": "Time gap",
         "days": {
             "monday": "Monday",
             "tuesday": "Tuesday",
@@ -226,6 +230,7 @@
         "notPickedUpStatus": "Not picked up",
         "reschedule": {
             "title": "Schedule food support for {name}",
+            "modalTitle": "Reschedule Food Support",
             "changed": "Time has been changed from",
             "to": "to",
             "from": "From:",
@@ -244,7 +249,18 @@
             "selectDateError": "You must select a date",
             "timeError": "Earliest time must be before latest time",
             "earliestTime": "Earliest pickup time",
-            "latestTime": "Latest pickup time"
+            "latestTime": "Latest pickup time",
+            "currentPickup": "Current Pickup Details",
+            "newPickup": "New Pickup Details",
+            "date": "Date",
+            "time": "Time",
+            "newDate": "New Date",
+            "newTime": "New Time",
+            "selectDate": "Select date",
+            "selectTime": "Select time",
+            "dateUnavailable": "This date is not available for pickup",
+            "noTimesAvailable": "No available times on this date",
+            "requiredFields": "Please fill all required fields"
         }
     },
     "householdDetail": {

@@ -5,7 +5,12 @@ import { Modal, Button, Group, Text, Select, Stack, Paper, Box } from "@mantine/
 import { IconCalendar, IconClock, IconCheck } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
 import { useTranslations } from "next-intl";
-import { FoodParcel, updateFoodParcelSchedule, LocationScheduleInfo } from "../actions";
+import {
+    FoodParcel,
+    updateFoodParcelSchedule,
+    LocationScheduleInfo,
+    getLocationSlotDuration,
+} from "../actions";
 import { TranslationFunction } from "../../types";
 import { formatStockholmDate, formatTime, toStockholmDate } from "@/app/utils/date-utils";
 import {
@@ -40,6 +45,26 @@ export default function ReschedulePickupModal({
         { value: string; label: string; disabled: boolean }[]
     >([]);
     const [error, setError] = useState<string | null>(null);
+    const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
+
+    // Fetch the slot duration when the modal opens with a food parcel
+    useEffect(() => {
+        async function fetchSlotDuration() {
+            if (foodParcel && foodParcel.locationId) {
+                try {
+                    // Use the server action instead of directly accessing database
+                    const duration = await getLocationSlotDuration(foodParcel.locationId);
+                    setSlotDuration(duration);
+                } catch (error) {
+                    console.error("Error fetching slot duration:", error);
+                }
+            }
+        }
+
+        if (opened && foodParcel) {
+            fetchSlotDuration();
+        }
+    }, [opened, foodParcel]);
 
     // Prepare available time slots based on location schedule
     useEffect(() => {
@@ -48,7 +73,7 @@ export default function ReschedulePickupModal({
             const dateAvailability = isDateAvailable(selectedDate, locationSchedules);
 
             if (!dateAvailability.isAvailable) {
-                setError(t("reschedule.dateUnavailable", {}));
+                setError(t("reschedule.dateUnavailable"));
                 setAvailableTimes([]);
                 return;
             }
@@ -57,7 +82,7 @@ export default function ReschedulePickupModal({
             const timeRange = getAvailableTimeRange(selectedDate, locationSchedules);
 
             if (!timeRange.earliestTime || !timeRange.latestTime) {
-                setError(t("reschedule.noTimesAvailable", {}));
+                setError(t("reschedule.noTimesAvailable"));
                 setAvailableTimes([]);
                 return;
             }
@@ -72,43 +97,42 @@ export default function ReschedulePickupModal({
             const [openHour, openMinute] = timeRange.earliestTime.split(":").map(Number);
             const [closeHour, closeMinute] = timeRange.latestTime.split(":").map(Number);
 
-            // Start from opening time and go until 30 minutes before closing time
+            // Start from exact opening time
             let currentHour = openHour;
             let currentMinute = openMinute;
 
-            // Round up to the nearest 30-minute interval if needed
-            if (currentMinute > 0 && currentMinute < 30) {
-                currentMinute = 30;
-            } else if (currentMinute > 30) {
-                currentHour += 1;
-                currentMinute = 0;
-            }
+            // Calculate the end time in minutes for comparison
+            const closeTimeInMinutes = closeHour * 60 + closeMinute;
 
-            // Generate all possible 30-minute slots during open hours
+            // Generate all possible slots during open hours using the location's slot duration
             while (
                 currentHour < closeHour ||
-                (currentHour === closeHour && currentMinute <= closeMinute - 30)
+                (currentHour === closeHour && currentMinute < closeMinute)
             ) {
                 const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
 
-                // Check if this specific time is available
-                const timeAvailability = isTimeAvailable(
-                    selectedDate,
-                    timeString,
-                    locationSchedules,
-                );
+                // Check if a slot starting at this time would end before or at closing time
+                const slotEndMinutes = currentHour * 60 + currentMinute + slotDuration;
+                if (slotEndMinutes <= closeTimeInMinutes) {
+                    // Check if this specific time is available
+                    const timeAvailability = isTimeAvailable(
+                        selectedDate,
+                        timeString,
+                        locationSchedules,
+                    );
 
-                slots.push({
-                    value: timeString,
-                    label: timeString,
-                    disabled: !timeAvailability.isAvailable,
-                });
+                    slots.push({
+                        value: timeString,
+                        label: timeString,
+                        disabled: !timeAvailability.isAvailable,
+                    });
+                }
 
-                // Advance to next time slot
-                currentMinute += 30;
+                // Advance to next time slot using the configured duration
+                currentMinute += slotDuration;
                 if (currentMinute >= 60) {
-                    currentHour += 1;
-                    currentMinute = 0;
+                    currentHour += Math.floor(currentMinute / 60);
+                    currentMinute = currentMinute % 60;
                 }
             }
 
@@ -119,10 +143,10 @@ export default function ReschedulePickupModal({
             if (firstAvailable && !selectedTime) {
                 setSelectedTime(firstAvailable.value);
             } else if (!firstAvailable) {
-                setError(t("reschedule.noTimesAvailable", {}));
+                setError(t("reschedule.noTimesAvailable"));
             }
         }
-    }, [selectedDate, locationSchedules, t, selectedTime]);
+    }, [selectedDate, locationSchedules, t, selectedTime, slotDuration]);
 
     // Reset form when modal opens or parcel changes
     useEffect(() => {
@@ -137,7 +161,7 @@ export default function ReschedulePickupModal({
 
     const handleConfirm = async () => {
         if (!foodParcel || !selectedDate || !selectedTime) {
-            setError(t("reschedule.requiredFields", {}));
+            setError(t("reschedule.requiredFields"));
             return;
         }
 
@@ -148,12 +172,13 @@ export default function ReschedulePickupModal({
             // Parse the selected time
             const [hours, minutes] = selectedTime.split(":").map(Number);
 
-            // Create start and end times (30 minute window)
+            // Create start time
             const startDateTime = new Date(selectedDate);
             startDateTime.setHours(hours, minutes, 0, 0);
 
+            // Create end time using the location's slot duration
             const endDateTime = new Date(startDateTime);
-            endDateTime.setMinutes(endDateTime.getMinutes() + 30);
+            endDateTime.setMinutes(endDateTime.getMinutes() + slotDuration);
 
             const result = await updateFoodParcelSchedule(foodParcel.id, {
                 date: selectedDate,
@@ -165,11 +190,11 @@ export default function ReschedulePickupModal({
                 onRescheduled();
                 onClose();
             } else {
-                setError(result.error || t("reschedule.genericError", {}));
+                setError(result.error || t("reschedule.genericError"));
             }
         } catch (error) {
             console.error("Error rescheduling pickup:", error);
-            setError(t("reschedule.genericError", {}));
+            setError(t("reschedule.genericError"));
         } finally {
             setIsSubmitting(false);
         }
@@ -185,7 +210,7 @@ export default function ReschedulePickupModal({
         <Modal
             opened={opened}
             onClose={onClose}
-            title={t("reschedule.modalTitle", {})}
+            title={t("reschedule.modalTitle")}
             centered
             size="md"
         >
@@ -193,14 +218,14 @@ export default function ReschedulePickupModal({
                 <Stack>
                     <Paper withBorder p="md" radius="md">
                         <Text fw={600} mb="sm">
-                            {t("reschedule.currentPickup", {})}
+                            {t("reschedule.currentPickup")}
                         </Text>
                         <Group justify="space-between">
-                            <Text>{t("reschedule.date", {})}:</Text>
+                            <Text>{t("reschedule.date")}:</Text>
                             <Text>{formatStockholmDate(foodParcel.pickupDate, "PPP")}</Text>
                         </Group>
                         <Group justify="space-between">
-                            <Text>{t("reschedule.time", {})}:</Text>
+                            <Text>{t("reschedule.time")}:</Text>
                             <Text>
                                 {formatTime(foodParcel.pickupEarliestTime)} -{" "}
                                 {formatTime(foodParcel.pickupLatestTime)}
@@ -210,13 +235,13 @@ export default function ReschedulePickupModal({
 
                     <Box>
                         <Text fw={600} mb="sm">
-                            {t("reschedule.newPickup", {})}
+                            {t("reschedule.newPickup")}
                         </Text>
 
                         <Stack gap="md">
                             <DateInput
-                                label={t("reschedule.newDate", {})}
-                                placeholder={t("reschedule.selectDate", {})}
+                                label={t("reschedule.newDate")}
+                                placeholder={t("reschedule.selectDate")}
                                 value={selectedDate}
                                 onChange={setSelectedDate}
                                 leftSection={<IconCalendar size="1rem" />}
@@ -226,8 +251,8 @@ export default function ReschedulePickupModal({
                             />
 
                             <Select
-                                label={t("reschedule.newTime", {})}
-                                placeholder={t("reschedule.selectTime", {})}
+                                label={t("reschedule.newTime")}
+                                placeholder={t("reschedule.selectTime")}
                                 value={selectedTime}
                                 onChange={setSelectedTime}
                                 data={availableTimes}

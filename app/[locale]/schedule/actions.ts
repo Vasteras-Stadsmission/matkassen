@@ -131,6 +131,18 @@ export async function getTimeslotCounts(
         const startDate = fromStockholmTime(startDateStockholm);
         const endDate = fromStockholmTime(endDateStockholm);
 
+        // Fetch the location settings to get the slot duration
+        const [locationSettings] = await db
+            .select({
+                defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
+            })
+            .from(pickupLocations)
+            .where(eq(pickupLocations.id, locationId))
+            .limit(1);
+
+        // Default to 30 minutes if setting is not found
+        const slotDurationMinutes = locationSettings?.defaultSlotDuration ?? 30;
+
         // Query food parcels for this location and date
         const parcels = await db
             .select({
@@ -144,13 +156,18 @@ export async function getTimeslotCounts(
                 ),
             );
 
-        // Count parcels by time slot (30-minute slots) using Stockholm time
+        // Count parcels by time slot using the location's slot duration
         const timeslotCounts: Record<string, number> = {};
 
         parcels.forEach(parcel => {
             const time = toStockholmTime(new Date(parcel.pickupEarliestTime));
             const hour = time.getHours();
-            const minutes = time.getMinutes() < 30 ? 0 : 30;
+
+            // Round to the nearest slot based on the location's slot duration
+            const totalMinutes = time.getMinutes();
+            const slotIndex = Math.floor(totalMinutes / slotDurationMinutes);
+            const minutes = slotIndex * slotDurationMinutes;
+
             const key = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 
             if (!timeslotCounts[key]) {
@@ -195,14 +212,20 @@ export async function updateFoodParcelSchedule(
                 return { success: false, error: "Food parcel not found" };
             }
 
-            // Get the location's max parcels per day
+            // Get the location's max parcels per day and slot duration
             const [location] = await tx
                 .select({
                     maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                    defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
                 })
                 .from(pickupLocations)
                 .where(eq(pickupLocations.id, parcel.locationId))
                 .limit(1);
+
+            // Calculate the correct end time based on the location's slot duration
+            const slotDurationMinutes = location.defaultSlotDuration ?? 30;
+            const endTime = new Date(newTimeslot.startTime);
+            endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
 
             // Check if the location is open at this time using the location-availability utility
             const locationSchedules = await getPickupLocationSchedules(parcel.locationId);
@@ -221,7 +244,7 @@ export async function updateFoodParcelSchedule(
                 return {
                     success: false,
                     error:
-                        timeAvailability.message || "The selected time is outside operating hours",
+                        timeAvailability.reason || "The selected time is outside operating hours",
                 };
             }
 
@@ -261,13 +284,12 @@ export async function updateFoodParcelSchedule(
                 }
             }
 
-            // Update the food parcel's schedule
-            // Since we're in a transaction, this won't commit until all checks have passed
+            // Update the food parcel's schedule using the calculated endTime
             await tx
                 .update(foodParcels)
                 .set({
                     pickup_date_time_earliest: newTimeslot.startTime,
-                    pickup_date_time_latest: newTimeslot.endTime,
+                    pickup_date_time_latest: endTime, // Use our calculated end time
                 })
                 .where(eq(foodParcels.id, parcelId));
 
@@ -407,7 +429,7 @@ export async function checkLocationAvailability(
     locationId: string,
     date: Date,
     time: string,
-): Promise<{ isAvailable: boolean; message?: string }> {
+): Promise<{ isAvailable: boolean; reason?: string }> {
     try {
         const scheduleInfo = await getPickupLocationSchedules(locationId);
 
@@ -456,7 +478,7 @@ export async function checkLocationAvailability(
                 if (timeValue < openValue || timeValue >= closeValue) {
                     return {
                         isAvailable: false,
-                        message: `This location is only open from ${dayConfig.openingTime} to ${dayConfig.closingTime} on ${weekday}s`,
+                        reason: `This location is only open from ${dayConfig.openingTime} to ${dayConfig.closingTime} on ${weekday}s`,
                     };
                 }
 
@@ -467,7 +489,7 @@ export async function checkLocationAvailability(
         // If no schedule is found for this date, it's unavailable
         return {
             isAvailable: false,
-            message: "This location has no scheduled opening hours for this date",
+            reason: "This location has no scheduled opening hours for this date",
         };
     } catch (error) {
         console.error("Error checking location availability:", error);
@@ -565,8 +587,20 @@ export interface TimeSlotGridData {
 // Add the getTimeSlotGrid function
 export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise<TimeSlotGridData> {
     try {
-        // Fetch the location with its schedules
+        // Fetch the location with its schedules and settings
         const locationData = await getLocationWithSchedules(locationId);
+
+        // Also fetch the location settings to get the slot duration
+        const [locationSettings] = await db
+            .select({
+                defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
+            })
+            .from(pickupLocations)
+            .where(eq(pickupLocations.id, locationId))
+            .limit(1);
+
+        // Default to 30 minutes if setting is not found
+        const slotDurationMinutes = locationSettings?.defaultSlotDuration ?? 30;
 
         if (!locationData) {
             throw new Error("Location not found");
@@ -579,14 +613,14 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
             return {
                 date,
                 isAvailable: availability.isAvailable,
-                unavailableReason: availability.isAvailable ? undefined : availability.message,
+                unavailableReason: availability.isAvailable ? undefined : availability.reason,
             };
         });
 
         // Generate timeslots based on the location's schedule
         // Get the first available day to determine time slots
         const availableDay = days.find(day => day.isAvailable);
-        let timeslots: string[] = [];
+        const timeslots: string[] = [];
 
         if (availableDay) {
             const timeRange = getAvailableTimeRange(availableDay.date, locationData);
@@ -596,12 +630,12 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
                 const [startHour, startMinute] = timeRange.earliestTime.split(":").map(Number);
                 const [endHour, endMinute] = timeRange.latestTime.split(":").map(Number);
 
-                // Always start exactly at opening time (e.g., 09:00) instead of rounding
+                // Always start exactly at opening time (e.g., 06:45) instead of rounding
                 let currentHour = startHour;
                 let currentMinute = startMinute;
 
-                // Generate all possible 30-minute slots during open hours
-                // Continue until we reach the closing time (inclusive of the last slot that ends at closing time)
+                // Generate slots with the location's configured slot duration
+                // Continue until we reach the closing time (the last slot should end at or before closing time)
                 while (
                     currentHour < endHour ||
                     (currentHour === endHour && currentMinute < endMinute)
@@ -609,37 +643,32 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
                     const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
                     timeslots.push(timeString);
 
-                    // Advance to next time slot
-                    currentMinute += 30;
+                    // Advance to next time slot using the configured duration
+                    currentMinute += slotDurationMinutes;
                     if (currentMinute >= 60) {
-                        currentHour += 1;
-                        currentMinute = 0;
+                        currentHour += Math.floor(currentMinute / 60);
+                        currentMinute = currentMinute % 60;
                     }
                 }
             }
         }
 
-        // If no timeslots were generated, use default ones
+        // If no timeslots were generated, use default ones with the location's slot duration
         if (timeslots.length === 0) {
-            timeslots = [
-                "09:00",
-                "09:30",
-                "10:00",
-                "10:30",
-                "11:00",
-                "11:30",
-                "12:00",
-                "12:30",
-                "13:00",
-                "13:30",
-                "14:00",
-                "14:30",
-                "15:00",
-                "15:30",
-                "16:00",
-                "16:30",
-                "17:00",
-            ];
+            // Generate default slots from 9:00 to 17:00 with the configured duration
+            let currentHour = 9;
+            let currentMinute = 0;
+
+            while (currentHour < 17 || (currentHour === 17 && currentMinute === 0)) {
+                const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
+                timeslots.push(timeString);
+
+                currentMinute += slotDurationMinutes;
+                if (currentMinute >= 60) {
+                    currentHour += Math.floor(currentMinute / 60);
+                    currentMinute = currentMinute % 60;
+                }
+            }
         }
 
         return {
@@ -658,4 +687,27 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
 export async function getLocationWithSchedules(locationId: string): Promise<LocationScheduleInfo> {
     // This is essentially a wrapper around getPickupLocationSchedules to make the code more explicit
     return getPickupLocationSchedules(locationId);
+}
+
+/**
+ * Get the default slot duration for a pickup location
+ */
+export async function getLocationSlotDuration(locationId: string): Promise<number> {
+    try {
+        // Fetch location settings to get the slot duration
+        const [locationSettings] = await db
+            .select({
+                defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
+            })
+            .from(pickupLocations)
+            .where(eq(pickupLocations.id, locationId))
+            .limit(1);
+
+        // Default to 15 minutes if setting is not found
+        return locationSettings?.defaultSlotDuration ?? 15;
+    } catch (error) {
+        console.error("Error fetching location slot duration:", error);
+        // Default to 15 minutes in case of error
+        return 15;
+    }
 }

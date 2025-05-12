@@ -99,7 +99,7 @@ export default function WeeklyScheduleGrid({
                     ...day,
                     timeSlot,
                     isAvailable: availability.isAvailable,
-                    unavailableReason: availability.message,
+                    unavailableReason: availability.reason,
                 };
             });
 
