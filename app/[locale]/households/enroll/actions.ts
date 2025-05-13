@@ -16,6 +16,12 @@ import {
     pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
 } from "@/app/db/schema";
 import { eq, and, sql } from "drizzle-orm";
+import {
+    setToStartOfDay,
+    setToEndOfDay,
+    getDateParts,
+    formatDateToISOString,
+} from "@/app/utils/date-utils";
 
 import {
     HouseholdCreateData,
@@ -273,14 +279,8 @@ export async function checkPickupLocationCapacity(
             };
         }
 
-        // Format date for correct comparison (remove time part)
-        const dateOnly = new Date(date);
-        dateOnly.setHours(0, 0, 0, 0);
-
-        // Extract the year, month, and day from the date for comparison
-        const year = dateOnly.getFullYear();
-        const month = dateOnly.getMonth() + 1; // getMonth() returns 0-11
-        const day = dateOnly.getDate();
+        // Use date-utils to normalize date and extract parts for comparison
+        const { year, month, day } = getDateParts(date);
 
         // Use raw SQL for a more precise date comparison that handles timezone information
         // This extracts year, month, and day from the timestamp to perform the comparison
@@ -359,12 +359,9 @@ export async function getPickupLocationCapacityForRange(
             };
         }
 
-        // Format dates for comparison
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        // Use date-utils for consistent date handling
+        const start = setToStartOfDay(startDate);
+        const end = setToEndOfDay(endDate);
 
         // Get all food parcels for this location within the date range
         const parcels = await db
@@ -385,8 +382,8 @@ export async function getPickupLocationCapacityForRange(
 
         parcels.forEach(parcel => {
             const date = new Date(parcel.pickupDateEarliest);
-            // Format to YYYY-MM-DD for consistent comparison
-            const dateKey = date.toISOString().split("T")[0];
+            // Use date-utils for consistent date formatting
+            const dateKey = formatDateToISOString(date);
 
             if (!dateCountMap[dateKey]) {
                 dateCountMap[dateKey] = 0;
@@ -419,8 +416,8 @@ export async function getPickupLocationCapacityForRange(
 export async function getPickupLocationSchedules(locationId: string) {
     try {
         const currentDate = new Date();
-        // Use SQL date formatting for correct comparison with database date values
-        const currentDateStr = currentDate.toISOString().split("T")[0];
+        // Use our date utility for consistent date formatting
+        const currentDateStr = formatDateToISOString(currentDate);
 
         // Get all current and upcoming schedules for this location
         // (end_date is in the future - this includes both active and upcoming schedules)

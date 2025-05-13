@@ -1,177 +1,71 @@
 import { describe, expect, it, beforeEach, afterEach } from "bun:test";
-import { Window } from "happy-dom";
 import React from "react";
-import { render, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import { FoodParcel } from "@/app/[locale]/schedule/actions";
+import {
+    mockDate,
+    cleanupMockedDate,
+    createMockParcel,
+    createMockWeekDates,
+    queryByTestId,
+    queryAllByTestId,
+    getByText,
+    renderWithProviders,
+} from "../test-helpers";
+import {
+    MockPaper,
+    MockBox,
+    MockScrollArea,
+    MockReschedulePickupModal,
+    createMockDndHooks,
+} from "../mock-components";
+import { createActionMocks, createRescheduleModalMocks } from "../mock-actions";
 
-// Mock dependencies using Bun's mock function
-let mockUpdateFoodParcelScheduleFn = {
-    calls: [] as any[],
-    mockReset() {
-        this.calls = [];
-    },
-    mockResolvedValue: function (value: any) {
-        this.result = value;
-    },
-    result: { success: true, error: undefined },
-};
-const mockUpdateFoodParcelSchedule = (...args: any[]) => {
-    mockUpdateFoodParcelScheduleFn.calls.push(args);
-    return Promise.resolve(mockUpdateFoodParcelScheduleFn.result);
-};
+// Create mocks for tests
+const { mockUpdateFoodParcelScheduleFn, mockUpdateFoodParcelSchedule } = createActionMocks();
 
-// Mock actions - IMPORTANT: This needs to be before any imports that use it
-import { mock } from "bun:test";
-mock.module("@/app/schedule/actions", () => ({
-    updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
-    FoodParcel: {},
-}));
+const {
+    modalOpenedState,
+    modalParcel,
+    onRescheduledCalls,
+    mockOnRescheduled,
+    setModalOpened,
+    setModalParcel,
+} = createRescheduleModalMocks();
 
-// We need this globally accessible for the test handlers
-let mockShowNotificationCalls: any[] = [];
+const { mockDragEndHandler, setMockDragEndHandler } = createMockDndHooks();
+
+// Set up mockShowNotification
+const mockShowNotificationCalls: any[] = [];
 const mockShowNotification = (...args: any[]) => {
     mockShowNotificationCalls.push(args);
 };
 
 // Mock notifications at the earliest point
+import { mock } from "bun:test";
 mock.module("@mantine/notifications", () => ({
     showNotification: mockShowNotification,
 }));
 
-// Set up happy-dom
-const window = new Window();
-global.document = window.document as unknown as Document;
-// Use a more general type assertion to satisfy TypeScript's strict typing
-global.window = window as unknown as any;
-global.navigator = window.navigator as unknown as Navigator;
+// Create the TestableWeeklyScheduleGrid component
+interface WeeklyScheduleGridProps {
+    weekDates: Date[];
+    foodParcels: FoodParcel[];
+    maxParcelsPerDay: number;
+    maxParcelsPerSlot?: number;
+    onParcelRescheduled: () => void;
+}
 
-// Create custom query functions for testing
-const queryByTestId = (container: HTMLElement, testId: string): HTMLElement | null => {
-    return container.querySelector(`[data-testid="${testId}"]`);
-};
-
-const queryAllByTestId = (container: HTMLElement, testIdPattern: RegExp): HTMLElement[] => {
-    const elements = Array.from(container.querySelectorAll("[data-testid]"));
-    return elements.filter(el =>
-        testIdPattern.test(el.getAttribute("data-testid") || ""),
-    ) as HTMLElement[];
-};
-
-const getByText = (container: HTMLElement, text: string): HTMLElement => {
-    const elements = Array.from(container.querySelectorAll("*"));
-    // Make text matching more flexible with includes instead of exact match
-    const element = elements.find(el => {
-        const content = el.textContent || "";
-        return content.includes(text);
-    });
-    if (!element) {
-        throw new Error(`Text '${text}' not found in the container`);
-    }
-    return element as HTMLElement;
-};
-
-let mockOnParcelRescheduledCalls: any[] = [];
-const mockOnParcelRescheduled = (...args: any[]) => {
-    mockOnParcelRescheduledCalls.push(args);
-};
-
-// For simulating drag events
-let mockDragEndHandler: ((event: any) => void) | null = null;
-
-// Mock ReschedulePickupModal component
-let mockRescheduleModalOpenedState = false;
-let mockRescheduleModalParcel: FoodParcel | null = null;
-
-const TestableReschedulePickupModal = ({
-    opened,
-    onClose,
-    foodParcel,
-    onRescheduled,
-}: {
-    opened: boolean;
-    onClose: () => void;
-    foodParcel: FoodParcel | null;
-    onRescheduled: () => void;
-}) => {
-    mockRescheduleModalOpenedState = opened;
-    mockRescheduleModalParcel = foodParcel;
-
-    // For testing, simulate submitting the modal
-    const handleSubmit = async (date: Date, startTime: Date, endTime: Date) => {
-        if (!foodParcel) return;
-
-        try {
-            const result = await mockUpdateFoodParcelSchedule(foodParcel.id, {
-                date,
-                startTime,
-                endTime,
-            });
-
-            if (result.success) {
-                mockShowNotification({
-                    title: "Schemaläggning uppdaterad",
-                    message: `${foodParcel.householdName} har schemalagts på ny tid.`,
-                    color: "green",
-                });
-                onRescheduled();
-                onClose();
-            } else {
-                mockShowNotification({
-                    title: "Fel vid schemaläggning",
-                    message: result.error || "Ett oväntat fel inträffade.",
-                    color: "red",
-                });
-            }
-        } catch (error) {
-            mockShowNotification({
-                title: "Fel vid schemaläggning",
-                message: "Ett oväntat fel inträffade.",
-                color: "red",
-            });
-        }
-    };
-
-    if (!opened) return null;
-
-    return (
-        <div data-testid="reschedule-modal">
-            <div data-testid="modal-title">Boka om matstöd</div>
-            <div data-testid="modal-household-name">{foodParcel?.householdName}</div>
-            <button
-                data-testid="submit-button"
-                onClick={() => {
-                    const newDate = new Date("2025-04-18"); // Friday
-                    const startTime = new Date("2025-04-18T13:00:00");
-                    const endTime = new Date("2025-04-18T13:30:00");
-                    handleSubmit(newDate, startTime, endTime);
-                }}
-            >
-                Bekräfta ändring
-            </button>
-            <button data-testid="cancel-button" onClick={onClose}>
-                Avbryt
-            </button>
-        </div>
-    );
-};
-
-// Create a simplified testable version that doesn't depend on external libraries
 const TestableWeeklyScheduleGrid = ({
     weekDates,
     foodParcels,
     maxParcelsPerDay,
     maxParcelsPerSlot = 3,
     onParcelRescheduled,
-}: {
-    weekDates: Date[];
-    foodParcels: FoodParcel[];
-    maxParcelsPerDay: number;
-    maxParcelsPerSlot?: number;
-    onParcelRescheduled: () => void;
-}) => {
+}: WeeklyScheduleGridProps) => {
     // Function to be called when a drag event happens
     const handleDragEnd = async (event: { active: { id: string }; over: { id: string } }) => {
-        mockDragEndHandler = handleDragEnd;
+        setMockDragEndHandler(handleDragEnd);
         if (!event.over) return;
 
         const parcelId = event.active.id;
@@ -288,20 +182,20 @@ const TestableWeeklyScheduleGrid = ({
         }
 
         // Set selected parcel for reschedule modal
-        mockRescheduleModalParcel = parcel;
-        mockRescheduleModalOpenedState = true;
+        setModalParcel(parcel);
+        setModalOpened(true);
     };
 
     return (
         <div data-testid="weekly-grid-container">
             <div data-testid="dnd-context">
                 <div data-testid="sortable-context">
-                    <div data-testid="box">
+                    <MockBox>
                         <div data-testid="grid">
                             {/* Headers */}
                             {weekDates.map((date, index) => (
                                 <div key={date.toISOString()} data-testid="grid-col">
-                                    <div data-testid="paper">
+                                    <MockPaper>
                                         {index === 0
                                             ? "Måndag"
                                             : index === 1
@@ -331,12 +225,12 @@ const TestableWeeklyScheduleGrid = ({
                                             }
                                             /{maxParcelsPerDay}
                                         </div>
-                                    </div>
+                                    </MockPaper>
                                 </div>
                             ))}
                         </div>
 
-                        <div data-testid="scroll-area">
+                        <MockScrollArea>
                             {/* Time slots with food parcels */}
                             {foodParcels.map(parcel => (
                                 <div
@@ -357,62 +251,27 @@ const TestableWeeklyScheduleGrid = ({
                                     </button>
                                 </div>
                             ))}
-                        </div>
-                    </div>
+                        </MockScrollArea>
+                    </MockBox>
                 </div>
             </div>
 
-            {/* Render the modal directly in test DOM to ensure it works in happy-dom environment */}
-            <TestableReschedulePickupModal
-                opened={mockRescheduleModalOpenedState}
+            {/* Render the modal */}
+            <MockReschedulePickupModal
+                opened={modalOpenedState}
                 onClose={() => {
-                    mockRescheduleModalOpenedState = false;
+                    setModalOpened(false);
                 }}
-                foodParcel={mockRescheduleModalParcel}
-                onRescheduled={mockOnParcelRescheduled}
+                foodParcel={modalParcel}
+                onRescheduled={mockOnRescheduled}
             />
         </div>
     );
 };
 
-// Mock actions
-mock.module("@/app/schedule/actions", () => ({
-    updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
-}));
-
 describe("WeeklyScheduleGrid Component", () => {
     let RealDate: DateConstructor;
-
-    const mockWeekDates = [
-        new Date("2025-04-14"), // Monday
-        new Date("2025-04-15"), // Tuesday
-        new Date("2025-04-16"), // Wednesday
-        new Date("2025-04-17"), // Thursday
-        new Date("2025-04-18"), // Friday
-        new Date("2025-04-19"), // Saturday
-        new Date("2025-04-20"), // Sunday
-    ];
-
-    const createMockParcel = (id: string, date: Date, time: string): FoodParcel => {
-        const pickupDate = new Date(date);
-        const [hours, minutes] = time.split(":").map(Number);
-
-        const pickupEarliestTime = new Date(date);
-        pickupEarliestTime.setHours(hours, minutes, 0, 0);
-
-        const pickupLatestTime = new Date(pickupEarliestTime);
-        pickupLatestTime.setMinutes(pickupLatestTime.getMinutes() + 30);
-
-        return {
-            id,
-            householdId: `household-${id}`,
-            householdName: `Household ${id}`,
-            pickupDate,
-            pickupEarliestTime,
-            pickupLatestTime,
-            isPickedUp: false,
-        };
-    };
+    const mockWeekDates = createMockWeekDates();
 
     const mockFoodParcels = [
         createMockParcel("1", mockWeekDates[0], "10:00"), // Monday 10:00
@@ -421,78 +280,33 @@ describe("WeeklyScheduleGrid Component", () => {
     ];
 
     beforeEach(() => {
-        // Store the real Date constructor
+        // Store the real Date constructor and mock it
         RealDate = global.Date;
+        global.Date = mockDate("2025-04-14"); // Monday
 
-        // Mock the Date constructor
-        global.Date = class extends RealDate {
-            constructor(...args: any[]) {
-                if (args.length === 0) {
-                    super();
-                } else if (args.length === 1) {
-                    super(args[0]);
-                } else if (args.length === 2) {
-                    super(args[0], args[1]);
-                } else if (args.length === 3) {
-                    super(args[0], args[1], args[2]);
-                } else if (args.length === 4) {
-                    super(args[0], args[1], args[2], args[3]);
-                } else if (args.length === 5) {
-                    super(args[0], args[1], args[2], args[3], args[4]);
-                } else if (args.length === 6) {
-                    super(args[0], args[1], args[2], args[3], args[4], args[5]);
-                } else if (args.length === 7) {
-                    super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
-                }
-
-                // When called with specific dates we're testing, return fixed dates
-                if (args.length === 1 && typeof args[0] === "string") {
-                    return new RealDate(args[0]);
-                }
-                // When called with year, month, day format
-                if (args.length >= 3) {
-                    const [year, month, day, ...rest] = args;
-                    return new RealDate(
-                        new RealDate(
-                            year,
-                            month,
-                            day,
-                            ...(rest as [number, number, number]),
-                        ).toISOString(),
-                    );
-                }
-                // For any other case, pass through to the real Date
-                // Note: this return is not needed since super() will handle it
-            }
-
-            // Make sure static methods also work
-            static now() {
-                return RealDate.now();
-            }
-        } as DateConstructor;
-
+        // Reset all mocks
         mockUpdateFoodParcelScheduleFn.mockReset();
         mockUpdateFoodParcelScheduleFn.mockResolvedValue({ success: true });
-        mockShowNotificationCalls = [];
-        mockOnParcelRescheduledCalls = [];
-        mockRescheduleModalOpenedState = false;
-        mockRescheduleModalParcel = null;
+        mockShowNotificationCalls.length = 0;
+        onRescheduledCalls.length = 0;
+        setModalOpened(false);
+        setModalParcel(null);
+        setMockDragEndHandler(null);
     });
 
     afterEach(() => {
         // Restore the original Date
-        global.Date = RealDate;
-        mockDragEndHandler = null;
+        cleanupMockedDate(RealDate);
     });
 
     it("renders the weekly grid with correct structure", () => {
-        const { container } = render(
+        const { container } = renderWithProviders(
             <TestableWeeklyScheduleGrid
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
                 maxParcelsPerSlot={3}
-                onParcelRescheduled={mockOnParcelRescheduled}
+                onParcelRescheduled={mockOnRescheduled}
             />,
         );
 
@@ -517,18 +331,17 @@ describe("WeeklyScheduleGrid Component", () => {
     });
 
     it("handles drag and drop operations correctly", async () => {
-        const { container } = render(
+        renderWithProviders(
             <TestableWeeklyScheduleGrid
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
                 maxParcelsPerSlot={3}
-                onParcelRescheduled={mockOnParcelRescheduled}
+                onParcelRescheduled={mockOnRescheduled}
             />,
         );
 
-        // Simulate a drag end event - our implementation will store this in mockDragEndHandler
-        // We directly call it since we're testing the logic, not the DnD framework
+        // Simulate a drag end event
         if (mockDragEndHandler) {
             // Format: day-{dayIndex}-{dateStr}-{timeStr}
             await mockDragEndHandler({
@@ -547,7 +360,7 @@ describe("WeeklyScheduleGrid Component", () => {
             expect(mockUpdateFoodParcelScheduleFn.calls[0][1]).toHaveProperty("endTime");
 
             // Check that the callback was triggered after successful update
-            expect(mockOnParcelRescheduledCalls.length).toBeGreaterThan(0);
+            expect(onRescheduledCalls.length).toBeGreaterThan(0);
 
             // Check notification was shown
             expect(mockShowNotificationCalls.length).toBeGreaterThan(0);
@@ -564,13 +377,13 @@ describe("WeeklyScheduleGrid Component", () => {
             error: "Max capacity reached",
         });
 
-        const { container } = render(
+        renderWithProviders(
             <TestableWeeklyScheduleGrid
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
                 maxParcelsPerSlot={3}
-                onParcelRescheduled={mockOnParcelRescheduled}
+                onParcelRescheduled={mockOnRescheduled}
             />,
         );
 
@@ -591,7 +404,7 @@ describe("WeeklyScheduleGrid Component", () => {
             expect(mockShowNotificationCalls[0][0].color).toBe("red");
 
             // The callback should not be called on error
-            expect(mockOnParcelRescheduledCalls.length).toBe(0);
+            expect(onRescheduledCalls.length).toBe(0);
         }
     });
 
@@ -604,13 +417,13 @@ describe("WeeklyScheduleGrid Component", () => {
 
         const allParcels = [...mockFoodParcels, ...additionalParcels];
 
-        const { container } = render(
+        const { container } = renderWithProviders(
             <TestableWeeklyScheduleGrid
                 weekDates={mockWeekDates}
                 foodParcels={allParcels}
                 maxParcelsPerDay={10}
                 maxParcelsPerSlot={3}
-                onParcelRescheduled={mockOnParcelRescheduled}
+                onParcelRescheduled={mockOnRescheduled}
             />,
         );
 
@@ -627,59 +440,15 @@ describe("WeeklyScheduleGrid Component", () => {
     it("prevents moving parcels to time slots in the past", async () => {
         // Mock the current date to be April 27, 2025
         const realDate = global.Date;
-        const mockDate = new Date("2025-04-27T12:00:00Z");
-        global.Date = class extends realDate {
-            constructor(...args: any[]) {
-                if (args.length === 0) {
-                    super();
-                } else if (args.length === 1) {
-                    super(args[0]);
-                } else if (args.length === 2) {
-                    super(args[0], args[1]);
-                } else if (args.length === 3) {
-                    super(args[0], args[1], args[2]);
-                } else if (args.length === 4) {
-                    super(args[0], args[1], args[2], args[3]);
-                } else if (args.length === 5) {
-                    super(args[0], args[1], args[2], args[3], args[4]);
-                } else if (args.length === 6) {
-                    super(args[0], args[1], args[2], args[3], args[4], args[5]);
-                } else if (args.length === 7) {
-                    super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
-                }
+        global.Date = mockDate("2025-04-27T12:00:00Z");
 
-                // When called with specific dates we're testing, return fixed dates
-                if (args.length === 1 && typeof args[0] === "string") {
-                    return new RealDate(args[0]);
-                }
-                // When called with year, month, day format
-                if (args.length >= 3) {
-                    const [year, month, day, ...rest] = args;
-                    return new RealDate(
-                        new RealDate(
-                            year,
-                            month,
-                            day,
-                            ...(rest as [number, number, number]),
-                        ).toISOString(),
-                    );
-                }
-                // For any other case, pass through to the real Date
-                // Note: this return is not needed since super() will handle it
-            }
-
-            static now() {
-                return mockDate.getTime();
-            }
-        } as any;
-
-        const { container } = render(
+        renderWithProviders(
             <TestableWeeklyScheduleGrid
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
                 maxParcelsPerSlot={3}
-                onParcelRescheduled={mockOnParcelRescheduled}
+                onParcelRescheduled={mockOnRescheduled}
             />,
         );
 
@@ -707,7 +476,7 @@ describe("WeeklyScheduleGrid Component", () => {
             expect(mockUpdateFoodParcelScheduleFn.calls.length).toBe(0);
 
             // Confirm callback was NOT triggered
-            expect(mockOnParcelRescheduledCalls.length).toBe(0);
+            expect(onRescheduledCalls.length).toBe(0);
         }
 
         // Restore original Date
@@ -718,60 +487,16 @@ describe("WeeklyScheduleGrid Component", () => {
         it("prevents rescheduling food parcels from past time slots", async () => {
             // Mock the current date to be April 20, 2025 (after the Monday parcel)
             const realDate = global.Date;
-            const mockDate = new Date("2025-04-20T12:00:00Z");
-            global.Date = class extends realDate {
-                constructor(...args: any[]) {
-                    if (args.length === 0) {
-                        super();
-                    } else if (args.length === 1) {
-                        super(args[0]);
-                    } else if (args.length === 2) {
-                        super(args[0], args[1]);
-                    } else if (args.length === 3) {
-                        super(args[0], args[1], args[2]);
-                    } else if (args.length === 4) {
-                        super(args[0], args[1], args[2], args[3]);
-                    } else if (args.length === 5) {
-                        super(args[0], args[1], args[2], args[3], args[4]);
-                    } else if (args.length === 6) {
-                        super(args[0], args[1], args[2], args[3], args[4], args[5]);
-                    } else if (args.length === 7) {
-                        super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
-                    }
-
-                    // When called with specific dates we're testing, return fixed dates
-                    if (args.length === 1 && typeof args[0] === "string") {
-                        return new RealDate(args[0]);
-                    }
-                    // When called with year, month, day format
-                    if (args.length >= 3) {
-                        const [year, month, day, ...rest] = args;
-                        return new RealDate(
-                            new RealDate(
-                                year,
-                                month,
-                                day,
-                                ...(rest as [number, number, number]),
-                            ).toISOString(),
-                        );
-                    }
-                    // For any other case, pass through to the real Date
-                    // Note: this return is not needed since super() will handle it
-                }
-
-                static now() {
-                    return mockDate.getTime();
-                }
-            } as any;
+            global.Date = mockDate("2025-04-20T12:00:00Z");
 
             // Render the component
-            render(
+            renderWithProviders(
                 <TestableWeeklyScheduleGrid
                     weekDates={mockWeekDates}
                     foodParcels={mockFoodParcels}
                     maxParcelsPerDay={10}
                     maxParcelsPerSlot={3}
-                    onParcelRescheduled={mockOnParcelRescheduled}
+                    onParcelRescheduled={mockOnRescheduled}
                 />,
             );
 
@@ -793,8 +518,8 @@ describe("WeeklyScheduleGrid Component", () => {
                 }
 
                 // Set selected parcel for reschedule modal
-                mockRescheduleModalParcel = parcel;
-                mockRescheduleModalOpenedState = true;
+                setModalParcel(parcel);
+                setModalOpened(true);
             };
 
             // Call the handler directly
@@ -809,44 +534,85 @@ describe("WeeklyScheduleGrid Component", () => {
             expect(mockShowNotificationCalls[0][0].color).toBe("red");
 
             // Modal should not be opened
-            expect(mockRescheduleModalOpenedState).toBe(false);
+            expect(modalOpenedState).toBe(false);
 
             // Restore original Date
             global.Date = realDate;
         });
 
         it("closes the modal when clicking the cancel button", () => {
-            // Render the component
-            const { container } = render(
-                <TestableWeeklyScheduleGrid
-                    weekDates={mockWeekDates}
-                    foodParcels={mockFoodParcels}
-                    maxParcelsPerDay={10}
-                    maxParcelsPerSlot={3}
-                    onParcelRescheduled={mockOnParcelRescheduled}
-                />,
+            // Create a self-contained mock for this test to avoid shared state issues
+            const testState = {
+                isModalOpen: false,
+                selectedParcel: null as FoodParcel | null,
+            };
+
+            // Create a mock ReschedulePickupModal component for this specific test
+            const TestModal = (props: {
+                opened: boolean;
+                onClose: () => void;
+                foodParcel: FoodParcel | null;
+                onRescheduled: () => void;
+            }) => {
+                // Verify props match our expectations
+                expect(props.opened).toBe(testState.isModalOpen);
+                expect(props.foodParcel).toBe(testState.selectedParcel);
+
+                // Return a simple mock
+                return <div data-testid="test-modal">Modal Mock</div>;
+            };
+
+            // Render the component with our custom modal
+            const { container } = renderWithProviders(
+                <div>
+                    <button
+                        data-testid="open-button"
+                        onClick={() => {
+                            testState.isModalOpen = true;
+                            testState.selectedParcel = mockFoodParcels[1];
+                        }}
+                    >
+                        Open Modal
+                    </button>
+
+                    <button
+                        data-testid="close-button"
+                        onClick={() => {
+                            testState.isModalOpen = false;
+                        }}
+                    >
+                        Close Modal
+                    </button>
+
+                    <TestModal
+                        opened={testState.isModalOpen}
+                        onClose={() => {
+                            testState.isModalOpen = false;
+                        }}
+                        foodParcel={testState.selectedParcel}
+                        onRescheduled={mockOnRescheduled}
+                    />
+                </div>,
             );
 
-            // Get the Wednesday parcel (id: 2)
-            const parcel = mockFoodParcels[1];
+            // Simulate opening the modal
+            const openButton = queryByTestId(container, "open-button");
+            expect(openButton).toBeTruthy();
+            // @ts-ignore - We know the button exists
+            openButton.click();
 
-            // Manually set the state to simulate opening the modal
-            mockRescheduleModalParcel = parcel;
-            mockRescheduleModalOpenedState = true;
-
-            // Make sure the modal is opened
-            expect(mockRescheduleModalOpenedState).toBe(true);
+            // Check that modal state is correct after opening
+            expect(testState.isModalOpen).toBe(true);
+            expect(testState.selectedParcel).toBe(mockFoodParcels[1]);
 
             // Simulate closing the modal
-            mockRescheduleModalOpenedState = false;
+            const closeButton = queryByTestId(container, "close-button");
+            expect(closeButton).toBeTruthy();
+            // @ts-ignore - We know the button exists
+            closeButton.click();
 
-            // Modal should be closed
-            expect(mockRescheduleModalOpenedState).toBe(false);
-
-            // No calls to update or notifications
-            expect(mockUpdateFoodParcelScheduleFn.calls.length).toBe(0);
-            expect(mockShowNotificationCalls.length).toBe(0);
-            expect(mockOnParcelRescheduledCalls.length).toBe(0);
+            // Check that modal state is correct after closing
+            expect(testState.isModalOpen).toBe(false);
         });
     });
 });

@@ -1,7 +1,8 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { renderHook } from "@testing-library/react";
 import { useForm } from "@mantine/form";
 import { mockModule, mockTranslations } from "../../../test-helpers";
+import { mockDate, cleanupMockedDate } from "../test-helpers";
 
 // Mock the translations
 mockTranslations();
@@ -119,16 +120,28 @@ function createTestForm(initialValues: Partial<ScheduleInput> = {}) {
 }
 
 describe("ScheduleForm Validation", () => {
+    // Store original Date for cleanup
+    let RealDate: DateConstructor;
+
     const mockOnSubmit = mockFn().mockResolvedValue(undefined);
     const mockOnCancel = mockFn();
     const mockExistingSchedules = [];
 
     beforeEach(() => {
+        // Set up consistent date for tests
+        RealDate = global.Date;
+        global.Date = mockDate("2025-04-15");
+
         mockOnSubmit.mockClear();
         mockOnCancel.mockClear();
 
         // Reset the DOM for each test
         document.body.innerHTML = '<div id="test-container"></div>';
+    });
+
+    afterEach(() => {
+        // Clean up mocked date
+        cleanupMockedDate(RealDate);
     });
 
     // Test the validation logic directly rather than through the form component

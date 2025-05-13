@@ -13,18 +13,7 @@ import {
     DragOverlay,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import {
-    Box,
-    Grid,
-    Group,
-    Modal,
-    Paper,
-    ScrollArea,
-    Text,
-    Button,
-    Tooltip,
-    Code,
-} from "@mantine/core";
+import { Box, Grid, Group, Modal, Paper, ScrollArea, Text, Button, Tooltip } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
 import { IconArrowBackUp, IconCheck, IconInfoCircle } from "@tabler/icons-react";
@@ -196,8 +185,6 @@ export default function WeeklyScheduleGrid({
 
     // State to store the location's slot duration
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
-    // State to store all time slots for each day based on the specific opening hours
-    const [daySpecificTimeSlots, setDaySpecificTimeSlots] = useState<Record<string, string[]>>({});
 
     // Reference to track the last fetched location ID to prevent duplicate requests
     const lastFetchedLocationIdRef = useRef<string | null>(null);
@@ -382,7 +369,6 @@ export default function WeeklyScheduleGrid({
 
                     // Generate day-specific time slots based on the schedule and slot duration
                     const daySlots = generateDaySpecificTimeSlots(scheduleInfo);
-                    setDaySpecificTimeSlots(daySlots);
 
                     // Generate a complete list of unique time slots across all days
                     const allTimeSlots = getAllUniqueTimeSlots(daySlots);
@@ -1095,15 +1081,6 @@ export default function WeeklyScheduleGrid({
             />
         </>
     );
-}
-
-// Helper function to check if a date is in week 21 of 2025
-function isWeek21(date: Date): boolean {
-    // Week 21 of 2025 is May 19-25
-    const week21Start = new Date("2025-05-19T00:00:00");
-    const week21End = new Date("2025-05-25T23:59:59");
-
-    return date >= week21Start && date <= week21End;
 }
 
 // Helper function to get weekday name in the format used in the database

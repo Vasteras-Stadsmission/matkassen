@@ -1,4 +1,4 @@
-import { describe, test, expect, vi } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 
 // Mock types similar to those used in the component
 type Weekday = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
@@ -17,7 +17,24 @@ type ScheduleInput = {
     days: ScheduleDayInput[];
 };
 
+// Import shared test utilities - helps with consistency even in simpler tests
+import { mockDate, cleanupMockedDate } from "../test-helpers";
+
 describe("Schedule Days Validation", () => {
+    // Store original Date for cleanup
+    let RealDate: DateConstructor;
+
+    beforeEach(() => {
+        // Set up consistent date for tests
+        RealDate = global.Date;
+        global.Date = mockDate("2025-04-15");
+    });
+
+    afterEach(() => {
+        // Clean up mocked date
+        cleanupMockedDate(RealDate);
+    });
+
     // Helper to create a schedule with specific days open
     const createSchedule = (daysOpen: Weekday[]): ScheduleInput => {
         const weekdays: Weekday[] = [

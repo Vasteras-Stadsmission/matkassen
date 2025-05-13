@@ -1,6 +1,7 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { getWeekDateRange } from "@/app/utils/schedule/schedule-validation";
 import { mockModule } from "../../../test-helpers";
+import { mockDate, cleanupMockedDate } from "../test-helpers";
 
 // Mock the validation function with a simplified version
 mockModule("@/app/utils/schedule/schedule-validation", () => ({
@@ -19,6 +20,27 @@ type WeekSelection = {
 };
 
 describe("Schedule Week Selection Validation", () => {
+    // Store original Date for cleanup
+    let RealDate: DateConstructor;
+
+    beforeEach(() => {
+        // Set up consistent date for tests
+        RealDate = global.Date;
+        global.Date = mockDate("2025-04-15");
+
+        // Reset state before each test
+        startWeek = null;
+        endWeek = null;
+        startDate = null;
+        endDate = null;
+        isValidSelection = false;
+    });
+
+    afterEach(() => {
+        // Clean up mocked date
+        cleanupMockedDate(RealDate);
+    });
+
     // Mock implementation of the ScheduleForm's week handling logic
     let startWeek: WeekSelection | null;
     let endWeek: WeekSelection | null;
@@ -99,15 +121,6 @@ describe("Schedule Week Selection Validation", () => {
 
         updateWeeks();
     };
-
-    beforeEach(() => {
-        // Reset state before each test
-        startWeek = null;
-        endWeek = null;
-        startDate = null;
-        endDate = null;
-        isValidSelection = false;
-    });
 
     test("can select same week for start and end", () => {
         const week = { year: 2025, week: 18 };

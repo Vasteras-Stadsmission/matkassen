@@ -1,8 +1,8 @@
 import { describe, test, expect } from "bun:test";
-import { render } from "@testing-library/react";
 import React from "react";
-import { MantineProvider } from "@mantine/core";
 import { mockTranslations } from "../../../test-helpers";
+import { renderWithProviders } from "../test-helpers";
+import { MockButton } from "../mock-components";
 
 // Mock dependencies
 mockTranslations();
@@ -20,48 +20,57 @@ function SimplifiedScheduleForm({
     showOverlapWarning?: boolean;
 }) {
     return (
-        <MantineProvider>
-            <div>
-                <button
-                    type="submit"
-                    disabled={showOverlapWarning || !startWeek || !endWeek || !hasOpenDays}
-                    data-testid="submit-button"
-                >
-                    createSchedule
-                </button>
-            </div>
-        </MantineProvider>
+        <div>
+            <MockButton
+                type="submit"
+                disabled={showOverlapWarning || !startWeek || !endWeek || !hasOpenDays}
+                data-testid="submit-button"
+            >
+                createSchedule
+            </MockButton>
+        </div>
     );
 }
 
 describe("Schedule Form Submit Button Validation", () => {
-    // Re-enable tests now that we have a better DOM environment
     test("button should be disabled when no days are open", () => {
-        render(<SimplifiedScheduleForm startWeek={true} endWeek={true} hasOpenDays={false} />);
+        const { container } = renderWithProviders(
+            <SimplifiedScheduleForm startWeek={true} endWeek={true} hasOpenDays={false} />,
+        );
 
-        const button = document.querySelector('[data-testid="submit-button"]') as HTMLButtonElement;
+        const button = container.querySelector(
+            '[data-testid="submit-button"]',
+        ) as HTMLButtonElement;
         expect(button).not.toBeNull();
         expect(button.disabled).toBe(true);
     });
 
     test("button should be disabled when start week is not selected", () => {
-        render(<SimplifiedScheduleForm startWeek={false} endWeek={true} hasOpenDays={true} />);
+        const { container } = renderWithProviders(
+            <SimplifiedScheduleForm startWeek={false} endWeek={true} hasOpenDays={true} />,
+        );
 
-        const button = document.querySelector('[data-testid="submit-button"]') as HTMLButtonElement;
+        const button = container.querySelector(
+            '[data-testid="submit-button"]',
+        ) as HTMLButtonElement;
         expect(button).not.toBeNull();
         expect(button.disabled).toBe(true);
     });
 
     test("button should be disabled when end week is not selected", () => {
-        render(<SimplifiedScheduleForm startWeek={true} endWeek={false} hasOpenDays={true} />);
+        const { container } = renderWithProviders(
+            <SimplifiedScheduleForm startWeek={true} endWeek={false} hasOpenDays={true} />,
+        );
 
-        const button = document.querySelector('[data-testid="submit-button"]') as HTMLButtonElement;
+        const button = container.querySelector(
+            '[data-testid="submit-button"]',
+        ) as HTMLButtonElement;
         expect(button).not.toBeNull();
         expect(button.disabled).toBe(true);
     });
 
     test("button should be disabled when overlap warning is shown", () => {
-        render(
+        const { container } = renderWithProviders(
             <SimplifiedScheduleForm
                 startWeek={true}
                 endWeek={true}
@@ -70,24 +79,28 @@ describe("Schedule Form Submit Button Validation", () => {
             />,
         );
 
-        const button = document.querySelector('[data-testid="submit-button"]') as HTMLButtonElement;
+        const button = container.querySelector(
+            '[data-testid="submit-button"]',
+        ) as HTMLButtonElement;
         expect(button).not.toBeNull();
         expect(button.disabled).toBe(true);
     });
 
     test("button should be enabled when all conditions are met", () => {
-        // Directly test the disabled logic rather than rendering the component
-        // This avoids issues with the DOM environment
-        const isDisabled = (
-            startWeek: boolean,
-            endWeek: boolean,
-            hasOpenDays: boolean,
-            showOverlapWarning = false,
-        ) => {
-            return showOverlapWarning || !startWeek || !endWeek || !hasOpenDays;
-        };
+        const { container } = renderWithProviders(
+            <SimplifiedScheduleForm
+                startWeek={true}
+                endWeek={true}
+                hasOpenDays={true}
+                showOverlapWarning={false}
+            />,
+        );
 
-        expect(isDisabled(true, true, true, false)).toBe(false);
+        const button = container.querySelector(
+            '[data-testid="submit-button"]',
+        ) as HTMLButtonElement;
+        expect(button).not.toBeNull();
+        expect(button.disabled).toBe(false);
     });
 
     // Keep the plain logic test as well

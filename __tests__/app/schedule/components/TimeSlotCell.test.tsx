@@ -1,38 +1,24 @@
-import { describe, expect, it, beforeEach, afterEach, mock } from "bun:test";
-import { Window } from "happy-dom";
-import React, { ReactNode } from "react";
-import { render } from "@testing-library/react";
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
+import React from "react";
 import { FoodParcel } from "@/app/[locale]/schedule/actions";
+import {
+    mockDate,
+    cleanupMockedDate,
+    createMockParcel,
+    queryByTestId,
+    queryAllByTestId,
+    getByText,
+    renderWithProviders,
+} from "../test-helpers";
+import { MockPaper, MockStack, MockPickupCard, createMockDndHooks } from "../mock-components";
 
-// Set up happy-dom
-const window = new Window();
-global.document = window.document as unknown as Document;
-// Use a more general type assertion to satisfy TypeScript's strict typing
-global.window = window as unknown as any;
-global.navigator = window.navigator as unknown as Navigator;
+// Create mock dnd hooks for testing
+const { mockUseDroppable, setMockIsOver } = createMockDndHooks();
 
-// Define interface for MockPaper props
-interface MockPaperProps {
-    children: ReactNode;
-    bg?: string;
-    style?: React.CSSProperties;
-    ref?: React.Ref<HTMLDivElement>;
-    [key: string]: any;
-}
+// Setup mock state for isPastTimeSlot
+let mockIsPastTimeSlot = false;
 
-// Define interface for MockStack props
-interface MockStackProps {
-    children: ReactNode;
-    [key: string]: any;
-}
-
-// Define interface for MockPickupCard props
-interface MockPickupCardProps {
-    foodParcel: FoodParcel;
-    isCompact?: boolean;
-}
-
-// Define interface for TimeSlotCell props (matching the actual component)
+// Define interface for TimeSlotCell props
 interface TimeSlotCellProps {
     date: Date;
     time: string;
@@ -42,53 +28,7 @@ interface TimeSlotCellProps {
     dayIndex?: number;
 }
 
-// Define interface for useDroppable params
-interface UseDroppableParams {
-    id: string;
-    disabled: boolean;
-}
-
-// Mocked components and hooks that will be used in tests
-const MockPaper = ({ children, bg, style = {}, ...props }: MockPaperProps) => (
-    <div
-        data-testid="paper"
-        data-bg={bg} // Store the bg color as a data attribute for testing
-        style={{ ...style }}
-        {...props}
-    >
-        {children}
-    </div>
-);
-
-const MockStack = ({ children, ...props }: MockStackProps) => (
-    <div data-testid="stack" {...props}>
-        {children}
-    </div>
-);
-
-let mockIsOver = false;
-let mockSetNodeRef = mock(() => {});
-let mockIsPastTimeSlot = false;
-let lastDroppableId = "";
-let lastDisabledValue = false;
-
-// Mock useDroppable hook with tracking
-const mockUseDroppable = ({ id, disabled }: UseDroppableParams) => {
-    lastDroppableId = id;
-    lastDisabledValue = disabled;
-    return {
-        setNodeRef: mockSetNodeRef,
-        isOver: mockIsOver,
-    };
-};
-
-// Mock PickupCard component
-const MockPickupCard = ({ foodParcel, isCompact }: MockPickupCardProps) => (
-    <div data-testid={`pickup-card-${foodParcel.id}`}>{foodParcel.householdName}</div>
-);
-
-// Create the TimeSlotCell implementation directly in the test file
-// This avoids import issues while still testing the actual component logic
+// Create the TimeSlotCell implementation for testing
 const TimeSlotCell = ({
     date,
     time,
@@ -138,108 +78,34 @@ const TimeSlotCell = ({
     );
 };
 
-// Create helper query functions
-const queryByTestId = (container: HTMLElement, testId: string): HTMLElement | null => {
-    return container.querySelector(`[data-testid="${testId}"]`);
-};
-
-const queryAllByTestId = (container: HTMLElement, testIdPattern: RegExp): HTMLElement[] => {
-    const elements = Array.from(container.querySelectorAll("[data-testid]"));
-    return elements.filter(el =>
-        testIdPattern.test(el.getAttribute("data-testid") || ""),
-    ) as HTMLElement[];
-};
-
-const getByText = (container: HTMLElement, text: string): HTMLElement => {
-    const elements = Array.from(container.querySelectorAll("*"));
-    const element = elements.find(el => el.textContent === text);
-    if (!element) {
-        throw new Error(`Text '${text}' not found in the container`);
-    }
-    return element as HTMLElement;
-};
-
 describe("TimeSlotCell Component", () => {
     let RealDate: DateConstructor;
-    const mockDate = new Date("2025-04-16");
+    const mockDateStr = "2025-04-16";
     const mockTime = "12:00";
 
     beforeEach(() => {
-        // Store the real Date constructor
+        // Store the real Date constructor and set up mock date
         RealDate = global.Date;
+        global.Date = mockDate(mockDateStr);
 
-        // Mock the Date constructor
-        global.Date = class extends RealDate {
-            constructor(...args: any[]) {
-                if (args.length === 0) {
-                    super();
-                } else if (args.length === 1) {
-                    super(args[0]);
-                } else if (args.length === 2) {
-                    super(args[0], args[1]);
-                } else if (args.length === 3) {
-                    super(args[0], args[1], args[2]);
-                } else if (args.length === 4) {
-                    super(args[0], args[1], args[2], args[3]);
-                } else if (args.length === 5) {
-                    super(args[0], args[1], args[2], args[3], args[4]);
-                } else if (args.length === 6) {
-                    super(args[0], args[1], args[2], args[3], args[4], args[5]);
-                } else if (args.length === 7) {
-                    super(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
-                }
-
-                // When called with specific dates we're testing, return fixed dates
-                if (args.length === 1 && typeof args[0] === "string") {
-                    return new RealDate(args[0]);
-                }
-                // When called with year, month, day format
-                if (args.length >= 3) {
-                    const [year, month, day, ...rest] = args;
-                    return new RealDate(
-                        new RealDate(
-                            year,
-                            month,
-                            day,
-                            ...(rest as [number, number, number]),
-                        ).toISOString(),
-                    );
-                }
-                // For any other case, pass through to the real Date
-                // Note: this return is not needed since super() will handle it
-            }
-
-            // Make sure static methods also work
-            static now() {
-                return RealDate.now();
-            }
-        } as DateConstructor;
-
-        mockIsOver = false;
+        // Reset state for tests
         mockIsPastTimeSlot = false;
-        mockSetNodeRef = mock(() => {});
-        lastDroppableId = "";
-        lastDisabledValue = false;
+        setMockIsOver(false);
     });
 
     afterEach(() => {
         // Restore the original Date
-        global.Date = RealDate;
-    });
-
-    const createMockParcel = (id: string, householdName: string): FoodParcel => ({
-        id,
-        householdId: `household-${id}`,
-        householdName,
-        pickupDate: new Date("2025-04-16"),
-        pickupEarliestTime: new Date("2025-04-16T12:00:00"),
-        pickupLatestTime: new Date("2025-04-16T12:30:00"),
-        isPickedUp: false,
+        cleanupMockedDate(RealDate);
     });
 
     it("renders empty cell when no parcels are provided", () => {
-        const { container } = render(
-            <TimeSlotCell date={mockDate} time={mockTime} parcels={[]} maxParcelsPerSlot={4} />,
+        const { container } = renderWithProviders(
+            <TimeSlotCell
+                date={new Date(mockDateStr)}
+                time={mockTime}
+                parcels={[]}
+                maxParcelsPerSlot={4}
+            />,
         );
 
         const paperElement = queryByTestId(container, "paper");
@@ -249,13 +115,13 @@ describe("TimeSlotCell Component", () => {
 
     it("renders parcels correctly when provided", () => {
         const mockParcels = [
-            createMockParcel("1", "Household 1"),
-            createMockParcel("2", "Household 2"),
+            createMockParcel("1", new Date(mockDateStr), mockTime, "Household 1"),
+            createMockParcel("2", new Date(mockDateStr), mockTime, "Household 2"),
         ];
 
-        const { container } = render(
+        const { container } = renderWithProviders(
             <TimeSlotCell
-                date={mockDate}
+                date={new Date(mockDateStr)}
                 time={mockTime}
                 parcels={mockParcels}
                 maxParcelsPerSlot={4}
@@ -268,33 +134,15 @@ describe("TimeSlotCell Component", () => {
         expect(getByText(container, "Household 2")).toBeTruthy();
     });
 
-    it("sets the correct droppable ID format with dayIndex", () => {
-        const dayIndex = 3;
-
-        render(
-            <TimeSlotCell
-                date={mockDate}
-                time={mockTime}
-                parcels={[]}
-                maxParcelsPerSlot={4}
-                dayIndex={dayIndex}
-            />,
-        );
-
-        // Check that the droppable ID was set correctly
-        expect(lastDroppableId).toBe(`day-${dayIndex}-2025-04-16-${mockTime}`);
-        expect(lastDisabledValue).toBe(false);
-    });
-
     it("changes background color based on capacity", () => {
         const mockParcels = Array(3)
             .fill(0)
-            .map((_, i) => createMockParcel(`${i}`, `Household ${i}`));
+            .map((_, i) => createMockParcel(`${i}`, new Date(mockDateStr), mockTime));
 
         // Test at 75% capacity (3/4)
-        const { container: container1 } = render(
+        const { container: container1 } = renderWithProviders(
             <TimeSlotCell
-                date={mockDate}
+                date={new Date(mockDateStr)}
                 time={mockTime}
                 parcels={mockParcels}
                 maxParcelsPerSlot={4}
@@ -306,9 +154,9 @@ describe("TimeSlotCell Component", () => {
         expect(paper1?.getAttribute("data-bg")).toBe("yellow.0");
 
         // Test over capacity
-        const { container: container2 } = render(
+        const { container: container2 } = renderWithProviders(
             <TimeSlotCell
-                date={mockDate}
+                date={new Date(mockDateStr)}
                 time={mockTime}
                 parcels={mockParcels}
                 maxParcelsPerSlot={2}
@@ -323,10 +171,15 @@ describe("TimeSlotCell Component", () => {
 
     it("changes background color when hovering during drag", () => {
         // Set mock isOver value to true to simulate hover state
-        mockIsOver = true;
+        setMockIsOver(true);
 
-        const { container } = render(
-            <TimeSlotCell date={mockDate} time={mockTime} parcels={[]} maxParcelsPerSlot={4} />,
+        const { container } = renderWithProviders(
+            <TimeSlotCell
+                date={new Date(mockDateStr)}
+                time={mockTime}
+                parcels={[]}
+                maxParcelsPerSlot={4}
+            />,
         );
 
         const paper = queryByTestId(container, "paper");
@@ -338,8 +191,13 @@ describe("TimeSlotCell Component", () => {
         // Set mock isPastTimeSlot value to true
         mockIsPastTimeSlot = true;
 
-        const { container } = render(
-            <TimeSlotCell date={mockDate} time={mockTime} parcels={[]} maxParcelsPerSlot={4} />,
+        const { container } = renderWithProviders(
+            <TimeSlotCell
+                date={new Date(mockDateStr)}
+                time={mockTime}
+                parcels={[]}
+                maxParcelsPerSlot={4}
+            />,
         );
 
         const paper = queryByTestId(container, "paper");

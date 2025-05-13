@@ -117,3 +117,71 @@ export function formatDateWithLocalizedMonth(
 
     return `${day} ${monthName} ${year}`;
 }
+
+/**
+ * Set a date to the start of day (00:00:00.000) in Stockholm timezone
+ * @param date The date to normalize
+ * @returns Date normalized to start of day in Stockholm timezone
+ */
+export function setToStartOfDay(date: Date): Date {
+    // Convert to Stockholm timezone first to ensure correct day boundary
+    const stockholmDate = toStockholmTime(date);
+    // Set to start of day
+    const startOfDayDate = startOfDay(stockholmDate);
+    // Convert back to UTC for storage/comparison
+    return fromStockholmTime(startOfDayDate);
+}
+
+/**
+ * Set a date to the end of day (23:59:59.999) in Stockholm timezone
+ * @param date The date to set to end of day
+ * @returns Date set to end of day in Stockholm timezone
+ */
+export function setToEndOfDay(date: Date): Date {
+    // Convert to Stockholm timezone first to ensure correct day boundary
+    const stockholmDate = toStockholmTime(date);
+    // Set to end of day
+    const endOfDayDate = endOfDay(stockholmDate);
+    // Convert back to UTC for storage/comparison
+    return fromStockholmTime(endOfDayDate);
+}
+
+/**
+ * Extract date parts (year, month, day) from a date in Stockholm timezone
+ * @param date The date to extract parts from
+ * @returns Object with year, month (1-12), and day parts
+ */
+export function getDateParts(date: Date): { year: number; month: number; day: number } {
+    const stockholmDate = toStockholmTime(date);
+    return {
+        year: stockholmDate.getFullYear(),
+        month: stockholmDate.getMonth() + 1, // getMonth() returns 0-11, so add 1 for 1-12 range
+        day: stockholmDate.getDate(),
+    };
+}
+
+/**
+ * Format a date as ISO date string (YYYY-MM-DD) using Stockholm timezone
+ * @param date The date to format
+ * @returns ISO date string (YYYY-MM-DD) in Stockholm timezone
+ */
+export function formatDateToISOString(date: Date): string {
+    // This will format in YYYY-MM-DD format according to Stockholm timezone
+    return formatDateToYMD(date);
+}
+
+/**
+ * Parse a date from an ISO date string (YYYY-MM-DD) in Stockholm timezone
+ * @param dateString ISO date string (YYYY-MM-DD)
+ * @returns Date object in UTC
+ */
+export function parseISODateString(dateString: string): Date {
+    // Create a date object from ISO string and ensure it's treated as Stockholm timezone
+    const [year, month, day] = dateString.split("-").map(Number);
+    const stockholmDate = new Date();
+    stockholmDate.setFullYear(year, month - 1, day);
+    stockholmDate.setHours(0, 0, 0, 0);
+
+    // Convert to Stockholm timezone and then back to UTC
+    return fromStockholmTime(toStockholmTime(stockholmDate));
+}

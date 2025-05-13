@@ -174,7 +174,7 @@ export function LocationForm({
                             name: data.name,
                             street_address: data.street_address || "",
                             postal_code: data.postal_code || "",
-                            parcels_max_per_day: data.parcels_max_per_day || null,
+                            parcels_max_per_day: data.parcels_max_per_day || undefined,
                             contact_name: data.contact_name || "",
                             contact_email: data.contact_email || "",
                             contact_phone_number: data.contact_phone_number || "",

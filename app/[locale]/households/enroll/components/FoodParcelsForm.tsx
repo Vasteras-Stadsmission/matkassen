@@ -192,6 +192,8 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 // Remove unused variables
                 const capacityInfo = await getPickupLocationCapacityForRange(
                     formState.pickupLocationId,
+                    new Date(), // Use today as start date
+                    new Date(new Date().setMonth(new Date().getMonth() + 3)), // Use 3 months from now as end date
                 );
 
                 setCapacityData(capacityInfo);
@@ -984,7 +986,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                             size="xs"
                                             leftSection={<IconClock size="1rem" />}
                                             aria-label={t("time.earliest")}
-                                            styles={theme => ({
+                                            styles={{
                                                 input: {
                                                     ...(bulkTimeError
                                                         ? {
@@ -993,7 +995,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                           }
                                                         : {}),
                                                 },
-                                            })}
+                                            }}
                                         />
                                     </Box>
 
@@ -1009,7 +1011,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                             size="xs"
                                             leftSection={<IconClock size="1rem" />}
                                             aria-label={t("time.latest")}
-                                            styles={theme => ({
+                                            styles={{
                                                 input: {
                                                     ...(bulkTimeError
                                                         ? {
@@ -1018,7 +1020,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                           }
                                                         : {}),
                                                 },
-                                            })}
+                                            }}
                                         />
                                     </Box>
 
