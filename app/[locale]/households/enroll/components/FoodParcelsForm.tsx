@@ -29,7 +29,7 @@ import {
 } from "@tabler/icons-react";
 import {
     getPickupLocations,
-    checkPickupLocationCapacity,
+    getPickupLocationSchedules,
     getPickupLocationCapacityForRange,
 } from "../actions";
 import { FoodParcels, FoodParcel } from "../types";
@@ -51,6 +51,34 @@ interface FoodParcelsFormProps {
     error?: ValidationError | null;
 }
 
+// Types for location schedule
+interface ScheduleDay {
+    weekday: string;
+    isOpen: boolean;
+    openingTime: string | null;
+    closingTime: string | null;
+}
+
+interface Schedule {
+    id: string;
+    name: string;
+    startDate: Date;
+    endDate: Date;
+    days: ScheduleDay[];
+}
+
+interface SpecialDay {
+    date: Date;
+    openingTime: string;
+    closingTime: string;
+    isClosed: boolean;
+}
+
+interface LocationSchedules {
+    schedules: Schedule[];
+    specialDays: SpecialDay[];
+}
+
 export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
     const t = useTranslations("foodParcels");
 
@@ -61,15 +89,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const [bulkEarliestTime, setBulkEarliestTime] = useState("12:00");
     const [bulkLatestTime, setBulkLatestTime] = useState("13:00");
     const [bulkTimeError, setBulkTimeError] = useState<string | null>(null);
+    // Add state for location schedules
+    const [locationSchedules, setLocationSchedules] = useState<LocationSchedules | null>(null);
 
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    const [_capacityNotification, setCapacityNotification] = useState<{
+    // We need to actually use this variable in the component
+    const [capacityNotification, setCapacityNotification] = useState<{
         date: Date;
         message: string;
         isAvailable: boolean;
     } | null>(null);
-    const [_checkingCapacity, setCheckingCapacity] = useState(false);
-    /* eslint-enable @typescript-eslint/no-unused-vars */
+
     const capacityNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [capacityData, setCapacityData] = useState<{
@@ -160,14 +189,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             try {
                 setLoadingCapacityData(true);
 
-                const startDate = new Date();
-                const endDate = new Date();
-                endDate.setMonth(endDate.getMonth() + 3);
-
+                // Remove unused variables
                 const capacityInfo = await getPickupLocationCapacityForRange(
                     formState.pickupLocationId,
-                    startDate,
-                    endDate,
+                    new Date(), // Use today as start date
+                    new Date(new Date().setMonth(new Date().getMonth() + 3)), // Use 3 months from now as end date
                 );
 
                 setCapacityData(capacityInfo);
@@ -180,6 +206,31 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }
 
         fetchCapacityData();
+    }, [formState.pickupLocationId]);
+
+    // Fetch location schedules when pickup location changes
+    useEffect(() => {
+        async function fetchSchedules() {
+            if (!formState.pickupLocationId) {
+                setLocationSchedules(null);
+                return;
+            }
+
+            try {
+                const schedules = await getPickupLocationSchedules(formState.pickupLocationId);
+                // Cast the schedules object to the LocationSchedules type
+                // This is a temporary solution until we update the API to return the correct type
+                setLocationSchedules({
+                    schedules: schedules.schedules,
+                    specialDays: [], // Add empty specialDays array for compatibility
+                } as unknown as LocationSchedules);
+            } catch (error) {
+                console.error("Error fetching location schedules:", error);
+                setLocationSchedules(null);
+            }
+        }
+
+        fetchSchedules();
     }, [formState.pickupLocationId]);
 
     const isDateExcluded = useCallback(
@@ -197,6 +248,65 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
             if (isAlreadySelected) {
                 return false; // Never exclude dates that are already selected
+            }
+
+            // Check against location schedule
+            if (locationSchedules) {
+                // First check if it's a special day
+                const specialDay = locationSchedules.specialDays.find(
+                    day =>
+                        new Date(day.date).toISOString().split("T")[0] ===
+                        dateForComparison.toISOString().split("T")[0],
+                );
+
+                // If it's a special day marked as closed, exclude it
+                if (specialDay && specialDay.isClosed) {
+                    return true; // Exclude this date
+                }
+
+                // If it's a special day that's open, allow it
+                if (specialDay && !specialDay.isClosed) {
+                    // Don't exclude special days that are open
+                } else {
+                    // Check if this day falls within any schedule and is an open day
+                    const dayOfWeek = localDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                    // Convert JavaScript day of week to our weekday enum format
+                    const weekdayNames = [
+                        "sunday",
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                    ];
+                    const weekday = weekdayNames[dayOfWeek];
+
+                    // Check all schedules
+                    let isOpenOnThisDay = false;
+
+                    for (const schedule of locationSchedules.schedules) {
+                        // Check if date is within schedule's date range
+                        const startDate = new Date(schedule.startDate);
+                        const endDate = new Date(schedule.endDate);
+                        startDate.setHours(0, 0, 0, 0);
+                        endDate.setHours(23, 59, 59, 999);
+
+                        if (dateForComparison >= startDate && dateForComparison <= endDate) {
+                            // Check if this weekday is open in this schedule
+                            const dayConfig = schedule.days.find(day => day.weekday === weekday);
+                            if (dayConfig && dayConfig.isOpen) {
+                                isOpenOnThisDay = true;
+                                break; // Found an open schedule for this day
+                            }
+                        }
+                    }
+
+                    // If no schedule has this day open, exclude it
+                    if (!isOpenOnThisDay) {
+                        return true; // Exclude this date
+                    }
+                }
             }
 
             // For unselected dates, perform the capacity check
@@ -221,7 +331,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             // Exclude unselected dates that would exceed capacity
             return maxPerDay !== null && totalCount >= maxPerDay;
         },
-        [capacityData, selectedDates],
+        [capacityData, selectedDates, locationSchedules],
     );
 
     const renderDay = (date: Date) => {
@@ -262,6 +372,56 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             return selected.getTime() === dateForComparison.getTime();
         });
 
+        // Check if the date is unavailable due to location schedule
+        let isUnavailableDueToSchedule = false;
+        if (locationSchedules) {
+            // First check if it's a special day
+            const specialDay = locationSchedules.specialDays.find(
+                day =>
+                    new Date(day.date).toISOString().split("T")[0] ===
+                    dateForComparison.toISOString().split("T")[0],
+            );
+
+            // If it's a special day marked as closed, it's unavailable
+            if (specialDay && specialDay.isClosed) {
+                isUnavailableDueToSchedule = true;
+            }
+            // If it's not a special day that's open, check regular schedules
+            else if (!specialDay || (specialDay && specialDay.isClosed)) {
+                // Check if this day falls within any schedule and is an open day
+                const weekdayNames = [
+                    "sunday",
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                ];
+                const weekday = weekdayNames[dayOfWeek];
+
+                // Assume unavailable unless we find an open schedule
+                isUnavailableDueToSchedule = true;
+
+                for (const schedule of locationSchedules.schedules) {
+                    // Check if date is within schedule's date range
+                    const startDate = new Date(schedule.startDate);
+                    const endDate = new Date(schedule.endDate);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setHours(23, 59, 59, 999);
+
+                    if (dateForComparison >= startDate && dateForComparison <= endDate) {
+                        // Check if this weekday is open in this schedule
+                        const dayConfig = schedule.days.find(day => day.weekday === weekday);
+                        if (dayConfig && dayConfig.isOpen) {
+                            isUnavailableDueToSchedule = false;
+                            break; // Found an open schedule for this day
+                        }
+                    }
+                }
+            }
+        }
+
         let dayStyle: React.CSSProperties = {};
 
         if (isSelected) {
@@ -278,6 +438,18 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             );
         }
 
+        // Apply style for dates unavailable due to schedule
+        if (isUnavailableDueToSchedule) {
+            dayStyle = {
+                backgroundColor: "var(--mantine-color-gray-2)",
+                color: "var(--mantine-color-gray-6)",
+                textDecoration: "line-through",
+                opacity: 0.5,
+                fontWeight: 400,
+            };
+        }
+
+        // Fully booked dates take precedence in styling
         if (isFullyBooked) {
             dayStyle = {
                 backgroundColor: "var(--mantine-color-red-0)",
@@ -288,7 +460,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             };
         }
 
-        if (isWeekend && !isFullyBooked) {
+        if (isWeekend && !isFullyBooked && !isUnavailableDueToSchedule) {
             dayStyle = {
                 ...dayStyle,
                 opacity: dayStyle.opacity || 0.8,
@@ -322,73 +494,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             handleParameterChange("pickupLocationId", value);
         }
     };
-
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    const _checkDateCapacity = useCallback(
-        async (date: Date) => {
-            if (!formState.pickupLocationId) {
-                return { isAvailable: true };
-            }
-
-            try {
-                setCheckingCapacity(true);
-
-                const capacity = await checkPickupLocationCapacity(
-                    formState.pickupLocationId,
-                    date,
-                );
-
-                const dateString = new Date(date).toDateString();
-                const existingDateCount = selectedDates.filter(
-                    selectedDate => new Date(selectedDate).toDateString() === dateString,
-                ).length;
-
-                const adjustedCount = capacity.currentCount + existingDateCount;
-                const stillAvailable =
-                    capacity.maxCount === null || adjustedCount < capacity.maxCount;
-
-                if (capacity.maxCount !== null) {
-                    const isNearCapacity = adjustedCount >= Math.floor(capacity.maxCount * 0.8);
-
-                    const adjustedCapacity = {
-                        ...capacity,
-                        isAvailable: stillAvailable,
-                        currentCount: adjustedCount,
-                        message: stillAvailable
-                            ? `${adjustedCount} av ${capacity.maxCount} bokade`
-                            : `Max antal (${capacity.maxCount}) matkassar bokade för detta datum`,
-                    };
-
-                    if (!stillAvailable || isNearCapacity) {
-                        setCapacityNotification({
-                            date,
-                            message: adjustedCapacity.message,
-                            isAvailable: adjustedCapacity.isAvailable,
-                        });
-
-                        if (capacityNotificationTimeoutRef.current) {
-                            clearTimeout(capacityNotificationTimeoutRef.current);
-                        }
-
-                        capacityNotificationTimeoutRef.current = setTimeout(() => {
-                            setCapacityNotification(null);
-                        }, 5000);
-                    }
-
-                    return adjustedCapacity;
-                }
-
-                return capacity;
-            } catch (error) {
-                console.error("Error checking pickup location capacity:", error);
-                return { isAvailable: true };
-            } finally {
-                setCheckingCapacity(false);
-            }
-        },
-        [formState.pickupLocationId, selectedDates],
-    );
-    /* eslint-enable @typescript-eslint/no-unused-vars */
 
     const generateParcels = useCallback((): FoodParcel[] => {
         return selectedDates.map(date => {
@@ -647,9 +752,35 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             <Title order={3} mb="md">
                 {t("title")}
             </Title>
-            <Text c="dimmed" size="sm" mb="lg">
+            <Text style={{ color: "var(--mantine-color-dimmed)" }} size="sm" mb="lg">
                 {t("description")}
             </Text>
+
+            {/* Show capacity notification when available */}
+            {capacityNotification && (
+                <Paper
+                    p="xs"
+                    withBorder
+                    mb="md"
+                    style={{
+                        backgroundColor: capacityNotification.isAvailable
+                            ? "var(--mantine-color-green-0)"
+                            : "var(--mantine-color-red-0)",
+                        color: capacityNotification.isAvailable
+                            ? "var(--mantine-color-green-8)"
+                            : "var(--mantine-color-red-8)",
+                    }}
+                >
+                    <Group>
+                        {capacityNotification.isAvailable ? (
+                            <IconCheck size="1rem" />
+                        ) : (
+                            <IconExclamationMark size="1rem" />
+                        )}
+                        <Text size="sm">{capacityNotification.message}</Text>
+                    </Group>
+                </Paper>
+            )}
 
             <Title order={5} mb="sm">
                 {t("settings")}
@@ -686,7 +817,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             minDate={new Date()}
                             numberOfColumns={2}
                             renderDay={renderDay}
-                            excludeDate={isDateExcluded}
+                            excludeDate={isDateExcluded as (date: Date) => boolean}
                         />
 
                         {loadingCapacityData && formState.pickupLocationId && (
@@ -706,7 +837,10 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             >
                                 <Stack align="center" gap="xs">
                                     <Loader size="md" />
-                                    <Text size="sm" c="dimmed">
+                                    <Text
+                                        size="sm"
+                                        style={{ color: "var(--mantine-color-dimmed)" }}
+                                    >
                                         {t("loadingAvailability")}
                                     </Text>
                                 </Stack>
@@ -719,14 +853,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                 position="bottom"
                                 withArrow
                                 opened
-                                color="blue"
-                                style={{
-                                    position: "absolute",
-                                    top: "50%",
-                                    left: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                    pointerEvents: "none",
-                                }}
+                                style={{ backgroundColor: "var(--mantine-color-blue-6)" }}
                             >
                                 <Box
                                     style={{
@@ -746,16 +873,63 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                 >
                                     <IconExclamationMark
                                         size={48}
-                                        color="var(--mantine-color-blue-6)"
-                                        opacity={0.5}
+                                        style={{
+                                            color: "var(--mantine-color-blue-6)",
+                                            opacity: 0.5,
+                                        }}
                                     />
                                 </Box>
                             </Tooltip>
                         )}
                     </Box>
-                    <Text size="xs" c="dimmed">
+                    <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
                         {t("selectDatesHint")}
                     </Text>
+
+                    {/* Add legend to explain calendar styling */}
+                    <Box mt="sm">
+                        <Group gap="md">
+                            <Group gap="xs">
+                                <Box
+                                    style={{
+                                        width: "14px",
+                                        height: "14px",
+                                        backgroundColor: "var(--mantine-color-gray-2)",
+                                        opacity: 0.5,
+                                    }}
+                                ></Box>
+                                <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
+                                    {t("calendar.unavailableClosedDay")}
+                                </Text>
+                            </Group>
+                            <Group gap="xs">
+                                <Box
+                                    style={{
+                                        width: "14px",
+                                        height: "14px",
+                                        backgroundColor: "var(--mantine-color-red-0)",
+                                        opacity: 0.7,
+                                    }}
+                                ></Box>
+                                <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
+                                    {t("calendar.fullyBooked")}
+                                </Text>
+                            </Group>
+                            <Group gap="xs">
+                                <Box
+                                    style={{
+                                        width: "14px",
+                                        height: "14px",
+                                        backgroundColor: "var(--mantine-color-blue-filled)",
+                                        color: "white",
+                                    }}
+                                ></Box>
+                                <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
+                                    {t("calendar.selected")}
+                                </Text>
+                            </Group>
+                        </Group>
+                    </Box>
                 </Stack>
             </SimpleGrid>
 
@@ -770,14 +944,17 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             <Button
                                 leftSection={<IconWand size="1rem" />}
                                 variant="light"
-                                color="indigo"
+                                style={{
+                                    backgroundColor: "var(--mantine-color-indigo-1)",
+                                    color: "var(--mantine-color-indigo-6)",
+                                }}
                                 size="xs"
                                 onClick={() => setBulkTimeMode(true)}
                             >
                                 {t("setBulkTimes")}
                             </Button>
                         ) : (
-                            <Text size="xs" c="dimmed">
+                            <Text size="xs" style={{ color: "var(--mantine-color-dimmed)" }}>
                                 {t("editingAllTimes")}
                             </Text>
                         )}
@@ -791,7 +968,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                 </Text>
 
                                 {bulkTimeError && (
-                                    <Text size="xs" c="red">
+                                    <Text size="xs" style={{ color: "var(--mantine-color-red-6)" }}>
                                         {bulkTimeError}
                                     </Text>
                                 )}
@@ -809,15 +986,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                             size="xs"
                                             leftSection={<IconClock size="1rem" />}
                                             aria-label={t("time.earliest")}
-                                            styles={theme => ({
+                                            styles={{
                                                 input: {
                                                     ...(bulkTimeError
                                                         ? {
-                                                              borderColor: theme.colors.red[6],
+                                                              borderColor:
+                                                                  "var(--mantine-color-red-6)",
                                                           }
                                                         : {}),
                                                 },
-                                            })}
+                                            }}
                                         />
                                     </Box>
 
@@ -833,15 +1011,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                             size="xs"
                                             leftSection={<IconClock size="1rem" />}
                                             aria-label={t("time.latest")}
-                                            styles={theme => ({
+                                            styles={{
                                                 input: {
                                                     ...(bulkTimeError
                                                         ? {
-                                                              borderColor: theme.colors.red[6],
+                                                              borderColor:
+                                                                  "var(--mantine-color-red-6)",
                                                           }
                                                         : {}),
                                                 },
-                                            })}
+                                            }}
                                         />
                                     </Box>
 
@@ -849,7 +1028,10 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                         <Button
                                             size="xs"
                                             leftSection={<IconCheck size="1rem" />}
-                                            color="teal"
+                                            style={{
+                                                backgroundColor: "var(--mantine-color-teal-6)",
+                                                color: "white",
+                                            }}
                                             onClick={applyBulkTimeUpdate}
                                         >
                                             {t("time.updateAll")}
@@ -858,7 +1040,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                         <ActionIcon
                                             size="lg"
                                             variant="subtle"
-                                            color="gray"
+                                            style={{ color: "var(--mantine-color-gray-6)" }}
                                             onClick={cancelBulkTimeEdit}
                                         >
                                             <IconX size="1rem" />
@@ -869,14 +1051,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         </Paper>
                     ) : null}
 
-                    <Text size="sm" mb="md" c="dimmed">
+                    <Text size="sm" mb="md" style={{ color: "var(--mantine-color-dimmed)" }}>
                         {bulkTimeMode ? t("bulkTimeHint") : t("individualTimeHint")}
                     </Text>
 
                     <Paper radius="md" withBorder shadow="xs">
                         <Table striped={false} highlightOnHover verticalSpacing="sm">
                             <Table.Thead>
-                                <Table.Tr bg="gray.0">
+                                <Table.Tr
+                                    style={{ backgroundColor: "var(--mantine-color-gray-0)" }}
+                                >
                                     <Table.Th>{t("time.dateAndPickup")}</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
@@ -913,7 +1097,12 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                             color: "var(--mantine-color-blue-6)",
                                                         }}
                                                     />
-                                                    <Text fw={500} c="gray.8">
+                                                    <Text
+                                                        fw={500}
+                                                        style={{
+                                                            color: "var(--mantine-color-gray-8)",
+                                                        }}
+                                                    >
                                                         {new Date(
                                                             parcel.pickupDate,
                                                         ).toLocaleDateString("sv-SE", {
@@ -929,7 +1118,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                         timeErrors[`${index}-pickupEarliestTime`] ||
                                                         timeErrors[`${index}-pickupLatestTime`]
                                                     }
-                                                    color="red"
+                                                    style={{
+                                                        color: "white",
+                                                        backgroundColor:
+                                                            "var(--mantine-color-red-6)",
+                                                    }}
                                                     position="top"
                                                     withArrow
                                                     opened={

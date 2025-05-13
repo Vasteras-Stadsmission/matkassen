@@ -13,9 +13,10 @@
         "format": "prettier --write .",
         "db:generate": "bun drizzle-kit generate",
         "db:migrate": "bun drizzle-kit migrate",
-        "test": "bun test",
+        "test": "bun test --preload ./__tests__/setup.ts",
         "typecheck": "tsc --noEmit",
-        "validate": "bun run lint && bun run typecheck && bun run format-check"
+        "typecheck:test": "tsc --noEmit --skipLibCheck --project tsconfig.test.json",
+        "validate": "bun run lint && bun run typecheck && bun run typecheck:test && bun run format-check"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",
@@ -53,6 +54,7 @@
         "@types/node": "^20.17.30",
         "@types/react": "^19.1.2",
         "@types/react-dom": "^19.1.2",
+        "bun-types": "^1.2.12",
         "drizzle-kit": "^0.30.6",
         "eslint": "^9.25.0",
         "eslint-config-next": "15.1.5",

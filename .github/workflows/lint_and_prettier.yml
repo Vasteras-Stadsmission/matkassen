@@ -23,7 +23,9 @@ jobs:
               run: bun install
             - name: Run linter
               run: bun run lint
-            - name: Check TypeScript types
+            - name: Type check (production)
               run: bun run typecheck
+            - name: Type check (tests)
+              run: bun run typecheck:test
             - name: Check formatting
               run: bun run format-check

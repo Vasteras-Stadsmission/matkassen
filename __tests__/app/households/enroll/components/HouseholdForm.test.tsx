@@ -4,9 +4,10 @@ import React from "react";
 
 // Set up happy-dom
 const window = new Window();
-global.document = window.document;
-global.window = window as any;
-global.navigator = window.navigator as any;
+global.document = window.document as unknown as Document;
+// Use a more general type assertion to satisfy TypeScript's strict typing
+global.window = window as unknown as any;
+global.navigator = window.navigator as unknown as Navigator;
 
 // Mock next-intl hooks
 mock.module("next-intl", () => ({
@@ -186,7 +187,7 @@ describe("HouseholdForm Component", () => {
         // Track if updateData was called
         let wasUpdateDataCalled = false;
         let updatedData: Household | null = null;
-        const updateDataMock = mock((data: Household) => {
+        const updateDataMock = mock<(data: Household) => void>((data: Household) => {
             wasUpdateDataCalled = true;
             updatedData = data;
         });
@@ -225,7 +226,7 @@ describe("HouseholdForm Component", () => {
     it("updates locale when user selects a language from dropdown", async () => {
         // Track if updateData was called with correct data
         let wasCalledWithCorrectData = false;
-        const updateDataMock = mock((data: Household) => {
+        const updateDataMock = mock<(data: Household) => void>((data: Household) => {
             // Check if the data contains the expected locale value
             if (data && data.locale === "en") {
                 wasCalledWithCorrectData = true;

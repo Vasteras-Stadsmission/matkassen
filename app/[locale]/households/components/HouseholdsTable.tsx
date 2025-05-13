@@ -19,6 +19,8 @@ import HouseholdDetail from "./HouseholdDetail";
 import { useRouter } from "@/app/i18n/navigation";
 import { Comment } from "../enroll/types";
 import { useTranslations } from "next-intl";
+import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
+import { useLocale } from "next-intl";
 
 interface Household {
     id: string;
@@ -85,7 +87,7 @@ interface HouseholdDetail {
 export default function HouseholdsTable({ households }: { households: Household[] }) {
     const router = useRouter();
     const t = useTranslations("households");
-    const tCommon = useTranslations("common");
+    const currentLocale = useLocale();
     const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
     const [householdDetail, setHouseholdDetail] = useState<HouseholdDetail | null>(null);
@@ -135,13 +137,8 @@ export default function HouseholdsTable({ households }: { households: Household[
 
     // Function to get language name from locale code
     const getLanguageName = (locale: string): string => {
-        // Handle known languages explicitly by checking if they exist in the translations
-        if (locale === "sv") {
-            return tCommon("languages.sv");
-        }
-        // For any other locale, just return the locale code itself
-        // This avoids the TypeScript error with non-existent keys
-        return locale.toUpperCase();
+        // Use the proper getLanguageName function from constants
+        return getLanguageNameFromLocale(locale, currentLocale);
     };
 
     // Handle row click to open detail modal

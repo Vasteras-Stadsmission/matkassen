@@ -65,8 +65,15 @@ export function PageTransitionSkeleton({
         return null;
     }
 
+    // Define the custom event type for navigation events
+    interface NavigationStartEvent extends CustomEvent {
+        detail: {
+            destination: string;
+        };
+    }
+
     // Handle navigation start and capture the destination
-    const handleNavigationStart = useCallback((event: Event) => {
+    const handleNavigationStart = useCallback((event: NavigationStartEvent | Event) => {
         setIsNavigating(true);
 
         // Try to get destination from custom event
@@ -112,7 +119,7 @@ export function PageTransitionSkeleton({
         if (alwaysMounted) return; // Skip for loading states
 
         // Listen for custom navigation events
-        document.addEventListener("navigation-start", handleNavigationStart);
+        document.addEventListener("navigation-start", handleNavigationStart as EventListener);
 
         // Set up link click capture
         const cleanupLinkCapture = handleLinkCapture();
@@ -147,13 +154,19 @@ export function PageTransitionSkeleton({
 
             return () => {
                 observer.disconnect();
-                document.removeEventListener("navigation-start", handleNavigationStart);
+                document.removeEventListener(
+                    "navigation-start",
+                    handleNavigationStart as EventListener,
+                );
                 cleanupLinkCapture();
             };
         }
 
         return () => {
-            document.removeEventListener("navigation-start", handleNavigationStart);
+            document.removeEventListener(
+                "navigation-start",
+                handleNavigationStart as EventListener,
+            );
             cleanupLinkCapture();
         };
     }, [handleNavigationStart, handleLinkCapture, isNavigating, alwaysMounted]);
