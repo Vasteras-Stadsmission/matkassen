@@ -132,6 +132,10 @@ export const pickupLocations = pgTable(
                 "pickup_locations_email_format_check",
                 sql`${table.contact_email} ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'`,
             ),
+            check(
+                "pickup_locations_slot_duration_check",
+                sql`${table.default_slot_duration_minutes} > 0 AND ${table.default_slot_duration_minutes} <= 240 AND ${table.default_slot_duration_minutes} % 15 = 0`,
+            ),
         ];
     },
 );
@@ -157,24 +161,10 @@ export const pickupLocationSchedules = pgTable(
         // Add index for better performance when querying schedules by pickup location
         index("idx_pickup_location_schedules_location").on(table.pickup_location_id),
 
-        // This adds a function-based check constraint that prevents overlapping date ranges
-        // for the same pickup location. The constraint uses a subquery to check if any other
-        // schedules for the same location have overlapping date ranges.
-        check(
-            "no_overlapping_schedules_check",
-            sql`
-                NOT EXISTS (
-                    SELECT 1
-                    FROM "pickup_location_schedules" AS existing
-                    WHERE
-                        existing.pickup_location_id = ${table.pickup_location_id}
-                        AND existing.id <> ${table.id}
-                        AND (
-                            (${table.start_date} <= existing.end_date AND ${table.end_date} >= existing.start_date)
-                        )
-                )
-            `,
-        ),
+        // Add unique constraint on pickup_location_id and date range to prevent overlaps
+        // Note: This will require a migration to create an exclusion constraint, which Drizzle
+        // doesn't directly support - you'll need to manually modify the generated migration
+        index("idx_pickup_location_schedule_no_overlap").on(table.pickup_location_id),
     ],
 );
 

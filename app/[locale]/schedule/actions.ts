@@ -327,100 +327,107 @@ export interface LocationScheduleInfo {
 /**
  * Get all schedules for a pickup location
  */
-export const getPickupLocationSchedules = unstable_cache(
-    async (locationId: string): Promise<LocationScheduleInfo> => {
-        try {
-            const currentDate = new Date();
-            // Use SQL date formatting for correct comparison with database date values
-            const currentDateStr = currentDate.toISOString().split("T")[0];
+export const getPickupLocationSchedules = async (
+    locationId: string,
+): Promise<LocationScheduleInfo> => {
+    // Create a cached function that will fetch the schedules
+    const cachedFetchSchedules = unstable_cache(
+        async (): Promise<LocationScheduleInfo> => {
+            try {
+                const currentDate = new Date();
+                // Use SQL date formatting for correct comparison with database date values
+                const currentDateStr = currentDate.toISOString().split("T")[0];
 
-            // Only log in development environment
-            const shouldDebug = process.env.NODE_ENV !== "production";
+                // Only log in development environment and with explicit debug flag
+                const shouldDebug =
+                    process.env.NODE_ENV === "development" &&
+                    process.env.DEBUG_SCHEDULES === "true";
 
-            if (shouldDebug) {
-                console.log(
-                    `[getPickupLocationSchedules] Fetching schedules for location: ${locationId}, current date: ${currentDateStr}`,
-                );
-            }
+                if (shouldDebug) {
+                    console.log(
+                        `[getPickupLocationSchedules] Fetching schedules for location: ${locationId}, current date: ${currentDateStr}`,
+                    );
+                }
 
-            // Get all current and upcoming schedules for this location
-            // (end_date is in the future - this includes both active and upcoming schedules)
-            const schedules = await db
-                .select({
-                    id: pickupLocationSchedules.id,
-                    name: pickupLocationSchedules.name,
-                    startDate: pickupLocationSchedules.start_date,
-                    endDate: pickupLocationSchedules.end_date,
-                })
-                .from(pickupLocationSchedules)
-                .where(
-                    and(
-                        eq(pickupLocationSchedules.pickup_location_id, locationId),
-                        sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
-                    ),
-                );
+                // Get all current and upcoming schedules for this location
+                // (end_date is in the future - this includes both active and upcoming schedules)
+                const schedules = await db
+                    .select({
+                        id: pickupLocationSchedules.id,
+                        name: pickupLocationSchedules.name,
+                        startDate: pickupLocationSchedules.start_date,
+                        endDate: pickupLocationSchedules.end_date,
+                    })
+                    .from(pickupLocationSchedules)
+                    .where(
+                        and(
+                            eq(pickupLocationSchedules.pickup_location_id, locationId),
+                            sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
+                        ),
+                    );
 
-            if (shouldDebug) {
-                console.log(`[getPickupLocationSchedules] Found ${schedules.length} schedules`);
+                if (shouldDebug) {
+                    console.log(`[getPickupLocationSchedules] Found ${schedules.length} schedules`);
 
-                // Only log schedule details for debugging specific issues
-                if (process.env.DEBUG_SCHEDULES === "true") {
                     schedules.forEach(schedule => {
                         console.log(
                             `[getPickupLocationSchedules] Schedule: ${schedule.name}, ${schedule.startDate} - ${schedule.endDate}`,
                         );
                     });
                 }
-            }
 
-            // For each schedule, get the days it's active
-            const schedulesWithDays = await Promise.all(
-                schedules.map(async schedule => {
-                    const days = await db
-                        .select({
-                            weekday: pickupLocationScheduleDays.weekday,
-                            isOpen: pickupLocationScheduleDays.is_open,
-                            openingTime: pickupLocationScheduleDays.opening_time,
-                            closingTime: pickupLocationScheduleDays.closing_time,
-                        })
-                        .from(pickupLocationScheduleDays)
-                        .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+                // For each schedule, get the days it's active
+                const schedulesWithDays = await Promise.all(
+                    schedules.map(async schedule => {
+                        const days = await db
+                            .select({
+                                weekday: pickupLocationScheduleDays.weekday,
+                                isOpen: pickupLocationScheduleDays.is_open,
+                                openingTime: pickupLocationScheduleDays.opening_time,
+                                closingTime: pickupLocationScheduleDays.closing_time,
+                            })
+                            .from(pickupLocationScheduleDays)
+                            .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
 
-                    if (shouldDebug && process.env.DEBUG_SCHEDULES === "true") {
-                        console.log(
-                            `[getPickupLocationSchedules] Schedule ${schedule.name} has ${days.length} day configurations`,
-                        );
-                        days.forEach(day => {
+                        if (shouldDebug) {
                             console.log(
-                                `[getPickupLocationSchedules] Day: ${day.weekday}, isOpen: ${day.isOpen}, hours: ${day.openingTime} - ${day.closingTime}`,
+                                `[getPickupLocationSchedules] Schedule ${schedule.name} has ${days.length} day configurations`,
                             );
-                        });
-                    }
+                            days.forEach(day => {
+                                console.log(
+                                    `[getPickupLocationSchedules] Day: ${day.weekday}, isOpen: ${day.isOpen}, hours: ${day.openingTime} - ${day.closingTime}`,
+                                );
+                            });
+                        }
 
-                    return {
-                        ...schedule,
-                        days,
-                    };
-                }),
-            );
+                        return {
+                            ...schedule,
+                            days,
+                        };
+                    }),
+                );
 
-            return {
-                schedules: schedulesWithDays,
-            };
-        } catch (error) {
-            console.error("Error fetching pickup location schedules:", error);
-            return {
-                schedules: [],
-            };
-        }
-    },
-    // Use a simple static key for the cache
-    ["pickup-location-schedules"],
-    {
-        // Cache results for 5 minutes (300 seconds)
-        revalidate: 300,
-    },
-);
+                return {
+                    schedules: schedulesWithDays,
+                };
+            } catch (error) {
+                console.error("Error fetching pickup location schedules:", error);
+                return {
+                    schedules: [],
+                };
+            }
+        },
+        // Use a key that includes the location ID for better caching
+        [`pickup-location-schedules-${locationId}`],
+        {
+            // Cache results for 5 minutes (300 seconds)
+            revalidate: 300,
+        },
+    );
+
+    // IMPORTANT: We need to invoke the cached function, not just return it
+    return cachedFetchSchedules();
+};
 
 /**
  * Check if a pickup location is open on a specific date and time

@@ -1,18 +1,15 @@
 import { Suspense } from "react";
-import { Container, Title, Text, Skeleton } from "@mantine/core";
+import { Skeleton } from "@mantine/core";
 import { HandoutLocationsContent } from "./components/HandoutLocationsContent";
-import { useTranslations } from "next-intl";
+import { HandoutLocationsPageLayout } from "./components/HandoutLocationsPageLayout";
+import { getLocations } from "./actions";
 
-export default function HandoutLocationsPage() {
-    const t = useTranslations("handoutLocations");
+export default async function HandoutLocationsPage() {
+    // Fetch locations on the server, once per request (cached by Next.js)
+    const locations = await getLocations();
 
     return (
-        <Container size="xl">
-            <Title mb="md">{t("pageTitle")}</Title>
-            <Text color="dimmed" mb="xl">
-                {t("pageDescription")}
-            </Text>
-
+        <HandoutLocationsPageLayout>
             <Suspense
                 fallback={
                     <>
@@ -22,8 +19,9 @@ export default function HandoutLocationsPage() {
                     </>
                 }
             >
-                <HandoutLocationsContent />
+                {/* Pass the data down as props */}
+                <HandoutLocationsContent initialLocations={locations} />
             </Suspense>
-        </Container>
+        </HandoutLocationsPageLayout>
     );
 }

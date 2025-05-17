@@ -28,10 +28,10 @@ import {
     IconExclamationMark,
 } from "@tabler/icons-react";
 import {
-    getPickupLocations,
-    getPickupLocationSchedules,
-    getPickupLocationCapacityForRange,
-} from "../actions";
+    getPickupLocationsAction,
+    getPickupLocationSchedulesAction,
+    getPickupLocationCapacityForRangeAction,
+} from "../client-actions";
 import { FoodParcels, FoodParcel } from "../types";
 import { useTranslations } from "next-intl";
 
@@ -144,7 +144,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     useEffect(() => {
         async function fetchData() {
             try {
-                const locations = await getPickupLocations();
+                const locations = await getPickupLocationsAction();
 
                 if (locations.length === 0) {
                     setPickupLocations([
@@ -190,7 +190,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 setLoadingCapacityData(true);
 
                 // Remove unused variables
-                const capacityInfo = await getPickupLocationCapacityForRange(
+                const capacityInfo = await getPickupLocationCapacityForRangeAction(
                     formState.pickupLocationId,
                     new Date(), // Use today as start date
                     new Date(new Date().setMonth(new Date().getMonth() + 3)), // Use 3 months from now as end date
@@ -217,7 +217,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             }
 
             try {
-                const schedules = await getPickupLocationSchedules(formState.pickupLocationId);
+                const schedules = await getPickupLocationSchedulesAction(
+                    formState.pickupLocationId,
+                );
                 // Cast the schedules object to the LocationSchedules type
                 // This is a temporary solution until we update the API to return the correct type
                 setLocationSchedules({

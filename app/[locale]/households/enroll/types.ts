@@ -55,6 +55,19 @@ export interface FoodParcels {
     parcels: FoodParcel[];
 }
 
+export interface PickupLocation {
+    id: string;
+    name: string;
+    street_address: string;
+    parcels_max_per_day: number | null;
+}
+
+export interface LocationCapacity {
+    hasLimit: boolean;
+    maxPerDay: number | null;
+    dateCapacities: Record<string, number>;
+}
+
 export interface GithubUserData {
     avatar_url: string;
     name: string | null;

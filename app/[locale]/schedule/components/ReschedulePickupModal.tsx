@@ -5,12 +5,8 @@ import { Modal, Button, Group, Text, Select, Stack, Paper, Box } from "@mantine/
 import { IconCalendar, IconClock, IconCheck } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
 import { useTranslations } from "next-intl";
-import {
-    FoodParcel,
-    updateFoodParcelSchedule,
-    LocationScheduleInfo,
-    getLocationSlotDuration,
-} from "../actions";
+import { FoodParcel, type LocationScheduleInfo } from "../actions";
+import { updateFoodParcelScheduleAction, getLocationSlotDurationAction } from "../client-actions";
 import { TranslationFunction } from "../../types";
 import { formatStockholmDate, formatTime, toStockholmDate } from "@/app/utils/date-utils";
 import {
@@ -52,8 +48,8 @@ export default function ReschedulePickupModal({
         async function fetchSlotDuration() {
             if (foodParcel && foodParcel.locationId) {
                 try {
-                    // Use the server action instead of directly accessing database
-                    const duration = await getLocationSlotDuration(foodParcel.locationId);
+                    // Use the client action to call the server action
+                    const duration = await getLocationSlotDurationAction(foodParcel.locationId);
                     setSlotDuration(duration);
                 } catch (error) {
                     console.error("Error fetching slot duration:", error);
@@ -180,7 +176,7 @@ export default function ReschedulePickupModal({
             const endDateTime = new Date(startDateTime);
             endDateTime.setMinutes(endDateTime.getMinutes() + slotDuration);
 
-            const result = await updateFoodParcelSchedule(foodParcel.id, {
+            const result = await updateFoodParcelScheduleAction(foodParcel.id, {
                 date: selectedDate,
                 startTime: startDateTime,
                 endTime: endDateTime,

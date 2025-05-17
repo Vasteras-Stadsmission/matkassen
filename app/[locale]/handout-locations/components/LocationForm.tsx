@@ -11,13 +11,14 @@ import {
     Text,
     Stack,
     SimpleGrid,
+    Select,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useTranslations } from "next-intl";
 import { notifications } from "@mantine/notifications";
 import { IconBuilding, IconCalendar } from "@tabler/icons-react";
 import { PickupLocationWithAllData, LocationFormInput } from "../types";
-import { createLocation, updateLocation, getLocation } from "../actions";
+import { createLocation, updateLocation } from "../actions";
 import { SchedulesTab } from "./SchedulesTab";
 
 interface LocationFormProps {
@@ -37,7 +38,7 @@ export function LocationForm({
     const t = useTranslations("handoutLocations");
     const [activeTab, setActiveTab] = useState<string | null>("general");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // We're using this in the useEffect, so we should display it in the UI
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [isLoading, setIsLoading] = useState(false);
     const isMountedRef = useRef(true);
 
@@ -48,8 +49,6 @@ export function LocationForm({
     const locationCreatedMessage = t("locationCreatedMessage");
     const locationUpdatedTitle = t("locationUpdated");
     const locationUpdatedMessage = t("locationUpdatedMessage");
-    const errorText = t("errorSaving");
-    const errorFetchingLocationText = t("errorSavingMessage");
 
     // Initialize form with location data if it exists
     const form = useForm<LocationFormInput>({
@@ -74,6 +73,13 @@ export function LocationForm({
             contact_email: value => {
                 if (!value || value.trim() === "") return null;
                 if (!/^\S+@\S+\.\S+$/.test(value)) return t("emailInvalid");
+                return null;
+            },
+            default_slot_duration_minutes: value => {
+                const numValue = Number(value);
+                if (numValue <= 0) return "Slot duration must be positive";
+                if (numValue > 240) return "Slot duration cannot exceed 4 hours (240 minutes)";
+                if (numValue % 15 !== 0) return "Slot duration must be in 15-minute increments";
                 return null;
             },
         },
@@ -162,38 +168,24 @@ export function LocationForm({
         };
     }, []);
 
-    // Fetch location data effect - only run once per location change
+    // Initialize form with the provided location data
     useEffect(() => {
-        // If editing an existing location, fetch the data
-        if (location && location.id && !isModal) {
-            setIsLoading(true);
-            getLocation(location.id)
-                .then(data => {
-                    if (data) {
-                        form.setValues({
-                            name: data.name,
-                            street_address: data.street_address || "",
-                            postal_code: data.postal_code || "",
-                            parcels_max_per_day: data.parcels_max_per_day || undefined,
-                            contact_name: data.contact_name || "",
-                            contact_email: data.contact_email || "",
-                            contact_phone_number: data.contact_phone_number || "",
-                            default_slot_duration_minutes: data.default_slot_duration_minutes || 15,
-                        });
-                    }
-                    setIsLoading(false);
-                })
-                .catch(err => {
-                    console.error("Failed to fetch location data:", err);
-                    notifications.show({
-                        title: errorFetchingLocationText,
-                        message: err.message || errorText,
-                        color: "red",
-                    });
-                    setIsLoading(false);
-                });
+        if (location && location.id) {
+            // Simply use the location data that was passed via props
+            form.setValues({
+                name: location.name,
+                street_address: location.street_address || "",
+                postal_code: location.postal_code || "",
+                parcels_max_per_day: location.parcels_max_per_day || undefined,
+                contact_name: location.contact_name || "",
+                contact_email: location.contact_email || "",
+                contact_phone_number: location.contact_phone_number || "",
+                default_slot_duration_minutes: location.default_slot_duration_minutes || 15,
+            });
         }
-    }, [location, isModal, errorFetchingLocationText, errorText, form]);
+        // We're intentionally not including form in the dependency array to avoid infinite loops
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location?.id]);
 
     // Stable tab change handler
     const handleTabChange = (value: string | null) => {
@@ -252,16 +244,32 @@ export function LocationForm({
                                         allowNegative={false}
                                         {...form.getInputProps("parcels_max_per_day")}
                                     />
-                                    <NumberInput
+                                    <Select
                                         label={t("defaultSlotDuration")}
                                         description={t("defaultSlotDurationDescription")}
                                         placeholder="15"
-                                        min={5}
-                                        step={5}
                                         required
-                                        allowDecimal={false}
-                                        allowNegative={false}
-                                        {...form.getInputProps("default_slot_duration_minutes")}
+                                        data={[
+                                            { value: "15", label: "15 min" },
+                                            { value: "30", label: "30 min" },
+                                            { value: "45", label: "45 min" },
+                                            { value: "60", label: "1 h" },
+                                            { value: "75", label: "1 h 15 min" },
+                                            { value: "90", label: "1 h 30 min" },
+                                            { value: "105", label: "1 h 45 min" },
+                                            { value: "120", label: "2 h" },
+                                            { value: "150", label: "2 h 30 min" },
+                                            { value: "180", label: "3 h" },
+                                            { value: "210", label: "3 h 30 min" },
+                                            { value: "240", label: "4 h" },
+                                        ]}
+                                        value={form.values.default_slot_duration_minutes?.toString()}
+                                        onChange={value =>
+                                            form.setFieldValue(
+                                                "default_slot_duration_minutes",
+                                                value ? parseInt(value) : 15,
+                                            )
+                                        }
                                     />
                                 </SimpleGrid>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
     DndContext,
     DragEndEvent,
@@ -20,13 +20,12 @@ import { IconArrowBackUp, IconCheck, IconInfoCircle } from "@tabler/icons-react"
 import TimeSlotCell from "./TimeSlotCell";
 import PickupCard from "./PickupCard";
 import ReschedulePickupModal from "./ReschedulePickupModal";
+import { FoodParcel, type LocationScheduleInfo } from "@/app/[locale]/schedule/actions";
 import {
-    FoodParcel,
-    updateFoodParcelSchedule,
-    getPickupLocationSchedules,
-    LocationScheduleInfo,
-    getLocationSlotDuration,
-} from "@/app/[locale]/schedule/actions";
+    updateFoodParcelScheduleAction,
+    getPickupLocationSchedulesAction,
+    getLocationSlotDurationAction,
+} from "@/app/[locale]/schedule/client-actions";
 import {
     formatDateToYMD,
     formatStockholmDate,
@@ -38,62 +37,11 @@ import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/loc
 import { useTranslations } from "next-intl";
 import { TranslationFunction } from "../../types";
 
-// Helper function to generate time slots at any interval
-function generateTimeSlots(startHour: number, endHour: number, intervalMinutes: number): string[] {
-    const slots: string[] = [];
-    for (let hour = startHour; hour <= endHour; hour++) {
-        for (let minute = 0; minute < 60; minute += intervalMinutes) {
-            // Stop if we've passed the end hour
-            if (hour === endHour && minute > 0) break;
-
-            slots.push(`${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`);
-        }
-    }
-    return slots;
-}
-
 // Type for time gaps
 interface TimeGap {
     startTime: string;
     endTime: string;
     durationMinutes: number;
-}
-
-// Helper function to calculate gaps between time slots
-export function findTimeGaps(timeSlots: string[]): TimeGap[] {
-    if (!timeSlots.length || timeSlots.length <= 1) return [];
-
-    const sortedSlots = [...timeSlots].sort();
-    const gaps: TimeGap[] = [];
-
-    // Iterate through the sorted slots and identify gaps between consecutive slots
-    for (let i = 0; i < sortedSlots.length - 1; i++) {
-        const currentSlot = sortedSlots[i];
-        const nextSlot = sortedSlots[i + 1];
-
-        // Parse current and next slot times
-        const [currentHour, currentMinute] = currentSlot.split(":").map(Number);
-        const [nextHour, nextMinute] = nextSlot.split(":").map(Number);
-
-        // Convert to minutes for comparison
-        const currentTimeInMinutes = currentHour * 60 + currentMinute;
-        const nextTimeInMinutes = nextHour * 60 + nextMinute;
-
-        // Calculate gap in minutes
-        const gapMinutes = nextTimeInMinutes - currentTimeInMinutes;
-
-        // If gap is significant (more than typical slot duration), add it
-        // For tests to pass, we need to consider all gaps between consecutive slots
-        if (gapMinutes > 15) {
-            gaps.push({
-                startTime: currentSlot,
-                endTime: nextSlot,
-                durationMinutes: gapMinutes,
-            });
-        }
-    }
-
-    return gaps;
 }
 
 // Format minutes as hours and minutes
@@ -162,8 +110,6 @@ export function generateDaySpecificTimeSlots(
     return slots;
 }
 
-const DEFAULT_TIME_SLOTS = generateTimeSlots(9, 17, 30);
-
 interface WeeklyScheduleGridProps {
     weekDates: Date[];
     foodParcels: FoodParcel[];
@@ -196,7 +142,9 @@ export default function WeeklyScheduleGrid({
 
     // State for active drag overlay
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
-    const activeDragParcel = activeDragId ? foodParcels.find(p => p.id === activeDragId) : null;
+    const activeDragParcel = activeDragId
+        ? foodParcels.find(p => p.id === activeDragId) || null
+        : null;
 
     // State for confirmation modal
     const [opened, { open, close }] = useDisclosure(false);
@@ -225,14 +173,17 @@ export default function WeeklyScheduleGrid({
     }>({});
 
     // Filter TIME_SLOTS to only include those within the location's open hours
-    const [filteredTimeSlots, setFilteredTimeSlots] = useState<string[]>(DEFAULT_TIME_SLOTS);
+    const [filteredTimeSlots, setFilteredTimeSlots] = useState<string[]>([]);
+
+    // Add loading state for schedule data
+    const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(true);
 
     // Fetch the slot duration when locationId changes
     useEffect(() => {
         async function fetchSlotDuration() {
             if (locationId) {
                 try {
-                    const duration = await getLocationSlotDuration(locationId);
+                    const duration = await getLocationSlotDurationAction(locationId);
                     setSlotDuration(duration);
                     console.log(
                         `[fetchSlotDuration] Location ${locationId} has slot duration: ${duration} minutes`,
@@ -331,12 +282,29 @@ export default function WeeklyScheduleGrid({
         return Array.from(allSlotsSet).sort();
     }, []);
 
+    // Create stable identifiers for the complex expressions used in dependency arrays
+    const locationIdFromFoodParcels = useMemo(
+        () =>
+            foodParcels.length > 0 && !locationId
+                ? foodParcels[0]?.locationId || foodParcels[0]?.pickup_location_id
+                : null,
+        [foodParcels, locationId],
+    );
+
+    const weekDatesFormatted = useMemo(
+        () => JSON.stringify(weekDates.map(d => formatDateToYMD(d))),
+        [weekDates],
+    );
+
     // Fetch and process location schedules
     useEffect(() => {
         let isMounted = true;
         let fetchTimeoutId: NodeJS.Timeout | null = null;
 
         async function fetchLocationSchedules() {
+            // Set loading state to true at the start of fetching
+            setIsLoadingSchedule(true);
+
             try {
                 let fetchLocationId: string | undefined;
 
@@ -347,18 +315,24 @@ export default function WeeklyScheduleGrid({
                     fetchLocationId =
                         foodParcels[0].locationId || foodParcels[0].pickup_location_id;
                 } else {
-                    console.log("No location ID available, cannot fetch schedules");
+                    // No need to log, this is expected when the component initially renders
+                    setIsLoadingSchedule(false);
                     return;
                 }
 
                 if (fetchLocationId) {
                     // Skip if we've already fetched this location's schedule
                     if (lastFetchedLocationIdRef.current === fetchLocationId && locationSchedules) {
+                        setIsLoadingSchedule(false);
                         return;
                     }
 
-                    console.log(`Fetching schedules for location ID: ${fetchLocationId}`);
-                    const scheduleInfo = await getPickupLocationSchedules(fetchLocationId);
+                    // Only log in development
+                    if (process.env.NODE_ENV === "development") {
+                        console.log(`Fetching schedules for location ID: ${fetchLocationId}`);
+                    }
+
+                    const scheduleInfo = await getPickupLocationSchedulesAction(fetchLocationId);
 
                     // Guard against component unmount
                     if (!isMounted) return;
@@ -372,9 +346,7 @@ export default function WeeklyScheduleGrid({
 
                     // Generate a complete list of unique time slots across all days
                     const allTimeSlots = getAllUniqueTimeSlots(daySlots);
-                    setFilteredTimeSlots(
-                        allTimeSlots.length > 0 ? allTimeSlots : DEFAULT_TIME_SLOTS,
-                    );
+                    setFilteredTimeSlots(allTimeSlots.length > 0 ? allTimeSlots : []);
 
                     // Calculate which time slots are unavailable for each day
                     const unavailableSlots: Record<string, string[]> = {};
@@ -397,20 +369,26 @@ export default function WeeklyScheduleGrid({
                     });
 
                     setUnavailableTimeSlots(unavailableSlots);
+
+                    // Set loading to false once everything is loaded
+                    setIsLoadingSchedule(false);
                 }
             } catch (error) {
                 console.error("Error fetching location schedules:", error);
+                // Set loading to false if there was an error
+                setIsLoadingSchedule(false);
             }
         }
 
-        // Add a small delay to batch potential multiple renders
+        // Add a small delay to batch potential multiple renders and avoid
+        // redundant fetches when component updates frequently
         if (fetchTimeoutId) {
             clearTimeout(fetchTimeoutId);
         }
 
         fetchTimeoutId = setTimeout(() => {
             fetchLocationSchedules();
-        }, 150);
+        }, 300); // Increased to 300ms to better debounce multiple rapid changes
 
         // Cleanup function
         return () => {
@@ -420,12 +398,15 @@ export default function WeeklyScheduleGrid({
             }
         };
     }, [
+        // Only depend on these properties to avoid unnecessary fetches
         locationId,
-        foodParcels,
-        weekDates,
-        locationSchedules,
+        locationIdFromFoodParcels,
+        weekDatesFormatted,
         generateDaySpecificTimeSlots,
         getAllUniqueTimeSlots,
+        foodParcels,
+        locationSchedules,
+        weekDates,
     ]);
 
     // Organize parcels by date and time slot
@@ -657,7 +638,7 @@ export default function WeeklyScheduleGrid({
         try {
             setIsSubmitting(true);
 
-            const result = await updateFoodParcelSchedule(draggedParcel.id, {
+            const result = await updateFoodParcelScheduleAction(draggedParcel.id, {
                 date: targetSlot.date,
                 startTime: targetSlot.startDateTime,
                 endTime: targetSlot.endDateTime,
@@ -768,8 +749,8 @@ export default function WeeklyScheduleGrid({
                         }}
                     >
                         <Text size="xs" color="dimmed">
-                            {t("timeGap", { defaultValue: "Time gap" })}:{" "}
-                            {formatDuration(gap.durationMinutes)} ({gap.startTime} - {gap.endTime})
+                            {t("timeGap")}: {formatDuration(gap.durationMinutes)} ({gap.startTime} -{" "}
+                            {gap.endTime})
                         </Text>
                     </Paper>
                 </Grid.Col>
@@ -779,243 +760,358 @@ export default function WeeklyScheduleGrid({
 
     return (
         <>
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-                onDragStart={handleDragStart}
-            >
-                <SortableContext items={foodParcels.map(p => p.id)}>
-                    <Box style={{ display: "flex", flexDirection: "column", width: "100%" }}>
-                        {/* Header row with days */}
-                        <Grid columns={32} gutter="xs" style={{ width: "100%" }}>
-                            {/* Empty cell in place of time label */}
-                            <Grid.Col span={2}>
-                                <div></div>
+            {isLoadingSchedule ? (
+                // Show loading skeleton when schedule data is loading
+                <Box style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                    {/* Skeleton header row with days */}
+                    <Grid columns={32} gutter="xs" style={{ width: "100%" }}>
+                        {/* Empty cell in place of time label */}
+                        <Grid.Col span={2}>
+                            <div></div>
+                        </Grid.Col>
+
+                        {weekDates.map((date, idx) => (
+                            <Grid.Col span={30 / 7} key={idx}>
+                                <Paper
+                                    p="xs"
+                                    radius="sm"
+                                    withBorder
+                                    bg="gray.3"
+                                    style={{
+                                        height: "100%",
+                                        position: "relative",
+                                    }}
+                                >
+                                    <Box mt={5} mb={5} h={16} w="80%" mx="auto" bg="gray.4" />
+                                    <Box h={12} w="60%" mx="auto" bg="gray.4" />
+                                </Paper>
                             </Grid.Col>
+                        ))}
+                    </Grid>
 
-                            {weekDates.map(date => {
-                                const isPast = isPastDate(date);
-
-                                // Check if this day is available in the location schedule
-                                const isDateUnavailable = locationSchedules
-                                    ? !isDateAvailable(date, locationSchedules).isAvailable
-                                    : true; // Default to unavailable if no schedule data
-
-                                // Determine background color for day header
-                                const getBgColor = () => {
-                                    if (isPast || isDateUnavailable) return "gray.7"; // Grey out past or unavailable dates
-                                    return "blue.7";
-                                };
-
-                                return (
-                                    <Grid.Col span={30 / 7} key={date.toISOString()}>
+                    {/* Skeleton timeslots */}
+                    <ScrollArea.Autosize
+                        h="calc(100vh - 240px)"
+                        scrollbarSize={6}
+                        type="hover"
+                        scrollHideDelay={500}
+                    >
+                        <Box style={{ width: "100%" }}>
+                            {Array.from({ length: 8 }).map((_, slotIdx) => (
+                                <Grid
+                                    columns={32}
+                                    gutter="xs"
+                                    key={slotIdx}
+                                    style={{ width: "100%" }}
+                                >
+                                    {/* Time column */}
+                                    <Grid.Col span={2}>
                                         <Paper
                                             p="xs"
                                             radius="sm"
                                             withBorder
-                                            bg={getBgColor()}
-                                            c="white"
-                                            style={{
-                                                height: "100%",
-                                                position: "relative",
-                                                opacity: isPast || isDateUnavailable ? 0.8 : 1,
-                                            }}
+                                            bg="gray.1"
+                                            style={{ height: "100%" }}
                                         >
-                                            {/* Capacity indicator in top-right corner */}
-                                            <Text
-                                                size="xs"
-                                                c="gray.2"
-                                                style={{
-                                                    position: "absolute",
-                                                    top: 4,
-                                                    right: 4,
-                                                }}
-                                                data-testid="capacity-indicator"
-                                            >
-                                                {parcelCountByDate[formatDateToYMD(date)] || 0}/
-                                                {maxParcelsPerDay || "∞"}
-                                            </Text>
-
-                                            <Text fw={500} ta="center" size="sm">
-                                                {t(`days.${getWeekdayName(date)}`)}
-                                            </Text>
-                                            <Text size="xs" ta="center">
-                                                {formatDate(date)}
-                                            </Text>
-
-                                            {isDateUnavailable && (
-                                                <Tooltip
-                                                    label={t("unavailableDay", {})}
-                                                    position="bottom"
-                                                    withArrow
-                                                >
-                                                    <IconInfoCircle
-                                                        size="0.9rem"
-                                                        style={{
-                                                            position: "absolute",
-                                                            bottom: 4,
-                                                            right: 4,
-                                                            opacity: 0.8,
-                                                        }}
-                                                    />
-                                                </Tooltip>
-                                            )}
+                                            <Box h={14} w="80%" mx="auto" bg="gray.3" />
                                         </Paper>
                                     </Grid.Col>
-                                );
-                            })}
-                        </Grid>
 
-                        {/* Time slots grid - in ScrollArea */}
-                        <ScrollArea.Autosize
-                            h="calc(100vh - 240px)"
-                            scrollbarSize={6}
-                            type="hover"
-                            scrollHideDelay={500}
-                        >
-                            <Box style={{ width: "100%" }}>
-                                {(() => {
-                                    // Find time gaps before rendering
-                                    const timeGaps = findTimeGaps(filteredTimeSlots);
+                                    {/* Day columns */}
+                                    {weekDates.map((_, dayIdx) => (
+                                        <Grid.Col span={30 / 7} key={dayIdx}>
+                                            <Paper
+                                                p="xs"
+                                                radius="sm"
+                                                withBorder
+                                                bg="gray.1"
+                                                style={{ height: "60px" }}
+                                            />
+                                        </Grid.Col>
+                                    ))}
+                                </Grid>
+                            ))}
+                        </Box>
+                    </ScrollArea.Autosize>
+                </Box>
+            ) : (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                    onDragStart={handleDragStart}
+                >
+                    <SortableContext items={foodParcels.map(p => p.id)}>
+                        <Box style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                            {/* Header row with days */}
+                            <Grid columns={32} gutter="xs" style={{ width: "100%" }}>
+                                {/* Empty cell in place of time label */}
+                                <Grid.Col span={2}>
+                                    <div></div>
+                                </Grid.Col>
 
-                                    // Create a combined array of time slots and gaps
-                                    const renderedItems: React.ReactElement[] = [];
+                                {weekDates.map(date => {
+                                    const isPast = isPastDate(date);
 
-                                    // Iterate through sorted time slots and insert gap dividers in the right places
-                                    const sortedTimeSlots = [...filteredTimeSlots].sort();
-                                    sortedTimeSlots.forEach(timeSlot => {
-                                        // Add the normal time slot row
-                                        renderedItems.push(
-                                            <Grid
-                                                columns={32}
-                                                gutter="xs"
-                                                key={timeSlot}
-                                                style={{ width: "100%" }}
+                                    // Check if this day is available in the location schedule
+                                    const isDateUnavailable = locationSchedules
+                                        ? !isDateAvailable(date, locationSchedules).isAvailable
+                                        : true; // Default to unavailable if no schedule data
+
+                                    // Determine background color for day header
+                                    const getBgColor = () => {
+                                        if (isPast || isDateUnavailable) return "gray.7"; // Grey out past or unavailable dates
+                                        return "blue.7";
+                                    };
+
+                                    return (
+                                        <Grid.Col span={30 / 7} key={date.toISOString()}>
+                                            <Paper
+                                                p="xs"
+                                                radius="sm"
+                                                withBorder
+                                                bg={getBgColor()}
+                                                c="white"
+                                                style={{
+                                                    height: "100%",
+                                                    position: "relative",
+                                                    opacity: isPast || isDateUnavailable ? 0.8 : 1,
+                                                }}
                                             >
-                                                {/* Time column */}
-                                                <Grid.Col span={2}>
-                                                    <Paper
-                                                        p="xs"
-                                                        radius="sm"
-                                                        withBorder
-                                                        bg="gray.1"
-                                                        style={{ height: "100%" }}
+                                                {/* Capacity indicator in top-right corner */}
+                                                <Text
+                                                    size="xs"
+                                                    c="gray.2"
+                                                    style={{
+                                                        position: "absolute",
+                                                        top: 4,
+                                                        right: 4,
+                                                    }}
+                                                    data-testid="capacity-indicator"
+                                                >
+                                                    {parcelCountByDate[formatDateToYMD(date)] || 0}/
+                                                    {maxParcelsPerDay || "∞"}
+                                                </Text>
+
+                                                <Text fw={500} ta="center" size="sm">
+                                                    {t(`days.${getWeekdayName(date)}`)}
+                                                </Text>
+                                                <Text size="xs" ta="center">
+                                                    {formatDate(date)}
+                                                </Text>
+
+                                                {isDateUnavailable && (
+                                                    <Tooltip
+                                                        label={t("unavailableDay", {})}
+                                                        position="bottom"
+                                                        withArrow
                                                     >
-                                                        <Text fw={500} size="xs" ta="center">
-                                                            {timeSlot}
-                                                        </Text>
-                                                    </Paper>
-                                                </Grid.Col>
+                                                        <IconInfoCircle
+                                                            size="0.9rem"
+                                                            style={{
+                                                                position: "absolute",
+                                                                bottom: 4,
+                                                                right: 4,
+                                                                opacity: 0.8,
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                            </Paper>
+                                        </Grid.Col>
+                                    );
+                                })}
+                            </Grid>
 
-                                                {/* Day columns */}
-                                                {weekDates.map((date, dayIndex) => {
-                                                    const dateKey = formatDateToYMD(date);
-                                                    const parcelsInSlot =
-                                                        parcelsBySlot[dateKey]?.[timeSlot] || [];
-                                                    const isOverCapacity =
-                                                        maxParcelsPerSlot !== undefined &&
-                                                        parcelsInSlot.length > maxParcelsPerSlot;
+                            {/* Time slots grid - in ScrollArea */}
+                            <ScrollArea.Autosize
+                                h="calc(100vh - 240px)"
+                                scrollbarSize={6}
+                                type="hover"
+                                scrollHideDelay={500}
+                            >
+                                <Box style={{ width: "100%" }}>
+                                    {(() => {
+                                        // Create a combined array of time slots and gaps
+                                        const renderedItems: React.ReactElement[] = [];
 
-                                                    // Check if this specific time slot is unavailable
-                                                    const isSlotUnavailable =
-                                                        isSlotUnavailableForDay(date, timeSlot);
-
-                                                    // Determine the reason if slot is unavailable
-                                                    const unavailableReason = isPastDate(date)
-                                                        ? t("pastDateError", {
-                                                              defaultValue:
-                                                                  "This date is in the past",
-                                                          })
-                                                        : locationSchedules &&
-                                                            !isDateAvailable(
-                                                                date,
-                                                                locationSchedules,
-                                                            ).isAvailable
-                                                          ? t("unavailableDay", {
-                                                                defaultValue:
-                                                                    "This location is not open on this day",
-                                                            })
-                                                          : unavailableTimeSlots[dateKey]?.includes(
-                                                                  timeSlot,
-                                                              )
-                                                            ? t("unavailableSlot", {
-                                                                  defaultValue:
-                                                                      "This time slot is outside operating hours",
-                                                              })
-                                                            : undefined;
-
-                                                    return (
-                                                        <Grid.Col
-                                                            span={30 / 7}
-                                                            key={`${dateKey}-${timeSlot}`}
+                                        // Iterate through sorted time slots and insert gap dividers in the right places
+                                        const sortedTimeSlots = [...filteredTimeSlots].sort();
+                                        sortedTimeSlots.forEach((timeSlot, index) => {
+                                            // Add the normal time slot row
+                                            renderedItems.push(
+                                                <Grid
+                                                    columns={32}
+                                                    gutter="xs"
+                                                    key={timeSlot}
+                                                    style={{ width: "100%" }}
+                                                >
+                                                    {/* Time column */}
+                                                    <Grid.Col span={2}>
+                                                        <Paper
+                                                            p="xs"
+                                                            radius="sm"
+                                                            withBorder
+                                                            bg="gray.1"
+                                                            style={{ height: "100%" }}
                                                         >
-                                                            <TimeSlotCell
-                                                                date={date}
-                                                                time={timeSlot}
-                                                                parcels={parcelsInSlot.map(
-                                                                    parcel => ({
-                                                                        ...parcel,
-                                                                        element: (
-                                                                            <PickupCard
-                                                                                key={parcel.id}
-                                                                                foodParcel={parcel}
-                                                                                isCompact={true}
-                                                                                onReschedule={
-                                                                                    handleRescheduleClick
-                                                                                }
-                                                                            />
-                                                                        ),
-                                                                    }),
-                                                                )}
-                                                                maxParcelsPerSlot={
-                                                                    maxParcelsPerSlot || 3
-                                                                }
-                                                                isOverCapacity={isOverCapacity}
-                                                                dayIndex={dayIndex}
-                                                                isUnavailable={isSlotUnavailable}
-                                                                unavailableReason={
-                                                                    unavailableReason
-                                                                }
-                                                            />
-                                                        </Grid.Col>
-                                                    );
-                                                })}
-                                            </Grid>,
-                                        );
+                                                            <Text fw={500} size="xs" ta="center">
+                                                                {timeSlot}
+                                                            </Text>
+                                                        </Paper>
+                                                    </Grid.Col>
 
-                                        // Check if we should insert a gap divider after this time slot
-                                        const currentIndex = sortedTimeSlots.indexOf(timeSlot);
-                                        if (currentIndex < sortedTimeSlots.length - 1) {
-                                            const gap = timeGaps.find(
-                                                g => g.startTime === timeSlot,
+                                                    {/* Day columns */}
+                                                    {weekDates.map((date, dayIndex) => {
+                                                        const dateKey = formatDateToYMD(date);
+                                                        const parcelsInSlot =
+                                                            parcelsBySlot[dateKey]?.[timeSlot] ||
+                                                            [];
+                                                        const isOverCapacity =
+                                                            maxParcelsPerSlot !== undefined &&
+                                                            parcelsInSlot.length >
+                                                                maxParcelsPerSlot;
+
+                                                        // Check if this specific time slot is unavailable
+                                                        const isSlotUnavailable =
+                                                            isSlotUnavailableForDay(date, timeSlot);
+
+                                                        // Determine the reason if slot is unavailable
+                                                        const unavailableReason = isPastDate(date)
+                                                            ? t("pastDateError", {
+                                                                  defaultValue:
+                                                                      "This date is in the past",
+                                                              })
+                                                            : locationSchedules &&
+                                                                !isDateAvailable(
+                                                                    date,
+                                                                    locationSchedules,
+                                                                ).isAvailable
+                                                              ? t("unavailableDay", {
+                                                                    defaultValue:
+                                                                        "This location is not open on this day",
+                                                                })
+                                                              : unavailableTimeSlots[
+                                                                      dateKey
+                                                                  ]?.includes(timeSlot)
+                                                                ? t("unavailableSlot", {
+                                                                      defaultValue:
+                                                                          "This time slot is outside operating hours",
+                                                                  })
+                                                                : undefined;
+
+                                                        return (
+                                                            <Grid.Col span={30 / 7} key={dayIndex}>
+                                                                <TimeSlotCell
+                                                                    date={date}
+                                                                    time={timeSlot}
+                                                                    parcels={parcelsInSlot.map(
+                                                                        parcel => ({
+                                                                            ...parcel,
+                                                                            element: (
+                                                                                <PickupCard
+                                                                                    key={parcel.id}
+                                                                                    foodParcel={
+                                                                                        parcel
+                                                                                    }
+                                                                                    isCompact={true}
+                                                                                    onReschedule={
+                                                                                        handleRescheduleClick
+                                                                                    }
+                                                                                />
+                                                                            ),
+                                                                        }),
+                                                                    )}
+                                                                    maxParcelsPerSlot={
+                                                                        maxParcelsPerSlot || 3
+                                                                    }
+                                                                    isOverCapacity={isOverCapacity}
+                                                                    dayIndex={dayIndex}
+                                                                    isUnavailable={
+                                                                        isSlotUnavailable
+                                                                    }
+                                                                    unavailableReason={
+                                                                        unavailableReason
+                                                                    }
+                                                                />
+                                                            </Grid.Col>
+                                                        );
+                                                    })}
+                                                </Grid>,
                                             );
 
-                                            if (gap) {
-                                                renderedItems.push(
-                                                    <TimeGapDivider
-                                                        key={`gap-${timeSlot}-${gap.endTime}`}
-                                                        gap={gap}
-                                                        t={t}
-                                                    />,
-                                                );
-                                            }
-                                        }
-                                    });
+                                            // Check if we should insert a gap divider after this time slot
+                                            if (index < sortedTimeSlots.length - 1) {
+                                                // Get the next time slot
+                                                const nextTimeSlot = sortedTimeSlots[index + 1];
 
-                                    return renderedItems;
-                                })()}
-                            </Box>
-                        </ScrollArea.Autosize>
-                    </Box>
-                </SortableContext>
-                {/* DragOverlay for visual feedback during dragging */}
-                <DragOverlay>
-                    {activeDragParcel && (
-                        <PickupCard foodParcel={activeDragParcel} isCompact={true} />
-                    )}
-                </DragOverlay>
-            </DndContext>
+                                                // Calculate the difference between this slot and the next slot
+                                                const [currentHours, currentMinutes] = timeSlot
+                                                    .split(":")
+                                                    .map(Number);
+                                                const [nextHours, nextMinutes] = nextTimeSlot
+                                                    .split(":")
+                                                    .map(Number);
+
+                                                // Convert both times to minutes for easy comparison
+                                                const currentTotalMinutes =
+                                                    currentHours * 60 + currentMinutes;
+                                                const nextTotalMinutes =
+                                                    nextHours * 60 + nextMinutes;
+
+                                                // Account for times that wrap around midnight
+                                                let diffMinutes =
+                                                    nextTotalMinutes - currentTotalMinutes;
+                                                if (diffMinutes < 0) {
+                                                    diffMinutes += 24 * 60; // Add a full day
+                                                }
+
+                                                // If the gap is larger than the normal slot duration, insert a gap divider
+                                                if (diffMinutes > slotDuration) {
+                                                    // Calculate time at the end of the current slot (start of gap)
+                                                    let gapStartHour = currentHours;
+                                                    let gapStartMinute =
+                                                        currentMinutes + slotDuration;
+                                                    if (gapStartMinute >= 60) {
+                                                        gapStartHour += Math.floor(
+                                                            gapStartMinute / 60,
+                                                        );
+                                                        gapStartMinute = gapStartMinute % 60;
+                                                    }
+                                                    const gapStartTime = `${gapStartHour.toString().padStart(2, "0")}:${gapStartMinute.toString().padStart(2, "0")}`;
+
+                                                    const gapInfo = {
+                                                        startTime: gapStartTime, // Use the end of the current slot as gap start
+                                                        endTime: nextTimeSlot,
+                                                        durationMinutes: diffMinutes - slotDuration, // Subtract the normal slot duration
+                                                    };
+
+                                                    renderedItems.push(
+                                                        <TimeGapDivider
+                                                            key={`gap-${timeSlot}-${nextTimeSlot}`}
+                                                            gap={gapInfo}
+                                                            t={t}
+                                                        />,
+                                                    );
+                                                }
+                                            }
+                                        });
+
+                                        return renderedItems;
+                                    })()}
+                                </Box>
+                            </ScrollArea.Autosize>
+                        </Box>
+                    </SortableContext>
+
+                    {/* DragOverlay for visual feedback during dragging */}
+                    <DragOverlay>
+                        {activeDragParcel && (
+                            <PickupCard foodParcel={activeDragParcel} isCompact={true} />
+                        )}
+                    </DragOverlay>
+                </DndContext>
+            )}
 
             {/* Confirmation Modal */}
             <Modal

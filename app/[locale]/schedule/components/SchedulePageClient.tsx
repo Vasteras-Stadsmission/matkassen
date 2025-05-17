@@ -71,92 +71,131 @@ function SchedulePageContent({
     const [datePickerOpened, { open: openDatePicker, close: closeDatePicker }] =
         useDisclosure(false);
 
-    // Apply URL parameters when available
+    // Combined initialization effect that handles URL parameters and initial data loading
     useEffect(() => {
-        if (locationIdFromParams) {
-            setSelectedLocationId(locationIdFromParams);
-        }
+        // Flag to track if component is mounted to prevent state updates after unmount
+        let isMounted = true;
 
-        if (dateFromParams) {
-            setCurrentDate(dateFromParams);
-        }
-    }, [locationIdFromParams, dateFromParams]);
+        async function initialize() {
+            // Step 1: Set initial date from URL or use current date
+            const initialDate = dateFromParams || new Date();
+            if (isMounted) setCurrentDate(initialDate);
 
-    // Initialize the component
-    useEffect(() => {
-        // Load pickup locations
-        const loadLocations = async () => {
-            setIsLoadingLocations(true);
-            try {
-                const locations = await getPickupLocations();
-                setLocations(locations);
+            // Step 2: Calculate week dates synchronously to avoid an extra render
+            const { start, end } = getWeekDates(initialDate);
+            const weekNumber = getISOWeekNumber(initialDate);
+            const year = initialDate.getFullYear();
 
-                // Select the first location by default if available
-                if (locations.length > 0 && !selectedLocationId) {
-                    setSelectedLocationId(locations[0].id);
-                }
-            } catch (error) {
-                console.error("Error loading locations:", error);
-            } finally {
-                setIsLoadingLocations(false);
+            // Generate an array of dates for the week
+            const dates: Date[] = [];
+            const current = new Date(start);
+
+            while (current <= end) {
+                dates.push(new Date(current));
+                current.setDate(current.getDate() + 1);
             }
-        };
 
-        loadLocations();
-    }, [selectedLocationId]);
-
-    // Update week dates when current date changes
-    useEffect(() => {
-        const updateWeekDates = async () => {
-            try {
-                // Use timezone-aware function to get the week dates
-                const { start, end } = getWeekDates(currentDate);
-                const weekNumber = getISOWeekNumber(currentDate);
-                const year = currentDate.getFullYear();
-
-                // Generate an array of dates for the week
-                const dates: Date[] = [];
-                const current = new Date(start);
-
-                while (current <= end) {
-                    dates.push(new Date(current));
-                    current.setDate(current.getDate() + 1);
-                }
-
+            if (isMounted) {
                 setWeekDates(dates);
                 setWeekNumber(weekNumber);
                 setYear(year);
-            } catch (error) {
-                console.error("Error updating week dates:", error);
             }
-        };
 
-        updateWeekDates();
-    }, [currentDate]);
-
-    // Load food parcels when location or week changes
-    useEffect(() => {
-        const loadFoodParcels = async () => {
-            if (!selectedLocationId || weekDates.length === 0) return;
-
-            setIsLoadingParcels(true);
+            // Step 3: Load locations and select initial location
             try {
-                const weekStart = weekDates[0];
-                const weekEnd = weekDates[weekDates.length - 1];
-                const parcels = await getFoodParcelsForWeek(selectedLocationId, weekStart, weekEnd);
-                setFoodParcels(parcels);
-            } catch (error) {
-                console.error("Error loading food parcels:", error);
-            } finally {
-                setIsLoadingParcels(false);
-            }
-        };
+                setIsLoadingLocations(true);
+                const locationsData = await getPickupLocations();
 
-        loadFoodParcels();
-    }, [selectedLocationId, weekDates]);
+                if (isMounted) {
+                    setLocations(locationsData);
+
+                    // Determine which location to select - prioritize URL param
+                    const locationToSelect =
+                        locationIdFromParams ||
+                        (locationsData.length > 0 ? locationsData[0].id : null);
+
+                    setSelectedLocationId(locationToSelect);
+
+                    // Step 4: Load food parcels only if we have a location and dates
+                    if (locationToSelect && dates.length > 0) {
+                        await loadFoodParcels(locationToSelect, dates);
+                    }
+                }
+            } catch (error) {
+                console.error("Error initializing schedule data:", error);
+            } finally {
+                if (isMounted) setIsLoadingLocations(false);
+            }
+        }
+
+        initialize();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [locationIdFromParams, dateFromParams]);
+
+    // Update week dates when current date changes (after initial load)
+    useEffect(() => {
+        // Skip this effect on initial render, which is handled by the initialization effect
+        if (weekDates.length === 0) return;
+
+        const { start, end } = getWeekDates(currentDate);
+        const weekNumber = getISOWeekNumber(currentDate);
+        const year = currentDate.getFullYear();
+
+        // Generate an array of dates for the week
+        const dates: Date[] = [];
+        const current = new Date(start);
+
+        while (current <= end) {
+            dates.push(new Date(current));
+            current.setDate(current.getDate() + 1);
+        }
+
+        setWeekDates(dates);
+        setWeekNumber(weekNumber);
+        setYear(year);
+
+        // Only load food parcels if we have a location selected
+        if (selectedLocationId) {
+            loadFoodParcels(selectedLocationId, dates);
+        }
+    }, [currentDate, selectedLocationId, weekDates.length]);
+
+    // Helper function to load food parcels that can be reused
+    const loadFoodParcels = async (locationId: string, dates: Date[]) => {
+        if (!locationId || dates.length === 0) return;
+
+        setIsLoadingParcels(true);
+        try {
+            const weekStart = dates[0];
+            const weekEnd = dates[dates.length - 1];
+            const parcels = await getFoodParcelsForWeek(locationId, weekStart, weekEnd);
+            setFoodParcels(parcels);
+        } catch (error) {
+            console.error("Error loading food parcels:", error);
+        } finally {
+            setIsLoadingParcels(false);
+        }
+    };
+
+    // Handle location change - only reload parcels when location changes
+    const handleLocationChange = (value: string | null) => {
+        if (value === selectedLocationId) return; // Skip if same location
+        setSelectedLocationId(value);
+
+        if (value && weekDates.length > 0) {
+            loadFoodParcels(value, weekDates);
+        } else {
+            // Clear parcels if no location selected
+            setFoodParcels([]);
+        }
+    };
 
     // Navigate to previous week
     const goToPreviousWeek = () => {
+        setIsLoadingParcels(true); // Set loading when changing week
         const newDate = new Date(currentDate);
         newDate.setDate(newDate.getDate() - 7);
         setCurrentDate(newDate);
@@ -164,6 +203,7 @@ function SchedulePageContent({
 
     // Navigate to next week
     const goToNextWeek = () => {
+        setIsLoadingParcels(true); // Set loading when changing week
         const newDate = new Date(currentDate);
         newDate.setDate(newDate.getDate() + 7);
         setCurrentDate(newDate);
@@ -171,31 +211,20 @@ function SchedulePageContent({
 
     // Go to today
     const goToToday = () => {
+        setIsLoadingParcels(true); // Set loading when changing week
         setCurrentDate(new Date());
     };
 
-    // Handle location change
-    const handleLocationChange = (value: string | null) => {
-        setSelectedLocationId(value);
-    };
-
-    // Refresh food parcels after rescheduling
+    // Refresh food parcels after rescheduling - reuse the helper function
     const handleParcelRescheduled = async () => {
         if (!selectedLocationId || weekDates.length === 0) return;
-
-        try {
-            const weekStart = weekDates[0];
-            const weekEnd = weekDates[weekDates.length - 1];
-            const parcels = await getFoodParcelsForWeek(selectedLocationId, weekStart, weekEnd);
-            setFoodParcels(parcels);
-        } catch (error) {
-            console.error("Error refreshing food parcels:", error);
-        }
+        await loadFoodParcels(selectedLocationId, weekDates);
     };
 
     // Handle date selection from calendar
     const handleDateSelect = (date: Date | null) => {
         if (date) {
+            setIsLoadingParcels(true); // Set loading when changing date
             setCurrentDate(date);
             closeDatePicker();
         }
@@ -279,7 +308,7 @@ function SchedulePageContent({
 
                 {/* Schedule grid */}
                 <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-                    {isLoadingParcels ? (
+                    {isLoadingParcels || isLoadingLocations ? (
                         <Center style={{ height: 400 }}>
                             <Stack align="center" gap="xs">
                                 <Loader size="md" />
@@ -313,7 +342,7 @@ function SchedulePageContent({
                             maxParcelsPerDay={getMaxParcelsPerDay()}
                             maxParcelsPerSlot={DEFAULT_MAX_PARCELS_PER_SLOT}
                             onParcelRescheduled={handleParcelRescheduled}
-                            locationId={selectedLocationId} // Pass the location ID directly
+                            locationId={selectedLocationId}
                         />
                     )}
                 </Paper>
@@ -346,34 +375,51 @@ function SchedulePageContent({
 export default function SchedulePageClient() {
     const [locationId, setLocationId] = useState<string | null>(null);
     const [date, setDate] = useState<Date | null>(null);
+    const [paramsLoaded, setParamsLoaded] = useState(false);
 
     // Component to handle search params with proper Suspense
     function SearchParamsComponentWithSuspense() {
         const { locationId: locationIdFromUrl, dateParam } = SearchParamsHandler();
 
+        // Only run the effect once to prevent cascading updates
         useEffect(() => {
+            // Batch the state updates together to reduce renders
+            let newLocationId = null;
+            let newDate = null;
+
             if (locationIdFromUrl) {
-                setLocationId(locationIdFromUrl);
+                newLocationId = locationIdFromUrl;
             }
 
             if (dateParam) {
                 const parsedDate = new Date(dateParam);
                 if (!isNaN(parsedDate.getTime())) {
-                    setDate(parsedDate);
+                    newDate = parsedDate;
                 }
             }
-        }, [locationIdFromUrl, dateParam]);
+
+            // Set all the state at once to minimize renders
+            setLocationId(newLocationId);
+            setDate(newDate);
+            setParamsLoaded(true);
+        }, [dateParam, locationIdFromUrl]); // Add missing dependencies
 
         return null;
     }
 
+    // Use a more explicit conditional rendering to ensure the content doesn't load
+    // until params have been processed, preventing double-loading
     return (
         <>
             {/* Wrap the component using useSearchParams in Suspense */}
             <Suspense fallback={null}>
                 <SearchParamsComponentWithSuspense />
             </Suspense>
-            <SchedulePageContent locationIdFromParams={locationId} dateFromParams={date} />
+
+            {/* Only render the main content once params have been processed */}
+            {(paramsLoaded || (!locationId && !date)) && (
+                <SchedulePageContent locationIdFromParams={locationId} dateFromParams={date} />
+            )}
         </>
     );
 }

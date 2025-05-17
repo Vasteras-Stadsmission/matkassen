@@ -1,75 +1,37 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { Group, Button, Paper, Text, Tabs, ActionIcon, Modal, Stack, Flex } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { useDisclosure } from "@mantine/hooks";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { LocationForm } from "./LocationForm";
-import { getLocations, deleteLocation } from "../actions";
+import { deleteLocation } from "../actions";
 import { notifications } from "@mantine/notifications";
 import { PickupLocationWithAllData } from "../types";
 import type { MouseEvent } from "react";
+import { useRouter } from "@/app/i18n/navigation";
 
-export function HandoutLocationsContent() {
+interface Props {
+    initialLocations: PickupLocationWithAllData[];
+}
+
+export function HandoutLocationsContent({ initialLocations }: Props) {
+    const router = useRouter();
     const t = useTranslations("handoutLocations");
-    const [activeTab, setActiveTab] = useState<string | null>(null);
-    const [locations, setLocations] = useState<PickupLocationWithAllData[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [locations, setLocations] = useState<PickupLocationWithAllData[]>(initialLocations);
+    const [activeTab, setActiveTab] = useState<string | null>(initialLocations[0]?.id ?? null);
     const [selectedLocation, setSelectedLocation] = useState<PickupLocationWithAllData | null>(
         null,
     );
     const [opened, { open, close }] = useDisclosure(false);
 
-    // Use a ref to track if locations have been loaded
-    const hasLoadedRef = useRef(false);
-
     // Pre-cache all translation strings that might be used in callbacks
-    const errorLoadingTitle = t("errorLoading");
-    const errorLoadingMessage = t("errorLoadingMessage");
     const locationDeletedTitle = t("locationDeleted");
     const locationDeletedMessage = t("locationDeletedMessage");
     const errorDeletingTitle = t("errorDeleting");
     const errorDeletingMessage = t("errorDeletingMessage");
     const confirmDeleteText = t("confirmDelete");
-
-    // Load locations from the server
-    const loadLocations = useCallback(
-        async (forceReload: boolean = false): Promise<void> => {
-            // Only prevent duplicate loading attempts if we're already loading AND have tried before
-            if (isLoading && hasLoadedRef.current) return;
-
-            // Skip loading if we already have data, UNLESS forceReload is true
-            if (hasLoadedRef.current && locations.length > 0 && !forceReload) return;
-
-            setIsLoading(true);
-            try {
-                const data = await getLocations();
-                setLocations(data);
-                hasLoadedRef.current = true;
-
-                // Set the first location as active if available and no active tab is set
-                if (data.length > 0 && !activeTab) {
-                    setActiveTab(data[0].id);
-                }
-            } catch (error) {
-                console.error("Failed to load locations:", error);
-                notifications.show({
-                    title: errorLoadingTitle,
-                    message: errorLoadingMessage,
-                    color: "red",
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        },
-        [isLoading, locations.length, activeTab, errorLoadingTitle, errorLoadingMessage],
-    );
-
-    // Fetch locations only on initial component mount
-    useEffect(() => {
-        loadLocations();
-    }, [loadLocations]);
 
     // Handle creating a new location - make it a direct function reference
     const handleAddLocation = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -85,8 +47,11 @@ export function HandoutLocationsContent() {
                 try {
                     await deleteLocation(locationId);
 
-                    // Manual state update instead of reloading all locations
+                    // Manual state update for optimistic UI
                     setLocations(prev => prev.filter(loc => loc.id !== locationId));
+
+                    // Refresh the server component to fetch fresh data
+                    router.refresh();
 
                     notifications.show({
                         title: locationDeletedTitle,
@@ -109,19 +74,15 @@ export function HandoutLocationsContent() {
             errorDeletingTitle,
             locationDeletedMessage,
             locationDeletedTitle,
+            router,
         ],
     );
-
-    // Create a stable reference to the reload function for the form
-    const handleReload = useCallback((): void => {
-        // Force reload when explicitly called
-        loadLocations(true);
-    }, [loadLocations]);
 
     // Handle location form submission (create or edit)
     const handleFormSubmit = () => {
         close();
-        loadLocations(true); // Force reload when creating a new location
+        // Refresh the server component to fetch fresh data
+        router.refresh();
     };
 
     // Changing the active tab should NOT trigger a reload
@@ -144,11 +105,9 @@ export function HandoutLocationsContent() {
                 <Paper p="xl" withBorder>
                     <Stack align="center" py="xl">
                         <Text ta="center" c="dimmed">
-                            {isLoading ? t("loading") : t("noLocations")}
+                            {t("noLocations")}
                         </Text>
-                        {!isLoading && (
-                            <Button onClick={handleAddLocation}>{t("addFirstLocation")}</Button>
-                        )}
+                        <Button onClick={handleAddLocation}>{t("addFirstLocation")}</Button>
                     </Stack>
                 </Paper>
             ) : (
@@ -177,14 +136,19 @@ export function HandoutLocationsContent() {
                         <Tabs.Panel key={location.id} value={location.id} pt="xs">
                             <LocationForm
                                 location={location}
-                                onSaved={() => handleReload()}
+                                onSaved={() => {
+                                    // Refresh the server component to fetch fresh data
+                                    router.refresh();
+                                }}
                                 onLocationUpdated={(id, updatedLocation) => {
-                                    // Update the location name in local state immediately
+                                    // Update the location name in local state immediately for optimistic UI
                                     setLocations(prevLocations =>
                                         prevLocations.map(loc =>
                                             loc.id === id ? { ...loc, ...updatedLocation } : loc,
                                         ),
                                     );
+                                    // Refresh the server component to fetch fresh data
+                                    router.refresh();
                                 }}
                             />
                         </Tabs.Panel>
