@@ -134,14 +134,14 @@ export async function getTimeslotCounts(
         // Fetch the location settings to get the slot duration
         const [locationSettings] = await db
             .select({
-                defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
+                slotDuration: pickupLocations.default_slot_duration_minutes,
             })
             .from(pickupLocations)
             .where(eq(pickupLocations.id, locationId))
             .limit(1);
 
         // Default to 30 minutes if setting is not found
-        const slotDurationMinutes = locationSettings?.defaultSlotDuration ?? 30;
+        const slotDurationMinutes = locationSettings?.slotDuration;
 
         // Query food parcels for this location and date
         const parcels = await db
@@ -216,14 +216,14 @@ export async function updateFoodParcelSchedule(
             const [location] = await tx
                 .select({
                     maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-                    defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
+                    slotDuration: pickupLocations.default_slot_duration_minutes,
                 })
                 .from(pickupLocations)
                 .where(eq(pickupLocations.id, parcel.locationId))
                 .limit(1);
 
             // Calculate the correct end time based on the location's slot duration
-            const slotDurationMinutes = location.defaultSlotDuration ?? 30;
+            const slotDurationMinutes = location.slotDuration;
             const endTime = new Date(newTimeslot.startTime);
             endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
 
@@ -600,14 +600,13 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
         // Also fetch the location settings to get the slot duration
         const [locationSettings] = await db
             .select({
-                defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
+                slotDuration: pickupLocations.default_slot_duration_minutes,
             })
             .from(pickupLocations)
             .where(eq(pickupLocations.id, locationId))
             .limit(1);
 
-        // Default to 30 minutes if setting is not found
-        const slotDurationMinutes = locationSettings?.defaultSlotDuration ?? 30;
+        const slotDurationMinutes = locationSettings?.slotDuration;
 
         if (!locationData) {
             throw new Error("Location not found");
@@ -704,14 +703,14 @@ export async function getLocationSlotDuration(locationId: string): Promise<numbe
         // Fetch location settings to get the slot duration
         const [locationSettings] = await db
             .select({
-                defaultSlotDuration: pickupLocations.default_slot_duration_minutes,
+                slotDuration: pickupLocations.default_slot_duration_minutes,
             })
             .from(pickupLocations)
             .where(eq(pickupLocations.id, locationId))
             .limit(1);
 
         // Default to 15 minutes if setting is not found
-        return locationSettings?.defaultSlotDuration ?? 15;
+        return locationSettings?.slotDuration ?? 15;
     } catch (error) {
         console.error("Error fetching location slot duration:", error);
         // Default to 15 minutes in case of error

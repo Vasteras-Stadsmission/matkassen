@@ -245,8 +245,8 @@ export function LocationForm({
                                         {...form.getInputProps("parcels_max_per_day")}
                                     />
                                     <Select
-                                        label={t("defaultSlotDuration")}
-                                        description={t("defaultSlotDurationDescription")}
+                                        label={t("slotDuration")}
+                                        description={t("slotDurationDescription")}
                                         placeholder="15"
                                         required
                                         data={[
