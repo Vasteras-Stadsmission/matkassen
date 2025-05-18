@@ -273,13 +273,13 @@ describe("Time Slot Generation", () => {
             const {
                 findTimeGaps,
             } = require("@/app/[locale]/schedule/components/WeeklyScheduleGrid");
-            const gaps = findTimeGaps(slots);
+            const gaps = findTimeGaps(slots, 15); // Use 15-minute slot duration
 
-            // We should have found 1 gap between 11:45 and 14:00 (2 hours 15 minutes = 135 minutes)
+            // We should have found 1 gap between 12:00 and 14:00 (2 hours = 120 minutes)
             expect(gaps.length).toBe(1);
-            expect(gaps[0].startTime).toBe("11:45");
+            expect(gaps[0].startTime).toBe("12:00"); // Gap starts after 11:45 + slotDuration (15min)
             expect(gaps[0].endTime).toBe("14:00");
-            expect(gaps[0].durationMinutes).toBe(135);
+            expect(gaps[0].durationMinutes).toBe(120); // 14:00 - 12:00 = 120 minutes
         });
     });
 });

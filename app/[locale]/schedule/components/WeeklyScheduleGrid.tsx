@@ -1045,47 +1045,15 @@ export default function WeeklyScheduleGrid({
                                                 // Get the next time slot
                                                 const nextTimeSlot = sortedTimeSlots[index + 1];
 
-                                                // Calculate the difference between this slot and the next slot
-                                                const [currentHours, currentMinutes] = timeSlot
-                                                    .split(":")
-                                                    .map(Number);
-                                                const [nextHours, nextMinutes] = nextTimeSlot
-                                                    .split(":")
-                                                    .map(Number);
+                                                // Use the detectTimeGap function to check for gaps
+                                                const gapInfo = detectTimeGap(
+                                                    timeSlot,
+                                                    nextTimeSlot,
+                                                    slotDuration,
+                                                );
 
-                                                // Convert both times to minutes for easy comparison
-                                                const currentTotalMinutes =
-                                                    currentHours * 60 + currentMinutes;
-                                                const nextTotalMinutes =
-                                                    nextHours * 60 + nextMinutes;
-
-                                                // Account for times that wrap around midnight
-                                                let diffMinutes =
-                                                    nextTotalMinutes - currentTotalMinutes;
-                                                if (diffMinutes < 0) {
-                                                    diffMinutes += 24 * 60; // Add a full day
-                                                }
-
-                                                // If the gap is larger than the normal slot duration, insert a gap divider
-                                                if (diffMinutes > slotDuration) {
-                                                    // Calculate time at the end of the current slot (start of gap)
-                                                    let gapStartHour = currentHours;
-                                                    let gapStartMinute =
-                                                        currentMinutes + slotDuration;
-                                                    if (gapStartMinute >= 60) {
-                                                        gapStartHour += Math.floor(
-                                                            gapStartMinute / 60,
-                                                        );
-                                                        gapStartMinute = gapStartMinute % 60;
-                                                    }
-                                                    const gapStartTime = `${gapStartHour.toString().padStart(2, "0")}:${gapStartMinute.toString().padStart(2, "0")}`;
-
-                                                    const gapInfo = {
-                                                        startTime: gapStartTime, // Use the end of the current slot as gap start
-                                                        endTime: nextTimeSlot,
-                                                        durationMinutes: diffMinutes - slotDuration, // Subtract the normal slot duration
-                                                    };
-
+                                                // If we found a gap, insert a gap divider
+                                                if (gapInfo) {
                                                     renderedItems.push(
                                                         <TimeGapDivider
                                                             key={`gap-${timeSlot}-${nextTimeSlot}`}
@@ -1193,4 +1161,96 @@ function getWeekdayName(date: Date): string {
         "friday", // JS: 5
         "saturday", // JS: 6
     ][dayOfWeek];
+}
+
+// Type for time gaps
+interface TimeGap {
+    startTime: string;
+    endTime: string;
+    durationMinutes: number;
+}
+
+/**
+ * Detects a gap between two time slots and creates a TimeGap object if one exists.
+ * @param currentTimeSlot Current time slot in "HH:MM" format
+ * @param nextTimeSlot Next time slot in "HH:MM" format
+ * @param slotDuration Duration of a normal time slot in minutes
+ * @returns A TimeGap object if a gap exists, null otherwise
+ */
+export function detectTimeGap(
+    currentTimeSlot: string,
+    nextTimeSlot: string,
+    slotDuration: number,
+): TimeGap | null {
+    // Parse the times
+    const [currentHours, currentMinutes] = currentTimeSlot.split(":").map(Number);
+    const [nextHours, nextMinutes] = nextTimeSlot.split(":").map(Number);
+
+    // Convert both times to minutes for easy comparison
+    const currentTotalMinutes = currentHours * 60 + currentMinutes;
+    const nextTotalMinutes = nextHours * 60 + nextMinutes;
+
+    // Account for times that wrap around midnight
+    let diffMinutes = nextTotalMinutes - currentTotalMinutes;
+    if (diffMinutes < 0) {
+        diffMinutes += 24 * 60; // Add a full day
+    }
+
+    // If the gap is larger than the normal slot duration, we have a gap
+    if (diffMinutes > slotDuration) {
+        // Calculate time at the end of the current slot (start of gap)
+        let gapStartHour = currentHours;
+        let gapStartMinute = currentMinutes + slotDuration;
+        if (gapStartMinute >= 60) {
+            gapStartHour += Math.floor(gapStartMinute / 60);
+            gapStartMinute = gapStartMinute % 60;
+        }
+        const gapStartTime = `${gapStartHour.toString().padStart(2, "0")}:${gapStartMinute.toString().padStart(2, "0")}`;
+
+        return {
+            startTime: gapStartTime, // Start time is after the current slot ends
+            endTime: nextTimeSlot,
+            durationMinutes: diffMinutes - slotDuration, // Subtract the normal slot duration
+        };
+    }
+
+    return null; // No gap detected
+}
+
+/**
+ * Finds gaps in a sequence of time slots.
+ * @param slots An array of time strings in format "HH:MM"
+ * @param slotDuration Duration of a normal time slot in minutes (default: 15)
+ * @returns Array of TimeGap objects representing gaps between consecutive time slots
+ */
+export function findTimeGaps(slots: string[], slotDuration: number = 15): TimeGap[] {
+    if (!slots.length || slots.length <= 1) {
+        return [];
+    }
+
+    // Sort the slots chronologically
+    const sortedSlots = [...slots].sort((a, b) => {
+        const [aHour, aMinute] = a.split(":").map(Number);
+        const [bHour, bMinute] = b.split(":").map(Number);
+
+        if (aHour !== bHour) {
+            return aHour - bHour;
+        }
+        return aMinute - bMinute;
+    });
+
+    const gaps: TimeGap[] = [];
+
+    // Go through each pair of adjacent time slots and check for gaps
+    for (let i = 0; i < sortedSlots.length - 1; i++) {
+        const currentSlot = sortedSlots[i];
+        const nextSlot = sortedSlots[i + 1];
+
+        const gapInfo = detectTimeGap(currentSlot, nextSlot, slotDuration);
+        if (gapInfo) {
+            gaps.push(gapInfo);
+        }
+    }
+
+    return gaps;
 }
