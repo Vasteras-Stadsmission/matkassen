@@ -38,8 +38,6 @@ export function LocationForm({
     const t = useTranslations("handoutLocations");
     const [activeTab, setActiveTab] = useState<string | null>("general");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [isLoading, setIsLoading] = useState(false);
     const isMountedRef = useRef(true);
 
     // Pre-cache translation strings to avoid recreating functions
@@ -194,127 +192,121 @@ export function LocationForm({
 
     return (
         <Paper p="md" radius="md" withBorder={!isModal}>
-            {isLoading ? (
-                <Stack align="center" p="md">
-                    <Text c="dimmed">{t("loading")}</Text>
-                </Stack>
-            ) : (
-                <form onSubmit={form.onSubmit(values => handleSubmit(values))}>
-                    <Tabs value={activeTab} onChange={handleTabChange}>
-                        <Tabs.List mb="md">
-                            <Tabs.Tab value="general" leftSection={<IconBuilding size={16} />}>
-                                {t("generalInfo")}
-                            </Tabs.Tab>
-                            <Tabs.Tab value="schedules" leftSection={<IconCalendar size={16} />}>
-                                {t("schedules")}
-                            </Tabs.Tab>
-                        </Tabs.List>
+            <form onSubmit={form.onSubmit(values => handleSubmit(values))}>
+                <Tabs value={activeTab} onChange={handleTabChange}>
+                    <Tabs.List mb="md">
+                        <Tabs.Tab value="general" leftSection={<IconBuilding size={16} />}>
+                            {t("generalInfo")}
+                        </Tabs.Tab>
+                        <Tabs.Tab value="schedules" leftSection={<IconCalendar size={16} />}>
+                            {t("schedules")}
+                        </Tabs.Tab>
+                    </Tabs.List>
 
-                        {/* General Information Tab */}
-                        <Tabs.Panel value="general">
-                            <Stack>
-                                <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                                    <TextInput
-                                        label={t("name")}
-                                        placeholder={t("namePlaceholder")}
-                                        required
-                                        {...form.getInputProps("name")}
-                                    />
-                                    <TextInput
-                                        label={t("postalCode")}
-                                        placeholder="12345"
-                                        required
-                                        {...form.getInputProps("postal_code")}
-                                    />
-                                </SimpleGrid>
-
+                    {/* General Information Tab */}
+                    <Tabs.Panel value="general">
+                        <Stack>
+                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
                                 <TextInput
-                                    label={t("streetAddress")}
-                                    placeholder={t("streetAddressPlaceholder")}
+                                    label={t("name")}
+                                    placeholder={t("namePlaceholder")}
                                     required
-                                    {...form.getInputProps("street_address")}
+                                    {...form.getInputProps("name")}
                                 />
+                                <TextInput
+                                    label={t("postalCode")}
+                                    placeholder="12345"
+                                    required
+                                    {...form.getInputProps("postal_code")}
+                                />
+                            </SimpleGrid>
 
-                                <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                                    <NumberInput
-                                        label={t("maxParcelsPerDay")}
-                                        placeholder={t("maxParcelsPlaceholder")}
-                                        min={0}
-                                        allowDecimal={false}
-                                        allowNegative={false}
-                                        {...form.getInputProps("parcels_max_per_day")}
-                                    />
-                                    <Select
-                                        label={t("slotDuration")}
-                                        description={t("slotDurationDescription")}
-                                        placeholder="15"
-                                        required
-                                        data={[
-                                            { value: "15", label: "15 min" },
-                                            { value: "30", label: "30 min" },
-                                            { value: "45", label: "45 min" },
-                                            { value: "60", label: "1 h" },
-                                            { value: "75", label: "1 h 15 min" },
-                                            { value: "90", label: "1 h 30 min" },
-                                            { value: "105", label: "1 h 45 min" },
-                                            { value: "120", label: "2 h" },
-                                            { value: "150", label: "2 h 30 min" },
-                                            { value: "180", label: "3 h" },
-                                            { value: "210", label: "3 h 30 min" },
-                                            { value: "240", label: "4 h" },
-                                        ]}
-                                        value={form.values.default_slot_duration_minutes?.toString()}
-                                        onChange={value =>
-                                            form.setFieldValue(
-                                                "default_slot_duration_minutes",
-                                                value ? parseInt(value) : 15,
-                                            )
-                                        }
-                                    />
-                                </SimpleGrid>
+                            <TextInput
+                                label={t("streetAddress")}
+                                placeholder={t("streetAddressPlaceholder")}
+                                required
+                                {...form.getInputProps("street_address")}
+                            />
 
-                                <Text fw={600} mt="md">
-                                    {t("contactInfo")}
-                                </Text>
+                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                                <NumberInput
+                                    label={t("maxParcelsPerDay")}
+                                    placeholder={t("maxParcelsPlaceholder")}
+                                    min={0}
+                                    allowDecimal={false}
+                                    allowNegative={false}
+                                    {...form.getInputProps("parcels_max_per_day")}
+                                />
+                                <Select
+                                    label={t("slotDuration")}
+                                    description={t("slotDurationDescription")}
+                                    placeholder="15"
+                                    required
+                                    data={[
+                                        { value: "15", label: "15 min" },
+                                        { value: "30", label: "30 min" },
+                                        { value: "45", label: "45 min" },
+                                        { value: "60", label: "1 h" },
+                                        { value: "75", label: "1 h 15 min" },
+                                        { value: "90", label: "1 h 30 min" },
+                                        { value: "105", label: "1 h 45 min" },
+                                        { value: "120", label: "2 h" },
+                                        { value: "150", label: "2 h 30 min" },
+                                        { value: "180", label: "3 h" },
+                                        { value: "210", label: "3 h 30 min" },
+                                        { value: "240", label: "4 h" },
+                                    ]}
+                                    value={form.values.default_slot_duration_minutes?.toString()}
+                                    onChange={value =>
+                                        form.setFieldValue(
+                                            "default_slot_duration_minutes",
+                                            value ? parseInt(value) : 15,
+                                        )
+                                    }
+                                />
+                            </SimpleGrid>
 
-                                <SimpleGrid cols={{ base: 1, sm: 3 }}>
-                                    <TextInput
-                                        label={t("contactName")}
-                                        placeholder={t("contactNamePlaceholder")}
-                                        {...form.getInputProps("contact_name")}
-                                    />
-                                    <TextInput
-                                        label={t("contactEmail")}
-                                        placeholder={t("contactEmailPlaceholder")}
-                                        {...form.getInputProps("contact_email")}
-                                    />
-                                    <TextInput
-                                        label={t("contactPhone")}
-                                        placeholder={t("contactPhonePlaceholder")}
-                                        {...form.getInputProps("contact_phone_number")}
-                                    />
-                                </SimpleGrid>
-                            </Stack>
-                        </Tabs.Panel>
+                            <Text fw={600} mt="md">
+                                {t("contactInfo")}
+                            </Text>
 
-                        {/* Schedules Tab */}
-                        <Tabs.Panel value="schedules">
-                            {location && <SchedulesTab location={location} onUpdated={onSaved} />}
-                            {!location && (
-                                <Text c="dimmed" ta="center" py="md">
-                                    {t("saveLocationFirst")}
-                                </Text>
-                            )}
-                        </Tabs.Panel>
-                    </Tabs>
+                            <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                                <TextInput
+                                    label={t("contactName")}
+                                    placeholder={t("contactNamePlaceholder")}
+                                    {...form.getInputProps("contact_name")}
+                                />
+                                <TextInput
+                                    label={t("contactEmail")}
+                                    placeholder={t("contactEmailPlaceholder")}
+                                    {...form.getInputProps("contact_email")}
+                                />
+                                <TextInput
+                                    label={t("contactPhone")}
+                                    placeholder={t("contactPhonePlaceholder")}
+                                    {...form.getInputProps("contact_phone_number")}
+                                />
+                            </SimpleGrid>
+                        </Stack>
+                    </Tabs.Panel>
 
-                    <Group justify="flex-end" mt="xl">
-                        <Button type="submit" loading={isSubmitting}>
-                            {location ? t("updateLocation") : t("createLocation")}
-                        </Button>
-                    </Group>
-                </form>
-            )}
+                    {/* Schedules Tab */}
+                    <Tabs.Panel value="schedules">
+                        {location && <SchedulesTab location={location} onUpdated={onSaved} />}
+                        {!location && (
+                            <Text c="dimmed" ta="center" py="md">
+                                {t("saveLocationFirst")}
+                            </Text>
+                        )}
+                    </Tabs.Panel>
+                </Tabs>
+
+                <Group justify="flex-end" mt="xl">
+                    <Button type="submit" loading={isSubmitting}>
+                        {location ? t("updateLocation") : t("createLocation")}
+                    </Button>
+                </Group>
+            </form>
         </Paper>
     );
 }

@@ -18,11 +18,6 @@ import {
 
 // Get all locations with their schedules
 export async function getLocations(): Promise<PickupLocationWithAllData[]> {
-    // Use headers to verify request is not repeated due to React rendering
-    const headersList = await headers();
-    const requestId = headersList.get("x-request-id") || Date.now().toString();
-    console.log(`Processing getLocations request: ${requestId}`);
-
     try {
         // Fetch all locations
         const locations = await db.select().from(pickupLocations);

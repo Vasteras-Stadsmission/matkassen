@@ -8,7 +8,6 @@ import {
     Group,
     Stack,
     TextInput,
-    Select,
     Paper,
     Title,
     Text,
@@ -17,6 +16,7 @@ import {
     Checkbox,
     SimpleGrid,
 } from "@mantine/core";
+import { MaskedTimeInput } from "./MaskedTimeInput";
 import { useTranslations } from "next-intl";
 import { IconAlertCircle } from "@tabler/icons-react";
 import {
@@ -157,13 +157,6 @@ export function ScheduleForm({
     const handleScheduleNameBlur = () => {
         form.setFieldValue("name", localScheduleName);
     };
-
-    // Available time options for select inputs
-    const timeOptions = Array.from({ length: 24 * 4 }, (_, i) => {
-        const hour = Math.floor(i / 4);
-        const minute = (i % 4) * 15;
-        return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-    }).map(time => ({ value: time, label: time }));
 
     // Update form dates when week selection changes - memoize handlers
     const handleStartWeekChange = useCallback(
@@ -393,12 +386,10 @@ export function ScheduleForm({
                                         />
                                     </Group>
 
-                                    <Select
+                                    <MaskedTimeInput
                                         disabled={!day.is_open}
-                                        data={timeOptions}
-                                        searchable
                                         value={form.values.days[index].opening_time}
-                                        onChange={value => {
+                                        onChange={(value: string) => {
                                             form.setFieldValue(
                                                 `days.${index}.opening_time`,
                                                 value || "09:00",
@@ -406,12 +397,10 @@ export function ScheduleForm({
                                         }}
                                     />
 
-                                    <Select
+                                    <MaskedTimeInput
                                         disabled={!day.is_open}
-                                        data={timeOptions}
-                                        searchable
                                         value={form.values.days[index].closing_time}
-                                        onChange={value => {
+                                        onChange={(value: string) => {
                                             form.setFieldValue(
                                                 `days.${index}.closing_time`,
                                                 value || "17:00",
