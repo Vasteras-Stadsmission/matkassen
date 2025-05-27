@@ -189,6 +189,12 @@
             "error": "Tidigast tid måste vara före senast tid",
             "dateAndPickup": "Datum och hämttid"
         },
+        "table": {
+            "date": "Datum",
+            "pickupTime": "Hämttid",
+            "facilityHours": "Anläggningens öppettider"
+        },
+        "slotDuration": "Slottlängd: {duration} minuter",
         "errors": {
             "selectLocation": "Välj en hämtplats"
         }

@@ -17,7 +17,7 @@ import {
     ActionIcon,
     Loader,
 } from "@mantine/core";
-import { DatePicker, TimeInput } from "@mantine/dates";
+import { DatePicker } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
 import {
     IconClock,
@@ -26,11 +26,14 @@ import {
     IconCheck,
     IconX,
     IconExclamationMark,
+    IconChevronDown,
+    IconBuildingStore,
 } from "@tabler/icons-react";
 import {
     getPickupLocationsAction,
     getPickupLocationSchedulesAction,
     getPickupLocationCapacityForRangeAction,
+    getLocationSlotDurationAction,
 } from "../client-actions";
 import { FoodParcels, FoodParcel } from "../types";
 import { useTranslations } from "next-intl";
@@ -86,11 +89,12 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const [locationError, setLocationError] = useState<string | null>(null);
     const [timeErrors, setTimeErrors] = useState<{ [key: string]: string }>({});
     const [bulkTimeMode, setBulkTimeMode] = useState(false);
-    const [bulkEarliestTime, setBulkEarliestTime] = useState("12:00");
-    const [bulkLatestTime, setBulkLatestTime] = useState("13:00");
+    const [bulkStartTime, setBulkStartTime] = useState("12:00");
     const [bulkTimeError, setBulkTimeError] = useState<string | null>(null);
     // Add state for location schedules
     const [locationSchedules, setLocationSchedules] = useState<LocationSchedules | null>(null);
+    // Add state for slot duration
+    const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
 
     // We need to actually use this variable in the component
     const [capacityNotification, setCapacityNotification] = useState<{
@@ -186,17 +190,24 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 return;
             }
 
-            try {
-                setLoadingCapacityData(true);
+            setLoadingCapacityData(true);
 
-                // Remove unused variables
-                const capacityInfo = await getPickupLocationCapacityForRangeAction(
+            try {
+                // Set the date range for capacity check (current month + next month)
+                const today = new Date();
+                const startDate = new Date(today);
+                startDate.setDate(1); // First day of current month
+
+                const endDate = new Date(today);
+                endDate.setMonth(endDate.getMonth() + 2, 0); // Last day of next month
+
+                const capacity = await getPickupLocationCapacityForRangeAction(
                     formState.pickupLocationId,
-                    new Date(), // Use today as start date
-                    new Date(new Date().setMonth(new Date().getMonth() + 3)), // Use 3 months from now as end date
+                    startDate,
+                    endDate,
                 );
 
-                setCapacityData(capacityInfo);
+                setCapacityData(capacity);
             } catch (error) {
                 console.error("Error fetching capacity data:", error);
                 setCapacityData(null);
@@ -233,6 +244,26 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         }
 
         fetchSchedules();
+    }, [formState.pickupLocationId]);
+
+    // Fetch slot duration when pickup location changes
+    useEffect(() => {
+        async function fetchSlotDuration() {
+            if (!formState.pickupLocationId) {
+                setSlotDuration(15); // Default to 15 minutes
+                return;
+            }
+
+            try {
+                const duration = await getLocationSlotDurationAction(formState.pickupLocationId);
+                setSlotDuration(duration);
+            } catch (error) {
+                console.error("Error fetching slot duration:", error);
+                setSlotDuration(15); // Default to 15 minutes in case of error
+            }
+        }
+
+        fetchSlotDuration();
     }, [formState.pickupLocationId]);
 
     const isDateExcluded = useCallback(
@@ -498,21 +529,43 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     };
 
     const generateParcels = useCallback((): FoodParcel[] => {
+        // First preserve existing parcels by their ID
+        const existingParcelsById = new Map();
+        formState.parcels.forEach(parcel => {
+            if (parcel.id) {
+                existingParcelsById.set(parcel.id, parcel);
+            }
+        });
+
+        // Track which date strings we've already processed
+        const processedDates = new Set();
+
         return selectedDates.map(date => {
+            const dateString = new Date(date).toDateString();
+
+            // Find an existing parcel for this exact date if there is one
             const existingParcel = formState.parcels.find(
-                p => new Date(p.pickupDate).toDateString() === new Date(date).toDateString(),
+                p =>
+                    new Date(p.pickupDate).toDateString() === dateString &&
+                    p.id &&
+                    !processedDates.has(p.id),
             );
 
-            if (existingParcel) {
-                return { ...existingParcel };
+            if (existingParcel && existingParcel.id) {
+                // Mark this ID as processed so we don't reuse it
+                processedDates.add(existingParcel.id);
+                return existingParcel;
             }
 
+            // Default start time to noon
             const earliestTime = new Date(date);
             earliestTime.setHours(12, 0, 0);
 
-            const latestTime = new Date(date);
-            latestTime.setHours(13, 0, 0);
+            // Calculate end time based on slot duration
+            const latestTime = new Date(earliestTime);
+            latestTime.setMinutes(latestTime.getMinutes() + slotDuration);
 
+            // Always generate a new ID for new parcels
             return {
                 id: nanoid(8),
                 pickupDate: new Date(date),
@@ -520,7 +573,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 pickupLatestTime: latestTime,
             };
         });
-    }, [selectedDates, formState.parcels]);
+    }, [selectedDates, formState.parcels, slotDuration]);
 
     const handleDatesChange = (dates: Date[]) => {
         // If the user is trying to add a new date (length has increased)
@@ -610,83 +663,35 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     }, [formState, generateParcels, updateData, selectedDates.length]);
 
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
-        const updatedParcels = [...formState.parcels];
-        const parcel = updatedParcels[index];
+        // Only allow updating the start time (pickupEarliestTime)
+        if (field === "pickupEarliestTime") {
+            const updatedParcels = [...formState.parcels];
+            const parcel = updatedParcels[index];
 
-        const tempParcel = {
-            ...parcel,
-            [field]: time,
-        };
+            // Set the new start time
+            const newStartTime = new Date(time);
 
-        const errorKey = `${index}-${field}`;
-        const oppositeField =
-            field === "pickupEarliestTime" ? "pickupLatestTime" : "pickupEarliestTime";
-        const oppositeErrorKey = `${index}-${oppositeField}`;
+            // Calculate the new end time based on slot duration
+            const newEndTime = new Date(newStartTime);
+            newEndTime.setMinutes(newEndTime.getMinutes() + slotDuration);
 
-        const newTimeErrors = { ...timeErrors };
-        delete newTimeErrors[errorKey];
+            // Clear any existing errors
+            const newTimeErrors = { ...timeErrors };
+            delete newTimeErrors[`${index}-pickupEarliestTime`];
+            delete newTimeErrors[`${index}-pickupLatestTime`];
 
-        if (
-            field === "pickupEarliestTime" &&
-            tempParcel.pickupEarliestTime >= tempParcel.pickupLatestTime
-        ) {
-            newTimeErrors[errorKey] = t("time.error");
-        } else if (
-            field === "pickupLatestTime" &&
-            tempParcel.pickupLatestTime <= tempParcel.pickupEarliestTime
-        ) {
-            newTimeErrors[errorKey] = t("time.error");
-        } else {
-            delete newTimeErrors[oppositeErrorKey];
+            // Update the parcel with both new times
+            updatedParcels[index] = {
+                ...parcel,
+                pickupEarliestTime: newStartTime,
+                pickupLatestTime: newEndTime,
+            };
+
+            const updatedState = { ...formState, parcels: updatedParcels };
+            setFormState(updatedState);
+            updateData(updatedState);
+            setTimeErrors(newTimeErrors);
         }
-
-        setTimeErrors(newTimeErrors);
-
-        updatedParcels[index] = tempParcel;
-
-        const updatedState = { ...formState, parcels: updatedParcels };
-        setFormState(updatedState);
-        updateData(updatedState);
-    };
-
-    const formatTimeForInput = (date: Date): string => {
-        return date.toLocaleTimeString("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-        });
-    };
-
-    const parseTimeString = (timeStr: string, baseDate: Date): Date => {
-        let hours = 0;
-        let minutes = 0;
-
-        if (!timeStr) {
-            const current = new Date(baseDate);
-            return current;
-        }
-
-        const parts = timeStr.split(":");
-        if (parts.length === 2) {
-            hours = parseInt(parts[0], 10) || 0;
-            minutes = parseInt(parts[1], 10) || 0;
-        } else if (timeStr.length === 1 || timeStr.length === 2) {
-            hours = parseInt(timeStr, 10) || 0;
-            minutes = 0;
-        } else if (timeStr.length === 3) {
-            hours = parseInt(timeStr.substring(0, 1), 10) || 0;
-            minutes = parseInt(timeStr.substring(1), 10) || 0;
-        } else if (timeStr.length === 4) {
-            hours = parseInt(timeStr.substring(0, 2), 10) || 0;
-            minutes = parseInt(timeStr.substring(2), 10) || 0;
-        }
-
-        hours = Math.min(Math.max(hours, 0), 23);
-        minutes = Math.min(Math.max(minutes, 0), 59);
-
-        const newDate = new Date(baseDate);
-        newDate.setHours(hours, minutes, 0, 0);
-        return newDate;
     };
 
     useEffect(() => {
@@ -705,33 +710,33 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     }, [selectedDates, applyChanges]);
 
     const applyBulkTimeUpdate = () => {
-        const earliestParts = bulkEarliestTime.split(":").map(part => parseInt(part, 10));
-        const latestParts = bulkLatestTime.split(":").map(part => parseInt(part, 10));
+        // Parse the time from the input
+        const startTimeParts = bulkStartTime.split(":").map(part => parseInt(part, 10));
 
-        const earliestDate = new Date();
-        earliestDate.setHours(earliestParts[0] || 0, earliestParts[1] || 0, 0, 0);
+        // Validate the time parts - should be properly formatted since we're using dropdowns
+        // Default to 0 if parsing fails
+        const hours = !isNaN(startTimeParts[0]) ? startTimeParts[0] : 0;
+        const minutes = !isNaN(startTimeParts[1]) ? startTimeParts[1] : 0;
 
-        const latestDate = new Date();
-        latestDate.setHours(latestParts[0] || 0, latestParts[1] || 0, 0, 0);
-
-        if (earliestDate >= latestDate) {
-            setBulkTimeError(t("time.error"));
-            return;
-        }
+        // Make sure minutes are rounded to 15-minute intervals
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
 
         setBulkTimeError(null);
 
+        // Calculate end time based on slot duration for each parcel
         const updatedParcels = formState.parcels.map(parcel => {
-            const newEarliestTime = new Date(parcel.pickupDate);
-            newEarliestTime.setHours(earliestParts[0] || 0, earliestParts[1] || 0, 0, 0);
+            // Set the new start time
+            const newStartTime = new Date(parcel.pickupDate);
+            newStartTime.setHours(hours, roundedMinutes, 0, 0);
 
-            const newLatestTime = new Date(parcel.pickupDate);
-            newLatestTime.setHours(latestParts[0] || 0, latestParts[1] || 0, 0, 0);
+            // Calculate the end time based on slot duration
+            const newEndTime = new Date(newStartTime);
+            newEndTime.setMinutes(newEndTime.getMinutes() + slotDuration);
 
             return {
                 ...parcel,
-                pickupEarliestTime: newEarliestTime,
-                pickupLatestTime: newLatestTime,
+                pickupEarliestTime: newStartTime,
+                pickupLatestTime: newEndTime,
             };
         });
 
@@ -740,7 +745,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         updateData(updatedState);
 
         setBulkTimeMode(false);
-
         setTimeErrors({});
     };
 
@@ -975,58 +979,172 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                     </Text>
                                 )}
 
-                                <Group align="flex-end">
-                                    <Box style={{ width: "150px" }}>
+                                <Group align="flex-end" gap="lg">
+                                    <Box style={{ flex: "0 0 auto" }}>
                                         <Text size="xs" fw={500} pb={5}>
-                                            {t("time.earliest")}
+                                            {t("table.pickupTime")}
                                         </Text>
-                                        <TimeInput
-                                            value={bulkEarliestTime}
-                                            onChange={event =>
-                                                setBulkEarliestTime(event.currentTarget.value)
-                                            }
-                                            size="xs"
-                                            leftSection={<IconClock size="1rem" />}
-                                            aria-label={t("time.earliest")}
-                                            styles={{
-                                                input: {
-                                                    ...(bulkTimeError
-                                                        ? {
-                                                              borderColor:
-                                                                  "var(--mantine-color-red-6)",
-                                                          }
-                                                        : {}),
-                                                },
-                                            }}
-                                        />
+                                        <Group gap="sm" align="center">
+                                            <Group
+                                                gap={0}
+                                                align="center"
+                                                style={{
+                                                    padding: "4px 10px",
+                                                    border: bulkTimeError
+                                                        ? "1px solid var(--mantine-color-red-6)"
+                                                        : "1px solid var(--mantine-color-gray-4)",
+                                                    borderRadius: "var(--mantine-radius-sm)",
+                                                    backgroundColor: "var(--mantine-color-white)",
+                                                    width: "fit-content",
+                                                }}
+                                            >
+                                                <IconClock
+                                                    size="1rem"
+                                                    style={{
+                                                        marginRight: "6px",
+                                                        color: bulkTimeError
+                                                            ? "var(--mantine-color-red-6)"
+                                                            : "var(--mantine-color-gray-6)",
+                                                    }}
+                                                />
+                                                <Select
+                                                    data={Array.from({ length: 24 }, (_, i) => ({
+                                                        value: String(i).padStart(2, "0"),
+                                                        label: String(i).padStart(2, "0"),
+                                                    }))}
+                                                    value={bulkStartTime.split(":")[0] || "00"}
+                                                    onChange={value => {
+                                                        if (value) {
+                                                            const minutes =
+                                                                bulkStartTime.split(":")[1] || "00";
+                                                            setBulkStartTime(`${value}:${minutes}`);
+                                                        }
+                                                    }}
+                                                    size="xs"
+                                                    styles={{
+                                                        input: {
+                                                            width: "38px",
+                                                            textAlign: "center",
+                                                            fontWeight: 500,
+                                                            border: "none",
+                                                            background: "transparent",
+                                                            padding: "0 2px",
+                                                        },
+                                                        dropdown: { minWidth: "70px" },
+                                                    }}
+                                                    rightSection={
+                                                        <div style={{ pointerEvents: "none" }}>
+                                                            <IconChevronDown
+                                                                size="0.8rem"
+                                                                style={{
+                                                                    color: "var(--mantine-color-blue-6)",
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    }
+                                                    rightSectionWidth={15}
+                                                    aria-label="Hour"
+                                                />
+                                                <Text fw={500}>:</Text>
+                                                <Select
+                                                    data={Array.from({ length: 4 }, (_, i) => ({
+                                                        value: String(i * 15).padStart(2, "0"),
+                                                        label: String(i * 15).padStart(2, "0"),
+                                                    }))}
+                                                    value={(() => {
+                                                        const minsStr =
+                                                            bulkStartTime.split(":")[1] || "00";
+                                                        const mins = parseInt(minsStr, 10);
+                                                        // Round to nearest 15 min increment
+                                                        const roundedMins =
+                                                            Math.floor(mins / 15) * 15;
+                                                        return roundedMins
+                                                            .toString()
+                                                            .padStart(2, "0");
+                                                    })()}
+                                                    onChange={value => {
+                                                        if (value) {
+                                                            const hours =
+                                                                bulkStartTime.split(":")[0] || "00";
+                                                            setBulkStartTime(`${hours}:${value}`);
+                                                        }
+                                                    }}
+                                                    size="xs"
+                                                    styles={{
+                                                        input: {
+                                                            width: "38px",
+                                                            textAlign: "center",
+                                                            fontWeight: 500,
+                                                            border: "none",
+                                                            background: "transparent",
+                                                            padding: "0 2px",
+                                                        },
+                                                        dropdown: { minWidth: "70px" },
+                                                    }}
+                                                    rightSection={
+                                                        <div style={{ pointerEvents: "none" }}>
+                                                            <IconChevronDown
+                                                                size="0.8rem"
+                                                                style={{
+                                                                    color: "var(--mantine-color-blue-6)",
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    }
+                                                    rightSectionWidth={15}
+                                                    aria-label="Minute"
+                                                />
+                                            </Group>
+
+                                            <Text
+                                                fw={500}
+                                                size="sm"
+                                                style={{ color: "var(--mantine-color-gray-6)" }}
+                                            >
+                                                →
+                                            </Text>
+
+                                            <Group
+                                                gap={0}
+                                                align="center"
+                                                style={{
+                                                    border: "1px solid var(--mantine-color-gray-3)",
+                                                    borderRadius: "4px",
+                                                    padding: "6px 10px",
+                                                    backgroundColor: "var(--mantine-color-gray-1)",
+                                                    width: "fit-content",
+                                                }}
+                                            >
+                                                <IconClock
+                                                    size="0.9rem"
+                                                    style={{
+                                                        marginRight: "6px",
+                                                        color: "var(--mantine-color-gray-6)",
+                                                    }}
+                                                />
+                                                <Text
+                                                    fw={500}
+                                                    style={{
+                                                        fontSize: "0.9em",
+                                                        color: "var(--mantine-color-gray-8)",
+                                                    }}
+                                                >
+                                                    {(() => {
+                                                        const [hours, minutes] = bulkStartTime
+                                                            .split(":")
+                                                            .map(n => parseInt(n, 10));
+                                                        const endMinutes = minutes + slotDuration;
+                                                        const endHours =
+                                                            hours + Math.floor(endMinutes / 60);
+                                                        const finalMinutes = endMinutes % 60;
+                                                        return `${endHours.toString().padStart(2, "0")}:${finalMinutes.toString().padStart(2, "0")}`;
+                                                    })()}
+                                                </Text>
+                                            </Group>
+                                        </Group>
                                     </Box>
 
-                                    <Box style={{ width: "150px" }}>
-                                        <Text size="xs" fw={500} pb={5}>
-                                            {t("time.latest")}
-                                        </Text>
-                                        <TimeInput
-                                            value={bulkLatestTime}
-                                            onChange={event =>
-                                                setBulkLatestTime(event.currentTarget.value)
-                                            }
-                                            size="xs"
-                                            leftSection={<IconClock size="1rem" />}
-                                            aria-label={t("time.latest")}
-                                            styles={{
-                                                input: {
-                                                    ...(bulkTimeError
-                                                        ? {
-                                                              borderColor:
-                                                                  "var(--mantine-color-red-6)",
-                                                          }
-                                                        : {}),
-                                                },
-                                            }}
-                                        />
-                                    </Box>
-
-                                    <Group>
+                                    <Group gap="sm">
                                         <Button
                                             size="xs"
                                             leftSection={<IconCheck size="1rem" />}
@@ -1057,46 +1175,118 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         {bulkTimeMode ? t("bulkTimeHint") : t("individualTimeHint")}
                     </Text>
 
+                    {/* Slot Duration Info - Always visible */}
+                    <Group justify="space-between" align="center" mb="md">
+                        <Paper
+                            p="xs"
+                            radius="md"
+                            style={{
+                                backgroundColor: "var(--mantine-color-gray-0)",
+                                border: "1px solid var(--mantine-color-gray-3)",
+                                display: "inline-block",
+                            }}
+                        >
+                            <Group gap="xs">
+                                <IconClock
+                                    size="1rem"
+                                    style={{ color: "var(--mantine-color-blue-6)" }}
+                                />
+                                <Text size="sm" fw={500}>
+                                    {t("slotDuration", { duration: slotDuration.toString() })}
+                                </Text>
+                            </Group>
+                        </Paper>
+                    </Group>
+
                     <Paper radius="md" withBorder shadow="xs">
                         <Table striped={false} highlightOnHover verticalSpacing="sm">
                             <Table.Thead>
                                 <Table.Tr
                                     style={{ backgroundColor: "var(--mantine-color-gray-0)" }}
                                 >
-                                    <Table.Th>{t("time.dateAndPickup")}</Table.Th>
+                                    <Table.Th style={{ width: "20%", textAlign: "left" }}>
+                                        {t("table.date")}
+                                    </Table.Th>
+                                    <Table.Th style={{ width: "50%", textAlign: "left" }}>
+                                        {t("table.pickupTime")}
+                                    </Table.Th>
+                                    <Table.Th style={{ width: "30%", textAlign: "left" }}>
+                                        {t("table.facilityHours")}
+                                    </Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {formState.parcels.map((parcel, index) => (
-                                    <Table.Tr
-                                        key={parcel.id || index}
-                                        style={{
-                                            borderBottom:
-                                                index !== formState.parcels.length - 1
-                                                    ? "1px solid var(--mantine-color-gray-2)"
-                                                    : "none",
-                                        }}
-                                    >
-                                        <Table.Td p="sm">
-                                            <Group align="center" justify="flex-start" gap="lg">
-                                                <Paper
-                                                    p="xs"
-                                                    radius="md"
-                                                    style={{
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        backgroundColor:
-                                                            "var(--mantine-color-blue-0)",
-                                                        border: "1px solid var(--mantine-color-blue-2)",
-                                                        width: "220px",
-                                                        height: "40px",
-                                                    }}
-                                                >
+                                {formState.parcels.map((parcel, index) => {
+                                    // Get opening hours data
+                                    const date = new Date(parcel.pickupDate);
+                                    const dateString = date.toISOString().split("T")[0];
+                                    const weekdayNames = [
+                                        "sunday",
+                                        "monday",
+                                        "tuesday",
+                                        "wednesday",
+                                        "thursday",
+                                        "friday",
+                                        "saturday",
+                                    ];
+                                    const weekday = weekdayNames[date.getDay()];
+
+                                    let openingHours = null;
+                                    // Check for special day schedule
+                                    if (locationSchedules) {
+                                        const specialDay = locationSchedules.specialDays.find(
+                                            day =>
+                                                new Date(day.date).toISOString().split("T")[0] ===
+                                                dateString,
+                                        );
+
+                                        if (specialDay && !specialDay.isClosed) {
+                                            openingHours = `${specialDay.openingTime} - ${specialDay.closingTime}`;
+                                        } else {
+                                            // Look for regular schedule
+                                            for (const schedule of locationSchedules.schedules) {
+                                                const startDate = new Date(schedule.startDate);
+                                                const endDate = new Date(schedule.endDate);
+
+                                                if (date >= startDate && date <= endDate) {
+                                                    const dayConfig = schedule.days.find(
+                                                        day => day.weekday === weekday,
+                                                    );
+                                                    if (
+                                                        dayConfig &&
+                                                        dayConfig.isOpen &&
+                                                        dayConfig.openingTime &&
+                                                        dayConfig.closingTime
+                                                    ) {
+                                                        openingHours = `${dayConfig.openingTime} - ${dayConfig.closingTime}`;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    return (
+                                        <Table.Tr
+                                            key={parcel.id ? parcel.id : `index-${index}`}
+                                            style={{
+                                                borderBottom:
+                                                    index !== formState.parcels.length - 1
+                                                        ? "1px solid var(--mantine-color-gray-2)"
+                                                        : "none",
+                                            }}
+                                        >
+                                            {/* Date column */}
+                                            <Table.Td
+                                                p="xs"
+                                                pl="sm"
+                                                style={{ verticalAlign: "middle" }}
+                                            >
+                                                <Group gap="xs" align="center">
                                                     <IconCalendar
-                                                        size="1.2rem"
+                                                        size="1rem"
                                                         style={{
-                                                            marginRight: "12px",
-                                                            color: "var(--mantine-color-blue-6)",
+                                                            color: "var(--mantine-color-gray-6)",
                                                         }}
                                                     />
                                                     <Text
@@ -1113,8 +1303,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                             year: "numeric",
                                                         })}
                                                     </Text>
-                                                </Paper>
+                                                </Group>
+                                            </Table.Td>
 
+                                            {/* Time column */}
+                                            <Table.Td p="xs" style={{ verticalAlign: "middle" }}>
                                                 <Tooltip
                                                     label={
                                                         timeErrors[`${index}-pickupEarliestTime`] ||
@@ -1137,132 +1330,273 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                                     }
                                                     withinPortal
                                                 >
-                                                    <Paper
-                                                        p="xs"
-                                                        radius="md"
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems: "center",
-                                                            height: "40px",
-                                                            backgroundColor:
-                                                                "var(--mantine-color-gray-0)",
-                                                            border:
-                                                                timeErrors[
-                                                                    `${index}-pickupEarliestTime`
-                                                                ] ||
-                                                                timeErrors[
-                                                                    `${index}-pickupLatestTime`
-                                                                ]
-                                                                    ? "1px solid var(--mantine-color-red-5)"
-                                                                    : "1px solid var(--mantine-color-gray-3)",
-                                                            cursor: "pointer",
-                                                        }}
-                                                        onClick={() => {}}
-                                                    >
-                                                        <IconClock
-                                                            size="1.2rem"
+                                                    <Group gap="md" align="center">
+                                                        {/* Time selector */}
+                                                        <Group
                                                             style={{
-                                                                marginRight: "12px",
-                                                                color:
+                                                                border:
                                                                     timeErrors[
                                                                         `${index}-pickupEarliestTime`
                                                                     ] ||
                                                                     timeErrors[
                                                                         `${index}-pickupLatestTime`
                                                                     ]
-                                                                        ? "var(--mantine-color-red-6)"
-                                                                        : "var(--mantine-color-gray-6)",
+                                                                        ? "1px solid var(--mantine-color-red-5)"
+                                                                        : "1px solid var(--mantine-color-gray-3)",
+                                                                borderRadius: "4px",
+                                                                padding: "0px",
+                                                                backgroundColor: "white",
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                            }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    padding: "6px 10px",
+                                                                }}
+                                                            >
+                                                                <IconClock
+                                                                    size="0.9rem"
+                                                                    style={{
+                                                                        marginRight: "6px",
+                                                                        color:
+                                                                            timeErrors[
+                                                                                `${index}-pickupEarliestTime`
+                                                                            ] ||
+                                                                            timeErrors[
+                                                                                `${index}-pickupLatestTime`
+                                                                            ]
+                                                                                ? "var(--mantine-color-red-6)"
+                                                                                : "var(--mantine-color-gray-6)",
+                                                                    }}
+                                                                />
+
+                                                                <Group gap={0} align="center">
+                                                                    <Select
+                                                                        data={Array.from(
+                                                                            { length: 24 },
+                                                                            (_, i) => ({
+                                                                                value: String(
+                                                                                    i,
+                                                                                ).padStart(2, "0"),
+                                                                                label: String(
+                                                                                    i,
+                                                                                ).padStart(2, "0"),
+                                                                            }),
+                                                                        )}
+                                                                        value={parcel.pickupEarliestTime
+                                                                            .getHours()
+                                                                            .toString()
+                                                                            .padStart(2, "0")}
+                                                                        onChange={value => {
+                                                                            if (value) {
+                                                                                const newDate =
+                                                                                    new Date(
+                                                                                        parcel.pickupEarliestTime,
+                                                                                    );
+                                                                                newDate.setHours(
+                                                                                    parseInt(
+                                                                                        value,
+                                                                                        10,
+                                                                                    ),
+                                                                                );
+                                                                                updateParcelTime(
+                                                                                    index,
+                                                                                    "pickupEarliestTime",
+                                                                                    newDate,
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                        size="sm"
+                                                                        styles={{
+                                                                            input: {
+                                                                                width: "38px",
+                                                                                textAlign: "center",
+                                                                                fontWeight: 500,
+                                                                                border: "none",
+                                                                                background:
+                                                                                    "transparent",
+                                                                                padding: "0px",
+                                                                                cursor: "pointer",
+                                                                                minHeight: "unset",
+                                                                                height: "28px",
+                                                                            },
+                                                                            dropdown: {
+                                                                                minWidth: "70px",
+                                                                            },
+                                                                            wrapper: {
+                                                                                margin: 0,
+                                                                            },
+                                                                        }}
+                                                                        rightSection={
+                                                                            <div
+                                                                                style={{
+                                                                                    pointerEvents:
+                                                                                        "none",
+                                                                                }}
+                                                                            >
+                                                                                <IconChevronDown
+                                                                                    size="0.8rem"
+                                                                                    style={{
+                                                                                        color: "var(--mantine-color-blue-6)",
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                        }
+                                                                        rightSectionWidth={15}
+                                                                        aria-label="Hour"
+                                                                    />
+                                                                    <Text fw={500}>:</Text>
+                                                                    <Select
+                                                                        data={Array.from(
+                                                                            { length: 4 },
+                                                                            (_, i) => ({
+                                                                                value: String(
+                                                                                    i * 15,
+                                                                                ).padStart(2, "0"),
+                                                                                label: String(
+                                                                                    i * 15,
+                                                                                ).padStart(2, "0"),
+                                                                            }),
+                                                                        )}
+                                                                        value={(() => {
+                                                                            const mins =
+                                                                                parcel.pickupEarliestTime.getMinutes();
+                                                                            // Round to nearest 15 min increment
+                                                                            const roundedMins =
+                                                                                Math.floor(
+                                                                                    mins / 15,
+                                                                                ) * 15;
+                                                                            return roundedMins
+                                                                                .toString()
+                                                                                .padStart(2, "0");
+                                                                        })()}
+                                                                        onChange={value => {
+                                                                            if (value) {
+                                                                                const newDate =
+                                                                                    new Date(
+                                                                                        parcel.pickupEarliestTime,
+                                                                                    );
+                                                                                newDate.setMinutes(
+                                                                                    parseInt(
+                                                                                        value,
+                                                                                        10,
+                                                                                    ),
+                                                                                );
+                                                                                updateParcelTime(
+                                                                                    index,
+                                                                                    "pickupEarliestTime",
+                                                                                    newDate,
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                        size="sm"
+                                                                        styles={{
+                                                                            input: {
+                                                                                width: "38px",
+                                                                                textAlign: "center",
+                                                                                fontWeight: 500,
+                                                                                border: "none",
+                                                                                background:
+                                                                                    "transparent",
+                                                                                padding: "0px",
+                                                                                cursor: "pointer",
+                                                                                minHeight: "unset",
+                                                                                height: "28px",
+                                                                            },
+                                                                            dropdown: {
+                                                                                minWidth: "70px",
+                                                                            },
+                                                                            wrapper: {
+                                                                                margin: 0,
+                                                                            },
+                                                                        }}
+                                                                        rightSection={
+                                                                            <div
+                                                                                style={{
+                                                                                    pointerEvents:
+                                                                                        "none",
+                                                                                }}
+                                                                            >
+                                                                                <IconChevronDown
+                                                                                    size="0.8rem"
+                                                                                    style={{
+                                                                                        color: "var(--mantine-color-blue-6)",
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                        }
+                                                                        rightSectionWidth={15}
+                                                                        aria-label="Minute"
+                                                                    />
+                                                                </Group>
+                                                            </div>
+                                                        </Group>
+
+                                                        <Text
+                                                            fw={500}
+                                                            size="sm"
+                                                            style={{
+                                                                color: "var(--mantine-color-gray-6)",
+                                                            }}
+                                                        >
+                                                            →
+                                                        </Text>
+
+                                                        <Group
+                                                            gap={0}
+                                                            align="center"
+                                                            style={{
+                                                                border: "1px solid var(--mantine-color-gray-3)",
+                                                                borderRadius: "4px",
+                                                                padding: "6px 10px",
+                                                                backgroundColor:
+                                                                    "var(--mantine-color-gray-1)",
+                                                                width: "fit-content",
+                                                            }}
+                                                        >
+                                                            <IconClock
+                                                                size="0.9rem"
+                                                                style={{
+                                                                    marginRight: "6px",
+                                                                    color: "var(--mantine-color-gray-6)",
+                                                                }}
+                                                            />
+                                                            <Text
+                                                                fw={500}
+                                                                style={{
+                                                                    fontSize: "0.9em",
+                                                                    color: "var(--mantine-color-gray-8)",
+                                                                }}
+                                                            >
+                                                                {`${parcel.pickupLatestTime.getHours().toString().padStart(2, "0")}:${parcel.pickupLatestTime.getMinutes().toString().padStart(2, "0")}`}
+                                                            </Text>
+                                                        </Group>
+                                                    </Group>
+                                                </Tooltip>
+                                            </Table.Td>
+
+                                            {/* Facility hours column */}
+                                            <Table.Td p="xs" style={{ verticalAlign: "middle" }}>
+                                                {openingHours && (
+                                                    <Group gap="xs">
+                                                        <IconBuildingStore
+                                                            size="0.9rem"
+                                                            style={{
+                                                                color: "var(--mantine-color-gray-6)",
                                                             }}
                                                         />
-                                                        <Group gap={8} align="center">
-                                                            <TimeInput
-                                                                value={formatTimeForInput(
-                                                                    parcel.pickupEarliestTime,
-                                                                )}
-                                                                onChange={event => {
-                                                                    if (
-                                                                        !event ||
-                                                                        !event.currentTarget
-                                                                    )
-                                                                        return;
-                                                                    const timeStr =
-                                                                        event.currentTarget.value;
-                                                                    if (timeStr) {
-                                                                        const newDate =
-                                                                            parseTimeString(
-                                                                                timeStr,
-                                                                                parcel.pickupDate,
-                                                                            );
-                                                                        updateParcelTime(
-                                                                            index,
-                                                                            "pickupEarliestTime",
-                                                                            newDate,
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                size="md"
-                                                                styles={{
-                                                                    wrapper: { width: "70px" },
-                                                                    input: {
-                                                                        border: "none",
-                                                                        background: "transparent",
-                                                                        textAlign: "center",
-                                                                        padding: 0,
-                                                                        height: "auto",
-                                                                        fontWeight: 500,
-                                                                    },
-                                                                    section: { display: "none" },
-                                                                }}
-                                                            />
-                                                            <Text fw={500} size="sm">
-                                                                -
-                                                            </Text>
-                                                            <TimeInput
-                                                                value={formatTimeForInput(
-                                                                    parcel.pickupLatestTime,
-                                                                )}
-                                                                onChange={event => {
-                                                                    if (
-                                                                        !event ||
-                                                                        !event.currentTarget
-                                                                    )
-                                                                        return;
-                                                                    const timeStr =
-                                                                        event.currentTarget.value;
-                                                                    if (timeStr) {
-                                                                        const newDate =
-                                                                            parseTimeString(
-                                                                                timeStr,
-                                                                                parcel.pickupDate,
-                                                                            );
-                                                                        updateParcelTime(
-                                                                            index,
-                                                                            "pickupLatestTime",
-                                                                            newDate,
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                size="md"
-                                                                styles={{
-                                                                    wrapper: { width: "70px" },
-                                                                    input: {
-                                                                        border: "none",
-                                                                        background: "transparent",
-                                                                        textAlign: "center",
-                                                                        padding: 0,
-                                                                        height: "auto",
-                                                                        fontWeight: 500,
-                                                                    },
-                                                                    section: { display: "none" },
-                                                                }}
-                                                            />
-                                                        </Group>
-                                                    </Paper>
-                                                </Tooltip>
-                                            </Group>
-                                        </Table.Td>
-                                    </Table.Tr>
-                                ))}
+                                                        <Text size="sm" c="dimmed" fw={500}>
+                                                            {openingHours}
+                                                        </Text>
+                                                    </Group>
+                                                )}
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    );
+                                })}
                             </Table.Tbody>
                         </Table>
                     </Paper>

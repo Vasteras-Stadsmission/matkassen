@@ -1,7 +1,5 @@
 {
     "extends": "./tsconfig.json",
-    "include": ["**/__tests__/**/*.ts", "**/__tests__/**/*.tsx", "types/test-globals.d.ts"],
-    "exclude": ["node_modules", ".next", "app/**/*.ts", "app/**/*.tsx"],
     "compilerOptions": {
         "skipLibCheck": true,
         "noImplicitAny": false,
@@ -12,6 +10,14 @@
         "strict": false,
         "ignoreDeprecations": "5.0",
         "typeRoots": ["./node_modules/@types", "./types"],
-        "noErrorTruncation": true
-    }
+        "noErrorTruncation": true,
+        "noEmit": true
+    },
+    "include": [
+        "**/__tests__/**/*.ts",
+        "**/__tests__/**/*.tsx",
+        "types/test-globals.d.ts",
+        "types/bun-test.d.ts"
+    ],
+    "exclude": ["node_modules", ".next", "app/**/*.ts", "app/**/*.tsx"]
 }

@@ -33,6 +33,20 @@ export async function getPickupLocationSchedulesAction(
 }
 
 /**
+ * Client wrapper for getting location slot duration
+ */
+export async function getLocationSlotDurationAction(locationId: string): Promise<number> {
+    try {
+        const { getLocationSlotDuration } = await import("@/app/[locale]/schedule/actions");
+        return getLocationSlotDuration(locationId);
+    } catch (error) {
+        console.error("Error fetching location slot duration:", error);
+        // Default to 15 minutes in case of error
+        return 15;
+    }
+}
+
+/**
  * Client wrapper for getting pickup location capacity for a date range
  */
 export async function getPickupLocationCapacityForRangeAction(

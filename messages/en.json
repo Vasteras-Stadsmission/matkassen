@@ -194,6 +194,12 @@
             "error": "Earliest time must be before latest time",
             "dateAndPickup": "Date and pickup time"
         },
+        "table": {
+            "date": "Date",
+            "pickupTime": "Pickup Time",
+            "facilityHours": "Facility Hours"
+        },
+        "slotDuration": "Slot Duration: {duration} minutes",
         "errors": {
             "selectLocation": "Select a pickup location"
         }

@@ -9,5 +9,10 @@
     "files.exclude": {
         "**/.next": true
     },
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "typescript.suggest.autoImports": true,
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "typescript.suggest.includeAutomaticOptionalChainCompletions": true,
+    "typescript.updateImportsOnFileMove.enabled": "always"
 }
