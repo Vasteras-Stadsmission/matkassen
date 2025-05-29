@@ -222,8 +222,9 @@ function SchedulePageContent({
     };
 
     // Handle date selection from calendar
-    const handleDateSelect = (date: Date | null) => {
-        if (date) {
+    const handleDateSelect = (value: string) => {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
             setIsLoadingParcels(true); // Set loading when changing date
             setCurrentDate(date);
             closeDatePicker();
