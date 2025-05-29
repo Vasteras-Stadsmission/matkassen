@@ -195,7 +195,7 @@ server {
 
 # Serve HTTPS traffic
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name $DOMAIN_NAMES;
 
     ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
@@ -203,14 +203,47 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # Security headers
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; form-action 'self' https://github.com; upgrade-insecure-requests;" always;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    ssl_trusted_certificate /etc/letsencrypt/live/$DOMAIN_NAME/chain.pem;
+
+    # Enable gzip compression for better performance
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml
+        image/svg+xml;
+
+    # Enhanced security headers with stricter CSP
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'self' https://github.com; upgrade-insecure-requests; base-uri 'self'; object-src 'none'; report-uri /api/csp-report;" always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Frame-Options "DENY" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=(), usb=(), payment=(), autoplay=()" always;
+
+    # CSP reporting endpoint for monitoring violations
+    location = /api/csp-report {
+        limit_req zone=api burst=10 nodelay;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Content-Type application/csp-report;
+    }
 
     # Next.js chunks and dynamic imports (excluding static assets)
     # This regex prevents static assets from being treated as dynamic imports
@@ -222,6 +255,9 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # Basic caching for Next.js chunks (1 day)
+        add_header Cache-Control "public, max-age=86400";
     }
 
     # API routes - more restrictive rate limiting
@@ -236,6 +272,11 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
+
+        # No caching for API routes to ensure fresh data
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
     }
 
     # All other routes (pages) - moderate rate limiting
@@ -255,6 +296,11 @@ server {
         # Disable buffering for streaming support
         proxy_buffering off;
         proxy_set_header X-Accel-Buffering no;
+
+        # No caching for pages to ensure fresh admin data
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
     }
 }
 EOL
