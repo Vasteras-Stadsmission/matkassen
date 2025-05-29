@@ -180,7 +180,9 @@ echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-re
 
 # Now, replace the Nginx config with the full configuration including security headers
 sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
-limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
+limit_req_zone \$binary_remote_addr zone=api:10m rate=30r/s;
+limit_req_zone \$binary_remote_addr zone=static:10m rate=100r/s;
+limit_req_zone \$binary_remote_addr zone=pages:10m rate=50r/s;
 
 # Redirect HTTP traffic to HTTPS
 server {
@@ -210,10 +212,35 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()" always;
 
-    # Enable rate limiting
-    limit_req zone=mylimit burst=20 nodelay;
+    # Next.js chunks and dynamic imports (excluding static assets)
+    # This regex prevents static assets from being treated as dynamic imports
+    location ~ ^/_next/(?!static/) {
+        limit_req zone=static burst=100 nodelay;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
 
+    # API routes - more restrictive rate limiting
+    location ~ ^/api/ {
+        limit_req zone=api burst=50 nodelay;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+
+    # All other routes (pages) - moderate rate limiting
     location / {
+        limit_req zone=pages burst=100 nodelay;
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
