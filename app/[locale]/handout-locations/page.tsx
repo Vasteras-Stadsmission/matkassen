@@ -4,6 +4,9 @@ import { HandoutLocationsContent } from "./components/HandoutLocationsContent";
 import { HandoutLocationsPageLayout } from "./components/HandoutLocationsPageLayout";
 import { getLocations } from "./actions";
 
+// This needs to be dynamic to avoid build time issues in CI
+export const dynamic = "force-dynamic";
+
 export default async function HandoutLocationsPage() {
     // Fetch locations on the server, once per request (cached by Next.js)
     const locations = await getLocations();
