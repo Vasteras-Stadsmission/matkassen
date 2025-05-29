@@ -16,7 +16,7 @@ import {
     Checkbox,
     SimpleGrid,
 } from "@mantine/core";
-import { MaskedTimeInput } from "./MaskedTimeInput";
+import { TimePicker } from "@mantine/dates";
 import { useTranslations } from "next-intl";
 import { IconAlertCircle } from "@tabler/icons-react";
 import {
@@ -386,26 +386,36 @@ export function ScheduleForm({
                                         />
                                     </Group>
 
-                                    <MaskedTimeInput
+                                    <TimePicker
                                         disabled={!day.is_open}
                                         value={form.values.days[index].opening_time}
-                                        onChange={(value: string) => {
+                                        onChange={value => {
                                             form.setFieldValue(
                                                 `days.${index}.opening_time`,
                                                 value || "09:00",
                                             );
                                         }}
+                                        min="08:00"
+                                        max="23:00"
+                                        minutesStep={15}
+                                        withDropdown
+                                        size="sm"
                                     />
 
-                                    <MaskedTimeInput
+                                    <TimePicker
                                         disabled={!day.is_open}
                                         value={form.values.days[index].closing_time}
-                                        onChange={(value: string) => {
+                                        onChange={value => {
                                             form.setFieldValue(
                                                 `days.${index}.closing_time`,
                                                 value || "17:00",
                                             );
                                         }}
+                                        min="08:00"
+                                        max="23:00"
+                                        minutesStep={15}
+                                        withDropdown
+                                        size="sm"
                                     />
                                 </SimpleGrid>
 

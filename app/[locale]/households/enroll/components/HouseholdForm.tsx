@@ -147,7 +147,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                 {t("basicDescription")}
             </Text>
 
-            <form>
+            <form onSubmit={e => e.preventDefault()}>
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                     <Box style={fieldContainerStyle}>
                         <TextInput

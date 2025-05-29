@@ -239,10 +239,10 @@ export default function ReschedulePickupModal({
                                 label={t("reschedule.newDate")}
                                 placeholder={t("reschedule.selectDate")}
                                 value={selectedDate}
-                                onChange={setSelectedDate}
+                                onChange={value => setSelectedDate(value ? new Date(value) : null)}
                                 leftSection={<IconCalendar size="1rem" />}
                                 minDate={toStockholmDate(new Date())}
-                                excludeDate={date => !isDateAvailableForPickup(date)}
+                                excludeDate={date => !isDateAvailableForPickup(new Date(date))}
                                 required
                             />
 
