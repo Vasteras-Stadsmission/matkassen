@@ -2,13 +2,14 @@ import { Window } from "happy-dom";
 import React from "react";
 import { MantineProvider } from "@mantine/core";
 
-// Create a window environment for the tests
+// Set up happy-dom
 const window = new Window();
-global.document = window.document;
-global.window = window as any;
+global.document = window.document as unknown as Document;
+// Use a more general type assertion to satisfy TypeScript's strict typing
+global.window = window as unknown as any;
+global.navigator = window.navigator as unknown as Navigator;
 
-// Set up some basic browser globals that might be needed
-global.navigator = window.navigator;
+// Create a window environment for the tests
 global.localStorage = window.localStorage;
 global.sessionStorage = window.sessionStorage;
 

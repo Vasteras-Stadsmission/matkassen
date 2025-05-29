@@ -1,0 +1,3 @@
+CREATE INDEX "idx_pickup_location_schedules_location" ON "pickup_location_schedules" USING btree ("pickup_location_id");--> statement-breakpoint
+CREATE INDEX "idx_pickup_location_schedule_no_overlap" ON "pickup_location_schedules" USING btree ("pickup_location_id");--> statement-breakpoint
+ALTER TABLE "pickup_locations" ADD CONSTRAINT "pickup_locations_slot_duration_check" CHECK ("pickup_locations"."default_slot_duration_minutes" > 0 AND "pickup_locations"."default_slot_duration_minutes" <= 240 AND "pickup_locations"."default_slot_duration_minutes" % 15 = 0);

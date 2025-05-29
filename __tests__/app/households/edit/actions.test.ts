@@ -10,7 +10,10 @@ const mockImplementation = {
 };
 
 // Mock the updateHousehold function directly
-const mockUpdateHousehold = mock(() => Promise.resolve(mockImplementation));
+// Add explicit type to the mock function to fix TypeScript errors
+const mockUpdateHousehold = mock<
+    typeof import("@/app/[locale]/households/[id]/edit/actions").updateHousehold
+>(() => Promise.resolve(mockImplementation));
 
 // Mock the module before importing
 mock.module("@/app/[locale]/households/[id]/edit/actions", () => ({

@@ -1,0 +1,23 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "skipLibCheck": true,
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "jsx": "react-jsx",
+        "allowJs": true,
+        "checkJs": false,
+        "strict": false,
+        "ignoreDeprecations": "5.0",
+        "typeRoots": ["./node_modules/@types", "./types"],
+        "noErrorTruncation": true,
+        "noEmit": true
+    },
+    "include": [
+        "**/__tests__/**/*.ts",
+        "**/__tests__/**/*.tsx",
+        "types/test-globals.d.ts",
+        "types/bun-test.d.ts"
+    ],
+    "exclude": ["node_modules", ".next", "app/**/*.ts", "app/**/*.tsx"]
+}

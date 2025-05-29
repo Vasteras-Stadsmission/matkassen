@@ -26,7 +26,7 @@ import {
     IconClock,
 } from "@tabler/icons-react";
 import { FormData, Comment } from "../types";
-import { getPickupLocations } from "../actions";
+import { getPickupLocationsAction } from "../client-actions";
 import HouseholdComments from "../../components/HouseholdComments";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
@@ -105,7 +105,7 @@ export default function ReviewForm({
             if (formData.foodParcels?.pickupLocationId) {
                 try {
                     setIsLoadingLocation(true);
-                    const locations = await getPickupLocations();
+                    const locations = await getPickupLocationsAction();
 
                     // Find matching location by ID
                     const location = locations.find(

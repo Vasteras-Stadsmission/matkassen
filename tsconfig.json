@@ -20,9 +20,11 @@
             }
         ],
         "paths": {
-            "@/*": ["./*"]
-        }
+            "@/*": ["./*"],
+            "bun:test": ["./types/bun-test.d.ts"]
+        },
+        "typeRoots": ["./node_modules/@types", "./types"]
     },
-    "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"],
-    "exclude": ["node_modules", ".next"]
+    "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts", "types/**/*.d.ts"],
+    "exclude": ["node_modules", ".next", "**/__tests__/**/*.ts", "**/__tests__/**/*.tsx"]
 }

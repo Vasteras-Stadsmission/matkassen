@@ -1,64 +1,84 @@
 declare module "bun:test" {
-    export function describe(name: string, fn: () => void): void;
-    export function it(name: string, fn: () => void | Promise<void>): void;
-    export function beforeEach(fn: () => void | Promise<void>): void;
-    export function afterEach(fn: () => void | Promise<void>): void;
-
-    export interface MockFunction<T extends (...args: any[]) => any> {
-        (...args: Parameters<T>): ReturnType<T>;
-        mock: {
-            calls: Array<Parameters<T>>;
-            results: Array<{ type: "return" | "throw"; value: any }>;
-            instances: Array<any>;
-            contexts: Array<any>;
-            lastCall: Parameters<T>;
-        };
-        mockImplementation(fn: T): this;
-        mockReturnValue(val: ReturnType<T>): this;
-        mockResolvedValue(val: Awaited<ReturnType<T>>): this;
-        mockRejectedValue(error: any): this;
-        mockReset(): void;
-        mockClear(): void;
-        mockRestore(): void;
-    }
-
-    export function mock<T extends (...args: any[]) => any>(implementation?: T): MockFunction<T>;
-
-    export namespace mock {
-        export function module(moduleName: string, factory: () => any): void;
-        export function clearAllMocks(): void;
-        export function resetAllMocks(): void;
-        export function restoreAllMocks(): void;
-    }
-
-    export const expect: {
-        <T>(actual: T): {
-            toBe(expected: any): void;
-            toEqual(expected: any): void;
-            toBeGreaterThan(expected: number): void;
-            toBeLessThan(expected: number): void;
-            toBeTruthy(): void;
-            toBeFalsy(): void;
-            toBeNull(): void;
-            toBeUndefined(): void;
-            toContain(expected: any): void;
-            toHaveProperty(property: string, value?: any): void;
-            toThrow(expected?: string | RegExp | Error): void;
-            toBeInstanceOf(expected: any): void;
-            not: {
-                toBe(expected: any): void;
-                toEqual(expected: any): void;
-                toBeGreaterThan(expected: number): void;
-                toBeLessThan(expected: number): void;
-                toBeTruthy(): void;
-                toBeFalsy(): void;
-                toBeNull(): void;
-                toBeUndefined(): void;
-                toContain(expected: any): void;
-                toHaveProperty(property: string, value?: any): void;
-                toThrow(expected?: string | RegExp | Error): void;
-                toBeInstanceOf(expected: any): void;
-            };
-        };
+    export const test: TestFunction;
+    export const it: TestFunction;
+    export const describe: (name: string, handler: () => void) => void;
+    export const beforeEach: (handler: () => void) => void;
+    export const afterEach: (handler: () => void) => void;
+    export const beforeAll: (handler: () => void) => void;
+    export const afterAll: (handler: () => void) => void;
+    export const expect: ExpectFunction;
+    export function mock<T>(implementation?: (...args: any[]) => any): T;
+    export const vi: {
+        fn: () => jest.Mock;
+        mock: typeof jest.mock;
+        spyOn: typeof jest.spyOn;
+        clearAllMocks: () => void;
     };
+
+    type TestFunction = {
+        (name: string, handler: () => void | Promise<void>): void;
+        skip: (name: string, handler: () => void | Promise<void>) => void;
+        only: (name: string, handler: () => void | Promise<void>) => void;
+    };
+
+    interface Matchers<R> {
+        toBe(expected: any): R;
+        toEqual(expected: any): R;
+        toBeGreaterThan(expected: number): R;
+        toBeLessThan(expected: number): R;
+        toBeTruthy(): R;
+        toBeFalsy(): R;
+        toContain(expected: any): R;
+        toHaveProperty(property: string, value?: any): R;
+        toBeInstanceOf(expected: any): R;
+        toBeNull(): R;
+        toBeUndefined(): R;
+        toBeDisabled(): R;
+        toBeInTheDocument(): R;
+        toHaveBeenCalled(): R;
+        toHaveBeenCalledWith(...args: any[]): R;
+    }
+
+    interface AsymmetricMatchers {
+        any(sample: any): any;
+        anything(): any;
+    }
+
+    interface ExpectFunction {
+        <T = any>(
+            actual: T,
+        ): Matchers<void> & {
+            not: Matchers<void>;
+        };
+        extend(matchers: Record<string, any>): void;
+        assertions(count: number): void;
+    }
 }
+
+// Make jest global to fix jest.mock references
+declare global {
+    const jest: {
+        mock: (path: string, factory?: () => any) => void;
+        fn: () => jest.Mock;
+        spyOn: (object: any, method: string) => jest.SpyInstance;
+        clearAllMocks: () => void;
+    };
+
+    namespace jest {
+        interface Mock {
+            mockReturnValue: (value: any) => Mock;
+            mockResolvedValue: (value: any) => Mock;
+            mockImplementation: (fn: (...args: any[]) => any) => Mock;
+            mockClear: () => void;
+        }
+
+        interface SpyInstance {
+            mockReturnValue: (value: any) => SpyInstance;
+            mockResolvedValue: (value: any) => SpyInstance;
+            mockImplementation: (fn: (...args: any[]) => any) => SpyInstance;
+            mockClear: () => void;
+        }
+    }
+}
+
+export {};

@@ -1,3 +1,4 @@
+Never create intermediate files. Alter the original file directly.
 Use TypeScript strict mode in a Next.js App Router project.
 Use React function components with hooks; avoid class components.
 Favor server components; add `"use client"` only when using browser APIs.

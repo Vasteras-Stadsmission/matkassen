@@ -362,13 +362,16 @@ export async function updateHousehold(
                         if (existingByName) {
                             pet.species = existingByName.id;
                         } else {
-                            await tx
+                            // Create the pet species without specifying id (let DB generate it)
+                            const [newSpecies] = await tx
                                 .insert(petSpecies)
                                 .values({
-                                    id: pet.species,
                                     name: pet.speciesName,
                                 })
                                 .returning();
+
+                            // Assign the generated id to pet.species
+                            pet.species = newSpecies.id;
                         }
                     }
                 }
@@ -401,10 +404,16 @@ export async function updateHousehold(
 
                     // If not found, create it
                     if (!existingNeed) {
-                        await tx.insert(additionalNeeds).values({
-                            id: need.id,
-                            need: need.need,
-                        });
+                        // Create without specifying id
+                        const [newNeed] = await tx
+                            .insert(additionalNeeds)
+                            .values({
+                                need: need.need,
+                            })
+                            .returning();
+
+                        // Use the generated id
+                        need.id = newNeed.id;
                     }
                 }
 
