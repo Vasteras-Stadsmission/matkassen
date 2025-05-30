@@ -262,3 +262,23 @@ export const additionalNeeds = pgTable("additional_needs", {
         .$defaultFn(() => nanoid(8)),
     need: text("need").notNull(), // e.g., diapers, bus pass, cleaning supplies...
 });
+
+// CSP violation reports table for security monitoring
+export const cspViolations = pgTable("csp_violations", {
+    id: text("id")
+        .primaryKey()
+        .notNull()
+        .$defaultFn(() => nanoid(8)),
+    created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    blocked_uri: text("blocked_uri"), // The URI that was blocked
+    violated_directive: text("violated_directive").notNull(), // Which CSP directive was violated
+    effective_directive: text("effective_directive"), // The effective directive that was violated
+    original_policy: text("original_policy"), // The full CSP policy
+    disposition: varchar("disposition", { length: 10 }).notNull(), // "enforce" or "report-only"
+    referrer: text("referrer"), // The referrer of the document in which the violation occurred
+    source_file: text("source_file"), // The URI of the document where the violation occurred
+    line_number: integer("line_number"), // Line number where violation occurred
+    column_number: integer("column_number"), // Column number where violation occurred
+    user_agent: text("user_agent"), // User agent string of the client
+    script_sample: text("script_sample"), // Sample of the violating script/resource
+});
