@@ -5,18 +5,18 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/app/i18n/navigation";
 import Image from "next/image";
+import { Suspense } from "react";
 
 export interface ErrorContentProps {
     messageKey?: string;
 }
 
-export default function ErrorContent({ messageKey }: ErrorContentProps) {
+// Component that uses search params wrapped in Suspense
+function ErrorContentWithSearchParams({ messageKey }: { messageKey?: string }) {
     const searchParams = useSearchParams();
+    const errorType = searchParams.get("error") || messageKey;
     const t = useTranslations();
     const authT = useTranslations("auth");
-
-    // Get error type from URL query parameter
-    const errorType = searchParams.get("error") || messageKey;
 
     // Map error types to translation keys
     const getErrorMessage = () => {
@@ -70,5 +70,30 @@ export default function ErrorContent({ messageKey }: ErrorContentProps) {
                 </Paper>
             </Center>
         </Container>
+    );
+}
+
+export default function ErrorContent({ messageKey }: ErrorContentProps) {
+    return (
+        <Suspense
+            fallback={
+                <Container size="xs" py="xl">
+                    <Center className="min-h-[70vh]">
+                        <Paper radius="md" p="xl" withBorder className="w-full max-w-md">
+                            <Stack>
+                                <Center mb="md">
+                                    <Image src="/favicon.svg" alt="Logo" width={50} height={50} />
+                                </Center>
+                                <Title order={2} ta="center" mt="md" mb="md">
+                                    Loading...
+                                </Title>
+                            </Stack>
+                        </Paper>
+                    </Center>
+                </Container>
+            }
+        >
+            <ErrorContentWithSearchParams messageKey={messageKey} />
+        </Suspense>
     );
 }

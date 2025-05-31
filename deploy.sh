@@ -1,18 +1,46 @@
 #!/bin/bash
 
+# Enable strict error handling
+set -euo pipefail
+
 # This script sets up a Next.js app with PostgreSQL and Nginx on an Ubuntu server.
 # It installs Docker, Docker Compose, and Certbot for SSL certificates.
 # It also configures Nginx with security headers and rate limiting.
 # It assumes that the server is running Ubuntu and has a public IP address.
 # It also assumes the repository is already cloned (handled by CI/CD workflow).
 
-# Verify that the environment variables are set
-for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME; do
-  if [ -z "${!var}" ]; then
-    echo "Error: $var environment variable is not set"
-    exit 1
+# Error handling function
+handle_error() {
+  local line=$1
+  local exit_code=$2
+  echo "Error occurred at line $line with exit code $exit_code"
+  exit $exit_code
+}
+
+# Set up error trap
+trap 'handle_error ${LINENO} $?' ERR
+
+# Verify that required environment variables are set
+required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME)
+missing_vars=()
+
+echo "Checking required environment variables..."
+for var in "${required_vars[@]}"; do
+  if [ -z "${!var:-}" ]; then
+    missing_vars+=("$var")
   fi
 done
+
+if [ ${#missing_vars[@]} -ne 0 ]; then
+  echo "❌ Error: The following required environment variables are not set:"
+  for var in "${missing_vars[@]}"; do
+    echo "   - $var"
+  done
+  echo "Please set these variables and try again."
+  exit 1
+fi
+
+echo "✅ All required environment variables are set."
 
 # Script Vars
 if [[ "$DOMAIN_NAME" == "matkassen.org" ]]; then
@@ -60,16 +88,32 @@ sudo apt update
 sudo apt install docker-ce -y
 
 # Install Docker Compose
-sudo rm -f /usr/local/bin/docker-compose
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.34.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+echo "Installing Docker Compose..."
+DOCKER_COMPOSE_PATH="/usr/local/bin/docker-compose"
+DOCKER_COMPOSE_URL="https://github.com/docker/compose/releases/download/v2.34.0/docker-compose-$(uname -s)-$(uname -m)"
+DOCKER_COMPOSE_TMP="${DOCKER_COMPOSE_PATH}.tmp"
 
-# Wait for the file to be fully downloaded before proceeding
-if [ ! -f /usr/local/bin/docker-compose ]; then
+# Remove any existing installation
+sudo rm -f "${DOCKER_COMPOSE_PATH}"
+
+# Download to temporary file first to avoid partial downloads
+echo "Downloading Docker Compose from ${DOCKER_COMPOSE_URL}..."
+if ! sudo curl -L "${DOCKER_COMPOSE_URL}" -o "${DOCKER_COMPOSE_TMP}"; then
   echo "Docker Compose download failed. Exiting."
   exit 1
 fi
 
-sudo chmod +x /usr/local/bin/docker-compose
+# Move temporary file to final location
+sudo mv "${DOCKER_COMPOSE_TMP}" "${DOCKER_COMPOSE_PATH}"
+
+# Make executable
+sudo chmod +x "${DOCKER_COMPOSE_PATH}"
+
+# Verify file exists and is executable
+if [ ! -x "${DOCKER_COMPOSE_PATH}" ]; then
+  echo "Docker Compose installation failed. File is not executable. Exiting."
+  exit 1
+fi
 
 # Ensure Docker Compose is executable and in path
 sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
@@ -146,12 +190,46 @@ sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx $CERTBOT_DOMAINS --non-interactive --agree-tos -m $EMAIL
 
 # Ensure SSL files exist or generate them
-if [ ! -f /etc/letsencrypt/options-ssl-nginx.conf ]; then
-  sudo wget https://raw.githubusercontent.com/certbot/certbot/main/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf -P /etc/letsencrypt/
+echo "Checking for required SSL configuration files..."
+
+# Define paths
+SSL_OPTIONS_FILE="/etc/letsencrypt/options-ssl-nginx.conf"
+SSL_DHPARAMS_FILE="/etc/letsencrypt/ssl-dhparams.pem"
+SSL_OPTIONS_TMP="/etc/letsencrypt/options-ssl-nginx.conf.tmp"
+
+# Check and download options-ssl-nginx.conf if needed
+if [ ! -f "$SSL_OPTIONS_FILE" ]; then
+  echo "Downloading Nginx SSL options file..."
+  
+  # Download to temp file first to avoid incomplete downloads
+  if ! sudo wget https://raw.githubusercontent.com/certbot/certbot/main/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf -O "$SSL_OPTIONS_TMP" --quiet; then
+    echo "Failed to download SSL options file. Exiting."
+    exit 1
+  fi
+  
+  # Move to final location only if download was successful
+  sudo mv "$SSL_OPTIONS_TMP" "$SSL_OPTIONS_FILE"
+  echo "✓ SSL options file created successfully."
+else
+  echo "✓ SSL options file already exists."
 fi
 
-if [ ! -f /etc/letsencrypt/ssl-dhparams.pem ]; then
-  sudo openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048
+# Check and generate dhparams.pem if needed
+if [ ! -f "$SSL_DHPARAMS_FILE" ]; then
+  echo "Generating SSL DH parameters (this may take a few minutes)..."
+  
+  # Generate to temp file first
+  DHPARAMS_TMP="/etc/letsencrypt/ssl-dhparams.pem.tmp"
+  if ! sudo openssl dhparam -out "$DHPARAMS_TMP" 2048; then
+    echo "Failed to generate DH parameters. Exiting."
+    exit 1
+  fi
+  
+  # Move to final location only if generation was successful
+  sudo mv "$DHPARAMS_TMP" "$SSL_DHPARAMS_FILE"
+  echo "✓ DH parameters file created successfully."
+else
+  echo "✓ DH parameters file already exists."
 fi
 
 # Set up automatic SSL certificate renewal
@@ -180,9 +258,7 @@ echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-re
 
 # Now, replace the Nginx config with the full configuration including security headers
 sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
-limit_req_zone \$binary_remote_addr zone=api:10m rate=30r/s;
-limit_req_zone \$binary_remote_addr zone=static:10m rate=100r/s;
-limit_req_zone \$binary_remote_addr zone=pages:10m rate=50r/s;
+limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
 
 # Redirect HTTP traffic to HTTPS
 server {
@@ -203,44 +279,21 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # Security headers
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; form-action 'self' https://github.com; upgrade-insecure-requests;" always;
+    # Security headers - consolidated and strengthened based on review feedback
+    # 1. Removed unsafe-inline from script-src, using nonces or hashes is recommended instead
+    # 2. Ensured only one consistent policy per header type to avoid ambiguity
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'self' https://github.com; upgrade-insecure-requests; report-uri /api/csp-report;" always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Frame-Options "DENY" always; # Changed from SAMEORIGIN to DENY for stronger protection
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=(), battery=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(self), gyroscope=(), layout-animations=(self), magnetometer=(), midi=(), screen-wake-lock=(), sync-xhr=(self), xr-spatial-tracking=()" always;
 
-    # Next.js chunks and dynamic imports (excluding static assets)
-    # This regex prevents static assets from being treated as dynamic imports
-    location ~ ^/_next/(?!static/) {
-        limit_req zone=static burst=100 nodelay;
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
+    # Enable rate limiting
+    limit_req zone=mylimit burst=20 nodelay;
 
-    # API routes - more restrictive rate limiting
-    location ~ ^/api/ {
-        limit_req zone=api burst=50 nodelay;
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-
-    # All other routes (pages) - moderate rate limiting
     location / {
-        limit_req zone=pages burst=100 nodelay;
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -264,32 +317,145 @@ sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory
 cd $APP_DIR
-sudo COMPOSE_BAKE=true docker compose build --no-cache
-sudo docker compose up -d
 
-# Check if Docker Compose started correctly
-if ! sudo docker compose ps | grep "Up"; then
-  echo "Docker containers failed to start. Check logs with 'docker compose logs'."
+# Check for existing Docker artifacts and handle them
+echo "Checking for existing Docker artifacts..."
+if [[ -d "$APP_DIR/.docker" ]]; then
+  echo "Found existing Docker build artifacts. Cleaning up..."
+  sudo rm -rf "$APP_DIR/.docker"
+fi
+
+# Check for compressed artifacts from previous builds
+for gz_file in $(find $APP_DIR -name "*.gz" -type f 2>/dev/null || true); do
+  echo "Found compressed artifact: $gz_file, removing..."
+  sudo rm -f "$gz_file"
+done
+
+# Build the containers with proper error handling
+echo "Building Docker containers..."
+if ! sudo COMPOSE_BAKE=true docker compose build --no-cache; then
+  echo "Docker build failed. Check the build logs above."
   exit 1
 fi
 
+# Start the containers
+echo "Starting Docker containers..."
+if ! sudo docker compose up -d; then
+  echo "Failed to start Docker containers."
+  exit 1
+fi
+
+# Give containers a moment to initialize
+sleep 5
+
+# More thorough check if Docker Compose started correctly
+if ! sudo docker compose ps | grep -q "Up"; then
+  echo "Docker containers are not running. Check logs with 'docker compose logs'."
+  exit 1
+fi
+
+# Verify all required services are running
+echo "Verifying services..."
+for service in web db; do
+  if ! sudo docker compose ps $service | grep -q "Up"; then
+    echo "Service $service is not running. Deployment failed."
+    echo "Logs for $service:"
+    sudo docker compose logs $service
+    exit 1
+  fi
+done
+
+echo "All services are running correctly."
+
 # Run migrations directly rather than waiting for the migration container
-echo "Running database migrations synchronously..."
+echo "Preparing to run database migrations..."
 cd $APP_DIR
-sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
-sudo docker compose exec -T web bun run db:migrate
-if [ $? -ne 0 ]; then
+
+# Ensure we're in the correct directory
+if [ ! -d "$APP_DIR/migrations" ]; then
+  echo "❌ Error: Migrations directory not found at $APP_DIR/migrations"
+  echo "Current directory: $(pwd)"
+  exit 1
+fi
+
+# Wait for database to be ready with timeout
+echo "Waiting for database to be ready..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if sudo docker compose exec -T db bash -c "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"; then
+    echo "✅ Database is ready."
+    break
+  fi
+  
+  RETRY_COUNT=$((RETRY_COUNT+1))
+  echo "Waiting for database... ($RETRY_COUNT/$MAX_RETRIES)"
+  sleep 2
+  
+  if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "❌ Error: Database did not become ready in time."
+    echo "Database logs:"
+    sudo docker compose logs db
+    exit 1
+  fi
+done
+
+# Check if migrations directory has files
+MIGRATION_COUNT=$(ls -1 "$APP_DIR/migrations/"*.sql 2>/dev/null | wc -l)
+if [ "$MIGRATION_COUNT" -eq 0 ]; then
+  echo "⚠️ Warning: No SQL migration files found in $APP_DIR/migrations."
+  echo "This might indicate a problem with your repository or build process."
+fi
+
+# Run migrations with proper error handling
+echo "Running database migrations..."
+if ! sudo docker compose exec -T web bun run db:migrate; then
   echo "❌ Migration failed. See error messages above."
   exit 1
+fi
+
+echo "✅ Database migrations completed successfully."
+
+# Verify migrations worked by checking if we can connect and query the database
+echo "Verifying database setup..."
+if ! sudo docker compose exec -T db bash -c "psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT COUNT(*) FROM pg_catalog.pg_tables;'" > /dev/null; then
+  echo "⚠️ Warning: Couldn't verify database setup, but migrations reported success."
 else
-  echo "✅ Database migrations completed successfully."
+  echo "✅ Database verification successful."
 fi
 
 # Cleanup old Docker images and containers
 sudo docker system prune -af
 
-# Output final message
-echo "Deployment complete. Your Next.js app and PostgreSQL database are now running.
-Next.js is available at https://$DOMAIN_NAME, and the PostgreSQL database is accessible from the web service.
+# Perform final checks
+echo "Performing final deployment checks..."
 
-The .env file has been created with your environment variables and database migrations have been applied."
+# Check if the website is accessible
+echo "Checking if the website is accessible..."
+if ! curl -s -o /dev/null -w "%{http_code}" "https://$DOMAIN_NAME" | grep -q "200\|301\|302"; then
+  echo "⚠️ Warning: Website may not be accessible. HTTP status check failed."
+  echo "Please check the application logs and Nginx configuration."
+else
+  echo "✅ Website is accessible."
+fi
+
+# Clean up any temporary files
+echo "Cleaning up temporary files..."
+find /tmp -name "deploy-*" -type f -mtime +1 -delete 2>/dev/null || true
+
+# Output final message with timestamp
+echo ""
+echo "✅ Deployment completed successfully at $(date)"
+echo "---------------------------------------------------"
+echo "Your Next.js app and PostgreSQL database are now running."
+echo ""
+echo "🌐 Website: https://$DOMAIN_NAME"
+echo "🗄️  Database: PostgreSQL (accessible from the web service)"
+echo ""
+echo "The .env file has been created with your environment variables"
+echo "and database migrations have been applied."
+echo ""
+echo "For troubleshooting, check the container logs with:"
+echo "  sudo docker compose logs"
+echo "---------------------------------------------------"
