@@ -27,6 +27,7 @@ jobs:
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
                       export DOMAIN_NAME="staging.matkassen.org"
+                      export ENVIRONMENT="staging"
 
                       APP_DIR=~/matkassen
                       if [ -d "$APP_DIR" ]; then
@@ -76,6 +77,7 @@ jobs:
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
                       export DOMAIN_NAME="matkassen.org"
+                      export ENVIRONMENT="production"
 
                       APP_DIR=~/matkassen
                       if [ -d "$APP_DIR" ]; then

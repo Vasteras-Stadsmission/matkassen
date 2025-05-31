@@ -10,6 +10,22 @@ PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
 APP_DIR=~/$PROJECT_NAME
 
+# Validate environment variable (should be set by CI/CD workflow)
+if [ -z "${ENVIRONMENT:-}" ]; then
+    echo "❌ Error: ENVIRONMENT variable is not set. This should be provided by the CI/CD workflow."
+    exit 1
+fi
+
+case "$ENVIRONMENT" in
+    "production"|"staging"|"development")
+        echo "✓ Environment: $ENVIRONMENT"
+        ;;
+    *)
+        echo "❌ Error: Invalid ENVIRONMENT '$ENVIRONMENT'. Must be 'production', 'staging', or 'development'"
+        exit 1
+        ;;
+esac
+
 # For Docker internal communication ("db" is the name of Postgres container)
 DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 
@@ -64,6 +80,10 @@ if [ $? -ne 0 ]; then
 else
   echo "✅ Database migrations completed successfully."
 fi
+
+# Source nginx utilities and update nginx configuration
+source "$APP_DIR/scripts/nginx-utils.sh"
+update_nginx_config "$DOMAIN_NAME" "$PROJECT_NAME" "$APP_DIR" "$ENVIRONMENT"
 
 # Cleanup old Docker images and containers
 sudo docker system prune -af

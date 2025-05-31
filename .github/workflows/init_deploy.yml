@@ -57,12 +57,14 @@ jobs:
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
 
-                      # Set domain name based on environment
+                      # Set environment and domain name
+                      export ENVIRONMENT="${{ github.event.inputs.environment }}"
                       if [ "${{ github.event.inputs.environment }}" == "production" ]; then
                         export DOMAIN_NAME="matkassen.org"
                       else
                         export DOMAIN_NAME="staging.matkassen.org"
                       fi
+                      echo "Setting ENVIRONMENT to $ENVIRONMENT"
                       echo "Setting DOMAIN_NAME to $DOMAIN_NAME"
 
                       echo "Checking if app directory exists"

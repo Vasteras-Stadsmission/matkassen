@@ -21,7 +21,7 @@ handle_error() {
 trap 'handle_error ${LINENO} $?' ERR
 
 # Verify that required environment variables are set
-required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME)
+required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME ENVIRONMENT)
 missing_vars=()
 
 echo "Checking required environment variables..."
@@ -43,20 +43,21 @@ fi
 echo "✅ All required environment variables are set."
 
 # Script Vars
-if [[ "$DOMAIN_NAME" == "matkassen.org" ]]; then
-  # For production, include www subdomain
-  DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
-  CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
-else
-  # For staging, don't include www
-  DOMAIN_NAMES="$DOMAIN_NAME"
-  CERTBOT_DOMAINS="-d $DOMAIN_NAME"
-fi
-
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
 APP_DIR=~/$PROJECT_NAME
 SWAP_SIZE="1G"  # Swap size of 1GB
+
+# Validate environment variable
+case "$ENVIRONMENT" in
+    "production"|"staging"|"development")
+        echo "✓ Environment: $ENVIRONMENT"
+        ;;
+    *)
+        echo "❌ Error: Invalid ENVIRONMENT '$ENVIRONMENT'. Must be 'production', 'staging', or 'development'"
+        exit 1
+        ;;
+esac
 
 # Update package list and upgrade existing packages
 sudo apt update && sudo apt upgrade -y
@@ -157,6 +158,12 @@ echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
 echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
 
+# Source nginx utilities
+source "$APP_DIR/scripts/nginx-utils.sh"
+
+# Set up domain variables for SSL certificate generation
+setup_domain_vars "$DOMAIN_NAME" "$ENVIRONMENT"
+
 # Install Nginx
 sudo apt install nginx -y
 
@@ -200,13 +207,13 @@ SSL_OPTIONS_TMP="/etc/letsencrypt/options-ssl-nginx.conf.tmp"
 # Check and download options-ssl-nginx.conf if needed
 if [ ! -f "$SSL_OPTIONS_FILE" ]; then
   echo "Downloading Nginx SSL options file..."
-  
+
   # Download to temp file first to avoid incomplete downloads
   if ! sudo wget https://raw.githubusercontent.com/certbot/certbot/main/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf -O "$SSL_OPTIONS_TMP" --quiet; then
     echo "Failed to download SSL options file. Exiting."
     exit 1
   fi
-  
+
   # Move to final location only if download was successful
   sudo mv "$SSL_OPTIONS_TMP" "$SSL_OPTIONS_FILE"
   echo "✓ SSL options file created successfully."
@@ -217,14 +224,14 @@ fi
 # Check and generate dhparams.pem if needed
 if [ ! -f "$SSL_DHPARAMS_FILE" ]; then
   echo "Generating SSL DH parameters (this may take a few minutes)..."
-  
+
   # Generate to temp file first
   DHPARAMS_TMP="/etc/letsencrypt/ssl-dhparams.pem.tmp"
   if ! sudo openssl dhparam -out "$DHPARAMS_TMP" 2048; then
     echo "Failed to generate DH parameters. Exiting."
     exit 1
   fi
-  
+
   # Move to final location only if generation was successful
   sudo mv "$DHPARAMS_TMP" "$SSL_DHPARAMS_FILE"
   echo "✓ DH parameters file created successfully."
@@ -256,64 +263,8 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
 # Setup automated renewal cron job that runs twice daily
 echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew > /dev/null
 
-# Now, replace the Nginx config with the full configuration including security headers
-sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
-limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
-
-# Redirect HTTP traffic to HTTPS
-server {
-    listen 80;
-    server_name $DOMAIN_NAMES;
-
-    # Redirect all HTTP requests to HTTPS
-    return 301 https://\$host\$request_uri;
-}
-
-# Serve HTTPS traffic
-server {
-    listen 443 ssl;
-    server_name $DOMAIN_NAMES;
-
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    # Security headers - consolidated and strengthened based on review feedback
-    # 1. Removed unsafe-inline from script-src, using nonces or hashes is recommended instead
-    # 2. Ensured only one consistent policy per header type to avoid ambiguity
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'self' https://github.com; upgrade-insecure-requests; report-uri /api/csp-report;" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always; # Changed from SAMEORIGIN to DENY for stronger protection
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=(), battery=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(self), gyroscope=(), layout-animations=(self), magnetometer=(), midi=(), screen-wake-lock=(), sync-xhr=(self), xr-spatial-tracking=()" always;
-
-    # Enable rate limiting
-    limit_req zone=mylimit burst=20 nodelay;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header X-Forwarded-Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-
-        # Disable buffering for streaming support
-        proxy_buffering off;
-        proxy_set_header X-Accel-Buffering no;
-    }
-}
-EOL
-
-# Restart Nginx to apply the updated configuration
-sudo systemctl restart nginx
+# Update nginx configuration using the shared template
+update_nginx_config "$DOMAIN_NAME" "$PROJECT_NAME" "$APP_DIR" "$ENVIRONMENT"
 
 # Build and run the Docker containers from the app directory
 cd $APP_DIR
@@ -388,11 +339,11 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     echo "✅ Database is ready."
     break
   fi
-  
+
   RETRY_COUNT=$((RETRY_COUNT+1))
   echo "Waiting for database... ($RETRY_COUNT/$MAX_RETRIES)"
   sleep 2
-  
+
   if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo "❌ Error: Database did not become ready in time."
     echo "Database logs:"
