@@ -207,13 +207,11 @@ SSL_OPTIONS_TMP="/etc/letsencrypt/options-ssl-nginx.conf.tmp"
 # Check and download options-ssl-nginx.conf if needed
 if [ ! -f "$SSL_OPTIONS_FILE" ]; then
   echo "Downloading Nginx SSL options file..."
-
   # Download to temp file first to avoid incomplete downloads
   if ! sudo wget https://raw.githubusercontent.com/certbot/certbot/main/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf -O "$SSL_OPTIONS_TMP" --quiet; then
     echo "Failed to download SSL options file. Exiting."
     exit 1
   fi
-
   # Move to final location only if download was successful
   sudo mv "$SSL_OPTIONS_TMP" "$SSL_OPTIONS_FILE"
   echo "✓ SSL options file created successfully."
@@ -224,14 +222,12 @@ fi
 # Check and generate dhparams.pem if needed
 if [ ! -f "$SSL_DHPARAMS_FILE" ]; then
   echo "Generating SSL DH parameters (this may take a few minutes)..."
-
   # Generate to temp file first
   DHPARAMS_TMP="/etc/letsencrypt/ssl-dhparams.pem.tmp"
   if ! sudo openssl dhparam -out "$DHPARAMS_TMP" 2048; then
     echo "Failed to generate DH parameters. Exiting."
     exit 1
   fi
-
   # Move to final location only if generation was successful
   sudo mv "$DHPARAMS_TMP" "$SSL_DHPARAMS_FILE"
   echo "✓ DH parameters file created successfully."
