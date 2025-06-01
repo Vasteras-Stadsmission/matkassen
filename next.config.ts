@@ -45,6 +45,8 @@ const nextConfig: NextConfig = {
 
     // Increase timeout for static generation to avoid errors
     staticPageGenerationTimeout: 180,
+
+    // CSP is now handled in middleware.ts for better nonce support
 };
 
 const withNextIntl = createNextIntlPlugin({

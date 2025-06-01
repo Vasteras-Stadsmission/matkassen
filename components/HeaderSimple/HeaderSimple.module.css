@@ -2,7 +2,7 @@
     height: 56px;
     margin-bottom: 120px;
     background-color: var(--mantine-color-body);
-    border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    border-bottom: 1px solid var(--mantine-color-gray-3);
     position: relative;
     z-index: 100; /* Add a higher z-index to keep header above skeleton */
 }
@@ -45,14 +45,14 @@
     padding: 8px 12px;
     border-radius: var(--mantine-radius-sm);
     text-decoration: none;
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-0));
+    color: var(--mantine-color-gray-7);
     font-size: var(--mantine-font-size-sm);
     font-weight: 500;
     position: relative;
     transition: color 0.2s ease;
 
     @mixin hover {
-        background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+        background-color: var(--mantine-color-gray-0);
     }
 
     [data-mantine-color-scheme] &[data-active] {
@@ -84,10 +84,10 @@
     display: block;
     padding: 12px 0;
     text-decoration: none;
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-0));
+    color: var(--mantine-color-gray-7);
     font-size: var(--mantine-font-size-md);
     font-weight: 500;
-    border-bottom: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+    border-bottom: 1px solid var(--mantine-color-gray-2);
 
     [data-mantine-color-scheme] &[data-active] {
         color: var(--mantine-color-blue-6);
@@ -101,5 +101,16 @@
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-md);
+    align-items: center;
+}
+
+.navLinksContainer {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.actionsContainer {
+    display: flex;
     align-items: center;
 }
