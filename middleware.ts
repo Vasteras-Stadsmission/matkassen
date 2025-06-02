@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { routing } from "@/app/i18n/routing";
 import type { NextRequest } from "next/server";
 
-// Generate a random nonce for CSP
+// Generate a random nonce for CSP using Web Crypto API (Edge Runtime compatible)
 function generateNonce(): string {
     const array = new Uint8Array(16);
     crypto.getRandomValues(array);
-    return Buffer.from(array).toString("base64");
+    return btoa(String.fromCharCode(...array));
 }
 
 // Create Content Security Policy with nonce following Next.js official guidelines
@@ -45,18 +45,12 @@ export default async function middleware(request: NextRequest) {
     // Generate nonce for CSP
     const nonce = generateNonce();
 
-    // 1. Complete bypass patterns - these should never be processed by any middleware
-    // This is critical for Auth.js and static assets to work correctly
-    const bypassPatterns = [
-        /^\/api\/auth(.*)$/, // Auth.js API endpoints
-        /^\/_next\/.*/, // Next.js internal routes (JS, CSS, etc)
-        /^\/favicon\.svg$/, // Favicon
-        /^\/flags\/.*/, // Flag images
-    ];
-
-    if (bypassPatterns.some(pattern => pattern.test(pathname))) {
-        return NextResponse.next();
-    }
+    // Note: Our config.matcher already excludes:
+    // - /api/* routes (including /api/csp-report and /api/auth)
+    // - /_next/* routes
+    // - /static/* paths
+    // - /favicon.svg and /flags/*
+    // This means the middleware only runs on page routes that need locale handling
 
     // 2. Public routes - apply only i18n middleware, no auth checks
     const publicPatterns = [
@@ -117,9 +111,24 @@ export default async function middleware(request: NextRequest) {
 
 // Configure the matcher to specifically include paths we want to process
 // This avoids applying middleware to static files or API routes
+// Note: We intentionally exclude /api/csp-report from middleware processing
+// because the CSP reporting endpoint should:
+// 1. Not have CSP headers itself (would create a reporting loop)
+// 2. Be accessible without authentication (for anonymous violation reports)
+// 3. Not be subject to locale rules (it's a pure API endpoint)
 export const config = {
     matcher: [
-        // Match all paths that require locale handling
-        "/((?!api|_next|static|favicon.svg|flags)[^/]+)/:path*",
+        /*
+         * Match all request paths except for the ones starting with:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.svg (favicon file)
+         * - flags (flag images)
+         * - api/auth (Auth.js routes)
+         * - api/csp-report (CSP reporting endpoint)
+         * This ensures that all other routes, including other API routes and all page routes,
+         * are processed by the middleware.
+         */
+        "/((?!_next/static|_next/image|favicon.svg|flags/|api/auth|api/csp-report).*)",
     ],
 };
