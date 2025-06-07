@@ -9,11 +9,18 @@ services:
         env_file:
             - .env
         depends_on:
-            - db
+            db:
+                condition: service_healthy
         networks:
             - my_network
         volumes:
             - ./app:/usr/src/app
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
 
     db:
         image: postgres:latest
@@ -28,6 +35,12 @@ services:
             - postgres_data:/var/lib/postgresql/data
         networks:
             - my_network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
 
 volumes:
     postgres_data:

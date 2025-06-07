@@ -336,37 +336,21 @@ if ! sudo COMPOSE_BAKE=true docker compose build --no-cache; then
   exit 1
 fi
 
-# Start the containers
-echo "Starting Docker containers..."
-if ! sudo docker compose up -d; then
-  echo "Failed to start Docker containers."
+# Start the containers with health check dependencies
+echo "Starting Docker containers with health checks..."
+if ! sudo docker compose up -d --wait; then
+  echo "Failed to start Docker containers or health checks failed."
+  echo "Container status:"
+  sudo docker compose ps
+  echo "Logs:"
+  sudo docker compose logs
   exit 1
 fi
 
-# Give containers a moment to initialize
-sleep 5
+echo "✅ All services are running and healthy (verified by Docker health checks)."
 
-# More thorough check if Docker Compose started correctly
-if ! sudo docker compose ps | grep -q "Up"; then
-  echo "Docker containers are not running. Check logs with 'docker compose logs'."
-  exit 1
-fi
-
-# Verify all required services are running
-echo "Verifying services..."
-for service in web db; do
-  if ! sudo docker compose ps $service | grep -q "Up"; then
-    echo "Service $service is not running. Deployment failed."
-    echo "Logs for $service:"
-    sudo docker compose logs $service
-    exit 1
-  fi
-done
-
-echo "All services are running correctly."
-
-# Run migrations directly rather than waiting for the migration container
-echo "Preparing to run database migrations..."
+# Run migrations directly (database is already healthy from Docker health checks)
+echo "Running database migrations..."
 cd $APP_DIR
 
 # Ensure we're in the correct directory
@@ -376,29 +360,6 @@ if [ ! -d "$APP_DIR/migrations" ]; then
   exit 1
 fi
 
-# Wait for database to be ready with timeout
-echo "Waiting for database to be ready..."
-MAX_RETRIES=30
-RETRY_COUNT=0
-
-while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-  if sudo docker compose exec -T db bash -c "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"; then
-    echo "✅ Database is ready."
-    break
-  fi
-
-  RETRY_COUNT=$((RETRY_COUNT+1))
-  echo "Waiting for database... ($RETRY_COUNT/$MAX_RETRIES)"
-  sleep 2
-
-  if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-    echo "❌ Error: Database did not become ready in time."
-    echo "Database logs:"
-    sudo docker compose logs db
-    exit 1
-  fi
-done
-
 # Check if migrations directory has files
 MIGRATION_COUNT=$(ls -1 "$APP_DIR/migrations/"*.sql 2>/dev/null | wc -l)
 if [ "$MIGRATION_COUNT" -eq 0 ]; then
@@ -407,7 +368,6 @@ if [ "$MIGRATION_COUNT" -eq 0 ]; then
 fi
 
 # Run migrations with proper error handling
-echo "Running database migrations..."
 if ! sudo docker compose exec -T web bun run db:migrate; then
   echo "❌ Migration failed. See error messages above."
   exit 1
