@@ -416,22 +416,30 @@ fi
 # Cleanup old Docker images and containers
 sudo docker system prune -af
 
+# Helper function to check URL accessibility
+check_url() {
+  local url="$1"
+  local description="$2"
+
+  if curl -sf "$url" > /dev/null; then
+    echo "✅ $description is accessible."
+    return 0
+  else
+    echo "⚠️ Warning: $description may not be accessible."
+    return 1
+  fi
+}
+
 # Perform final checks
 echo "Performing final deployment checks..."
 
 # Check if the website is accessible
 echo "Checking if the website is accessible..."
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$DOMAIN_NAME")
-if [[ "$HTTP_STATUS" =~ ^(200|301|302|307|308)$ ]]; then
-  echo "✅ Website is accessible (HTTP $HTTP_STATUS)."
-else
-  echo "⚠️ Warning: Website may not be accessible (HTTP $HTTP_STATUS)."
+if ! check_url "https://$DOMAIN_NAME" "Website"; then
   echo "Checking health endpoint as fallback..."
-  HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$DOMAIN_NAME/api/health")
-  if [ "$HEALTH_STATUS" = "200" ]; then
-    echo "✅ Health endpoint is working (HTTP $HEALTH_STATUS). Website should be functional."
+  if check_url "https://$DOMAIN_NAME/api/health" "Health endpoint"; then
+    echo "Website should be functional."
   else
-    echo "⚠️ Warning: Health endpoint also failed (HTTP $HEALTH_STATUS)."
     echo "Please check the application logs and Nginx configuration."
   fi
 fi
