@@ -126,9 +126,10 @@ export const config = {
          * - flags (flag images)
          * - api/auth (Auth.js routes)
          * - api/csp-report (CSP reporting endpoint)
+         * - api/health (Health check endpoint)
          * This ensures that all other routes, including other API routes and all page routes,
          * are processed by the middleware.
          */
-        "/((?!_next/static|_next/image|favicon.svg|flags/|api/auth|api/csp-report).*)",
+        "/((?!_next/static|_next/image|favicon.svg|flags/|api/auth|api/csp-report|api/health).*)",
     ],
 };

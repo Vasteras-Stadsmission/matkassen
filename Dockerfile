@@ -17,6 +17,9 @@ RUN bun run build
 FROM base AS runner
 WORKDIR /app
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Auth.js requirements
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"

@@ -118,7 +118,37 @@ fi
 # Ensure Docker Compose is executable and in path
 sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
-# Verify Docker Compose installation
+# Verify Docker Compose installation and version
+echo "Verifying Docker Compose version compatibility..."
+DOCKER_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null || echo "unknown")
+echo "Docker Compose version: $DOCKER_COMPOSE_VERSION"
+
+# Check if version meets minimum requirements (v2.13+ for --wait and --wait-timeout flags)
+if [[ "$DOCKER_COMPOSE_VERSION" == "unknown" ]]; then
+  echo "❌ Error: Could not determine Docker Compose version"
+  exit 1
+fi
+
+# Extract major and minor version numbers
+if [[ $DOCKER_COMPOSE_VERSION =~ ^v?([0-9]+)\.([0-9]+) ]]; then
+  MAJOR_VERSION=${BASH_REMATCH[1]}
+  MINOR_VERSION=${BASH_REMATCH[2]}
+
+  # Check if version is 2.13 or higher
+  if [[ $MAJOR_VERSION -lt 2 ]] || [[ $MAJOR_VERSION -eq 2 && $MINOR_VERSION -lt 13 ]]; then
+    echo "❌ Error: Docker Compose version $DOCKER_COMPOSE_VERSION is not supported"
+    echo "This deployment script requires Docker Compose v2.13+ for health check and timeout features"
+    echo "Please upgrade Docker Compose to continue"
+    echo "Installation guide: https://docs.docker.com/compose/install/"
+    exit 1
+  fi
+else
+  echo "⚠️ Warning: Could not parse Docker Compose version format: $DOCKER_COMPOSE_VERSION"
+  echo "Proceeding anyway, but deployment may fail if version is incompatible"
+fi
+
+echo "✅ Docker Compose version is compatible"
+
 docker compose version
 if [ $? -ne 0 ]; then
   echo "Docker Compose installation failed. Exiting."
@@ -336,37 +366,21 @@ if ! sudo COMPOSE_BAKE=true docker compose build --no-cache; then
   exit 1
 fi
 
-# Start the containers
-echo "Starting Docker containers..."
-if ! sudo docker compose up -d; then
-  echo "Failed to start Docker containers."
+# Start the containers with health check dependencies
+echo "Starting Docker containers with health checks..."
+if ! sudo docker compose up -d --wait --wait-timeout 300; then
+  echo "Failed to start Docker containers or health checks failed within 5 minutes."
+  echo "Container status:"
+  sudo docker compose ps
+  echo "Logs:"
+  sudo docker compose logs
   exit 1
 fi
 
-# Give containers a moment to initialize
-sleep 5
+echo "✅ All services are running and healthy (verified by Docker health checks)."
 
-# More thorough check if Docker Compose started correctly
-if ! sudo docker compose ps | grep -q "Up"; then
-  echo "Docker containers are not running. Check logs with 'docker compose logs'."
-  exit 1
-fi
-
-# Verify all required services are running
-echo "Verifying services..."
-for service in web db; do
-  if ! sudo docker compose ps $service | grep -q "Up"; then
-    echo "Service $service is not running. Deployment failed."
-    echo "Logs for $service:"
-    sudo docker compose logs $service
-    exit 1
-  fi
-done
-
-echo "All services are running correctly."
-
-# Run migrations directly rather than waiting for the migration container
-echo "Preparing to run database migrations..."
+# Run migrations directly (database is already healthy from Docker health checks)
+echo "Running database migrations..."
 cd $APP_DIR
 
 # Ensure we're in the correct directory
@@ -376,29 +390,6 @@ if [ ! -d "$APP_DIR/migrations" ]; then
   exit 1
 fi
 
-# Wait for database to be ready with timeout
-echo "Waiting for database to be ready..."
-MAX_RETRIES=30
-RETRY_COUNT=0
-
-while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-  if sudo docker compose exec -T db bash -c "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"; then
-    echo "✅ Database is ready."
-    break
-  fi
-
-  RETRY_COUNT=$((RETRY_COUNT+1))
-  echo "Waiting for database... ($RETRY_COUNT/$MAX_RETRIES)"
-  sleep 2
-
-  if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-    echo "❌ Error: Database did not become ready in time."
-    echo "Database logs:"
-    sudo docker compose logs db
-    exit 1
-  fi
-done
-
 # Check if migrations directory has files
 MIGRATION_COUNT=$(ls -1 "$APP_DIR/migrations/"*.sql 2>/dev/null | wc -l)
 if [ "$MIGRATION_COUNT" -eq 0 ]; then
@@ -407,7 +398,6 @@ if [ "$MIGRATION_COUNT" -eq 0 ]; then
 fi
 
 # Run migrations with proper error handling
-echo "Running database migrations..."
 if ! sudo docker compose exec -T web bun run db:migrate; then
   echo "❌ Migration failed. See error messages above."
   exit 1

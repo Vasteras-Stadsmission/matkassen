@@ -1,3 +1,8 @@
+# Docker Compose configuration with health checks
+# Requires Docker Compose v2.13+ for --wait, --wait-timeout, and service health conditions
+# Health checks ensure services are fully operational before considering deployment complete
+# Deployment uses 5-minute timeout to prevent indefinite hangs
+
 services:
     web:
         build: .
@@ -9,14 +14,23 @@ services:
         env_file:
             - .env
         depends_on:
-            - db
+            db:
+                condition: service_healthy
         networks:
             - my_network
         volumes:
             - ./app:/usr/src/app
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
 
     db:
-        image: postgres:latest
+        # Using specific PostgreSQL version for reproducible builds
+        # postgres:17.5 is the latest stable release with security updates
+        image: postgres:17.5
         restart: always
         environment:
             POSTGRES_USER: ${POSTGRES_USER}
@@ -28,6 +42,12 @@ services:
             - postgres_data:/var/lib/postgresql/data
         networks:
             - my_network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
 
 volumes:
     postgres_data:
