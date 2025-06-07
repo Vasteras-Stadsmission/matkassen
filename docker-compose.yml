@@ -28,7 +28,9 @@ services:
             start_period: 40s
 
     db:
-        image: postgres:latest
+        # Using specific PostgreSQL version for reproducible builds
+        # postgres:17.5 is the latest stable release with security updates
+        image: postgres:17.5
         restart: always
         environment:
             POSTGRES_USER: ${POSTGRES_USER}
