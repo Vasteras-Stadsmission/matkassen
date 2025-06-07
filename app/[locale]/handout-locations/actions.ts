@@ -206,6 +206,49 @@ export async function createSchedule(
     scheduleData: ScheduleInput,
 ): Promise<PickupLocationScheduleWithDays> {
     try {
+        // Import validation functions
+        const { findOverlappingSchedule } = await import(
+            "@/app/utils/schedule/schedule-validation"
+        );
+
+        // Get existing schedules for this location to check for overlaps
+        const existingSchedules = await db
+            .select({
+                id: pickupLocationSchedules.id,
+                start_date: pickupLocationSchedules.start_date,
+                end_date: pickupLocationSchedules.end_date,
+                name: pickupLocationSchedules.name,
+            })
+            .from(pickupLocationSchedules)
+            .where(eq(pickupLocationSchedules.pickup_location_id, locationId));
+
+        // Convert to the format expected by validation
+        const existingDateRanges = existingSchedules.map(schedule => ({
+            id: schedule.id,
+            start_date: new Date(schedule.start_date),
+            end_date: new Date(schedule.end_date),
+        }));
+
+        const newScheduleRange = {
+            start_date:
+                scheduleData.start_date instanceof Date
+                    ? scheduleData.start_date
+                    : new Date(scheduleData.start_date),
+            end_date:
+                scheduleData.end_date instanceof Date
+                    ? scheduleData.end_date
+                    : new Date(scheduleData.end_date),
+        };
+
+        // Check for overlaps
+        const overlap = findOverlappingSchedule(newScheduleRange, existingDateRanges);
+        if (overlap) {
+            const overlappingSchedule = existingSchedules.find(s => s.id === overlap.id);
+            throw new Error(
+                `Schedule overlaps with existing schedule "${overlappingSchedule?.name || "Unknown"}" (${overlap.start_date.toISOString().split("T")[0]} - ${overlap.end_date.toISOString().split("T")[0]})`,
+            );
+        }
+
         let createdSchedule: PickupLocationScheduleWithDays;
 
         // Begin a transaction
@@ -293,6 +336,63 @@ export async function updateSchedule(
     scheduleData: ScheduleInput,
 ): Promise<PickupLocationScheduleWithDays> {
     try {
+        // Import validation functions
+        const { findOverlappingSchedule } = await import(
+            "@/app/utils/schedule/schedule-validation"
+        );
+
+        // Get the current schedule to find the location
+        const currentSchedule = await db
+            .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
+            .from(pickupLocationSchedules)
+            .where(eq(pickupLocationSchedules.id, scheduleId))
+            .limit(1);
+
+        if (currentSchedule.length === 0) {
+            throw new Error(`Schedule with ID ${scheduleId} not found`);
+        }
+
+        const locationId = currentSchedule[0].pickup_location_id;
+
+        // Get existing schedules for this location to check for overlaps
+        const existingSchedules = await db
+            .select({
+                id: pickupLocationSchedules.id,
+                start_date: pickupLocationSchedules.start_date,
+                end_date: pickupLocationSchedules.end_date,
+                name: pickupLocationSchedules.name,
+            })
+            .from(pickupLocationSchedules)
+            .where(eq(pickupLocationSchedules.pickup_location_id, locationId));
+
+        // Convert to the format expected by validation
+        const existingDateRanges = existingSchedules.map(schedule => ({
+            id: schedule.id,
+            start_date: new Date(schedule.start_date),
+            end_date: new Date(schedule.end_date),
+        }));
+
+        const newScheduleRange = {
+            id: scheduleId, // Include the current schedule ID to exclude it from overlap check
+            start_date:
+                scheduleData.start_date instanceof Date
+                    ? scheduleData.start_date
+                    : new Date(scheduleData.start_date),
+            end_date:
+                scheduleData.end_date instanceof Date
+                    ? scheduleData.end_date
+                    : new Date(scheduleData.end_date),
+        };
+
+        // Check for overlaps
+        const overlap = findOverlappingSchedule(newScheduleRange, existingDateRanges);
+        if (overlap) {
+            const overlappingSchedule = existingSchedules.find(s => s.id === overlap.id);
+            throw new Error(
+                `Schedule overlaps with existing schedule "${overlappingSchedule?.name || "Unknown"}" (${overlap.start_date.toISOString().split("T")[0]} - ${overlap.end_date.toISOString().split("T")[0]})`,
+            );
+        }
+
         let updatedSchedule: PickupLocationScheduleWithDays;
 
         // Begin a transaction

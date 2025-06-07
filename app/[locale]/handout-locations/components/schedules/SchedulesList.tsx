@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
     Stack,
     Button,
@@ -47,13 +47,6 @@ export function SchedulesList({
     );
     const [showPastSchedules, setShowPastSchedules] = useState(false);
 
-    // Format date displays with ISO week number
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        const weekNum = getISOWeekNumber(date);
-        return `${format(date, "yyyy-MM-dd")} (${t("week")} ${weekNum})`;
-    };
-
     // Check if a schedule is currently active
     const isActiveSchedule = (schedule: PickupLocationScheduleWithDays) => {
         const now = new Date();
@@ -74,6 +67,30 @@ export function SchedulesList({
         const now = new Date();
         const endDate = new Date(schedule.end_date);
         return endDate < now;
+    };
+
+    // Memoized computed values to ensure proper re-rendering
+    const sortedSchedules = useMemo(() => {
+        return [...schedules].sort((a, b) => {
+            return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+        });
+    }, [schedules]);
+
+    const filteredSchedules = useMemo(() => {
+        return showPastSchedules
+            ? sortedSchedules
+            : sortedSchedules.filter(schedule => !isPastSchedule(schedule));
+    }, [sortedSchedules, showPastSchedules]);
+
+    const hiddenPastSchedulesCount = useMemo(() => {
+        return sortedSchedules.filter(schedule => isPastSchedule(schedule)).length;
+    }, [sortedSchedules]);
+
+    // Format date displays with ISO week number
+    const formatDate = (dateStr: string) => {
+        const date = new Date(dateStr);
+        const weekNum = getISOWeekNumber(date);
+        return `${format(date, "yyyy-MM-dd")} (${t("week")} ${weekNum})`;
     };
 
     // Handle creating a new schedule
@@ -119,21 +136,6 @@ export function SchedulesList({
         }
     };
 
-    // Sort schedules by start date (earliest first)
-    const sortedSchedules = [...schedules].sort((a, b) => {
-        return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
-    });
-
-    // Filter schedules to hide past ones if the toggle is off
-    const filteredSchedules = showPastSchedules
-        ? sortedSchedules
-        : sortedSchedules.filter(schedule => !isPastSchedule(schedule));
-
-    // Count how many past schedules are hidden
-    const hiddenPastSchedulesCount = sortedSchedules.filter(schedule =>
-        isPastSchedule(schedule),
-    ).length;
-
     return (
         <Stack>
             <Group justify="space-between" mb="md">
@@ -167,8 +169,14 @@ export function SchedulesList({
                     </Text>
                 </Paper>
             ) : (
-                filteredSchedules.map(schedule => (
-                    <Card key={schedule.id} shadow="sm" padding="md" radius="md" withBorder>
+                filteredSchedules.map((schedule, index) => (
+                    <Card
+                        key={`${schedule.id}-${schedule.name}-${index}`}
+                        shadow="sm"
+                        padding="md"
+                        radius="md"
+                        withBorder
+                    >
                         <Group justify="space-between" mb="xs">
                             <Group>
                                 <IconCalendarStats size={20} />

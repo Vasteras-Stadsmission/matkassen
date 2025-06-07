@@ -10,14 +10,12 @@ import { deleteLocation } from "../actions";
 import { notifications } from "@mantine/notifications";
 import { PickupLocationWithAllData } from "../types";
 import type { MouseEvent } from "react";
-import { useRouter } from "@/app/i18n/navigation";
 
 interface Props {
     initialLocations: PickupLocationWithAllData[];
 }
 
 export function HandoutLocationsContent({ initialLocations }: Props) {
-    const router = useRouter();
     const t = useTranslations("handoutLocations");
     const [locations, setLocations] = useState<PickupLocationWithAllData[]>(initialLocations);
     const [activeTab, setActiveTab] = useState<string | null>(initialLocations[0]?.id ?? null);
@@ -50,8 +48,7 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                     // Manual state update for optimistic UI
                     setLocations(prev => prev.filter(loc => loc.id !== locationId));
 
-                    // Refresh the server component to fetch fresh data
-                    router.refresh();
+                    // No need to refresh - server action handles revalidation
 
                     notifications.show({
                         title: locationDeletedTitle,
@@ -74,15 +71,14 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
             errorDeletingTitle,
             locationDeletedMessage,
             locationDeletedTitle,
-            router,
         ],
     );
 
     // Handle location form submission (create or edit)
-    const handleFormSubmit = () => {
+    const handleFormSubmit = async () => {
+        // Only refresh data if this was a location creation, not a schedule update
+        // Schedule updates are handled by the onLocationUpdated callback
         close();
-        // Refresh the server component to fetch fresh data
-        router.refresh();
     };
 
     // Changing the active tab should NOT trigger a reload
@@ -136,19 +132,19 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                         <Tabs.Panel key={location.id} value={location.id} pt="xs">
                             <LocationForm
                                 location={location}
-                                onSaved={() => {
-                                    // Refresh the server component to fetch fresh data
-                                    router.refresh();
+                                onSaved={async () => {
+                                    // No need to refresh data for schedule updates in main tabs
+                                    // The SchedulesTab component handles its own state updates
                                 }}
-                                onLocationUpdated={(id, updatedLocation) => {
-                                    // Update the location name in local state immediately for optimistic UI
+                                onLocationUpdated={async (locationId, updatedLocation) => {
+                                    // Update the specific location in state without full re-fetch
                                     setLocations(prevLocations =>
                                         prevLocations.map(loc =>
-                                            loc.id === id ? { ...loc, ...updatedLocation } : loc,
+                                            loc.id === locationId
+                                                ? { ...loc, ...updatedLocation }
+                                                : loc,
                                         ),
                                     );
-                                    // Refresh the server component to fetch fresh data
-                                    router.refresh();
                                 }}
                             />
                         </Tabs.Panel>
@@ -158,7 +154,19 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
 
             {/* Modal for creating new locations */}
             <Modal opened={opened} onClose={close} title={t("addLocation")} size="lg">
-                <LocationForm location={selectedLocation} onSaved={handleFormSubmit} isModal />
+                <LocationForm
+                    location={selectedLocation}
+                    onSaved={handleFormSubmit}
+                    onLocationUpdated={(locationId, updatedLocation) => {
+                        // Update the specific location in state without full re-fetch
+                        setLocations(prevLocations =>
+                            prevLocations.map(loc =>
+                                loc.id === locationId ? { ...loc, ...updatedLocation } : loc,
+                            ),
+                        );
+                    }}
+                    isModal
+                />
             </Modal>
         </>
     );

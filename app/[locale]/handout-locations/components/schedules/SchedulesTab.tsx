@@ -14,9 +14,10 @@ import { createSchedule, updateSchedule, deleteSchedule } from "../../actions";
 interface SchedulesTabProps {
     location: PickupLocationWithAllData;
     onUpdated?: () => void;
+    onLocationUpdated?: (id: string, updatedLocation: Partial<PickupLocationWithAllData>) => void;
 }
 
-export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
+export function SchedulesTab({ location, onUpdated, onLocationUpdated }: SchedulesTabProps) {
     const t = useTranslations("handoutLocations");
     const [schedules, setSchedules] = useState<PickupLocationScheduleWithDays[]>(
         location.schedules || [],
@@ -24,10 +25,18 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Update schedules when location changes
+    // Sync with server state when location changes, but only if schedules actually changed
+    // This prevents overwriting optimistic updates when the location object is re-created
     useEffect(() => {
-        setSchedules(location.schedules || []);
-    }, [location]);
+        setSchedules(prevSchedules => {
+            // Only update if the schedules array actually changed
+            const newSchedules = location.schedules || [];
+            if (JSON.stringify(prevSchedules) !== JSON.stringify(newSchedules)) {
+                return newSchedules;
+            }
+            return prevSchedules;
+        });
+    }, [location.schedules]);
 
     // Handle creating a new schedule
     const handleCreateSchedule = async (scheduleData: ScheduleInput) => {
@@ -35,12 +44,22 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
         setError(null);
 
         try {
+            // Call server action first - let server validation catch any issues
             const newSchedule = await createSchedule(location.id, scheduleData);
-            setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
+            // Only update state if server action succeeds
+            const updatedSchedules = [...schedules, newSchedule];
+            setSchedules(updatedSchedules);
+
+            // Update parent component's state optimistically
+            if (onLocationUpdated) {
+                onLocationUpdated(location.id, { schedules: updatedSchedules });
+            }
             if (onUpdated) onUpdated();
         } catch (err) {
-            console.error("Error creating schedule:", err);
-            setError(t("scheduleCreateError"));
+            console.error("❌ Error creating schedule:", err);
+            // Display the specific error message from server validation
+            const errorMessage = err instanceof Error ? err.message : t("scheduleCreateError");
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -52,14 +71,24 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
         setError(null);
 
         try {
+            // Call server action first - let server validation catch any issues
             const updatedSchedule = await updateSchedule(id, scheduleData);
-            setSchedules(prevSchedules =>
-                prevSchedules.map(schedule => (schedule.id === id ? updatedSchedule : schedule)),
+            // Only update state if server action succeeds
+            const updatedSchedules = schedules.map(schedule =>
+                schedule.id === id ? updatedSchedule : schedule,
             );
+            setSchedules(updatedSchedules);
+
+            // Update parent component's state optimistically
+            if (onLocationUpdated) {
+                onLocationUpdated(location.id, { schedules: updatedSchedules });
+            }
             if (onUpdated) onUpdated();
         } catch (err) {
             console.error("Error updating schedule:", err);
-            setError(t("scheduleUpdateError"));
+            // Display the specific error message from server validation
+            const errorMessage = err instanceof Error ? err.message : t("scheduleUpdateError");
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -72,7 +101,13 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
 
         try {
             await deleteSchedule(id);
-            setSchedules(prevSchedules => prevSchedules.filter(schedule => schedule.id !== id));
+            const updatedSchedules = schedules.filter(schedule => schedule.id !== id);
+            setSchedules(updatedSchedules);
+
+            // Update parent component's state optimistically
+            if (onLocationUpdated) {
+                onLocationUpdated(location.id, { schedules: updatedSchedules });
+            }
             if (onUpdated) onUpdated();
         } catch (err) {
             console.error("Error deleting schedule:", err);
