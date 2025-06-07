@@ -18,8 +18,6 @@ services:
                 condition: service_healthy
         networks:
             - my_network
-        volumes:
-            - ./app:/usr/src/app
         healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
             interval: 30s
