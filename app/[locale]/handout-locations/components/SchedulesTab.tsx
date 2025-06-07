@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { flushSync } from "react-dom";
 import { Paper, Text, Stack, Group, Loader } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { PickupLocationWithAllData, ScheduleInput } from "../types";
@@ -33,7 +34,10 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
 
         try {
             const newSchedule = await createSchedule(location.id, scheduleData);
-            setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
+            // Use flushSync to ensure the state update happens synchronously
+            flushSync(() => {
+                setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
+            });
             if (onUpdated) onUpdated();
         } catch (err) {
             console.error("Error creating schedule:", err);
@@ -55,9 +59,12 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
 
         try {
             const updatedSchedule = await updateSchedule(scheduleId, scheduleData);
-            setSchedules(prevSchedules =>
-                prevSchedules.map(s => (s.id === scheduleId ? updatedSchedule : s)),
-            );
+            // Use flushSync to ensure the state update happens synchronously
+            flushSync(() => {
+                setSchedules(prevSchedules =>
+                    prevSchedules.map(s => (s.id === scheduleId ? updatedSchedule : s)),
+                );
+            });
             if (onUpdated) onUpdated();
         } catch (err) {
             console.error("Error updating schedule:", err);
@@ -82,8 +89,10 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
             // Call the delete API
             await deleteSchedule(scheduleId);
 
-            // Update local state to remove the deleted schedule
-            setSchedules(prevSchedules => prevSchedules.filter(s => s.id !== scheduleId));
+            // Use flushSync to ensure the state update happens synchronously
+            flushSync(() => {
+                setSchedules(prevSchedules => prevSchedules.filter(s => s.id !== scheduleId));
+            });
 
             // Call the onUpdated callback if provided
             if (onUpdated) onUpdated();
