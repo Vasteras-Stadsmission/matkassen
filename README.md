@@ -14,6 +14,12 @@ To keep the git commit history in `main` clean, we use the **squash and merge** 
 2. Purchase a Linux Ubuntu server (e.g. [droplet](https://www.digitalocean.com/products/droplets))
 3. Create an `A` DNS record pointing to your server IPv4 address
 
+### Docker Requirements
+
+This project uses Docker Compose with health checks and requires:
+- **Docker Compose v2.13+** for `--wait` flag and `condition: service_healthy` features
+- The deployment script automatically checks version compatibility and will fail with clear error messages if requirements aren't met
+
 ## Continuous integration and deployment
 
 This project runs on both a staging and production environment.

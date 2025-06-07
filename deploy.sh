@@ -118,7 +118,37 @@ fi
 # Ensure Docker Compose is executable and in path
 sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
-# Verify Docker Compose installation
+# Verify Docker Compose installation and version
+echo "Verifying Docker Compose version compatibility..."
+DOCKER_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null || echo "unknown")
+echo "Docker Compose version: $DOCKER_COMPOSE_VERSION"
+
+# Check if version meets minimum requirements (v2.13+ for --wait flag)
+if [[ "$DOCKER_COMPOSE_VERSION" == "unknown" ]]; then
+  echo "❌ Error: Could not determine Docker Compose version"
+  exit 1
+fi
+
+# Extract major and minor version numbers
+if [[ $DOCKER_COMPOSE_VERSION =~ ^v?([0-9]+)\.([0-9]+) ]]; then
+  MAJOR_VERSION=${BASH_REMATCH[1]}
+  MINOR_VERSION=${BASH_REMATCH[2]}
+
+  # Check if version is 2.13 or higher
+  if [[ $MAJOR_VERSION -lt 2 ]] || [[ $MAJOR_VERSION -eq 2 && $MINOR_VERSION -lt 13 ]]; then
+    echo "❌ Error: Docker Compose version $DOCKER_COMPOSE_VERSION is not supported"
+    echo "This deployment script requires Docker Compose v2.13+ for health check features"
+    echo "Please upgrade Docker Compose to continue"
+    echo "Installation guide: https://docs.docker.com/compose/install/"
+    exit 1
+  fi
+else
+  echo "⚠️ Warning: Could not parse Docker Compose version format: $DOCKER_COMPOSE_VERSION"
+  echo "Proceeding anyway, but deployment may fail if version is incompatible"
+fi
+
+echo "✅ Docker Compose version is compatible"
+
 docker compose version
 if [ $? -ne 0 ]; then
   echo "Docker Compose installation failed. Exiting."
