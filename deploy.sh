@@ -421,11 +421,19 @@ echo "Performing final deployment checks..."
 
 # Check if the website is accessible
 echo "Checking if the website is accessible..."
-if ! curl -s -o /dev/null -w "%{http_code}" "https://$DOMAIN_NAME" | grep -q "200\|301\|302"; then
-  echo "⚠️ Warning: Website may not be accessible. HTTP status check failed."
-  echo "Please check the application logs and Nginx configuration."
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$DOMAIN_NAME")
+if [[ "$HTTP_STATUS" =~ ^(200|301|302|307|308)$ ]]; then
+  echo "✅ Website is accessible (HTTP $HTTP_STATUS)."
 else
-  echo "✅ Website is accessible."
+  echo "⚠️ Warning: Website may not be accessible (HTTP $HTTP_STATUS)."
+  echo "Checking health endpoint as fallback..."
+  HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$DOMAIN_NAME/api/health")
+  if [ "$HEALTH_STATUS" = "200" ]; then
+    echo "✅ Health endpoint is working (HTTP $HEALTH_STATUS). Website should be functional."
+  else
+    echo "⚠️ Warning: Health endpoint also failed (HTTP $HEALTH_STATUS)."
+    echo "Please check the application logs and Nginx configuration."
+  fi
 fi
 
 # Clean up any temporary files
