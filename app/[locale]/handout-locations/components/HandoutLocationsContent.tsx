@@ -74,11 +74,14 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
         ],
     );
 
-    // Handle location form submission (create or edit)
-    const handleFormSubmit = async () => {
-        // Only refresh data if this was a location creation, not a schedule update
-        // Schedule updates are handled by the onLocationUpdated callback
-        close();
+    // Handle updating location state after form submission
+    const handleLocationUpdate = (
+        id: string,
+        updatedLocation: Partial<PickupLocationWithAllData>,
+    ): void => {
+        setLocations(prevLocations =>
+            prevLocations.map(loc => (loc.id === id ? { ...loc, ...updatedLocation } : loc)),
+        );
     };
 
     // Changing the active tab should NOT trigger a reload
@@ -136,16 +139,7 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                                     // No need to refresh data for schedule updates in main tabs
                                     // The SchedulesTab component handles its own state updates
                                 }}
-                                onLocationUpdated={async (locationId, updatedLocation) => {
-                                    // Update the specific location in state without full re-fetch
-                                    setLocations(prevLocations =>
-                                        prevLocations.map(loc =>
-                                            loc.id === locationId
-                                                ? { ...loc, ...updatedLocation }
-                                                : loc,
-                                        ),
-                                    );
-                                }}
+                                onLocationUpdated={handleLocationUpdate}
                             />
                         </Tabs.Panel>
                     ))}
@@ -156,15 +150,8 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
             <Modal opened={opened} onClose={close} title={t("addLocation")} size="lg">
                 <LocationForm
                     location={selectedLocation}
-                    onSaved={handleFormSubmit}
-                    onLocationUpdated={(locationId, updatedLocation) => {
-                        // Update the specific location in state without full re-fetch
-                        setLocations(prevLocations =>
-                            prevLocations.map(loc =>
-                                loc.id === locationId ? { ...loc, ...updatedLocation } : loc,
-                            ),
-                        );
-                    }}
+                    onSaved={() => close()}
+                    onLocationUpdated={handleLocationUpdate}
                     isModal
                 />
             </Modal>

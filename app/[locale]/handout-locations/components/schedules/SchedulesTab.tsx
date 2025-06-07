@@ -10,6 +10,7 @@ import {
 } from "../../types";
 import { SchedulesList } from "./SchedulesList";
 import { createSchedule, updateSchedule, deleteSchedule } from "../../actions";
+import { objectsEqual } from "@/app/utils/deep-equal";
 
 interface SchedulesTabProps {
     location: PickupLocationWithAllData;
@@ -31,7 +32,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
         setSchedules(prevSchedules => {
             // Only update if the schedules array actually changed
             const newSchedules = location.schedules || [];
-            if (JSON.stringify(prevSchedules) !== JSON.stringify(newSchedules)) {
+            if (!objectsEqual(prevSchedules, newSchedules)) {
                 return newSchedules;
             }
             return prevSchedules;
@@ -47,13 +48,17 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             // Call server action first - let server validation catch any issues
             const newSchedule = await createSchedule(location.id, scheduleData);
             // Only update state if server action succeeds
-            const updatedSchedules = [...schedules, newSchedule];
-            setSchedules(updatedSchedules);
+            setSchedules(prev => {
+                const updated = [...prev, newSchedule];
 
-            // Update parent component's state optimistically
-            if (onLocationUpdated) {
-                onLocationUpdated(location.id, { schedules: updatedSchedules });
-            }
+                // Update parent component's state optimistically
+                if (onLocationUpdated) {
+                    onLocationUpdated(location.id, { schedules: updated });
+                }
+
+                return updated;
+            });
+
             if (onUpdated) onUpdated();
         } catch (err) {
             console.error("❌ Error creating schedule:", err);
@@ -74,15 +79,19 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             // Call server action first - let server validation catch any issues
             const updatedSchedule = await updateSchedule(id, scheduleData);
             // Only update state if server action succeeds
-            const updatedSchedules = schedules.map(schedule =>
-                schedule.id === id ? updatedSchedule : schedule,
-            );
-            setSchedules(updatedSchedules);
+            setSchedules(prev => {
+                const updated = prev.map(schedule =>
+                    schedule.id === id ? updatedSchedule : schedule,
+                );
 
-            // Update parent component's state optimistically
-            if (onLocationUpdated) {
-                onLocationUpdated(location.id, { schedules: updatedSchedules });
-            }
+                // Update parent component's state optimistically
+                if (onLocationUpdated) {
+                    onLocationUpdated(location.id, { schedules: updated });
+                }
+
+                return updated;
+            });
+
             if (onUpdated) onUpdated();
         } catch (err) {
             console.error("Error updating schedule:", err);
@@ -101,13 +110,17 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
 
         try {
             await deleteSchedule(id);
-            const updatedSchedules = schedules.filter(schedule => schedule.id !== id);
-            setSchedules(updatedSchedules);
+            setSchedules(prev => {
+                const updated = prev.filter(schedule => schedule.id !== id);
 
-            // Update parent component's state optimistically
-            if (onLocationUpdated) {
-                onLocationUpdated(location.id, { schedules: updatedSchedules });
-            }
+                // Update parent component's state optimistically
+                if (onLocationUpdated) {
+                    onLocationUpdated(location.id, { schedules: updated });
+                }
+
+                return updated;
+            });
+
             if (onUpdated) onUpdated();
         } catch (err) {
             console.error("Error deleting schedule:", err);

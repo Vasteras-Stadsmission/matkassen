@@ -169,14 +169,8 @@ export function SchedulesList({
                     </Text>
                 </Paper>
             ) : (
-                filteredSchedules.map((schedule, index) => (
-                    <Card
-                        key={`${schedule.id}-${schedule.name}-${index}`}
-                        shadow="sm"
-                        padding="md"
-                        radius="md"
-                        withBorder
-                    >
+                filteredSchedules.map(schedule => (
+                    <Card key={schedule.id} shadow="sm" padding="md" radius="md" withBorder>
                         <Group justify="space-between" mb="xs">
                             <Group>
                                 <IconCalendarStats size={20} />
