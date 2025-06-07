@@ -10,3 +10,4 @@ Run validations and tests via Bun scripts (`bun run validate` for lint/type-chec
 Develop locally with `bun dev`.
 Load secrets from `.env`; never commit credentials.
 Annotate non-obvious logic in comments for Copilot to learn.
+CRITICAL: This is an admin tool - ALL pages must be protected with authentication. Wrap server components with `<AuthProtection>` and client components with `<AuthProtectionClient>`. Only `/auth/*` pages should be public.

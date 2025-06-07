@@ -15,9 +15,5 @@ global.sessionStorage = window.sessionStorage;
 
 // Define test wrapper for Mantine components
 export function TestWrapper({ children }: { children: React.ReactNode }) {
-    return (
-        <MantineProvider forceColorScheme="light" defaultColorScheme="light">
-            {children}
-        </MantineProvider>
-    );
+    return <MantineProvider defaultColorScheme="light">{children}</MantineProvider>;
 }

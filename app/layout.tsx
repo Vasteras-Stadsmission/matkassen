@@ -3,7 +3,6 @@ import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/notifications/styles.css";
 import "mantine-datatable/styles.css";
-import { ColorSchemeScript } from "@mantine/core";
 
 export const metadata: Metadata = {
     title: "Matkassen",
@@ -13,11 +12,10 @@ export const metadata: Metadata = {
     },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html data-mantine-color-scheme="light">
             <head>
-                <ColorSchemeScript defaultColorScheme="light" />
                 <meta name="next-font-preconnect" content="false" />
                 <meta name="next-size-adjust" content="false" />
             </head>

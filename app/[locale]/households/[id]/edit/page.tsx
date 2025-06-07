@@ -1,4 +1,5 @@
 import EditHouseholdClient from "./client";
+import { AuthProtection } from "@/components/AuthProtection";
 
 // Define type for params
 type Params = {
@@ -8,5 +9,9 @@ type Params = {
 
 export default async function EditHouseholdPage({ params }: { params: Params | Promise<Params> }) {
     const { id } = await params;
-    return <EditHouseholdClient id={id} />;
+    return (
+        <AuthProtection>
+            <EditHouseholdClient id={id} />
+        </AuthProtection>
+    );
 }
