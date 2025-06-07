@@ -1,6 +1,7 @@
 # Docker Compose configuration with health checks
-# Requires Docker Compose v2.13+ for --wait flag and service health conditions
+# Requires Docker Compose v2.13+ for --wait, --wait-timeout, and service health conditions
 # Health checks ensure services are fully operational before considering deployment complete
+# Deployment uses 5-minute timeout to prevent indefinite hangs
 
 services:
     web:

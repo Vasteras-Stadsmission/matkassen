@@ -17,8 +17,9 @@ To keep the git commit history in `main` clean, we use the **squash and merge** 
 ### Docker Requirements
 
 This project uses Docker Compose with health checks and requires:
-- **Docker Compose v2.13+** for `--wait` flag and `condition: service_healthy` features
+- **Docker Compose v2.13+** for `--wait`, `--wait-timeout`, and `condition: service_healthy` features
 - The deployment script automatically checks version compatibility and will fail with clear error messages if requirements aren't met
+- Health checks have a 5-minute timeout to prevent indefinite hangs in CI/CD pipelines
 
 ## Continuous integration and deployment
 

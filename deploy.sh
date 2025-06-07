@@ -123,7 +123,7 @@ echo "Verifying Docker Compose version compatibility..."
 DOCKER_COMPOSE_VERSION=$(docker compose version --short 2>/dev/null || echo "unknown")
 echo "Docker Compose version: $DOCKER_COMPOSE_VERSION"
 
-# Check if version meets minimum requirements (v2.13+ for --wait flag)
+# Check if version meets minimum requirements (v2.13+ for --wait and --wait-timeout flags)
 if [[ "$DOCKER_COMPOSE_VERSION" == "unknown" ]]; then
   echo "❌ Error: Could not determine Docker Compose version"
   exit 1
@@ -137,7 +137,7 @@ if [[ $DOCKER_COMPOSE_VERSION =~ ^v?([0-9]+)\.([0-9]+) ]]; then
   # Check if version is 2.13 or higher
   if [[ $MAJOR_VERSION -lt 2 ]] || [[ $MAJOR_VERSION -eq 2 && $MINOR_VERSION -lt 13 ]]; then
     echo "❌ Error: Docker Compose version $DOCKER_COMPOSE_VERSION is not supported"
-    echo "This deployment script requires Docker Compose v2.13+ for health check features"
+    echo "This deployment script requires Docker Compose v2.13+ for health check and timeout features"
     echo "Please upgrade Docker Compose to continue"
     echo "Installation guide: https://docs.docker.com/compose/install/"
     exit 1
@@ -368,8 +368,8 @@ fi
 
 # Start the containers with health check dependencies
 echo "Starting Docker containers with health checks..."
-if ! sudo docker compose up -d --wait; then
-  echo "Failed to start Docker containers or health checks failed."
+if ! sudo docker compose up -d --wait --wait-timeout 300; then
+  echo "Failed to start Docker containers or health checks failed within 5 minutes."
   echo "Container status:"
   sudo docker compose ps
   echo "Logs:"
