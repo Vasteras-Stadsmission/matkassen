@@ -133,14 +133,15 @@ describe("Schedule Date Utilities", () => {
             const date = new Date("2025-04-16");
             const { start, end } = getWeekDates(date);
 
-            // Based on the actual output with mocks (timezone conversion affects end dates)
-            expect(start.getFullYear()).toBe(2025);
-            expect(start.getMonth()).toBe(3); // April (0-indexed)
-            expect(start.getDate()).toBe(13); // Mock returns 2025-04-13
+            // Check start date (should be timezone-independent)
+            expect(start.getUTCFullYear()).toBe(2025);
+            expect(start.getUTCMonth()).toBe(3); // April (0-indexed)
+            expect(start.getUTCDate()).toBe(13); // Mock returns 2025-04-13
 
-            expect(end.getFullYear()).toBe(2025);
-            expect(end.getMonth()).toBe(3); // April (0-indexed)
-            expect(end.getDate()).toBe(21); // Mock returns 2025-04-20T23:59:59.999Z → 21 in local timezone
+            // Check end date (should be timezone-independent)
+            expect(end.getUTCFullYear()).toBe(2025);
+            expect(end.getUTCMonth()).toBe(3); // April (0-indexed)
+            expect(end.getUTCDate()).toBe(20); // Mock returns 2025-04-20T23:59:59.999Z
         });
 
         it("returns correct week when the date is a Monday", () => {
@@ -149,8 +150,8 @@ describe("Schedule Date Utilities", () => {
             const { start, end } = getWeekDates(date);
 
             // Based on the actual output with mocks
-            expect(start.getDate()).toBe(13); // Mock returns 2025-04-13
-            expect(end.getDate()).toBe(21); // Mock returns 2025-04-20T23:59:59.999Z → 21 in local timezone
+            expect(start.getUTCDate()).toBe(13); // Mock returns 2025-04-13
+            expect(end.getUTCDate()).toBe(20); // Mock returns 2025-04-20T23:59:59.999Z
         });
 
         it("returns correct week when the date is a Sunday", () => {
@@ -159,8 +160,8 @@ describe("Schedule Date Utilities", () => {
             const { start, end } = getWeekDates(date);
 
             // Based on the actual output with mocks
-            expect(start.getDate()).toBe(13); // Mock returns 2025-04-13
-            expect(end.getDate()).toBe(21); // Mock returns 2025-04-20T23:59:59.999Z → 21 in local timezone
+            expect(start.getUTCDate()).toBe(13); // Mock returns 2025-04-13
+            expect(end.getUTCDate()).toBe(20); // Mock returns 2025-04-20T23:59:59.999Z
         });
 
         it("handles week spanning across month boundaries", () => {
@@ -169,11 +170,11 @@ describe("Schedule Date Utilities", () => {
             const { start, end } = getWeekDates(date);
 
             // Based on the actual output with mocks
-            expect(start.getMonth()).toBe(3); // April
-            expect(start.getDate()).toBe(27); // Mock returns 2025-04-27
+            expect(start.getUTCMonth()).toBe(3); // April
+            expect(start.getUTCDate()).toBe(27); // Mock returns 2025-04-27
 
-            expect(end.getMonth()).toBe(4); // May
-            expect(end.getDate()).toBe(5); // Mock returns 2025-05-04T23:59:59.999Z → 5 in local timezone
+            expect(end.getUTCMonth()).toBe(4); // May
+            expect(end.getUTCDate()).toBe(4); // Mock returns 2025-05-04T23:59:59.999Z
         });
 
         it("handles week spanning across year boundaries", () => {
@@ -182,13 +183,13 @@ describe("Schedule Date Utilities", () => {
             const { start, end } = getWeekDates(date);
 
             // Based on the actual output with mocks
-            expect(start.getFullYear()).toBe(2025);
-            expect(start.getMonth()).toBe(11); // December
-            expect(start.getDate()).toBe(28); // Mock returns 2025-12-28
+            expect(start.getUTCFullYear()).toBe(2025);
+            expect(start.getUTCMonth()).toBe(11); // December
+            expect(start.getUTCDate()).toBe(28); // Mock returns 2025-12-28
 
-            expect(end.getFullYear()).toBe(2026);
-            expect(end.getMonth()).toBe(0); // January
-            expect(end.getDate()).toBe(5); // Mock returns 2026-01-04T23:59:59.999Z → 5 in local timezone
+            expect(end.getUTCFullYear()).toBe(2026);
+            expect(end.getUTCMonth()).toBe(0); // January
+            expect(end.getUTCDate()).toBe(4); // Mock returns 2026-01-04T23:59:59.999Z
         });
     });
 });
