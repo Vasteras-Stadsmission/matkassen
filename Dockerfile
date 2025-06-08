@@ -23,6 +23,9 @@ WORKDIR /app
 # Install curl for health checks
 RUN apk add --no-cache curl
 
+# Ensure pnpm is available in the final stage
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Auth.js requirements
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
