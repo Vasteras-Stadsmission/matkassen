@@ -35,7 +35,7 @@ jobs:
                   DATABASE_URL: postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
               run: |
                   # Check if there are schema changes that need migration files
-                  SCHEMA_CHANGES=$(pnpm run drizzle-kit check:pg)
+                  SCHEMA_CHANGES=$(pnpm drizzle-kit check)
                   if [[ $SCHEMA_CHANGES == *"Schema drift detected"* ]]; then
                     echo "⚠️ Schema changes detected but no migration files found."
                     echo "Run 'pnpm run db:generate' locally to create migration files and commit them."
