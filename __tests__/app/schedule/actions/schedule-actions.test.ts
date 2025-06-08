@@ -1,8 +1,7 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
-
 // Mock the database actions
 import * as dbActions from "@/app/db/actions";
 
+import { vi } from "vitest";
 const mockLocationData = {
     id: "location-1",
     name: "Lifecenter Church Västerås",
@@ -31,12 +30,12 @@ const mockScheduleData = {
 };
 
 // Mock Next.js cache and the actions module
-mock.module("next/cache", () => ({
+vi.mock("next/cache", () => ({
     unstable_cache: fn => fn, // Just return the function without caching
 }));
 
 // Mock the actions module
-mock.module("@/app/[locale]/schedule/actions", () => {
+vi.mock("@/app/[locale]/schedule/actions", () => {
     return {
         getLocationSlotDuration: async locationId => {
             if (locationId === "location-1") {

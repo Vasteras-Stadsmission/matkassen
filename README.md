@@ -34,8 +34,8 @@ First you need to setup your environment:
 
 Now, you choose between our two primary development modes:
 
-1. `bun run dev`: Next.js is running locally and db in a container (faster dev experience)
-2. `bun run dev:containers-only`: A similar setup as in the production environment where both Next.js and db is running in (separate) containers.
+1. `pnpm run dev`: Next.js is running locally and db in a container (faster dev experience)
+2. `pnpm run dev:containers-only`: A similar setup as in the production environment where both Next.js and db is running in (separate) containers.
 
 Note that in neither of these two modes will you have nginx running, as in production.
 
@@ -46,19 +46,19 @@ The project uses Drizzle ORM with a migration-based approach:
 1. **Making Schema Changes**:
 
     - Update the schema definition in `app/db/schema.ts`
-    - Generate SQL migration files with `bun run db:generate`
+    - Generate SQL migration files with `pnpm run db:generate`
     - Migration files will be created in the `migrations` directory
 
 2. **Applying Migrations**:
 
-    - Run `bun run db:migrate` to apply migration files to the database
+    - Run `pnpm run db:migrate` to apply migration files to the database
     - In Docker environments, migrations run automatically on startup
 
 3. **Custom SQL Migrations**:
 
     - If you want to ship custom DDL changes or seed data separately from your schema diffs, run:
         ```sh
-        bunx drizzle-kit generate --custom --name=seed-users
+        pnpm exec drizzle-kit generate --custom --name=seed-users
         ```
     - This creates an empty migration file (e.g., `0006_seed-users.sql`) under your migrations folder
     - You can fill this file with custom INSERT, UPDATE, or DDL statements
@@ -66,7 +66,7 @@ The project uses Drizzle ORM with a migration-based approach:
 
 4. **Migration in Development**:
 
-    - When using `bun run dev` or `bun run dev:containers-only`, migrations apply automatically before the web service starts
+    - When using `pnpm run dev` or `pnpm run dev:containers-only`, migrations apply automatically before the web service starts
 
 5. **Migration in Production**:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
@@ -81,5 +81,5 @@ Note that sudo is needed when executing the commands on the VPS.
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
 - `sudo docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB` - enter Postgres db
-- `bun run db:generate` - generate new migration files from schema changes
-- `bun run db:migrate` - apply migrations to the database manually
+- `pnpm run db:generate` - generate new migration files from schema changes
+- `pnpm run db:migrate` - apply migrations to the database manually

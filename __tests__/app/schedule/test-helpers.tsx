@@ -1,5 +1,5 @@
-import { mock } from "bun:test";
 import { Window } from "happy-dom";
+import { vi } from "vitest";
 import React, { ReactNode } from "react";
 import { render, RenderOptions, RenderResult } from "@testing-library/react";
 import { FoodParcel } from "@/app/[locale]/schedule/actions";
@@ -146,7 +146,7 @@ export const createNotificationMocks = () => {
     };
 
     // Mock notifications module
-    mock.module("@mantine/notifications", () => ({
+    vi.mock("@mantine/notifications", () => ({
         showNotification: mockShowNotification,
     }));
 

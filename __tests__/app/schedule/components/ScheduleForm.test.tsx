@@ -1,11 +1,12 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { renderHook } from "@testing-library/react";
 import { useForm } from "@mantine/form";
-import { mockModule, mockTranslations } from "../../../test-helpers";
+import { vi } from "vitest";
 import { mockDate, cleanupMockedDate } from "../test-helpers";
 
-// Mock the translations
-mockTranslations();
+// Mock next-intl directly
+vi.mock("next-intl", () => ({
+    useTranslations: () => (key: string) => key,
+}));
 
 // Create a mock function similar to jest.fn()
 const mockFn = () => {
@@ -33,8 +34,8 @@ const mockFn = () => {
 };
 
 // Mock the WeekPicker component
-mockModule("@/app/[locale]/handout-locations/components/schedules/WeekPicker", () => ({
-    WeekPicker: ({ label, onChange, value }) => (
+vi.mock("@/app/[locale]/handout-locations/components/schedules/WeekPicker", () => ({
+    WeekPicker: ({ label, onChange, value }: any) => (
         <div>
             <label>{label}</label>
             <button

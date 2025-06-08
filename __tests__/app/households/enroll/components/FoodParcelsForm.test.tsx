@@ -1,8 +1,8 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
 import type { FoodParcels } from "../../../../../app/[locale]/households/enroll/types";
 
+import { vi } from "vitest";
 // Mock next-intl
-mock.module("next-intl", () => ({
+vi.mock("next-intl", () => ({
     useTranslations: () => (key: string, params?: any) => {
         if (key === "slotDuration" && params?.duration) {
             return `Slot duration: ${params.duration} minutes`;
@@ -12,14 +12,14 @@ mock.module("next-intl", () => ({
 }));
 
 // Mock client actions
-const mockGetPickupLocations = mock(() =>
+const mockGetPickupLocations = vi.fn(() =>
     Promise.resolve([
         { value: "location-1", label: "Test Location 1" },
         { value: "location-2", label: "Test Location 2" },
     ]),
 );
 
-const mockGetPickupLocationSchedules = mock(() =>
+const mockGetPickupLocationSchedules = vi.fn(() =>
     Promise.resolve({
         schedules: [
             {
@@ -74,7 +74,7 @@ const mockGetPickupLocationSchedules = mock(() =>
     }),
 );
 
-const mockGetPickupLocationCapacity = mock(() =>
+const mockGetPickupLocationCapacity = vi.fn(() =>
     Promise.resolve({
         maxPerDay: 5,
         dateCapacities: {
@@ -85,9 +85,9 @@ const mockGetPickupLocationCapacity = mock(() =>
     }),
 );
 
-const mockGetLocationSlotDuration = mock(() => Promise.resolve(30));
+const mockGetLocationSlotDuration = vi.fn(() => Promise.resolve(30));
 
-mock.module("@/app/[locale]/households/enroll/client-actions", () => ({
+vi.mock("@/app/[locale]/households/enroll/client-actions", () => ({
     getPickupLocationsAction: mockGetPickupLocations,
     getPickupLocationSchedulesAction: mockGetPickupLocationSchedules,
     getPickupLocationCapacityForRangeAction: mockGetPickupLocationCapacity,
@@ -95,7 +95,7 @@ mock.module("@/app/[locale]/households/enroll/client-actions", () => ({
 }));
 
 // Mock Mantine components
-mock.module("@mantine/core", () => ({
+vi.mock("@mantine/core", () => ({
     Card: ({ children }: any) => <div data-testid="card">{children}</div>,
     Title: ({ children }: any) => <h1 data-testid="title">{children}</h1>,
     Text: ({ children }: any) => <span data-testid="text">{children}</span>,
@@ -128,7 +128,7 @@ mock.module("@mantine/core", () => ({
     Loader: () => <div data-testid="loader">Loading...</div>,
 }));
 
-mock.module("@mantine/dates", () => ({
+vi.mock("@mantine/dates", () => ({
     DatePicker: ({ value, onChange, excludeDate }: any) => (
         <div data-testid="date-picker">
             <input
@@ -149,7 +149,7 @@ mock.module("@mantine/dates", () => ({
 }));
 
 // Mock icons
-mock.module("@tabler/icons-react", () => ({
+vi.mock("@tabler/icons-react", () => ({
     IconClock: () => <span data-testid="icon-clock">🕐</span>,
     IconCalendar: () => <span data-testid="icon-calendar">📅</span>,
     IconWand: () => <span data-testid="icon-wand">🪄</span>,
@@ -175,9 +175,9 @@ describe("FoodParcelsForm Business Logic Tests", () => {
     let mockUpdateData: any;
 
     beforeEach(() => {
-        mockUpdateData = mock(() => {});
+        mockUpdateData = vi.fn(() => {});
 
-        // Reset all mocks - for Bun's mock function, we need to cast to any to access mockClear
+        // Reset all mocks - cast to any to access mockClear
         (mockGetPickupLocations as any).mockClear?.();
         (mockGetPickupLocationSchedules as any).mockClear?.();
         (mockGetPickupLocationCapacity as any).mockClear?.();

@@ -1,5 +1,5 @@
-import { describe, expect, it, mock } from "bun:test";
 import { Window } from "happy-dom";
+import { vi } from "vitest";
 import React from "react";
 
 // Set up happy-dom
@@ -10,25 +10,17 @@ global.window = window as unknown as any;
 global.navigator = window.navigator as unknown as Navigator;
 
 // Mock next-intl hooks
-mock.module("next-intl", () => ({
+vi.mock("next-intl", () => ({
     useTranslations: () => (key: string) => key,
     useFormatter: () => ({
         dateTime: (date: Date) => date.toISOString(),
         number: (num: number) => num.toString(),
     }),
-}));
-
-// Mock for direct hook imports from next-intl/client
-mock.module("next-intl/client", () => ({
-    useTranslations: () => (key: string) => key,
-    useFormatter: () => ({
-        dateTime: (date: Date) => date.toISOString(),
-        number: (num: number) => num.toString(),
-    }),
+    useLocale: () => "en",
 }));
 
 // Mock for use-intl
-mock.module("use-intl", () => ({
+vi.mock("use-intl", () => ({
     useTranslations: () => (key: string) => key,
     useFormatter: () => ({
         dateTime: (date: Date) => date.toISOString(),
@@ -48,7 +40,7 @@ function render(element: React.ReactElement) {
 }
 
 // Mock Mantine components
-mock.module("@mantine/core", () => ({
+vi.mock("@mantine/core", () => ({
     TextInput: ({ label, value }: any) =>
         `<input data-testid="input-${label}" value="${value || ""}" />`,
     Select: ({ label, value }: any) =>
@@ -81,7 +73,7 @@ describe("HouseholdForm Component", () => {
     });
 
     it("updates data when user types into input fields", () => {
-        const mockUpdate = mock<(data: HouseholdData) => void>(() => {});
+        const mockUpdate = vi.fn();
         const initialData: HouseholdData = {
             first_name: "John",
             last_name: "Doe",
@@ -122,7 +114,7 @@ describe("HouseholdForm Component", () => {
     });
 
     it("updates locale when language is changed", () => {
-        const mockUpdate = mock<(data: HouseholdData) => void>(() => {});
+        const mockUpdate = vi.fn();
         const initialData: HouseholdData = {
             first_name: "John",
             last_name: "Doe",
@@ -153,7 +145,7 @@ describe("HouseholdForm Component", () => {
     });
 
     it("updates locale when user selects a language from dropdown", () => {
-        const mockUpdate = mock<(data: HouseholdData) => void>(() => {});
+        const mockUpdate = vi.fn();
         const initialData: HouseholdData = {
             first_name: "John",
             last_name: "Doe",
@@ -187,7 +179,7 @@ describe("HouseholdForm Component", () => {
         // Track if updateData was called
         let wasUpdateDataCalled = false;
         let updatedData: Household | null = null;
-        const updateDataMock = mock<(data: Household) => void>((data: Household) => {
+        const updateDataMock = vi.fn((data: Household) => {
             wasUpdateDataCalled = true;
             updatedData = data;
         });
@@ -226,7 +218,7 @@ describe("HouseholdForm Component", () => {
     it("updates locale when user selects a language from dropdown", async () => {
         // Track if updateData was called with correct data
         let wasCalledWithCorrectData = false;
-        const updateDataMock = mock<(data: Household) => void>((data: Household) => {
+        const updateDataMock = vi.fn((data: Household) => {
             // Check if the data contains the expected locale value
             if (data && data.locale === "en") {
                 wasCalledWithCorrectData = true;

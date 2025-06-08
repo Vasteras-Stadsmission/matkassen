@@ -132,15 +132,15 @@ export async function enrollHousehold(data: HouseholdCreateData) {
                         pet.species = existingByName.id;
                     } else {
                         // If not found at all, insert a new entry
-                        await db
+                        const [newSpecies] = await db
                             .insert(petSpeciesTable)
                             .values({
-                                id: pet.species,
                                 name: pet.speciesName,
                             })
                             .returning();
 
-                        // Species ID stays the same since we're inserting with the provided ID
+                        // Update the species ID to the newly inserted ID
+                        pet.species = newSpecies.id;
                     }
                 }
             }
@@ -156,21 +156,29 @@ export async function enrollHousehold(data: HouseholdCreateData) {
 
         // 5. Add additional needs
         if (data.additionalNeeds && data.additionalNeeds.length > 0) {
-            // First, create any new additional needs that don't exist yet
-            const customNeeds = data.additionalNeeds.filter((n: AdditionalNeedData) => n.isCustom);
+            // First, create any new additional needs that don't exist yet and update their IDs
+            for (const need of data.additionalNeeds) {
+                if (need.isCustom) {
+                    const [existingNeed] = await db
+                        .select()
+                        .from(additionalNeedsTable)
+                        .where(eq(additionalNeedsTable.need, need.need))
+                        .limit(1);
 
-            for (const need of customNeeds) {
-                const [existingNeed] = await db
-                    .select()
-                    .from(additionalNeedsTable)
-                    .where(eq(additionalNeedsTable.need, need.need))
-                    .limit(1);
+                    if (!existingNeed) {
+                        const [newNeed] = await db
+                            .insert(additionalNeedsTable)
+                            .values({
+                                need: need.need,
+                            })
+                            .returning();
 
-                if (!existingNeed) {
-                    await db.insert(additionalNeedsTable).values({
-                        id: need.id,
-                        need: need.need,
-                    });
+                        // Update the need ID to the newly inserted ID
+                        need.id = newNeed.id;
+                    } else {
+                        // Use the existing need's ID
+                        need.id = existingNeed.id;
+                    }
                 }
             }
 

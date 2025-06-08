@@ -1,23 +1,22 @@
 "use strict";
 
-import { describe, expect, it, mock, beforeEach } from "bun:test";
 import { FormData } from "@/app/[locale]/households/enroll/types";
 
+import { vi } from "vitest";
 // Simple mock implementation that just returns success
 const mockImplementation = {
     success: true,
     householdId: "test-household-id",
 };
 
-// Mock the updateHousehold function directly
-// Add explicit type to the mock function to fix TypeScript errors
-const mockUpdateHousehold = mock<
-    typeof import("@/app/[locale]/households/[id]/edit/actions").updateHousehold
->(() => Promise.resolve(mockImplementation));
-
-// Mock the module before importing
-mock.module("@/app/[locale]/households/[id]/edit/actions", () => ({
-    updateHousehold: mockUpdateHousehold,
+// Mock the module before importing - use a factory function to avoid hoisting issues
+vi.mock("@/app/[locale]/households/[id]/edit/actions", () => ({
+    updateHousehold: vi.fn(() =>
+        Promise.resolve({
+            success: true,
+            householdId: "test-household-id",
+        }),
+    ),
 }));
 
 // Import the mocked function
@@ -26,7 +25,7 @@ import { updateHousehold } from "@/app/[locale]/households/[id]/edit/actions";
 describe("Household Edit Actions", () => {
     beforeEach(() => {
         // Reset the mock before each test
-        mockUpdateHousehold.mockClear();
+        vi.mocked(updateHousehold).mockClear();
     });
 
     // Create mock data for testing
@@ -67,7 +66,10 @@ describe("Household Edit Actions", () => {
 
             // Verify the function was called with the correct arguments
             const expectMock = expect as any;
-            expectMock(mockUpdateHousehold).toHaveBeenCalledWith(mockHouseholdId, mockFormData);
+            expectMock(vi.mocked(updateHousehold)).toHaveBeenCalledWith(
+                mockHouseholdId,
+                mockFormData,
+            );
 
             // Log for debug purposes
             console.log("Update household was called with empty arrays");
@@ -82,7 +84,7 @@ describe("Household Edit Actions", () => {
             };
 
             // Reset call counts
-            mockUpdateHousehold.mockClear();
+            vi.mocked(updateHousehold).mockClear();
 
             const result = await updateHousehold(mockHouseholdId, formDataWithArrays);
 
@@ -91,7 +93,7 @@ describe("Household Edit Actions", () => {
 
             // Verify the function was called with populated arrays
             const expectMock = expect as any;
-            expectMock(mockUpdateHousehold).toHaveBeenCalledWith(
+            expectMock(vi.mocked(updateHousehold)).toHaveBeenCalledWith(
                 mockHouseholdId,
                 formDataWithArrays,
             );
