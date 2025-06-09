@@ -1,11 +1,9 @@
 import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { config } from "dotenv";
 
-// Use require for postgres to avoid import issues
-const postgres = require("postgres");
-
-// Use require for dotenv to avoid import issues
-require("dotenv").config();
+config();
 
 // Check if we're running in a test environment
 const isTestEnvironment = process.env.NODE_ENV === "test";
@@ -18,8 +16,12 @@ const isBuildTime =
 
 // Create proper mock implementations that throw on actual use
 const createMockClient = () => {
-    // Proxy a function since postgres client is callable
-    return new Proxy(() => {}, {
+    // Create a more complete mock that matches the postgres client signature
+    const mockFn = (() => {
+        throw new Error("Database client called during build time or tests");
+    }) as unknown as ReturnType<typeof postgres>;
+
+    return new Proxy(mockFn, {
         apply() {
             throw new Error("Database client called during build time or tests");
         },
@@ -28,7 +30,7 @@ const createMockClient = () => {
                 `Database client property accessed during build time or tests. Property: ${String(prop)}`,
             );
         },
-    }) as ReturnType<typeof postgres>;
+    });
 };
 
 const createMockDb = () => {
