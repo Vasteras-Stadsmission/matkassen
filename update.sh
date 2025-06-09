@@ -44,6 +44,8 @@ fi
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
 cd $APP_DIR
+# Enable Docker Compose Bake for potentially better build performance
+export COMPOSE_BAKE=true
 sudo docker compose build
 sudo docker compose up -d
 
