@@ -361,8 +361,8 @@ done
 
 # Build the containers with proper error handling
 echo "Building Docker containers..."
-# Enable Docker Compose Bake for potentially better build performance
-export COMPOSE_BAKE=true
+# Enable Docker Compose Bake for potentially better build performance (if not already set)
+export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
 if ! sudo docker compose build --no-cache; then
   echo "Docker build failed. Check the build logs above."
   exit 1

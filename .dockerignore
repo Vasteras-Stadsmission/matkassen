@@ -23,9 +23,9 @@ coverage
 .DS_Store
 Thumbs.db
 
-# Docker files
-Dockerfile*
+# Docker files (exclude compose files but keep Dockerfiles)
 docker-compose*.yml
+Dockerfile.dev
 
 # TypeScript build info (these are regenerated)
 *.tsbuildinfo
