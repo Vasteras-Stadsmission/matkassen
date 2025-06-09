@@ -1,4 +1,3 @@
-import { describe, it, expect } from "bun:test";
 import {
     getISOWeekNumber,
     getWeekDateRange,
@@ -45,21 +44,21 @@ describe("Schedule Validation Functions", () => {
         it("returns the correct date range for a specific week", () => {
             // Test case 1: Week 1 of 2023
             const { startDate: start1, endDate: end1 } = getWeekDateRange(2023, 1);
-            expect(start1.getFullYear()).toBe(2023);
-            expect(start1.getMonth()).toBe(0); // January
-            expect(start1.getDate()).toBe(2); // January 2, 2023 - Monday
-            expect(end1.getFullYear()).toBe(2023);
-            expect(end1.getMonth()).toBe(0); // January
-            expect(end1.getDate()).toBe(8); // January 8, 2023 - Sunday
+            expect(start1.getUTCFullYear()).toBe(2023);
+            expect(start1.getUTCMonth()).toBe(0); // January
+            expect(start1.getUTCDate()).toBe(2); // January 2, 2023 - Monday
+            expect(end1.getUTCFullYear()).toBe(2023);
+            expect(end1.getUTCMonth()).toBe(0); // January
+            expect(end1.getUTCDate()).toBe(8); // January 8, 2023 - Sunday
 
             // Test case 2: Week 52 of 2023
             const { startDate: start2, endDate: end2 } = getWeekDateRange(2023, 52);
-            expect(start2.getFullYear()).toBe(2023);
-            expect(start2.getMonth()).toBe(11); // December
-            expect(start2.getDate()).toBe(25); // December 25, 2023 - Monday
-            expect(end2.getFullYear()).toBe(2023);
-            expect(end2.getMonth()).toBe(11); // December
-            expect(end2.getDate()).toBe(31); // December 31, 2023 - Sunday
+            expect(start2.getUTCFullYear()).toBe(2023);
+            expect(start2.getUTCMonth()).toBe(11); // December
+            expect(start2.getUTCDate()).toBe(25); // December 25, 2023 - Monday
+            expect(end2.getUTCFullYear()).toBe(2023);
+            expect(end2.getUTCMonth()).toBe(11); // December
+            expect(end2.getUTCDate()).toBe(31); // December 31, 2023 - Sunday
         });
     });
 

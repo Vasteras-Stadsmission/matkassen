@@ -12,13 +12,19 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
 
-            - name: Setup Bun
-              uses: oven-sh/setup-bun@v2
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
               with:
-                  bun-version: latest
+                  version: latest
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: "pnpm"
 
             - name: Install dependencies
-              run: bun install --frozen-lockfile
+              run: pnpm install --frozen-lockfile
 
             # Check for schema changes without migration files
             - name: Verify migration files
@@ -29,18 +35,18 @@ jobs:
                   DATABASE_URL: postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
               run: |
                   # Check if there are schema changes that need migration files
-                  SCHEMA_CHANGES=$(bun run drizzle-kit check:pg)
+                  SCHEMA_CHANGES=$(pnpm drizzle-kit check)
                   if [[ $SCHEMA_CHANGES == *"Schema drift detected"* ]]; then
                     echo "⚠️ Schema changes detected but no migration files found."
-                    echo "Run 'bun run db:generate' locally to create migration files and commit them."
+                    echo "Run 'pnpm run db:generate' locally to create migration files and commit them."
                     exit 1
                   fi
                   echo "✅ Migration files are up to date with schema."
 
             - name: Run tests
               env:
-                  BUN_ENV: test
-              run: bun test
+                  NODE_ENV: test
+              run: pnpm test
 
             - name: Build
               env:
@@ -53,4 +59,4 @@ jobs:
                   AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
                   DATABASE_URL: postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@db:5432/${{ env.POSTGRES_DB }}
                   DATABASE_URL_EXTERNAL: postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
-              run: bun run build
+              run: pnpm run build

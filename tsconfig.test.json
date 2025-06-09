@@ -10,14 +10,21 @@
         "strict": false,
         "ignoreDeprecations": "5.0",
         "typeRoots": ["./node_modules/@types", "./types"],
+        "types": ["node", "vitest/globals"],
         "noErrorTruncation": true,
-        "noEmit": true
+        "noEmit": true,
+        "moduleResolution": "bundler",
+        "paths": {
+            "@/*": ["./*"]
+        }
     },
     "include": [
         "**/__tests__/**/*.ts",
         "**/__tests__/**/*.tsx",
-        "types/test-globals.d.ts",
-        "types/bun-test.d.ts"
+        "**/*.ts",
+        "**/*.tsx",
+        "vitest.config.ts",
+        "types/**/*.d.ts"
     ],
-    "exclude": ["node_modules", ".next", "app/**/*.ts", "app/**/*.tsx"]
+    "exclude": ["node_modules", ".next"]
 }

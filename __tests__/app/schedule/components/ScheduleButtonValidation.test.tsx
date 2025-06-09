@@ -1,11 +1,12 @@
-import { describe, test, expect } from "bun:test";
 import React from "react";
-import { mockTranslations } from "../../../test-helpers";
+import { vi } from "vitest";
 import { renderWithProviders } from "../test-helpers";
 import { MockButton } from "../mock-components";
 
-// Mock dependencies
-mockTranslations();
+// Mock next-intl directly
+vi.mock("next-intl", () => ({
+    useTranslations: () => (key: string) => key,
+}));
 
 // Create a simplified version of the schedule form to test button state logic
 function SimplifiedScheduleForm({

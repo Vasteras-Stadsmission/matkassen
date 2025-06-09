@@ -1,34 +1,22 @@
+import { vi } from "vitest";
+
 /**
  * Test helper functions for mocking dependencies in tests
  */
 
-// Store mocks here so we can restore them later
-const mocks = new Map<string, any>();
-
-// Create a simplified version of vi.mock
+// Create a simplified version of vi.mock for dynamic mocking
 export function mockModule(moduleName: string, factory: () => any) {
-    // Store the mock for this module
-    mocks.set(moduleName, factory());
-
-    // Add to jest.mock if it exists (for compatibility)
-    if (typeof jest !== "undefined" && jest.mock) {
-        jest.mock(moduleName, () => mocks.get(moduleName));
+    // For Vitest, use vi.mock
+    if (typeof vi !== "undefined" && vi.mock) {
+        vi.mock(moduleName, factory);
     }
 }
 
-// Get a mocked module
-export function getMockedModule(moduleName: string) {
-    return mocks.get(moduleName) || {};
-}
-
-// Mock next-intl's useTranslations hook
+// Mock next-intl's useTranslations hook directly
 export function mockTranslations() {
-    mockModule("next-intl", () => ({
-        useTranslations: () => (key: string) => key,
-    }));
-}
-
-// Reset all mocks
-export function resetMocks() {
-    mocks.clear();
+    if (typeof vi !== "undefined" && vi.mock) {
+        vi.mock("next-intl", () => ({
+            useTranslations: () => (key: string) => key,
+        }));
+    }
 }

@@ -1,6 +1,5 @@
+import { vi } from "vitest";
 // filepath: /Users/niklasmagnusson/git/matkassen/__tests__/app/api/csp-report/route.test.ts
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-
 // Set up mockStoreCspViolationAction as a mock function
 // We need to type it properly to access the mock methods
 interface MockFunction<T> {
@@ -17,20 +16,20 @@ interface MockFunction<T> {
 // we need to mock this module because it's imported in app/db/actions.ts
 // and used by other functions in that file. This prevents module resolution
 // errors during testing.
-mock.module("next/cache", () => ({
-    revalidatePath: mock(() => {}),
-    revalidateTag: mock(() => {}),
-    unstable_cache: mock(() => {}),
+vi.mock("next/cache", () => ({
+    revalidatePath: vi.fn(() => {}),
+    revalidateTag: vi.fn(() => {}),
+    unstable_cache: vi.fn(() => {}),
 }));
 
 // Mock the database action
-const mockStoreCspViolationAction = mock(() => ({ success: true })) as MockFunction<{
+const mockStoreCspViolationAction = vi.fn(() => ({ success: true })) as MockFunction<{
     success: boolean;
     error?: string;
 }>;
 
 // Mock the app db actions
-mock.module("@/app/db/actions", () => ({
+vi.mock("@/app/db/actions", () => ({
     storeCspViolationAction: mockStoreCspViolationAction,
 }));
 
@@ -42,7 +41,7 @@ const corsHeaders = {
 };
 
 // Mock NextResponse for our tests
-const mockNextResponse = mock((data, options = {}) => ({
+const mockNextResponse = vi.fn((data, options = {}) => ({
     status: options.status || 200,
     headers: new Map(Object.entries(options.headers || {})),
     json: () => Promise.resolve(data),

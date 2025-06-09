@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Check if we're running in a test environment
-const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.BUN_ENV === "test";
+const isTestEnvironment = process.env.NODE_ENV === "test";
 
 // Only require DATABASE_URL in non-test environments
 if (!process.env.DATABASE_URL && !isTestEnvironment) {

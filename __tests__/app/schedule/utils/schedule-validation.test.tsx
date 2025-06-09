@@ -1,5 +1,3 @@
-import { describe, test, expect } from "bun:test";
-
 // Mock types and utils similar to those in the application
 type WeekSelection = {
     year: number;

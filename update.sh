@@ -44,7 +44,7 @@ fi
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
 cd $APP_DIR
-sudo COMPOSE_BAKE=true docker compose build
+sudo docker compose build
 sudo docker compose up -d
 
 # Check if Docker Compose started correctly
@@ -57,7 +57,7 @@ fi
 echo "Running database migrations synchronously..."
 cd $APP_DIR
 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
-sudo docker compose exec -T web bun run db:migrate
+sudo docker compose exec -T web pnpm run db:migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
   exit 1
