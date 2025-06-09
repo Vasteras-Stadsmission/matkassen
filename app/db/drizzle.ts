@@ -1,30 +1,67 @@
 import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import dotenv from "dotenv";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
-dotenv.config();
+// Use require for postgres to avoid import issues
+const postgres = require("postgres");
 
-// Check if we're running in a test environment or during build
+// Use require for dotenv to avoid import issues
+require("dotenv").config();
+
+// Check if we're running in a test environment
 const isTestEnvironment = process.env.NODE_ENV === "test";
-// Better build detection: check if we're in build phase or if DATABASE_URL is missing
-const isBuildTime =
-    process.env.NEXT_PHASE === "phase-production-build" ||
-    (typeof window === "undefined" &&
-        !process.env.DATABASE_URL &&
-        (process.env.NODE_ENV === "production" || !process.env.NODE_ENV));
 
-// Only require DATABASE_URL in non-test environments and not during build
-if (!process.env.DATABASE_URL && !isTestEnvironment && !isBuildTime) {
-    throw new Error("DATABASE_URL environment variable is not set");
+// More robust build detection using Next.js official constants
+// Note: NEXT_PHASE is only set during Next.js build, so we fallback to NODE_ENV check
+const isBuildTime =
+    process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD ||
+    (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL);
+
+// Create proper mock implementations that throw on actual use
+const createMockClient = () => {
+    // Proxy a function since postgres client is callable
+    return new Proxy(() => {}, {
+        apply() {
+            throw new Error("Database client called during build time or tests");
+        },
+        get(target, prop) {
+            throw new Error(
+                `Database client property accessed during build time or tests. Property: ${String(prop)}`,
+            );
+        },
+    }) as ReturnType<typeof postgres>;
+};
+
+const createMockDb = () => {
+    return new Proxy({} as ReturnType<typeof drizzle>, {
+        get(target, prop) {
+            throw new Error(
+                `Database accessed during build time or tests. Property: ${String(prop)}`,
+            );
+        },
+    });
+};
+
+// Handle different scenarios with clear error messages
+if (!process.env.DATABASE_URL) {
+    if (isTestEnvironment) {
+        // Tests can continue with mocks
+        console.log("Using mock database for tests");
+    } else if (isBuildTime) {
+        // Build time - warn but allow to continue
+        console.log("DATABASE_URL not available during build (expected)");
+    } else {
+        // Runtime without DATABASE_URL - this is an error
+        throw new Error(
+            "DATABASE_URL environment variable is not set. " +
+                "This is required at runtime for database connectivity.",
+        );
+    }
 }
 
-// Use a mock or real client based on environment
+// Export appropriate client and db based on environment
 export const client =
     isTestEnvironment || isBuildTime
-        ? ({} as ReturnType<typeof postgres>) // Mock client for tests and build
+        ? createMockClient()
         : postgres(process.env.DATABASE_URL as string);
 
-export const db =
-    isTestEnvironment || isBuildTime
-        ? ({} as ReturnType<typeof drizzle>) // Mock DB for tests and build
-        : drizzle(client);
+export const db = isTestEnvironment || isBuildTime ? createMockDb() : drizzle(client);
