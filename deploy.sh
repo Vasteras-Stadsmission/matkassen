@@ -322,7 +322,26 @@ server {
     limit_req zone=mylimit burst=20 nodelay;
 
     # Serve Next.js static assets with proper MIME types and caching
-    # Proxy to Docker container since files are inside the container, not on host filesystem
+    # Split caching rules to prevent chunk loading errors
+
+    # Hashed JS/CSS under chunks/ and css/ - safe for long-term caching
+    location ~* ^/_next/static/(?:chunks|css)/.*\.(?:js|css)$ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # Cache hashed assets for 1 year (they are immutable with hash in filename)
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+
+        # Ensure correct MIME types are set by Next.js
+        proxy_set_header Accept-Encoding "";
+    }
+
+    # All other /_next/static (manifests, runtime, etc.) - always fetch fresh
     location /_next/static/ {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -331,9 +350,9 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
 
-        # Cache static assets for 1 year (they are immutable with hash in filename)
-        expires 1y;
-        add_header Cache-Control "public, immutable";
+        # No caching for build manifests and runtime files
+        expires 0;
+        add_header Cache-Control "no-cache, must-revalidate";
 
         # Ensure correct MIME types are set by Next.js
         proxy_set_header Accept-Encoding "";
