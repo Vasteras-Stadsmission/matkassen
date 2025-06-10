@@ -321,7 +321,53 @@ server {
     # Enable rate limiting
     limit_req zone=mylimit burst=20 nodelay;
 
-    location / {
+    # Proxy all static assets to Next.js server
+    # This ensures correct MIME types and eliminates static file serving issues
+    location /_next/static/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # Cache static assets for performance
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        
+        # Allow client caching but add validation
+        proxy_cache_valid 200 1y;
+    }
+
+    # Proxy public assets to Next.js as well
+    location ~* \.(ico|css|js|gif|jpe?g|png|svg|woff2?|ttf|eot)$ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # Cache public assets
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Serve other static assets (if any remain)
+    location /static/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Proxy all other requests to Next.js
+    location @nextjs {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -336,6 +382,11 @@ server {
         # Disable buffering for streaming support
         proxy_buffering off;
         proxy_set_header X-Accel-Buffering no;
+    }
+
+    # Default location for all other requests
+    location / {
+        try_files \$uri @nextjs;
     }
 }
 EOL
