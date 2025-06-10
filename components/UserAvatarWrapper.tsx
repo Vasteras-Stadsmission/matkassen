@@ -3,8 +3,7 @@
 import dynamic from "next/dynamic";
 
 // Dynamically import the UserAvatar component with no SSR
-// Using a named import since UserAvatar is a default export
-const UserAvatar = dynamic(() => import("./UserAvatar").then(mod => ({ default: mod.default })), {
+const UserAvatar = dynamic(() => import("./UserAvatar"), {
     ssr: false,
     loading: () => (
         <div

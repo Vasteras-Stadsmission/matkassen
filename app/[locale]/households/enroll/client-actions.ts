@@ -1,13 +1,18 @@
 "use client";
 
 import type { PickupLocation, LocationCapacity } from "./types";
+import {
+    getPickupLocations,
+    getPickupLocationSchedules,
+    getPickupLocationCapacityForRange,
+} from "./actions";
+import { getLocationSlotDuration } from "@/app/[locale]/schedule/actions";
 
 /**
  * Client wrapper for getting pickup locations
  */
 export async function getPickupLocationsAction(): Promise<PickupLocation[]> {
     try {
-        const { getPickupLocations } = await import("./actions");
         return getPickupLocations();
     } catch (error) {
         console.error("Error fetching pickup locations:", error);
@@ -22,7 +27,6 @@ export async function getPickupLocationSchedulesAction(
     locationId: string,
 ): Promise<{ schedules: unknown[] }> {
     try {
-        const { getPickupLocationSchedules } = await import("./actions");
         return getPickupLocationSchedules(locationId);
     } catch (error) {
         console.error("Error fetching location schedules:", error);
@@ -37,7 +41,6 @@ export async function getPickupLocationSchedulesAction(
  */
 export async function getLocationSlotDurationAction(locationId: string): Promise<number> {
     try {
-        const { getLocationSlotDuration } = await import("@/app/[locale]/schedule/actions");
         return getLocationSlotDuration(locationId);
     } catch (error) {
         console.error("Error fetching location slot duration:", error);
@@ -55,7 +58,6 @@ export async function getPickupLocationCapacityForRangeAction(
     endDate: Date,
 ): Promise<LocationCapacity | null> {
     try {
-        const { getPickupLocationCapacityForRange } = await import("./actions");
         return getPickupLocationCapacityForRange(locationId, startDate, endDate);
     } catch (error) {
         console.error("Error fetching location capacity:", error);

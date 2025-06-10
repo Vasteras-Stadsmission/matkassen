@@ -36,6 +36,20 @@ const createMockClient = () => {
 const createMockDb = () => {
     return new Proxy({} as ReturnType<typeof drizzle>, {
         get(target, prop) {
+            if (prop === "select") {
+                // Return a mock select function that handles chained calls properly
+                return () => ({
+                    from: () => Promise.resolve([]), // Direct select().from() calls
+                    where: () => ({
+                        orderBy: () => Promise.resolve([]),
+                        limit: () => Promise.resolve([]),
+                    }),
+                    orderBy: () => Promise.resolve([]),
+                    limit: () => Promise.resolve([]),
+                });
+            }
+
+            // For other database operations, still throw to catch unexpected usage
             throw new Error(
                 `Database accessed during build time or tests. Property: ${String(prop)}`,
             );
