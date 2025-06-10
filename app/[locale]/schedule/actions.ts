@@ -9,6 +9,7 @@ import {
     pickupLocationSchedules,
     pickupLocationScheduleDays,
 } from "@/app/db/schema";
+import { isTimeAvailable } from "@/app/utils/schedule/location-availability";
 import { formatStockholmDate, toStockholmTime, fromStockholmTime } from "@/app/utils/date-utils";
 import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { unstable_cache } from "next/cache";
@@ -231,10 +232,7 @@ export async function updateFoodParcelSchedule(
             const locationSchedules = await getPickupLocationSchedules(parcel.locationId);
             const startTimeStr = formatStockholmDate(newTimeslot.startTime, "HH:mm");
 
-            // Import isDateAvailable and isTimeAvailable from our utility
-            const { isTimeAvailable } = await import("@/app/utils/schedule/location-availability");
-
-            // Then check if time is within operating hours
+            // Check if time is within operating hours
             const timeAvailability = isTimeAvailable(
                 newTimeslot.date,
                 startTimeStr,

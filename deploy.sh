@@ -321,53 +321,38 @@ server {
     # Enable rate limiting
     limit_req zone=mylimit burst=20 nodelay;
 
-    # Proxy all static assets to Next.js server
-    # This ensures correct MIME types and eliminates static file serving issues
+    # Serve Next.js static assets directly from nginx for better performance
     location /_next/static/ {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        
-        # Cache static assets for performance
+        alias $APP_DIR/.next/static/;
+
+        # Cache static assets for 1 year (they are immutable with hash in filename)
         expires 1y;
         add_header Cache-Control "public, immutable";
-        
-        # Allow client caching but add validation
-        proxy_cache_valid 200 1y;
+
+        # Ensure JavaScript files are served with correct MIME type
+        location ~* \\.js\$ {
+            add_header Content-Type "application/javascript; charset=utf-8";
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Ensure CSS files are served with correct MIME type
+        location ~* \\.css\$ {
+            add_header Content-Type "text/css; charset=utf-8";
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
     }
 
-    # Proxy public assets to Next.js as well
-    location ~* \.(ico|css|js|gif|jpe?g|png|svg|woff2?|ttf|eot)$ {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        
-        # Cache public assets
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Serve other static assets (if any remain)
+    # Serve other static assets
     location /static/ {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        
+        alias $APP_DIR/public/static/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
 
-    # Proxy all other requests to Next.js
-    location @nextjs {
+    # Handle all other requests through Next.js
+    location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -382,11 +367,6 @@ server {
         # Disable buffering for streaming support
         proxy_buffering off;
         proxy_set_header X-Accel-Buffering no;
-    }
-
-    # Default location for all other requests
-    location / {
-        try_files \$uri @nextjs;
     }
 }
 EOL
