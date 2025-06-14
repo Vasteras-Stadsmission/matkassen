@@ -286,20 +286,18 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
 # Setup automated renewal cron job that runs twice daily
 echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew > /dev/null
 
-# Now, replace the Nginx config with the full configuration including security headers
 sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
-limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
+# Simple rate limiting - one zone, reasonable limits
+limit_req_zone \$binary_remote_addr zone=app:10m rate=50r/s;
 
-# Redirect HTTP traffic to HTTPS
+# Redirect HTTP to HTTPS
 server {
     listen 80;
     server_name $DOMAIN_NAMES;
-
-    # Redirect all HTTP requests to HTTPS
     return 301 https://\$host\$request_uri;
 }
 
-# Serve HTTPS traffic
+# Main HTTPS server
 server {
     listen 443 ssl;
     server_name $DOMAIN_NAMES;
@@ -309,39 +307,18 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # Security headers - CSP now handled by Next.js for better integration
-    # Keeping other security headers at the Nginx level for defense in depth
+    # Essential security headers
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=(), battery=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(self), gyroscope=(), layout-animations=(self), magnetometer=(), midi=(), screen-wake-lock=(), sync-xhr=(self), xr-spatial-tracking=()" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
-    # Enable rate limiting
-    limit_req zone=mylimit burst=20 nodelay;
+    # Basic settings
+    client_max_body_size 10M;
 
-    # Serve Next.js static assets with proper MIME types and caching
-    # Split caching rules to prevent chunk loading errors
+    # Rate limiting for all requests
+    limit_req zone=app burst=100 nodelay;
 
-    # Hashed JS/CSS under chunks/ and css/ - safe for long-term caching
-    location ~* ^/_next/static/(?:chunks|css)/.*\.(?:js|css)$ {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-
-        # Cache hashed assets for 1 year (they are immutable with hash in filename)
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-
-        # Ensure correct MIME types are set by Next.js
-        proxy_set_header Accept-Encoding "";
-    }
-
-    # All other /_next/static (manifests, runtime, etc.) - always fetch fresh
+    # Static assets with smart caching
     location /_next/static/ {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -350,15 +327,11 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
 
-        # No caching for build manifests and runtime files
-        expires 0;
-        add_header Cache-Control "no-cache, must-revalidate";
-
-        # Ensure correct MIME types are set by Next.js
-        proxy_set_header Accept-Encoding "";
+        # Let Next.js handle caching headers - it knows what's immutable
+        # This prevents the chunk loading issues
     }
 
-    # Handle all other requests through Next.js
+    # Everything else goes to Next.js
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -371,7 +344,7 @@ server {
         proxy_set_header X-Forwarded-Host \$host;
         proxy_cache_bypass \$http_upgrade;
 
-        # Disable buffering for streaming support
+        # Disable buffering for streaming
         proxy_buffering off;
         proxy_set_header X-Accel-Buffering no;
     }
