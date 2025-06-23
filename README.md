@@ -32,12 +32,25 @@ First you need to setup your environment:
     ```
 2. Update the values in the .env file accordingly.
 
-Now, you choose between our two primary development modes:
+Now, you choose between our two development modes:
 
-1. `pnpm run dev`: Next.js is running locally and db in a container (faster dev experience)
-2. `pnpm run dev:containers-only`: A similar setup as in the production environment where both Next.js and db is running in (separate) containers.
+### Mode 1: Fast Development
+```bash
+pnpm run dev
+```
+- Next.js runs locally (fastest hot reload)
+- PostgreSQL runs in Docker container
+- Access: http://localhost:3000
+- **Use this for**: Daily development, making changes, debugging
 
-Note that in neither of these two modes will you have nginx running, as in production.
+### Mode 2: Full Stack Testing
+```bash
+pnpm run dev:nginx
+```
+- Nginx + Next.js + PostgreSQL all run in Docker containers
+- Mirrors production environment (excluding SSL)
+- Access: http://localhost:8080
+- **Use this for**: Testing nginx configuration, rate limiting, proxy behavior, or any container-specific issues
 
 ## Database Migration Workflow
 
@@ -66,7 +79,8 @@ The project uses Drizzle ORM with a migration-based approach:
 
 4. **Migration in Development**:
 
-    - When using `pnpm run dev` or `pnpm run dev:containers-only`, migrations apply automatically before the web service starts
+    - When using `pnpm run dev`, migrations apply automatically before the web service starts
+    - When using `pnpm run dev:nginx`, migrations run automatically when the containers start
 
 5. **Migration in Production**:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
