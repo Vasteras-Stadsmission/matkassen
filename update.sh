@@ -41,6 +41,14 @@ if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
   exit 1
 fi
 
+# Generate nginx configuration from template
+echo "Generating nginx configuration..."
+cd "$APP_DIR"
+chmod +x nginx/generate-nginx-config.sh
+./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" > /etc/nginx/sites-available/default
+sudo systemctl reload nginx
+echo "✅ Nginx configuration updated and reloaded"
+
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
 cd $APP_DIR
