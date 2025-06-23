@@ -294,8 +294,9 @@ if ! ./nginx/generate-nginx-config.sh production "$DOMAIN_NAMES" "$DOMAIN_NAME" 
   exit 1
 fi
 
-# Install the generated configuration
+# Install the generated configuration and shared config
 sudo cp /tmp/nginx-production.conf /etc/nginx/sites-available/$PROJECT_NAME
+sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
 # Restart Nginx to apply the updated configuration
 sudo systemctl restart nginx

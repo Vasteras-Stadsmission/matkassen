@@ -45,7 +45,8 @@ fi
 echo "Generating nginx configuration..."
 cd "$APP_DIR"
 chmod +x nginx/generate-nginx-config.sh
-./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" > /etc/nginx/sites-available/default
+./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
+sudo cp nginx/shared.conf /etc/nginx/shared.conf
 sudo systemctl reload nginx
 echo "✅ Nginx configuration updated and reloaded"
 

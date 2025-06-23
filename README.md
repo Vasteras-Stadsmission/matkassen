@@ -45,7 +45,7 @@ pnpm run dev
 
 ### Mode 2: Full Stack Testing
 ```bash
-pnpm run dev:nginx
+pnpm run preview:production
 ```
 - Nginx + Next.js + PostgreSQL all run in Docker containers
 - Mirrors production environment (excluding SSL)
