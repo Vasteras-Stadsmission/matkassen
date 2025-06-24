@@ -1,0 +1,80 @@
+# Docker Compose configuration with Nginx proxy for local testing
+# This setup mirrors the production environment locally (without SSL)
+
+services:
+    nginx:
+        build:
+            context: ./nginx
+            dockerfile: Dockerfile
+        restart: always
+        ports:
+            - "8080:80" # Access via http://localhost:8080
+        depends_on:
+            nextjs:
+                condition: service_healthy
+        networks:
+            - app_network
+        healthcheck:
+            test: ["CMD", "nginx", "-t"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    nextjs:
+        build:
+            context: .
+            dockerfile: Dockerfile # Use production Dockerfile
+        restart: always
+        expose:
+            - "3000" # Only expose to other containers, not to host
+        environment:
+            - NODE_ENV=production # Production mode
+            - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+        env_file:
+            - .env
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - app_network
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "wget",
+                    "--no-verbose",
+                    "--tries=1",
+                    "--spider",
+                    "http://127.0.0.1:3000/api/health",
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    db:
+        image: postgres:17.5
+        restart: always
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - app_network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
+
+volumes:
+    postgres_data:
+
+networks:
+    app_network:
+        driver: bridge
