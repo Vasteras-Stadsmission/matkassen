@@ -14,6 +14,7 @@ This directory contains nginx configuration files for both local development and
 ### Local Development
 
 Generate the local configuration:
+
 ```bash
 ./nginx/generate-nginx-config.sh local
 ```
@@ -23,6 +24,7 @@ This creates `nginx/local.conf` which is used by the Docker container.
 ### Production Deployment
 
 The production configuration is automatically generated during deployment by `deploy.sh`:
+
 ```bash
 ./nginx/generate-nginx-config.sh production "matkassen.org www.matkassen.org" "matkassen.org"
 ```

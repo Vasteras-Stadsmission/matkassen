@@ -35,18 +35,22 @@ First you need to setup your environment:
 Now, you choose between our two development modes:
 
 ### Mode 1: Fast Development
+
 ```bash
 pnpm run dev
 ```
+
 - Next.js runs locally (fastest hot reload)
 - PostgreSQL runs in Docker container
 - Access: http://localhost:3000
 - **Use this for**: Daily development, making changes, debugging
 
 ### Mode 2: Full Stack Testing
+
 ```bash
 pnpm run preview:production
 ```
+
 - Nginx + Next.js + PostgreSQL all run in Docker containers
 - Mirrors production environment (excluding SSL)
 - Access: http://localhost:8080
