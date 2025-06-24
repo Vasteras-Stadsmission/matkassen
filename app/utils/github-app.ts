@@ -42,6 +42,8 @@ export async function getGitHubAppToken(): Promise<string> {
 
 /**
  * Check if a user is a member of the organization using GitHub App token
+ * @throws Error for configuration/network issues (mapped to Auth.js Configuration error)
+ * @returns true if user is a member, false if not a member
  */
 export async function checkOrganizationMembership(
     username: string,
@@ -61,11 +63,40 @@ export async function checkOrganizationMembership(
             },
         );
 
-        // 204 = user is a member (public or private)
-        // 404 = user is not a member or org doesn't exist
-        return response.status === 204;
+        // Handle specific response codes
+        if (response.status === 204) {
+            // User is a member (public or private)
+            return true;
+        }
+
+        if (response.status === 404) {
+            // User is definitely not a member or org doesn't exist
+            return false;
+        }
+
+        // Handle other status codes as configuration/infrastructure errors
+        if (response.status === 401) {
+            throw new Error("GitHub App authentication failed - check app credentials");
+        }
+
+        if (response.status === 403) {
+            throw new Error("GitHub App lacks permission to check organization membership");
+        }
+
+        if (response.status === 429) {
+            throw new Error("GitHub API rate limit exceeded - please try again later");
+        }
+
+        // Any other unexpected status
+        throw new Error(`GitHub API returned unexpected status: ${response.status}`);
     } catch (error) {
+        // If it's already our custom error, re-throw it
+        if (error instanceof Error && error.message.startsWith("GitHub")) {
+            throw error;
+        }
+
+        // Network/fetch errors
         console.error("Failed to check organization membership:", error);
-        return false;
+        throw new Error("Unable to verify organization membership - please try again");
     }
 }
