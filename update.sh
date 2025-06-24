@@ -8,7 +8,7 @@
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
-APP_DIR=~/$PROJECT_NAME
+APP_DIR=~/"$PROJECT_NAME"
 
 # For Docker internal communication ("db" is the name of Postgres container)
 DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
@@ -52,7 +52,7 @@ echo "✅ Nginx configuration updated and reloaded"
 
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
-cd $APP_DIR
+cd "$APP_DIR"
 # Enable Docker Compose Bake for potentially better build performance (if not already set)
 export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
 sudo docker compose build
@@ -66,7 +66,7 @@ fi
 
 # Run migrations directly rather than waiting for the migration container
 echo "Running database migrations synchronously..."
-cd $APP_DIR
+cd "$APP_DIR"
 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
 sudo docker compose exec -T web pnpm run db:migrate
 if [ $? -ne 0 ]; then

@@ -55,7 +55,7 @@ fi
 
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
-APP_DIR=~/$PROJECT_NAME
+APP_DIR=~/"$PROJECT_NAME"
 SWAP_SIZE="1G"  # Swap size of 1GB
 
 # Update package list and upgrade existing packages
@@ -194,11 +194,11 @@ sudo apt install nginx -y
 sudo rm -f /etc/nginx/sites-enabled/default
 
 # Remove old Nginx config (if it exists)
-sudo rm -f /etc/nginx/sites-available/$PROJECT_NAME
-sudo rm -f /etc/nginx/sites-enabled/$PROJECT_NAME
+sudo rm -f /etc/nginx/sites-available/"$PROJECT_NAME"
+sudo rm -f /etc/nginx/sites-enabled/"$PROJECT_NAME"
 
 # Create a temporary basic Nginx config for initial setup
-sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
+sudo tee /etc/nginx/sites-available/"$PROJECT_NAME" > /dev/null <<EOL
 server {
     listen 80;
     server_name $DOMAIN_NAMES;
@@ -210,7 +210,7 @@ server {
 EOL
 
 # Enable the temporary configuration
-sudo ln -s /etc/nginx/sites-available/$PROJECT_NAME /etc/nginx/sites-enabled/$PROJECT_NAME
+sudo ln -s /etc/nginx/sites-available/"$PROJECT_NAME" /etc/nginx/sites-enabled/"$PROJECT_NAME"
 
 # Start Nginx with temporary config
 sudo systemctl restart nginx
@@ -288,21 +288,21 @@ echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-re
 
 # Generate production nginx configuration using template
 echo "Generating production nginx configuration..."
-cd $APP_DIR
+cd "$APP_DIR"
 if ! ./nginx/generate-nginx-config.sh production "$DOMAIN_NAMES" "$DOMAIN_NAME" > /tmp/nginx-production.conf; then
   echo "Failed to generate nginx configuration. Exiting."
   exit 1
 fi
 
 # Install the generated configuration and shared config
-sudo cp /tmp/nginx-production.conf /etc/nginx/sites-available/$PROJECT_NAME
+sudo cp /tmp/nginx-production.conf /etc/nginx/sites-available/"$PROJECT_NAME"
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
 # Restart Nginx to apply the updated configuration
 sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory
-cd $APP_DIR
+cd "$APP_DIR"
 
 # Check for existing Docker artifacts and handle them
 echo "Checking for existing Docker artifacts..."
@@ -312,7 +312,7 @@ if [[ -d "$APP_DIR/.docker" ]]; then
 fi
 
 # Check for compressed artifacts from previous builds
-for gz_file in $(find $APP_DIR -name "*.gz" -type f 2>/dev/null || true); do
+for gz_file in $(find "$APP_DIR" -name "*.gz" -type f 2>/dev/null || true); do
   echo "Found compressed artifact: $gz_file, removing..."
   sudo rm -f "$gz_file"
 done
@@ -341,7 +341,7 @@ echo "✅ All services are running and healthy (verified by Docker health checks
 
 # Run migrations directly (database is already healthy from Docker health checks)
 echo "Running database migrations..."
-cd $APP_DIR
+cd "$APP_DIR"
 
 # Ensure we're in the correct directory
 if [ ! -d "$APP_DIR/migrations" ]; then
