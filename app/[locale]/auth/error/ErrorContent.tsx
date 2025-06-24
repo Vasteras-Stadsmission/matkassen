@@ -11,32 +11,25 @@ export interface ErrorContentProps {
     messageKey?: string;
 }
 
-// Component that uses search params wrapped in Suspense
 function ErrorContentWithSearchParams({ messageKey }: { messageKey?: string }) {
     const searchParams = useSearchParams();
     const errorType = searchParams.get("error") || messageKey;
-    const t = useTranslations();
     const authT = useTranslations("auth");
 
-    // Map error types to translation keys
+    // Map Auth.js official error types to translation keys
+    // Reference: https://authjs.dev/guides/pages/error
     const getErrorMessage = () => {
-        switch (errorType) {
-            case "not-org-member":
-                return authT("errors.notOrgMember");
-            case "invalid-account-provider":
-                return authT("errors.invalidProvider");
-            case "configuration":
-                return authT("errors.configuration");
+        switch (errorType?.toLowerCase()) {
             case "accessdenied":
-                return authT("errors.accessDenied");
+                return authT("errors.notOrgMember"); // Access denied - user not org member
+            case "configuration":
+                return authT("errors.configuration"); // Server configuration problems
             case "verification":
-                return authT("errors.verification");
-            case "general":
-                return t("wizard.error.general");
-            case "server":
-                return t("wizard.error.general");
+                return authT("errors.verification"); // Email token expired/used
+            case "default":
+                return authT("errors.default"); // Catch-all error
             default:
-                return authT("errors.default");
+                return authT("errors.default"); // Fallback for any unrecognized errors
         }
     };
 
@@ -58,12 +51,8 @@ function ErrorContentWithSearchParams({ messageKey }: { messageKey?: string }) {
                         </Text>
 
                         <Stack gap="md">
-                            <Button component={Link} href="/auth/signin" color="blue">
+                            <Button component={Link} href="/auth/signin" color="blue" fullWidth>
                                 {authT("tryAgain")}
-                            </Button>
-
-                            <Button component={Link} href="/" variant="light">
-                                {t("wizard.backToHouseholds")}
                             </Button>
                         </Stack>
                     </Stack>
