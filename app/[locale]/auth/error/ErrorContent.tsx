@@ -22,6 +22,8 @@ function ErrorContentWithSearchParams({ messageKey }: { messageKey?: string }) {
         switch (errorType?.toLowerCase()) {
             case "accessdenied":
                 return authT("errors.notOrgMember"); // Access denied - user not org member
+            case "invalid-provider":
+                return authT("errors.invalidProvider"); // Invalid account provider
             case "configuration":
                 return authT("errors.configuration"); // Server configuration problems
             case "verification":

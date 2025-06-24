@@ -64,11 +64,11 @@ const authConfig: NextAuthConfig = {
                     }
                 } catch (error) {
                     console.error("Error checking organization membership:", error);
-                    return false; // This will trigger AccessDenied error
+                    return `/auth/error?error=configuration`;
                 }
             }
             console.error("Invalid account provider:", account?.provider);
-            return false; // This will trigger AccessDenied error
+            return `/auth/error?error=invalid-provider`;
         },
         // Redirect to home page after successful authentication
         async redirect({ url, baseUrl }) {
