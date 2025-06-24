@@ -67,6 +67,7 @@ Matkassen uses GitHub OAuth for user authentication and a GitHub App for organiz
 3. **Configure environment variables** (see `.env.example` for required variables)
 
 For detailed GitHub setup instructions, see:
+
 - [Creating an OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)
 - [Creating a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app)
 
