@@ -12,6 +12,9 @@ on:
                     - staging
                 default: "staging"
 
+permissions:
+    contents: read
+
 jobs:
     deploy:
         name: Deploy to ${{ github.event.inputs.environment }}

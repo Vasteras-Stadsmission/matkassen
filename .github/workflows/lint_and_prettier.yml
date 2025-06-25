@@ -5,6 +5,9 @@ on:
         types: [opened, synchronize, reopened]
         branches: [main]
 
+permissions:
+    contents: read
+
 # Prevent multiple workflow runs
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
