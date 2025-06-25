@@ -56,6 +56,28 @@ pnpm run preview:production
 - Access: http://localhost:8080
 - **Use this for**: Testing nginx configuration, rate limiting, proxy behavior, or any container-specific issues
 
+## Authentication
+
+Matkassen uses GitHub OAuth for user authentication and a GitHub App for organization membership verification. This approach eliminates the need to handle user credentials, passwords, or email verification—GitHub handles all of that.
+
+### Setup
+
+1. **Create a GitHub OAuth App** for user sign-in
+2. **Create a GitHub App** with organization member permissions
+3. **Configure environment variables** (see `.env.example` for required variables)
+
+For detailed GitHub setup instructions, see:
+
+- [Creating an OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)
+- [Creating a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app)
+
+### How It Works
+
+- Users sign in with their existing GitHub account (OAuth)
+- The app verifies organization membership using GitHub App credentials
+- Only `vasteras-stadsmission` organization members can access the application
+- Non-members see a clear access denied message
+
 ## Database Migration Workflow
 
 The project uses Drizzle ORM with a migration-based approach:

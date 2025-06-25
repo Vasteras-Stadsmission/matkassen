@@ -55,6 +55,7 @@ export default async function middleware(request: NextRequest) {
     // 2. Public routes - apply only i18n middleware, no auth checks
     const publicPatterns = [
         /^\/(en|sv)\/auth\/.*/, // Auth pages with locale prefixes
+        /^\/auth\/.*/, // Auth pages without locale prefixes (from Auth.js redirects)
     ];
 
     const isPublicRoute = publicPatterns.some(pattern => pattern.test(pathname));

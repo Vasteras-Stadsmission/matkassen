@@ -16,6 +16,8 @@
         "signInTitle": "Logga in på Matkassen",
         "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matkassens administrationssystem.",
         "signInWithGitHub": "Logga in med GitHub",
+        "errorTitle": "Autentiseringsfel",
+        "tryAgain": "Försök igen",
         "account": "Konto",
         "profile": "Profil",
         "user": "Användare",

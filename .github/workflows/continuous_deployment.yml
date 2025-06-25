@@ -26,6 +26,10 @@ jobs:
                       export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
+                      export AUTH_GITHUB_APP_ID="${{ secrets.AUTH_GITHUB_APP_ID }}"
+                      export AUTH_GITHUB_APP_PRIVATE_KEY="${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}"
+                      export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
+                      export GITHUB_ORG="vasteras-stadsmission"
                       export DOMAIN_NAME="staging.matkassen.org"
 
                       APP_DIR=~/matkassen
@@ -75,6 +79,10 @@ jobs:
                       export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
                       export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
+                      export AUTH_GITHUB_APP_ID="${{ secrets.AUTH_GITHUB_APP_ID }}"
+                      export AUTH_GITHUB_APP_PRIVATE_KEY="${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}"
+                      export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
+                      export GITHUB_ORG="vasteras-stadsmission"
                       export DOMAIN_NAME="matkassen.org"
 
                       APP_DIR=~/matkassen
