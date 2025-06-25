@@ -40,10 +40,10 @@ const nextConfig: NextConfig = {
         // Trust proxy headers for Server Actions when behind nginx
         serverActions: {
             allowedOrigins: [
-                "localhost:8080", // Local development through nginx
-                "staging.matkassen.org",
-                "matkassen.org",
-                "www.matkassen.org",
+                "http://localhost:8080", // Local development through nginx
+                "https://staging.matkassen.org",
+                "https://matkassen.org",
+                "https://www.matkassen.org",
             ],
         },
     },
