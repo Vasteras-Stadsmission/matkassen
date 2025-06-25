@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 import { Window } from "happy-dom";
 
 // Set up happy-dom
@@ -46,22 +46,22 @@ const mockHouseholdData = {
 };
 
 // Mock functions for database actions with correct typings
-const mockGetHouseholdFormData = mock<(id: string) => Promise<typeof mockHouseholdData>>(() =>
+const mockGetHouseholdFormData = vi.fn<(id: string) => Promise<typeof mockHouseholdData>>(() =>
     Promise.resolve(mockHouseholdData),
 );
-const mockUpdateHousehold = mock<
+const mockUpdateHousehold = vi.fn<
     (id: string, data: typeof mockHouseholdData) => Promise<{ success: boolean; error?: string }>
 >(() => Promise.resolve({ success: true }));
-const mockPush = mock<(url: string) => Promise<boolean>>(() => Promise.resolve(true));
+const mockPush = vi.fn<(url: string) => Promise<boolean>>(() => Promise.resolve(true));
 
 // Create mocks for actions
-mock.module("@/app/[locale]/households/[id]/edit/actions", () => ({
+vi.mock("@/app/[locale]/households/[id]/edit/actions", () => ({
     getHouseholdFormData: mockGetHouseholdFormData,
     updateHousehold: mockUpdateHousehold,
 }));
 
 // Create mocks for router
-mock.module("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: mockPush }),
 }));
 

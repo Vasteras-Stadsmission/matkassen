@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import React from "react";
+import { vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import { FoodParcel } from "@/app/[locale]/schedule/actions";
 import {
@@ -42,8 +42,7 @@ const mockShowNotification = (...args: any[]) => {
 };
 
 // Mock notifications at the earliest point
-import { mock } from "bun:test";
-mock.module("@mantine/notifications", () => ({
+vi.mock("@mantine/notifications", () => ({
     showNotification: mockShowNotification,
 }));
 

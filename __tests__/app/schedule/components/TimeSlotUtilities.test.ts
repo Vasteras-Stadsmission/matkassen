@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import { formatDuration } from "@/app/[locale]/schedule/components/WeeklyScheduleGrid";
 
 describe("Time Slot Utilities", () => {

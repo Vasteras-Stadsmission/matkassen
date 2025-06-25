@@ -1,5 +1,3 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-
 // Mock types similar to those used in the component
 type Weekday = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 

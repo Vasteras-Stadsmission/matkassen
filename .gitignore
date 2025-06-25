@@ -46,6 +46,12 @@ next-env.d.ts
 # Ensure migrations are tracked
 !/migrations/
 !/migrations/**
+# But ignore auto-generated snapshot files
+migrations/schema.ts
+migrations/relations.ts
 
 # Ignore generated i18n files
 messages/*.d.json.ts
+
+# Ignore generated nginx config files (production configs are generated on server)
+nginx/local.conf

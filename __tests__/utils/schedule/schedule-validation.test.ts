@@ -269,7 +269,7 @@ describe("Schedule validation functions", () => {
             const range = getWeekDateRange(2025, 1);
 
             // Ensure it's actually a valid week and follows the expected pattern
-            expect(range.startDate.getDay()).toBe(1); // Monday
+            expect(range.startDate.getUTCDay()).toBe(1); // Monday
 
             // Calculate days between dates - there should be 6 days difference from Monday to Sunday
             // We need to use exact date comparison without time components
@@ -281,7 +281,7 @@ describe("Schedule validation functions", () => {
             expect(diffInDays).toBe(6); // 6 days difference from Monday to Sunday
 
             // The start and end dates should be in the correct relation to each other
-            expect(range.endDate.getDay()).toBe(0); // Sunday
+            expect(range.endDate.getUTCDay()).toBe(0); // Sunday
         });
 
         it("should handle the last week of the year correctly", () => {
@@ -289,8 +289,8 @@ describe("Schedule validation functions", () => {
             const range = getWeekDateRange(2025, 52);
 
             // Ensure it starts with a Monday and ends with a Sunday
-            expect(range.startDate.getDay()).toBe(1); // Monday
-            expect(range.endDate.getDay()).toBe(0); // Sunday
+            expect(range.startDate.getUTCDay()).toBe(1); // Monday
+            expect(range.endDate.getUTCDay()).toBe(0); // Sunday
 
             // Calculate days between dates - there should be 6 days difference
             const startDateOnly = new Date(range.startDate.toISOString().split("T")[0]);
@@ -314,23 +314,16 @@ describe("Schedule validation functions", () => {
             // Week 19 in 2025 should be May 5 - May 11 regardless of timezone
             const range = getWeekDateRange(2025, 19);
 
-            // Create date with specific time to test timezone handling
-            const startWithTime = new Date(range.startDate);
-            startWithTime.setHours(0, 0, 0, 0); // Set to midnight
-
-            const endWithTime = new Date(range.endDate);
-            endWithTime.setHours(23, 59, 59, 999); // Set to end of day
-
             // Extract dates only (YYYY-MM-DD) to ensure timezone doesn't affect the date
-            const startDateOnly = startWithTime.toISOString().split("T")[0];
-            const endDateOnly = endWithTime.toISOString().split("T")[0];
+            const startDateOnly = range.startDate.toISOString().split("T")[0];
+            const endDateOnly = range.endDate.toISOString().split("T")[0];
 
             expect(startDateOnly).toBe("2025-05-05");
             expect(endDateOnly).toBe("2025-05-11");
 
-            // Regardless of the time part, the day of week should be consistent
-            expect(startWithTime.getDay()).toBe(1); // Monday
-            expect(endWithTime.getDay()).toBe(0); // Sunday
+            // Check day of week using UTC methods since our function returns UTC dates
+            expect(range.startDate.getUTCDay()).toBe(1); // Monday
+            expect(range.endDate.getUTCDay()).toBe(0); // Sunday
         });
 
         it("should consistently return Monday as first day for all weeks of 2025", () => {
@@ -339,8 +332,8 @@ describe("Schedule validation functions", () => {
 
             for (const week of weeksToTest) {
                 const range = getWeekDateRange(2025, week);
-                expect(range.startDate.getDay()).toBe(1); // Monday
-                expect(range.endDate.getDay()).toBe(0); // Sunday
+                expect(range.startDate.getUTCDay()).toBe(1); // Monday
+                expect(range.endDate.getUTCDay()).toBe(0); // Sunday
 
                 // Calculate days between dates correctly - should be 6 days difference
                 const startDateOnly = new Date(range.startDate.toISOString().split("T")[0]);

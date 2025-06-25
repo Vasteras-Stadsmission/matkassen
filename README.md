@@ -32,12 +32,51 @@ First you need to setup your environment:
     ```
 2. Update the values in the .env file accordingly.
 
-Now, you choose between our two primary development modes:
+Now, you choose between our two development modes:
 
-1. `bun run dev`: Next.js is running locally and db in a container (faster dev experience)
-2. `bun run dev:containers-only`: A similar setup as in the production environment where both Next.js and db is running in (separate) containers.
+### Mode 1: Fast Development
 
-Note that in neither of these two modes will you have nginx running, as in production.
+```bash
+pnpm run dev
+```
+
+- Next.js runs locally (fastest hot reload)
+- PostgreSQL runs in Docker container
+- Access: http://localhost:3000
+- **Use this for**: Daily development, making changes, debugging
+
+### Mode 2: Full Stack Testing
+
+```bash
+pnpm run preview:production
+```
+
+- Nginx + Next.js + PostgreSQL all run in Docker containers
+- Mirrors production environment (excluding SSL)
+- Access: http://localhost:8080
+- **Use this for**: Testing nginx configuration, rate limiting, proxy behavior, or any container-specific issues
+
+## Authentication
+
+Matkassen uses GitHub OAuth for user authentication and a GitHub App for organization membership verification. This approach eliminates the need to handle user credentials, passwords, or email verification—GitHub handles all of that.
+
+### Setup
+
+1. **Create a GitHub OAuth App** for user sign-in
+2. **Create a GitHub App** with organization member permissions
+3. **Configure environment variables** (see `.env.example` for required variables)
+
+For detailed GitHub setup instructions, see:
+
+- [Creating an OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)
+- [Creating a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app)
+
+### How It Works
+
+- Users sign in with their existing GitHub account (OAuth)
+- The app verifies organization membership using GitHub App credentials
+- Only `vasteras-stadsmission` organization members can access the application
+- Non-members see a clear access denied message
 
 ## Database Migration Workflow
 
@@ -46,19 +85,19 @@ The project uses Drizzle ORM with a migration-based approach:
 1. **Making Schema Changes**:
 
     - Update the schema definition in `app/db/schema.ts`
-    - Generate SQL migration files with `bun run db:generate`
+    - Generate SQL migration files with `pnpm run db:generate`
     - Migration files will be created in the `migrations` directory
 
 2. **Applying Migrations**:
 
-    - Run `bun run db:migrate` to apply migration files to the database
+    - Run `pnpm run db:migrate` to apply migration files to the database
     - In Docker environments, migrations run automatically on startup
 
 3. **Custom SQL Migrations**:
 
     - If you want to ship custom DDL changes or seed data separately from your schema diffs, run:
         ```sh
-        bunx drizzle-kit generate --custom --name=seed-users
+        pnpm exec drizzle-kit generate --custom --name=seed-users
         ```
     - This creates an empty migration file (e.g., `0006_seed-users.sql`) under your migrations folder
     - You can fill this file with custom INSERT, UPDATE, or DDL statements
@@ -66,7 +105,8 @@ The project uses Drizzle ORM with a migration-based approach:
 
 4. **Migration in Development**:
 
-    - When using `bun run dev` or `bun run dev:containers-only`, migrations apply automatically before the web service starts
+    - When using `pnpm run dev`, migrations apply automatically before the web service starts
+    - When using `pnpm run dev:nginx`, migrations run automatically when the containers start
 
 5. **Migration in Production**:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
@@ -81,5 +121,5 @@ Note that sudo is needed when executing the commands on the VPS.
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
 - `sudo docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB` - enter Postgres db
-- `bun run db:generate` - generate new migration files from schema changes
-- `bun run db:migrate` - apply migrations to the database manually
+- `pnpm run db:generate` - generate new migration files from schema changes
+- `pnpm run db:migrate` - apply migrations to the database manually

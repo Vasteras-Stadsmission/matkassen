@@ -11,3 +11,4 @@ migrations/meta/_journal.json
 # Other common files to ignore
 .DS_Store
 *.log
+pnpm-lock.yaml

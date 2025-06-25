@@ -8,7 +8,7 @@
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
-APP_DIR=~/$PROJECT_NAME
+APP_DIR=~/"$PROJECT_NAME"
 
 # For Docker internal communication ("db" is the name of Postgres container)
 DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
@@ -19,6 +19,9 @@ DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:54
 # Create the .env file inside the app directory (~/matkassen/.env)
 echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" > "$APP_DIR/.env"
 echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_APP_ID=\"$AUTH_GITHUB_APP_ID\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_APP_PRIVATE_KEY=\"$AUTH_GITHUB_APP_PRIVATE_KEY\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_APP_INSTALLATION_ID=\"$AUTH_GITHUB_APP_INSTALLATION_ID\"" >> "$APP_DIR/.env"
 echo "AUTH_REDIRECT_PROXY_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
 echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
@@ -41,10 +44,21 @@ if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
   exit 1
 fi
 
+# Generate nginx configuration from template
+echo "Generating nginx configuration..."
+cd "$APP_DIR"
+chmod +x nginx/generate-nginx-config.sh
+./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
+sudo cp nginx/shared.conf /etc/nginx/shared.conf
+sudo systemctl reload nginx
+echo "✅ Nginx configuration updated and reloaded"
+
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
-cd $APP_DIR
-sudo COMPOSE_BAKE=true docker compose build
+cd "$APP_DIR"
+# Enable Docker Compose Bake for potentially better build performance (if not already set)
+export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
+sudo docker compose build
 sudo docker compose up -d
 
 # Check if Docker Compose started correctly
@@ -55,9 +69,9 @@ fi
 
 # Run migrations directly rather than waiting for the migration container
 echo "Running database migrations synchronously..."
-cd $APP_DIR
+cd "$APP_DIR"
 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
-sudo docker compose exec -T web bun run db:migrate
+sudo docker compose exec -T web pnpm run db:migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
   exit 1

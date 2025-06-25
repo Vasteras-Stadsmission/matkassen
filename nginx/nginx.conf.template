@@ -1,0 +1,34 @@
+# Nginx configuration template
+# This template is used to generate both local and production configs
+# Variables are substituted using envsubst
+
+# Rate limiting zone (must be in http context)
+limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;
+
+${HTTP_REDIRECT_BLOCK}
+
+# Main server block
+server {
+    listen ${NGINX_PORT}${SSL_PARAMS};
+    server_name ${SERVER_NAMES};
+
+    ${SSL_CONFIG_BLOCK}
+
+    # Include shared configuration (rate limiting, gzip, security headers, proxy settings)
+    include /etc/nginx/shared.conf;
+
+    # Static assets with smart caching
+    location /_next/static/ {
+        proxy_pass http://${NEXTJS_UPSTREAM}:3000;
+        # Proxy settings are inherited from shared.conf
+        # Let Next.js handle caching headers
+    }
+
+    # Everything else goes to Next.js
+    location / {
+        proxy_pass http://${NEXTJS_UPSTREAM}:3000;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        # Other proxy settings are inherited from shared.conf
+    }
+}

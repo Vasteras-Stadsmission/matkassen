@@ -55,7 +55,7 @@ fi
 
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
-APP_DIR=~/$PROJECT_NAME
+APP_DIR=~/"$PROJECT_NAME"
 SWAP_SIZE="1G"  # Swap size of 1GB
 
 # Update package list and upgrade existing packages
@@ -194,11 +194,11 @@ sudo apt install nginx -y
 sudo rm -f /etc/nginx/sites-enabled/default
 
 # Remove old Nginx config (if it exists)
-sudo rm -f /etc/nginx/sites-available/$PROJECT_NAME
-sudo rm -f /etc/nginx/sites-enabled/$PROJECT_NAME
+sudo rm -f /etc/nginx/sites-available/"$PROJECT_NAME"
+sudo rm -f /etc/nginx/sites-enabled/"$PROJECT_NAME"
 
 # Create a temporary basic Nginx config for initial setup
-sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
+sudo tee /etc/nginx/sites-available/"$PROJECT_NAME" > /dev/null <<EOL
 server {
     listen 80;
     server_name $DOMAIN_NAMES;
@@ -210,7 +210,7 @@ server {
 EOL
 
 # Enable the temporary configuration
-sudo ln -s /etc/nginx/sites-available/$PROJECT_NAME /etc/nginx/sites-enabled/$PROJECT_NAME
+sudo ln -s /etc/nginx/sites-available/"$PROJECT_NAME" /etc/nginx/sites-enabled/"$PROJECT_NAME"
 
 # Start Nginx with temporary config
 sudo systemctl restart nginx
@@ -286,65 +286,23 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
 # Setup automated renewal cron job that runs twice daily
 echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew > /dev/null
 
-# Now, replace the Nginx config with the full configuration including security headers
-sudo tee /etc/nginx/sites-available/$PROJECT_NAME > /dev/null <<EOL
-limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
+# Generate production nginx configuration using template
+echo "Generating production nginx configuration..."
+cd "$APP_DIR"
+if ! ./nginx/generate-nginx-config.sh production "$DOMAIN_NAMES" "$DOMAIN_NAME" > /tmp/nginx-production.conf; then
+  echo "Failed to generate nginx configuration. Exiting."
+  exit 1
+fi
 
-# Redirect HTTP traffic to HTTPS
-server {
-    listen 80;
-    server_name $DOMAIN_NAMES;
-
-    # Redirect all HTTP requests to HTTPS
-    return 301 https://\$host\$request_uri;
-}
-
-# Serve HTTPS traffic
-server {
-    listen 443 ssl;
-    server_name $DOMAIN_NAMES;
-
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    # Security headers - CSP now handled by Next.js for better integration
-    # Keeping other security headers at the Nginx level for defense in depth
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=(), battery=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(self), gyroscope=(), layout-animations=(self), magnetometer=(), midi=(), screen-wake-lock=(), sync-xhr=(self), xr-spatial-tracking=()" always;
-
-    # Enable rate limiting
-    limit_req zone=mylimit burst=20 nodelay;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header X-Forwarded-Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-
-        # Disable buffering for streaming support
-        proxy_buffering off;
-        proxy_set_header X-Accel-Buffering no;
-    }
-}
-EOL
+# Install the generated configuration and shared config
+sudo cp /tmp/nginx-production.conf /etc/nginx/sites-available/"$PROJECT_NAME"
+sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
 # Restart Nginx to apply the updated configuration
 sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory
-cd $APP_DIR
+cd "$APP_DIR"
 
 # Check for existing Docker artifacts and handle them
 echo "Checking for existing Docker artifacts..."
@@ -354,14 +312,16 @@ if [[ -d "$APP_DIR/.docker" ]]; then
 fi
 
 # Check for compressed artifacts from previous builds
-for gz_file in $(find $APP_DIR -name "*.gz" -type f 2>/dev/null || true); do
+for gz_file in $(find "$APP_DIR" -name "*.gz" -type f 2>/dev/null || true); do
   echo "Found compressed artifact: $gz_file, removing..."
   sudo rm -f "$gz_file"
 done
 
 # Build the containers with proper error handling
 echo "Building Docker containers..."
-if ! sudo COMPOSE_BAKE=true docker compose build --no-cache; then
+# Enable Docker Compose Bake for potentially better build performance (if not already set)
+export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
+if ! sudo docker compose build --no-cache; then
   echo "Docker build failed. Check the build logs above."
   exit 1
 fi
@@ -381,7 +341,7 @@ echo "✅ All services are running and healthy (verified by Docker health checks
 
 # Run migrations directly (database is already healthy from Docker health checks)
 echo "Running database migrations..."
-cd $APP_DIR
+cd "$APP_DIR"
 
 # Ensure we're in the correct directory
 if [ ! -d "$APP_DIR/migrations" ]; then
@@ -398,7 +358,7 @@ if [ "$MIGRATION_COUNT" -eq 0 ]; then
 fi
 
 # Run migrations with proper error handling
-if ! sudo docker compose exec -T web bun run db:migrate; then
+if ! sudo docker compose exec -T web pnpm run db:migrate; then
   echo "❌ Migration failed. See error messages above."
   exit 1
 fi

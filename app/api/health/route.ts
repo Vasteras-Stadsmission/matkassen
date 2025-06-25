@@ -7,7 +7,7 @@ export async function GET() {
 
     try {
         // Check if we're in a test environment
-        const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.BUN_ENV === "test";
+        const isTestEnvironment = process.env.NODE_ENV === "test";
 
         if (isTestEnvironment) {
             // Skip database checks in test environment

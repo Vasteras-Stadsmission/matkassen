@@ -1,5 +1,7 @@
-import { describe, expect, it } from "bun:test";
-import { generateDaySpecificTimeSlots } from "@/app/[locale]/schedule/components/WeeklyScheduleGrid";
+import {
+    generateDaySpecificTimeSlots,
+    findTimeGaps,
+} from "@/app/[locale]/schedule/components/WeeklyScheduleGrid";
 
 describe("Time Slot Generation", () => {
     // Mock location schedule data for testing
@@ -270,9 +272,6 @@ describe("Time Slot Generation", () => {
             ]);
 
             // Now run the gap detection on these slots
-            const {
-                findTimeGaps,
-            } = require("@/app/[locale]/schedule/components/WeeklyScheduleGrid");
             const gaps = findTimeGaps(slots, 15); // Use 15-minute slot duration
 
             // We should have found 1 gap between 12:00 and 14:00 (2 hours = 120 minutes)

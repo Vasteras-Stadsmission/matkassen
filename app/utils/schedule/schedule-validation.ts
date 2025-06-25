@@ -153,27 +153,31 @@ export function getWeekDateRange(
     year: number,
     weekNumber: number,
 ): { startDate: Date; endDate: Date } {
-    // Create a date for January 4th of the given year
-    // January 4th is always in week 1 per ISO 8601
-    const jan4 = new Date(year, 0, 4);
+    // ISO 8601: Week 1 is the first week with at least 4 days in the new year
+    // January 4th is always in week 1, so we use it as our reference
 
-    // Get the Monday of week 1
-    // getDay() returns 0 for Sunday, 1 for Monday, etc.
-    const dayOfWeek = jan4.getDay() || 7; // Convert Sunday (0) to 7
+    // Create January 4th as a UTC date to avoid timezone issues
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+
+    // Get the Monday of week 1 (ISO week starts on Monday)
+    // getUTCDay() returns 0 for Sunday, 1 for Monday, etc.
+    const dayOfWeek = jan4.getUTCDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday needs -6, others need 1-dayOfWeek
+
     const mondayWeek1 = new Date(jan4);
-    mondayWeek1.setDate(jan4.getDate() - dayOfWeek + 1); // Adjust to Monday
+    mondayWeek1.setUTCDate(jan4.getUTCDate() + daysToMonday);
 
     // Calculate the Monday of the requested week
     const targetMonday = new Date(mondayWeek1);
-    targetMonday.setDate(mondayWeek1.getDate() + (weekNumber - 1) * 7);
+    targetMonday.setUTCDate(mondayWeek1.getUTCDate() + (weekNumber - 1) * 7);
 
     // Calculate the Sunday of the requested week
     const targetSunday = new Date(targetMonday);
-    targetSunday.setDate(targetMonday.getDate() + 6);
+    targetSunday.setUTCDate(targetMonday.getUTCDate() + 6);
 
-    // Set times to beginning and end of day
-    targetMonday.setHours(0, 0, 0, 0);
-    targetSunday.setHours(23, 59, 59, 999);
+    // Set times to beginning and end of day in UTC
+    targetMonday.setUTCHours(0, 0, 0, 0);
+    targetSunday.setUTCHours(23, 59, 59, 999);
 
     return {
         startDate: targetMonday,
