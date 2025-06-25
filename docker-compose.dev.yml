@@ -20,6 +20,8 @@ services:
             - /app/node_modules # Don't overwrite node_modules
         environment:
             - NODE_ENV=development # Enables hot reloading
+            - AUTH_URL=http://localhost:3000/api/auth # Development auth URL
+            - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB} # Connect to DB on host
 
     db:
         image: postgres:17.5

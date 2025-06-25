@@ -37,7 +37,19 @@ const nextConfig: NextConfig = {
         optimizeCss: true,
         // PPR is only available in canary versions, so removing it
         // ppr: true,
+        // Trust proxy headers for Server Actions when behind nginx
+        serverActions: {
+            allowedOrigins: [
+                "localhost:8080", // Local development through nginx
+                "staging.matkassen.org",
+                "matkassen.org",
+                "www.matkassen.org",
+            ],
+        },
     },
+
+    // Trust proxy headers when behind nginx
+    trustHost: true,
 
     // Optimize performance through better caching and fewer redirects
     poweredByHeader: false,
