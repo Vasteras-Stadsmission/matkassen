@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 // filepath: /Users/niklasmagnusson/git/matkassen/__tests__/app/api/csp-report/route.test.ts
 // Set up mockStoreCspViolationAction as a mock function
 // We need to type it properly to access the mock methods
@@ -29,7 +29,7 @@ const mockStoreCspViolationAction = vi.fn(() => ({ success: true })) as MockFunc
 }>;
 
 // Mock the app db actions
-vi.mock("@/app/db/actions", () => ({
+vi.mock("../../../app/db/actions", () => ({
     storeCspViolationAction: mockStoreCspViolationAction,
 }));
 

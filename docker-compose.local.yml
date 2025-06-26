@@ -8,12 +8,12 @@ services:
             dockerfile: Dockerfile
         restart: always
         ports:
-            - "8080:80" # Access via http://localhost:8080
+            - "8080:8080"
+        networks:
+            - app_network
         depends_on:
             nextjs:
                 condition: service_healthy
-        networks:
-            - app_network
         healthcheck:
             test: ["CMD", "nginx", "-t"]
             interval: 30s
@@ -25,8 +25,8 @@ services:
             context: .
             dockerfile: Dockerfile # Use production Dockerfile
         restart: always
-        expose:
-            - "3000" # Only expose to other containers, not to host
+        ports:
+            - "3000:3000" # Expose to host like production
         environment:
             - NODE_ENV=production # Production mode
             - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}

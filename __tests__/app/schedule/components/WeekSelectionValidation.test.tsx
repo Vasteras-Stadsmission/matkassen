@@ -1,9 +1,9 @@
-import { getWeekDateRange } from "@/app/utils/schedule/schedule-validation";
-import { vi } from "vitest";
+import { describe, vi, test, expect, beforeEach, afterEach } from "vitest";
+import { getWeekDateRange } from "../../../../app/utils/schedule/schedule-validation";
 import { mockDate, cleanupMockedDate } from "../test-helpers";
 
 // Mock the validation function with a simplified version
-vi.mock("@/app/utils/schedule/schedule-validation", () => ({
+vi.mock("../../../../app/utils/schedule/schedule-validation", () => ({
     getWeekDateRange: (year: number, week: number) => {
         // Calculate approximate dates for the week
         const startDate = new Date(year, 0, 1 + (week - 1) * 7);

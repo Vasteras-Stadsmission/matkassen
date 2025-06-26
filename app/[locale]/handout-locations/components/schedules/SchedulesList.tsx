@@ -21,7 +21,7 @@ import { IconCalendarStats, IconEdit, IconTrash, IconDots, IconPlus } from "@tab
 import { format } from "date-fns";
 import { PickupLocationScheduleWithDays, ScheduleInput } from "../../types";
 import { ScheduleForm } from "./ScheduleForm";
-import { getISOWeekNumber } from "@/app/utils/schedule/schedule-validation";
+import { getISOWeekNumber } from "../../../../utils/schedule/schedule-validation";
 
 interface SchedulesListProps {
     schedules: PickupLocationScheduleWithDays[];

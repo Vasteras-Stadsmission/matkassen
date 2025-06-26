@@ -1,6 +1,6 @@
-import { FoodParcel } from "@/app/[locale]/schedule/actions";
-
 import { vi } from "vitest";
+import { FoodParcel } from "../../../app/[locale]/schedule/actions";
+
 // Create mocks for the updateFoodParcelSchedule action
 export const createActionMocks = () => {
     const mockUpdateFoodParcelScheduleFn = {
@@ -80,14 +80,14 @@ export const createActionMocks = () => {
     };
 
     // Mock the schedule actions module
-    vi.mock("@/app/schedule/actions", () => ({
+    vi.mock("../../../app/schedule/actions", () => ({
         updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
         getLocationSlotDuration: mockGetLocationSlotDuration,
         getPickupLocationSchedules: mockGetPickupLocationSchedules,
     }));
 
     // Also mock the locale-specific version for tests that might use it
-    vi.mock("@/app/[locale]/schedule/actions", () => ({
+    vi.mock("../../../app/[locale]/schedule/actions", () => ({
         updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
         getLocationSlotDuration: mockGetLocationSlotDuration,
         getPickupLocationSchedules: mockGetPickupLocationSchedules,

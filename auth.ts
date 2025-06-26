@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig } from "next-auth";
-import { checkOrganizationMembership } from "@/app/utils/github-app";
+import { checkOrganizationMembership } from "./app/utils/github-app";
 
 const authConfig: NextAuthConfig = {
     providers: [

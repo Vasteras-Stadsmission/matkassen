@@ -1,5 +1,5 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Window } from "happy-dom";
-import { vi } from "vitest";
 import React from "react";
 
 // Set up happy-dom
@@ -52,8 +52,8 @@ vi.mock("@mantine/core", () => ({
 }));
 
 // Import the component to test
-import HouseholdForm from "@/app/[locale]/households/enroll/components/HouseholdForm";
-import { Household } from "@/app/[locale]/households/enroll/types";
+import HouseholdForm from "../../../../../app/[locale]/households/enroll/components/HouseholdForm";
+import { Household } from "../../../../../app/[locale]/households/enroll/types";
 
 // Define types for mock updates
 type HouseholdData = {

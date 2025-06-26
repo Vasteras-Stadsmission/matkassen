@@ -1,10 +1,11 @@
+import { describe, it, expect } from "vitest";
 import {
     doDateRangesOverlap,
     findOverlappingSchedule,
     getWeekDateRange,
     getWeekAndYear,
-} from "@/app/utils/schedule/schedule-validation";
-import { ScheduleDateRange } from "@/app/[locale]/handout-locations/types";
+} from "../../../app/utils/schedule/schedule-validation";
+import { ScheduleDateRange } from "../../../app/[locale]/handout-locations/types";
 
 describe("Schedule validation functions", () => {
     describe("doDateRangesOverlap", () => {
@@ -251,6 +252,58 @@ describe("Schedule validation functions", () => {
 
             const overlapping = findOverlappingSchedule(newRange, existingRanges);
             expect(overlapping).toBeNull();
+        });
+
+        it("should handle multiple potential overlaps and return the first one", () => {
+            const newRange: ScheduleDateRange = {
+                start_date: new Date("2025-05-10"),
+                end_date: new Date("2025-05-20"),
+            };
+
+            const existingRanges: ScheduleDateRange[] = [
+                {
+                    id: "schedule-1",
+                    start_date: new Date("2025-05-05"),
+                    end_date: new Date("2025-05-15"), // Overlaps with newRange
+                },
+                {
+                    id: "schedule-2",
+                    start_date: new Date("2025-05-12"),
+                    end_date: new Date("2025-05-25"), // Also overlaps with newRange
+                },
+                {
+                    id: "schedule-3",
+                    start_date: new Date("2025-06-01"),
+                    end_date: new Date("2025-06-30"), // No overlap
+                },
+            ];
+
+            const overlapping = findOverlappingSchedule(newRange, existingRanges);
+            expect(overlapping).not.toBeNull();
+            expect(overlapping?.id).toBe("schedule-1"); // Should return the first overlapping one
+        });
+
+        it("should handle boundary conditions with consecutive schedules", () => {
+            const newRange: ScheduleDateRange = {
+                start_date: new Date("2025-05-16"),
+                end_date: new Date("2025-05-31"),
+            };
+
+            const existingRanges: ScheduleDateRange[] = [
+                {
+                    id: "schedule-before",
+                    start_date: new Date("2025-05-01"),
+                    end_date: new Date("2025-05-15"), // Ends day before newRange starts
+                },
+                {
+                    id: "schedule-after",
+                    start_date: new Date("2025-06-01"),
+                    end_date: new Date("2025-06-15"), // Starts day after newRange ends
+                },
+            ];
+
+            const overlapping = findOverlappingSchedule(newRange, existingRanges);
+            expect(overlapping).toBeNull(); // No overlap with consecutive schedules
         });
     });
 

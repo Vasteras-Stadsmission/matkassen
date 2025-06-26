@@ -1,7 +1,6 @@
-import React from "react";
-import { vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
-import { FoodParcel } from "@/app/[locale]/schedule/actions";
+import { FoodParcel } from "../../../../app/[locale]/schedule/actions";
 import {
     mockDate,
     cleanupMockedDate,
@@ -18,6 +17,8 @@ import {
     MockScrollArea,
     MockReschedulePickupModal,
     createMockDndHooks,
+    setSharedMockDragEndHandler,
+    getSharedMockDragEndHandler,
 } from "../mock-components";
 import { createActionMocks, createRescheduleModalMocks } from "../mock-actions";
 
@@ -64,7 +65,6 @@ const TestableWeeklyScheduleGrid = ({
 }: WeeklyScheduleGridProps) => {
     // Function to be called when a drag event happens
     const handleDragEnd = async (event: { active: { id: string }; over: { id: string } }) => {
-        setMockDragEndHandler(handleDragEnd);
         if (!event.over) return;
 
         const parcelId = event.active.id;
@@ -166,6 +166,9 @@ const TestableWeeklyScheduleGrid = ({
             });
         }
     };
+
+    // Set up the mock drag end handler for tests
+    setSharedMockDragEndHandler(handleDragEnd);
 
     // Add reschedule button click handler
     const handleRescheduleClick = (parcel: FoodParcel) => {
@@ -290,7 +293,7 @@ describe("WeeklyScheduleGrid Component", () => {
         onRescheduledCalls.length = 0;
         setModalOpened(false);
         setModalParcel(null);
-        setMockDragEndHandler(null);
+        setSharedMockDragEndHandler(null);
     });
 
     afterEach(() => {
@@ -341,9 +344,10 @@ describe("WeeklyScheduleGrid Component", () => {
         );
 
         // Simulate a drag end event
-        if (mockDragEndHandler) {
+        const currentHandler = getSharedMockDragEndHandler();
+        if (currentHandler) {
             // Format: day-{dayIndex}-{dateStr}-{timeStr}
-            await mockDragEndHandler({
+            await (currentHandler as (event: any) => void)({
                 active: { id: "1" }, // Dragged item ID (Parcel 1)
                 over: { id: "day-2-2025-04-16-14:00" }, // Drop target ID (Wednesday at 14:00)
             });
@@ -366,6 +370,10 @@ describe("WeeklyScheduleGrid Component", () => {
             expect(mockShowNotificationCalls[0][0]).toHaveProperty("title");
             expect(mockShowNotificationCalls[0][0]).toHaveProperty("message");
             expect(mockShowNotificationCalls[0][0].color).toBe("green");
+        } else {
+            throw new Error(
+                "mockDragEndHandler is not available - the component may not have set it up correctly",
+            );
         }
     });
 
@@ -387,8 +395,9 @@ describe("WeeklyScheduleGrid Component", () => {
         );
 
         // Call the drag end handler directly with our test event
-        if (mockDragEndHandler) {
-            await mockDragEndHandler({
+        const errorHandler = getSharedMockDragEndHandler();
+        if (errorHandler) {
+            await (errorHandler as (event: any) => void)({
                 active: { id: "1" },
                 over: { id: "day-2-2025-04-16-14:00" },
             });
@@ -404,6 +413,10 @@ describe("WeeklyScheduleGrid Component", () => {
 
             // The callback should not be called on error
             expect(onRescheduledCalls.length).toBe(0);
+        } else {
+            throw new Error(
+                "mockDragEndHandler is not available - the component may not have set it up correctly",
+            );
         }
     });
 
@@ -451,10 +464,11 @@ describe("WeeklyScheduleGrid Component", () => {
             />,
         );
 
-        if (mockDragEndHandler) {
+        const pastHandler = getSharedMockDragEndHandler();
+        if (pastHandler) {
             // Try to move a parcel to a past date
             // April 14, 2025 is in the past from our mocked current date of April 27, 2025
-            await mockDragEndHandler({
+            await (pastHandler as (event: any) => void)({
                 active: { id: "2" }, // Parcel from Wednesday
                 over: { id: "day-0-2025-04-14-09:00" }, // Monday at 9:00, which is in the past
             });
@@ -476,6 +490,10 @@ describe("WeeklyScheduleGrid Component", () => {
 
             // Confirm callback was NOT triggered
             expect(onRescheduledCalls.length).toBe(0);
+        } else {
+            throw new Error(
+                "mockDragEndHandler is not available - the component may not have set it up correctly",
+            );
         }
 
         // Restore original Date

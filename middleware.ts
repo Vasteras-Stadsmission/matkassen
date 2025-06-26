@@ -1,6 +1,6 @@
 import createIntlMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
-import { routing } from "@/app/i18n/routing";
+import { routing } from "./app/i18n/routing";
 import type { NextRequest } from "next/server";
 
 // Generate a random nonce for CSP using Web Crypto API (Edge Runtime compatible)
