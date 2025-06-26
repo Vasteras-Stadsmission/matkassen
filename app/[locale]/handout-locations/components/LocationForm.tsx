@@ -19,7 +19,7 @@ import { notifications } from "@mantine/notifications";
 import { IconBuilding, IconCalendar } from "@tabler/icons-react";
 import { PickupLocationWithAllData, LocationFormInput } from "../types";
 import { createLocation, updateLocation } from "../actions";
-import { SchedulesTab } from "./SchedulesTab";
+import { SchedulesTab } from "./schedules/SchedulesTab";
 
 interface LocationFormProps {
     location?: PickupLocationWithAllData | null;
@@ -301,11 +301,14 @@ export function LocationForm({
                     </Tabs.Panel>
                 </Tabs>
 
-                <Group justify="flex-end" mt="xl">
-                    <Button type="submit" loading={isSubmitting}>
-                        {location ? t("updateLocation") : t("createLocation")}
-                    </Button>
-                </Group>
+                {/* Only show the submit button on the General tab */}
+                {activeTab === "general" && (
+                    <Group justify="flex-end" mt="xl">
+                        <Button type="submit" loading={isSubmitting}>
+                            {location ? t("updateLocation") : t("createLocation")}
+                        </Button>
+                    </Group>
+                )}
             </form>
         </Paper>
     );

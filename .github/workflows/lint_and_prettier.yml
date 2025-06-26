@@ -29,9 +29,7 @@ jobs:
               run: pnpm install
             - name: Run linter
               run: pnpm run lint
-            - name: Type check (production)
+            - name: Type check
               run: pnpm run typecheck
-            - name: Type check (tests)
-              run: pnpm run typecheck:test
             - name: Check formatting
               run: pnpm run format-check

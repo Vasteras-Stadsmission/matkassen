@@ -1,9 +1,10 @@
+import { describe, test, expect } from "vitest";
 import {
     isDateAvailable,
     isTimeAvailable,
     getAvailableTimeRange,
-} from "@/app/utils/schedule/location-availability";
-import { LocationScheduleInfo } from "@/app/[locale]/schedule/actions";
+} from "../../../app/utils/schedule/location-availability";
+import { LocationScheduleInfo } from "../../../app/[locale]/schedule/actions";
 
 // Sample schedule data for testing
 const mockLocationSchedules: LocationScheduleInfo = {

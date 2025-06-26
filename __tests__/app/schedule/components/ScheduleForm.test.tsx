@@ -1,6 +1,6 @@
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useForm } from "@mantine/form";
-import { vi } from "vitest";
 import { mockDate, cleanupMockedDate } from "../test-helpers";
 
 // Mock next-intl directly
@@ -16,7 +16,7 @@ const mockFn = () => {
     };
 
     fn.calls = [] as any[][];
-    fn.returnValue = undefined;
+    fn.returnValue = undefined as any;
 
     fn.mockResolvedValue = (value: any) => {
         fn.returnValue = Promise.resolve(value);
@@ -34,7 +34,7 @@ const mockFn = () => {
 };
 
 // Mock the WeekPicker component
-vi.mock("@/app/[locale]/handout-locations/components/schedules/WeekPicker", () => ({
+vi.mock("../../../../app/[locale]/handout-locations/components/schedules/WeekPicker", () => ({
     WeekPicker: ({ label, onChange, value }: any) => (
         <div>
             <label>{label}</label>
@@ -105,7 +105,7 @@ function createTestForm(initialValues: Partial<ScheduleInput> = {}) {
                     return null;
                 }
 
-                if (value < values.start_date) return "endDate.afterStartDate";
+                if (values.start_date && value < values.start_date) return "endDate.afterStartDate";
                 return null;
             },
             days: value => {

@@ -2,7 +2,7 @@ import { Window } from "happy-dom";
 import { vi } from "vitest";
 import React, { ReactNode } from "react";
 import { render, RenderOptions, RenderResult } from "@testing-library/react";
-import { FoodParcel } from "@/app/[locale]/schedule/actions";
+import { FoodParcel } from "../../../app/[locale]/schedule/actions";
 
 // Set up happy-dom for all tests
 const setupHappyDOM = () => {
@@ -24,7 +24,16 @@ export const mockDate = (targetDate: string | Date): DateConstructor => {
     const CustomDate = class extends RealDate {
         constructor(...args: any[]) {
             if (args.length === 0) {
-                super();
+                // When called with no arguments, return the mocked date
+                super(
+                    mockDateObj.getFullYear(),
+                    mockDateObj.getMonth(),
+                    mockDateObj.getDate(),
+                    mockDateObj.getHours(),
+                    mockDateObj.getMinutes(),
+                    mockDateObj.getSeconds(),
+                    mockDateObj.getMilliseconds(),
+                );
             } else if (args.length === 1) {
                 super(args[0]);
             } else if (args.length === 2) {

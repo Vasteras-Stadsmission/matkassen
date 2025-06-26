@@ -12,13 +12,13 @@ generate_local_config() {
     echo "Generating local nginx configuration..."
 
     # Set environment variables for local development
-    export NGINX_PORT="80"
+    export NGINX_PORT="8080"
     export SSL_PARAMS=""
     export SERVER_NAMES="localhost"
     export HTTP_REDIRECT_BLOCK="# No HTTP redirect needed for local development"
     export SSL_CONFIG_BLOCK="# SSL configuration omitted for local development"
     export HSTS_HEADER="# HSTS omitted for local development"
-    export NEXTJS_UPSTREAM="nextjs"
+    export NEXTJS_UPSTREAM="nextjs"  # Use container name for local Docker networking
 
     # Generate the config with specific variable substitution
     export DOLLAR='$'
@@ -47,7 +47,7 @@ generate_production_config() {
     export NGINX_PORT="443"
     export SSL_PARAMS=" ssl"
     export SERVER_NAMES="$domain_names"
-    export NEXTJS_UPSTREAM="localhost"
+    export NEXTJS_UPSTREAM="localhost"  # In production, nginx runs on host, not in container
 
     # HTTP redirect block for production
     export HTTP_REDIRECT_BLOCK="# Redirect HTTP to HTTPS

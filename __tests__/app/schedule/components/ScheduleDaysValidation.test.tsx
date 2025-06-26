@@ -1,3 +1,5 @@
+import { describe, it, test, expect, beforeEach, afterEach, vi } from "vitest";
+
 // Mock types similar to those used in the component
 type Weekday = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 

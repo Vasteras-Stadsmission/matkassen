@@ -18,8 +18,7 @@
         "test:ui": "vitest --ui",
         "start": "next start",
         "typecheck": "tsc --noEmit",
-        "typecheck:test": "tsc --noEmit --skipLibCheck --project tsconfig.test.json",
-        "validate": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:test && pnpm run format-check"
+        "validate": "pnpm run lint && pnpm run typecheck && pnpm run format-check"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

@@ -1,11 +1,14 @@
 import { Suspense } from "react";
 import { Container, Title, Text, Center, Loader } from "@mantine/core";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import HouseholdsPageClient from "./components/HouseholdsPageClient";
 import { AuthProtection } from "@/components/AuthProtection";
+import { getHouseholds } from "./actions";
 
-export default function HouseholdsPage() {
-    const t = useTranslations("households");
+export default async function HouseholdsPage() {
+    const t = await getTranslations("households");
+
+    const households = await getHouseholds();
 
     return (
         <AuthProtection>
@@ -24,7 +27,7 @@ export default function HouseholdsPage() {
                         </Center>
                     }
                 >
-                    <HouseholdsPageClient />
+                    <HouseholdsPageClient initialHouseholds={households} />
                 </Suspense>
             </Container>
         </AuthProtection>

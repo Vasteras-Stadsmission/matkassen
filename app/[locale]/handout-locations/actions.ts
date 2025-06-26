@@ -205,6 +205,10 @@ export async function createSchedule(
     scheduleData: ScheduleInput,
 ): Promise<PickupLocationScheduleWithDays> {
     try {
+        // Validate schedule overlap using shared utility
+        const { validateScheduleOverlap } = await import("@/app/utils/schedule/overlap-validation");
+        await validateScheduleOverlap(scheduleData, locationId);
+
         let createdSchedule: PickupLocationScheduleWithDays;
 
         // Begin a transaction
@@ -296,6 +300,23 @@ export async function updateSchedule(
     scheduleData: ScheduleInput,
 ): Promise<PickupLocationScheduleWithDays> {
     try {
+        // Get the current schedule to find the location
+        const currentSchedule = await db
+            .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
+            .from(pickupLocationSchedules)
+            .where(eq(pickupLocationSchedules.id, scheduleId))
+            .limit(1);
+
+        if (currentSchedule.length === 0) {
+            throw new Error(`Schedule with ID ${scheduleId} not found`);
+        }
+
+        const locationId = currentSchedule[0].pickup_location_id;
+
+        // Validate schedule overlap using shared utility (excluding current schedule)
+        const { validateScheduleOverlap } = await import("@/app/utils/schedule/overlap-validation");
+        await validateScheduleOverlap(scheduleData, locationId, scheduleId);
+
         let updatedSchedule: PickupLocationScheduleWithDays;
 
         // Begin a transaction

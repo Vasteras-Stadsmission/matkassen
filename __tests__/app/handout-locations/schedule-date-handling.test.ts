@@ -1,4 +1,5 @@
-import { WeekSelection, ScheduleInput } from "@/app/[locale]/handout-locations/types";
+import { describe, it, expect } from "vitest";
+import { WeekSelection, ScheduleInput } from "../../../app/[locale]/handout-locations/types";
 
 // Simulate our fixed date handling logic from the actions.ts file
 function processDateForDatabase(date: Date): string {

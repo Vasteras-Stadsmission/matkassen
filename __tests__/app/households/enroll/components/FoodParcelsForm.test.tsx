@@ -1,6 +1,5 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FoodParcels } from "../../../../../app/[locale]/households/enroll/types";
-
-import { vi } from "vitest";
 // Mock next-intl
 vi.mock("next-intl", () => ({
     useTranslations: () => (key: string, params?: any) => {
@@ -87,7 +86,7 @@ const mockGetPickupLocationCapacity = vi.fn(() =>
 
 const mockGetLocationSlotDuration = vi.fn(() => Promise.resolve(30));
 
-vi.mock("@/app/[locale]/households/enroll/client-actions", () => ({
+vi.mock("../../../../app/[locale]/households/enroll/client-actions", () => ({
     getPickupLocationsAction: mockGetPickupLocations,
     getPickupLocationSchedulesAction: mockGetPickupLocationSchedules,
     getPickupLocationCapacityForRangeAction: mockGetPickupLocationCapacity,

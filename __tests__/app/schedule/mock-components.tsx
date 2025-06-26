@@ -1,5 +1,5 @@
 import React, { ReactNode } from "react";
-import { FoodParcel } from "@/app/[locale]/schedule/actions";
+import { FoodParcel } from "../../../app/[locale]/schedule/actions";
 
 // Common Mock Components for Schedule Tests
 
@@ -191,35 +191,62 @@ export interface UseDroppableParams {
     disabled: boolean;
 }
 
+// Create a shared instance of the DnD hooks to ensure consistent state
+export let sharedMockDragEndHandler: ((event: any) => void) | null = null;
+
+export const setSharedMockDragEndHandler = (handler: ((event: any) => void) | null) => {
+    sharedMockDragEndHandler = handler;
+};
+
+export const getSharedMockDragEndHandler = () => {
+    return sharedMockDragEndHandler;
+};
+
+let sharedMockIsOver = false;
+let sharedMockSetNodeRef = () => {};
+let sharedLastDroppableId = "";
+let sharedLastDisabledValue = false;
+
+// Create a singleton instance
+let mockDndInstance: any = null;
+
 export const createMockDndHooks = () => {
-    let mockIsOver = false;
-    let mockSetNodeRef = () => {};
-    let lastDroppableId = "";
-    let lastDisabledValue = false;
-    let mockDragEndHandler: ((event: any) => void) | null = null;
+    if (mockDndInstance) {
+        return mockDndInstance;
+    }
 
     // Mock useDroppable hook with tracking
     const mockUseDroppable = ({ id, disabled }: UseDroppableParams) => {
-        lastDroppableId = id;
-        lastDisabledValue = disabled;
+        sharedLastDroppableId = id;
+        sharedLastDisabledValue = disabled;
         return {
-            setNodeRef: mockSetNodeRef,
-            isOver: mockIsOver,
+            setNodeRef: sharedMockSetNodeRef,
+            isOver: sharedMockIsOver,
         };
     };
 
-    return {
-        mockIsOver,
-        mockSetNodeRef,
-        lastDroppableId,
-        lastDisabledValue,
-        mockDragEndHandler,
+    mockDndInstance = {
+        get mockIsOver() {
+            return sharedMockIsOver;
+        },
+        get mockSetNodeRef() {
+            return sharedMockSetNodeRef;
+        },
+        get lastDroppableId() {
+            return sharedLastDroppableId;
+        },
+        get lastDisabledValue() {
+            return sharedLastDisabledValue;
+        },
+        get mockDragEndHandler() {
+            return sharedMockDragEndHandler;
+        },
         mockUseDroppable,
         setMockIsOver: (value: boolean) => {
-            mockIsOver = value;
+            sharedMockIsOver = value;
         },
-        setMockDragEndHandler: (handler: any) => {
-            mockDragEndHandler = handler;
-        },
+        setMockDragEndHandler: setSharedMockDragEndHandler,
     };
+
+    return mockDndInstance;
 };

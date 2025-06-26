@@ -10,7 +10,7 @@ export async function getGitHubAppToken(): Promise<string> {
     const installationId = process.env.AUTH_GITHUB_APP_INSTALLATION_ID;
 
     if (!appId || !privateKey || !installationId) {
-        const missing = [];
+        const missing: string[] = [];
         if (!appId) missing.push("AUTH_GITHUB_APP_ID");
         if (!privateKey) missing.push("AUTH_GITHUB_APP_PRIVATE_KEY");
         if (!installationId) missing.push("AUTH_GITHUB_APP_INSTALLATION_ID");

@@ -1,6 +1,6 @@
-import { getISOWeekNumber, getWeekDates } from "@/app/utils/date-utils";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { getISOWeekNumber, getWeekDates } from "../../../../app/utils/date-utils";
 
-import { vi } from "vitest";
 // Since we're using the actual functions, we need to provide stubs for the dependencies
 vi.mock("date-fns-tz", () => ({
     toZonedTime: (date: Date | number | string) => date,

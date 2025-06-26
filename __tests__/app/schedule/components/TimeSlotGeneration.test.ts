@@ -1,7 +1,8 @@
+import { describe, it, expect } from "vitest";
 import {
     generateDaySpecificTimeSlots,
     findTimeGaps,
-} from "@/app/[locale]/schedule/components/WeeklyScheduleGrid";
+} from "../../../../app/[locale]/schedule/components/WeeklyScheduleGrid";
 
 describe("Time Slot Generation", () => {
     // Mock location schedule data for testing

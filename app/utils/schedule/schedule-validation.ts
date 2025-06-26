@@ -21,12 +21,24 @@ export function doDateRangesOverlap(range1: ScheduleDateRange, range2: ScheduleD
         return false;
     }
 
-    // Range A: range1, Range B: range2
-    // Overlap if: A starts before B ends AND A ends after B starts
-    return (
-        range1.start_date <= new Date(range2.end_date) &&
-        range1.end_date >= new Date(range2.start_date)
-    );
+    // Normalize dates to midnight UTC to avoid timezone issues
+    // This ensures we're comparing dates consistently regardless of timezone
+    const normalizeDate = (date: Date): Date => {
+        const normalized = new Date(date);
+        normalized.setUTCHours(0, 0, 0, 0);
+        return normalized;
+    };
+
+    const start1 = normalizeDate(range1.start_date);
+    const end1 = normalizeDate(range1.end_date);
+    const start2 = normalizeDate(range2.start_date);
+    const end2 = normalizeDate(range2.end_date);
+
+    // For date ranges to overlap, they must have at least one day in common
+    // Two ranges overlap if: start1 <= end2 AND end1 >= start2
+    // However, we want consecutive schedules (e.g., June 10 ending, June 11 starting)
+    // to NOT be considered overlapping, so we use strict inequality for the boundaries
+    return start1 <= end2 && end1 >= start2;
 }
 
 /**

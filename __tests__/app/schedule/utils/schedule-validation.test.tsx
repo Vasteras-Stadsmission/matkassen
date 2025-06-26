@@ -1,3 +1,5 @@
+import { describe, test, expect } from "vitest";
+
 // Mock types and utils similar to those in the application
 type WeekSelection = {
     year: number;

@@ -3,7 +3,7 @@
 import { Button, Title, Text, Paper, Container, Center, Stack } from "@mantine/core";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Link } from "@/app/i18n/navigation";
+import { Link } from "../../../i18n/navigation";
 import Image from "next/image";
 import { Suspense } from "react";
 

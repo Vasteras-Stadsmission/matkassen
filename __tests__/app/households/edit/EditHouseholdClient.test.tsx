@@ -55,7 +55,7 @@ const mockUpdateHousehold = vi.fn<
 const mockPush = vi.fn<(url: string) => Promise<boolean>>(() => Promise.resolve(true));
 
 // Create mocks for actions
-vi.mock("@/app/[locale]/households/[id]/edit/actions", () => ({
+vi.mock("../../../../app/[locale]/households/[id]/edit/actions", () => ({
     getHouseholdFormData: mockGetHouseholdFormData,
     updateHousehold: mockUpdateHousehold,
 }));
