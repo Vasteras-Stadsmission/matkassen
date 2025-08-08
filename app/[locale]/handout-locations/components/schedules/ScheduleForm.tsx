@@ -16,7 +16,7 @@ import {
     Checkbox,
     SimpleGrid,
 } from "@mantine/core";
-import { TimePicker } from "@mantine/dates";
+import { getTimeRange, TimePicker } from "@mantine/dates";
 import { useTranslations } from "next-intl";
 import { IconAlertCircle } from "@tabler/icons-react";
 import {
@@ -276,6 +276,51 @@ export function ScheduleForm({
                 return;
             }
 
+            // Client-side validation for weekday times to avoid DB constraint errors
+            let hasTimeErrors = false;
+            const toMinutes = (time: string): number => {
+                const [h, m] = time.split(":");
+                return Number(h) * 60 + Number(m);
+            };
+
+            values.days.forEach((day, idx) => {
+                // Clear previous errors for this row
+                form.clearFieldError(`days.${idx}.opening_time`);
+                form.clearFieldError(`days.${idx}.closing_time`);
+
+                if (!day.is_open) return;
+
+                if (!day.opening_time) {
+                    form.setFieldError(`days.${idx}.opening_time`, t("timeErrors.openingRequired"));
+                    hasTimeErrors = true;
+                }
+                if (!day.closing_time) {
+                    form.setFieldError(`days.${idx}.closing_time`, t("timeErrors.closingRequired"));
+                    hasTimeErrors = true;
+                }
+
+                if (day.opening_time && day.closing_time) {
+                    const start = toMinutes(day.opening_time);
+                    const end = toMinutes(day.closing_time);
+                    if (start >= end) {
+                        form.setFieldError(
+                            `days.${idx}.opening_time`,
+                            t("timeErrors.openingBeforeClosing"),
+                        );
+                        form.setFieldError(
+                            `days.${idx}.closing_time`,
+                            t("timeErrors.closingAfterOpening"),
+                        );
+                        hasTimeErrors = true;
+                    }
+                }
+            });
+
+            if (hasTimeErrors) {
+                setSaving(false);
+                return;
+            }
+
             // Convert Date objects to ISO strings for safe processing
             const formattedValues: ScheduleInput = {
                 ...values,
@@ -396,9 +441,16 @@ export function ScheduleForm({
                                             );
                                         }}
                                         min="08:00"
-                                        max="23:00"
-                                        minutesStep={15}
+                                        max="20:00"
+                                        presets={getTimeRange({
+                                            startTime: "08:00:00",
+                                            endTime: "20:00:00",
+                                            interval: "00:15:00",
+                                        })}
                                         withDropdown
+                                        error={
+                                            form.getInputProps(`days.${index}.opening_time`).error
+                                        }
                                         size="sm"
                                     />
 
@@ -412,9 +464,16 @@ export function ScheduleForm({
                                             );
                                         }}
                                         min="08:00"
-                                        max="23:00"
-                                        minutesStep={15}
+                                        max="20:00"
+                                        presets={getTimeRange({
+                                            startTime: "08:00:00",
+                                            endTime: "20:00:00",
+                                            interval: "00:15:00",
+                                        })}
                                         withDropdown
+                                        error={
+                                            form.getInputProps(`days.${index}.closing_time`).error
+                                        }
                                         size="sm"
                                     />
                                 </SimpleGrid>

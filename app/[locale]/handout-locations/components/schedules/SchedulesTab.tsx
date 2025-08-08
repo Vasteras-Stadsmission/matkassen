@@ -53,16 +53,17 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
 
         try {
             const result = await operation();
-            setSchedules(prev => {
-                const updated = updateSchedules(result, prev);
 
-                // Update parent component's state optimistically
-                if (onLocationUpdated) {
-                    onLocationUpdated(location.id, { schedules: updated });
-                }
+            // Compute next schedules from current state outside of render phase
+            const nextSchedules = updateSchedules(result, schedules);
 
-                return updated;
-            });
+            // Update local state
+            setSchedules(nextSchedules);
+
+            // Notify parent AFTER local state update scheduling to avoid setState during render warnings
+            if (onLocationUpdated) {
+                onLocationUpdated(location.id, { schedules: nextSchedules });
+            }
 
             if (onUpdated) onUpdated();
         } catch (err) {

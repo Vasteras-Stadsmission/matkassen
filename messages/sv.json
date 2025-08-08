@@ -470,6 +470,12 @@
         "selectWeekday": "Välj veckodag",
         "openingTime": "Öppningstid",
         "closingTime": "Stängningstid",
+        "timeErrors": {
+            "openingRequired": "Öppningstid krävs",
+            "closingRequired": "Stängningstid krävs",
+            "openingBeforeClosing": "Öppningstid måste vara före stängningstid",
+            "closingAfterOpening": "Stängningstid måste vara efter öppningstid"
+        },
         "actions": "Åtgärder",
         "monday": "Måndag",
         "tuesday": "Tisdag",

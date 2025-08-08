@@ -39,7 +39,6 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
             setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
             onUpdated?.();
         } catch (err) {
-            console.error("Error creating schedule:", err);
             setError(t("scheduleCreateError"));
             notifications.show({
                 title: t("errorSaving"),
@@ -63,7 +62,6 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
             );
             onUpdated?.();
         } catch (err) {
-            console.error("Error updating schedule:", err);
             setError(t("scheduleUpdateError"));
             notifications.show({
                 title: t("errorSaving"),
@@ -97,7 +95,6 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
                 color: "green",
             });
         } catch (err) {
-            console.error("Error deleting schedule:", err);
             setError(t("scheduleDeleteError"));
             notifications.show({
                 title: t("errorDeleting"),
