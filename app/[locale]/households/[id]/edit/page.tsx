@@ -2,7 +2,7 @@ import EditHouseholdClient from "./client";
 import { AuthProtection } from "@/components/AuthProtection";
 
 // Force dynamic rendering for this page since household IDs are dynamic
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 // Define type for params
 type Params = {
