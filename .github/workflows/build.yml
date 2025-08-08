@@ -27,6 +27,9 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Validate code (lint, typecheck, format-check)
+              run: pnpm run validate
+
             - name: Verify nginx template generation
               run: |
                   cd nginx

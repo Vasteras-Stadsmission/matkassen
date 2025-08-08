@@ -292,7 +292,13 @@ export function LocationForm({
 
                     {/* Schedules Tab */}
                     <Tabs.Panel value="schedules">
-                        {location && <SchedulesTab location={location} onUpdated={onSaved} />}
+                        {location && (
+                            <SchedulesTab
+                                location={location}
+                                onUpdated={onSaved}
+                                onLocationUpdated={onLocationUpdated}
+                            />
+                        )}
                         {!location && (
                             <Text c="dimmed" ta="center" py="md">
                                 {t("saveLocationFirst")}

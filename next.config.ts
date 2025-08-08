@@ -48,9 +48,6 @@ const nextConfig: NextConfig = {
         },
     },
 
-    // Trust proxy headers when behind nginx
-    trustHost: true,
-
     // Optimize performance through better caching and fewer redirects
     poweredByHeader: false,
     reactStrictMode: true,

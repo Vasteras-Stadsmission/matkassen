@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 // filepath: /Users/niklasmagnusson/git/matkassen/__tests__/app/api/csp-report/route.test.ts
 // Set up mockStoreCspViolationAction as a mock function
 // We need to type it properly to access the mock methods

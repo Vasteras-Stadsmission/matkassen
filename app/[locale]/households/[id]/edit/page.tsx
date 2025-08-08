@@ -1,19 +1,8 @@
 import EditHouseholdClient from "./client";
 import { AuthProtection } from "@/components/AuthProtection";
-import { getHouseholds } from "../../actions";
 
-// Generate static params for household IDs
-export async function generateStaticParams() {
-    try {
-        // Get all households to generate static params for their IDs
-        const households = await getHouseholds();
-        return households.map(household => ({ id: household.id }));
-    } catch (error) {
-        console.error("Error generating static params for households:", error);
-        // Return empty array to fallback to dynamic rendering
-        return [];
-    }
-}
+// Force dynamic rendering for this page since household IDs are dynamic
+export const dynamic = 'force-dynamic';
 
 // Define type for params
 type Params = {
