@@ -1,6 +1,6 @@
-import { vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 // Mock the database functionality
-vi.mock("@/app/db/drizzle", () => ({
+vi.mock("../../../../app/db/drizzle", () => ({
     db: {
         select: () => ({
             from: () => ({

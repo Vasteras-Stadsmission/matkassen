@@ -1,15 +1,4 @@
-// Mock the database actions
-import * as dbActions from "@/app/db/actions";
-
-import { vi } from "vitest";
-const mockLocationData = {
-    id: "location-1",
-    name: "Lifecenter Church Västerås",
-    street_address: "Example Street 123",
-    postal_code: "12345",
-    slot_duration_minutes: 15, // Default slot duration is 15 minutes
-    max_parcels_per_day: 20,
-};
+import { describe, it, expect, vi } from "vitest";
 
 const mockScheduleData = {
     id: "schedule-1",
@@ -31,19 +20,19 @@ const mockScheduleData = {
 
 // Mock Next.js cache and the actions module
 vi.mock("next/cache", () => ({
-    unstable_cache: fn => fn, // Just return the function without caching
+    unstable_cache: (fn: any) => fn, // Just return the function without caching
 }));
 
 // Mock the actions module
-vi.mock("@/app/[locale]/schedule/actions", () => {
+vi.mock("../../../../app/[locale]/schedule/actions", () => {
     return {
-        getLocationSlotDuration: async locationId => {
+        getLocationSlotDuration: async (locationId: string) => {
             if (locationId === "location-1") {
                 return 15;
             }
             return 15; // Default
         },
-        getPickupLocationSchedules: async locationId => {
+        getPickupLocationSchedules: async (locationId: string) => {
             if (locationId === "location-1") {
                 return {
                     schedules: [mockScheduleData],
@@ -58,8 +47,7 @@ vi.mock("@/app/[locale]/schedule/actions", () => {
 import {
     getLocationSlotDuration,
     getPickupLocationSchedules,
-    LocationScheduleInfo,
-} from "@/app/[locale]/schedule/actions";
+} from "../../../../app/[locale]/schedule/actions";
 
 describe("Schedule Server Actions", () => {
     describe("getLocationSlotDuration", () => {

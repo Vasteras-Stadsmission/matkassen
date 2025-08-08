@@ -10,13 +10,15 @@ import {
 } from "../../types";
 import { SchedulesList } from "./SchedulesList";
 import { createSchedule, updateSchedule, deleteSchedule } from "../../actions";
+import { objectsEqual } from "../../../../utils/deep-equal";
 
 interface SchedulesTabProps {
     location: PickupLocationWithAllData;
     onUpdated?: () => void;
+    onLocationUpdated?: (id: string, updatedLocation: Partial<PickupLocationWithAllData>) => void;
 }
 
-export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
+export function SchedulesTab({ location, onUpdated, onLocationUpdated }: SchedulesTabProps) {
     const t = useTranslations("handoutLocations");
     const [schedules, setSchedules] = useState<PickupLocationScheduleWithDays[]>(
         location.schedules || [],
@@ -24,62 +26,84 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Update schedules when location changes
+    // Sync with server state when location changes, but only if schedules actually changed
+    // This prevents overwriting optimistic updates when the location object is re-created
     useEffect(() => {
-        setSchedules(location.schedules || []);
-    }, [location]);
+        setSchedules(prevSchedules => {
+            // Only update if the schedules array actually changed
+            const newSchedules = location.schedules || [];
+            if (!objectsEqual(prevSchedules, newSchedules)) {
+                return newSchedules;
+            }
+            return prevSchedules;
+        });
+    }, [location.schedules]);
 
-    // Handle creating a new schedule
+    // Helper function to handle common operation pattern: loading state, server action, state update, and callbacks
+    const handleScheduleOperation = async <T,>(
+        operation: () => Promise<T>,
+        updateSchedules: (
+            result: T,
+            prev: PickupLocationScheduleWithDays[],
+        ) => PickupLocationScheduleWithDays[],
+        errorMessageKey: string,
+    ) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const result = await operation();
+            setSchedules(prev => {
+                const updated = updateSchedules(result, prev);
+
+                // Update parent component's state optimistically
+                if (onLocationUpdated) {
+                    onLocationUpdated(location.id, { schedules: updated });
+                }
+
+                return updated;
+            });
+
+            if (onUpdated) onUpdated();
+        } catch (err) {
+            console.error(`Error in schedule operation:`, err);
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : errorMessageKey === "scheduleCreateError" ||
+                        errorMessageKey === "scheduleUpdateError" ||
+                        errorMessageKey === "scheduleDeleteError"
+                      ? t(errorMessageKey)
+                      : t("scheduleCreateError");
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleCreateSchedule = async (scheduleData: ScheduleInput) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const newSchedule = await createSchedule(location.id, scheduleData);
-            setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
-            if (onUpdated) onUpdated();
-        } catch (err) {
-            console.error("Error creating schedule:", err);
-            setError(t("scheduleCreateError"));
-        } finally {
-            setIsLoading(false);
-        }
+        await handleScheduleOperation(
+            () => createSchedule(location.id, scheduleData),
+            (newSchedule, prev) => [...prev, newSchedule],
+            "scheduleCreateError",
+        );
     };
 
-    // Handle updating an existing schedule
     const handleUpdateSchedule = async (id: string, scheduleData: ScheduleInput) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const updatedSchedule = await updateSchedule(id, scheduleData);
-            setSchedules(prevSchedules =>
-                prevSchedules.map(schedule => (schedule.id === id ? updatedSchedule : schedule)),
-            );
-            if (onUpdated) onUpdated();
-        } catch (err) {
-            console.error("Error updating schedule:", err);
-            setError(t("scheduleUpdateError"));
-        } finally {
-            setIsLoading(false);
-        }
+        await handleScheduleOperation(
+            () => updateSchedule(id, scheduleData),
+            (updatedSchedule, prev) =>
+                prev.map(schedule => (schedule.id === id ? updatedSchedule : schedule)),
+            "scheduleUpdateError",
+        );
     };
 
-    // Handle deleting a schedule
     const handleDeleteSchedule = async (id: string) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            await deleteSchedule(id);
-            setSchedules(prevSchedules => prevSchedules.filter(schedule => schedule.id !== id));
-            if (onUpdated) onUpdated();
-        } catch (err) {
-            console.error("Error deleting schedule:", err);
-            setError(t("scheduleDeleteError"));
-        } finally {
-            setIsLoading(false);
-        }
+        await handleScheduleOperation(
+            () => deleteSchedule(id),
+            (_, prev) => prev.filter(schedule => schedule.id !== id),
+            "scheduleDeleteError",
+        );
     };
 
     return (

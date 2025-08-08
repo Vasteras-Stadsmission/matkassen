@@ -1,8 +1,9 @@
 // Health check endpoint for deployment verification
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { client } from "@/app/db/drizzle";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     const timestamp = new Date().toISOString();
 
     try {
@@ -11,19 +12,33 @@ export async function GET() {
 
         if (isTestEnvironment) {
             // Skip database checks in test environment
-            return NextResponse.json(
-                {
-                    status: "healthy",
-                    timestamp,
-                    service: "matkassen-web",
-                    environment: "test",
-                    checks: {
-                        webServer: "ok",
-                        database: "skipped (test environment)",
-                    },
+            const body = {
+                status: "healthy",
+                timestamp,
+                service: "matkassen-web",
+                environment: "test",
+                checks: {
+                    webServer: "ok",
+                    database: "skipped (test environment)",
                 },
-                { status: 200 },
-            );
+                debug: {
+                    headers: {
+                        "host": request.headers.get("host"),
+                        "x-forwarded-host": request.headers.get("x-forwarded-host"),
+                        "x-forwarded-port": request.headers.get("x-forwarded-port"),
+                        "x-forwarded-proto": request.headers.get("x-forwarded-proto"),
+                    },
+                    url: request.url,
+                    nextUrl: request.nextUrl.href,
+                },
+            };
+            return new NextResponse(JSON.stringify(body), {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Cache-Control": "no-store, no-cache, must-revalidate",
+                },
+            });
         }
 
         // Test database connectivity
@@ -54,9 +69,27 @@ export async function GET() {
                 database: dbStatus,
                 ...(dbError && { databaseError: dbError }),
             },
+            ...(process.env.NODE_ENV !== "production" && {
+                debug: {
+                    headers: {
+                        "host": request.headers.get("host"),
+                        "x-forwarded-host": request.headers.get("x-forwarded-host"),
+                        "x-forwarded-port": request.headers.get("x-forwarded-port"),
+                        "x-forwarded-proto": request.headers.get("x-forwarded-proto"),
+                    },
+                    url: request.url,
+                    nextUrl: request.nextUrl.href,
+                },
+            }),
         };
 
-        return NextResponse.json(response, { status: httpStatus });
+        return new NextResponse(JSON.stringify(response), {
+            status: httpStatus,
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+            },
+        });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         console.error("Health check failed:", error);

@@ -27,7 +27,7 @@ import {
 } from "@tabler/icons-react";
 import { FoodParcel, PickupLocation, getFoodParcelsForWeek, getPickupLocations } from "../actions";
 import WeeklyScheduleGrid from "../components/WeeklyScheduleGrid";
-import { getISOWeekNumber, getWeekDates } from "@/app/utils/date-utils";
+import { getISOWeekNumber, getWeekDates } from "../../../utils/date-utils";
 import { useTranslations } from "next-intl";
 
 const DEFAULT_MAX_PARCELS_PER_SLOT = 4;
@@ -163,7 +163,6 @@ function SchedulePageContent({
         }
     }, [currentDate, selectedLocationId, weekDates.length]);
 
-    // Helper function to load food parcels that can be reused
     const loadFoodParcels = async (locationId: string, dates: Date[]) => {
         if (!locationId || dates.length === 0) return;
 
@@ -193,7 +192,6 @@ function SchedulePageContent({
         }
     };
 
-    // Navigate to previous week
     const goToPreviousWeek = () => {
         setIsLoadingParcels(true); // Set loading when changing week
         const newDate = new Date(currentDate);
@@ -201,7 +199,6 @@ function SchedulePageContent({
         setCurrentDate(newDate);
     };
 
-    // Navigate to next week
     const goToNextWeek = () => {
         setIsLoadingParcels(true); // Set loading when changing week
         const newDate = new Date(currentDate);
@@ -209,7 +206,6 @@ function SchedulePageContent({
         setCurrentDate(newDate);
     };
 
-    // Go to today
     const goToToday = () => {
         setIsLoadingParcels(true); // Set loading when changing week
         setCurrentDate(new Date());
@@ -373,7 +369,6 @@ function SchedulePageContent({
     );
 }
 
-// Main exported component that properly handles search params with Suspense
 export default function SchedulePageClient() {
     const [locationId, setLocationId] = useState<string | null>(null);
     const [date, setDate] = useState<Date | null>(null);
@@ -383,11 +378,9 @@ export default function SchedulePageClient() {
     function SearchParamsComponentWithSuspense() {
         const { locationId: locationIdFromUrl, dateParam } = SearchParamsHandler();
 
-        // Only run the effect once to prevent cascading updates
         useEffect(() => {
-            // Batch the state updates together to reduce renders
-            let newLocationId = null;
-            let newDate = null;
+            let newLocationId: string | null = null;
+            let newDate: Date | null = null;
 
             if (locationIdFromUrl) {
                 newLocationId = locationIdFromUrl;
@@ -400,25 +393,20 @@ export default function SchedulePageClient() {
                 }
             }
 
-            // Set all the state at once to minimize renders
             setLocationId(newLocationId);
             setDate(newDate);
             setParamsLoaded(true);
-        }, [dateParam, locationIdFromUrl]); // Add missing dependencies
+        }, [dateParam, locationIdFromUrl]);
 
         return null;
     }
 
-    // Use a more explicit conditional rendering to ensure the content doesn't load
-    // until params have been processed, preventing double-loading
     return (
         <>
-            {/* Wrap the component using useSearchParams in Suspense */}
             <Suspense fallback={null}>
                 <SearchParamsComponentWithSuspense />
             </Suspense>
 
-            {/* Only render the main content once params have been processed */}
             {(paramsLoaded || (!locationId && !date)) && (
                 <SchedulePageContent locationIdFromParams={locationId} dateFromParams={date} />
             )}

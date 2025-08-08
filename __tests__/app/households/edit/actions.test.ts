@@ -1,8 +1,8 @@
 "use strict";
 
-import { FormData } from "@/app/[locale]/households/enroll/types";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { FormData } from "../../../../app/[locale]/households/enroll/types";
 
-import { vi } from "vitest";
 // Simple mock implementation that just returns success
 const mockImplementation = {
     success: true,
@@ -10,7 +10,7 @@ const mockImplementation = {
 };
 
 // Mock the module before importing - use a factory function to avoid hoisting issues
-vi.mock("@/app/[locale]/households/[id]/edit/actions", () => ({
+vi.mock("../../../../app/[locale]/households/[id]/edit/actions", () => ({
     updateHousehold: vi.fn(() =>
         Promise.resolve({
             success: true,
@@ -20,7 +20,7 @@ vi.mock("@/app/[locale]/households/[id]/edit/actions", () => ({
 }));
 
 // Import the mocked function
-import { updateHousehold } from "@/app/[locale]/households/[id]/edit/actions";
+import { updateHousehold } from "../../../../app/[locale]/households/[id]/edit/actions";
 
 describe("Household Edit Actions", () => {
     beforeEach(() => {

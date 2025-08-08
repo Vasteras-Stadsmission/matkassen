@@ -1,5 +1,5 @@
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
-import { vi } from "vitest";
 import { renderWithProviders } from "../test-helpers";
 import { MockButton } from "../mock-components";
 

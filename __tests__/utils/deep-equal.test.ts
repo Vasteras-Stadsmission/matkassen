@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import deepEqual from "fast-deep-equal";
 
 // Using fast-deep-equal for robust deep comparison of objects

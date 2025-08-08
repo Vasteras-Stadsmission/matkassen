@@ -1,4 +1,5 @@
-import { validateWeekSelection } from "@/app/utils/schedule/schedule-validation";
+import { describe, it, expect } from "vitest";
+import { validateWeekSelection } from "../../../app/utils/schedule/schedule-validation";
 
 describe("Schedule Week Selection Validation", () => {
     // Test case 1: User can select the same start week as end week

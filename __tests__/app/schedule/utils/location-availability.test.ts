@@ -1,8 +1,9 @@
+import { describe, it, expect } from "vitest";
 import {
     isDateAvailable,
     isTimeAvailable,
     getAvailableTimeRange,
-} from "@/app/utils/schedule/location-availability";
+} from "../../../../app/utils/schedule/location-availability";
 
 describe("Location Availability Utilities", () => {
     // Define test schedule data that matches our specific test cases

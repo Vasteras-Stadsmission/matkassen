@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Paper, Text, Stack, Group, Loader } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { PickupLocationWithAllData, ScheduleInput } from "../types";
@@ -21,10 +21,13 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Update schedules when location changes
+    // Memoize location schedules to prevent unnecessary effect runs
+    const locationSchedules = useMemo(() => location.schedules || [], [location.schedules]);
+
+    // Update schedules when location.schedules actually changes (not just when location object changes)
     useEffect(() => {
-        setSchedules(location.schedules || []);
-    }, [location]);
+        setSchedules(locationSchedules);
+    }, [locationSchedules]);
 
     // Handle creating a new schedule
     const handleCreateSchedule = async (scheduleData: ScheduleInput) => {
@@ -34,7 +37,7 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
         try {
             const newSchedule = await createSchedule(location.id, scheduleData);
             setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
-            if (onUpdated) onUpdated();
+            onUpdated?.();
         } catch (err) {
             console.error("Error creating schedule:", err);
             setError(t("scheduleCreateError"));
@@ -58,7 +61,7 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
             setSchedules(prevSchedules =>
                 prevSchedules.map(s => (s.id === scheduleId ? updatedSchedule : s)),
             );
-            if (onUpdated) onUpdated();
+            onUpdated?.();
         } catch (err) {
             console.error("Error updating schedule:", err);
             setError(t("scheduleUpdateError"));
@@ -82,11 +85,10 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
             // Call the delete API
             await deleteSchedule(scheduleId);
 
-            // Update local state to remove the deleted schedule
             setSchedules(prevSchedules => prevSchedules.filter(s => s.id !== scheduleId));
 
             // Call the onUpdated callback if provided
-            if (onUpdated) onUpdated();
+            onUpdated?.();
 
             // Show success notification
             notifications.show({

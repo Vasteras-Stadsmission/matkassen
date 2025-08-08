@@ -1,4 +1,5 @@
-import { formatDuration } from "@/app/[locale]/schedule/components/WeeklyScheduleGrid";
+import { describe, it, expect } from "vitest";
+import { formatDuration } from "../../../../app/[locale]/schedule/components/WeeklyScheduleGrid";
 
 describe("Time Slot Utilities", () => {
     describe("formatDuration", () => {
