@@ -32,6 +32,7 @@ import {
     getWeekDateRange,
     getISOWeekNumber,
 } from "@/app/utils/schedule/schedule-validation";
+import { getISOWeekYear } from "date-fns";
 import { format } from "date-fns";
 import { WeekPicker } from "./WeekPicker";
 
@@ -104,7 +105,7 @@ export function ScheduleForm({
         if (initialValues?.start_date) {
             const date = new Date(initialValues.start_date);
             return {
-                year: date.getFullYear(),
+                year: getISOWeekYear(date),
                 week: getISOWeekNumber(date),
             };
         }
@@ -115,7 +116,7 @@ export function ScheduleForm({
         if (initialValues?.end_date) {
             const date = new Date(initialValues.end_date);
             return {
-                year: date.getFullYear(),
+                year: getISOWeekYear(date),
                 week: getISOWeekNumber(date),
             };
         }
@@ -369,6 +370,7 @@ export function ScheduleForm({
                             onChange={
                                 handleStartWeekChange as (selection: WeekSelection | null) => void
                             }
+                            displayMode="start"
                             // Default behavior now prevents selecting weeks in the past
                         />
                         <WeekPicker
@@ -377,11 +379,11 @@ export function ScheduleForm({
                             onChange={
                                 handleEndWeekChange as (selection: WeekSelection | null) => void
                             }
-                            // Allow selecting the same week as the start week by using the start of that week
-                            // instead of using the start date directly, which would disable the week itself
+                            displayMode="end"
+                            // Use the actual start date of the selected start week
                             minDate={
                                 startWeek
-                                    ? new Date(startWeek.year, 0, 1 + (startWeek.week - 1) * 7)
+                                    ? getWeekDateRange(startWeek.year, startWeek.week).startDate
                                     : undefined
                             }
                         />
