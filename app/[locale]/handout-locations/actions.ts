@@ -219,33 +219,14 @@ export async function createSchedule(
                 .values({
                     pickup_location_id: locationId,
                     name: scheduleData.name,
+                    // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
                     start_date:
                         scheduleData.start_date instanceof Date
-                            ? new Date(
-                                  scheduleData.start_date.getFullYear(),
-                                  scheduleData.start_date.getMonth(),
-                                  scheduleData.start_date.getDate(),
-                                  12, // Set to noon to avoid any timezone issues
-                                  0,
-                                  0,
-                                  0,
-                              )
-                                  .toISOString()
-                                  .split("T")[0]
+                            ? scheduleData.start_date.toISOString().split("T")[0]
                             : scheduleData.start_date,
                     end_date:
                         scheduleData.end_date instanceof Date
-                            ? new Date(
-                                  scheduleData.end_date.getFullYear(),
-                                  scheduleData.end_date.getMonth(),
-                                  scheduleData.end_date.getDate(),
-                                  12, // Set to noon to avoid any timezone issues
-                                  0,
-                                  0,
-                                  0,
-                              )
-                                  .toISOString()
-                                  .split("T")[0]
+                            ? scheduleData.end_date.toISOString().split("T")[0]
                             : scheduleData.end_date,
                 })
                 .returning();
@@ -326,33 +307,14 @@ export async function updateSchedule(
                 .update(pickupLocationSchedules)
                 .set({
                     name: scheduleData.name,
+                    // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
                     start_date:
                         scheduleData.start_date instanceof Date
-                            ? new Date(
-                                  scheduleData.start_date.getFullYear(),
-                                  scheduleData.start_date.getMonth(),
-                                  scheduleData.start_date.getDate(),
-                                  12, // Set to noon to avoid any timezone issues
-                                  0,
-                                  0,
-                                  0,
-                              )
-                                  .toISOString()
-                                  .split("T")[0]
+                            ? scheduleData.start_date.toISOString().split("T")[0]
                             : scheduleData.start_date,
                     end_date:
                         scheduleData.end_date instanceof Date
-                            ? new Date(
-                                  scheduleData.end_date.getFullYear(),
-                                  scheduleData.end_date.getMonth(),
-                                  scheduleData.end_date.getDate(),
-                                  12, // Set to noon to avoid any timezone issues
-                                  0,
-                                  0,
-                                  0,
-                              )
-                                  .toISOString()
-                                  .split("T")[0]
+                            ? scheduleData.end_date.toISOString().split("T")[0]
                             : scheduleData.end_date,
                 })
                 .where(eq(pickupLocationSchedules.id, scheduleId))

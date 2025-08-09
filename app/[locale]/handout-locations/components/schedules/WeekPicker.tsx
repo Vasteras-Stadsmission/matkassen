@@ -17,7 +17,7 @@ import { useTranslations } from "next-intl";
 import { IconCalendar, IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { getWeekDateRange, getISOWeekNumber } from "@/app/utils/schedule/schedule-validation";
 import { WeekSelection } from "../../types";
-import { format, startOfWeek, addDays, isSameMonth, isSameDay } from "date-fns";
+import { format, startOfWeek, addDays, isSameMonth, isSameDay, getISOWeekYear } from "date-fns";
 
 interface WeekPickerProps {
     label?: string;
@@ -25,6 +25,11 @@ interface WeekPickerProps {
     onChange: (selection: WeekSelection | null) => void;
     minDate?: Date;
     maxDate?: Date;
+    // Controls how the selected value is displayed in the input
+    // - 'range': shows start and end date (default)
+    // - 'start': shows only the Monday date
+    // - 'end': shows only the Sunday date
+    displayMode?: "range" | "start" | "end";
 }
 
 // Helper to generate days for a month calendar
@@ -50,7 +55,14 @@ const groupDaysIntoWeeks = (days: Date[]): Date[][] => {
     return weeks;
 };
 
-export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPickerProps) {
+export function WeekPicker({
+    label,
+    value,
+    onChange,
+    minDate,
+    maxDate,
+    displayMode = "range",
+}: WeekPickerProps) {
     const t = useTranslations("handoutLocations");
     const [opened, setOpened] = useState(false);
     const [selectedRow, setSelectedRow] = useState<number | null>(null);
@@ -63,14 +75,21 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
     // If minDate is not explicitly provided, use today's date
     const effectiveMinDate = minDate || today;
 
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-
     // State for year, month, and week selection
-    const [selectedYear, setSelectedYear] = useState<number>(value?.year || currentYear);
-    const [selectedMonth, setSelectedMonth] = useState<number>(
-        value ? new Date(value.year, 0, 1 + (value.week - 1) * 7).getMonth() : currentMonth,
-    );
+    const [selectedYear, setSelectedYear] = useState<number>(() => {
+        if (value) {
+            const { startDate } = getWeekDateRange(value.year, value.week);
+            return startDate.getFullYear();
+        }
+        return today.getFullYear();
+    });
+    const [selectedMonth, setSelectedMonth] = useState<number>(() => {
+        if (value) {
+            const { startDate } = getWeekDateRange(value.year, value.week);
+            return startDate.getMonth();
+        }
+        return today.getMonth();
+    });
     const [selectedWeek, setSelectedWeek] = useState<number | undefined>(value?.week);
 
     // Generate calendar days and weeks
@@ -81,10 +100,14 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
     const formatDateRange = (year: number, week: number) => {
         const { startDate, endDate } = getWeekDateRange(year, week);
 
-        // Format dates with week numbers for clarity
+        // Normalize to the UTC date-only to avoid timezone rollover (e.g., Sunday 23:59:59Z -> Monday local)
+        const normalizeToUtcDateOnly = (date: Date) => new Date(date.toISOString().slice(0, 10));
+
+        // Format dates with week numbers for clarity using normalized dates
         const formatDate = (date: Date) => {
-            const weekNum = getISOWeekNumber(date);
-            return `${format(date, "yyyy-MM-dd")} (${t("week")} ${weekNum})`;
+            const normalized = normalizeToUtcDateOnly(date);
+            const weekNum = getISOWeekNumber(normalized);
+            return `${format(normalized, "yyyy-MM-dd")} (${t("week")} ${weekNum})`;
         };
 
         return `${formatDate(startDate)} — ${formatDate(endDate)}`;
@@ -93,6 +116,21 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
     // Get display value for input
     const getDisplayValue = () => {
         if (!value) return "";
+        const { startDate, endDate } = getWeekDateRange(value.year, value.week);
+        const normalizeToUtcDateOnly = (date: Date) => new Date(date.toISOString().slice(0, 10));
+        const formatOne = (date: Date) => {
+            const normalized = normalizeToUtcDateOnly(date);
+            const weekNum = getISOWeekNumber(normalized);
+            return `${format(normalized, "yyyy-MM-dd")} (${t("week")} ${weekNum})`;
+        };
+
+        if (displayMode === "start") {
+            return `${t("week")} ${value.week}, ${value.year} (${formatOne(startDate)})`;
+        }
+        if (displayMode === "end") {
+            return `${t("week")} ${value.week}, ${value.year} (${formatOne(endDate)})`;
+        }
+        // Default: show full range
         return `${t("week")} ${value.week}, ${value.year} (${formatDateRange(value.year, value.week)})`;
     };
 
@@ -111,7 +149,7 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
         // Use the first day of the week to determine the week number and year
         const firstDayOfWeek = week[0];
         const weekNumber = getWeekOfDate(firstDayOfWeek);
-        const year = firstDayOfWeek.getFullYear();
+        const year = getISOWeekYear(firstDayOfWeek);
 
         const newSelection = { year, week: weekNumber };
 
@@ -168,7 +206,9 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
     const isCurrentWeek = (week: Date[]) => {
         const firstDay = week[0];
         const weekNum = getWeekOfDate(firstDay);
-        return firstDay.getFullYear() === currentYear && weekNum === getWeekOfDate(today);
+        return (
+            getISOWeekYear(firstDay) === getISOWeekYear(today) && weekNum === getWeekOfDate(today)
+        );
     };
 
     // Highlight selected week
@@ -176,7 +216,7 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
         if (!value) return false;
         const firstDay = week[0];
         const weekNum = getWeekOfDate(firstDay);
-        return firstDay.getFullYear() === value.year && weekNum === value.week;
+        return getISOWeekYear(firstDay) === value.year && weekNum === value.week;
     };
 
     // Check if a day is within the current month
@@ -197,11 +237,11 @@ export function WeekPicker({ label, value, onChange, minDate, maxDate }: WeekPic
     // Update internal state when value changes externally
     useEffect(() => {
         if (value) {
-            setSelectedYear(value.year);
             setSelectedWeek(value.week);
-            // Approximate month based on the week number
-            const approximateDate = new Date(value.year, 0, 1 + (value.week - 1) * 7);
-            setSelectedMonth(approximateDate.getMonth());
+            // Derive calendar month/year from the actual week date range
+            const { startDate } = getWeekDateRange(value.year, value.week);
+            setSelectedYear(startDate.getFullYear());
+            setSelectedMonth(startDate.getMonth());
         } else {
             setSelectedWeek(undefined);
         }
