@@ -473,6 +473,11 @@
         "selectWeekday": "Select weekday",
         "openingTime": "Opening Time",
         "closingTime": "Closing Time",
+        "timeErrors": {
+            "openingRequired": "Opening time is required",
+            "closingRequired": "Closing time is required",
+            "openingBeforeClosing": "Opening must be before closing"
+        },
         "actions": "Actions",
         "monday": "Monday",
         "tuesday": "Tuesday",
