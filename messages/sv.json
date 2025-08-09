@@ -473,8 +473,7 @@
         "timeErrors": {
             "openingRequired": "Öppningstid krävs",
             "closingRequired": "Stängningstid krävs",
-            "openingBeforeClosing": "Öppningstid måste vara före stängningstid",
-            "closingAfterOpening": "Stängningstid måste vara efter öppningstid"
+            "openingBeforeClosing": "Öppningstid måste vara före stängningstid"
         },
         "actions": "Åtgärder",
         "monday": "Måndag",

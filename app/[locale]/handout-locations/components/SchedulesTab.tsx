@@ -38,7 +38,7 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
             const newSchedule = await createSchedule(location.id, scheduleData);
             setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
             onUpdated?.();
-        } catch (err) {
+        } catch {
             setError(t("scheduleCreateError"));
             notifications.show({
                 title: t("errorSaving"),
@@ -61,7 +61,7 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
                 prevSchedules.map(s => (s.id === scheduleId ? updatedSchedule : s)),
             );
             onUpdated?.();
-        } catch (err) {
+        } catch {
             setError(t("scheduleUpdateError"));
             notifications.show({
                 title: t("errorSaving"),
@@ -94,7 +94,7 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
                 message: t("scheduleDeleteError"), // Using the error message key without parameters
                 color: "green",
             });
-        } catch (err) {
+        } catch {
             setError(t("scheduleDeleteError"));
             notifications.show({
                 title: t("errorDeleting"),

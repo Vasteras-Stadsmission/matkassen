@@ -35,6 +35,12 @@ import {
 import { format } from "date-fns";
 import { WeekPicker } from "./WeekPicker";
 
+// Placed in module scope to avoid re-creation on each submit
+const toMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(":");
+    return Number(hours) * 60 + Number(minutes);
+};
+
 interface ScheduleFormProps {
     onSubmit: (data: ScheduleInput) => Promise<void>;
     existingSchedules: PickupLocationScheduleWithDays[];
@@ -253,6 +259,9 @@ export function ScheduleForm({
     // Use a ref to track if we should perform date validation
     const dateFieldsChanged = useRef(false);
 
+    // Track which weekday rows have changed to limit per-day validation work
+    const changedDayIndexesRef = useRef<Set<number>>(new Set());
+
     // Check for overlapping schedules with debounce only when date fields change
     useEffect(() => {
         dateFieldsChanged.current = true;
@@ -276,19 +285,17 @@ export function ScheduleForm({
                 return;
             }
 
-            // Client-side validation for weekday times to avoid DB constraint errors
+            // Client-side validation for weekday times: only validate rows that changed or are open
             let hasTimeErrors = false;
-            const toMinutes = (time: string): number => {
-                const [h, m] = time.split(":");
-                return Number(h) * 60 + Number(m);
-            };
-
             values.days.forEach((day, idx) => {
-                // Clear previous errors for this row
+                const changed = changedDayIndexesRef.current.has(idx);
+                if (!changed && !day.is_open) return;
+
+                // Clear previous errors for this row before re-validating
                 form.clearFieldError(`days.${idx}.opening_time`);
                 form.clearFieldError(`days.${idx}.closing_time`);
 
-                if (!day.is_open) return;
+                if (!day.is_open) return; // closed rows need no further validation
 
                 if (!day.opening_time) {
                     form.setFieldError(`days.${idx}.opening_time`, t("timeErrors.openingRequired"));
@@ -303,14 +310,9 @@ export function ScheduleForm({
                     const start = toMinutes(day.opening_time);
                     const end = toMinutes(day.closing_time);
                     if (start >= end) {
-                        form.setFieldError(
-                            `days.${idx}.opening_time`,
-                            t("timeErrors.openingBeforeClosing"),
-                        );
-                        form.setFieldError(
-                            `days.${idx}.closing_time`,
-                            t("timeErrors.closingAfterOpening"),
-                        );
+                        const sameMessage = t("timeErrors.openingBeforeClosing");
+                        form.setFieldError(`days.${idx}.opening_time`, sameMessage);
+                        form.setFieldError(`days.${idx}.closing_time`, sameMessage);
                         hasTimeErrors = true;
                     }
                 }
@@ -330,6 +332,8 @@ export function ScheduleForm({
                 end_date: values.end_date, // Keep end_date as a Date for the API
             };
             await onSubmit(formattedValues);
+            // Clear tracked changes on successful submit
+            changedDayIndexesRef.current.clear();
         } finally {
             setSaving(false);
         }
@@ -426,6 +430,17 @@ export function ScheduleForm({
                                                     `days.${index}.is_open`,
                                                     event.currentTarget.checked,
                                                 );
+                                                // Mark row as changed
+                                                changedDayIndexesRef.current.add(index);
+                                                // If toggled closed, clear existing time field errors for this row
+                                                if (!event.currentTarget.checked) {
+                                                    form.clearFieldError(
+                                                        `days.${index}.opening_time`,
+                                                    );
+                                                    form.clearFieldError(
+                                                        `days.${index}.closing_time`,
+                                                    );
+                                                }
                                             }}
                                             label={t(`weekdays.${day.weekday}`)}
                                         />
@@ -439,6 +454,7 @@ export function ScheduleForm({
                                                 `days.${index}.opening_time`,
                                                 value || "09:00",
                                             );
+                                            changedDayIndexesRef.current.add(index);
                                         }}
                                         min="08:00"
                                         max="20:00"
@@ -462,6 +478,7 @@ export function ScheduleForm({
                                                 `days.${index}.closing_time`,
                                                 value || "17:00",
                                             );
+                                            changedDayIndexesRef.current.add(index);
                                         }}
                                         min="08:00"
                                         max="20:00"
