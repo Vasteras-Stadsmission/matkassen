@@ -24,7 +24,6 @@ import { nanoid } from "@/app/db/schema";
 import {
     toStockholmTime,
     minutesToHHmm,
-    normalizeToHHmm,
     subtractMinutesFromHHmm,
 } from "@/app/utils/date-utils";
 import {

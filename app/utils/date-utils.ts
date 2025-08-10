@@ -206,13 +206,15 @@ export function minutesToHHmm(totalMinutes: number): string {
 }
 
 /**
- * Normalize arbitrary time input (like "9:5" or "9") to HH:mm. Defaults to 12:00 for empty/invalid.
+ * Normalize a time string to HH:mm. Accepts inputs like HH:mm or HH:mm:ss.
+ * Returns the original string if it cannot be parsed.
  */
-export function normalizeToHHmm(timeString: string): string {
-    if (!timeString) return "12:00";
-    const base = startOfDay(new Date());
-    const parsed = parse(timeString, "H:mm", base);
-    return Number.isNaN(parsed.getTime()) ? "12:00" : format(parsed, "HH:mm");
+function normalizeToHHmm(time: string): string {
+    const match = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!match) return time;
+    const hours = Math.max(0, Math.min(23, parseInt(match[1], 10)));
+    const minutes = Math.max(0, Math.min(59, parseInt(match[2], 10)));
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
 /**
@@ -220,7 +222,8 @@ export function normalizeToHHmm(timeString: string): string {
  */
 export function subtractMinutesFromHHmm(time: string, minutes: number): string {
     const base = startOfDay(new Date());
-    const parsed = parse(time, "H:mm", base);
+    const normalized = normalizeToHHmm(time);
+    const parsed = parse(normalized, "H:mm", base);
     if (Number.isNaN(parsed.getTime())) return time;
     const result = subMinutes(parsed, minutes);
     return isBefore(result, base) ? "00:00" : format(result, "HH:mm");
@@ -231,7 +234,8 @@ export function subtractMinutesFromHHmm(time: string, minutes: number): string {
  */
 export function addMinutesToHHmm(time: string, minutesToAdd: number): string {
     const base = startOfDay(new Date());
-    const parsed = parse(time, "H:mm", base);
+    const normalized = normalizeToHHmm(time);
+    const parsed = parse(normalized, "H:mm", base);
     if (Number.isNaN(parsed.getTime())) return time;
     const result = addMinutes(parsed, minutesToAdd);
     // Clamp to end of day if needed
@@ -245,7 +249,8 @@ export function addMinutesToHHmm(time: string, minutesToAdd: number): string {
  */
 export function hhmmToMinutes(time: string): number | null {
     const base = startOfDay(new Date());
-    const parsed = parse(time, "H:mm", base);
+    const normalized = normalizeToHHmm(time);
+    const parsed = parse(normalized, "H:mm", base);
     if (Number.isNaN(parsed.getTime())) return null;
     return parsed.getHours() * 60 + parsed.getMinutes();
 }
@@ -262,8 +267,8 @@ export function generateTimeSlotsBetween(
     requireSlotEndWithinClose = false,
 ): string[] {
     const base = startOfDay(new Date());
-    const start = parse(openingHHmm, "H:mm", base);
-    const end = parse(closingHHmm, "H:mm", base);
+    const start = parse(normalizeToHHmm(openingHHmm), "H:mm", base);
+    const end = parse(normalizeToHHmm(closingHHmm), "H:mm", base);
     if (
         Number.isNaN(start.getTime()) ||
         Number.isNaN(end.getTime()) ||
