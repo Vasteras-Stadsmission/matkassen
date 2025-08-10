@@ -223,7 +223,7 @@ function normalizeToHHmm(time: string): string {
 export function subtractMinutesFromHHmm(time: string, minutes: number): string {
     const base = startOfDay(new Date());
     const normalized = normalizeToHHmm(time);
-    const parsed = parse(normalized, "H:mm", base);
+    const parsed = parse(normalized, "HH:mm", base);
     if (Number.isNaN(parsed.getTime())) return time;
     const result = subMinutes(parsed, minutes);
     return isBefore(result, base) ? "00:00" : format(result, "HH:mm");
@@ -235,7 +235,7 @@ export function subtractMinutesFromHHmm(time: string, minutes: number): string {
 export function addMinutesToHHmm(time: string, minutesToAdd: number): string {
     const base = startOfDay(new Date());
     const normalized = normalizeToHHmm(time);
-    const parsed = parse(normalized, "H:mm", base);
+    const parsed = parse(normalized, "HH:mm", base);
     if (Number.isNaN(parsed.getTime())) return time;
     const result = addMinutes(parsed, minutesToAdd);
     // Clamp to end of day if needed
@@ -250,7 +250,7 @@ export function addMinutesToHHmm(time: string, minutesToAdd: number): string {
 export function hhmmToMinutes(time: string): number | null {
     const base = startOfDay(new Date());
     const normalized = normalizeToHHmm(time);
-    const parsed = parse(normalized, "H:mm", base);
+    const parsed = parse(normalized, "HH:mm", base);
     if (Number.isNaN(parsed.getTime())) return null;
     return parsed.getHours() * 60 + parsed.getMinutes();
 }
@@ -267,8 +267,8 @@ export function generateTimeSlotsBetween(
     requireSlotEndWithinClose = false,
 ): string[] {
     const base = startOfDay(new Date());
-    const start = parse(normalizeToHHmm(openingHHmm), "H:mm", base);
-    const end = parse(normalizeToHHmm(closingHHmm), "H:mm", base);
+    const start = parse(normalizeToHHmm(openingHHmm), "HH:mm", base);
+    const end = parse(normalizeToHHmm(closingHHmm), "HH:mm", base);
     if (
         Number.isNaN(start.getTime()) ||
         Number.isNaN(end.getTime()) ||
