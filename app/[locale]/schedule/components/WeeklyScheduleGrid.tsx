@@ -32,6 +32,8 @@ import {
     isPastTimeSlot,
     toStockholmTime,
     formatTime,
+    generateTimeSlotsBetween,
+    minutesToHHmm,
 } from "@/app/utils/date-utils";
 import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { useTranslations } from "next-intl";
@@ -76,38 +78,8 @@ export function generateDaySpecificTimeSlots(
         return []; // No time range available
     }
 
-    // Parse the times
-    const [openHour, openMinute] = earliestTime.split(":").map(Number);
-    const [closeHour, closeMinute] = latestTime.split(":").map(Number);
-
-    // Calculate total minutes for opening and closing
-    const openingMinutes = openHour * 60 + openMinute;
-    const closingMinutes = closeHour * 60 + closeMinute;
-
-    // Generate slots
-    const slots: string[] = [];
-
-    // Start from the exact opening time
-    let currentHour = openHour;
-    let currentMinute = openMinute;
-    let currentTotalMinutes = openingMinutes;
-
-    // Generate slots until we reach closing time
-    // A slot is valid if it starts before the closing time (so the appointment ends at or before closing time)
-    while (currentTotalMinutes < closingMinutes) {
-        const timeSlot = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
-        slots.push(timeSlot);
-
-        // Advance to the next slot using the specified duration
-        currentMinute += slotDurationMinutes;
-        if (currentMinute >= 60) {
-            currentHour += Math.floor(currentMinute / 60);
-            currentMinute = currentMinute % 60;
-        }
-        currentTotalMinutes += slotDurationMinutes;
-    }
-
-    return slots;
+    // Generate slots using shared utility. Weekly grid accepts starts < closing time
+    return generateTimeSlotsBetween(earliestTime, latestTime, slotDurationMinutes, false);
 }
 
 interface WeeklyScheduleGridProps {
@@ -441,10 +413,10 @@ export default function WeeklyScheduleGrid({
             const hours = pickupTime.getHours();
             const minutes = pickupTime.getMinutes();
 
-            // Round to the nearest slotDuration
+            // Round down to the nearest slotDuration
             const slotIndex = Math.floor(minutes / slotDuration);
             const slotMinutes = slotIndex * slotDuration;
-            const timeSlot = `${hours.toString().padStart(2, "0")}:${slotMinutes.toString().padStart(2, "0")}`;
+            const timeSlot = minutesToHHmm(hours * 60 + slotMinutes);
 
             // Add parcel to corresponding slot
             if (newParcelsBySlot[dateKey] && !newParcelsBySlot[dateKey][timeSlot]) {

@@ -1,4 +1,15 @@
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, getISOWeek } from "date-fns";
+import {
+    startOfDay,
+    endOfDay,
+    startOfWeek,
+    endOfWeek,
+    getISOWeek,
+    addMinutes,
+    subMinutes,
+    format,
+    parse,
+    isBefore,
+} from "date-fns";
 import { toZonedTime, fromZonedTime, formatInTimeZone } from "date-fns-tz";
 
 // Use Stockholm timezone consistently as specified in the requirements
@@ -184,4 +195,100 @@ export function parseISODateString(dateString: string): Date {
 
     // Convert to Stockholm timezone and then back to UTC
     return fromStockholmTime(toStockholmTime(stockholmDate));
+}
+
+/**
+ * Convert minutes since start of day to an HH:mm string
+ */
+export function minutesToHHmm(totalMinutes: number): string {
+    const base = startOfDay(new Date());
+    return format(addMinutes(base, totalMinutes), "HH:mm");
+}
+
+/**
+ * Normalize a time string to HH:mm. Accepts inputs like HH:mm or HH:mm:ss.
+ * Returns the original string if it cannot be parsed.
+ */
+function normalizeToHHmm(time: string): string {
+    const match = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!match) return time;
+    const hours = Math.max(0, Math.min(23, parseInt(match[1], 10)));
+    const minutes = Math.max(0, Math.min(59, parseInt(match[2], 10)));
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Subtract minutes from an HH:mm string and return HH:mm, clamped to 00:00
+ */
+export function subtractMinutesFromHHmm(time: string, minutes: number): string {
+    const base = startOfDay(new Date());
+    const normalized = normalizeToHHmm(time);
+    const parsed = parse(normalized, "HH:mm", base);
+    if (Number.isNaN(parsed.getTime())) return time;
+    const result = subMinutes(parsed, minutes);
+    return isBefore(result, base) ? "00:00" : format(result, "HH:mm");
+}
+
+/**
+ * Add minutes to an HH:mm string and return HH:mm (no wrap-around beyond 23:59)
+ */
+export function addMinutesToHHmm(time: string, minutesToAdd: number): string {
+    const base = startOfDay(new Date());
+    const normalized = normalizeToHHmm(time);
+    const parsed = parse(normalized, "HH:mm", base);
+    if (Number.isNaN(parsed.getTime())) return time;
+    const result = addMinutes(parsed, minutesToAdd);
+    // Clamp to end of day if needed
+    const endOfBaseDay = endOfDay(base);
+    const clamped = isBefore(result, endOfBaseDay) ? result : endOfBaseDay;
+    return format(clamped, "HH:mm");
+}
+
+/**
+ * Convert an HH:mm string to total minutes since start of day. Returns null if invalid
+ */
+export function hhmmToMinutes(time: string): number | null {
+    const base = startOfDay(new Date());
+    const normalized = normalizeToHHmm(time);
+    const parsed = parse(normalized, "HH:mm", base);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.getHours() * 60 + parsed.getMinutes();
+}
+
+/**
+ * Generate time slots between two HH:mm strings with a given step size.
+ * If requireSlotEndWithinClose is true, only includes slots whose end time
+ * (start + step) is <= closing time. Otherwise includes all starts < closing time.
+ */
+export function generateTimeSlotsBetween(
+    openingHHmm: string,
+    closingHHmm: string,
+    stepMinutes: number,
+    requireSlotEndWithinClose = false,
+): string[] {
+    const base = startOfDay(new Date());
+    const start = parse(normalizeToHHmm(openingHHmm), "HH:mm", base);
+    const end = parse(normalizeToHHmm(closingHHmm), "HH:mm", base);
+    if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime()) ||
+        stepMinutes <= 0 ||
+        !isBefore(start, end)
+    ) {
+        return [];
+    }
+
+    const slots: string[] = [];
+    let current = start;
+    while (true) {
+        if (requireSlotEndWithinClose) {
+            const slotEnd = addMinutes(current, stepMinutes);
+            if (slotEnd.getTime() > end.getTime()) break;
+        } else {
+            if (!(current.getTime() < end.getTime())) break;
+        }
+        slots.push(format(current, "HH:mm"));
+        current = addMinutes(current, stepMinutes);
+    }
+    return slots;
 }

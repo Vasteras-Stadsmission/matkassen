@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { showNotification } from "@mantine/notifications";
 import {
     SimpleGrid,
     Title,
@@ -20,7 +21,7 @@ import {
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
-import { toStockholmTime } from "@/app/utils/date-utils";
+import { toStockholmTime, minutesToHHmm, subtractMinutesFromHHmm } from "@/app/utils/date-utils";
 import {
     IconClock,
     IconCalendar,
@@ -39,6 +40,7 @@ import {
 } from "../client-actions";
 import { FoodParcels, FoodParcel } from "../types";
 import { useTranslations } from "next-intl";
+import { TranslationFunction } from "../../../types";
 
 interface ValidationError {
     field: string;
@@ -85,7 +87,7 @@ interface LocationSchedules {
 }
 
 export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
-    const t = useTranslations("foodParcels");
+    const t = useTranslations("foodParcels") as TranslationFunction;
     const tCommon = useTranslations("handoutLocations");
 
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
@@ -99,13 +101,84 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     // Add state for slot duration
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
 
-    // Add state for selected schedule data
-    const [selectedScheduleData] = useState<{
-        openingTime: string;
-        closingTime: string;
-    } | null>(null);
+    // Derive opening hours for dates from location schedules
+    const getOpeningHoursForDate = useCallback(
+        (date: Date): { openingTime: string; closingTime: string } | null => {
+            if (!locationSchedules) return null;
 
-    // We need to actually use this variable in the component
+            const dateOnly = new Date(date);
+            dateOnly.setHours(0, 0, 0, 0);
+
+            // Check special day override first
+            const special = locationSchedules.specialDays.find(
+                d =>
+                    new Date(d.date).toISOString().split("T")[0] ===
+                    dateOnly.toISOString().split("T")[0],
+            );
+            if (special) {
+                if (special.isClosed) return null;
+                return { openingTime: special.openingTime, closingTime: special.closingTime };
+            }
+
+            // Aggregate regular schedules covering this date
+            // Note: Sunday is 0, Saturday is 6
+            const weekdayNames = [
+                "sunday",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+            ];
+            const weekday = weekdayNames[dateOnly.getDay()];
+
+            let earliest: string | null = null;
+            let latest: string | null = null;
+
+            for (const schedule of locationSchedules.schedules) {
+                const start = new Date(schedule.startDate);
+                const end = new Date(schedule.endDate);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+
+                if (dateOnly < start || dateOnly > end) continue;
+
+                const day = schedule.days.find(d => d.weekday === weekday);
+                if (!day || !day.isOpen || !day.openingTime || !day.closingTime) continue;
+
+                if (earliest === null || day.openingTime < earliest) earliest = day.openingTime;
+                if (latest === null || day.closingTime > latest) latest = day.closingTime;
+            }
+
+            if (!earliest || !latest) return null;
+            return { openingTime: earliest, closingTime: latest };
+        },
+        [locationSchedules],
+    );
+
+    const getCommonOpeningHoursForDates = useCallback(
+        (dates: Date[]): { openingTime: string; closingTime: string } | null => {
+            if (!dates.length) return null;
+            let maxOpening: string | null = null;
+            let minClosing: string | null = null;
+
+            for (const d of dates) {
+                const range = getOpeningHoursForDate(d);
+                if (!range) return null; // any closed date breaks common range
+
+                const { openingTime, closingTime } = range;
+                if (maxOpening === null || openingTime > maxOpening) maxOpening = openingTime;
+                if (minClosing === null || closingTime < minClosing) minClosing = closingTime;
+            }
+
+            if (!maxOpening || !minClosing) return null;
+            if (maxOpening >= minClosing) return null;
+            return { openingTime: maxOpening, closingTime: minClosing };
+        },
+        [getOpeningHoursForDate],
+    );
+
     const [capacityNotification, setCapacityNotification] = useState<{
         date: Date;
         message: string;
@@ -124,6 +197,10 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     // State for time selection modal
     const [timeModalOpened, setTimeModalOpened] = useState(false);
     const [selectedParcelIndex, setSelectedParcelIndex] = useState<number | null>(null);
+
+    // Use shared date utils from app/utils/date-utils
+
+    // moved below where formState is declared
 
     // Check if a date is in the past (entire day) using Stockholm timezone
     const isPastDate = useCallback((date: Date) => {
@@ -148,6 +225,55 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const [selectedDates, setSelectedDates] = useState<Date[]>(
         data.parcels?.map(parcel => new Date(parcel.pickupDate)) || [],
     );
+
+    // Precompute common opening hours for bulk selection (needs formState)
+    const bulkCommonRange = useMemo(() => {
+        if (!locationSchedules || formState.parcels.length === 0) return null;
+        // Consider only non-past dates for bulk operations
+        const dates = formState.parcels
+            .map(p => new Date(p.pickupDate))
+            .filter(d => !isPastDate(d));
+        if (dates.length === 0) return null;
+        return getCommonOpeningHoursForDates(dates);
+    }, [locationSchedules, formState.parcels, getCommonOpeningHoursForDates, isPastDate]);
+
+    // Check whether all selected parcel dates share identical opening/closing times
+    const doAllSelectedDatesShareSameHours = useCallback((): {
+        same: boolean;
+        representative?: { openingTime: string; closingTime: string } | null;
+        summary?: Record<string, number>;
+    } => {
+        if (!locationSchedules || formState.parcels.length === 0) {
+            return { same: false };
+        }
+
+        const counts: Record<string, number> = {};
+        let representative: { openingTime: string; closingTime: string } | null = null;
+
+        for (const parcel of formState.parcels) {
+            const parcelDate = new Date(parcel.pickupDate);
+            // Ignore past dates in bulk edit checks
+            if (isPastDate(parcelDate)) {
+                continue;
+            }
+            const range = getOpeningHoursForDate(parcelDate);
+            if (!range) {
+                // Closed date or unknown hours — treat as unique bucket
+                const key = "CLOSED";
+                counts[key] = (counts[key] || 0) + 1;
+                continue;
+            }
+            const key = `${range.openingTime}-${range.closingTime}`;
+            counts[key] = (counts[key] || 0) + 1;
+            if (!representative) representative = range;
+        }
+
+        const distinct = Object.keys(counts);
+        if (distinct.length === 1 && distinct[0] !== "CLOSED") {
+            return { same: true, representative, summary: counts };
+        }
+        return { same: false, representative, summary: counts };
+    }, [locationSchedules, formState.parcels, getOpeningHoursForDate, isPastDate]);
 
     useEffect(() => {
         if (data.pickupLocationId) {
@@ -626,10 +752,10 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             }
 
             // Use the first available slot as default time, or noon as fallback
-            const defaultTimeSlot = getFirstAvailableSlot(
-                selectedScheduleData?.openingTime || "09:00",
-                selectedScheduleData?.closingTime || "17:00",
-            );
+            const range = getOpeningHoursForDate(date);
+            const defaultTimeSlot = range
+                ? getFirstAvailableSlot(range.openingTime, range.closingTime)
+                : "12:00";
             const [hours, minutes] = defaultTimeSlot.split(":").map((n: string) => parseInt(n, 10));
 
             const earliestTime = new Date(date);
@@ -652,7 +778,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         formState.parcels,
         slotDuration,
         getFirstAvailableSlot,
-        selectedScheduleData,
+        getOpeningHoursForDate,
     ]);
 
     const handleDatesChange = (dates: string[]) => {
@@ -806,11 +932,45 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
         setBulkTimeError(null);
 
-        // Calculate end time based on slot duration for each parcel
+        // Validate against opening hours for each upcoming parcel date
+        const invalidDates: string[] = [];
+        formState.parcels.forEach(parcel => {
+            const parcelDate = new Date(parcel.pickupDate);
+            if (isPastDate(parcelDate)) {
+                return; // skip past dates
+            }
+            const range = getOpeningHoursForDate(parcelDate);
+            if (!range) {
+                invalidDates.push(parcelDate.toLocaleDateString("sv-SE"));
+                return;
+            }
+
+            const [openH, openM] = range.openingTime.split(":").map(n => parseInt(n, 10));
+            const [closeH, closeM] = range.closingTime.split(":").map(n => parseInt(n, 10));
+            const openingTotal = openH * 60 + openM;
+            const closingTotal = closeH * 60 + closeM;
+            const latestAllowedStart = closingTotal - slotDuration;
+            const chosenTotal = hours * 60 + roundedMinutes;
+
+            if (chosenTotal < openingTotal || chosenTotal > latestAllowedStart) {
+                invalidDates.push(parcelDate.toLocaleDateString("sv-SE"));
+            }
+        });
+
+        if (invalidDates.length > 0) {
+            setBulkTimeError(
+                `Vald tid (${bulkStartTime}) ligger utanför öppettiderna för: ${invalidDates.join(", ")}`,
+            );
+            return;
+        }
+
+        // Calculate end time based on slot duration for each parcel (only upcoming updated)
         const updatedParcels = formState.parcels.map(parcel => {
             // Set the new start time
             const newStartTime = new Date(parcel.pickupDate);
-            newStartTime.setHours(hours, roundedMinutes, 0, 0);
+            if (!isPastDate(newStartTime)) {
+                newStartTime.setHours(hours, roundedMinutes, 0, 0);
+            }
 
             // Calculate the end time based on slot duration
             const newEndTime = new Date(newStartTime);
@@ -1039,7 +1199,46 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                     color: "var(--mantine-color-indigo-6)",
                                 }}
                                 size="xs"
-                                onClick={() => setBulkTimeMode(true)}
+                                onClick={() => {
+                                    const check = doAllSelectedDatesShareSameHours();
+                                    if (!check.same) {
+                                        // Build a concise explanation for the user
+                                        const summaryParts = Object.entries(check.summary || {})
+                                            .map(
+                                                ([k, v]) =>
+                                                    `${k === "CLOSED" ? "closed" : k} (${v})`,
+                                            )
+                                            .join(", ");
+                                        showNotification({
+                                            title: t("bulk.notAvailableTitle"),
+                                            message:
+                                                summaryParts && summaryParts.length > 0
+                                                    ? t("bulk.notAvailableMsgWithSummary", {
+                                                          summary: summaryParts,
+                                                      })
+                                                    : t("bulk.notAvailableMsg"),
+                                            color: "yellow",
+                                        });
+                                        return;
+                                    }
+                                    // Initialize bulk start time from first upcoming parcel's current time
+                                    const firstUpcoming = formState.parcels.find(
+                                        p => !isPastDate(new Date(p.pickupDate)),
+                                    );
+                                    if (firstUpcoming) {
+                                        const hh = firstUpcoming.pickupEarliestTime
+                                            .getHours()
+                                            .toString()
+                                            .padStart(2, "0");
+                                        const minsRaw =
+                                            firstUpcoming.pickupEarliestTime.getMinutes();
+                                        const mins = Math.floor(minsRaw / 15) * 15;
+                                        setBulkStartTime(
+                                            `${hh}:${mins.toString().padStart(2, "0")}`,
+                                        );
+                                    }
+                                    setBulkTimeMode(true);
+                                }}
                             >
                                 {t("setBulkTimes")}
                             </Button>
@@ -1054,7 +1253,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         <Paper p="md" withBorder radius="md" mb="md">
                             <Stack>
                                 <Text fw={500} size="sm">
-                                    {t("bulkTimeHint")}
+                                    {t("bulkTimeHint")} – {t("bulk.upcomingOnly", {})}
                                 </Text>
 
                                 {bulkTimeError && (
@@ -1187,7 +1386,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     ) : null}
 
                     <Text size="sm" mb="md" style={{ color: "var(--mantine-color-dimmed)" }}>
-                        {bulkTimeMode ? t("bulkTimeHint") : t("individualTimeHint")}
+                        {bulkTimeMode
+                            ? `${t("bulkTimeHint")} – ${t("bulk.upcomingOnly", {})}`
+                            : t("individualTimeHint")}
                     </Text>
 
                     {/* Slot Duration Info - Always visible */}
@@ -1607,8 +1808,11 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             if (!timeString) return;
 
                             if (selectedParcelIndex === -1) {
-                                // Bulk mode
-                                setBulkStartTime(timeString);
+                                // Bulk mode: ensure stored value is HH:mm (strip seconds if provided)
+                                const parts = timeString.split(":");
+                                const hh = (parts[0] || "00").padStart(2, "0");
+                                const mm = (parts[1] || "00").padStart(2, "0");
+                                setBulkStartTime(`${hh}:${mm}`);
                             } else if (selectedParcelIndex !== null) {
                                 // Individual parcel mode
                                 const [hours, minutes] = timeString.split(":");
@@ -1626,11 +1830,44 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                             setTimeModalOpened(false);
                             setSelectedParcelIndex(null);
                         }}
-                        data={getTimeRange({
-                            startTime: selectedScheduleData?.openingTime || "09:00",
-                            endTime: selectedScheduleData?.closingTime || "17:00",
-                            interval: `00:${slotDuration.toString().padStart(2, "0")}`,
-                        })}
+                        data={(() => {
+                            const interval = minutesToHHmm(slotDuration);
+                            if (selectedParcelIndex === -1) {
+                                // Bulk mode is only enabled when hours match
+                                const start = bulkCommonRange?.openingTime || "09:00";
+                                const rawEnd = bulkCommonRange?.closingTime || "17:00";
+                                // Ensure last selectable start fits within closing - slotDuration
+                                const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
+                                return getTimeRange({
+                                    startTime: start,
+                                    endTime: adjustedEnd,
+                                    interval,
+                                });
+                            }
+
+                            if (
+                                selectedParcelIndex !== null &&
+                                formState.parcels[selectedParcelIndex]
+                            ) {
+                                const parcel = formState.parcels[selectedParcelIndex];
+                                const range = getOpeningHoursForDate(new Date(parcel.pickupDate));
+                                const start = range?.openingTime || "09:00";
+                                const rawEnd = range?.closingTime || "17:00";
+                                const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
+                                return getTimeRange({
+                                    startTime: start,
+                                    endTime: adjustedEnd,
+                                    interval,
+                                });
+                            }
+
+                            const adjusted = subtractMinutesFromHHmm("17:00", slotDuration);
+                            return getTimeRange({
+                                startTime: "09:00",
+                                endTime: adjusted,
+                                interval,
+                            });
+                        })()}
                         size="sm"
                         styles={{
                             control: {

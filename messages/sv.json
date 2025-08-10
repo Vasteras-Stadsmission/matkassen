@@ -178,6 +178,12 @@
         "setBulkTimes": "Sätt alla tider",
         "editingAllTimes": "Redigerar alla tider",
         "bulkTimeHint": "Ställ in samma tid för alla matkassar, eller avbryt för att redigera individuellt.",
+        "bulk": {
+            "upcomingOnly": "gäller endast kommande matkassar",
+            "notAvailableTitle": "Massändring ej tillgänglig",
+            "notAvailableMsg": "Valda datum har olika öppettider. Redigera tider per datum.",
+            "notAvailableMsgWithSummary": "Valda datum har olika öppettider: {summary}. Redigera tider per datum."
+        },
         "individualTimeHint": "Klicka på tiderna för att ändra upphämtningstid för varje enskild matkasse.",
         "calendar": {
             "unavailableClosedDay": "Stängt denna dag",
