@@ -21,11 +21,7 @@ import {
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
-import {
-    toStockholmTime,
-    minutesToHHmm,
-    subtractMinutesFromHHmm,
-} from "@/app/utils/date-utils";
+import { toStockholmTime, minutesToHHmm, subtractMinutesFromHHmm } from "@/app/utils/date-utils";
 import {
     IconClock,
     IconCalendar,
@@ -277,7 +273,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             return { same: true, representative, summary: counts };
         }
         return { same: false, representative, summary: counts };
-    }, [locationSchedules, formState.parcels, getOpeningHoursForDate]);
+    }, [locationSchedules, formState.parcels, getOpeningHoursForDate, isPastDate]);
 
     useEffect(() => {
         if (data.pickupLocationId) {
@@ -1257,7 +1253,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         <Paper p="md" withBorder radius="md" mb="md">
                             <Stack>
                                 <Text fw={500} size="sm">
-                                    {t("bulkTimeHint")} – {t("bulk.upcomingOnly" as any, {})}
+                                    {t("bulkTimeHint")} – {t("bulk.upcomingOnly", {})}
                                 </Text>
 
                                 {bulkTimeError && (
@@ -1391,7 +1387,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
                     <Text size="sm" mb="md" style={{ color: "var(--mantine-color-dimmed)" }}>
                         {bulkTimeMode
-                            ? `${t("bulkTimeHint")} – ${t("bulk.upcomingOnly" as any, {})}`
+                            ? `${t("bulkTimeHint")} – ${t("bulk.upcomingOnly", {})}`
                             : t("individualTimeHint")}
                     </Text>
 
