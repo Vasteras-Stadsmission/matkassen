@@ -10,7 +10,12 @@ import {
     pickupLocationScheduleDays,
 } from "@/app/db/schema";
 import { isTimeAvailable } from "@/app/utils/schedule/location-availability";
-import { formatStockholmDate, toStockholmTime, fromStockholmTime } from "@/app/utils/date-utils";
+import {
+    formatStockholmDate,
+    toStockholmTime,
+    fromStockholmTime,
+    generateTimeSlotsBetween,
+} from "@/app/utils/date-utils";
 import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { unstable_cache } from "next/cache";
 
@@ -624,55 +629,29 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
         // Generate timeslots based on the location's schedule
         // Get the first available day to determine time slots
         const availableDay = days.find(day => day.isAvailable);
-        const timeslots: string[] = [];
+        let timeslots: string[] = [];
 
         if (availableDay) {
             const timeRange = getAvailableTimeRange(availableDay.date, locationData);
 
             if (timeRange.earliestTime && timeRange.latestTime) {
-                // Parse times
-                const [startHour, startMinute] = timeRange.earliestTime.split(":").map(Number);
-                const [endHour, endMinute] = timeRange.latestTime.split(":").map(Number);
-
-                // Always start exactly at opening time (e.g., 06:45) instead of rounding
-                let currentHour = startHour;
-                let currentMinute = startMinute;
-
-                // Generate slots with the location's configured slot duration
-                // Continue until we reach the closing time (the last slot should end at or before closing time)
-                while (
-                    currentHour < endHour ||
-                    (currentHour === endHour && currentMinute < endMinute)
-                ) {
-                    const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
-                    timeslots.push(timeString);
-
-                    // Advance to next time slot using the configured duration
-                    currentMinute += slotDurationMinutes;
-                    if (currentMinute >= 60) {
-                        currentHour += Math.floor(currentMinute / 60);
-                        currentMinute = currentMinute % 60;
-                    }
-                }
+                timeslots = generateTimeSlotsBetween(
+                    timeRange.earliestTime,
+                    timeRange.latestTime,
+                    slotDurationMinutes ?? 15,
+                    true,
+                );
             }
         }
 
         // If no timeslots were generated, use default ones with the location's slot duration
         if (timeslots.length === 0) {
-            // Generate default slots from 9:00 to 17:00 with the configured duration
-            let currentHour = 9;
-            let currentMinute = 0;
-
-            while (currentHour < 17 || (currentHour === 17 && currentMinute === 0)) {
-                const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
-                timeslots.push(timeString);
-
-                currentMinute += slotDurationMinutes;
-                if (currentMinute >= 60) {
-                    currentHour += Math.floor(currentMinute / 60);
-                    currentMinute = currentMinute % 60;
-                }
-            }
+            timeslots = generateTimeSlotsBetween(
+                "09:00",
+                "17:00",
+                slotDurationMinutes ?? 15,
+                false,
+            );
         }
 
         return {

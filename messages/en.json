@@ -181,6 +181,12 @@
         "setBulkTimes": "Set all times",
         "editingAllTimes": "Editing all times",
         "bulkTimeHint": "Set the same time for all food parcels, or cancel to edit individually.",
+        "bulk": {
+            "upcomingOnly": "applies to upcoming parcels only",
+            "notAvailableTitle": "Bulk change not available",
+            "notAvailableMsg": "Selected dates have different opening hours. Edit times per date.",
+            "notAvailableMsgWithSummary": "Selected dates have different opening hours: {summary}. Edit times per date."
+        },
         "individualTimeHint": "Click on the times to change pickup time for each individual food parcel.",
         "calendar": {
             "unavailableClosedDay": "Closed on this day",

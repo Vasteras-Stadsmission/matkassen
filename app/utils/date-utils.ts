@@ -1,4 +1,15 @@
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, getISOWeek } from "date-fns";
+import {
+    startOfDay,
+    endOfDay,
+    startOfWeek,
+    endOfWeek,
+    getISOWeek,
+    addMinutes,
+    subMinutes,
+    format,
+    parse,
+    isBefore,
+} from "date-fns";
 import { toZonedTime, fromZonedTime, formatInTimeZone } from "date-fns-tz";
 
 // Use Stockholm timezone consistently as specified in the requirements
@@ -184,4 +195,95 @@ export function parseISODateString(dateString: string): Date {
 
     // Convert to Stockholm timezone and then back to UTC
     return fromStockholmTime(toStockholmTime(stockholmDate));
+}
+
+/**
+ * Convert minutes since start of day to an HH:mm string
+ */
+export function minutesToHHmm(totalMinutes: number): string {
+    const base = startOfDay(new Date());
+    return format(addMinutes(base, totalMinutes), "HH:mm");
+}
+
+/**
+ * Normalize arbitrary time input (like "9:5" or "9") to HH:mm. Defaults to 12:00 for empty/invalid.
+ */
+export function normalizeToHHmm(timeString: string): string {
+    if (!timeString) return "12:00";
+    const base = startOfDay(new Date());
+    const parsed = parse(timeString, "H:mm", base);
+    return Number.isNaN(parsed.getTime()) ? "12:00" : format(parsed, "HH:mm");
+}
+
+/**
+ * Subtract minutes from an HH:mm string and return HH:mm, clamped to 00:00
+ */
+export function subtractMinutesFromHHmm(time: string, minutes: number): string {
+    const base = startOfDay(new Date());
+    const parsed = parse(time, "H:mm", base);
+    if (Number.isNaN(parsed.getTime())) return time;
+    const result = subMinutes(parsed, minutes);
+    return isBefore(result, base) ? "00:00" : format(result, "HH:mm");
+}
+
+/**
+ * Add minutes to an HH:mm string and return HH:mm (no wrap-around beyond 23:59)
+ */
+export function addMinutesToHHmm(time: string, minutesToAdd: number): string {
+    const base = startOfDay(new Date());
+    const parsed = parse(time, "H:mm", base);
+    if (Number.isNaN(parsed.getTime())) return time;
+    const result = addMinutes(parsed, minutesToAdd);
+    // Clamp to end of day if needed
+    const endOfBaseDay = endOfDay(base);
+    const clamped = isBefore(result, endOfBaseDay) ? result : endOfBaseDay;
+    return format(clamped, "HH:mm");
+}
+
+/**
+ * Convert an HH:mm string to total minutes since start of day. Returns null if invalid
+ */
+export function hhmmToMinutes(time: string): number | null {
+    const base = startOfDay(new Date());
+    const parsed = parse(time, "H:mm", base);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.getHours() * 60 + parsed.getMinutes();
+}
+
+/**
+ * Generate time slots between two HH:mm strings with a given step size.
+ * If requireSlotEndWithinClose is true, only includes slots whose end time
+ * (start + step) is <= closing time. Otherwise includes all starts < closing time.
+ */
+export function generateTimeSlotsBetween(
+    openingHHmm: string,
+    closingHHmm: string,
+    stepMinutes: number,
+    requireSlotEndWithinClose = false,
+): string[] {
+    const base = startOfDay(new Date());
+    const start = parse(openingHHmm, "H:mm", base);
+    const end = parse(closingHHmm, "H:mm", base);
+    if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime()) ||
+        stepMinutes <= 0 ||
+        !isBefore(start, end)
+    ) {
+        return [];
+    }
+
+    const slots: string[] = [];
+    let current = start;
+    while (true) {
+        if (requireSlotEndWithinClose) {
+            const slotEnd = addMinutes(current, stepMinutes);
+            if (slotEnd.getTime() > end.getTime()) break;
+        } else {
+            if (!(current.getTime() < end.getTime())) break;
+        }
+        slots.push(format(current, "HH:mm"));
+        current = addMinutes(current, stepMinutes);
+    }
+    return slots;
 }

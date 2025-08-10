@@ -387,6 +387,46 @@ describe("FoodParcelsForm Business Logic Tests", () => {
             invalidHours >= 9 && invalidHours + Math.ceil(slotDuration / 60) <= 17;
         expect(isValidBulkTime).toBe(false);
     });
+
+    /**
+     * TEST 4: Time list generation respects closing time minus slot duration
+     * If a location closes at 10:30 and slot duration is 15 minutes,
+     * the latest selectable start time should be 10:15 (not 10:30).
+     */
+    it("generates time list up to closing minus slot duration", () => {
+        const opening = "08:00";
+        const closing = "10:30";
+        const slotDuration = 15; // minutes
+
+        // Adjust closing to last valid start (closing - duration)
+        const subtractMinutes = (time: string, minutes: number) => {
+            const [hh, mm] = time.split(":").map(n => parseInt(n, 10));
+            let total = hh * 60 + mm - minutes;
+            if (total < 0) total = 0;
+            const H = String(Math.floor(total / 60)).padStart(2, "0");
+            const M = String(total % 60).padStart(2, "0");
+            return `${H}:${M}`;
+        };
+
+        const end = subtractMinutes(closing, slotDuration); // expect 10:15
+
+        // Generate list in 15-min steps from opening to end (inclusive)
+        const toMinutes = (t: string) => {
+            const [h, m] = t.split(":").map(Number);
+            return h * 60 + m;
+        };
+
+        const times: string[] = [];
+        for (let t = toMinutes(opening); t <= toMinutes(end); t += slotDuration) {
+            const H = String(Math.floor(t / 60)).padStart(2, "0");
+            const M = String(t % 60).padStart(2, "0");
+            times.push(`${H}:${M}`);
+        }
+
+        expect(times[0]).toBe("08:00");
+        expect(times[times.length - 1]).toBe("10:15");
+        expect(times).not.toContain("10:30");
+    });
 });
 
 // Helper function to simulate date exclusion logic

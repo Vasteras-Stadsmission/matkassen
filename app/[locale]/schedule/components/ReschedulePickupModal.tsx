@@ -8,7 +8,12 @@ import { useTranslations } from "next-intl";
 import { FoodParcel, type LocationScheduleInfo } from "../actions";
 import { updateFoodParcelScheduleAction, getLocationSlotDurationAction } from "../client-actions";
 import { TranslationFunction } from "../../types";
-import { formatStockholmDate, formatTime, toStockholmDate } from "@/app/utils/date-utils";
+import {
+    formatStockholmDate,
+    formatTime,
+    toStockholmDate,
+    generateTimeSlotsBetween,
+} from "@/app/utils/date-utils";
 import {
     isDateAvailable,
     isTimeAvailable,
@@ -86,51 +91,24 @@ export default function ReschedulePickupModal({
             // Clear any previous errors
             setError(null);
 
-            // Generate time slots from opening to closing time
-            const slots: { value: string; label: string; disabled: boolean }[] = [];
-
-            // Parse opening and closing times
-            const [openHour, openMinute] = timeRange.earliestTime.split(":").map(Number);
-            const [closeHour, closeMinute] = timeRange.latestTime.split(":").map(Number);
-
-            // Start from exact opening time
-            let currentHour = openHour;
-            let currentMinute = openMinute;
-
-            // Calculate the end time in minutes for comparison
-            const closeTimeInMinutes = closeHour * 60 + closeMinute;
-
-            // Generate all possible slots during open hours using the location's slot duration
-            while (
-                currentHour < closeHour ||
-                (currentHour === closeHour && currentMinute < closeMinute)
-            ) {
-                const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
-
-                // Check if a slot starting at this time would end before or at closing time
-                const slotEndMinutes = currentHour * 60 + currentMinute + slotDuration;
-                if (slotEndMinutes <= closeTimeInMinutes) {
-                    // Check if this specific time is available
-                    const timeAvailability = isTimeAvailable(
-                        selectedDate,
-                        timeString,
-                        locationSchedules,
-                    );
-
-                    slots.push({
-                        value: timeString,
-                        label: timeString,
-                        disabled: !timeAvailability.isAvailable,
-                    });
-                }
-
-                // Advance to next time slot using the configured duration
-                currentMinute += slotDuration;
-                if (currentMinute >= 60) {
-                    currentHour += Math.floor(currentMinute / 60);
-                    currentMinute = currentMinute % 60;
-                }
-            }
+            const allTimes = generateTimeSlotsBetween(
+                timeRange.earliestTime,
+                timeRange.latestTime,
+                slotDuration,
+                true,
+            );
+            const slots = allTimes.map(timeString => {
+                const timeAvailability = isTimeAvailable(
+                    selectedDate,
+                    timeString,
+                    locationSchedules,
+                );
+                return {
+                    value: timeString,
+                    label: timeString,
+                    disabled: !timeAvailability.isAvailable,
+                };
+            });
 
             setAvailableTimes(slots);
 
