@@ -1,0 +1,1 @@
+ALTER TABLE "pickup_locations" ADD COLUMN "outside_hours_count" integer DEFAULT 0 NOT NULL;

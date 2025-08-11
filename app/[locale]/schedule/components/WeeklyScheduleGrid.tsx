@@ -13,7 +13,7 @@ import {
     DragOverlay,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Box, Grid, Group, Modal, Paper, ScrollArea, Text, Button, Tooltip } from "@mantine/core";
+import { Box, Grid, Group, Modal, Paper, ScrollArea, Text, Button, Tooltip, Alert, Stack } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
 import { IconArrowBackUp, IconCheck, IconInfoCircle } from "@tabler/icons-react";
@@ -149,6 +149,36 @@ export default function WeeklyScheduleGrid({
 
     // Add loading state for schedule data
     const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(true);
+
+    // Derived list of parcels that are outside opening hours for the current week
+    const outsideHoursParcels = useMemo(() => {
+        if (!locationSchedules) return [] as FoodParcel[];
+        const now = new Date();
+        // Build a set of week date keys for quick membership test
+        const weekKeys = new Set(weekDates.map(d => formatDateToYMD(d)));
+        return foodParcels.filter(p => {
+            if (p.isPickedUp) return false; // only active
+            if (p.pickupLatestTime <= now) return false; // only future
+            // Only include parcels whose pickup date is within this week
+            const pickupKey = formatDateToYMD(p.pickupDate);
+            if (!weekKeys.has(pickupKey)) return false;
+            const startLocal = toStockholmTime(new Date(p.pickupEarliestTime));
+            const endLocal = toStockholmTime(new Date(p.pickupLatestTime));
+
+            const serviceDate = new Date(p.pickupDate);
+            const { isAvailable, openingTime, closingTime } = isDateAvailable(serviceDate, locationSchedules);
+            if (!isAvailable || !openingTime || !closingTime) return true;
+
+            const startHH = startLocal.getHours().toString().padStart(2, "0");
+            const startMM = startLocal.getMinutes().toString().padStart(2, "0");
+            const endHH = endLocal.getHours().toString().padStart(2, "0");
+            const endMM = endLocal.getMinutes().toString().padStart(2, "0");
+
+            const startStr = `${startHH}:${startMM}`;
+            const endStr = `${endHH}:${endMM}`;
+            return !(startStr >= openingTime && endStr <= closingTime);
+        });
+    }, [foodParcels, locationSchedules, weekDates]);
 
     // Fetch the slot duration when locationId changes
     useEffect(() => {
@@ -815,6 +845,30 @@ export default function WeeklyScheduleGrid({
                 >
                     <SortableContext items={foodParcels.map(p => p.id)}>
                         <Box style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                            {/* Outside opening hours panel */}
+                            {outsideHoursParcels.length > 0 && (
+                                <Box mb="sm">
+                                    <Alert color="red" variant="light" mb="xs">
+                                        {t("outsideHours.panelTitle", { count: outsideHoursParcels.length })}
+                                    </Alert>
+                                    <Paper withBorder radius="sm" p="xs">
+                                        <Stack gap={4}
+                                            /* ensure Stack is imported via Group? Stack is already imported in parent page, import locally here */
+                                        >
+                                            {outsideHoursParcels.map(parcel => (
+                                                <Box
+                                                    key={parcel.id}
+                                                    onClick={() => handleRescheduleClick(parcel)}
+                                                    style={{ cursor: "pointer" }}
+                                                >
+                                                    <PickupCard foodParcel={parcel} isCompact={false} onReschedule={handleRescheduleClick} />
+                                                </Box>
+                                            ))}
+                                        </Stack>
+                                    </Paper>
+                                </Box>
+                            )}
+
                             {/* Header row with days */}
                             <Grid columns={32} gutter="xs" style={{ width: "100%" }}>
                                 {/* Empty cell in place of time label */}

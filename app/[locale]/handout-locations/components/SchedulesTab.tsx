@@ -115,6 +115,7 @@ export function SchedulesTab({ location, onUpdated }: SchedulesTabProps) {
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
                 onDeleteSchedule={handleDeleteSchedule}
+                locationId={location.id}
             />
 
             {/* Show error if any */}

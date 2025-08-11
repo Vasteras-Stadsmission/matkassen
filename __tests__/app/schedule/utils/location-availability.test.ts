@@ -47,7 +47,6 @@ describe("Location Availability Utilities", () => {
                 ],
             },
         ],
-        specialDays: [], // No special days for simplicity
     };
 
     describe("isDateAvailable", () => {

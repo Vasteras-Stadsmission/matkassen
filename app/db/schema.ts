@@ -121,6 +121,8 @@ export const pickupLocations = pgTable(
         default_slot_duration_minutes: integer("default_slot_duration_minutes")
             .default(15)
             .notNull(), // Default slot duration in minutes
+        // Persisted count of future food parcels outside opening hours for this location
+        outside_hours_count: integer("outside_hours_count").notNull().default(0),
     },
     table => {
         return [

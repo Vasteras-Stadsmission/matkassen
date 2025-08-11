@@ -202,6 +202,16 @@ export async function enrollHousehold(data: HouseholdCreateData) {
                     is_picked_up: false,
                 })),
             );
+
+            // Recompute outside-hours count for the location after creating parcels
+            try {
+                const { recomputeOutsideHoursCount } = await import(
+                    "@/app/[locale]/schedule/actions"
+                );
+                await recomputeOutsideHoursCount(data.foodParcels.pickupLocationId);
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count after enrollment:", e);
+            }
         }
 
         return { success: true, householdId: household.id };

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte, lte, sql, between, ne } from "drizzle-orm";
+import { and, eq, gte, lte, sql, between, ne, gt } from "drizzle-orm";
 import { db } from "@/app/db/drizzle";
 import {
     households,
@@ -9,15 +9,16 @@ import {
     pickupLocationSchedules,
     pickupLocationScheduleDays,
 } from "@/app/db/schema";
-import { isTimeAvailable } from "@/app/utils/schedule/location-availability";
+import { isTimeAvailable, isDateAvailable } from "@/app/utils/schedule/location-availability";
 import {
     formatStockholmDate,
     toStockholmTime,
     fromStockholmTime,
     generateTimeSlotsBetween,
 } from "@/app/utils/date-utils";
-import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
+import { getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { unstable_cache } from "next/cache";
+import { isTimeAvailable as checkTimeAvailable } from "@/app/utils/schedule/location-availability";
 
 export interface FoodParcel {
     id: string;
@@ -295,6 +296,13 @@ export async function updateFoodParcelSchedule(
                     pickup_date_time_latest: endTime, // Use our calculated end time
                 })
                 .where(eq(foodParcels.id, parcelId));
+
+            // Recompute persisted outside-hours count for this location
+            try {
+                await recomputeOutsideHoursCount(parcel.locationId);
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count:", e);
+            }
 
             return { success: true };
         });
@@ -693,4 +701,143 @@ export async function getLocationSlotDuration(locationId: string): Promise<numbe
         // Default to 15 minutes in case of error
         return 15;
     }
+}
+
+/**
+ * Check how many future parcels would be affected by a schedule change
+ * Returns the count of parcels that would fall outside opening hours if the proposed schedule is applied
+ */
+export async function checkParcelsAffectedByScheduleChange(
+    locationId: string,
+    proposedSchedule: {
+        start_date: Date;
+        end_date: Date;
+        days: Array<{
+            weekday: string;
+            is_open: boolean;
+            opening_time?: string;
+            closing_time?: string;
+        }>;
+    },
+    excludeScheduleId?: string, // For edits, exclude the current schedule from validation
+): Promise<number> {
+    const now = new Date();
+
+    // Get all future, active parcels for this location
+    const parcels = await db
+        .select({
+            id: foodParcels.id,
+            earliest: foodParcels.pickup_date_time_earliest,
+            latest: foodParcels.pickup_date_time_latest,
+        })
+        .from(foodParcels)
+        .where(
+            and(
+                eq(foodParcels.pickup_location_id, locationId),
+                eq(foodParcels.is_picked_up, false),
+                gt(foodParcels.pickup_date_time_latest, now),
+            ),
+        );
+
+    if (parcels.length === 0) return 0;
+
+    // Build the proposed schedule structure for checking availability
+    const proposedScheduleForCheck = {
+        id: excludeScheduleId || "temp-check",
+        pickup_location_id: locationId,
+        name: "temp-check",
+        start_date: proposedSchedule.start_date,
+        end_date: proposedSchedule.end_date,
+        days: proposedSchedule.days.map((day, index) => ({
+            id: `temp-day-${index}`,
+            pickup_location_schedule_id: excludeScheduleId || "temp-check",
+            weekday: day.weekday,
+            is_open: day.is_open,
+            opening_time: day.opening_time || "09:00",
+            closing_time: day.closing_time || "17:00",
+        })),
+    };
+
+    let affectedCount = 0;
+
+    for (const parcel of parcels) {
+        const startLocal = toStockholmTime(new Date(parcel.earliest));
+        const endLocal = toStockholmTime(new Date(parcel.latest));
+
+        // Check if any part of the parcel's time window is outside the proposed opening hours
+        const dateKey = formatStockholmDate(startLocal);
+
+        // Only check parcels that fall within the proposed schedule's date range
+        if (startLocal >= proposedSchedule.start_date && startLocal <= proposedSchedule.end_date) {
+            const isAvailable = checkTimeAvailable(
+                [proposedScheduleForCheck],
+                dateKey,
+                startLocal,
+                endLocal,
+            );
+
+            if (!isAvailable) {
+                affectedCount++;
+            }
+        }
+    }
+
+    return affectedCount;
+}
+
+/**
+ * Recompute and persist the count of future parcels outside opening hours for a location
+ */
+export async function recomputeOutsideHoursCount(locationId: string): Promise<number> {
+    const now = new Date();
+
+    // Get all future, active parcels for this location
+    const parcels = await db
+        .select({
+            id: foodParcels.id,
+            earliest: foodParcels.pickup_date_time_earliest,
+            latest: foodParcels.pickup_date_time_latest,
+        })
+        .from(foodParcels)
+        .where(
+            and(
+                eq(foodParcels.pickup_location_id, locationId),
+                eq(foodParcels.is_picked_up, false),
+                gt(foodParcels.pickup_date_time_latest, now),
+            ),
+        );
+
+    if (parcels.length === 0) {
+        // Update the count to 0 and return
+        await db
+            .update(pickupLocations)
+            .set({ outside_hours_count: 0 })
+            .where(eq(pickupLocations.id, locationId));
+        return 0;
+    }
+
+    // Get current schedules for this location
+    const locationData = await getPickupLocationSchedules(locationId);
+    let outsideCount = 0;
+
+    for (const parcel of parcels) {
+        const startLocal = toStockholmTime(new Date(parcel.earliest));
+        const endLocal = toStockholmTime(new Date(parcel.latest));
+        const dateKey = formatStockholmDate(startLocal);
+
+        // Check if this parcel time is available according to current schedules
+        const isAvailable = isTimeAvailable(locationData.schedules, dateKey, startLocal, endLocal);
+
+        if (!isAvailable) {
+            outsideCount++;
+        }
+    }
+
+    // Update the persisted count
+    await db
+        .update(pickupLocations)
+        .set({ outside_hours_count: outsideCount })
+        .where(eq(pickupLocations.id, locationId));
+
+    return outsideCount;
 }

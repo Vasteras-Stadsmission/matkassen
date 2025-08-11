@@ -8,6 +8,7 @@ import {
     getLocationSlotDuration,
     getTimeSlotGrid,
     getLocationWithSchedules,
+    recomputeOutsideHoursCount,
 } from "./actions";
 
 /**
@@ -89,5 +90,17 @@ export async function getLocationWithSchedulesAction(
         return {
             schedules: [],
         };
+    }
+}
+
+/**
+ * Trigger recomputation of outside-hours count for a location (server-side)
+ */
+export async function recomputeOutsideHoursCountAction(locationId: string): Promise<number> {
+    try {
+        return recomputeOutsideHoursCount(locationId);
+    } catch (error) {
+        console.error("Error recomputing outside-hours count:", error);
+        return 0;
     }
 }

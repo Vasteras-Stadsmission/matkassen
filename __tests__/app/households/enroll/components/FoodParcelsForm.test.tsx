@@ -63,13 +63,6 @@ const mockGetPickupLocationSchedules = vi.fn(() =>
                 ],
             },
         ],
-        specialDays: [
-            {
-                date: new Date("2025-05-01"), // May 1st - Holiday (closed)
-                isClosed: true,
-                name: "Labor Day",
-            },
-        ],
     }),
 );
 
@@ -189,10 +182,10 @@ describe("FoodParcelsForm Business Logic Tests", () => {
      * that determines which dates users can select based on:
      * - Facility schedules (open/closed days)
      * - Capacity limits (max parcels per day)
-     * - Special days (holidays)
+
      * - Past dates
      */
-    it("correctly excludes dates based on capacity, schedules, and special days", async () => {
+    it("correctly excludes dates based on capacity and schedules", async () => {
         const formData = createMockFormData({
             pickupLocationId: "location-1",
             parcels: [],
@@ -203,7 +196,7 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         // 1. Past dates (before current date)
         // 2. Wednesdays (closed per schedule)
         // 3. Weekends (closed per schedule)
-        // 4. May 1st (special holiday)
+
         // 5. May 5th (at capacity - 5/5 parcels)
 
         // Use a fixed current date for consistent testing
@@ -214,7 +207,7 @@ describe("FoodParcelsForm Business Logic Tests", () => {
             { date: new Date("2025-05-28"), shouldExclude: true, reason: "wednesday - closed" },
             { date: new Date("2025-05-31"), shouldExclude: true, reason: "saturday - closed" },
             { date: new Date("2025-06-01"), shouldExclude: true, reason: "sunday - closed" },
-            { date: new Date("2025-05-01"), shouldExclude: true, reason: "special holiday" },
+
             { date: new Date("2025-05-05"), shouldExclude: true, reason: "monday but at capacity" },
             { date: new Date("2025-05-29"), shouldExclude: false, reason: "valid thursday" },
             { date: new Date("2025-05-30"), shouldExclude: false, reason: "valid friday" },
@@ -438,11 +431,6 @@ function shouldExcludeDate(date: Date, currentDate: Date = new Date()): boolean 
 
     // Exclude past dates
     if (dateForComparison < today) {
-        return true;
-    }
-
-    // Exclude special holidays
-    if (date.toDateString() === new Date("2025-05-01").toDateString()) {
         return true;
     }
 

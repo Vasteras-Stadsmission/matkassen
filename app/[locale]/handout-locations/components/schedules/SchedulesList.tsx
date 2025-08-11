@@ -28,6 +28,7 @@ interface SchedulesListProps {
     onCreateSchedule: (schedule: ScheduleInput) => Promise<void>;
     onUpdateSchedule: (id: string, schedule: ScheduleInput) => Promise<void>;
     onDeleteSchedule: (id: string) => Promise<void>;
+    locationId: string; // Required to pass to ScheduleForm
 }
 
 export function SchedulesList({
@@ -35,6 +36,7 @@ export function SchedulesList({
     onCreateSchedule,
     onUpdateSchedule,
     onDeleteSchedule,
+    locationId,
 }: SchedulesListProps) {
     const t = useTranslations("handoutLocations");
     const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] =
@@ -250,6 +252,7 @@ export function SchedulesList({
                     onSubmit={handleCreate}
                     existingSchedules={schedules}
                     onCancel={closeCreateModal}
+                    locationId={locationId}
                 />
             </Modal>
 
@@ -331,6 +334,7 @@ export function SchedulesList({
                         }}
                         scheduleId={currentSchedule.id}
                         onCancel={closeEditModal}
+                        locationId={locationId}
                     />
                 )}
             </Modal>

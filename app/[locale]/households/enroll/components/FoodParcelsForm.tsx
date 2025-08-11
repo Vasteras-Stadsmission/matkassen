@@ -74,16 +74,8 @@ interface Schedule {
     days: ScheduleDay[];
 }
 
-interface SpecialDay {
-    date: Date;
-    openingTime: string;
-    closingTime: string;
-    isClosed: boolean;
-}
-
 interface LocationSchedules {
     schedules: Schedule[];
-    specialDays: SpecialDay[];
 }
 
 export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
@@ -109,16 +101,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             const dateOnly = new Date(date);
             dateOnly.setHours(0, 0, 0, 0);
 
-            // Check special day override first
-            const special = locationSchedules.specialDays.find(
-                d =>
-                    new Date(d.date).toISOString().split("T")[0] ===
-                    dateOnly.toISOString().split("T")[0],
-            );
-            if (special) {
-                if (special.isClosed) return null;
-                return { openingTime: special.openingTime, closingTime: special.closingTime };
-            }
+
 
             // Aggregate regular schedules covering this date
             // Note: Sunday is 0, Saturday is 6
@@ -385,8 +368,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 // This is a temporary solution until we update the API to return the correct type
                 setLocationSchedules({
                     schedules: schedules.schedules,
-                    specialDays: [], // Add empty specialDays array for compatibility
-                } as unknown as LocationSchedules);
+                });
             } catch (error) {
                 console.error("Error fetching location schedules:", error);
                 setLocationSchedules(null);
@@ -434,23 +416,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
         // Check against location schedule
         if (locationSchedules) {
-            // First check if it's a special day
-            const specialDay = locationSchedules.specialDays.find(
-                day =>
-                    new Date(day.date).toISOString().split("T")[0] ===
-                    dateForComparison.toISOString().split("T")[0],
-            );
-
-            // If it's a special day marked as closed, exclude it
-            if (specialDay && specialDay.isClosed) {
-                return true; // Exclude this date
-            }
-
-            // If it's a special day that's open, allow it
-            if (specialDay && !specialDay.isClosed) {
-                // Don't exclude special days that are open
-            } else {
-                // Check if this day falls within any schedule and is an open day
+            // Check if this day falls within any schedule and is an open day
                 const dayOfWeek = localDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
                 // Convert JavaScript day of week to our weekday enum format
                 const weekdayNames = [
@@ -555,20 +521,8 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         // Check if the date is unavailable due to location schedule
         let isUnavailableDueToSchedule = false;
         if (locationSchedules) {
-            // First check if it's a special day
-            const specialDay = locationSchedules.specialDays.find(
-                day =>
-                    new Date(day.date).toISOString().split("T")[0] ===
-                    dateForComparison.toISOString().split("T")[0],
-            );
-
-            // If it's a special day marked as closed, it's unavailable
-            if (specialDay && specialDay.isClosed) {
-                isUnavailableDueToSchedule = true;
-            }
-            // If it's not a special day that's open, check regular schedules
-            else if (!specialDay || (specialDay && specialDay.isClosed)) {
-                // Check if this day falls within any schedule and is an open day
+            // Check regular schedules
+            // Check if this day falls within any schedule and is an open day
                 const weekdayNames = [
                     "sunday",
                     "monday",
@@ -1451,18 +1405,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                     const isParcelPastDate = isPastDate(date);
 
                                     let openingHours = null;
-                                    // Check for special day schedule
+                                    // Check for regular schedule
                                     if (locationSchedules) {
-                                        const specialDay = locationSchedules.specialDays.find(
-                                            day =>
-                                                new Date(day.date).toISOString().split("T")[0] ===
-                                                dateString,
-                                        );
-
-                                        if (specialDay && !specialDay.isClosed) {
-                                            openingHours = `${specialDay.openingTime} - ${specialDay.closingTime}`;
-                                        } else {
-                                            // Look for regular schedule
+                                        // Look for regular schedule
                                             for (const schedule of locationSchedules.schedules) {
                                                 const startDate = new Date(schedule.startDate);
                                                 const endDate = new Date(schedule.endDate);

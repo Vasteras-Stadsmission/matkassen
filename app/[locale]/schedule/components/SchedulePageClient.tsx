@@ -26,6 +26,7 @@ import {
     IconClock,
 } from "@tabler/icons-react";
 import { FoodParcel, PickupLocation, getFoodParcelsForWeek, getPickupLocations } from "../actions";
+import { recomputeOutsideHoursCountAction } from "../client-actions";
 import WeeklyScheduleGrid from "../components/WeeklyScheduleGrid";
 import { getISOWeekNumber, getWeekDates } from "../../../utils/date-utils";
 import { useTranslations } from "next-intl";
@@ -160,6 +161,9 @@ function SchedulePageContent({
         // Only load food parcels if we have a location selected
         if (selectedLocationId) {
             loadFoodParcels(selectedLocationId, dates);
+            recomputeOutsideHoursCountAction(selectedLocationId).catch(err =>
+                console.error("Recompute outside-hours count failed:", err),
+            );
         }
     }, [currentDate, selectedLocationId, weekDates.length]);
 
@@ -186,6 +190,9 @@ function SchedulePageContent({
 
         if (value && weekDates.length > 0) {
             loadFoodParcels(value, weekDates);
+            recomputeOutsideHoursCountAction(value).catch(err =>
+                console.error("Recompute outside-hours count failed:", err),
+            );
         } else {
             // Clear parcels if no location selected
             setFoodParcels([]);

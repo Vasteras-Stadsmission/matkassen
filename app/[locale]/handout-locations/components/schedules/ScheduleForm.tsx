@@ -15,10 +15,12 @@ import {
     Alert,
     Checkbox,
     SimpleGrid,
+    Modal,
 } from "@mantine/core";
 import { getTimeRange, TimePicker } from "@mantine/dates";
 import { useTranslations } from "next-intl";
 import { IconAlertCircle } from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
 import {
     PickupLocationScheduleWithDays,
     ScheduleDateRange,
@@ -48,6 +50,7 @@ interface ScheduleFormProps {
     initialValues?: ScheduleInput;
     scheduleId?: string;
     onCancel: () => void;
+    locationId: string; // Required to check affected parcels
 }
 
 // Default values for a new schedule
@@ -90,12 +93,18 @@ export function ScheduleForm({
     initialValues,
     scheduleId,
     onCancel,
+    locationId,
 }: ScheduleFormProps) {
     const t = useTranslations("handoutLocations");
     const [saving, setSaving] = useState(false);
     const [showOverlapWarning, setShowOverlapWarning] = useState(false);
     const [overlappingSchedule, setOverlappingSchedule] =
         useState<PickupLocationScheduleWithDays | null>(null);
+
+    // State for the affected parcels warning modal
+    const [affectedParcelsModal, { open: openAffectedModal, close: closeAffectedModal }] = useDisclosure(false);
+    const [affectedParcelsCount, setAffectedParcelsCount] = useState<number>(0);
+    const [pendingSubmitValues, setPendingSubmitValues] = useState<ScheduleInput | null>(null);
 
     // Add local state for the schedule name input to prevent typing lag
     const [localScheduleName, setLocalScheduleName] = useState<string>(initialValues?.name || "");
@@ -275,6 +284,22 @@ export function ScheduleForm({
         return () => clearTimeout(timer);
     }, [form.values.start_date, form.values.end_date, checkOverlap]);
 
+    // Check how many parcels would be affected by this schedule change
+    const checkAffectedParcels = async (values: ScheduleInput) => {
+        try {
+            const { checkParcelsAffectedByScheduleChange } = await import("@/app/[locale]/schedule/actions");
+            const count = await checkParcelsAffectedByScheduleChange(
+                locationId,
+                values,
+                scheduleId, // Exclude current schedule if editing
+            );
+            return count;
+        } catch (error) {
+            console.error("Error checking affected parcels:", error);
+            return 0;
+        }
+    };
+
     // Handle form submission
     const handleSubmit = async (values: ScheduleInput) => {
         setSaving(true);
@@ -332,12 +357,49 @@ export function ScheduleForm({
                 start_date: values.start_date, // Keep start_date as a Date for the API
                 end_date: values.end_date, // Keep end_date as a Date for the API
             };
+
+            // Check if this change would affect any existing parcels
+            const affectedCount = await checkAffectedParcels(formattedValues);
+
+            if (affectedCount > 0) {
+                // Show confirmation modal for affected parcels
+                setAffectedParcelsCount(affectedCount);
+                setPendingSubmitValues(formattedValues);
+                setSaving(false);
+                openAffectedModal();
+                return;
+            }
+
+            // No affected parcels, proceed with submission
             await onSubmit(formattedValues);
             // Clear tracked changes on successful submit
             changedDayIndexesRef.current.clear();
         } finally {
             setSaving(false);
         }
+    };
+
+    // Handle proceeding with the schedule change despite affected parcels
+    const handleProceedWithChange = async () => {
+        if (!pendingSubmitValues) return;
+
+        setSaving(true);
+        try {
+            await onSubmit(pendingSubmitValues);
+            // Clear tracked changes on successful submit
+            changedDayIndexesRef.current.clear();
+            closeAffectedModal();
+        } finally {
+            setSaving(false);
+            setPendingSubmitValues(null);
+        }
+    };
+
+    // Handle cancelling the change when parcels are affected
+    const handleCancelChange = () => {
+        closeAffectedModal();
+        setPendingSubmitValues(null);
+        setAffectedParcelsCount(0);
     };
 
     // Helper to format date for display
@@ -526,6 +588,38 @@ export function ScheduleForm({
                     </Group>
                 </Stack>
             </form>
+
+            {/* Affected Parcels Warning Modal */}
+            <Modal
+                opened={affectedParcelsModal}
+                onClose={handleCancelChange}
+                title={t("scheduleChangeWarning")}
+                size="md"
+            >
+                <Stack>
+                    <Alert
+                        icon={<IconAlertCircle size={16} />}
+                        color="orange"
+                        title={t("parcelsWillBeAffected")}
+                    >
+                        <Text>
+                            {t("parcelsAffectedMessage", { count: affectedParcelsCount })}
+                        </Text>
+                        <Text size="sm" c="dimmed" mt="xs">
+                            {t("parcelsAffectedExplanation")}
+                        </Text>
+                    </Alert>
+
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="default" onClick={handleCancelChange} disabled={saving}>
+                            {t("cancel")}
+                        </Button>
+                        <Button color="orange" onClick={handleProceedWithChange} loading={saving}>
+                            {t("proceedAnyway")}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Box>
     );
 }
