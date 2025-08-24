@@ -7,6 +7,7 @@ import {
     getPickupLocationCapacityForRange,
 } from "./actions";
 import { getLocationSlotDuration } from "@/app/[locale]/schedule/actions";
+import { type LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 
 /**
  * Client wrapper for getting pickup locations
@@ -25,7 +26,7 @@ export async function getPickupLocationsAction(): Promise<PickupLocation[]> {
  */
 export async function getPickupLocationSchedulesAction(
     locationId: string,
-): Promise<{ schedules: unknown[] }> {
+): Promise<LocationScheduleInfo> {
     try {
         return getPickupLocationSchedules(locationId);
     } catch (error) {

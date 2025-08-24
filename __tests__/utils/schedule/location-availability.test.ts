@@ -4,7 +4,7 @@ import {
     isTimeAvailable,
     getAvailableTimeRange,
 } from "../../../app/utils/schedule/location-availability";
-import { LocationScheduleInfo } from "../../../app/[locale]/schedule/actions";
+import { LocationScheduleInfo } from "../../../app/[locale]/schedule/types";
 
 // Sample schedule data for testing
 const mockLocationSchedules: LocationScheduleInfo = {

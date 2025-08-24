@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { FoodParcel } from "../../../app/[locale]/schedule/actions";
+import { FoodParcel } from "../../../app/[locale]/schedule/types";
 
 // Create mocks for the updateFoodParcelSchedule action
 export const createActionMocks = () => {

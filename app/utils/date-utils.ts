@@ -69,9 +69,12 @@ export function getWeekDates(date: Date): { start: Date; end: Date } {
     const endOfDayTime = endOfDay(end);
 
     // Convert back to UTC for storage
+    const utcStart = fromStockholmTime(startOfDayTime);
+    const utcEnd = fromStockholmTime(endOfDayTime);
+
     return {
-        start: fromStockholmTime(startOfDayTime),
-        end: fromStockholmTime(endOfDayTime),
+        start: utcStart,
+        end: utcEnd,
     };
 }
 

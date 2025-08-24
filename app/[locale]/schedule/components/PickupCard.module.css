@@ -2,3 +2,10 @@
 .pickup-card:hover .reschedule-button {
     opacity: 1 !important;
 }
+
+/* Ensure dragged elements are visible */
+.pickup-card-compact[data-dragging="true"],
+.pickup-card[data-dragging="true"] {
+    z-index: 1000 !important;
+    position: relative;
+}

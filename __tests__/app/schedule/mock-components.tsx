@@ -1,5 +1,5 @@
 import React, { ReactNode } from "react";
-import { FoodParcel } from "../../../app/[locale]/schedule/actions";
+import { FoodParcel } from "../../../app/[locale]/schedule/types";
 
 // Common Mock Components for Schedule Tests
 

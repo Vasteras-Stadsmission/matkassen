@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Stack, LoadingOverlay, Paper, Text } from "@mantine/core";
+import { Stack, Paper, Text, LoadingOverlay } from "@mantine/core";
 import { useTranslations } from "next-intl";
+import { notifications } from "@mantine/notifications";
 import {
     PickupLocationWithAllData,
     ScheduleInput,
     PickupLocationScheduleWithDays,
 } from "../../types";
-import { SchedulesList } from "./SchedulesList";
 import { createSchedule, updateSchedule, deleteSchedule } from "../../actions";
+import { SchedulesList } from "./SchedulesList";
 import { objectsEqual } from "../../../../utils/deep-equal";
 
 interface SchedulesTabProps {
@@ -47,6 +48,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             prev: PickupLocationScheduleWithDays[],
         ) => PickupLocationScheduleWithDays[],
         errorMessageKey: string,
+        operationType?: "create" | "update" | "delete",
     ) => {
         setIsLoading(true);
         setError(null);
@@ -66,6 +68,35 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             }
 
             if (onUpdated) onUpdated();
+
+            // Dispatch refresh event for deletions to update navbar badge
+            if (operationType === "delete") {
+                window.dispatchEvent(new CustomEvent("refreshOutsideHoursCount"));
+            }
+
+            // Dispatch event to refresh schedule grid
+            window.dispatchEvent(new CustomEvent("refreshScheduleGrid"));
+
+            // Show success notifications for all operations
+            if (operationType === "create") {
+                notifications.show({
+                    title: t("locationCreated"), // Reuse existing key
+                    message: "Schedule created successfully", // Simple message
+                    color: "green",
+                });
+            } else if (operationType === "update") {
+                notifications.show({
+                    title: t("locationUpdated"), // Reuse existing key
+                    message: "Schedule updated successfully", // Simple message
+                    color: "green",
+                });
+            } else if (operationType === "delete") {
+                notifications.show({
+                    title: t("locationDeleted"), // Reuse existing key
+                    message: "Schedule deleted successfully", // Simple message
+                    color: "green",
+                });
+            }
         } catch (err) {
             console.error(`Error in schedule operation:`, err);
             const errorMessage =
@@ -87,6 +118,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             () => createSchedule(location.id, scheduleData),
             (newSchedule, prev) => [...prev, newSchedule],
             "scheduleCreateError",
+            "create",
         );
     };
 
@@ -96,6 +128,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             (updatedSchedule, prev) =>
                 prev.map(schedule => (schedule.id === id ? updatedSchedule : schedule)),
             "scheduleUpdateError",
+            "update",
         );
     };
 
@@ -104,6 +137,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             () => deleteSchedule(id),
             (_, prev) => prev.filter(schedule => schedule.id !== id),
             "scheduleDeleteError",
+            "delete",
         );
     };
 
@@ -122,6 +156,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
                 onDeleteSchedule={handleDeleteSchedule}
+                locationId={location.id}
             />
         </Stack>
     );

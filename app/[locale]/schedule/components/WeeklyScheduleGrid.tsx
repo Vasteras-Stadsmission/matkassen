@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
     DndContext,
@@ -13,14 +11,25 @@ import {
     DragOverlay,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Box, Grid, Group, Modal, Paper, ScrollArea, Text, Button, Tooltip } from "@mantine/core";
+import {
+    Box,
+    Grid,
+    Group,
+    Modal,
+    Paper,
+    ScrollArea,
+    Text,
+    Button,
+    Tooltip,
+    Alert,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
 import { IconArrowBackUp, IconCheck, IconInfoCircle } from "@tabler/icons-react";
 import TimeSlotCell from "./TimeSlotCell";
 import PickupCard from "./PickupCard";
 import ReschedulePickupModal from "./ReschedulePickupModal";
-import { FoodParcel, type LocationScheduleInfo } from "@/app/[locale]/schedule/actions";
+import { FoodParcel, type LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 import {
     updateFoodParcelScheduleAction,
     getPickupLocationSchedulesAction,
@@ -36,6 +45,7 @@ import {
     minutesToHHmm,
 } from "@/app/utils/date-utils";
 import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
+import { filterOutsideHoursParcels } from "@/app/utils/schedule/outside-hours-filter";
 import { useTranslations } from "next-intl";
 import { TranslationFunction } from "../../types";
 
@@ -150,6 +160,36 @@ export default function WeeklyScheduleGrid({
     // Add loading state for schedule data
     const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(true);
 
+    // Derived list of parcels that are outside opening hours for the current week
+    const outsideHoursParcels = useMemo(() => {
+        if (!locationSchedules) return [] as FoodParcel[];
+
+        const now = new Date();
+        // Build a set of week date keys for quick membership test
+        const weekKeys = new Set(weekDates.map(d => formatDateToYMD(d)));
+
+        // Filter to only parcels whose pickup date is within this week
+        const weekParcels = foodParcels.filter(p => {
+            const pickupKey = formatDateToYMD(p.pickupDate);
+            return weekKeys.has(pickupKey);
+        });
+
+        // Use the utility function to filter for outside-hours parcels
+        return filterOutsideHoursParcels(
+            weekParcels.map(p => ({
+                id: p.id,
+                pickupEarliestTime: p.pickupEarliestTime,
+                pickupLatestTime: p.pickupLatestTime,
+                isPickedUp: p.isPickedUp,
+            })),
+            locationSchedules,
+            now,
+        ).map(filtered => {
+            // Map back to the original FoodParcel objects
+            return weekParcels.find(p => p.id === filtered.id)!;
+        });
+    }, [foodParcels, locationSchedules, weekDates]);
+
     // Fetch the slot duration when locationId changes
     useEffect(() => {
         async function fetchSlotDuration() {
@@ -229,10 +269,12 @@ export default function WeeklyScheduleGrid({
 
                 daySlots[dateFormatted] = slots;
 
-                // Debug log
-                console.log(
-                    `[generateDaySpecificTimeSlots] Day ${dateFormatted} has ${slots.length} slots from ${earliestTime} to ${latestTime} with ${slotDuration}min interval`,
-                );
+                // Debug log (only in development)
+                if (process.env.NODE_ENV === "development") {
+                    console.log(
+                        `[generateDaySpecificTimeSlots] Day ${dateFormatted} has ${slots.length} slots from ${earliestTime} to ${latestTime} with ${slotDuration}min interval`,
+                    );
+                }
             });
 
             return daySlots;
@@ -317,8 +359,19 @@ export default function WeeklyScheduleGrid({
                     const daySlots = generateDaySpecificTimeSlots(scheduleInfo);
 
                     // Generate a complete list of unique time slots across all days
-                    const allTimeSlots = getAllUniqueTimeSlots(daySlots);
-                    setFilteredTimeSlots(allTimeSlots.length > 0 ? allTimeSlots : []);
+                    let allTimeSlots = getAllUniqueTimeSlots(daySlots);
+
+                    // Fallback: if no slots derived from schedules, show a default day timeline
+                    if (allTimeSlots.length === 0) {
+                        allTimeSlots = generateTimeSlotsBetween(
+                            "09:00",
+                            "17:00",
+                            slotDuration,
+                            false,
+                        );
+                    }
+
+                    setFilteredTimeSlots(allTimeSlots);
 
                     // Calculate which time slots are unavailable for each day
                     const unavailableSlots: Record<string, string[]> = {};
@@ -377,12 +430,57 @@ export default function WeeklyScheduleGrid({
         generateDaySpecificTimeSlots,
         getAllUniqueTimeSlots,
         foodParcels,
+        slotDuration,
         locationSchedules,
         weekDates,
     ]);
 
+    // Listen for schedule refresh events and refetch schedule data
+    useEffect(() => {
+        const handleRefreshScheduleGrid = async () => {
+            // Determine which location ID to use
+            let refreshLocationId: string | undefined;
+            if (locationId) {
+                refreshLocationId = locationId;
+            } else if (foodParcels.length > 0) {
+                refreshLocationId =
+                    foodParcels[0]?.locationId || foodParcels[0]?.pickup_location_id;
+            }
+
+            if (!refreshLocationId) return;
+
+            try {
+                console.log(`Refreshing schedule data for location: ${refreshLocationId}`);
+                const scheduleInfo = await getPickupLocationSchedulesAction(refreshLocationId);
+                setLocationSchedules(scheduleInfo);
+
+                // Regenerate time slots based on updated schedule
+                const daySlots = generateDaySpecificTimeSlots(scheduleInfo);
+                const combinedTimeSlots = getAllUniqueTimeSlots(daySlots);
+                setFilteredTimeSlots(combinedTimeSlots);
+            } catch (error) {
+                console.error("Error refreshing schedule data:", error);
+            }
+        };
+
+        window.addEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+        return () => window.removeEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+    }, [
+        locationId,
+        foodParcels,
+        generateDaySpecificTimeSlots,
+        getAllUniqueTimeSlots,
+        slotDuration,
+    ]);
+
     // Organize parcels by date and time slot
     useEffect(() => {
+        console.log("🔍 [WeeklyScheduleGrid] Organizing parcels by slot");
+        console.log("  - foodParcels.length:", foodParcels.length);
+        console.log("  - weekDates.length:", weekDates.length);
+        console.log("  - filteredTimeSlots:", filteredTimeSlots);
+        console.log("  - slotDuration:", slotDuration);
+
         const newParcelsBySlot: Record<string, Record<string, FoodParcel[]>> = {};
         const newParcelCountByDate: Record<string, number> = {};
 
@@ -392,15 +490,26 @@ export default function WeeklyScheduleGrid({
             newParcelsBySlot[dateKey] = {};
             newParcelCountByDate[dateKey] = 0;
 
+            console.log(`🔍 [WeeklyScheduleGrid] Initializing date: ${dateKey}`);
+
             // Initialize all available time slots for this day
             (filteredTimeSlots || []).forEach(timeSlot => {
                 newParcelsBySlot[dateKey][timeSlot] = [];
             });
         });
 
+        console.log("🔍 [WeeklyScheduleGrid] Processing food parcels:");
+
         // Place parcels in their respective slots
-        foodParcels.forEach(parcel => {
+        foodParcels.forEach((parcel, index) => {
+            console.log(
+                `🔍 [WeeklyScheduleGrid] Processing parcel ${index + 1}/${foodParcels.length}:`,
+                parcel.householdName,
+            );
+
             const dateKey = formatDateToYMD(parcel.pickupDate);
+            console.log(`     - parcel.pickupDate: ${parcel.pickupDate.toISOString()}`);
+            console.log(`     - dateKey: ${dateKey}`);
 
             // Count parcels by date
             if (!newParcelCountByDate[dateKey]) {
@@ -410,23 +519,48 @@ export default function WeeklyScheduleGrid({
 
             // Round to the nearest slot based on slot duration
             const pickupTime = toStockholmTime(parcel.pickupEarliestTime);
+            console.log(
+                `     - parcel.pickupEarliestTime: ${parcel.pickupEarliestTime.toISOString()}`,
+            );
+            console.log(`     - pickupTime (Stockholm): ${pickupTime.toISOString()}`);
+
             const hours = pickupTime.getHours();
             const minutes = pickupTime.getMinutes();
+            console.log(`     - hours: ${hours}, minutes: ${minutes}`);
 
             // Round down to the nearest slotDuration
             const slotIndex = Math.floor(minutes / slotDuration);
             const slotMinutes = slotIndex * slotDuration;
             const timeSlot = minutesToHHmm(hours * 60 + slotMinutes);
+            console.log(
+                `     - slotIndex: ${slotIndex}, slotMinutes: ${slotMinutes}, timeSlot: ${timeSlot}`,
+            );
 
             // Add parcel to corresponding slot
             if (newParcelsBySlot[dateKey] && !newParcelsBySlot[dateKey][timeSlot]) {
                 newParcelsBySlot[dateKey][timeSlot] = [];
+                console.log(`     - Created new slot: ${dateKey} ${timeSlot}`);
             }
 
             if (newParcelsBySlot[dateKey] && newParcelsBySlot[dateKey][timeSlot]) {
                 newParcelsBySlot[dateKey][timeSlot].push(parcel);
+                console.log(`     - ✅ Added to slot ${dateKey} ${timeSlot}`);
+            } else {
+                console.log(
+                    `     - ❌ Could not add to slot! dateKey: ${dateKey}, timeSlot: ${timeSlot}`,
+                );
+                console.log(`     - Available dates:`, Object.keys(newParcelsBySlot));
+                if (newParcelsBySlot[dateKey]) {
+                    console.log(
+                        `     - Available time slots for ${dateKey}:`,
+                        Object.keys(newParcelsBySlot[dateKey]),
+                    );
+                }
             }
         });
+
+        console.log("🔍 [WeeklyScheduleGrid] Final parcelsBySlot:", newParcelsBySlot);
+        console.log("🔍 [WeeklyScheduleGrid] Final parcelCountByDate:", newParcelCountByDate);
 
         setParcelsBySlot(newParcelsBySlot);
         setParcelCountByDate(newParcelCountByDate);
@@ -736,7 +870,7 @@ export default function WeeklyScheduleGrid({
                 // Show loading skeleton when schedule data is loading
                 <Box style={{ display: "flex", flexDirection: "column", width: "100%" }}>
                     {/* Skeleton header row with days */}
-                    <Grid columns={32} gutter="xs" style={{ width: "100%" }}>
+                    <Grid columns={32} gutter="xs" style={{ width: "100%", margin: 0 }}>
                         {/* Empty cell in place of time label */}
                         <Grid.Col span={2}>
                             <div></div>
@@ -814,9 +948,44 @@ export default function WeeklyScheduleGrid({
                     onDragStart={handleDragStart}
                 >
                     <SortableContext items={foodParcels.map(p => p.id)}>
-                        <Box style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                        <Box
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                width: "100%",
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                            }}
+                        >
+                            {/* Outside opening hours panel */}
+                            {outsideHoursParcels.length > 0 && (
+                                <Box mb="sm">
+                                    <Alert color="red" variant="light" mb="xs">
+                                        {t("outsideHours.panelTitle", {
+                                            count: outsideHoursParcels.length,
+                                        })}
+                                    </Alert>
+                                    <Paper withBorder radius="sm" p="xs">
+                                        <Group gap="xs" wrap="wrap">
+                                            {outsideHoursParcels.map(parcel => (
+                                                <Box
+                                                    key={parcel.id}
+                                                    style={{ width: "120px", flexShrink: 0 }}
+                                                >
+                                                    <PickupCard
+                                                        foodParcel={parcel}
+                                                        isCompact={true}
+                                                        onReschedule={handleRescheduleClick}
+                                                    />
+                                                </Box>
+                                            ))}
+                                        </Group>
+                                    </Paper>
+                                </Box>
+                            )}
+
                             {/* Header row with days */}
-                            <Grid columns={32} gutter="xs" style={{ width: "100%" }}>
+                            <Grid columns={32} gutter="xs" style={{ width: "100%", margin: 0 }}>
                                 {/* Empty cell in place of time label */}
                                 <Grid.Col span={2}>
                                     <div></div>
@@ -897,12 +1066,13 @@ export default function WeeklyScheduleGrid({
 
                             {/* Time slots grid - in ScrollArea */}
                             <ScrollArea.Autosize
-                                h="calc(100vh - 240px)"
+                                mah="70vh"
                                 scrollbarSize={6}
                                 type="hover"
                                 scrollHideDelay={500}
+                                style={{ overflowX: "hidden" }}
                             >
-                                <Box style={{ width: "100%" }}>
+                                <Box style={{ width: "100%", minWidth: 0 }}>
                                     {(() => {
                                         // Create a combined array of time slots and gaps
                                         const renderedItems: React.ReactElement[] = [];
@@ -916,7 +1086,7 @@ export default function WeeklyScheduleGrid({
                                                     columns={32}
                                                     gutter="xs"
                                                     key={timeSlot}
-                                                    style={{ width: "100%" }}
+                                                    style={{ width: "100%", margin: 0 }}
                                                 >
                                                     {/* Time column */}
                                                     <Grid.Col span={2}>

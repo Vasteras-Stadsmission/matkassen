@@ -54,7 +54,7 @@ export function LocationForm({
             name: location?.name || "",
             street_address: location?.street_address || "",
             postal_code: location?.postal_code || "",
-            parcels_max_per_day: location?.parcels_max_per_day || 0,
+            parcels_max_per_day: location?.parcels_max_per_day ?? null,
             contact_name: location?.contact_name || "",
             contact_email: location?.contact_email || "",
             contact_phone_number: location?.contact_phone_number || "",
@@ -84,7 +84,7 @@ export function LocationForm({
         transformValues: (values): LocationFormInput => ({
             ...values,
             contact_email: values.contact_email?.trim() || "",
-            parcels_max_per_day: values.parcels_max_per_day || 0,
+            parcels_max_per_day: values.parcels_max_per_day || null,
         }),
     });
 
@@ -174,7 +174,7 @@ export function LocationForm({
                 name: location.name,
                 street_address: location.street_address || "",
                 postal_code: location.postal_code || "",
-                parcels_max_per_day: location.parcels_max_per_day || undefined,
+                parcels_max_per_day: location.parcels_max_per_day ?? null,
                 contact_name: location.contact_name || "",
                 contact_email: location.contact_email || "",
                 contact_phone_number: location.contact_phone_number || "",

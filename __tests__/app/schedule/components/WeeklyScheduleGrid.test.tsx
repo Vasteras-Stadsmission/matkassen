@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
-import { FoodParcel } from "../../../../app/[locale]/schedule/actions";
+import { FoodParcel } from "../../../../app/[locale]/schedule/types";
 import {
     mockDate,
     cleanupMockedDate,
