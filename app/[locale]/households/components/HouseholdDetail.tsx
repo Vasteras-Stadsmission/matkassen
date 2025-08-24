@@ -392,7 +392,7 @@ export default function InternationalizedHouseholdDetail({
                             <div>
                                 {householdDetail.foodParcels.parcels.map((parcel, index) => {
                                     const isPast = isDateInPast(parcel.pickupDate);
-                                    const missedPickup = isPast && !parcel.isPickedUp;
+                                    const isPickedUp = Boolean(parcel.isPickedUp);
 
                                     return (
                                         <Paper
@@ -436,23 +436,30 @@ export default function InternationalizedHouseholdDetail({
                                                         <IconClock size={16} />
                                                     </ThemeIcon>
                                                     <Text fw={500} size="md">
-                                                        {formatTime(parcel.pickupEarliestTime)}-
+                                                        {formatTime(parcel.pickupEarliestTime)}–
                                                         {formatTime(parcel.pickupLatestTime)}
                                                     </Text>
                                                 </Group>
                                             </Group>
 
-                                            {parcel.isPickedUp && (
-                                                <Badge mt="xs" color="green" variant="light">
-                                                    {t("status.pickedUp")}
-                                                </Badge>
-                                            )}
-
-                                            {missedPickup && (
-                                                <Badge mt="xs" color="red" variant="light">
-                                                    {t("status.notPickedUp")}
-                                                </Badge>
-                                            )}
+                                            {/* Status badges */}
+                                            <Group mt="xs" gap="xs">
+                                                {isPast ? (
+                                                    isPickedUp ? (
+                                                        <Badge color="green" variant="light">
+                                                            {t("status.pickedUp")}
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge color="red" variant="light">
+                                                            {t("status.notPickedUp")}
+                                                        </Badge>
+                                                    )
+                                                ) : (
+                                                    <Badge color="blue" variant="light">
+                                                        {t("status.upcoming")}
+                                                    </Badge>
+                                                )}
+                                            </Group>
                                         </Paper>
                                     );
                                 })}

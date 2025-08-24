@@ -2,12 +2,9 @@
 
 import {
     type LocationScheduleInfo,
-    type TimeSlotGridData,
     updateFoodParcelSchedule,
     getPickupLocationSchedules,
     getLocationSlotDuration,
-    getTimeSlotGrid,
-    getLocationWithSchedules,
     recomputeOutsideHoursCount,
 } from "./actions";
 
@@ -63,37 +60,6 @@ export async function getLocationSlotDurationAction(locationId: string): Promise
 }
 
 /**
- * Client wrapper for getting time slot grid
- */
-export async function getTimeSlotGridAction(
-    locationId: string,
-    week: Date[],
-): Promise<TimeSlotGridData> {
-    try {
-        return getTimeSlotGrid(locationId, week);
-    } catch (error) {
-        console.error("Error generating time slot grid:", error);
-        throw error;
-    }
-}
-
-/**
- * Client wrapper for getting location with schedules
- */
-export async function getLocationWithSchedulesAction(
-    locationId: string,
-): Promise<LocationScheduleInfo> {
-    try {
-        return getLocationWithSchedules(locationId);
-    } catch (error) {
-        console.error("Error fetching location with schedules:", error);
-        return {
-            schedules: [],
-        };
-    }
-}
-
-/**
  * Trigger recomputation of outside-hours count for a location (server-side)
  */
 export async function recomputeOutsideHoursCountAction(locationId: string): Promise<number> {
@@ -101,6 +67,32 @@ export async function recomputeOutsideHoursCountAction(locationId: string): Prom
         return recomputeOutsideHoursCount(locationId);
     } catch (error) {
         console.error("Error recomputing outside-hours count:", error);
+        return 0;
+    }
+}
+
+/**
+ * Check how many parcels would be affected by schedule deletion (client-accessible)
+ */
+export async function checkParcelsAffectedByScheduleDeletionAction(
+    locationId: string,
+    scheduleToDelete: {
+        id: string;
+        start_date: Date;
+        end_date: Date;
+        days: Array<{
+            weekday: string;
+            is_open: boolean;
+            opening_time?: string;
+            closing_time?: string;
+        }>;
+    },
+): Promise<number> {
+    try {
+        const { checkParcelsAffectedByScheduleDeletion } = await import("./actions");
+        return checkParcelsAffectedByScheduleDeletion(locationId, scheduleToDelete);
+    } catch (error) {
+        console.error("Error checking parcels affected by schedule deletion:", error);
         return 0;
     }
 }

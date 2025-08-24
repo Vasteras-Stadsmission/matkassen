@@ -298,7 +298,8 @@
         "ageUnit": "years",
         "status": {
             "pickedUp": "Picked up",
-            "notPickedUp": "Not picked up"
+            "notPickedUp": "Not picked up",
+            "upcoming": "Upcoming"
         },
         "comments": {
             "title": "Comments ({count})"
@@ -573,6 +574,13 @@
         "pastScheduleHidden": "past schedule hidden",
         "pastSchedulesHidden": "past schedules hidden",
         "noPastSchedules": "No schedules to display. Try showing past schedules.",
-        "deleteLocationAriaLabel": "Delete location"
+        "deleteLocationAriaLabel": "Delete location",
+        "scheduleChangeWarning": "Schedule Change Warning",
+        "parcelsWillBeAffected": "Food parcels will be affected",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",
+        "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
+        "proceedAnyway": "Proceed anyway",
+        "checking": "Checking...",
+        "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion..."
     }
 }

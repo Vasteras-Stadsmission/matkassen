@@ -194,7 +194,19 @@ export function WeekPicker({
         const lastDay = week[6];
 
         // If the entire week is in the past (the last day of the week is before min date)
-        if (effectiveMinDate && lastDay < effectiveMinDate) return true;
+        if (effectiveMinDate) {
+            const lastDayDateOnly = new Date(
+                lastDay.getFullYear(),
+                lastDay.getMonth(),
+                lastDay.getDate(),
+            );
+            const minDateOnly = new Date(
+                effectiveMinDate.getFullYear(),
+                effectiveMinDate.getMonth(),
+                effectiveMinDate.getDate(),
+            );
+            if (lastDayDateOnly < minDateOnly) return true;
+        }
 
         // If the week is after max date
         if (maxDate && firstDay > maxDate) return true;

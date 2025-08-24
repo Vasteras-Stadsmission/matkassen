@@ -3,10 +3,11 @@
 import { Paper, Text, Tooltip, ActionIcon } from "@mantine/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { FoodParcel } from "@/app/[locale]/schedule/actions";
+import { FoodParcel } from "@/app/[locale]/schedule/types";
 import { IconCalendarTime } from "@tabler/icons-react";
 import styles from "./PickupCard.module.css"; // Import the CSS module
 import { useTranslations } from "next-intl";
+import { memo, useMemo } from "react";
 
 interface PickupCardProps {
     foodParcel: FoodParcel;
@@ -14,11 +15,7 @@ interface PickupCardProps {
     onReschedule?: (foodParcel: FoodParcel) => void;
 }
 
-export default function PickupCard({
-    foodParcel,
-    isCompact = false,
-    onReschedule,
-}: PickupCardProps) {
+function PickupCard({ foodParcel, isCompact = false, onReschedule }: PickupCardProps) {
     const t = useTranslations("schedule");
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: foodParcel.id,
@@ -27,29 +24,41 @@ export default function PickupCard({
         },
     });
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
+    // Memoize style calculation for better performance
+    const style = useMemo(
+        () => ({
+            transform: CSS.Transform.toString(transform),
+            transition,
+            opacity: isDragging ? 0.5 : 1,
+            willChange: "transform",
+        }),
+        [transform, transition, isDragging],
+    );
 
-    // Determine color for the status dot
-    const getStatusColor = () => {
+    // Memoize color calculation
+    const statusColor = useMemo(() => {
         if (foodParcel.isPickedUp) return "green.6";
 
         const now = new Date();
         const isInPast = foodParcel.pickupLatestTime < now;
         return isInPast ? "red.6" : "primary";
-    };
+    }, [foodParcel.isPickedUp, foodParcel.pickupLatestTime]);
 
-    // Format time for display
-    const formatTime = (date: Date) => {
-        return date.toLocaleTimeString("sv-SE", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-        });
-    };
+    // Memoize time formatting
+    const timeDisplay = useMemo(() => {
+        const formatTime = (date: Date) => {
+            return date.toLocaleTimeString("sv-SE", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            });
+        };
+
+        return {
+            earliest: formatTime(foodParcel.pickupEarliestTime),
+            latest: formatTime(foodParcel.pickupLatestTime),
+        };
+    }, [foodParcel.pickupEarliestTime, foodParcel.pickupLatestTime]);
 
     // Handle click to open reschedule modal
     const handleRescheduleClick = (e: React.MouseEvent) => {
@@ -66,8 +75,7 @@ export default function PickupCard({
         <div>
             <Text fw={600}>{foodParcel.householdName}</Text>
             <Text size="sm">
-                {t("pickupTimeLabel")}: {formatTime(foodParcel.pickupEarliestTime)} -{" "}
-                {formatTime(foodParcel.pickupLatestTime)}
+                {t("pickupTimeLabel")}: {timeDisplay.earliest} - {timeDisplay.latest}
             </Text>
             <Text size="sm">
                 {t("statusLabel")}:{" "}
@@ -78,7 +86,14 @@ export default function PickupCard({
 
     if (isCompact) {
         return (
-            <Tooltip label={tooltipContent} withArrow multiline withinPortal position="top">
+            <Tooltip
+                label={tooltipContent}
+                withArrow
+                multiline
+                withinPortal
+                position="top"
+                disabled={isDragging}
+            >
                 <Paper
                     ref={setNodeRef}
                     style={{
@@ -96,6 +111,7 @@ export default function PickupCard({
                     bg="gray.0"
                     shadow="xs"
                     className={styles["pickup-card-compact"]}
+                    data-dragging={isDragging}
                 >
                     <Text size="xs" truncate fw={500}>
                         {foodParcel.householdName}
@@ -128,7 +144,14 @@ export default function PickupCard({
     }
 
     return (
-        <Tooltip label={tooltipContent} withArrow multiline withinPortal position="top">
+        <Tooltip
+            label={tooltipContent}
+            withArrow
+            multiline
+            withinPortal
+            position="top"
+            disabled={isDragging}
+        >
             <Paper
                 ref={setNodeRef}
                 style={{
@@ -147,6 +170,7 @@ export default function PickupCard({
                 bg="white"
                 shadow="xs"
                 className={styles["pickup-card"]}
+                data-dragging={isDragging}
             >
                 <div
                     style={{
@@ -164,13 +188,13 @@ export default function PickupCard({
                             width: 8,
                             height: 8,
                             borderRadius: "50%",
-                            backgroundColor: `var(--mantine-color-${getStatusColor()})`,
+                            backgroundColor: `var(--mantine-color-${statusColor})`,
                         }}
                     />
                 </div>
 
                 <Text size="xs" c="dimmed">
-                    {formatTime(foodParcel.pickupEarliestTime)}
+                    {timeDisplay.earliest}
                 </Text>
 
                 {/* Add reschedule button */}
@@ -197,3 +221,6 @@ export default function PickupCard({
         </Tooltip>
     );
 }
+
+// Wrap with memo to prevent unnecessary re-renders during drag operations
+export default memo(PickupCard);

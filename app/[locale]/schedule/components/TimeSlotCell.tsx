@@ -1,9 +1,9 @@
 "use client";
 
 import { Paper, Stack, Tooltip } from "@mantine/core";
-import { ReactNode } from "react";
+import { ReactNode, memo, useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { FoodParcel } from "@/app/[locale]/schedule/actions";
+import { FoodParcel } from "@/app/[locale]/schedule/types";
 import { isPastTimeSlot } from "@/app/utils/date-utils";
 import PickupCard from "./PickupCard";
 
@@ -25,33 +25,38 @@ interface TimeSlotCellProps {
     unavailableReason?: string;
 }
 
-export default function TimeSlotCell({
+function TimeSlotCell({
     date,
     time,
     parcels,
     maxParcelsPerSlot,
     isOverCapacity = false,
-    dayIndex = 0, // Default to 0 for backward compatibility
+    dayIndex = 0,
     isUnavailable = false,
     unavailableReason,
 }: TimeSlotCellProps) {
-    // Check if the time slot is in the past using our timezone-aware utility
-    const isPast = isPastTimeSlot(date, time);
+    // Memoize calculations for better performance
+    const isPast = useMemo(() => isPastTimeSlot(date, time), [date, time]);
+
+    const droppableId = useMemo(
+        () => `day-${dayIndex}-${date.toISOString().split("T")[0]}-${time}`,
+        [dayIndex, date, time],
+    );
 
     // Setup droppable container with day index included
     const { setNodeRef, isOver } = useDroppable({
-        id: `day-${dayIndex}-${date.toISOString().split("T")[0]}-${time}`,
+        id: droppableId,
         disabled: isPast || isUnavailable, // Disable dropping on past or unavailable time slots
     });
 
-    // Determine background color based on capacity, hover state, and availability status
-    const getBgColor = () => {
-        if (isPast || isUnavailable) return "gray.2"; // Grey out past or unavailable time slots
-        if (isOver) return "blue.0";
+    // Memoize background color calculation - simplified for better performance
+    const bgColor = useMemo(() => {
+        if (isPast || isUnavailable) return "gray.2";
+        if (isOver) return "blue.1"; // Slightly more noticeable drop zone
         if (isOverCapacity) return "red.0";
         if (parcels.length >= maxParcelsPerSlot * 0.75) return "yellow.0";
         return "white";
-    };
+    }, [isPast, isUnavailable, isOver, isOverCapacity, parcels.length, maxParcelsPerSlot]);
 
     // Create the cell content
     const cellContent = (
@@ -60,17 +65,20 @@ export default function TimeSlotCell({
             p={4}
             radius="sm"
             withBorder
-            bg={getBgColor()}
+            bg={bgColor}
             style={{
                 height: "100%",
-                transition: "background-color 0.2s",
+                transition: isOver ? "none" : "background-color 0.1s ease", // Faster transition, disabled during drag
                 position: "relative",
                 minHeight: 40,
-                opacity: isPast || isUnavailable ? 0.7 : 1, // Reduce opacity for past or unavailable time slots
-                cursor: isPast || isUnavailable ? "not-allowed" : "default", // Change cursor for unavailable time slots
+                opacity: isPast || isUnavailable ? 0.7 : 1,
+                cursor: isPast || isUnavailable ? "not-allowed" : "default",
                 backgroundImage: isUnavailable
                     ? "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.05) 5px, rgba(0,0,0,0.05) 10px)"
-                    : "none", // Add subtle pattern for unavailable slots
+                    : "none",
+                willChange: "background-color", // Optimize for color changes during drag
+                // Use transform3d for hardware acceleration
+                transform: "translate3d(0, 0, 0)",
             }}
         >
             {/* Parcels stack */}
@@ -97,3 +105,6 @@ export default function TimeSlotCell({
 
     return cellContent;
 }
+
+// Wrap with memo to prevent unnecessary re-renders during drag operations
+export default memo(TimeSlotCell);

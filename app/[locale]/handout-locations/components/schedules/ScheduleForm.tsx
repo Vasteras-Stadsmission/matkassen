@@ -102,7 +102,8 @@ export function ScheduleForm({
         useState<PickupLocationScheduleWithDays | null>(null);
 
     // State for the affected parcels warning modal
-    const [affectedParcelsModal, { open: openAffectedModal, close: closeAffectedModal }] = useDisclosure(false);
+    const [affectedParcelsModal, { open: openAffectedModal, close: closeAffectedModal }] =
+        useDisclosure(false);
     const [affectedParcelsCount, setAffectedParcelsCount] = useState<number>(0);
     const [pendingSubmitValues, setPendingSubmitValues] = useState<ScheduleInput | null>(null);
 
@@ -287,7 +288,9 @@ export function ScheduleForm({
     // Check how many parcels would be affected by this schedule change
     const checkAffectedParcels = async (values: ScheduleInput) => {
         try {
-            const { checkParcelsAffectedByScheduleChange } = await import("@/app/[locale]/schedule/actions");
+            const { checkParcelsAffectedByScheduleChange } = await import(
+                "@/app/[locale]/schedule/actions"
+            );
             const count = await checkParcelsAffectedByScheduleChange(
                 locationId,
                 values,
@@ -349,16 +352,20 @@ export function ScheduleForm({
                 return;
             }
 
-            // Convert Date objects to ISO strings for safe processing
+            // Convert Date objects to ISO strings for safe processing and ensure no undefined values
             const formattedValues: ScheduleInput = {
                 ...values,
-                name: values.name,
-                days: values.days,
+                name: values.name.trim(),
+                days: values.days.map(day => ({
+                    ...day,
+                    opening_time: day.opening_time || "09:00",
+                    closing_time: day.closing_time || "17:00",
+                })),
                 start_date: values.start_date, // Keep start_date as a Date for the API
                 end_date: values.end_date, // Keep end_date as a Date for the API
             };
 
-            // Check if this change would affect any existing parcels
+            // Check if this change would affect any existing parcels BEFORE submitting
             const affectedCount = await checkAffectedParcels(formattedValues);
 
             if (affectedCount > 0) {
@@ -512,7 +519,7 @@ export function ScheduleForm({
 
                                     <TimePicker
                                         disabled={!day.is_open}
-                                        value={form.values.days[index].opening_time}
+                                        value={form.values.days[index].opening_time || "09:00"}
                                         onChange={value => {
                                             form.setFieldValue(
                                                 `days.${index}.opening_time`,
@@ -536,7 +543,7 @@ export function ScheduleForm({
 
                                     <TimePicker
                                         disabled={!day.is_open}
-                                        value={form.values.days[index].closing_time}
+                                        value={form.values.days[index].closing_time || "17:00"}
                                         onChange={value => {
                                             form.setFieldValue(
                                                 `days.${index}.closing_time`,
@@ -574,7 +581,7 @@ export function ScheduleForm({
                             {t("cancel")}
                         </Button>
                         <Button
-                            type="submit"
+                            type="button"
                             loading={saving}
                             disabled={
                                 showOverlapWarning ||
@@ -582,6 +589,12 @@ export function ScheduleForm({
                                 !endWeek ||
                                 !form.values.days.some(day => day.is_open)
                             }
+                            onClick={() => {
+                                // Manually trigger form submission to avoid triggering parent form
+                                form.onSubmit(
+                                    handleSubmit as (values: typeof form.values) => Promise<void>,
+                                )();
+                            }}
                         >
                             {initialValues ? t("saveChanges") : t("createSchedule")}
                         </Button>
@@ -602,9 +615,7 @@ export function ScheduleForm({
                         color="orange"
                         title={t("parcelsWillBeAffected")}
                     >
-                        <Text>
-                            {t("parcelsAffectedMessage", { count: affectedParcelsCount })}
-                        </Text>
+                        <Text>{t("parcelsAffectedMessage", { count: affectedParcelsCount })}</Text>
                         <Text size="sm" c="dimmed" mt="xs">
                             {t("parcelsAffectedExplanation")}
                         </Text>

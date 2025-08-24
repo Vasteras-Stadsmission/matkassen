@@ -268,10 +268,11 @@ export async function createSchedule(
 
         // Recompute outside-hours count for this location after schedule change
         try {
-            const { recomputeOutsideHoursCount } = await import(
+            const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
                 "@/app/[locale]/schedule/actions"
             );
             await recomputeOutsideHoursCount(locationId);
+            await clearLocationSchedulesCache(locationId);
         } catch (e) {
             console.error("Failed to recompute outside-hours count after schedule create:", e);
         }
@@ -372,10 +373,11 @@ export async function updateSchedule(
 
         // Recompute outside-hours count for this location after schedule update
         try {
-            const { recomputeOutsideHoursCount } = await import(
+            const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
                 "@/app/[locale]/schedule/actions"
             );
             await recomputeOutsideHoursCount(locationId);
+            await clearLocationSchedulesCache(locationId);
         } catch (e) {
             console.error("Failed to recompute outside-hours count after schedule update:", e);
         }
@@ -411,10 +413,11 @@ export async function deleteSchedule(scheduleId: string): Promise<void> {
         // Recompute outside-hours count for this location after schedule deletion
         try {
             if (scheduleRow?.pickup_location_id) {
-                const { recomputeOutsideHoursCount } = await import(
+                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
                     "@/app/[locale]/schedule/actions"
                 );
                 await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
+                await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
             }
         } catch (e) {
             console.error("Failed to recompute outside-hours count after schedule delete:", e);

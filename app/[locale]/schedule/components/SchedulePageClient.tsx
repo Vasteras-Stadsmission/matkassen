@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
     Container,
@@ -15,6 +15,7 @@ import {
     Center,
     ActionIcon,
     Modal,
+    Badge,
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
@@ -72,38 +73,72 @@ function SchedulePageContent({
     const [datePickerOpened, { open: openDatePicker, close: closeDatePicker }] =
         useDisclosure(false);
 
+    // Memoized loader to fetch parcels for a week
+    const loadFoodParcels = useCallback(async (locationId: string, inputDates: Date[]) => {
+        if (!locationId) return;
+
+        // Always ensure we have a complete 7-day week
+        let dates = inputDates;
+        if (!dates || dates.length !== 7) {
+            const baseDate = dates && dates[0] ? dates[0] : new Date();
+            const { start } = getWeekDates(baseDate);
+            dates = [];
+            const current = new Date(start);
+            for (let i = 0; i < 7; i++) {
+                dates.push(new Date(current));
+                current.setDate(current.getDate() + 1);
+            }
+        }
+
+        setIsLoadingParcels(true);
+        try {
+            const weekStart = dates[0];
+            const weekEnd = dates[dates.length - 1];
+
+            const parcels = await getFoodParcelsForWeek(locationId, weekStart, weekEnd);
+
+            setFoodParcels(parcels);
+        } catch (error) {
+            console.error("Error loading food parcels:", error);
+        } finally {
+            setIsLoadingParcels(false);
+        }
+    }, []);
+
     // Combined initialization effect that handles URL parameters and initial data loading
     useEffect(() => {
         // Flag to track if component is mounted to prevent state updates after unmount
         let isMounted = true;
 
         async function initialize() {
-            // Step 1: Set initial date from URL or use current date
-            const initialDate = dateFromParams || new Date();
-            if (isMounted) setCurrentDate(initialDate);
-
-            // Step 2: Calculate week dates synchronously to avoid an extra render
-            const { start, end } = getWeekDates(initialDate);
-            const weekNumber = getISOWeekNumber(initialDate);
-            const year = initialDate.getFullYear();
-
-            // Generate an array of dates for the week
-            const dates: Date[] = [];
-            const current = new Date(start);
-
-            while (current <= end) {
-                dates.push(new Date(current));
-                current.setDate(current.getDate() + 1);
-            }
-
-            if (isMounted) {
-                setWeekDates(dates);
-                setWeekNumber(weekNumber);
-                setYear(year);
-            }
-
-            // Step 3: Load locations and select initial location
             try {
+                // Step 1: Set initial date from URL or use current date
+                const initialDate = dateFromParams || new Date();
+                if (isMounted) setCurrentDate(initialDate);
+
+                // Step 2: Calculate week dates synchronously to avoid an extra render
+                const { start } = getWeekDates(initialDate);
+                const weekNumber = getISOWeekNumber(initialDate);
+                const year = initialDate.getFullYear();
+
+                // Generate an array of dates for the week
+                const dates: Date[] = [];
+                const current = new Date(start);
+
+                // Always generate exactly 7 days (Monday through Sunday)
+                // instead of relying on the end date calculation
+                for (let i = 0; i < 7; i++) {
+                    dates.push(new Date(current));
+                    current.setDate(current.getDate() + 1);
+                }
+
+                if (isMounted) {
+                    setWeekDates(dates);
+                    setWeekNumber(weekNumber);
+                    setYear(year);
+                }
+
+                // Step 3: Load locations
                 setIsLoadingLocations(true);
                 const locationsData = await getPickupLocations();
 
@@ -129,19 +164,23 @@ function SchedulePageContent({
             }
         }
 
-        initialize();
+        // Add a small delay to ensure proper hydration
+        const timeoutId = setTimeout(() => {
+            initialize();
+        }, 0);
 
         return () => {
             isMounted = false;
+            clearTimeout(timeoutId);
         };
-    }, [locationIdFromParams, dateFromParams]);
+    }, [locationIdFromParams, dateFromParams, loadFoodParcels]);
 
     // Update week dates when current date changes (after initial load)
     useEffect(() => {
         // Skip this effect on initial render, which is handled by the initialization effect
         if (weekDates.length === 0) return;
 
-        const { start, end } = getWeekDates(currentDate);
+        const { start } = getWeekDates(currentDate);
         const weekNumber = getISOWeekNumber(currentDate);
         const year = currentDate.getFullYear();
 
@@ -149,7 +188,9 @@ function SchedulePageContent({
         const dates: Date[] = [];
         const current = new Date(start);
 
-        while (current <= end) {
+        // Always generate exactly 7 days (Monday through Sunday)
+        // instead of relying on the end date calculation
+        for (let i = 0; i < 7; i++) {
             dates.push(new Date(current));
             current.setDate(current.getDate() + 1);
         }
@@ -161,27 +202,10 @@ function SchedulePageContent({
         // Only load food parcels if we have a location selected
         if (selectedLocationId) {
             loadFoodParcels(selectedLocationId, dates);
-            recomputeOutsideHoursCountAction(selectedLocationId).catch(err =>
-                console.error("Recompute outside-hours count failed:", err),
-            );
         }
-    }, [currentDate, selectedLocationId, weekDates.length]);
+    }, [currentDate, selectedLocationId, weekDates.length, loadFoodParcels]);
 
-    const loadFoodParcels = async (locationId: string, dates: Date[]) => {
-        if (!locationId || dates.length === 0) return;
-
-        setIsLoadingParcels(true);
-        try {
-            const weekStart = dates[0];
-            const weekEnd = dates[dates.length - 1];
-            const parcels = await getFoodParcelsForWeek(locationId, weekStart, weekEnd);
-            setFoodParcels(parcels);
-        } catch (error) {
-            console.error("Error loading food parcels:", error);
-        } finally {
-            setIsLoadingParcels(false);
-        }
-    };
+    // loadFoodParcels is defined above to satisfy dependencies in effects
 
     // Handle location change - only reload parcels when location changes
     const handleLocationChange = (value: string | null) => {
@@ -189,7 +213,20 @@ function SchedulePageContent({
         setSelectedLocationId(value);
 
         if (value && weekDates.length > 0) {
-            loadFoodParcels(value, weekDates);
+            // Ensure we always use a 7-day week
+            if (weekDates.length === 7) {
+                loadFoodParcels(value, weekDates);
+            } else {
+                // Regenerate proper 7-day week if weekDates is incomplete
+                const { start } = getWeekDates(currentDate);
+                const dates: Date[] = [];
+                const current = new Date(start);
+                for (let i = 0; i < 7; i++) {
+                    dates.push(new Date(current));
+                    current.setDate(current.getDate() + 1);
+                }
+                loadFoodParcels(value, dates);
+            }
             recomputeOutsideHoursCountAction(value).catch(err =>
                 console.error("Recompute outside-hours count failed:", err),
             );
@@ -224,6 +261,17 @@ function SchedulePageContent({
         await loadFoodParcels(selectedLocationId, weekDates);
     };
 
+    // Listen for schedule grid refresh events (e.g., when schedules are deleted)
+    useEffect(() => {
+        const handleRefreshScheduleGrid = async () => {
+            if (!selectedLocationId || weekDates.length === 0) return;
+            await loadFoodParcels(selectedLocationId, weekDates);
+        };
+
+        window.addEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+        return () => window.removeEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+    }, [selectedLocationId, weekDates, loadFoodParcels]);
+
     // Handle date selection from calendar
     const handleDateSelect = (value: string | null) => {
         if (!value) return;
@@ -257,13 +305,42 @@ function SchedulePageContent({
                         <Select
                             label={t("foodParcels.pickupLocation")}
                             placeholder={t("foodParcels.selectLocation")}
-                            data={locations.map(loc => ({ value: loc.id, label: loc.name }))}
+                            data={locations.map(loc => ({
+                                value: loc.id,
+                                label: loc.name,
+                                // Store as a custom property that we'll access in renderOption
+                                ...loc,
+                            }))}
                             value={selectedLocationId}
                             onChange={handleLocationChange}
                             disabled={isLoadingLocations}
                             rightSection={isLoadingLocations ? <Loader size="xs" /> : null}
                             style={{ minWidth: 250 }}
                             size="xs"
+                            renderOption={({ option }) => {
+                                // Type assertion to access our custom properties
+                                const locationOption = option as PickupLocation & {
+                                    value: string;
+                                    label: string;
+                                };
+                                return (
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            width: "100%",
+                                        }}
+                                    >
+                                        <span>{option.label}</span>
+                                        {locationOption.outsideHoursCount > 0 && (
+                                            <Badge size="xs" color="red" radius="xl">
+                                                {locationOption.outsideHoursCount}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                );
+                            }}
                         />
 
                         <Group gap="xs">
@@ -380,6 +457,12 @@ export default function SchedulePageClient() {
     const [locationId, setLocationId] = useState<string | null>(null);
     const [date, setDate] = useState<Date | null>(null);
     const [paramsLoaded, setParamsLoaded] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Ensure component is mounted before rendering content
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Component to handle search params with proper Suspense
     function SearchParamsComponentWithSuspense() {
@@ -406,6 +489,27 @@ export default function SchedulePageClient() {
         }, [dateParam, locationIdFromUrl]);
 
         return null;
+    }
+
+    // Don't render anything until the component is mounted (prevents hydration mismatch)
+    if (!isMounted) {
+        return (
+            <Container fluid p="md">
+                <Stack gap="sm">
+                    <Group justify="space-between" align="flex-end">
+                        <Title order={1}>Food Support Scheduling</Title>
+                    </Group>
+                    <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
+                        <Center style={{ height: 400 }}>
+                            <Stack align="center" gap="xs">
+                                <Loader size="md" />
+                                <Text c="dimmed">Loading...</Text>
+                            </Stack>
+                        </Center>
+                    </Paper>
+                </Stack>
+            </Container>
+        );
     }
 
     return (
