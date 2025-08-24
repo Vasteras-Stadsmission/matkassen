@@ -27,38 +27,40 @@ export type WeekdayName = (typeof WEEKDAY_MAPPING)[number];
  * A Date object that's guaranteed to be in Stockholm timezone
  */
 export class StockholmTime {
-    private readonly _date: Date;
+    private readonly _utcDate: Date;
 
     constructor(date: Date | string | number = new Date()) {
-        this._date = toZonedTime(new Date(date), STOCKHOLM_TIMEZONE);
+        // Store the original UTC date and handle timezone conversions in methods
+        this._utcDate = new Date(date);
     }
 
     /**
      * Get the underlying Date object (in Stockholm timezone)
      */
     toDate(): Date {
-        return new Date(this._date);
+        return toZonedTime(this._utcDate, STOCKHOLM_TIMEZONE);
     }
 
     /**
      * Convert to UTC Date for database storage
      */
     toUTC(): Date {
-        return fromZonedTime(this._date, STOCKHOLM_TIMEZONE);
+        return new Date(this._utcDate);
     }
 
     /**
      * Format the date using Stockholm timezone
      */
     format(formatString: string): string {
-        return formatInTimeZone(this.toUTC(), STOCKHOLM_TIMEZONE, formatString);
+        return formatInTimeZone(this._utcDate, STOCKHOLM_TIMEZONE, formatString);
     }
 
     /**
      * Get weekday name that matches our database enum
      */
     getWeekdayName(): WeekdayName {
-        const dayIndex = this._date.getDay();
+        const stockholmDate = toZonedTime(this._utcDate, STOCKHOLM_TIMEZONE);
+        const dayIndex = stockholmDate.getDay();
         return WEEKDAY_MAPPING[dayIndex];
     }
 
@@ -66,63 +68,76 @@ export class StockholmTime {
      * Get ISO week number
      */
     getISOWeek(): number {
-        return getISOWeek(this._date);
+        const stockholmDate = toZonedTime(this._utcDate, STOCKHOLM_TIMEZONE);
+        return getISOWeek(stockholmDate);
     }
 
     /**
      * Get start of day (00:00:00.000)
      */
     startOfDay(): StockholmTime {
-        return new StockholmTime(startOfDay(this._date));
+        const stockholmDate = toZonedTime(this._utcDate, STOCKHOLM_TIMEZONE);
+        const startOfDayStockholm = startOfDay(stockholmDate);
+        const utcStartOfDay = fromZonedTime(startOfDayStockholm, STOCKHOLM_TIMEZONE);
+        return new StockholmTime(utcStartOfDay);
     }
 
     /**
      * End of day (23:59:59.999)
      */
     endOfDay(): StockholmTime {
-        return new StockholmTime(endOfDay(this._date));
+        const stockholmDate = toZonedTime(this._utcDate, STOCKHOLM_TIMEZONE);
+        const endOfDayStockholm = endOfDay(stockholmDate);
+        const utcEndOfDay = fromZonedTime(endOfDayStockholm, STOCKHOLM_TIMEZONE);
+        return new StockholmTime(utcEndOfDay);
     }
 
     /**
      * Start of week (Monday 00:00:00.000)
      */
     startOfWeek(): StockholmTime {
-        return new StockholmTime(startOfWeek(this._date, { weekStartsOn: 1 }));
+        const stockholmDate = toZonedTime(this._utcDate, STOCKHOLM_TIMEZONE);
+        const startOfWeekStockholm = startOfWeek(stockholmDate, { weekStartsOn: 1 });
+        const utcStartOfWeek = fromZonedTime(startOfWeekStockholm, STOCKHOLM_TIMEZONE);
+        return new StockholmTime(utcStartOfWeek);
     }
 
     /**
      * End of week (Sunday 23:59:59.999)
      */
     endOfWeek(): StockholmTime {
-        return new StockholmTime(endOfWeek(this._date, { weekStartsOn: 1 }));
+        const stockholmDate = toZonedTime(this._utcDate, STOCKHOLM_TIMEZONE);
+        const endOfWeekStockholm = endOfWeek(stockholmDate, { weekStartsOn: 1 });
+        const utcEndOfWeek = fromZonedTime(endOfWeekStockholm, STOCKHOLM_TIMEZONE);
+        return new StockholmTime(utcEndOfWeek);
     }
 
     /**
      * Check if this time is after another time
      */
     isAfter(other: StockholmTime): boolean {
-        return this._date > other._date;
+        return this._utcDate > other._utcDate;
     }
 
     /**
      * Check if this time is before another time
      */
     isBefore(other: StockholmTime): boolean {
-        return this._date < other._date;
+        return this._utcDate < other._utcDate;
     }
 
     /**
      * Check if this time is between two other times (inclusive)
      */
     isBetween(start: StockholmTime, end: StockholmTime): boolean {
-        return this._date >= start._date && this._date <= end._date;
+        return this._utcDate >= start._utcDate && this._utcDate <= end._utcDate;
     }
 
     /**
      * Add minutes to this time
      */
     addMinutes(minutes: number): StockholmTime {
-        const newDate = new Date(this._date);
+        const newDate = new Date(this._utcDate);
         newDate.setMinutes(newDate.getMinutes() + minutes);
         return new StockholmTime(newDate);
     }
@@ -145,7 +160,7 @@ export class StockholmTime {
      * Get timestamp for database comparisons
      */
     getTime(): number {
-        return this._date.getTime();
+        return this._utcDate.getTime();
     }
 }
 
@@ -179,10 +194,13 @@ export class TimeProvider implements ITimeProvider {
         const base = baseDate || this.now().startOfDay();
         const [hours, minutes] = timeString.split(":").map(Number);
 
-        const result = base.toDate();
-        result.setHours(hours, minutes, 0, 0);
+        // Work in Stockholm timezone
+        const stockholmBase = toZonedTime(base.toUTC(), STOCKHOLM_TIMEZONE);
+        stockholmBase.setHours(hours, minutes, 0, 0);
 
-        return new StockholmTime(result);
+        // Convert back to UTC for storage
+        const utcResult = fromZonedTime(stockholmBase, STOCKHOLM_TIMEZONE);
+        return new StockholmTime(utcResult);
     }
 }
 
@@ -216,10 +234,13 @@ export class MockTimeProvider implements ITimeProvider {
         const base = baseDate || this.now().startOfDay();
         const [hours, minutes] = timeString.split(":").map(Number);
 
-        const result = base.toDate();
-        result.setHours(hours, minutes, 0, 0);
+        // Work in Stockholm timezone
+        const stockholmBase = toZonedTime(base.toUTC(), STOCKHOLM_TIMEZONE);
+        stockholmBase.setHours(hours, minutes, 0, 0);
 
-        return new StockholmTime(result);
+        // Convert back to UTC for storage
+        const utcResult = fromZonedTime(stockholmBase, STOCKHOLM_TIMEZONE);
+        return new StockholmTime(utcResult);
     }
 }
 
