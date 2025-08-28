@@ -217,6 +217,186 @@ describe("TimeProvider", () => {
         });
     });
 
+    describe("DST transition edge cases", () => {
+        describe("Spring DST transition (March 30, 2025)", () => {
+            it("should handle week boundaries during spring DST transition", () => {
+                // Spring DST: March 30, 2025 at 02:00 -> 03:00 (Sunday)
+                const saturdayBeforeDST = new StockholmTime("2025-03-29T22:00:00.000Z"); // Saturday 23:00 Stockholm
+                const sundayDuringDST = new StockholmTime("2025-03-30T12:00:00.000Z"); // Sunday 14:00 Stockholm (after transition)
+                const mondayAfterDST = new StockholmTime("2025-03-31T06:00:00.000Z"); // Monday 08:00 Stockholm
+
+                // Verify weekday detection across DST transition
+                expect(saturdayBeforeDST.getWeekdayName()).toBe("saturday");
+                expect(sundayDuringDST.getWeekdayName()).toBe("sunday");
+                expect(mondayAfterDST.getWeekdayName()).toBe("monday");
+
+                // Test week boundaries
+                const weekStart = saturdayBeforeDST.startOfWeek();
+                const weekEnd = saturdayBeforeDST.endOfWeek();
+
+                expect(weekStart.getWeekdayName()).toBe("monday");
+                expect(weekEnd.getWeekdayName()).toBe("sunday");
+
+                // Verify the week end encompasses the DST transition
+                expect(weekEnd.isAfter(sundayDuringDST)).toBe(true);
+            });
+
+            it("should handle Sunday night to Monday morning transition during spring DST", () => {
+                // Sunday 22:00 before DST transition ends
+                const sundayNight = new StockholmTime("2025-03-30T20:59:00.000Z"); // 22:59 Stockholm
+                const mondayMorning = new StockholmTime("2025-03-31T06:00:00.000Z"); // 08:00 Stockholm
+
+                expect(sundayNight.getWeekdayName()).toBe("sunday");
+                expect(mondayMorning.getWeekdayName()).toBe("monday");
+
+                // Monday should be after Sunday
+                expect(mondayMorning.isAfter(sundayNight)).toBe(true);
+
+                // Week calculation should be consistent
+                const sundayWeekEnd = sundayNight.endOfWeek();
+                const mondayWeekStart = mondayMorning.startOfWeek();
+
+                expect(sundayWeekEnd.getWeekdayName()).toBe("sunday");
+                expect(mondayWeekStart.getWeekdayName()).toBe("monday");
+            });
+
+            it("should handle time comparisons across spring DST boundary", () => {
+                // Before DST transition (01:30 UTC = 02:30 Stockholm)
+                const beforeTransition = new StockholmTime("2025-03-30T01:30:00.000Z");
+                // After DST transition (01:30 UTC = 03:30 Stockholm, due to clock jump)
+                const afterTransition = new StockholmTime("2025-03-30T01:30:00.000Z");
+
+                // Both should be Sunday but at different Stockholm times
+                expect(beforeTransition.getWeekdayName()).toBe("sunday");
+                expect(afterTransition.getWeekdayName()).toBe("sunday");
+
+                // Times during the "missing hour" should be handled gracefully
+                const duringMissingHour = new StockholmTime("2025-03-30T01:00:00.000Z"); // 02:00 Stockholm (gets jumped to 03:00)
+                expect(duringMissingHour.getWeekdayName()).toBe("sunday");
+            });
+
+            it("should maintain ISO week consistency during spring DST", () => {
+                const beforeDST = new StockholmTime("2025-03-29T12:00:00.000Z"); // Saturday, week 13
+                const afterDST = new StockholmTime("2025-03-31T12:00:00.000Z"); // Monday, week 14
+
+                // Saturday (week 13) and Monday (week 14) should be in consecutive weeks
+                expect(beforeDST.getISOWeek()).toBe(13);
+                expect(afterDST.getISOWeek()).toBe(14);
+                expect(afterDST.getISOWeek()).toBe(beforeDST.getISOWeek() + 1);
+            });
+        });
+
+        describe("Fall DST transition (October 26, 2025)", () => {
+            it("should handle week boundaries during fall DST transition", () => {
+                // Fall DST: October 26, 2025 at 03:00 -> 02:00 (Sunday)
+                const saturdayBeforeDST = new StockholmTime("2025-10-25T12:00:00.000Z"); // Saturday 14:00 Stockholm
+                const sundayDuringDST = new StockholmTime("2025-10-26T12:00:00.000Z"); // Sunday 13:00 Stockholm (after transition)
+                const mondayAfterDST = new StockholmTime("2025-10-27T07:00:00.000Z"); // Monday 08:00 Stockholm
+
+                // Verify weekday detection across DST transition
+                expect(saturdayBeforeDST.getWeekdayName()).toBe("saturday");
+                expect(sundayDuringDST.getWeekdayName()).toBe("sunday");
+                expect(mondayAfterDST.getWeekdayName()).toBe("monday");
+
+                // Test week boundaries
+                const weekStart = saturdayBeforeDST.startOfWeek();
+                const weekEnd = saturdayBeforeDST.endOfWeek();
+
+                expect(weekStart.getWeekdayName()).toBe("monday");
+                expect(weekEnd.getWeekdayName()).toBe("sunday");
+
+                // Verify the week end encompasses the DST transition
+                expect(weekEnd.isAfter(sundayDuringDST)).toBe(true);
+            });
+
+            it("should handle Sunday night to Monday morning transition during fall DST", () => {
+                // Sunday 22:00 during DST transition
+                const sundayNight = new StockholmTime("2025-10-26T21:59:00.000Z"); // 22:59 Stockholm
+                const mondayMorning = new StockholmTime("2025-10-27T07:00:00.000Z"); // 08:00 Stockholm
+
+                expect(sundayNight.getWeekdayName()).toBe("sunday");
+                expect(mondayMorning.getWeekdayName()).toBe("monday");
+
+                // Monday should be after Sunday
+                expect(mondayMorning.isAfter(sundayNight)).toBe(true);
+
+                // Week calculation should be consistent
+                const sundayWeekEnd = sundayNight.endOfWeek();
+                const mondayWeekStart = mondayMorning.startOfWeek();
+
+                expect(sundayWeekEnd.getWeekdayName()).toBe("sunday");
+                expect(mondayWeekStart.getWeekdayName()).toBe("monday");
+            });
+
+            it("should handle duplicate hour during fall DST transition", () => {
+                // During fall DST, 02:00-03:00 occurs twice
+                // First occurrence (before transition, UTC+2)
+                const firstOccurrence = new StockholmTime("2025-10-26T00:30:00.000Z"); // 02:30 Stockholm (first time)
+                // Second occurrence (after transition, UTC+1)
+                const secondOccurrence = new StockholmTime("2025-10-26T01:30:00.000Z"); // 02:30 Stockholm (second time)
+
+                expect(firstOccurrence.getWeekdayName()).toBe("sunday");
+                expect(secondOccurrence.getWeekdayName()).toBe("sunday");
+
+                // The second occurrence should be after the first in UTC
+                expect(secondOccurrence.isAfter(firstOccurrence)).toBe(true);
+
+                // Both should format to the same Stockholm time but be different UTC times
+                expect(firstOccurrence.format("HH:mm")).toBe("02:30");
+                expect(secondOccurrence.format("HH:mm")).toBe("02:30");
+                expect(firstOccurrence.getTime()).not.toBe(secondOccurrence.getTime());
+            });
+
+            it("should maintain ISO week consistency during fall DST", () => {
+                const beforeDST = new StockholmTime("2025-10-25T12:00:00.000Z"); // Saturday, week 43
+                const afterDST = new StockholmTime("2025-10-27T12:00:00.000Z"); // Monday, week 44
+
+                // Saturday (week 43) and Monday (week 44) should be in consecutive weeks
+                expect(beforeDST.getISOWeek()).toBe(43);
+                expect(afterDST.getISOWeek()).toBe(44);
+                expect(afterDST.getISOWeek()).toBe(beforeDST.getISOWeek() + 1);
+            });
+        });
+
+        describe("Week boundary edge cases", () => {
+            it("should handle Sunday 23:59 to Monday 00:00 transition correctly", () => {
+                // Test regular week (no DST)
+                const sundayNight = new StockholmTime("2025-08-24T21:59:00.000Z"); // Sunday 23:59 Stockholm
+                const mondayMidnight = new StockholmTime("2025-08-24T22:00:00.000Z"); // Monday 00:00 Stockholm
+
+                expect(sundayNight.getWeekdayName()).toBe("sunday");
+                expect(mondayMidnight.getWeekdayName()).toBe("monday");
+
+                // Should be in consecutive weeks
+                expect(sundayNight.getISOWeek()).toBe(34);
+                expect(mondayMidnight.getISOWeek()).toBe(35);
+
+                // Monday should be after Sunday
+                expect(mondayMidnight.isAfter(sundayNight)).toBe(true);
+            });
+
+            it("should handle week transitions during DST changeover weekends", () => {
+                // Spring DST weekend: Week transitions with time jump
+                const springWeekTransition = new StockholmTime("2025-03-30T20:00:00.000Z"); // Sunday 22:00 Stockholm
+                const springNextWeekStart = new StockholmTime("2025-03-31T06:00:00.000Z"); // Monday 08:00 Stockholm
+
+                expect(springWeekTransition.getWeekdayName()).toBe("sunday");
+                expect(springNextWeekStart.getWeekdayName()).toBe("monday");
+
+                // Fall DST weekend: Week transitions with time duplication
+                const fallWeekTransition = new StockholmTime("2025-10-26T21:00:00.000Z"); // Sunday 22:00 Stockholm
+                const fallNextWeekStart = new StockholmTime("2025-10-27T07:00:00.000Z"); // Monday 08:00 Stockholm
+
+                expect(fallWeekTransition.getWeekdayName()).toBe("sunday");
+                expect(fallNextWeekStart.getWeekdayName()).toBe("monday");
+
+                // Both transitions should work consistently
+                expect(springNextWeekStart.isAfter(springWeekTransition)).toBe(true);
+                expect(fallNextWeekStart.isAfter(fallWeekTransition)).toBe(true);
+            });
+        });
+    });
+
     describe("Database integration patterns", () => {
         it("should provide UTC dates for database storage", () => {
             const stockholmTime = new StockholmTime("2025-08-23T12:00:00.000Z");

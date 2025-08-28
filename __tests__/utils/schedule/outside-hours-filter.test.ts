@@ -17,10 +17,16 @@ vi.mock("@/app/utils/schedule/location-availability", () => ({
     isTimeAvailable: vi.fn(),
 }));
 
-// Mock the date-utils module
-vi.mock("@/app/utils/date-utils", () => ({
-    toStockholmTime: vi.fn((date: Date) => date), // Simple passthrough for testing
-}));
+// Don't mock date-utils for DST tests - we want real timezone behavior
+// Mock the date-utils module only for legacy tests
+const mockToStockholmTime = vi.fn((date: Date) => date);
+vi.mock("@/app/utils/date-utils", async () => {
+    const actual = await vi.importActual("@/app/utils/date-utils");
+    return {
+        ...actual,
+        toStockholmTime: mockToStockholmTime, // Allow override for specific tests
+    };
+});
 
 import { isTimeAvailable } from "@/app/utils/schedule/location-availability";
 
@@ -589,6 +595,319 @@ describe("outside-hours-filter", () => {
             );
 
             expect(count).toBe(1);
+        });
+    });
+
+    describe("DST Edge Cases", () => {
+        beforeEach(() => {
+            // Reset mocks and use real date-utils for DST tests
+            vi.clearAllMocks();
+            mockToStockholmTime.mockImplementation((date: Date) => date);
+        });
+
+        describe("Spring DST Transition (March 30, 2025)", () => {
+            it("should handle parcel times during spring DST transition", () => {
+                // During spring DST (02:00 -> 03:00), times in the "missing hour" need careful handling
+                const dstTransitionSchedule: LocationScheduleInfo = {
+                    schedules: [
+                        {
+                            id: "dst-schedule",
+                            name: "DST Schedule",
+                            startDate: "2025-03-29",
+                            endDate: "2025-03-31",
+                            days: [
+                                {
+                                    weekday: "sunday",
+                                    isOpen: true,
+                                    openingTime: "01:00", // Before DST jump
+                                    closingTime: "04:00", // After DST jump
+                                },
+                            ],
+                        },
+                    ],
+                };
+
+                // Parcel during the "missing hour" (02:00-03:00 doesn't exist on this day)
+                const parcelDuringMissingHour: ParcelTimeInfo = {
+                    id: "dst-parcel-1",
+                    pickupEarliestTime: new Date("2025-03-30T01:30:00.000Z"), // This gets jumped to 03:30 Stockholm
+                    pickupLatestTime: new Date("2025-03-30T02:30:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                // Parcel before DST transition
+                const parcelBeforeDST: ParcelTimeInfo = {
+                    id: "dst-parcel-2",
+                    pickupEarliestTime: new Date("2025-03-30T00:30:00.000Z"), // 01:30 Stockholm (before jump)
+                    pickupLatestTime: new Date("2025-03-30T01:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                // Parcel after DST transition
+                const parcelAfterDST: ParcelTimeInfo = {
+                    id: "dst-parcel-3",
+                    pickupEarliestTime: new Date("2025-03-30T01:30:00.000Z"), // 03:30 Stockholm (after jump)
+                    pickupLatestTime: new Date("2025-03-30T02:00:00.000Z"), // 04:00 Stockholm
+                    isPickedUp: false,
+                };
+
+                // Mock isTimeAvailable to return true for all (location is open)
+                mockIsTimeAvailable.mockReturnValue({ isAvailable: true });
+
+                const currentTime = new Date("2025-03-29T22:00:00.000Z"); // Before any of the parcels
+
+                // Test that all parcels are future parcels
+                expect(isFutureParcel(parcelDuringMissingHour, currentTime)).toBe(true);
+                expect(isFutureParcel(parcelBeforeDST, currentTime)).toBe(true);
+                expect(isFutureParcel(parcelAfterDST, currentTime)).toBe(true);
+
+                // Test that none are considered outside hours (schedule accommodates DST)
+                expect(
+                    isParcelOutsideOpeningHours(parcelDuringMissingHour, dstTransitionSchedule),
+                ).toBe(false);
+                expect(isParcelOutsideOpeningHours(parcelBeforeDST, dstTransitionSchedule)).toBe(
+                    false,
+                );
+                expect(isParcelOutsideOpeningHours(parcelAfterDST, dstTransitionSchedule)).toBe(
+                    false,
+                );
+            });
+
+            it("should handle week boundaries during spring DST", () => {
+                // Test transition from Saturday to Sunday (DST day)
+                const saturdayBeforeDST: ParcelTimeInfo = {
+                    id: "saturday-parcel",
+                    pickupEarliestTime: new Date("2025-03-29T21:30:00.000Z"), // Saturday 23:30 Stockholm
+                    pickupLatestTime: new Date("2025-03-29T22:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const sundayDuringDST: ParcelTimeInfo = {
+                    id: "sunday-parcel",
+                    pickupEarliestTime: new Date("2025-03-30T00:30:00.000Z"), // Sunday 01:30 Stockholm (before DST)
+                    pickupLatestTime: new Date("2025-03-30T01:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const currentTime = new Date("2025-03-29T18:00:00.000Z"); // Saturday evening
+
+                expect(isFutureParcel(saturdayBeforeDST, currentTime)).toBe(true);
+                expect(isFutureParcel(sundayDuringDST, currentTime)).toBe(true);
+
+                // Sunday parcel should be later than Saturday parcel despite DST
+                expect(sundayDuringDST.pickupEarliestTime.getTime()).toBeGreaterThan(
+                    saturdayBeforeDST.pickupEarliestTime.getTime(),
+                );
+            });
+        });
+
+        describe("Fall DST Transition (October 26, 2025)", () => {
+            it("should handle parcel times during fall DST transition", () => {
+                // During fall DST (03:00 -> 02:00), the hour 02:00-03:00 occurs twice
+                const dstTransitionSchedule: LocationScheduleInfo = {
+                    schedules: [
+                        {
+                            id: "fall-dst-schedule",
+                            name: "Fall DST Schedule",
+                            startDate: "2025-10-25",
+                            endDate: "2025-10-27",
+                            days: [
+                                {
+                                    weekday: "sunday",
+                                    isOpen: true,
+                                    openingTime: "01:00",
+                                    closingTime: "04:00",
+                                },
+                            ],
+                        },
+                    ],
+                };
+
+                // Parcels during the "duplicate hour" period
+                const parcelFirstOccurrence: ParcelTimeInfo = {
+                    id: "fall-parcel-1",
+                    pickupEarliestTime: new Date("2025-10-26T00:30:00.000Z"), // 02:30 Stockholm (first occurrence, UTC+2)
+                    pickupLatestTime: new Date("2025-10-26T01:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const parcelSecondOccurrence: ParcelTimeInfo = {
+                    id: "fall-parcel-2",
+                    pickupEarliestTime: new Date("2025-10-26T01:30:00.000Z"), // 02:30 Stockholm (second occurrence, UTC+1)
+                    pickupLatestTime: new Date("2025-10-26T02:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                // Mock isTimeAvailable to return true
+                mockIsTimeAvailable.mockReturnValue({ isAvailable: true });
+
+                const currentTime = new Date("2025-10-25T22:00:00.000Z"); // Before both parcels
+
+                // Both parcels should be future parcels
+                expect(isFutureParcel(parcelFirstOccurrence, currentTime)).toBe(true);
+                expect(isFutureParcel(parcelSecondOccurrence, currentTime)).toBe(true);
+
+                // Second occurrence should be later in UTC time
+                expect(parcelSecondOccurrence.pickupEarliestTime.getTime()).toBeGreaterThan(
+                    parcelFirstOccurrence.pickupEarliestTime.getTime(),
+                );
+
+                // Neither should be outside hours
+                expect(
+                    isParcelOutsideOpeningHours(parcelFirstOccurrence, dstTransitionSchedule),
+                ).toBe(false);
+                expect(
+                    isParcelOutsideOpeningHours(parcelSecondOccurrence, dstTransitionSchedule),
+                ).toBe(false);
+            });
+
+            it("should handle week boundaries during fall DST", () => {
+                // Test transition from Saturday to Sunday (DST day)
+                const saturdayBeforeDST: ParcelTimeInfo = {
+                    id: "saturday-fall-parcel",
+                    pickupEarliestTime: new Date("2025-10-25T21:30:00.000Z"), // Saturday 23:30 Stockholm
+                    pickupLatestTime: new Date("2025-10-25T22:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const sundayDuringDST: ParcelTimeInfo = {
+                    id: "sunday-fall-parcel",
+                    pickupEarliestTime: new Date("2025-10-26T00:30:00.000Z"), // Sunday 01:30 Stockholm
+                    pickupLatestTime: new Date("2025-10-26T01:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const currentTime = new Date("2025-10-25T18:00:00.000Z"); // Saturday evening
+
+                expect(isFutureParcel(saturdayBeforeDST, currentTime)).toBe(true);
+                expect(isFutureParcel(sundayDuringDST, currentTime)).toBe(true);
+
+                // Sunday parcel should be later than Saturday parcel
+                expect(sundayDuringDST.pickupEarliestTime.getTime()).toBeGreaterThan(
+                    saturdayBeforeDST.pickupEarliestTime.getTime(),
+                );
+            });
+        });
+
+        describe("Sunday to Monday week transitions during DST", () => {
+            it("should handle Sunday night to Monday morning transition during spring DST", () => {
+                const sundayNightParcel: ParcelTimeInfo = {
+                    id: "sunday-night-spring",
+                    pickupEarliestTime: new Date("2025-03-30T21:30:00.000Z"), // Sunday 23:30 Stockholm
+                    pickupLatestTime: new Date("2025-03-30T22:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const mondayMorningParcel: ParcelTimeInfo = {
+                    id: "monday-morning-spring",
+                    pickupEarliestTime: new Date("2025-03-31T06:00:00.000Z"), // Monday 08:00 Stockholm
+                    pickupLatestTime: new Date("2025-03-31T07:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const currentTime = new Date("2025-03-30T18:00:00.000Z"); // Sunday evening
+
+                expect(isFutureParcel(sundayNightParcel, currentTime)).toBe(true);
+                expect(isFutureParcel(mondayMorningParcel, currentTime)).toBe(true);
+
+                // Monday should be after Sunday despite DST
+                expect(mondayMorningParcel.pickupEarliestTime.getTime()).toBeGreaterThan(
+                    sundayNightParcel.pickupEarliestTime.getTime(),
+                );
+            });
+
+            it("should handle Sunday night to Monday morning transition during fall DST", () => {
+                const sundayNightParcel: ParcelTimeInfo = {
+                    id: "sunday-night-fall",
+                    pickupEarliestTime: new Date("2025-10-26T21:30:00.000Z"), // Sunday 23:30 Stockholm
+                    pickupLatestTime: new Date("2025-10-26T22:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const mondayMorningParcel: ParcelTimeInfo = {
+                    id: "monday-morning-fall",
+                    pickupEarliestTime: new Date("2025-10-27T07:00:00.000Z"), // Monday 08:00 Stockholm
+                    pickupLatestTime: new Date("2025-10-27T08:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                const currentTime = new Date("2025-10-26T18:00:00.000Z"); // Sunday evening
+
+                expect(isFutureParcel(sundayNightParcel, currentTime)).toBe(true);
+                expect(isFutureParcel(mondayMorningParcel, currentTime)).toBe(true);
+
+                // Monday should be after Sunday
+                expect(mondayMorningParcel.pickupEarliestTime.getTime()).toBeGreaterThan(
+                    sundayNightParcel.pickupEarliestTime.getTime(),
+                );
+            });
+        });
+
+        describe("DST transition impact on schedule changes", () => {
+            it("should correctly assess schedule change impact during DST transitions", () => {
+                const currentSchedule: LocationScheduleInfo = {
+                    schedules: [
+                        {
+                            id: "current",
+                            name: "Current Schedule",
+                            startDate: "2025-03-29",
+                            endDate: "2025-03-31",
+                            days: [
+                                {
+                                    weekday: "sunday",
+                                    isOpen: true,
+                                    openingTime: "10:00",
+                                    closingTime: "18:00",
+                                },
+                            ],
+                        },
+                    ],
+                };
+
+                const proposedSchedule: LocationScheduleInfo = {
+                    schedules: [
+                        {
+                            id: "proposed",
+                            name: "Proposed Schedule",
+                            startDate: "2025-03-29",
+                            endDate: "2025-03-31",
+                            days: [
+                                {
+                                    weekday: "sunday",
+                                    isOpen: true,
+                                    openingTime: "12:00", // Later opening
+                                    closingTime: "16:00", // Earlier closing
+                                },
+                            ],
+                        },
+                    ],
+                };
+
+                const affectedParcel: ParcelTimeInfo = {
+                    id: "affected-dst-parcel",
+                    pickupEarliestTime: new Date("2025-03-30T09:00:00.000Z"), // 11:00 Stockholm - would be outside new hours
+                    pickupLatestTime: new Date("2025-03-30T10:00:00.000Z"),
+                    isPickedUp: false,
+                };
+
+                // Mock the availability checks
+                mockIsTimeAvailable
+                    .mockReturnValueOnce({ isAvailable: true }) // Current schedule - available
+                    .mockReturnValueOnce({ isAvailable: true })
+                    .mockReturnValueOnce({ isAvailable: false }) // Proposed schedule - not available
+                    .mockReturnValueOnce({ isAvailable: false });
+
+                const currentTime = new Date("2025-03-29T06:00:00.000Z");
+
+                expect(
+                    isParcelAffectedByScheduleChange(
+                        affectedParcel,
+                        currentSchedule,
+                        proposedSchedule,
+                        currentTime,
+                    ),
+                ).toBe(true);
+            });
         });
     });
 });

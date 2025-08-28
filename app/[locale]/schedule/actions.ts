@@ -13,6 +13,7 @@ import { isTimeAvailable, isDateAvailable } from "@/app/utils/schedule/location-
 import { generateTimeSlotsBetween } from "@/app/utils/date-utils";
 import { Time } from "@/app/utils/time-provider";
 import { getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
+import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
 
@@ -1033,35 +1034,16 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
     const outsideParcels: FoodParcel[] = [];
 
     for (const parcel of parcels) {
-        const startLocal = Time.fromDate(new Date(parcel.pickupEarliestTime));
-        const endLocal = Time.fromDate(new Date(parcel.pickupLatestTime));
+        // Convert to the format expected by the centralized function
+        const parcelTimeInfo = {
+            id: parcel.id,
+            pickupEarliestTime: new Date(parcel.pickupEarliestTime),
+            pickupLatestTime: new Date(parcel.pickupLatestTime),
+            isPickedUp: parcel.isPickedUp,
+        };
 
-        // Check if this parcel time is available according to current schedules
-        const startTime = startLocal.toTimeString();
-        const endTime = endLocal.toTimeString();
-
-        // Check if both start and end times are within opening hours
-        let isAvailable = false;
-        try {
-            const startAvailability = isTimeAvailable(
-                startLocal.toDate(),
-                startTime,
-                locationSchedules,
-            );
-            const endAvailability = isTimeAvailable(endLocal.toDate(), endTime, locationSchedules);
-
-            isAvailable = startAvailability.isAvailable && endAvailability.isAvailable;
-        } catch (error) {
-            console.error(`Error checking time availability for parcel ${parcel.id}:`, error);
-            // If there's an error, treat this parcel as outside hours
-            outsideParcels.push({
-                ...parcel,
-                pickupDate: new Date(parcel.pickupDate),
-            });
-            continue;
-        }
-
-        if (!isAvailable) {
+        // Use the centralized logic to determine if parcel is outside opening hours
+        if (isParcelOutsideOpeningHours(parcelTimeInfo, locationSchedules)) {
             outsideParcels.push({
                 ...parcel,
                 pickupDate: new Date(parcel.pickupDate),
