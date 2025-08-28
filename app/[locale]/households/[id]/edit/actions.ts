@@ -489,6 +489,17 @@ export async function updateHousehold(
     }
 }
 
+// After successful update, recompute outside-hours count for the affected location.
+// Note: This is defined outside the transaction above to avoid circular imports during tx.
+export async function recomputeOutsideHoursForLocation(locationId: string) {
+    try {
+        const { recomputeOutsideHoursCount } = await import("@/app/[locale]/schedule/actions");
+        await recomputeOutsideHoursCount(locationId);
+    } catch (e) {
+        console.error("Failed to recompute outside-hours count after household update:", e);
+    }
+}
+
 // Add comment to a household (for edit page)
 export async function addComment(householdId: string, commentText: string) {
     if (!commentText.trim()) return null;

@@ -2,6 +2,7 @@
 
 import { useEffect, forwardRef, useTransition } from "react";
 import { useRouter } from "@/app/i18n/navigation";
+import { Badge } from "@mantine/core";
 import PageSkeletonOverlay from "./PageSkeletonOverlay";
 
 interface NavigationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
@@ -9,6 +10,7 @@ interface NavigationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
     active?: boolean;
     className?: string;
     prefetch?: boolean;
+    badge?: number;
 }
 
 /**
@@ -16,7 +18,7 @@ interface NavigationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
  * Uses React's useTransition to properly track pending state changes
  */
 export const NavigationLink = forwardRef<HTMLAnchorElement, NavigationLinkProps>(
-    ({ label, active, className, prefetch = true, href, onClick, ...others }, ref) => {
+    ({ label, active, className, prefetch = true, href, onClick, badge, ...others }, ref) => {
         const router = useRouter();
         const [isPending, startTransition] = useTransition();
 
@@ -49,8 +51,19 @@ export const NavigationLink = forwardRef<HTMLAnchorElement, NavigationLinkProps>
                     href={href}
                     onClick={handleClick}
                     {...others}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        ...others.style,
+                    }}
                 >
                     <span>{label}</span>
+                    {badge && badge > 0 && (
+                        <Badge size="sm" color="red" radius="xl">
+                            {badge}
+                        </Badge>
+                    )}
                 </a>
                 {isPending && <PageSkeletonOverlay />}
             </>

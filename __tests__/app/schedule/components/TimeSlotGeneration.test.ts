@@ -45,7 +45,6 @@ describe("Time Slot Generation", () => {
                 ],
             },
         ],
-        specialDays: [],
     };
 
     describe("generateDaySpecificTimeSlots", () => {
@@ -77,7 +76,7 @@ describe("Time Slot Generation", () => {
             expect(slots).toContain("16:45");
         });
 
-        it("generates slots with 15-minute interval for special early hours (Wednesday)", () => {
+        it("generates slots with 15-minute interval for early hours (Wednesday)", () => {
             // Wednesday with special 06:45-10:15 hours
             const wednesdayDate = new Date("2025-05-07"); // First Wednesday in May 2025
             const slotDurationMinutes = 15;
@@ -104,7 +103,7 @@ describe("Time Slot Generation", () => {
             expect(slots).toContain("10:00");
         });
 
-        it("generates slots with 15-minute interval for special late hours (Saturday)", () => {
+        it("generates slots with 15-minute interval for late hours (Saturday)", () => {
             // Saturday with special 19:45-22:30 hours
             const saturdayDate = new Date("2025-05-10"); // First Saturday in May 2025
             const slotDurationMinutes = 15;
@@ -187,7 +186,6 @@ describe("Time Slot Generation", () => {
                         ],
                     },
                 ],
-                specialDays: [],
             };
 
             const mondayDate = new Date("2025-05-05");
@@ -232,7 +230,6 @@ describe("Time Slot Generation", () => {
                         ],
                     },
                 ],
-                specialDays: [],
             };
 
             // Since this test combines multiple functions, we're testing the complete workflow

@@ -266,6 +266,17 @@ export async function createSchedule(
         // Revalidate the path to update the UI
         revalidatePath(`/${locale}/handout-locations`, "page");
 
+        // Recompute outside-hours count for this location after schedule change
+        try {
+            const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
+                "@/app/[locale]/schedule/actions"
+            );
+            await recomputeOutsideHoursCount(locationId);
+            await clearLocationSchedulesCache(locationId);
+        } catch (e) {
+            console.error("Failed to recompute outside-hours count after schedule create:", e);
+        }
+
         return createdSchedule!;
     } catch (error) {
         console.error(`Error creating schedule for location ${locationId}:`, error);
@@ -360,6 +371,17 @@ export async function updateSchedule(
         // Revalidate the path to update the UI
         revalidatePath(`/${locale}/handout-locations`, "page");
 
+        // Recompute outside-hours count for this location after schedule update
+        try {
+            const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
+                "@/app/[locale]/schedule/actions"
+            );
+            await recomputeOutsideHoursCount(locationId);
+            await clearLocationSchedulesCache(locationId);
+        } catch (e) {
+            console.error("Failed to recompute outside-hours count after schedule update:", e);
+        }
+
         return updatedSchedule!;
     } catch (error) {
         console.error(`Error updating schedule with ID ${scheduleId}:`, error);
@@ -372,6 +394,13 @@ export async function updateSchedule(
 // Delete a schedule
 export async function deleteSchedule(scheduleId: string): Promise<void> {
     try {
+        // Determine location before deletion
+        const [scheduleRow] = await db
+            .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
+            .from(pickupLocationSchedules)
+            .where(eq(pickupLocationSchedules.id, scheduleId))
+            .limit(1);
+
         // Delete the schedule (cascade will delete related days)
         await db.delete(pickupLocationSchedules).where(eq(pickupLocationSchedules.id, scheduleId));
 
@@ -380,6 +409,19 @@ export async function deleteSchedule(scheduleId: string): Promise<void> {
 
         // Revalidate the path to update the UI
         revalidatePath(`/${locale}/handout-locations`, "page");
+
+        // Recompute outside-hours count for this location after schedule deletion
+        try {
+            if (scheduleRow?.pickup_location_id) {
+                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
+                    "@/app/[locale]/schedule/actions"
+                );
+                await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
+                await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
+            }
+        } catch (e) {
+            console.error("Failed to recompute outside-hours count after schedule delete:", e);
+        }
     } catch (error) {
         console.error(`Error deleting schedule with ID ${scheduleId}:`, error);
         throw new Error(

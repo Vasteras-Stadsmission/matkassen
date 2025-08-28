@@ -14,6 +14,7 @@ import {
     Menu,
     Modal,
     Switch,
+    Alert,
 } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { useDisclosure } from "@mantine/hooks";
@@ -22,12 +23,14 @@ import { format } from "date-fns";
 import { PickupLocationScheduleWithDays, ScheduleInput } from "../../types";
 import { ScheduleForm } from "./ScheduleForm";
 import { getISOWeekNumber } from "@/app/utils/date-utils";
+import { checkParcelsAffectedByScheduleDeletionAction } from "@/app/[locale]/schedule/client-actions";
 
 interface SchedulesListProps {
     schedules: PickupLocationScheduleWithDays[];
     onCreateSchedule: (schedule: ScheduleInput) => Promise<void>;
     onUpdateSchedule: (id: string, schedule: ScheduleInput) => Promise<void>;
     onDeleteSchedule: (id: string) => Promise<void>;
+    locationId: string; // Required to pass to ScheduleForm
 }
 
 export function SchedulesList({
@@ -35,6 +38,7 @@ export function SchedulesList({
     onCreateSchedule,
     onUpdateSchedule,
     onDeleteSchedule,
+    locationId,
 }: SchedulesListProps) {
     const t = useTranslations("handoutLocations");
     const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] =
@@ -47,26 +51,54 @@ export function SchedulesList({
     );
     const [showPastSchedules, setShowPastSchedules] = useState(false);
 
+    // State for delete confirmation modal
+    const [affectedParcelsCount, setAffectedParcelsCount] = useState<number>(0);
+    const [isCheckingAffectedParcels, setIsCheckingAffectedParcels] = useState<boolean>(false);
+
     // Check if a schedule is currently active
     const isActiveSchedule = (schedule: PickupLocationScheduleWithDays) => {
         const now = new Date();
         const startDate = new Date(schedule.start_date);
         const endDate = new Date(schedule.end_date);
-        return now >= startDate && now <= endDate;
+
+        // Compare dates without time components to avoid timezone issues
+        const startDateOnly = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth(),
+            startDate.getDate(),
+        );
+        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        return nowDateOnly >= startDateOnly && nowDateOnly <= endDateOnly;
     };
 
     // Check if a schedule is in the future
     const isFutureSchedule = (schedule: PickupLocationScheduleWithDays) => {
         const now = new Date();
         const startDate = new Date(schedule.start_date);
-        return startDate > now;
+
+        // Compare dates without time components to avoid timezone issues
+        const startDateOnly = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth(),
+            startDate.getDate(),
+        );
+        const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        return startDateOnly > nowDateOnly;
     };
 
     // Check if a schedule is in the past
     const isPastSchedule = (schedule: PickupLocationScheduleWithDays) => {
         const now = new Date();
         const endDate = new Date(schedule.end_date);
-        return endDate < now;
+
+        // Compare dates without time components to avoid timezone issues
+        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        return endDateOnly < nowDateOnly;
     };
 
     // Memoized computed values to ensure proper re-rendering
@@ -97,6 +129,9 @@ export function SchedulesList({
     const handleCreate = async (scheduleData: ScheduleInput) => {
         await onCreateSchedule(scheduleData);
         closeCreateModal();
+
+        // Dispatch event to refresh schedule grid
+        window.dispatchEvent(new CustomEvent("refreshScheduleGrid"));
     };
 
     // Handle editing a schedule
@@ -119,12 +154,39 @@ export function SchedulesList({
         if (currentSchedule) {
             await onUpdateSchedule(currentSchedule.id, scheduleData);
             closeEditModal();
+
+            // Dispatch event to refresh schedule grid
+            window.dispatchEvent(new CustomEvent("refreshScheduleGrid"));
         }
     };
 
     // Handle delete confirmation dialog
-    const handleConfirmDelete = (schedule: PickupLocationScheduleWithDays) => {
+    const handleConfirmDelete = async (schedule: PickupLocationScheduleWithDays) => {
         setCurrentSchedule(schedule);
+        setAffectedParcelsCount(0);
+        setIsCheckingAffectedParcels(true);
+
+        try {
+            // Check how many parcels would be affected by this deletion
+            const count = await checkParcelsAffectedByScheduleDeletionAction(locationId, {
+                id: schedule.id,
+                start_date: new Date(schedule.start_date),
+                end_date: new Date(schedule.end_date),
+                days: schedule.days.map(day => ({
+                    weekday: day.weekday,
+                    is_open: day.is_open,
+                    opening_time: day.opening_time || undefined,
+                    closing_time: day.closing_time || undefined,
+                })),
+            });
+            setAffectedParcelsCount(count);
+        } catch (error) {
+            console.error("Error checking affected parcels:", error);
+            setAffectedParcelsCount(0);
+        } finally {
+            setIsCheckingAffectedParcels(false);
+        }
+
         openDeleteModal();
     };
 
@@ -133,6 +195,9 @@ export function SchedulesList({
         if (currentSchedule) {
             await onDeleteSchedule(currentSchedule.id);
             closeDeleteModal();
+
+            // Dispatch event to refresh the navbar badge
+            window.dispatchEvent(new CustomEvent("refreshOutsideHoursCount"));
         }
     };
 
@@ -250,6 +315,7 @@ export function SchedulesList({
                     onSubmit={handleCreate}
                     existingSchedules={schedules}
                     onCancel={closeCreateModal}
+                    locationId={locationId}
                 />
             </Modal>
 
@@ -331,6 +397,7 @@ export function SchedulesList({
                         }}
                         scheduleId={currentSchedule.id}
                         onCancel={closeEditModal}
+                        locationId={locationId}
                     />
                 )}
             </Modal>
@@ -340,7 +407,7 @@ export function SchedulesList({
                 opened={deleteModalOpened}
                 onClose={closeDeleteModal}
                 title={t("confirmDeletion")}
-                size="sm"
+                size="md"
             >
                 <Stack>
                     <Text>
@@ -352,11 +419,34 @@ export function SchedulesList({
                         )}
                         ?
                     </Text>
+
+                    {isCheckingAffectedParcels && (
+                        <Alert color="blue" title={t("checking")}>
+                            {t("checkingAffectedParcels")}
+                        </Alert>
+                    )}
+
+                    {!isCheckingAffectedParcels && affectedParcelsCount > 0 && (
+                        <Alert color="orange" title={t("scheduleChangeWarning")}>
+                            <Text>{t("parcelsWillBeAffected")}</Text>
+                            <Text mt="xs">
+                                {t("parcelsAffectedMessage", { count: affectedParcelsCount })}
+                            </Text>
+                            <Text size="sm" c="dimmed" mt="xs">
+                                {t("parcelsAffectedExplanation")}
+                            </Text>
+                        </Alert>
+                    )}
+
                     <Group justify="flex-end" mt="md">
                         <Button variant="default" onClick={closeDeleteModal}>
                             {t("cancel")}
                         </Button>
-                        <Button color="red" onClick={handleDelete}>
+                        <Button
+                            color="red"
+                            onClick={handleDelete}
+                            loading={isCheckingAffectedParcels}
+                        >
                             {t("delete")}
                         </Button>
                     </Group>

@@ -41,6 +41,7 @@ import {
 import { FoodParcels, FoodParcel } from "../types";
 import { useTranslations } from "next-intl";
 import { TranslationFunction } from "../../../types";
+import { type LocationScheduleInfo, type LocationScheduleDay } from "@/app/[locale]/schedule/types";
 
 interface ValidationError {
     field: string;
@@ -58,34 +59,6 @@ interface FoodParcelsFormProps {
     error?: ValidationError | null;
 }
 
-// Types for location schedule
-interface ScheduleDay {
-    weekday: string;
-    isOpen: boolean;
-    openingTime: string | null;
-    closingTime: string | null;
-}
-
-interface Schedule {
-    id: string;
-    name: string;
-    startDate: Date;
-    endDate: Date;
-    days: ScheduleDay[];
-}
-
-interface SpecialDay {
-    date: Date;
-    openingTime: string;
-    closingTime: string;
-    isClosed: boolean;
-}
-
-interface LocationSchedules {
-    schedules: Schedule[];
-    specialDays: SpecialDay[];
-}
-
 export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
     const t = useTranslations("foodParcels") as TranslationFunction;
     const tCommon = useTranslations("handoutLocations");
@@ -97,7 +70,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     const [bulkStartTime, setBulkStartTime] = useState("12:00");
     const [bulkTimeError, setBulkTimeError] = useState<string | null>(null);
     // Add state for location schedules
-    const [locationSchedules, setLocationSchedules] = useState<LocationSchedules | null>(null);
+    const [locationSchedules, setLocationSchedules] = useState<LocationScheduleInfo | null>(null);
     // Add state for slot duration
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
 
@@ -108,17 +81,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
             const dateOnly = new Date(date);
             dateOnly.setHours(0, 0, 0, 0);
-
-            // Check special day override first
-            const special = locationSchedules.specialDays.find(
-                d =>
-                    new Date(d.date).toISOString().split("T")[0] ===
-                    dateOnly.toISOString().split("T")[0],
-            );
-            if (special) {
-                if (special.isClosed) return null;
-                return { openingTime: special.openingTime, closingTime: special.closingTime };
-            }
 
             // Aggregate regular schedules covering this date
             // Note: Sunday is 0, Saturday is 6
@@ -144,7 +106,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
                 if (dateOnly < start || dateOnly > end) continue;
 
-                const day = schedule.days.find(d => d.weekday === weekday);
+                const day = schedule.days.find((d: LocationScheduleDay) => d.weekday === weekday);
                 if (!day || !day.isOpen || !day.openingTime || !day.closingTime) continue;
 
                 if (earliest === null || day.openingTime < earliest) earliest = day.openingTime;
@@ -152,7 +114,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             }
 
             if (!earliest || !latest) return null;
-            return { openingTime: earliest, closingTime: latest };
+            // Normalize to HH:MM (strip seconds) for consistent UI and calculations downstream
+            const trim = (t: string) => (t.length >= 5 ? t.substring(0, 5) : t);
+            return { openingTime: trim(earliest), closingTime: trim(latest) };
         },
         [locationSchedules],
     );
@@ -163,8 +127,8 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
             let maxOpening: string | null = null;
             let minClosing: string | null = null;
 
-            for (const d of dates) {
-                const range = getOpeningHoursForDate(d);
+            for (const date of dates) {
+                const range = getOpeningHoursForDate(date);
                 if (!range) return null; // any closed date breaks common range
 
                 const { openingTime, closingTime } = range;
@@ -381,12 +345,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                 const schedules = await getPickupLocationSchedulesAction(
                     formState.pickupLocationId,
                 );
-                // Cast the schedules object to the LocationSchedules type
-                // This is a temporary solution until we update the API to return the correct type
-                setLocationSchedules({
-                    schedules: schedules.schedules,
-                    specialDays: [], // Add empty specialDays array for compatibility
-                } as unknown as LocationSchedules);
+                setLocationSchedules(schedules);
             } catch (error) {
                 console.error("Error fetching location schedules:", error);
                 setLocationSchedules(null);
@@ -395,6 +354,22 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
         fetchSchedules();
     }, [formState.pickupLocationId]);
+
+    // Also fetch location schedules on initial load if data has a pickup location
+    useEffect(() => {
+        async function fetchInitialSchedules() {
+            if (data.pickupLocationId && !locationSchedules) {
+                try {
+                    const schedules = await getPickupLocationSchedulesAction(data.pickupLocationId);
+                    setLocationSchedules(schedules);
+                } catch (error) {
+                    console.error("Error fetching initial location schedules:", error);
+                }
+            }
+        }
+
+        fetchInitialSchedules();
+    }, [data.pickupLocationId, locationSchedules]);
 
     // Fetch slot duration when pickup location changes
     useEffect(() => {
@@ -434,60 +409,45 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
         // Check against location schedule
         if (locationSchedules) {
-            // First check if it's a special day
-            const specialDay = locationSchedules.specialDays.find(
-                day =>
-                    new Date(day.date).toISOString().split("T")[0] ===
-                    dateForComparison.toISOString().split("T")[0],
-            );
+            // Check if this day falls within any schedule and is an open day
+            const dayOfWeek = localDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            // Convert JavaScript day of week to our weekday enum format
+            const weekdayNames = [
+                "sunday",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+            ];
+            const weekday = weekdayNames[dayOfWeek];
 
-            // If it's a special day marked as closed, exclude it
-            if (specialDay && specialDay.isClosed) {
-                return true; // Exclude this date
-            }
+            // Check all schedules
+            let isOpenOnThisDay = false;
 
-            // If it's a special day that's open, allow it
-            if (specialDay && !specialDay.isClosed) {
-                // Don't exclude special days that are open
-            } else {
-                // Check if this day falls within any schedule and is an open day
-                const dayOfWeek = localDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-                // Convert JavaScript day of week to our weekday enum format
-                const weekdayNames = [
-                    "sunday",
-                    "monday",
-                    "tuesday",
-                    "wednesday",
-                    "thursday",
-                    "friday",
-                    "saturday",
-                ];
-                const weekday = weekdayNames[dayOfWeek];
+            for (const schedule of locationSchedules.schedules) {
+                // Check if date is within schedule's date range
+                const startDate = new Date(schedule.startDate);
+                const endDate = new Date(schedule.endDate);
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(23, 59, 59, 999);
 
-                // Check all schedules
-                let isOpenOnThisDay = false;
-
-                for (const schedule of locationSchedules.schedules) {
-                    // Check if date is within schedule's date range
-                    const startDate = new Date(schedule.startDate);
-                    const endDate = new Date(schedule.endDate);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate.setHours(23, 59, 59, 999);
-
-                    if (dateForComparison >= startDate && dateForComparison <= endDate) {
-                        // Check if this weekday is open in this schedule
-                        const dayConfig = schedule.days.find(day => day.weekday === weekday);
-                        if (dayConfig && dayConfig.isOpen) {
-                            isOpenOnThisDay = true;
-                            break; // Found an open schedule for this day
-                        }
+                if (dateForComparison >= startDate && dateForComparison <= endDate) {
+                    // Check if this weekday is open in this schedule
+                    const dayConfig = schedule.days.find(
+                        (day: LocationScheduleDay) => day.weekday === weekday,
+                    );
+                    if (dayConfig && dayConfig.isOpen) {
+                        isOpenOnThisDay = true;
+                        break; // Found an open schedule for this day
                     }
                 }
+            }
 
-                // If no schedule has this day open, exclude it
-                if (!isOpenOnThisDay) {
-                    return true; // Exclude this date
-                }
+            // If no schedule has this day open, exclude it
+            if (!isOpenOnThisDay) {
+                return true; // Exclude this date
             }
         }
 
@@ -555,20 +515,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         // Check if the date is unavailable due to location schedule
         let isUnavailableDueToSchedule = false;
         if (locationSchedules) {
-            // First check if it's a special day
-            const specialDay = locationSchedules.specialDays.find(
-                day =>
-                    new Date(day.date).toISOString().split("T")[0] ===
-                    dateForComparison.toISOString().split("T")[0],
-            );
-
-            // If it's a special day marked as closed, it's unavailable
-            if (specialDay && specialDay.isClosed) {
-                isUnavailableDueToSchedule = true;
-            }
-            // If it's not a special day that's open, check regular schedules
-            else if (!specialDay || (specialDay && specialDay.isClosed)) {
-                // Check if this day falls within any schedule and is an open day
+            // Check regular schedules
+            // Check if this day falls within any schedule and is an open day
+            {
                 const weekdayNames = [
                     "sunday",
                     "monday",
@@ -592,7 +541,9 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
                     if (dateForComparison >= startDate && dateForComparison <= endDate) {
                         // Check if this weekday is open in this schedule
-                        const dayConfig = schedule.days.find(day => day.weekday === weekday);
+                        const dayConfig = schedule.days.find(
+                            (day: LocationScheduleDay) => day.weekday === weekday,
+                        );
                         if (dayConfig && dayConfig.isOpen) {
                             isUnavailableDueToSchedule = false;
                             break; // Found an open schedule for this day
@@ -1431,59 +1382,17 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                     </Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
-                            <Table.Tbody>
+                            <Table.Tbody
+                                key={locationSchedules ? "schedules-loaded" : "schedules-loading"}
+                            >
                                 {formState.parcels.map((parcel, index) => {
-                                    // Get opening hours data
+                                    // Compute facility opening hours via helper to ensure proper boundaries and format
                                     const date = new Date(parcel.pickupDate);
-                                    const dateString = date.toISOString().split("T")[0];
-                                    const weekdayNames = [
-                                        "sunday",
-                                        "monday",
-                                        "tuesday",
-                                        "wednesday",
-                                        "thursday",
-                                        "friday",
-                                        "saturday",
-                                    ];
-                                    const weekday = weekdayNames[date.getDay()];
-
-                                    // Check if this parcel's date is in the past
                                     const isParcelPastDate = isPastDate(date);
-
-                                    let openingHours = null;
-                                    // Check for special day schedule
-                                    if (locationSchedules) {
-                                        const specialDay = locationSchedules.specialDays.find(
-                                            day =>
-                                                new Date(day.date).toISOString().split("T")[0] ===
-                                                dateString,
-                                        );
-
-                                        if (specialDay && !specialDay.isClosed) {
-                                            openingHours = `${specialDay.openingTime} - ${specialDay.closingTime}`;
-                                        } else {
-                                            // Look for regular schedule
-                                            for (const schedule of locationSchedules.schedules) {
-                                                const startDate = new Date(schedule.startDate);
-                                                const endDate = new Date(schedule.endDate);
-
-                                                if (date >= startDate && date <= endDate) {
-                                                    const dayConfig = schedule.days.find(
-                                                        day => day.weekday === weekday,
-                                                    );
-                                                    if (
-                                                        dayConfig &&
-                                                        dayConfig.isOpen &&
-                                                        dayConfig.openingTime &&
-                                                        dayConfig.closingTime
-                                                    ) {
-                                                        openingHours = `${dayConfig.openingTime} - ${dayConfig.closingTime}`;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    const range = getOpeningHoursForDate(date);
+                                    const openingHours = range
+                                        ? `${range.openingTime} – ${range.closingTime}`
+                                        : null;
 
                                     return (
                                         <Table.Tr

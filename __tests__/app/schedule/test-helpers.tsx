@@ -2,7 +2,7 @@ import { Window } from "happy-dom";
 import { vi } from "vitest";
 import React, { ReactNode } from "react";
 import { render, RenderOptions, RenderResult } from "@testing-library/react";
-import { FoodParcel } from "../../../app/[locale]/schedule/actions";
+import { FoodParcel } from "../../../app/[locale]/schedule/types";
 
 // Set up happy-dom for all tests
 const setupHappyDOM = () => {
