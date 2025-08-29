@@ -5,6 +5,13 @@
 # Rate limiting zone (must be in http context)
 limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;
 
+# Upstream configuration for Next.js app with health checks and failover
+upstream nextjs_backend {
+    server ${NEXTJS_UPSTREAM}:3000 max_fails=3 fail_timeout=30s;
+    # Keepalive connections to reduce overhead
+    keepalive 32;
+}
+
 ${HTTP_REDIRECT_BLOCK}
 
 # Main server block
@@ -17,22 +24,38 @@ server {
     # Include shared configuration (rate limiting, gzip, security headers, proxy settings)
     include /etc/nginx/shared.conf;
 
+    # Health check endpoint - bypass rate limiting
+    location = /nginx-health {
+        access_log off;
+        return 200 "nginx healthy\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Custom error pages for better user experience
+    error_page 502 503 504 /50x.html;
+    location = /50x.html {
+        return 503 '{"error": "Service temporarily unavailable", "retry_after": 30}';
+        add_header Content-Type application/json;
+        add_header Retry-After 30;
+    }
+
     # Static assets with smart caching
     location /_next/static/ {
-        proxy_pass http://${NEXTJS_UPSTREAM}:3000;
+        proxy_pass http://nextjs_backend;
         # Ensure correct host and forwarded headers reach Next.js (local only)
         # The shared.conf sets these generally; we duplicate in local to be explicit
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header X-Forwarded-Port $server_port;
+        proxy_set_header Connection "";  # Clear connection header for keepalive
         # Proxy settings are inherited from shared.conf
         # Let Next.js handle caching headers
     }
 
     # Everything else goes to Next.js
     location / {
-        proxy_pass http://${NEXTJS_UPSTREAM}:3000;
+        proxy_pass http://nextjs_backend;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         # Ensure correct host and forwarded headers reach Next.js (local only)
