@@ -114,12 +114,7 @@ if ! ./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME"
     exit 1
 fi
 
-# Test the configuration before applying
-if ! sudo nginx -t -c "$TEMP_NGINX_CONF"; then
-    echo "❌ Generated nginx configuration has errors. Aborting update."
-    rm -f "$TEMP_NGINX_CONF"
-    exit 1
-fi
+echo "✅ Nginx configuration generated successfully"
 
 # Check and resolve any port conflicts before applying nginx changes
 check_and_resolve_port_conflicts
@@ -139,6 +134,14 @@ else
 fi
 
 rm -f "$TEMP_NGINX_CONF"
+
+# Test the complete nginx configuration before reloading
+echo "Testing complete nginx configuration..."
+if ! sudo nginx -t; then
+    echo "❌ Nginx configuration test failed. Please check the configuration manually."
+    exit 1
+fi
+echo "✅ Nginx configuration test passed"
 
 # Gracefully reload nginx with error handling
 if ! sudo systemctl reload nginx; then
