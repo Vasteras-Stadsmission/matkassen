@@ -50,6 +50,15 @@ events {
 http {
 $([ -n "$MIME_TYPES" ] && echo "    include       $MIME_TYPES;")
     default_type  application/octet-stream;
+
+    # Rate limiting zone for testing
+    limit_req_zone \$binary_remote_addr zone=app:10m rate=50r/s;
+
+    # Upstream configuration for testing
+    upstream nextjs_backend {
+        server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;
+        keepalive 32;
+    }
 EOF
 
 # Replace Docker container names with localhost for validation
@@ -98,6 +107,15 @@ events {
 http {
 $([ -n "$MIME_TYPES" ] && echo "    include       $MIME_TYPES;")
     default_type  application/octet-stream;
+
+    # Rate limiting zone for testing
+    limit_req_zone \$binary_remote_addr zone=app:10m rate=50r/s;
+
+    # Upstream configuration for testing
+    upstream nextjs_backend {
+        server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;
+        keepalive 32;
+    }
 EOF
 
 # Replace includes for validation
