@@ -4,39 +4,10 @@ This directory contains nginx configuration files for both local development and
 
 ## Files
 
-- **`nginx.conf.template`** - Single source of truth template file with resilience features
+- **`nginx.conf.template`** - Single source of truth template file
 - **`generate-nginx-config.sh`** - Script to generate configs from the template
 - **`local.conf`** - Generated local configuration (DO NOT EDIT MANUALLY)
-- **`shared.conf`** - Common settings shared between local and production
 - **`Dockerfile`** - Docker image for local nginx container
-
-## Resilience Features
-
-The nginx configuration now includes several resilience improvements:
-
-### Upstream Configuration
-
-- **Health checks** with `max_fails=3` and `fail_timeout=30s`
-- **Keepalive connections** to reduce connection overhead
-- **Automatic failover** and retry logic
-
-### Proxy Resilience
-
-- **Connection timeouts** (60s for connect/send/read)
-- **Upstream retry logic** for failed requests
-- **Multiple retry attempts** with timeout limits
-
-### Error Handling
-
-- **Custom error pages** with JSON responses for API-style errors
-- **Health check endpoint** at `/nginx-health` for monitoring
-- **Proper HTTP status codes** and retry-after headers
-
-### Logging & Monitoring
-
-- **Structured access and error logging**
-- **Health check endpoint** bypasses rate limiting
-- **Clear error messages** for troubleshooting
 
 ## Usage
 
@@ -71,15 +42,7 @@ Both local and production configs are generated from the same template (`nginx.c
 1. Edit `nginx.conf.template` with your changes
 2. Run `./nginx/generate-nginx-config.sh local` to update local config
 3. Test your changes locally with Docker Compose
-4. Deploy to production (which will automatically generate and validate production config)
-
-## Validation
-
-The production deployment automatically validates nginx configurations before applying them:
-
-- `deploy.sh` runs `nginx -t` to test configuration syntax
-- Only valid configurations are applied to the running server
-- Failed configurations prevent deployment and preserve the working setup
+4. Deploy to production (which will automatically generate production config)
 
 ## Environment Variables Used
 

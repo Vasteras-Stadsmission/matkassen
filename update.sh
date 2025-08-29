@@ -5,53 +5,6 @@
 # and that the git repository is already up to date (handled by CI/CD workflow).
 # It also assumes that the .env file is already created and contains the necessary environment variables.
 
-# Port conflict resolution function for updates
-check_and_resolve_port_conflicts() {
-  echo "Checking for port conflicts on 80 and 443..."
-
-  # Check what's using port 80
-  if sudo ss -tlnp | grep -q ':80 '; then
-    echo "⚠️ Port 80 is in use. Checking processes..."
-    sudo ss -tlnp | grep ':80 '
-
-    # Stop nginx service properly and clean up any rogue masters
-    sudo systemctl stop nginx || true
-    if pgrep -x nginx > /dev/null; then
-      sudo killall -q nginx || true
-    fi
-    sleep 2
-
-    # Check again
-    if sudo ss -tlnp | grep -q ':80 '; then
-      echo "❌ Port 80 still in use after cleanup. Manual intervention required."
-      sudo ss -tlnp | grep ':80 '
-      exit 1
-    fi
-  fi
-
-  # Check what's using port 443
-  if sudo ss -tlnp | grep -q ':443 '; then
-    echo "⚠️ Port 443 is in use. Checking processes..."
-    sudo ss -tlnp | grep ':443 '
-
-    # Stop nginx service properly and clean up any rogue masters
-    sudo systemctl stop nginx || true
-    if pgrep -x nginx > /dev/null; then
-      sudo killall -q nginx || true
-    fi
-    sleep 2
-
-    # Check again
-    if sudo ss -tlnp | grep -q ':443 '; then
-      echo "❌ Port 443 still in use after cleanup. Manual intervention required."
-      sudo ss -tlnp | grep ':443 '
-      exit 1
-    fi
-  fi
-
-  echo "✅ Ports 80 and 443 are available"
-}
-
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
@@ -96,100 +49,35 @@ echo "Generating nginx configuration..."
 cd "$APP_DIR"
 chmod +x nginx/generate-nginx-config.sh
 
-# Install systemd override for nginx resilience (if not already installed)
-if [ ! -f /etc/systemd/system/nginx.service.d/override.conf ]; then
-    echo "Installing nginx systemd override for auto-recovery..."
-    sudo mkdir -p /etc/systemd/system/nginx.service.d
-    sudo cp "$APP_DIR/systemd/nginx-override.conf" /etc/systemd/system/nginx.service.d/override.conf
-    sudo systemctl daemon-reload
-    echo "✅ Nginx systemd override installed"
-else
-    echo "✅ Nginx systemd override already installed"
-fi
+# Ensure clean nginx state before applying new configuration
+echo "Ensuring nginx starts cleanly..."
+sudo systemctl stop nginx || true
+sudo pkill -f nginx || true  # Kill any lingering nginx processes
+sleep 1
 
-# Generate and test nginx configuration before applying
-TEMP_NGINX_CONF="/tmp/nginx-update.conf"
-if ! ./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" > "$TEMP_NGINX_CONF"; then
-    echo "❌ Failed to generate nginx configuration"
-    exit 1
-fi
-
-echo "✅ Nginx configuration generated successfully"
-
-# Check and resolve any port conflicts before applying nginx changes
-check_and_resolve_port_conflicts
-
-# Apply the configuration
-sudo cp "$TEMP_NGINX_CONF" /etc/nginx/sites-available/default
+# Apply new configuration
+./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
-# Add HTTP-level directives to main nginx.conf if not already present
-if ! grep -q "upstream nextjs_backend" /etc/nginx/nginx.conf; then
-  echo "Adding HTTP-level directives to nginx.conf..."
-  # Add upstream and rate limiting directives to the http block
-  sudo sed -i '/http {/a\\n    # Rate limiting zone for matkassen app\n    limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;\n\n    # Upstream configuration for Next.js app\n    upstream nextjs_backend {\n        server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;\n        keepalive 32;\n    }' /etc/nginx/nginx.conf
-  echo "✅ HTTP-level directives added to nginx.conf"
-else
-  echo "✅ HTTP-level directives already present in nginx.conf"
-fi
-
-rm -f "$TEMP_NGINX_CONF"
-
-# Test the complete nginx configuration before reloading
-echo "Testing complete nginx configuration..."
-if ! sudo nginx -t; then
-    echo "❌ Nginx configuration test failed. Please check the configuration manually."
-    exit 1
-fi
-echo "✅ Nginx configuration test passed"
-
-# Gracefully reload nginx with error handling
-if ! sudo systemctl reload nginx; then
-    echo "⚠️ Graceful reload failed, attempting restart..."
-    sudo systemctl restart nginx
-    if ! sudo systemctl is-active --quiet nginx; then
-        echo "❌ Nginx failed to restart. Check configuration and logs."
-        sudo systemctl status nginx
-        exit 1
-    fi
-fi
-
-echo "✅ Nginx configuration updated and reloaded"
+# Test config and start fresh
+sudo nginx -t
+sudo systemctl start nginx
+sudo systemctl enable nginx  # Ensure it's enabled
+echo "✅ Nginx configuration updated and restarted cleanly"
 
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
 cd "$APP_DIR"
-
 # Enable Docker Compose Bake for potentially better build performance (if not already set)
 export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
+sudo docker compose build
+sudo docker compose up -d
 
-# Build with better error handling
-if ! sudo docker compose build --no-cache; then
-    echo "❌ Docker build failed"
-    exit 1
+# Check if Docker Compose started correctly
+if ! sudo docker compose ps | grep "Up"; then
+  echo "Docker containers failed to start. Check logs with 'docker compose logs'."
+  exit 1
 fi
-
-# Start containers with health check dependencies
-echo "Starting containers with health checks..."
-if ! sudo docker compose up -d --wait --wait-timeout 300 2>/dev/null; then
-    echo "⚠️ --wait flag not supported, falling back to basic startup..."
-    if ! sudo docker compose up -d; then
-        echo "❌ Docker containers failed to start"
-        sudo docker compose logs
-        exit 1
-    fi
-
-    # Manual health check fallback
-    echo "Waiting for containers to be healthy..."
-    sleep 30
-    if ! sudo docker compose ps | grep -q "healthy\|Up"; then
-        echo "❌ Containers may not be healthy"
-        sudo docker compose ps
-        exit 1
-    fi
-fi
-
-echo "✅ All services are running and healthy"
 
 # Run migrations directly rather than waiting for the migration container
 echo "Running database migrations synchronously..."

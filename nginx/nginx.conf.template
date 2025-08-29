@@ -1,7 +1,9 @@
-# Nginx site configuration template
-# This template is used to generate both local and production site configs
+# Nginx configuration template
+# This template is used to generate both local and production configs
 # Variables are substituted using envsubst
-# Note: upstream and limit_req_zone directives are handled in shared.conf
+
+# Rate limiting zone (must be in http context)
+limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;
 
 ${HTTP_REDIRECT_BLOCK}
 
@@ -15,69 +17,30 @@ server {
     # Include shared configuration (rate limiting, gzip, security headers, proxy settings)
     include /etc/nginx/shared.conf;
 
-    # Health check endpoint - bypass rate limiting
-    location = /nginx-health {
-        access_log off;
-        return 200 "nginx healthy\n";
-        add_header Content-Type text/plain;
-    }
-
-    # Let's Encrypt ACME challenge - bypass rate limiting
-    location ^~ /.well-known/acme-challenge/ {
-        # Bypass rate limiting by not including shared.conf
-        proxy_pass http://nextjs_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $http_host;
-        proxy_set_header X-Forwarded-Port $server_port;
-        proxy_set_header Connection "";
-        proxy_cache_bypass $http_upgrade;
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    # Application health check endpoint - bypass rate limiting
-    location = /api/health {
-        # Bypass rate limiting by not including shared.conf
-        proxy_pass http://nextjs_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $http_host;
-        proxy_set_header X-Forwarded-Port $server_port;
-        proxy_set_header Connection "";
-        proxy_cache_bypass $http_upgrade;
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    # Custom error pages for better user experience
-    error_page 502 503 504 /50x.html;
-    location = /50x.html {
-        return 503 '{"error": "Service temporarily unavailable", "retry_after": 30}';
-        add_header Content-Type application/json;
-        add_header Retry-After 30;
-    }
-
     # Static assets with smart caching
     location /_next/static/ {
-        proxy_pass http://nextjs_backend;
-        # Clear connection header for keepalive with upstream
-        proxy_set_header Connection "";
-        # Other proxy settings are inherited from shared.conf
+        proxy_pass http://${NEXTJS_UPSTREAM}:3000;
+        # Ensure correct host and forwarded headers reach Next.js (local only)
+        # The shared.conf sets these generally; we duplicate in local to be explicit
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        # Proxy settings are inherited from shared.conf
         # Let Next.js handle caching headers
     }
 
     # Everything else goes to Next.js
     location / {
-        proxy_pass http://nextjs_backend;
-        # Additional headers are inherited from shared.conf
+        proxy_pass http://${NEXTJS_UPSTREAM}:3000;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        # Ensure correct host and forwarded headers reach Next.js (local only)
+        # The shared.conf sets these generally; we duplicate in local to be explicit
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        # Other proxy settings are inherited from shared.conf
     }
 }
