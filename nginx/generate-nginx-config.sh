@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/nginx.conf.template"
 
 generate_local_config() {
-    echo "Generating local nginx configuration..." >&2
+    echo "Generating local nginx configuration..."
 
     # Set environment variables for local development
     export NGINX_PORT="8080"
@@ -33,14 +33,14 @@ generate_local_config() {
     } > "$SCRIPT_DIR/local.conf.tmp"
 
     mv "$SCRIPT_DIR/local.conf.tmp" "$SCRIPT_DIR/local.conf"
-    echo "✅ Generated nginx/local.conf" >&2
+    echo "✅ Generated nginx/local.conf"
 }
 
 generate_production_config() {
     local domain_names="$1"
     local primary_domain="$2"
 
-    echo "Generating production nginx configuration..." >&2
+    echo "Generating production nginx configuration..."
 
     # Set environment variables for production
     export NGINX_PORT="443"
