@@ -5,6 +5,53 @@
 # and that the git repository is already up to date (handled by CI/CD workflow).
 # It also assumes that the .env file is already created and contains the necessary environment variables.
 
+# Port conflict resolution function for updates
+check_and_resolve_port_conflicts() {
+  echo "Checking for port conflicts on 80 and 443..."
+
+  # Check what's using port 80
+  if sudo ss -tlnp | grep -q ':80 '; then
+    echo "⚠️ Port 80 is in use. Checking processes..."
+    sudo ss -tlnp | grep ':80 '
+
+    # Stop nginx service properly and clean up any rogue masters
+    sudo systemctl stop nginx || true
+    if pgrep -x nginx > /dev/null; then
+      sudo killall -q nginx || true
+    fi
+    sleep 2
+
+    # Check again
+    if sudo ss -tlnp | grep -q ':80 '; then
+      echo "❌ Port 80 still in use after cleanup. Manual intervention required."
+      sudo ss -tlnp | grep ':80 '
+      exit 1
+    fi
+  fi
+
+  # Check what's using port 443
+  if sudo ss -tlnp | grep -q ':443 '; then
+    echo "⚠️ Port 443 is in use. Checking processes..."
+    sudo ss -tlnp | grep ':443 '
+
+    # Stop nginx service properly and clean up any rogue masters
+    sudo systemctl stop nginx || true
+    if pgrep -x nginx > /dev/null; then
+      sudo killall -q nginx || true
+    fi
+    sleep 2
+
+    # Check again
+    if sudo ss -tlnp | grep -q ':443 '; then
+      echo "❌ Port 443 still in use after cleanup. Manual intervention required."
+      sudo ss -tlnp | grep ':443 '
+      exit 1
+    fi
+  fi
+
+  echo "✅ Ports 80 and 443 are available"
+}
+
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
@@ -73,6 +120,9 @@ if ! sudo nginx -t -c "$TEMP_NGINX_CONF"; then
     rm -f "$TEMP_NGINX_CONF"
     exit 1
 fi
+
+# Check and resolve any port conflicts before applying nginx changes
+check_and_resolve_port_conflicts
 
 # Apply the configuration
 sudo cp "$TEMP_NGINX_CONF" /etc/nginx/sites-available/default

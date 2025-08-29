@@ -21,45 +21,18 @@ handle_error() {
 trap 'handle_error ${LINENO} $?' ERR
 
 # Helper function to check and resolve port conflicts
-check_and_resolve_port_conflicts() {
-  echo "Checking for port conflicts on 80 and 443..."
-
-  # Check what's using port 80
-  if sudo ss -tlnp | grep -q ':80 '; then
-    echo "⚠️ Port 80 is in use. Checking processes..."
-    sudo ss -tlnp | grep ':80 '
-
-    # Kill any nginx processes that might be hung
-    sudo pkill -f nginx || true
-    sleep 2
-
-    # Check again
-    if sudo ss -tlnp | grep -q ':80 '; then
-      echo "❌ Port 80 still in use after cleanup. Manual intervention required."
-      sudo ss -tlnp | grep ':80 '
-      exit 1
-    fi
-  fi
-
-  # Check what's using port 443
-  if sudo ss -tlnp | grep -q ':443 '; then
-    echo "⚠️ Port 443 is in use. Checking processes..."
-    sudo ss -tlnp | grep ':443 '
-
-    # Kill any nginx processes that might be hung
-    sudo pkill -f nginx || true
-    sleep 2
-
-    # Check again
-    if sudo ss -tlnp | grep -q ':443 '; then
-      echo "❌ Port 443 still in use after cleanup. Manual intervention required."
-      sudo ss -tlnp | grep ':443 '
-      exit 1
-    fi
-  fi
-
-  echo "✅ Ports 80 and 443 are available"
+# Error handling function
+handle_error() {
+  local line=$1
+  local exit_code=$2
+  echo "Error occurred at line $line with exit code $exit_code"
+  exit $exit_code
 }
+
+# Set error trap
+trap 'handle_error ${LINENO} $?' ERR
+
+# Verify that required environment variables are set
 
 # Verify that required environment variables are set
 required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME)
@@ -231,17 +204,9 @@ echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
 # Install Nginx
 sudo apt install nginx -y
 
-# Check and resolve any port conflicts before proceeding
-check_and_resolve_port_conflicts
-
-# Stop nginx service and kill any hung processes
-echo "Stopping nginx and cleaning up any hung processes..."
+# Stop nginx service (in case it auto-started) and disable other web servers
+echo "Preparing nginx for clean configuration..."
 sudo systemctl stop nginx || true
-sudo pkill -f nginx || true
-sleep 2
-
-# Disable other common web servers that might conflict
-echo "Disabling potential conflicting web servers..."
 sudo systemctl stop apache2 || true
 sudo systemctl disable apache2 || true
 

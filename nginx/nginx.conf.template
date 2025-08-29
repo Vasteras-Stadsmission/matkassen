@@ -6,8 +6,10 @@
 limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;
 
 # Upstream configuration for Next.js app with health checks and failover
+# Note: Docker Compose binds the app to 127.0.0.1:3000, so we hard-wire this
+# instead of using a variable to reduce complexity and moving parts
 upstream nextjs_backend {
-    server ${NEXTJS_UPSTREAM}:3000 max_fails=3 fail_timeout=30s;
+    server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;
     # Keepalive connections to reduce overhead
     keepalive 32;
 }
@@ -31,6 +33,42 @@ server {
         add_header Content-Type text/plain;
     }
 
+    # Let's Encrypt ACME challenge - bypass rate limiting
+    location ^~ /.well-known/acme-challenge/ {
+        # Bypass rate limiting by not including shared.conf
+        proxy_pass http://nextjs_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        proxy_set_header Connection "";
+        proxy_cache_bypass $http_upgrade;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Application health check endpoint - bypass rate limiting
+    location = /api/health {
+        # Bypass rate limiting by not including shared.conf
+        proxy_pass http://nextjs_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        proxy_set_header Connection "";
+        proxy_cache_bypass $http_upgrade;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
     # Custom error pages for better user experience
     error_page 502 503 504 /50x.html;
     location = /50x.html {
@@ -42,28 +80,15 @@ server {
     # Static assets with smart caching
     location /_next/static/ {
         proxy_pass http://nextjs_backend;
-        # Ensure correct host and forwarded headers reach Next.js (local only)
-        # The shared.conf sets these generally; we duplicate in local to be explicit
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $http_host;
-        proxy_set_header X-Forwarded-Port $server_port;
-        proxy_set_header Connection "";  # Clear connection header for keepalive
-        # Proxy settings are inherited from shared.conf
+        # Clear connection header for keepalive with upstream
+        proxy_set_header Connection "";
+        # Other proxy settings are inherited from shared.conf
         # Let Next.js handle caching headers
     }
 
     # Everything else goes to Next.js
     location / {
         proxy_pass http://nextjs_backend;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        # Ensure correct host and forwarded headers reach Next.js (local only)
-        # The shared.conf sets these generally; we duplicate in local to be explicit
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $http_host;
-        proxy_set_header X-Forwarded-Port $server_port;
-        # Other proxy settings are inherited from shared.conf
+        # Additional headers are inherited from shared.conf
     }
 }

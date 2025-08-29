@@ -15,21 +15,25 @@ This directory contains nginx configuration files for both local development and
 The nginx configuration now includes several resilience improvements:
 
 ### Upstream Configuration
+
 - **Health checks** with `max_fails=3` and `fail_timeout=30s`
 - **Keepalive connections** to reduce connection overhead
 - **Automatic failover** and retry logic
 
 ### Proxy Resilience
+
 - **Connection timeouts** (60s for connect/send/read)
 - **Upstream retry logic** for failed requests
 - **Multiple retry attempts** with timeout limits
 
 ### Error Handling
+
 - **Custom error pages** with JSON responses for API-style errors
 - **Health check endpoint** at `/nginx-health` for monitoring
 - **Proper HTTP status codes** and retry-after headers
 
 ### Logging & Monitoring
+
 - **Structured access and error logging**
 - **Health check endpoint** bypasses rate limiting
 - **Clear error messages** for troubleshooting

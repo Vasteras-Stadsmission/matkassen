@@ -11,16 +11,19 @@ This directory contains systemd configuration overrides to improve nginx resilie
 The systemd override provides the following resilience improvements:
 
 ### Automatic Restart
+
 - **`Restart=on-failure`** - Automatically restart nginx if it crashes or fails
 - **`RestartSec=10`** - Wait 10 seconds between restart attempts to avoid rapid restart loops
 - **`StartLimitInterval=600`** - Allow up to 5 restart attempts within 10 minutes
 - **`StartLimitBurst=5`** - Maximum 5 restart attempts before giving up
 
 ### Process Management
+
 - **`KillMode=mixed`** - Use SIGTERM for main process, SIGKILL for remaining processes
 - **`TimeoutStopSec=30`** - Kill remaining processes if stop takes longer than 30 seconds
 
 ### Network Dependencies
+
 - **`After=network-online.target`** - Start only after network is fully available
 - **`Wants=network-online.target`** - Request network-online target activation
 

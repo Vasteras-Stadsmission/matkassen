@@ -73,6 +73,17 @@ echo "📝 Testing production configuration..."
 TEMP_PROD_CONF="/tmp/nginx-prod-test.conf"
 TEMP_PROD_WRAPPED="/tmp/nginx-prod-wrapped-test.conf"
 
+# Create temporary SSL certificate files for validation
+TEMP_SSL_CERT="/tmp/test-cert.pem"
+TEMP_SSL_KEY="/tmp/test-key.pem"
+
+# Generate self-signed certificate for testing only
+openssl req -x509 -newkey rsa:2048 -keyout "$TEMP_SSL_KEY" -out "$TEMP_SSL_CERT" \
+    -days 1 -nodes -subj "/CN=test" 2>/dev/null || {
+    echo "⚠️ Could not generate test SSL cert, skipping SSL validation"
+    exit 0
+}
+
 # Generate config and filter out the status message
 if ! "$PROJECT_ROOT/nginx/generate-nginx-config.sh" production "example.com www.example.com" "example.com" 2>/dev/null | grep -v "^Generating" > "$TEMP_PROD_CONF"; then
     echo "❌ Failed to generate production configuration"
@@ -94,19 +105,19 @@ sed -e 's/server localhost:3000/server 127.0.0.1:3000/' \
     -e 's|include /etc/nginx/shared.conf;|# shared.conf content would be here|' \
     -e 's|include /etc/letsencrypt/options-ssl-nginx.conf;|# SSL options would be here|' \
     -e 's|ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;|# ssl_dhparam would be here;|' \
-    -e 's|ssl_certificate .*;|# ssl_certificate would be here;|' \
-    -e 's|ssl_certificate_key .*;|# ssl_certificate_key would be here;|' \
+    -e "s|ssl_certificate .*;|ssl_certificate $TEMP_SSL_CERT;|" \
+    -e "s|ssl_certificate_key .*;|ssl_certificate_key $TEMP_SSL_KEY;|" \
     "$TEMP_PROD_CONF" >> "$TEMP_PROD_WRAPPED"
 echo "}" >> "$TEMP_PROD_WRAPPED"
 
 if ! nginx -t -c "$TEMP_PROD_WRAPPED" 2>/dev/null; then
     echo "❌ Production nginx configuration has syntax errors:"
     nginx -t -c "$TEMP_PROD_WRAPPED"
-    rm -f "$TEMP_PROD_CONF" "$TEMP_PROD_WRAPPED"
+    rm -f "$TEMP_PROD_CONF" "$TEMP_PROD_WRAPPED" "$TEMP_SSL_CERT" "$TEMP_SSL_KEY"
     exit 1
 else
     echo "✅ Production configuration is valid"
-    rm -f "$TEMP_PROD_CONF" "$TEMP_PROD_WRAPPED"
+    rm -f "$TEMP_PROD_CONF" "$TEMP_PROD_WRAPPED" "$TEMP_SSL_CERT" "$TEMP_SSL_KEY"
 fi
 
 echo "🎉 All nginx configurations are valid!"
