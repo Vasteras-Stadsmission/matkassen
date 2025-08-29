@@ -18,11 +18,10 @@ generate_local_config() {
     export HTTP_REDIRECT_BLOCK="# No HTTP redirect needed for local development"
     export SSL_CONFIG_BLOCK="# SSL configuration omitted for local development"
     export HSTS_HEADER="# HSTS omitted for local development"
-    export NEXTJS_UPSTREAM="nextjs"  # Use container name for local Docker networking
 
     # Generate the config with specific variable substitution
     export DOLLAR='$'
-    envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${SSL_CONFIG_BLOCK},${HSTS_HEADER},${NEXTJS_UPSTREAM}' < "$TEMPLATE_FILE" > "$SCRIPT_DIR/local.conf"
+    envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${SSL_CONFIG_BLOCK},${HSTS_HEADER}' < "$TEMPLATE_FILE" > "$SCRIPT_DIR/local.conf"
 
     # Add header comment
     {
@@ -47,7 +46,6 @@ generate_production_config() {
     export NGINX_PORT="443"
     export SSL_PARAMS=" ssl"
     export SERVER_NAMES="$domain_names"
-    export NEXTJS_UPSTREAM="localhost"  # In production, nginx runs on host, not in container
 
     # HTTP redirect block for production
     export HTTP_REDIRECT_BLOCK="# Redirect HTTP to HTTPS
@@ -72,7 +70,7 @@ server {
         echo "# Generated from nginx.conf.template - DO NOT EDIT MANUALLY"
         echo "# NOTE: Keep template in sync with nginx/local.conf generation"
         echo ""
-        envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${SSL_CONFIG_BLOCK},${HSTS_HEADER},${NEXTJS_UPSTREAM}' < "$TEMPLATE_FILE"
+        envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${SSL_CONFIG_BLOCK},${HSTS_HEADER}' < "$TEMPLATE_FILE"
     }
 }
 

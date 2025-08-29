@@ -8,7 +8,7 @@ services:
         build: .
         restart: always
         ports:
-            - "3000:3000"
+            - "127.0.0.1:3000:3000" # Only bind to localhost for nginx proxy
         environment:
             - NODE_ENV=production
             - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB} # Connect to DB container
