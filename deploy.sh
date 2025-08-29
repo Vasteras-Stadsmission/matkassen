@@ -20,20 +20,6 @@ handle_error() {
 # Set up error trap
 trap 'handle_error ${LINENO} $?' ERR
 
-# Helper function to check and resolve port conflicts
-# Error handling function
-handle_error() {
-  local line=$1
-  local exit_code=$2
-  echo "Error occurred at line $line with exit code $exit_code"
-  exit $exit_code
-}
-
-# Set error trap
-trap 'handle_error ${LINENO} $?' ERR
-
-# Verify that required environment variables are set
-
 # Verify that required environment variables are set
 required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME)
 missing_vars=()
@@ -204,18 +190,6 @@ echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
 # Install Nginx
 sudo apt install nginx -y
 
-# Stop nginx service (in case it auto-started) and disable other web servers
-echo "Preparing nginx for clean configuration..."
-sudo systemctl stop nginx || true
-sudo systemctl stop apache2 || true
-sudo systemctl disable apache2 || true
-
-# Install systemd override for nginx resilience
-echo "Setting up nginx systemd override for auto-recovery..."
-sudo mkdir -p /etc/systemd/system/nginx.service.d
-sudo cp "$APP_DIR/systemd/nginx-override.conf" /etc/systemd/system/nginx.service.d/override.conf
-sudo systemctl daemon-reload
-
 # Disable default Nginx site to prevent conflicts
 sudo rm -f /etc/nginx/sites-enabled/default
 
@@ -238,32 +212,8 @@ EOL
 # Enable the temporary configuration
 sudo ln -s /etc/nginx/sites-available/"$PROJECT_NAME" /etc/nginx/sites-enabled/"$PROJECT_NAME"
 
-# Test nginx configuration before starting
-echo "Testing nginx configuration..."
-if ! sudo nginx -t; then
-  echo "❌ Nginx configuration test failed. Exiting."
-  exit 1
-fi
-
-# Start nginx with better error handling
-echo "Starting nginx with temporary configuration..."
-if ! sudo systemctl start nginx; then
-  echo "❌ Failed to start nginx. Checking for port conflicts..."
-  sudo ss -tlnp | grep -E ':(80|443) '
-  exit 1
-fi
-
-# Ensure nginx is enabled for boot
-sudo systemctl enable nginx
-
-# Verify nginx is running
-if ! sudo systemctl is-active --quiet nginx; then
-  echo "❌ Nginx failed to start properly"
-  sudo systemctl status nginx
-  exit 1
-fi
-
-echo "✅ Nginx started successfully with temporary configuration"
+# Start Nginx with temporary config
+sudo systemctl restart nginx
 
 # Use certbot with the nginx plugin to automatically handle certificates and configuration
 sudo apt install certbot python3-certbot-nginx -y
@@ -348,38 +298,8 @@ fi
 sudo cp /tmp/nginx-production.conf /etc/nginx/sites-available/"$PROJECT_NAME"
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
-# Test the production configuration before applying
-echo "Testing production nginx configuration..."
-if ! sudo nginx -t; then
-  echo "❌ Production nginx configuration test failed. Exiting."
-  echo "Configuration file content:"
-  sudo cat /etc/nginx/sites-available/"$PROJECT_NAME"
-  exit 1
-fi
-
-# Apply the updated configuration with graceful reload instead of restart
-echo "Applying production nginx configuration..."
-if ! sudo systemctl reload nginx; then
-  echo "⚠️ Graceful reload failed, attempting restart..."
-  # If reload fails, try a restart
-  sudo systemctl stop nginx
-  sleep 2
-  if ! sudo systemctl start nginx; then
-    echo "❌ Failed to restart nginx with production config"
-    sudo systemctl status nginx
-    sudo ss -tlnp | grep -E ':(80|443) '
-    exit 1
-  fi
-fi
-
-# Verify nginx is running with correct config
-if ! sudo systemctl is-active --quiet nginx; then
-  echo "❌ Nginx is not running after configuration update"
-  sudo systemctl status nginx
-  exit 1
-fi
-
-echo "✅ Nginx production configuration applied successfully"
+# Restart Nginx to apply the updated configuration
+sudo systemctl restart nginx
 
 # Build and run the Docker containers from the app directory
 cd "$APP_DIR"
@@ -473,21 +393,6 @@ check_url() {
 # Perform final checks
 echo "Performing final deployment checks..."
 
-# Verify nginx is running and properly configured
-echo "Verifying nginx status..."
-if ! sudo systemctl is-active --quiet nginx; then
-  echo "❌ Nginx is not running!"
-  sudo systemctl status nginx
-  exit 1
-fi
-
-if ! sudo nginx -t; then
-  echo "❌ Nginx configuration has errors!"
-  exit 1
-fi
-
-echo "✅ Nginx is running and configuration is valid"
-
 # Check if the website is accessible
 echo "Checking if the website is accessible..."
 if ! check_url "https://$DOMAIN_NAME" "Website"; then
@@ -495,13 +400,7 @@ if ! check_url "https://$DOMAIN_NAME" "Website"; then
   if check_url "https://$DOMAIN_NAME/api/health" "Health endpoint"; then
     echo "Website should be functional."
   else
-    echo "❌ Website is not accessible. Checking nginx and container status..."
-    echo "Nginx status:"
-    sudo systemctl status nginx
-    echo "Container status:"
-    sudo docker compose ps
-    echo "Nginx error logs (last 20 lines):"
-    sudo tail -20 /var/log/nginx/error.log || echo "No nginx error log found"
+    echo "Please check the application logs and Nginx configuration."
   fi
 fi
 
