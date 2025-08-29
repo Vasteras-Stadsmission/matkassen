@@ -348,6 +348,16 @@ fi
 sudo cp /tmp/nginx-production.conf /etc/nginx/sites-available/"$PROJECT_NAME"
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
+# Add HTTP-level directives to main nginx.conf if not already present
+if ! grep -q "upstream nextjs_backend" /etc/nginx/nginx.conf; then
+  echo "Adding HTTP-level directives to nginx.conf..."
+  # Add upstream and rate limiting directives to the http block
+  sudo sed -i '/http {/a\\n    # Rate limiting zone for matkassen app\n    limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;\n\n    # Upstream configuration for Next.js app\n    upstream nextjs_backend {\n        server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;\n        keepalive 32;\n    }' /etc/nginx/nginx.conf
+  echo "✅ HTTP-level directives added to nginx.conf"
+else
+  echo "✅ HTTP-level directives already present in nginx.conf"
+fi
+
 # Test the production configuration before applying
 echo "Testing production nginx configuration..."
 if ! sudo nginx -t; then

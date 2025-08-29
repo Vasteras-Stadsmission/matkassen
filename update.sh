@@ -127,6 +127,17 @@ check_and_resolve_port_conflicts
 # Apply the configuration
 sudo cp "$TEMP_NGINX_CONF" /etc/nginx/sites-available/default
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
+
+# Add HTTP-level directives to main nginx.conf if not already present
+if ! grep -q "upstream nextjs_backend" /etc/nginx/nginx.conf; then
+  echo "Adding HTTP-level directives to nginx.conf..."
+  # Add upstream and rate limiting directives to the http block
+  sudo sed -i '/http {/a\\n    # Rate limiting zone for matkassen app\n    limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;\n\n    # Upstream configuration for Next.js app\n    upstream nextjs_backend {\n        server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;\n        keepalive 32;\n    }' /etc/nginx/nginx.conf
+  echo "✅ HTTP-level directives added to nginx.conf"
+else
+  echo "✅ HTTP-level directives already present in nginx.conf"
+fi
+
 rm -f "$TEMP_NGINX_CONF"
 
 # Gracefully reload nginx with error handling

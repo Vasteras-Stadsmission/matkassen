@@ -1,18 +1,7 @@
-# Nginx configuration template
-# This template is used to generate both local and production configs
+# Nginx site configuration template
+# This template is used to generate both local and production site configs
 # Variables are substituted using envsubst
-
-# Rate limiting zone (must be in http context)
-limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;
-
-# Upstream configuration for Next.js app with health checks and failover
-# Note: Docker Compose binds the app to 127.0.0.1:3000, so we hard-wire this
-# instead of using a variable to reduce complexity and moving parts
-upstream nextjs_backend {
-    server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;
-    # Keepalive connections to reduce overhead
-    keepalive 32;
-}
+# Note: upstream and limit_req_zone directives are handled in shared.conf
 
 ${HTTP_REDIRECT_BLOCK}
 
