@@ -112,6 +112,28 @@ The project uses Drizzle ORM with a migration-based approach:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
     - All migrations are tracked in version control for better history management
 
+## Database Backups
+
+The system includes automated nightly PostgreSQL backups to Elastx Object Store:
+
+- **Schedule**: 2:00 AM Europe/Stockholm
+- **Retention**: 14 days automatic cleanup
+- **Validation**: Each backup includes restore drill
+- **Notifications**: Slack alerts on success/failure
+
+### Setup (Production Only)
+
+1. Create Application Credentials in Elastx Dashboard (Identity → Application Credentials)
+2. Add to `.env`: `OS_APPLICATION_CREDENTIAL_ID`, `OS_APPLICATION_CREDENTIAL_SECRET`, `SWIFT_CONTAINER`
+3. Deploy - backups start automatically on production
+
+### Management
+
+```bash
+./scripts/backup-manage.sh start|stop|status|logs|test
+./scripts/backup-restore.sh <filename>  # Restore from backup
+```
+
 ## Helpful Commands
 
 Note that sudo is needed when executing the commands on the VPS.

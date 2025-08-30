@@ -63,14 +63,27 @@ jobs:
                       export AUTH_GITHUB_APP_PRIVATE_KEY="${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}"
                       export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
                       export GITHUB_ORG="vasteras-stadsmission"
+                      export ENV_NAME="${{ github.event.inputs.environment }}"
 
                       # Set domain name based on environment
                       if [ "${{ github.event.inputs.environment }}" == "production" ]; then
                         export DOMAIN_NAME="matkassen.org"
+                        # OpenStack Swift (env_auth) for backups - hardcoded non-sensitive values
+                        export OS_AUTH_TYPE=v3applicationcredential
+                        export OS_AUTH_URL=https://ops.elastx.cloud:5000/v3
+                        export OS_REGION_NAME=se-sto
+                        export OS_APPLICATION_CREDENTIAL_ID="${{ secrets.OS_APPLICATION_CREDENTIAL_ID }}"
+                        export OS_APPLICATION_CREDENTIAL_SECRET="${{ secrets.OS_APPLICATION_CREDENTIAL_SECRET }}"
+                        export SWIFT_CONTAINER="${{ secrets.SWIFT_CONTAINER }}"
+                        export SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}"
+                        export SLACK_CHANNEL_ID="${{ secrets.SLACK_CHANNEL_ID }}"
                       else
                         export DOMAIN_NAME="staging.matkassen.org"
                       fi
                       echo "Setting DOMAIN_NAME to $DOMAIN_NAME"
+
+                      # Derive Swift prefix from env name
+                      export SWIFT_PREFIX="backups/${ENV_NAME}"
 
                       echo "Checking if app directory exists"
                       if [ -d ~/matkassen ]; then

@@ -1,0 +1,59 @@
+# Backup service for PostgreSQL database
+# This service runs a nightly pg_dump and uploads to Elastx Object Store
+# Run with: docker-compose -f docker-compose.yml -f docker-compose.backup.yml up -d
+
+services:
+    db-backup:
+        profiles:
+            - backup
+        build:
+            context: .
+            dockerfile: Dockerfile.db-backup
+        image: matkassen-db-backup:latest
+        restart: unless-stopped
+        environment:
+            - POSTGRES_USER=${POSTGRES_USER}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            - POSTGRES_DB=${POSTGRES_DB}
+            - POSTGRES_HOST=db
+            - TZ=Europe/Stockholm
+            - SWIFT_PREFIX=${SWIFT_PREFIX:-backups}
+            # Elastx OpenStack Object Store (hardcoded non-sensitive)
+            - RCLONE_CONFIG_ELASTX_TYPE=swift
+            - RCLONE_CONFIG_ELASTX_ENV_AUTH=true
+            - OS_AUTH_TYPE=v3applicationcredential
+            - OS_AUTH_URL=https://ops.elastx.cloud:5000/v3
+            - OS_IDENTITY_API_VERSION=3
+            - OS_INTERFACE=public
+            - OS_REGION_NAME=se-sto
+            - BACKUP_RETENTION_DAYS=14
+            # Sensitive credentials (from secrets/env)
+            - OS_APPLICATION_CREDENTIAL_ID=${OS_APPLICATION_CREDENTIAL_ID}
+            - OS_APPLICATION_CREDENTIAL_SECRET=${OS_APPLICATION_CREDENTIAL_SECRET}
+            - SWIFT_CONTAINER=${SWIFT_CONTAINER}
+            - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
+            - SLACK_CHANNEL_ID=${SLACK_CHANNEL_ID:-}
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - my_network
+        command:
+            [
+                "/bin/sh",
+                "-lc",
+                "chmod 600 /etc/crontabs/root && /usr/sbin/crond -f -l 8 -L /dev/stdout",
+            ]
+        healthcheck:
+            test: ["CMD", "pgrep", "crond"]
+            interval: 60s
+            timeout: 10s
+            retries: 3
+        logging:
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+networks:
+    my_network:
+        external: true

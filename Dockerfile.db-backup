@@ -1,0 +1,22 @@
+FROM alpine:3.22
+
+ENV TZ=Europe/Stockholm
+
+RUN apk add --no-cache \
+      postgresql-client \
+      rclone \
+      bash \
+      tzdata \
+      ca-certificates \
+      curl \
+  && update-ca-certificates
+
+# Copy backup scripts
+COPY scripts/backup-db.sh /usr/local/bin/backup-db.sh
+COPY scripts/restore-drill-internal.sh /usr/local/bin/restore-drill-internal.sh
+
+RUN chmod +x /usr/local/bin/backup-db.sh /usr/local/bin/restore-drill-internal.sh \
+  && echo '0 2 * * * /usr/local/bin/backup-db.sh' > /etc/crontabs/root \
+  && chmod 600 /etc/crontabs/root
+
+CMD ["/bin/sh", "-lc", "/usr/sbin/crond -f -l 8 -L /dev/stdout"]

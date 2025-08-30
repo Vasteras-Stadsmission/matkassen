@@ -30,10 +30,12 @@ Dockerfile.dev
 # TypeScript build info (these are regenerated)
 *.tsbuildinfo
 
-# Scripts that aren't needed in container
+# Scripts: include only the ones needed in the backup image
 deploy.sh
 update.sh
-scripts/
+scripts/*
+!scripts/backup-db.sh
+!scripts/restore-drill-internal.sh
 
 # Logs
 npm-debug.log*
