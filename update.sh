@@ -50,13 +50,18 @@ cd "$APP_DIR"
 chmod +x nginx/generate-nginx-config.sh
 
 # Ensure clean nginx state before applying new configuration
-echo "Ensuring nginx starts cleanly..."
+echo "Setting up clean nginx configuration..."
 sudo systemctl stop nginx || true
 sudo pkill -f nginx || true  # Kill any lingering nginx processes
 sleep 1
 
-# Apply new configuration
+# Clean slate - remove all existing site configurations
+sudo rm -f /etc/nginx/sites-enabled/*
+sudo rm -f /etc/nginx/sites-available/default
+
+# Apply fresh configuration
 ./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
+sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
 # Test config and start fresh
