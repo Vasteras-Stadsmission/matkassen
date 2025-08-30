@@ -52,12 +52,12 @@ chmod +x nginx/generate-nginx-config.sh
 # Ensure clean nginx state before applying new configuration
 echo "Setting up clean nginx configuration..."
 sudo systemctl stop nginx || true
-sudo pkill -f nginx || true  # Kill any lingering nginx processes
+sudo pkill -f nginx || true
 sleep 1
 
 # Clean slate - remove all existing site configurations
+sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
 sudo rm -f /etc/nginx/sites-enabled/*
-sudo rm -f /etc/nginx/sites-available/default
 
 # Apply fresh configuration
 ./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
