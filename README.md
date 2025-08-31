@@ -117,8 +117,9 @@ The project uses Drizzle ORM with a migration-based approach:
 The system includes automated nightly PostgreSQL backups to Elastx Object Store:
 
 - **Schedule**: 2:00 AM Europe/Stockholm
-- **Retention**: 14 days automatic cleanup
-- **Validation**: Each backup includes restore drill
+- **Format**: PostgreSQL custom format (.dump) with built-in compression
+- **Retention**: 14 days Swift automatic expiry
+- **Validation**: Each backup includes integrity validation
 - **Notifications**: Slack alerts on success/failure
 
 ### Setup (Production Only)
@@ -142,6 +143,6 @@ Note that sudo is needed when executing the commands on the VPS.
 - `sudo docker compose logs web` – view Next.js output logs
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
-- `sudo docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB` - enter Postgres db
+- `sudo docker compose exec db bash -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB"` - enter Postgres db (uses container's environment)
 - `pnpm run db:generate` - generate new migration files from schema changes
 - `pnpm run db:migrate` - apply migrations to the database manually

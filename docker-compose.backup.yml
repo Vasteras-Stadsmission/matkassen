@@ -16,6 +16,7 @@ services:
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
             - POSTGRES_DB=${POSTGRES_DB}
             - POSTGRES_HOST=db
+            - ENV_NAME=${ENV_NAME}
             - TZ=Europe/Stockholm
             - SWIFT_PREFIX=${SWIFT_PREFIX:-backups}
             # Elastx OpenStack Object Store (hardcoded non-sensitive)

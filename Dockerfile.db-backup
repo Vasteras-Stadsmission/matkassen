@@ -3,19 +3,26 @@ FROM alpine:3.22
 ENV TZ=Europe/Stockholm
 
 RUN apk add --no-cache \
-      postgresql-client \
-      rclone \
-      bash \
+      postgresql17-client=17.6-r0 \
+      rclone=1.69.3-r1 \
+      bash=5.2.37-r0 \
       tzdata \
       ca-certificates \
       curl \
-  && update-ca-certificates
+      python3=3.12.11-r0 \
+      py3-pip \
+      gcc \
+      python3-dev \
+      musl-dev \
+      linux-headers \
+  && update-ca-certificates \
+  && pip3 install --no-cache-dir --break-system-packages python-swiftclient python-keystoneclient \
+  && apk del gcc python3-dev musl-dev linux-headers
 
 # Copy backup scripts
 COPY scripts/backup-db.sh /usr/local/bin/backup-db.sh
-COPY scripts/restore-drill-internal.sh /usr/local/bin/restore-drill-internal.sh
 
-RUN chmod +x /usr/local/bin/backup-db.sh /usr/local/bin/restore-drill-internal.sh \
+RUN chmod +x /usr/local/bin/backup-db.sh \
   && echo '0 2 * * * /usr/local/bin/backup-db.sh' > /etc/crontabs/root \
   && chmod 600 /etc/crontabs/root
 

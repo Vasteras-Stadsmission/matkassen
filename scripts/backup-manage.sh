@@ -55,8 +55,23 @@ case "${1:-}" in
     $COMPOSE_CMD $COMPOSE_FILES --profile backup exec db-backup /usr/local/bin/backup-db.sh
         ;;
 
+    config)
+        echo "Backup configuration:"
+        echo "- ENV_NAME: ${ENV_NAME:-unset}"
+        echo "- BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}"
+        echo "- SWIFT_CONTAINER: ${SWIFT_CONTAINER:-unset}"
+        echo "- SWIFT_PREFIX: ${SWIFT_PREFIX:-backups}"
+        echo ""
+        echo "Configuration files:"
+        if [ -f ".env" ]; then
+            echo "✓ .env file exists"
+        else
+            echo "✗ .env file missing"
+        fi
+        ;;
+
     *)
-    echo "Usage: $0 {start|stop|status|logs|test}"
+    echo "Usage: $0 {start|stop|status|logs|test|config}"
         echo ""
         echo "Commands:"
         echo "  start  - Start the backup service"
@@ -64,6 +79,7 @@ case "${1:-}" in
         echo "  status - Show service status"
         echo "  logs   - Show service logs"
         echo "  test   - Run a test backup immediately"
+        echo "  config - Show backup configuration"
         exit 1
         ;;
 esac

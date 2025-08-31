@@ -24,11 +24,11 @@ require_prod() {
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <backup_filename>"
     echo ""
-    echo "Example: $0 matkassen_backup_20250830_020000.sql.gz"
+    echo "Example: $0 matkassen_backup_20250830_020000.dump"
     echo ""
-    echo "Available backups (last 20):"
+    echo "Available backups:"
     $COMPOSE_CMD $COMPOSE_FILES --profile backup exec db-backup \
-        rclone lsf "elastx:$SWIFT_CONTAINER/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.sql.gz" | tail -20 || true
+        rclone lsf "elastx:$SWIFT_CONTAINER/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*" | tail -20 || true
     exit 1
 fi
 
@@ -45,18 +45,43 @@ case "$REPLY" in
     *) echo "Restoration cancelled."; exit 0;;
 esac
 
-echo "Restoring database from Object Store (streaming, no local temp file)..."
+echo "Restoring database from Object Store..."
 $COMPOSE_CMD $COMPOSE_FILES --profile backup exec db-backup sh -lc '
     set -euo pipefail
     SRC_PATH="elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}/"
     FILE="'$BACKUP_FILENAME'"
     echo "Source: ${SRC_PATH}${FILE}"
-    # Stream from Object Store -> gunzip -> psql
-    rclone cat "${SRC_PATH}${FILE}" | gunzip -c | PGPASSWORD="$POSTGRES_PASSWORD" psql \
-        -h "$POSTGRES_HOST" \
-        -U "$POSTGRES_USER" \
-        -d "$POSTGRES_DB" \
-        --quiet
+
+    # Create secure .pgpass file instead of using PGPASSWORD environment variable
+    # This prevents password exposure in process lists and logs
+    PGPASS_FILE="/tmp/.pgpass"
+    echo "${POSTGRES_HOST}:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASS_FILE"
+    chmod 600 "$PGPASS_FILE"
+    export PGPASSFILE="$PGPASS_FILE"
+
+    # Use pg_restore for .dump files, psql for .sql.gz files
+    if [[ "$FILE" == *.dump ]]; then
+        echo "Using pg_restore for custom format backup"
+        rclone cat "${SRC_PATH}${FILE}" | pg_restore \
+            -h "$POSTGRES_HOST" \
+            -U "$POSTGRES_USER" \
+            -d "$POSTGRES_DB" \
+            --jobs=4 \
+            --no-owner \
+            --no-privileges \
+            --clean \
+            --if-exists
+    else
+        echo "Using psql for SQL format backup"
+        rclone cat "${SRC_PATH}${FILE}" | gunzip -c | psql \
+            -h "$POSTGRES_HOST" \
+            -U "$POSTGRES_USER" \
+            -d "$POSTGRES_DB" \
+            --quiet
+    fi
+
+    # Clean up .pgpass file
+    rm -f "$PGPASS_FILE"
 '
 
 echo "Database restoration completed successfully."
