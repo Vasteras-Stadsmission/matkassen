@@ -112,6 +112,29 @@ The project uses Drizzle ORM with a migration-based approach:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
     - All migrations are tracked in version control for better history management
 
+## Database Backups
+
+The system includes automated nightly PostgreSQL backups to Elastx Object Store:
+
+- **Schedule**: 2:00 AM Europe/Stockholm
+- **Format**: PostgreSQL custom format (.dump) with built-in compression
+- **Retention**: 14 days Swift automatic expiry
+- **Validation**: Each backup includes integrity validation
+- **Notifications**: Slack alerts on success/failure
+
+### Setup (Production Only)
+
+1. Create Application Credentials in Elastx Dashboard (Identity → Application Credentials)
+2. Add to `.env`: `OS_APPLICATION_CREDENTIAL_ID`, `OS_APPLICATION_CREDENTIAL_SECRET`, `SWIFT_CONTAINER`
+3. Deploy - backups start automatically on production
+
+### Management
+
+```bash
+./scripts/backup-manage.sh start|stop|status|logs|test
+./scripts/backup-restore.sh <filename>  # Restore from backup
+```
+
 ## Helpful Commands
 
 Note that sudo is needed when executing the commands on the VPS.
@@ -120,6 +143,6 @@ Note that sudo is needed when executing the commands on the VPS.
 - `sudo docker compose logs web` – view Next.js output logs
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
-- `sudo docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB` - enter Postgres db
+- `sudo docker compose exec db bash -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB"` - enter Postgres db (uses container's environment)
 - `pnpm run db:generate` - generate new migration files from schema changes
 - `pnpm run db:migrate` - apply migrations to the database manually

@@ -1,4 +1,4 @@
-FROM node:22-alpine AS base
+FROM node:22.19.0-alpine3.22 AS base
 
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@latest --activate

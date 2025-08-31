@@ -70,6 +70,12 @@ sudo systemctl start nginx
 sudo systemctl enable nginx  # Ensure it's enabled
 echo "✅ Nginx configuration updated and restarted cleanly"
 
+# Derive backup settings from environment
+SWIFT_PREFIX="backups/${ENV_NAME:-staging}"
+OS_AUTH_TYPE="${OS_AUTH_TYPE:-v3applicationcredential}"
+OS_INTERFACE="${OS_INTERFACE:-public}"
+OS_IDENTITY_API_VERSION="3"
+
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
 cd "$APP_DIR"
@@ -98,6 +104,24 @@ fi
 
 # Cleanup old Docker images and containers
 sudo docker system prune -af
+
+# Start backup service automatically on production
+if [ "${ENV_NAME:-}" = "production" ]; then
+  echo "Starting backup service (profile: backup)..."
+  # Build the backup image to ensure scripts are included
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup build db-backup || true
+  SWIFT_PREFIX="$SWIFT_PREFIX" \
+  OS_AUTH_TYPE="$OS_AUTH_TYPE" \
+  OS_AUTH_URL="$OS_AUTH_URL" \
+  OS_REGION_NAME="$OS_REGION_NAME" \
+  OS_INTERFACE="$OS_INTERFACE" \
+  OS_IDENTITY_API_VERSION="$OS_IDENTITY_API_VERSION" \
+  OS_APPLICATION_CREDENTIAL_ID="$OS_APPLICATION_CREDENTIAL_ID" \
+  OS_APPLICATION_CREDENTIAL_SECRET="$OS_APPLICATION_CREDENTIAL_SECRET" \
+  SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" \
+  SLACK_CHANNEL_ID="$SLACK_CHANNEL_ID" \
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d db-backup || true
+fi
 
 # Output final message
 echo "Update complete. Your Next.js app has been updated with the latest changes and database migrations have been applied."

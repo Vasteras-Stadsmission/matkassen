@@ -1,4 +1,4 @@
-FROM nginx:alpine
+FROM nginx:1.29.1-alpine3.22
 
 # Install bash (the script might need it)
 RUN apk add --no-cache bash

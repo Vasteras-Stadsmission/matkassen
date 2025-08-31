@@ -1,6 +1,6 @@
 # This Dockerfile is used for development purposes, i.e. in combination with `docker-compose.dev.yml`
 
-FROM node:22-alpine
+FROM node:22.19.0-alpine3.22
 
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@latest --activate

@@ -56,6 +56,11 @@ fi
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
 APP_DIR=~/"$PROJECT_NAME"
+# Derive backup settings from environment
+SWIFT_PREFIX="backups/${ENV_NAME:-staging}"
+OS_AUTH_TYPE="${OS_AUTH_TYPE:-v3applicationcredential}"
+OS_INTERFACE="${OS_INTERFACE:-public}"
+OS_IDENTITY_API_VERSION="3"
 SWAP_SIZE="1G"  # Swap size of 1GB
 
 # Update package list and upgrade existing packages
@@ -367,7 +372,16 @@ echo "✅ Database migrations completed successfully."
 
 # Verify migrations worked by checking if we can connect and query the database
 echo "Verifying database setup..."
-if ! sudo docker compose exec -T db bash -c "psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT COUNT(*) FROM pg_catalog.pg_tables;'" > /dev/null; then
+if ! sudo docker compose exec -T db bash -c "
+  # Create secure .pgpass file for database verification
+  PGPASS_FILE=\"/tmp/.pgpass_verify\"
+  echo \"localhost:5432:$POSTGRES_DB:$POSTGRES_USER:$POSTGRES_PASSWORD\" > \"\$PGPASS_FILE\"
+  chmod 600 \"\$PGPASS_FILE\"
+  export PGPASSFILE=\"\$PGPASS_FILE\"
+
+  # Run verification query and cleanup
+  psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT COUNT(*) FROM pg_catalog.pg_tables;' && rm -f \"\$PGPASS_FILE\"
+" > /dev/null; then
   echo "⚠️ Warning: Couldn't verify database setup, but migrations reported success."
 else
   echo "✅ Database verification successful."
@@ -375,6 +389,24 @@ fi
 
 # Cleanup old Docker images and containers
 sudo docker system prune -af
+
+# Start backup service automatically on production
+if [ "${ENV_NAME:-}" = "production" ]; then
+  echo "Starting backup service (profile: backup)..."
+  # Build the backup image to ensure scripts are included
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup build db-backup || true
+  SWIFT_PREFIX="$SWIFT_PREFIX" \
+  OS_AUTH_TYPE="$OS_AUTH_TYPE" \
+  OS_AUTH_URL="$OS_AUTH_URL" \
+  OS_REGION_NAME="$OS_REGION_NAME" \
+  OS_INTERFACE="$OS_INTERFACE" \
+  OS_IDENTITY_API_VERSION="$OS_IDENTITY_API_VERSION" \
+  OS_APPLICATION_CREDENTIAL_ID="$OS_APPLICATION_CREDENTIAL_ID" \
+  OS_APPLICATION_CREDENTIAL_SECRET="$OS_APPLICATION_CREDENTIAL_SECRET" \
+  SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" \
+  SLACK_CHANNEL_ID="$SLACK_CHANNEL_ID" \
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d db-backup || true
+fi
 
 # Helper function to check URL accessibility
 check_url() {
