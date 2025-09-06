@@ -62,11 +62,11 @@ PGPASS_FILE="/tmp/.pgpass"
 
 # Cleanup function for temporary files
 cleanup() {
-    rm -f "$PGPASS_FILE" "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
+    rm -f "$PGPASS_FILE" "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}"
 }
 
 # Ensure cleanup happens on exit
-trap 'cleanup; notify_slack failure "Database backup failed (see logs)"' ERR
+trap 'cleanup' ERR
 trap 'cleanup' EXIT
 
 # Ensure temp directory exists
