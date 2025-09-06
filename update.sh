@@ -138,7 +138,12 @@ fi
 # Run migrations directly rather than waiting for the migration container
 echo "Waiting for database to be ready..."
 cd "$APP_DIR"
-sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
+timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
+if [ $? -ne 0 ]; then
+  echo "❌ Database did not become ready within 60 seconds."
+  sudo docker compose logs db
+  exit 1
+fi
 
 # Run migrations from within the container (stable, reliable approach)
 echo "Running database migrations..."
