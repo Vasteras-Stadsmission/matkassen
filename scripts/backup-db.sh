@@ -62,7 +62,7 @@ PGPASS_FILE="/tmp/.pgpass"
 
 # Cleanup function for temporary files
 cleanup() {
-    rm -f "$PGPASS_FILE" "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}"
+    rm -f "$PGPASS_FILE" "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}" "${VALIDATION_FILE:-}"
 }
 
 # Ensure cleanup happens on exit
@@ -167,21 +167,30 @@ log "Validating backup integrity..."
 log "Validating backup by downloading and testing with pg_restore..."
 VALIDATION_OUTPUT=$(mktemp -t backup_validation.XXXXXX)
 VALIDATION_ERRORS=$(mktemp -t backup_errors.XXXXXX)
-chmod 600 "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
-if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" --retries=2 | pg_restore --list > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
-    # Check if backup file is valid by counting non-empty, non-comment lines
-    # This is more robust than keyword matching and works across PostgreSQL versions
-    CONTENT_LINES=$(grep -v '^$' "$VALIDATION_OUTPUT" | grep -v '^;' | wc -l)
-    if [ "$CONTENT_LINES" -gt 10 ]; then
-        log "Backup validation OK - file contains valid PostgreSQL data ($CONTENT_LINES entries)"
-        DRILL_STATUS="success"
+VALIDATION_FILE=$(mktemp -t backup_download.XXXXXX)
+chmod 600 "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS" "$VALIDATION_FILE"
+
+# Download the backup file temporarily for validation
+# pg_restore --list needs to be able to seek through the file, which doesn't work with piped streams
+if rclone copyto "$RCLONE_REMOTE/$BACKUP_FILENAME" "$VALIDATION_FILE" --retries=2; then
+    if pg_restore --list "$VALIDATION_FILE" > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
+        # Check if backup file is valid by counting non-empty, non-comment lines
+        # This is more robust than keyword matching and works across PostgreSQL versions
+        CONTENT_LINES=$(grep -v '^$' "$VALIDATION_OUTPUT" | grep -v '^;' | wc -l)
+        if [ "$CONTENT_LINES" -gt 10 ]; then
+            log "Backup validation OK - file contains valid PostgreSQL data ($CONTENT_LINES entries)"
+            DRILL_STATUS="success"
+        else
+            log "Backup validation FAILED - insufficient content in backup ($CONTENT_LINES entries, expected >10)"
+            DRILL_STATUS="failure"
+        fi
     else
-        log "Backup validation FAILED - insufficient content in backup ($CONTENT_LINES entries, expected >10)"
+        ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
+        log "Backup validation FAILED - file appears corrupted or invalid: $ERROR_MSG"
         DRILL_STATUS="failure"
     fi
 else
-    ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
-    log "Backup validation FAILED - file appears corrupted or invalid: $ERROR_MSG"
+    log "Backup validation FAILED - unable to download backup file for validation"
     DRILL_STATUS="failure"
 fi
 
