@@ -131,6 +131,9 @@ fi
 echo "Running database migrations synchronously..."
 cd "$APP_DIR"
 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
+
+# Run migrations from within the container (stable, reliable approach)
+echo "Running migrations from web container..."
 sudo docker compose exec -T web pnpm run db:migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
