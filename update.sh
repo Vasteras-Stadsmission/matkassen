@@ -117,7 +117,10 @@ echo "Rebuilding and restarting Docker containers..."
 cd "$APP_DIR"
 # Enable Docker Compose Bake for potentially better build performance (if not already set)
 export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
-sudo docker compose build
+# Enable Docker BuildKit cache for faster builds
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+sudo docker compose build --build-arg BUILDKIT_INLINE_CACHE=1
 sudo docker compose up -d
 
 # Check if Docker Compose started correctly
