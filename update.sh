@@ -5,6 +5,8 @@
 # and that the git repository is already up to date (handled by CI/CD workflow).
 # It also assumes that the .env file is already created and contains the necessary environment variables.
 
+set -Eeuo pipefail
+
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
@@ -16,41 +18,63 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 # For external tools (like Drizzle Studio)
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
-# Create the .env file inside the app directory (~/matkassen/.env)
-echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" > "$APP_DIR/.env"
-echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_APP_ID=\"$AUTH_GITHUB_APP_ID\"" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_APP_PRIVATE_KEY=\"$AUTH_GITHUB_APP_PRIVATE_KEY\"" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_APP_INSTALLATION_ID=\"$AUTH_GITHUB_APP_INSTALLATION_ID\"" >> "$APP_DIR/.env"
-echo "AUTH_REDIRECT_PROXY_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
-echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
-echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
-echo "AUTH_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
-echo "DATABASE_URL=\"$DATABASE_URL\"" >> "$APP_DIR/.env"
-echo "DATABASE_URL_EXTERNAL=\"$DATABASE_URL_EXTERNAL\"" >> "$APP_DIR/.env"
-echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env" # Needed for Certbot
-echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
-echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
-echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
-echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
-
-# Add environment identification and backup configuration
-echo "ENV_NAME=\"$ENV_NAME\"" >> "$APP_DIR/.env"
-
-# Add OpenStack Swift backup credentials (only in production)
+# Validate required environment variables in production
 if [ "${ENV_NAME:-}" = "production" ]; then
-    echo "OS_AUTH_TYPE=\"$OS_AUTH_TYPE\"" >> "$APP_DIR/.env"
-    echo "OS_AUTH_URL=\"$OS_AUTH_URL\"" >> "$APP_DIR/.env"
-    echo "OS_REGION_NAME=\"$OS_REGION_NAME\"" >> "$APP_DIR/.env"
-    echo "OS_INTERFACE=\"$OS_INTERFACE\"" >> "$APP_DIR/.env"
-    echo "OS_IDENTITY_API_VERSION=\"$OS_IDENTITY_API_VERSION\"" >> "$APP_DIR/.env"
-    echo "OS_APPLICATION_CREDENTIAL_ID=\"$OS_APPLICATION_CREDENTIAL_ID\"" >> "$APP_DIR/.env"
-    echo "OS_APPLICATION_CREDENTIAL_SECRET=\"$OS_APPLICATION_CREDENTIAL_SECRET\"" >> "$APP_DIR/.env"
-    echo "SWIFT_CONTAINER=\"$SWIFT_CONTAINER\"" >> "$APP_DIR/.env"
-    echo "SWIFT_PREFIX=\"$SWIFT_PREFIX\"" >> "$APP_DIR/.env"
-    echo "SLACK_BOT_TOKEN=\"$SLACK_BOT_TOKEN\"" >> "$APP_DIR/.env"
-    echo "SLACK_CHANNEL_ID=\"$SLACK_CHANNEL_ID\"" >> "$APP_DIR/.env"
+    echo "Validating production environment variables..."
+    req=(OS_AUTH_TYPE OS_AUTH_URL OS_REGION_NAME OS_INTERFACE OS_IDENTITY_API_VERSION \
+         OS_APPLICATION_CREDENTIAL_ID OS_APPLICATION_CREDENTIAL_SECRET \
+         SWIFT_CONTAINER SWIFT_PREFIX SLACK_BOT_TOKEN SLACK_CHANNEL_ID)
+    for k in "${req[@]}"; do
+        v="${!k:-}"
+        [ -n "$v" ] || { echo "ERROR: $k is required in production but is unset or empty"; exit 1; }
+    done
+    echo "✅ All required production environment variables are set"
 fi
+
+# Create the .env file atomically with proper permissions
+echo "Creating .env file..."
+tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+
+# Start with core application variables
+{
+    printf 'AUTH_GITHUB_ID=%s\n' "${AUTH_GITHUB_ID}"
+    printf 'AUTH_GITHUB_SECRET=%s\n' "${AUTH_GITHUB_SECRET}"
+    printf 'AUTH_GITHUB_APP_ID=%s\n' "${AUTH_GITHUB_APP_ID}"
+    printf 'AUTH_GITHUB_APP_PRIVATE_KEY=%s\n' "${AUTH_GITHUB_APP_PRIVATE_KEY}"
+    printf 'AUTH_GITHUB_APP_INSTALLATION_ID=%s\n' "${AUTH_GITHUB_APP_INSTALLATION_ID}"
+    printf 'AUTH_REDIRECT_PROXY_URL=https://%s/api/auth\n' "${DOMAIN_NAME}"
+    printf 'AUTH_SECRET=%s\n' "${AUTH_SECRET}"
+    printf 'AUTH_TRUST_HOST=true\n'
+    printf 'AUTH_URL=https://%s/api/auth\n' "${DOMAIN_NAME}"
+    printf 'DATABASE_URL=%s\n' "${DATABASE_URL}"
+    printf 'DATABASE_URL_EXTERNAL=%s\n' "${DATABASE_URL_EXTERNAL}"
+    printf 'EMAIL=%s\n' "${EMAIL}"
+    printf 'GITHUB_ORG=%s\n' "${GITHUB_ORG}"
+    printf 'POSTGRES_DB=%s\n' "${POSTGRES_DB}"
+    printf 'POSTGRES_PASSWORD=%s\n' "${POSTGRES_PASSWORD}"
+    printf 'POSTGRES_USER=%s\n' "${POSTGRES_USER}"
+    printf 'ENV_NAME=%s\n' "${ENV_NAME:-}"
+} > "$tmp"
+
+# Add production-only backup configuration
+if [ "${ENV_NAME:-}" = "production" ]; then
+    {
+        printf 'OS_AUTH_TYPE=%s\n' "${OS_AUTH_TYPE}"
+        printf 'OS_AUTH_URL=%s\n' "${OS_AUTH_URL}"
+        printf 'OS_REGION_NAME=%s\n' "${OS_REGION_NAME}"
+        printf 'OS_INTERFACE=%s\n' "${OS_INTERFACE}"
+        printf 'OS_IDENTITY_API_VERSION=%s\n' "${OS_IDENTITY_API_VERSION}"
+        printf 'OS_APPLICATION_CREDENTIAL_ID=%s\n' "${OS_APPLICATION_CREDENTIAL_ID}"
+        printf 'OS_APPLICATION_CREDENTIAL_SECRET=%s\n' "${OS_APPLICATION_CREDENTIAL_SECRET}"
+        printf 'SWIFT_CONTAINER=%s\n' "${SWIFT_CONTAINER}"
+        printf 'SWIFT_PREFIX=%s\n' "${SWIFT_PREFIX}"
+        printf 'SLACK_BOT_TOKEN=%s\n' "${SLACK_BOT_TOKEN}"
+        printf 'SLACK_CHANNEL_ID=%s\n' "${SLACK_CHANNEL_ID}"
+    } >> "$tmp"
+fi
+
+# Install atomically with secure permissions (0600 = rw--------)
+install -m 600 "$tmp" "$APP_DIR/.env"
 
 # Verify .env file was created successfully
 [ -f "$APP_DIR/.env" ] || { echo "ERROR: Failed to create .env file"; exit 1; }
@@ -126,10 +150,12 @@ sudo docker system prune -af
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Starting backup service (profile: backup)..."
+  cd "$APP_DIR"
   # Build the backup image to ensure scripts are included
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup build db-backup || true
-  # Start the backup service (environment variables are now in .env file)
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d db-backup || true
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup build db-backup
+  # Start the backup service (environment variables are loaded from .env file in working directory)
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d db-backup
+  echo "✅ Backup service started successfully"
 fi
 
 # Output final message

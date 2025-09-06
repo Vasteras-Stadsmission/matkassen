@@ -27,6 +27,25 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Validate shell scripts
+              run: |
+                  echo "🔍 Validating shell scripts..."
+
+                  # Critical deployment scripts that could break production
+                  SCRIPTS=("deploy.sh" "update.sh" "scripts/backup-db.sh" "scripts/backup-manage.sh")
+
+                  for script in "${SCRIPTS[@]}"; do
+                      if [ -f "$script" ]; then
+                          echo "Checking $script..."
+                          # Syntax check - prevents deployment failures
+                          if ! bash -n "$script"; then
+                              echo "❌ Syntax error in $script"
+                              exit 1
+                          fi
+                          echo "✅ $script syntax OK"
+                      fi
+                  done
+
             - name: Validate code (lint, typecheck, format-check)
               run: pnpm run validate
 
