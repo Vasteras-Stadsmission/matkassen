@@ -132,12 +132,9 @@ echo "Running database migrations synchronously..."
 cd "$APP_DIR"
 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
 
-# Run migrations on the host (where dev dependencies are available) instead of inside the container
-echo "Running migrations from host environment..."
-# Securely load environment variables from .env file without exposing credentials in command line
-set -a; source "$APP_DIR/.env"; set +a
-# Use external DATABASE_URL for host-based migration (localhost instead of docker 'db' hostname)
-DATABASE_URL="$DATABASE_URL_EXTERNAL" pnpm run db:migrate
+# Run migrations from within the container (stable, reliable approach)
+echo "Running migrations from web container..."
+sudo docker compose exec -T web pnpm run db:migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
   exit 1
