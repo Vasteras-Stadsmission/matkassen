@@ -12,6 +12,12 @@ COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/app/.pnpm-store \
     pnpm install --frozen-lockfile --store-dir=/app/.pnpm-store
 
+# Stage 1b: Install only production dependencies
+FROM base AS deps-prod
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
+
 # Stage 2: Build the application
 FROM base AS builder
 WORKDIR /app
@@ -44,10 +50,7 @@ COPY --from=builder /app/.next/static ./.next/static
 # The below are needed for drizzle to work (db migrations inside the container)
 COPY drizzle.config.ts ./
 COPY --from=builder /app/migrations ./migrations
-COPY --from=deps /app/node_modules ./node_modules
-
-# Remove development dependencies to shrink image size
-RUN pnpm prune --prod
+COPY --from=deps-prod /app/node_modules ./node_modules
 
 EXPOSE 3000
 CMD ["node", "server.js"]
