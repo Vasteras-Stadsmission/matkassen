@@ -52,8 +52,5 @@ COPY drizzle.config.ts ./
 COPY --from=builder /app/migrations ./migrations
 COPY --from=deps-prod /app/node_modules ./node_modules
 
-# Remove development dependencies to shrink image size
-RUN pnpm prune --prod
-
 EXPOSE 3000
 CMD ["node", "server.js"]
