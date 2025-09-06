@@ -60,14 +60,14 @@ PREFIX=${SWIFT_PREFIX:-backups}
 RCLONE_REMOTE="elastx:${SWIFT_CONTAINER}/${PREFIX}"
 PGPASS_FILE="/tmp/.pgpass"
 
-# Cleanup function for .pgpass file
-cleanup_pgpass() {
-    rm -f "$PGPASS_FILE"
+# Cleanup function for temporary files
+cleanup() {
+    rm -f "$PGPASS_FILE" "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
 }
 
 # Ensure cleanup happens on exit
-trap 'cleanup_pgpass; notify_slack failure "Database backup failed (see logs)"' ERR
-trap 'cleanup_pgpass' EXIT
+trap 'cleanup; notify_slack failure "Database backup failed (see logs)"' ERR
+trap 'cleanup' EXIT
 
 # Ensure temp directory exists
 mkdir -p "$TEMP_DIR"
@@ -123,6 +123,7 @@ EXPIRY_SECONDS=$((RETENTION_DAYS * 24 * 60 * 60))
 rclone copy "$TEMP_DIR/$BACKUP_FILENAME" "$RCLONE_REMOTE" \
     --checkers=4 \
     --transfers=1 \
+    --retries=3 \
     --progress \
     --stats-one-line \
     --stats=30s
@@ -165,21 +166,22 @@ log "Validating backup integrity..."
 # Basic validation: download and verify the backup can be listed by pg_restore
 log "Validating backup by downloading and testing with pg_restore..."
 VALIDATION_OUTPUT=$(mktemp)
-if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" 2>/dev/null | pg_restore --list > "$VALIDATION_OUTPUT" 2>&1; then
+VALIDATION_ERRORS=$(mktemp)
+if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" --retries=2 | pg_restore --list > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
     # Check if we got a reasonable number of objects (tables, indexes, etc.)
     OBJECT_COUNT=$(wc -l < "$VALIDATION_OUTPUT")
-    if [ "$OBJECT_COUNT" -gt 0 ]; then
+    if [ "$OBJECT_COUNT" -gt 10 ]; then
         log "Backup validation OK - file is valid PostgreSQL custom format ($OBJECT_COUNT objects found)"
         DRILL_STATUS="success"
     else
-        log "Backup validation FAILED - no database objects found in backup"
+        log "Backup validation FAILED - insufficient database objects found ($OBJECT_COUNT, expected >10)"
         DRILL_STATUS="failure"
     fi
 else
-    log "Backup validation FAILED - file appears corrupted or invalid"
+    ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
+    log "Backup validation FAILED - file appears corrupted or invalid: $ERROR_MSG"
     DRILL_STATUS="failure"
 fi
-rm -f "$VALIDATION_OUTPUT"
 
 # Show current backup status
 BACKUP_COUNT=$(rclone lsf "$RCLONE_REMOTE" --include "matkassen_backup_*.dump" | wc -l)
