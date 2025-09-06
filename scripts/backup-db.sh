@@ -165,16 +165,17 @@ log "Validating backup integrity..."
 
 # Basic validation: download and verify the backup can be listed by pg_restore
 log "Validating backup by downloading and testing with pg_restore..."
-VALIDATION_OUTPUT=$(mktemp)
-VALIDATION_ERRORS=$(mktemp)
+VALIDATION_OUTPUT=$(mktemp -t backup_validation.XXXXXX)
+VALIDATION_ERRORS=$(mktemp -t backup_errors.XXXXXX)
 if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" --retries=2 | pg_restore --list > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
-    # Check if we got a reasonable number of objects (tables, indexes, etc.)
-    OBJECT_COUNT=$(wc -l < "$VALIDATION_OUTPUT")
-    if [ "$OBJECT_COUNT" -gt 10 ]; then
-        log "Backup validation OK - file is valid PostgreSQL custom format ($OBJECT_COUNT objects found)"
+    # Check if backup file is valid by counting non-empty, non-comment lines
+    # This is more robust than keyword matching and works across PostgreSQL versions
+    CONTENT_LINES=$(grep -v '^$' "$VALIDATION_OUTPUT" | grep -v '^;' | wc -l)
+    if [ "$CONTENT_LINES" -gt 10 ]; then
+        log "Backup validation OK - file contains valid PostgreSQL data ($CONTENT_LINES entries)"
         DRILL_STATUS="success"
     else
-        log "Backup validation FAILED - insufficient database objects found ($OBJECT_COUNT, expected >10)"
+        log "Backup validation FAILED - insufficient content in backup ($CONTENT_LINES entries, expected >10)"
         DRILL_STATUS="failure"
     fi
 else
