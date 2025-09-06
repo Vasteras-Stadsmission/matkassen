@@ -19,7 +19,6 @@ echo "🔒 Deployment lock acquired"
 # Cleanup function to release lock on exit
 cleanup() {
     echo "🔓 Releasing deployment lock"
-    flock -u 200
 }
 trap cleanup EXIT
 
