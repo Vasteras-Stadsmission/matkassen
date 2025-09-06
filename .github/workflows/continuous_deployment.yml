@@ -95,6 +95,8 @@ jobs:
                       export OS_AUTH_TYPE=v3applicationcredential
                       export OS_AUTH_URL=https://ops.elastx.cloud:5000/v3
                       export OS_REGION_NAME=se-sto
+                      export OS_INTERFACE=public
+                      export OS_IDENTITY_API_VERSION=3
                       export OS_APPLICATION_CREDENTIAL_ID="${{ secrets.OS_APPLICATION_CREDENTIAL_ID }}"
                       export OS_APPLICATION_CREDENTIAL_SECRET="${{ secrets.OS_APPLICATION_CREDENTIAL_SECRET }}"
                       export SWIFT_CONTAINER="${{ secrets.SWIFT_CONTAINER }}"
