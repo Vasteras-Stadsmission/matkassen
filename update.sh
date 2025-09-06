@@ -150,11 +150,10 @@ sudo docker system prune -af
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Starting backup service (profile: backup)..."
-  cd "$APP_DIR"
   # Build the backup image to ensure scripts are included
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup build db-backup
-  # Start the backup service (environment variables are loaded from .env file in working directory)
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d db-backup
+  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup build db-backup
+  # Start the backup service (explicitly specify env file location)
+  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d db-backup
   echo "✅ Backup service started successfully"
 fi
 
