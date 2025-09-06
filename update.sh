@@ -112,12 +112,6 @@ sudo systemctl start nginx
 sudo systemctl enable nginx  # Ensure it's enabled
 echo "✅ Nginx configuration updated and restarted cleanly"
 
-# Derive backup settings from environment
-SWIFT_PREFIX="backups/${ENV_NAME:-staging}"
-OS_AUTH_TYPE="${OS_AUTH_TYPE:-v3applicationcredential}"
-OS_INTERFACE="${OS_INTERFACE:-public}"
-OS_IDENTITY_API_VERSION="3"
-
 # Build and restart the Docker containers
 echo "Rebuilding and restarting Docker containers..."
 cd "$APP_DIR"
