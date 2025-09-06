@@ -7,6 +7,22 @@
 
 set -Eeuo pipefail
 
+# Prevent multiple deployments from running simultaneously
+LOCK_FILE="/tmp/matkassen-deploy.lock"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    echo "❌ Another deployment is already in progress. Exiting."
+    exit 1
+fi
+echo "🔒 Deployment lock acquired"
+
+# Cleanup function to release lock on exit
+cleanup() {
+    echo "🔓 Releasing deployment lock"
+    flock -u 200
+}
+trap cleanup EXIT
+
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
