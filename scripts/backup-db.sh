@@ -51,8 +51,6 @@ EOF
         fi
 }
 
-trap 'notify_slack failure "Database backup failed (see logs)"' ERR
-
 # Configuration
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILENAME="matkassen_backup_${TIMESTAMP}.dump"
@@ -103,6 +101,7 @@ pg_dump \
 # Check if dump was successful
 if [ ! -f "$TEMP_DIR/$BACKUP_FILENAME" ] || [ ! -s "$TEMP_DIR/$BACKUP_FILENAME" ]; then
     log "ERROR: Database dump failed or is empty"
+    notify_slack failure "Database backup failed - dump creation failed"
     exit 1
 fi
 
@@ -151,6 +150,7 @@ if [ $? -eq 0 ]; then
     rm -f "$TEMP_DIR/$BACKUP_FILENAME"
 else
     log "ERROR: Failed to upload backup to Object Store"
+    notify_slack failure "Database backup failed - upload to object store failed"
     exit 1
 fi
 
@@ -163,15 +163,23 @@ DRILL_STATUS="success"
 log "Validating backup integrity..."
 
 # Basic validation: download and verify the backup can be listed by pg_restore
-VALIDATION_FILE="/tmp/backup_validation_test"
 log "Validating backup by downloading and testing with pg_restore..."
-if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" 2>/dev/null | pg_restore --list > /dev/null 2>&1; then
-    log "Backup validation OK - file is valid PostgreSQL custom format"
-    DRILL_STATUS="success"
+VALIDATION_OUTPUT=$(mktemp)
+if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" 2>/dev/null | pg_restore --list > "$VALIDATION_OUTPUT" 2>&1; then
+    # Check if we got a reasonable number of objects (tables, indexes, etc.)
+    OBJECT_COUNT=$(wc -l < "$VALIDATION_OUTPUT")
+    if [ "$OBJECT_COUNT" -gt 0 ]; then
+        log "Backup validation OK - file is valid PostgreSQL custom format ($OBJECT_COUNT objects found)"
+        DRILL_STATUS="success"
+    else
+        log "Backup validation FAILED - no database objects found in backup"
+        DRILL_STATUS="failure"
+    fi
 else
     log "Backup validation FAILED - file appears corrupted or invalid"
     DRILL_STATUS="failure"
 fi
+rm -f "$VALIDATION_OUTPUT"
 
 # Show current backup status
 BACKUP_COUNT=$(rclone lsf "$RCLONE_REMOTE" --include "matkassen_backup_*.dump" | wc -l)
