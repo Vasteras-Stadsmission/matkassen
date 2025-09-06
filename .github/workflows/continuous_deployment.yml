@@ -20,6 +20,7 @@ jobs:
                   host: ${{ secrets.SERVER_HOST_STAGING }}
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
+                  command_timeout: 20m
                   script: |
                       echo "Export GitHub secrets into environment variables"
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
@@ -76,6 +77,7 @@ jobs:
                   host: ${{ secrets.SERVER_HOST_PRODUCTION }}
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
+                  command_timeout: 20m
                   script: |
                       echo "Export GitHub secrets into environment variables"
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
