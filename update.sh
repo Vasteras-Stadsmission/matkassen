@@ -131,7 +131,11 @@ fi
 echo "Running database migrations synchronously..."
 cd "$APP_DIR"
 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
-sudo docker compose exec -T web pnpm run db:migrate
+
+# Run migrations on the host (where dev dependencies are available) instead of inside the container
+echo "Running migrations from host environment..."
+export DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
+pnpm run db:migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
   exit 1
