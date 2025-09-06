@@ -119,31 +119,48 @@ cd "$APP_DIR"
 export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
 # Enable Docker BuildKit cache for faster builds (inline with sudo)
 DOCKER_BUILDKIT=1 sudo docker compose build --build-arg BUILDKIT_INLINE_CACHE=1
-sudo docker compose up -d
 
+echo "Starting Docker containers..."
+timeout 300 sudo docker compose up -d || {
+  echo "❌ Docker containers failed to start within 5 minutes"
+  sudo docker compose logs
+  exit 1
+}
+
+echo "Checking if Docker containers started correctly..."
 # Check if Docker Compose started correctly
 if ! sudo docker compose ps | grep "Up"; then
   echo "Docker containers failed to start. Check logs with 'docker compose logs'."
+  sudo docker compose logs
   exit 1
 fi
 
 # Run migrations directly rather than waiting for the migration container
-echo "Running database migrations synchronously..."
+echo "Waiting for database to be ready..."
 cd "$APP_DIR"
-sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do sleep 1; done"
+timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
+if [ $? -ne 0 ]; then
+  echo "❌ Database did not become ready within 60 seconds."
+  sudo docker compose logs db
+  exit 1
+fi
 
 # Run migrations from within the container (stable, reliable approach)
-echo "Running migrations from web container..."
+echo "Running database migrations..."
 sudo docker compose exec -T web pnpm run db:migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
+  sudo docker compose logs web
   exit 1
 else
   echo "✅ Database migrations completed successfully."
 fi
 
-# Cleanup old Docker images and containers
-sudo docker system prune -af
+# Cleanup old Docker images and containers (but keep recent build cache)
+echo "Cleaning up old Docker resources..."
+sudo docker container prune -f
+sudo docker image prune -f
+echo "✅ Docker cleanup completed"
 
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
