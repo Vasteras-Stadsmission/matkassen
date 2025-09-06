@@ -51,8 +51,6 @@ EOF
         fi
 }
 
-trap 'notify_slack failure "Database backup failed (see logs)"' ERR
-
 # Configuration
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILENAME="matkassen_backup_${TIMESTAMP}.dump"
@@ -62,14 +60,14 @@ PREFIX=${SWIFT_PREFIX:-backups}
 RCLONE_REMOTE="elastx:${SWIFT_CONTAINER}/${PREFIX}"
 PGPASS_FILE="/tmp/.pgpass"
 
-# Cleanup function for .pgpass file
-cleanup_pgpass() {
-    rm -f "$PGPASS_FILE"
+# Cleanup function for temporary files
+cleanup() {
+    rm -f "$PGPASS_FILE" "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}"
 }
 
 # Ensure cleanup happens on exit
-trap 'cleanup_pgpass; notify_slack failure "Database backup failed (see logs)"' ERR
-trap 'cleanup_pgpass' EXIT
+trap 'cleanup' ERR
+trap 'cleanup' EXIT
 
 # Ensure temp directory exists
 mkdir -p "$TEMP_DIR"
@@ -103,6 +101,7 @@ pg_dump \
 # Check if dump was successful
 if [ ! -f "$TEMP_DIR/$BACKUP_FILENAME" ] || [ ! -s "$TEMP_DIR/$BACKUP_FILENAME" ]; then
     log "ERROR: Database dump failed or is empty"
+    notify_slack failure "Database backup failed - dump creation failed"
     exit 1
 fi
 
@@ -124,6 +123,7 @@ EXPIRY_SECONDS=$((RETENTION_DAYS * 24 * 60 * 60))
 rclone copy "$TEMP_DIR/$BACKUP_FILENAME" "$RCLONE_REMOTE" \
     --checkers=4 \
     --transfers=1 \
+    --retries=3 \
     --progress \
     --stats-one-line \
     --stats=30s
@@ -151,6 +151,7 @@ if [ $? -eq 0 ]; then
     rm -f "$TEMP_DIR/$BACKUP_FILENAME"
 else
     log "ERROR: Failed to upload backup to Object Store"
+    notify_slack failure "Database backup failed - upload to object store failed"
     exit 1
 fi
 
@@ -163,13 +164,24 @@ DRILL_STATUS="success"
 log "Validating backup integrity..."
 
 # Basic validation: download and verify the backup can be listed by pg_restore
-VALIDATION_FILE="/tmp/backup_validation_test"
 log "Validating backup by downloading and testing with pg_restore..."
-if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" 2>/dev/null | pg_restore --list > /dev/null 2>&1; then
-    log "Backup validation OK - file is valid PostgreSQL custom format"
-    DRILL_STATUS="success"
+VALIDATION_OUTPUT=$(mktemp -t backup_validation.XXXXXX)
+VALIDATION_ERRORS=$(mktemp -t backup_errors.XXXXXX)
+chmod 600 "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
+if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" --retries=2 | pg_restore --list > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
+    # Check if backup file is valid by counting non-empty, non-comment lines
+    # This is more robust than keyword matching and works across PostgreSQL versions
+    CONTENT_LINES=$(grep -v '^$' "$VALIDATION_OUTPUT" | grep -v '^;' | wc -l)
+    if [ "$CONTENT_LINES" -gt 10 ]; then
+        log "Backup validation OK - file contains valid PostgreSQL data ($CONTENT_LINES entries)"
+        DRILL_STATUS="success"
+    else
+        log "Backup validation FAILED - insufficient content in backup ($CONTENT_LINES entries, expected >10)"
+        DRILL_STATUS="failure"
+    fi
 else
-    log "Backup validation FAILED - file appears corrupted or invalid"
+    ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
+    log "Backup validation FAILED - file appears corrupted or invalid: $ERROR_MSG"
     DRILL_STATUS="failure"
 fi
 
@@ -180,9 +192,18 @@ TOTAL_SIZE_HUMAN=$(rclone size "$RCLONE_REMOTE" --include "matkassen_backup_*.du
 
 END_TS=$(date +%s)
 ELAPSED=$((END_TS-START_TS))
-log "Backup process completed successfully in ${ELAPSED}s"
-SUMMARY="Backup success (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${RETENTION_DAYS}d). Validation: ${DRILL_STATUS}."
-notify_slack success "$SUMMARY"
+
+# Determine final status based on validation results
+if [ "$DRILL_STATUS" = "success" ]; then
+    log "Backup process completed successfully in ${ELAPSED}s"
+    SUMMARY="Backup success (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${RETENTION_DAYS}d). Validation: ${DRILL_STATUS}."
+    notify_slack success "$SUMMARY"
+else
+    log "Backup uploaded successfully but validation failed in ${ELAPSED}s"
+    SUMMARY="Backup uploaded but validation failed (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s). Manual verification recommended."
+    notify_slack failure "$SUMMARY"
+fi
+
 log "Current status: $BACKUP_COUNT backups, total size: $TOTAL_SIZE_HUMAN"
 log "All backups have automatic expiry headers and basic validation"
 
