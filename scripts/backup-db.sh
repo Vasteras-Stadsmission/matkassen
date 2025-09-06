@@ -191,9 +191,18 @@ TOTAL_SIZE_HUMAN=$(rclone size "$RCLONE_REMOTE" --include "matkassen_backup_*.du
 
 END_TS=$(date +%s)
 ELAPSED=$((END_TS-START_TS))
-log "Backup process completed successfully in ${ELAPSED}s"
-SUMMARY="Backup success (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${RETENTION_DAYS}d). Validation: ${DRILL_STATUS}."
-notify_slack success "$SUMMARY"
+
+# Determine final status based on validation results
+if [ "$DRILL_STATUS" = "success" ]; then
+    log "Backup process completed successfully in ${ELAPSED}s"
+    SUMMARY="Backup success (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${RETENTION_DAYS}d). Validation: ${DRILL_STATUS}."
+    notify_slack success "$SUMMARY"
+else
+    log "Backup uploaded successfully but validation failed in ${ELAPSED}s"
+    SUMMARY="Backup uploaded but validation failed (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s). Manual verification recommended."
+    notify_slack failure "$SUMMARY"
+fi
+
 log "Current status: $BACKUP_COUNT backups, total size: $TOTAL_SIZE_HUMAN"
 log "All backups have automatic expiry headers and basic validation"
 
