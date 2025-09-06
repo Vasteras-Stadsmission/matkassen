@@ -167,6 +167,7 @@ log "Validating backup integrity..."
 log "Validating backup by downloading and testing with pg_restore..."
 VALIDATION_OUTPUT=$(mktemp -t backup_validation.XXXXXX)
 VALIDATION_ERRORS=$(mktemp -t backup_errors.XXXXXX)
+chmod 600 "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
 if rclone cat "$RCLONE_REMOTE/$BACKUP_FILENAME" --retries=2 | pg_restore --list > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
     # Check if backup file is valid by counting non-empty, non-comment lines
     # This is more robust than keyword matching and works across PostgreSQL versions
