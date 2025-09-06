@@ -134,8 +134,10 @@ sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d 
 
 # Run migrations on the host (where dev dependencies are available) instead of inside the container
 echo "Running migrations from host environment..."
-export DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
-pnpm run db:migrate
+# Securely load environment variables from .env file without exposing credentials in command line
+set -a; source "$APP_DIR/.env"; set +a
+# Use external DATABASE_URL for host-based migration (localhost instead of docker 'db' hostname)
+DATABASE_URL="$DATABASE_URL_EXTERNAL" pnpm run db:migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
   exit 1
