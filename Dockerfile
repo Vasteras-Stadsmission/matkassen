@@ -1,7 +1,8 @@
+# syntax=docker/dockerfile:1.7
 FROM node:22.19.0-alpine3.22 AS base
 
 # Install pnpm globally
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 
 # Stage 1: Install dependencies
 FROM base AS deps
@@ -31,7 +32,7 @@ WORKDIR /app
 RUN apk add --no-cache curl
 
 # Ensure pnpm is available in the final stage
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 
 # Auth.js requirements
 ENV PORT=3000
@@ -44,6 +45,9 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY drizzle.config.ts ./
 COPY --from=builder /app/migrations ./migrations
 COPY --from=deps /app/node_modules ./node_modules
+
+# Remove development dependencies to shrink image size
+RUN pnpm prune --prod
 
 EXPOSE 3000
 CMD ["node", "server.js"]
