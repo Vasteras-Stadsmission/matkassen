@@ -172,9 +172,7 @@ chmod 600 "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS" "$VALIDATION_FILE"
 
 # Download the backup file temporarily for validation
 # pg_restore --list needs to be able to seek through the file, which doesn't work with piped streams
-if rclone copy "$RCLONE_REMOTE/$BACKUP_FILENAME" "$(dirname "$VALIDATION_FILE")" --retries=2; then
-    mv "$(dirname "$VALIDATION_FILE")/$BACKUP_FILENAME" "$VALIDATION_FILE"
-    
+if rclone copyto "$RCLONE_REMOTE/$BACKUP_FILENAME" "$VALIDATION_FILE" --retries=2; then
     if pg_restore --list "$VALIDATION_FILE" > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
         # Check if backup file is valid by counting non-empty, non-comment lines
         # This is more robust than keyword matching and works across PostgreSQL versions
@@ -191,9 +189,6 @@ if rclone copy "$RCLONE_REMOTE/$BACKUP_FILENAME" "$(dirname "$VALIDATION_FILE")"
         log "Backup validation FAILED - file appears corrupted or invalid: $ERROR_MSG"
         DRILL_STATUS="failure"
     fi
-    
-    # Clean up validation file
-    rm -f "$VALIDATION_FILE"
 else
     log "Backup validation FAILED - unable to download backup file for validation"
     DRILL_STATUS="failure"
