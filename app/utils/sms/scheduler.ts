@@ -81,24 +81,30 @@ export async function enqueueReminderSms(): Promise<number> {
  * Process SMS send queue
  */
 export async function processSendQueue(): Promise<number> {
+    console.log("🔄 Processing SMS send queue...");
     const records = await getSmsRecordsReadyForSending(SEND_BATCH_SIZE);
+    console.log(`📨 Found ${records.length} SMS records ready for sending`);
+
     let sentCount = 0;
 
     for (const record of records) {
         try {
+            console.log(`📤 Sending SMS ${record.id} to ${record.toE164}`);
             await sendSmsRecord(record);
             sentCount++;
-            console.log(`Sent SMS ${record.id} to ${record.toE164}`);
+            console.log(`✅ Sent SMS ${record.id} to ${record.toE164}`);
 
             // Small delay between sends to be respectful to the API
             await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
-            console.error(`Failed to send SMS ${record.id}:`, error);
+            console.error(`❌ Failed to send SMS ${record.id}:`, error);
         }
     }
 
     if (sentCount > 0) {
-        console.log(`Sent ${sentCount} SMS messages`);
+        console.log(`🎉 Sent ${sentCount} SMS messages`);
+    } else {
+        console.log("📭 No SMS messages sent");
     }
 
     return sentCount;

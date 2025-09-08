@@ -22,20 +22,13 @@ import {
     IconX,
     IconClock,
     IconInfoCircle,
+    IconRefresh,
+    IconQuestionMark,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { FoodParcel } from "@/app/[locale]/schedule/types";
-
-interface SmsRecord {
-    id: string;
-    intent: "initial" | "reminder" | "manual";
-    status: "pending" | "sent" | "delivered" | "failed" | "cancelled";
-    sentAt?: Date;
-    deliveredAt?: Date;
-    failureReason?: string;
-    retryCount: number;
-}
+import { SmsRecord } from "@/app/utils/sms/sms-service";
 
 interface SmsManagementPanelProps {
     parcel: FoodParcel;
@@ -43,6 +36,7 @@ interface SmsManagementPanelProps {
     onSendSms?: (parcelId: string, intent: "initial" | "reminder" | "manual") => void;
     onResendSms?: (smsId: string) => void;
     isLoading?: boolean;
+    testMode?: boolean; // Add testMode prop
 }
 
 export default function SmsManagementPanel({
@@ -51,42 +45,78 @@ export default function SmsManagementPanel({
     onSendSms,
     onResendSms,
     isLoading = false,
+    testMode = false,
 }: SmsManagementPanelProps) {
     const t = useTranslations("schedule.sms");
     const [showHistory, setShowHistory] = useState(false);
 
     const getStatusBadge = (status: SmsRecord["status"]) => {
         const statusConfig = {
-            pending: { color: "yellow", icon: IconClock, label: t("status.pending") },
+            queued: { color: "yellow", icon: IconClock, label: "Queued" },
+            sending: { color: "blue", icon: IconSend, label: "Sending" },
             sent: { color: "blue", icon: IconSend, label: t("status.sent") },
             delivered: { color: "green", icon: IconCheck, label: t("status.delivered") },
+            not_delivered: { color: "orange", icon: IconX, label: "Not Delivered" },
+            retrying: { color: "yellow", icon: IconRefresh, label: "Retrying" },
             failed: { color: "red", icon: IconX, label: t("status.failed") },
-            cancelled: { color: "gray", icon: IconX, label: t("status.cancelled") },
+        } as const;
+
+        const config = statusConfig[status] || {
+            color: "gray",
+            icon: IconQuestionMark,
+            label: status,
         };
 
-        const config = statusConfig[status];
+        const IconComponent = config.icon;
         return (
-            <Badge variant="light" color={config.color} leftSection={<config.icon size={12} />}>
-                {config.label}
+            <Badge color={config.color} variant="light" size="sm">
+                <Group gap={4}>
+                    <IconComponent size={12} />
+                    <Text size="xs">{config.label}</Text>
+                </Group>
             </Badge>
         );
     };
+    const getIntentLabel = (sms: SmsRecord, index: number, allSms: SmsRecord[]) => {
+        // Determine if this is initial or reminder based on sequence and existing SMS
+        const sortedSms = [...allSms].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+        const smsIndex = sortedSms.findIndex(s => s.id === sms.id);
 
-    const getIntentLabel = (intent: SmsRecord["intent"]) => {
-        const labels = {
-            initial: t("intent.initial"),
-            reminder: t("intent.reminder"),
-            manual: t("intent.manual"),
-        };
-        return labels[intent];
+        // Count successful SMS before this one
+        const successfulSmsBefore = sortedSms
+            .slice(0, smsIndex)
+            .filter(s => ["sent", "delivered"].includes(s.status)).length;
+
+        if (sms.intent === "pickup_reminder") {
+            if (successfulSmsBefore === 0) {
+                return t("intent.initial");
+            } else {
+                return t("intent.reminder");
+            }
+        } else if (sms.intent === "consent_enrolment") {
+            return "Consent Enrolment";
+        }
+
+        return sms.intent;
     };
 
-    const latestSms = smsHistory[smsHistory.length - 1];
-    const hasBeenNotified = smsHistory.some(
-        sms => sms.status === "delivered" && sms.intent === "initial",
-    );
-    const canSendInitial = !hasBeenNotified && !latestSms?.status?.includes("pending");
-    const canSendReminder = hasBeenNotified && !latestSms?.status?.includes("pending");
+    const latestSms = smsHistory.length > 0 ? smsHistory[smsHistory.length - 1] : null;
+
+    // In test mode, consider "sent" as successfully notified since delivery confirmation may not happen
+    const hasBeenNotified = smsHistory.some(sms => {
+        const isDelivered = sms.status === "delivered";
+        const isSentInTestMode = testMode && sms.status === "sent";
+        // Check for "pickup_reminder" which is the actual intent used in the database for initial notifications
+        const isInitial = sms.intent === "pickup_reminder";
+        return (isDelivered || isSentInTestMode) && isInitial;
+    });
+
+    const canSendInitial =
+        !hasBeenNotified && (!latestSms || !["queued", "sending"].includes(latestSms.status));
+    const canSendReminder =
+        hasBeenNotified && (!latestSms || !["queued", "sending"].includes(latestSms.status));
 
     return (
         <Card withBorder p="sm" radius="md">
@@ -168,7 +198,7 @@ export default function SmsManagementPanel({
                         </Text>
                     ) : (
                         <Timeline active={smsHistory.length} bulletSize={24} lineWidth={2}>
-                            {smsHistory.map(sms => (
+                            {smsHistory.map((sms, index) => (
                                 <Timeline.Item
                                     key={sms.id}
                                     bullet={
@@ -188,13 +218,13 @@ export default function SmsManagementPanel({
                                             {sms.status === "delivered" && <IconCheck size={12} />}
                                             {sms.status === "failed" && <IconX size={12} />}
                                             {sms.status === "sent" && <IconSend size={12} />}
-                                            {sms.status === "pending" && <IconClock size={12} />}
+                                            {sms.status === "queued" && <IconClock size={12} />}
                                         </ThemeIcon>
                                     }
                                     title={
                                         <Group gap="xs">
                                             <Text size="sm" fw={500}>
-                                                {getIntentLabel(sms.intent)}
+                                                {getIntentLabel(sms, index, smsHistory)}
                                             </Text>
                                             {getStatusBadge(sms.status)}
                                         </Group>
@@ -213,14 +243,14 @@ export default function SmsManagementPanel({
                                                 {sms.deliveredAt.toLocaleString()}
                                             </Text>
                                         )}
-                                        {sms.failureReason && (
+                                        {sms.lastErrorMessage && (
                                             <Text size="xs" c="red">
-                                                {t("historyModal.error")}: {sms.failureReason}
+                                                {t("historyModal.error")}: {sms.lastErrorMessage}
                                             </Text>
                                         )}
-                                        {sms.retryCount > 0 && (
+                                        {sms.attemptCount > 0 && (
                                             <Text size="xs" c="dimmed">
-                                                {t("historyModal.retries")}: {sms.retryCount}
+                                                {t("historyModal.retries")}: {sms.attemptCount}
                                             </Text>
                                         )}
                                     </Stack>

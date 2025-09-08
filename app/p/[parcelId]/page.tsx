@@ -13,8 +13,18 @@ import {
     type SupportedLocale,
 } from "@/app/utils/locale-detection";
 import { QRCodeCanvas } from "@/app/components/QRCodeCanvas";
-import { Container, Paper, Title, Text, Group, Badge, Button, Stack, Divider } from "@mantine/core";
-import { IconMapPin, IconClock, IconQrcode, IconExternalLink } from "@tabler/icons-react";
+import {
+    Paper,
+    Title,
+    Text,
+    Group,
+    Badge,
+    Button,
+    Stack,
+    Divider,
+    MantineProvider,
+} from "@mantine/core";
+import { IconMapPin, IconClock, IconExternalLink } from "@tabler/icons-react";
 
 interface PublicParcelPageProps {
     params: {
@@ -118,15 +128,17 @@ export default async function PublicParcelPage({ params }: PublicParcelPageProps
     const adminUrl = generateAdminUrl(parcel.id);
 
     return (
-        <html lang={locale} dir={isRtl ? "rtl" : "ltr"}>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <title>
-                    {messages.publicParcel.title} - {parcel.householdName}
-                </title>
-            </head>
-            <body style={{ margin: 0, padding: 0, backgroundColor: "#f8f9fa" }}>
-                <Container size="sm" py="xl" style={{ minHeight: "100vh" }}>
+        <MantineProvider defaultColorScheme="light">
+            <div
+                dir={isRtl ? "rtl" : "ltr"}
+                style={{
+                    margin: 0,
+                    padding: "16px",
+                    backgroundColor: "#f8f9fa",
+                    minHeight: "100vh",
+                }}
+            >
+                <Stack gap="lg" maw={600} mx="auto">
                     <Stack gap="lg">
                         {/* Header */}
                         <Paper p="lg" radius="md" shadow="sm">
@@ -173,25 +185,43 @@ export default async function PublicParcelPage({ params }: PublicParcelPageProps
 
                         {/* Pickup Information */}
                         <Paper p="lg" radius="md" shadow="sm">
-                            <Title order={2} size="h3" mb="md">
-                                {messages.publicParcel.pickupInfo}
-                            </Title>
-
                             <Stack gap="md">
-                                {/* Location */}
-                                <Group gap="sm" align="flex-start">
+                                {/* Location with Maps */}
+                                <Group gap="sm" align="flex-start" wrap="nowrap">
                                     <IconMapPin size={20} style={{ marginTop: 2, flexShrink: 0 }} />
-                                    <div>
-                                        <Text fw={500} mb={2}>
-                                            {messages.publicParcel.location}
-                                        </Text>
+                                    <Stack gap="xs" style={{ flex: 1 }}>
+                                        <Text fw={500}>{messages.publicParcel.location}</Text>
                                         <Text size="sm" c="dark.6">
                                             {parcel.locationName}
                                         </Text>
-                                        <Text size="sm" c="dark.6">
+                                        <Text size="sm" c="dark.6" mb="xs">
                                             {parcel.locationAddress}
                                         </Text>
-                                    </div>
+                                        <Group gap="xs">
+                                            <Button
+                                                size="xs"
+                                                variant="light"
+                                                leftSection={<IconExternalLink size={14} />}
+                                                component="a"
+                                                href={mapsUrls.google}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {messages.publicParcel.googleMaps}
+                                            </Button>
+                                            <Button
+                                                size="xs"
+                                                variant="light"
+                                                leftSection={<IconExternalLink size={14} />}
+                                                component="a"
+                                                href={mapsUrls.apple}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {messages.publicParcel.appleMaps}
+                                            </Button>
+                                        </Group>
+                                    </Stack>
                                 </Group>
 
                                 <Divider />
@@ -214,55 +244,20 @@ export default async function PublicParcelPage({ params }: PublicParcelPageProps
                             </Stack>
                         </Paper>
 
-                        {/* QR Code */}
+                        {/* QR Code - Mobile First, Large and Centered */}
                         {status !== "expired" && (
                             <Paper p="lg" radius="md" shadow="sm">
-                                <Group gap="sm" mb="md">
-                                    <IconQrcode size={20} />
-                                    <Text fw={500}>{messages.publicParcel.qrCodeLabel}</Text>
-                                </Group>
-                                <Text size="sm" c="dark.6" mb="md">
-                                    {messages.publicParcel.qrCodeDescription}
-                                </Text>
-                                <div style={{ display: "flex", justifyContent: "center" }}>
-                                    <QRCodeCanvas value={adminUrl} size={200} />
-                                </div>
+                                <Stack gap="md" align="center">
+                                    <QRCodeCanvas value={adminUrl} size={240} />
+                                    <Text size="sm" c="dark.6" ta="center" maw={280}>
+                                        {messages.publicParcel.qrCodeDescription}
+                                    </Text>
+                                </Stack>
                             </Paper>
                         )}
-
-                        {/* Maps Links */}
-                        <Paper p="lg" radius="md" shadow="sm">
-                            <Text fw={500} mb="md">
-                                {messages.publicParcel.mapsLabel}
-                            </Text>
-                            <Group gap="md">
-                                <Button
-                                    variant="outline"
-                                    leftSection={<IconExternalLink size={16} />}
-                                    component="a"
-                                    href={mapsUrls.google}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    fullWidth
-                                >
-                                    {messages.publicParcel.googleMaps}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    leftSection={<IconExternalLink size={16} />}
-                                    component="a"
-                                    href={mapsUrls.apple}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    fullWidth
-                                >
-                                    {messages.publicParcel.appleMaps}
-                                </Button>
-                            </Group>
-                        </Paper>
                     </Stack>
-                </Container>
-            </body>
-        </html>
+                </Stack>
+            </div>
+        </MantineProvider>
     );
 }

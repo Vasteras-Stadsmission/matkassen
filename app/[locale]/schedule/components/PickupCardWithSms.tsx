@@ -10,16 +10,7 @@ import { useTranslations } from "next-intl";
 import { memo, useMemo, useState, useEffect } from "react";
 import SmsManagementPanel from "./SmsManagementPanel";
 import { useSmsManagement } from "../hooks/useSmsManagement";
-
-interface SmsRecord {
-    id: string;
-    intent: "initial" | "reminder" | "manual";
-    status: "pending" | "sent" | "delivered" | "failed" | "cancelled";
-    sentAt?: Date;
-    deliveredAt?: Date;
-    failureReason?: string;
-    retryCount: number;
-}
+import { SmsRecord } from "@/app/utils/sms/sms-service";
 
 interface PickupCardWithSmsProps {
     foodParcel: FoodParcel;

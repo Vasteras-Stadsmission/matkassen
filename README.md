@@ -78,6 +78,43 @@ For detailed GitHub setup instructions, see:
 - Only `vasteras-stadsmission` organization members can access the application
 - Non-members see a clear access denied message
 
+## SMS Notifications
+
+Matkassen includes automated SMS notifications to inform households about their food parcel pickups. The system uses HelloSMS as the SMS provider and supports both test and production modes.
+
+### Features
+
+- **Automated Notifications**: Initial SMS when parcels are scheduled, reminder SMS closer to pickup time
+- **Multi-language Support**: SMS templates in Swedish, English, Arabic, and Somali
+- **Queue Processing**: Background scheduler processes SMS queue every 30 seconds
+- **Rate Limiting**: 5-minute cooldown between SMS to prevent spam
+- **Test Mode**: Safe testing environment with HelloSMS test mode
+- **Admin Interface**: SMS management panel for sending/resending individual messages
+
+### How It Works
+
+1. **Scheduling**: SMS are automatically queued when food parcels are created
+2. **Processing**: Background scheduler sends queued SMS via HelloSMS API
+3. **Delivery**: One-way SMS delivery - recipients cannot reply to notifications
+4. **Tracking**: All SMS delivery status and history is logged in the database
+
+### SMS Content
+
+SMS messages include:
+- Household name and personalized greeting
+- Pickup date and time window
+- Pickup location name and address
+- Link to public parcel page with QR code for verification
+
+**Note**: SMS notifications are transactional (pickup reminders), not marketing messages. Recipients who no longer want notifications should be removed from the system entirely by an administrator.
+
+### Configuration
+
+Set these environment variables for SMS functionality:
+- `HELLO_SMS_USERNAME` / `HELLO_SMS_PASSWORD` - HelloSMS API credentials
+- `HELLO_SMS_TEST_MODE=true/false` - Enable test mode for development
+- `HELLO_SMS_FROM=Matkassen` - Sender name displayed to recipients
+
 ## Database Migration Workflow
 
 The project uses Drizzle ORM with a migration-based approach:

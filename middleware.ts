@@ -54,15 +54,19 @@ export default async function middleware(request: NextRequest) {
     // - /favicon.svg and /flags/*
     // This means the middleware only runs on page routes that need locale handling
 
-    // 2. Public routes - apply only i18n middleware, no auth checks
+    // 2. Public routes - handle differently based on type
     const publicPatterns = [
         /^\/(en|sv)\/auth\/.*/, // Auth pages with locale prefixes
         /^\/auth\/.*/, // Auth pages without locale prefixes (from Auth.js redirects)
-        /^\/p\/.*/, // Public parcel pages (/p/[parcelId])
-        /^\/(en|sv)\/p\/.*/, // Public parcel pages with locale prefixes
+    ];
+
+    // Public parcel pages should bypass locale routing entirely
+    const publicParcelPatterns = [
+        /^\/p\/.*/, // Public parcel pages (/p/[parcelId]) - no locale prefix
     ];
 
     const isPublicRoute = publicPatterns.some(pattern => pattern.test(pathname));
+    const isPublicParcelRoute = publicParcelPatterns.some(pattern => pattern.test(pathname));
 
     // 2a. Public API routes - no auth, no i18n middleware
     const publicApiPatterns = [
@@ -79,6 +83,12 @@ export default async function middleware(request: NextRequest) {
     };
 
     if (isPublicApiRoute) {
+        const response = NextResponse.next();
+        return addCSPHeaders(response);
+    }
+
+    // Handle public parcel pages - bypass locale routing completely
+    if (isPublicParcelRoute) {
         const response = NextResponse.next();
         return addCSPHeaders(response);
     }

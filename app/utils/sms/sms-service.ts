@@ -6,6 +6,7 @@ import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { eq, and, lte, sql, gte } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
+import { Time } from "@/app/utils/time-provider";
 // Note: normalizePhoneToE164 available but not used in this service layer
 // Individual functions handle normalization as needed
 import { nanoid } from "nanoid";
@@ -52,6 +53,7 @@ export interface SmsRecord {
 // Create a new SMS record
 export async function createSmsRecord(data: CreateSmsData): Promise<string> {
     const id = nanoid(16);
+    const now = Time.now().toUTC();
 
     await db.insert(outgoingSms).values({
         id,
@@ -63,7 +65,8 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
         text: data.text,
         status: "queued",
         attempt_count: 0,
-        created_at: new Date(),
+        next_attempt_at: now, // Set to now so it's immediately ready for sending
+        created_at: now,
     });
 
     console.log(`📧 SMS record created: ${id} for ${data.toE164} (${data.intent})`);
@@ -83,7 +86,7 @@ export async function getSmsRecordsForParcel(parcelId: string): Promise<SmsRecor
 
 // Get SMS records ready for sending (due now)
 export async function getSmsRecordsReadyForSending(limit = 10): Promise<SmsRecord[]> {
-    const now = new Date();
+    const now = Time.now().toUTC();
 
     const records = await db
         .select()
@@ -117,12 +120,12 @@ export async function updateSmsStatus(
     };
 
     if (status === "sent") {
-        updateData.sent_at = new Date();
+        updateData.sent_at = Time.now().toUTC();
         updateData.provider_message_id = options.providerMessageId;
     } else if (status === "delivered") {
-        updateData.delivered_at = new Date();
+        updateData.delivered_at = Time.now().toUTC();
     } else if (status === "failed") {
-        updateData.failed_at = new Date();
+        updateData.failed_at = Time.now().toUTC();
         updateData.last_error_code = options.errorCode;
         updateData.last_error_message = options.errorMessage;
     } else if (status === "retrying") {
@@ -145,9 +148,9 @@ export async function updateSmsDeliveryStatus(
     const updateData: Record<string, unknown> = { status };
 
     if (delivered) {
-        updateData.delivered_at = new Date();
+        updateData.delivered_at = Time.now().toUTC();
     } else {
-        updateData.failed_at = new Date();
+        updateData.failed_at = Time.now().toUTC();
     }
 
     const result = await db
@@ -209,7 +212,9 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
     if (shouldRetry) {
         // Calculate backoff: 5s, 15s, 60s
         const backoffSeconds = [5, 15, 60][Math.min(nextAttemptCount - 1, 2)];
-        const nextAttemptAt = new Date(Date.now() + backoffSeconds * 1000);
+        const nextAttemptAt = Time.now()
+            .addMinutes(backoffSeconds / 60)
+            .toUTC();
 
         await updateSmsStatus(record.id, "retrying", {
             errorCode: result.httpStatus?.toString(),
@@ -261,9 +266,9 @@ export async function getParcelsNeedingReminder(): Promise<
         locationAddress: string;
     }>
 > {
-    const now = new Date();
-    const start = new Date(now.getTime() + 47 * 60 * 60 * 1000); // 47 hours from now
-    const end = new Date(now.getTime() + 49 * 60 * 60 * 1000); // 49 hours from now
+    const now = Time.now();
+    const start = now.addMinutes(47 * 60).toUTC(); // 47 hours from now
+    const end = now.addMinutes(49 * 60).toUTC(); // 49 hours from now
 
     const parcels = await db
         .select({

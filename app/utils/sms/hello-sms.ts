@@ -25,9 +25,14 @@ export interface SendSmsResponse {
 }
 
 export interface HelloSmsApiResponse {
-    success: boolean;
-    message_id?: string;
-    error?: string;
+    status?: string;
+    statusText?: string;
+    messageIds?: Array<{
+        apiMessageId: string;
+        to: string;
+        status: number;
+        message: string;
+    }>;
 }
 
 // Environment configuration
@@ -36,8 +41,7 @@ export function getHelloSmsConfig(): HelloSmsConfig {
         apiUrl: process.env.HELLO_SMS_API_URL || "https://api.hellosms.se/v1/sms",
         username: process.env.HELLO_SMS_USERNAME || "",
         password: process.env.HELLO_SMS_PASSWORD || "",
-        testMode:
-            process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production",
+        testMode: process.env.HELLO_SMS_TEST_MODE === "true",
         from: process.env.HELLO_SMS_FROM || "Matkassen",
     };
 }
@@ -71,24 +75,8 @@ export function normalizePhoneToE164(phone: string, defaultCountryCode = "+46"):
     return "+" + digitsOnly;
 }
 
-// Test mode and failure injection logic
-function shouldInjectFailure(): boolean {
-    const failureRate = parseFloat(process.env.HELLO_SMS_FAILURE_INJECTION_RATE || "0");
-    return failureRate > 0 && Math.random() < failureRate;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getTestModeResponse(_request: SendSmsRequest): SendSmsResponse {
-    // Simulate different outcomes in test mode
-    if (shouldInjectFailure()) {
-        const failures = [
-            { success: false, error: "Rate limit exceeded", httpStatus: 429 },
-            { success: false, error: "Service temporarily unavailable", httpStatus: 503 },
-            { success: false, error: "Invalid phone number", httpStatus: 400 },
-        ];
-        return failures[Math.floor(Math.random() * failures.length)];
-    }
-
     // Success response with fake message ID
     return {
         success: true,
@@ -100,8 +88,16 @@ function getTestModeResponse(_request: SendSmsRequest): SendSmsResponse {
 export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse> {
     const config = getHelloSmsConfig();
 
+    console.log("🔧 SMS Config:", {
+        apiUrl: config.apiUrl,
+        username: config.username,
+        testMode: config.testMode,
+        from: config.from,
+    });
+
     // Validate configuration
     if (!config.username || !config.password) {
+        console.error("❌ HelloSMS credentials not configured");
         return {
             success: false,
             error: "HelloSMS credentials not configured",
@@ -110,6 +106,7 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
 
     // Normalize phone number
     const normalizedTo = normalizePhoneToE164(request.to);
+    console.log(`📱 Normalized phone: ${request.to} -> ${normalizedTo}`);
 
     // Handle test mode
     if (config.testMode) {
@@ -117,13 +114,23 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
         return getTestModeResponse(request);
     }
 
+    console.log(`🚀 Sending REAL SMS to ${normalizedTo} via HelloSMS API...`);
+
     try {
         // Prepare HelloSMS API request
         const body = {
             to: normalizedTo,
-            text: request.text,
+            message: request.text, // HelloSMS expects 'message', not 'text'
             from: request.from || config.from,
+            sendApiCallback: true, // Enable delivery status callbacks
         };
+
+        console.log("📤 HelloSMS API Request:", {
+            url: config.apiUrl,
+            method: "POST",
+            body: body,
+            authConfigured: !!config.username && !!config.password,
+        });
 
         const response = await fetch(config.apiUrl, {
             method: "POST",
@@ -134,22 +141,29 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
             body: JSON.stringify(body),
         });
 
-        const responseData = (await response.json()) as HelloSmsApiResponse;
+        console.log(`📥 HelloSMS API Response: ${response.status} ${response.statusText}`);
 
-        if (response.ok && responseData.success) {
+        const responseData = (await response.json()) as HelloSmsApiResponse;
+        console.log("📄 HelloSMS Response Data:", responseData);
+
+        if (response.ok && responseData.status === "success") {
+            const messageId = responseData.messageIds?.[0]?.apiMessageId || "unknown";
+            console.log(`✅ HelloSMS API Success: Message ID ${messageId}`);
             return {
                 success: true,
-                messageId: responseData.message_id,
+                messageId: messageId,
             };
         } else {
+            const errorMsg = responseData.statusText || `HTTP ${response.status}`;
+            console.error(`❌ HelloSMS API Error: ${errorMsg}`);
             return {
                 success: false,
-                error: responseData.error || `HTTP ${response.status}`,
+                error: errorMsg,
                 httpStatus: response.status,
             };
         }
     } catch (error) {
-        console.error("HelloSMS API error:", error);
+        console.error("💥 HelloSMS API Exception:", error);
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",

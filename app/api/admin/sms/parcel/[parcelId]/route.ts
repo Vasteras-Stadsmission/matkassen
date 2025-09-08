@@ -8,7 +8,11 @@ import {
     createSmsRecord,
     smsExistsForParcel,
 } from "@/app/utils/sms/sms-service";
-import { formatPickupReminderSms, formatDateTimeForSms } from "@/app/utils/sms/templates";
+import {
+    formatInitialPickupSms,
+    formatReminderPickupSms,
+    formatDateTimeForSms,
+} from "@/app/utils/sms/templates";
 import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
 
 // GET /api/admin/sms/parcel/[parcelId] - Get SMS history for a parcel
@@ -28,11 +32,13 @@ export async function GET(
         // Check if reminder SMS already exists
         const reminderExists = await smsExistsForParcel(parcelId, "pickup_reminder");
 
+        const testMode =
+            process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production";
+
         return NextResponse.json({
             smsRecords,
             reminderExists,
-            testMode:
-                process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production",
+            testMode,
         });
     } catch (error) {
         console.error("Error fetching SMS records:", error);
@@ -52,10 +58,34 @@ export async function POST(
         }
 
         const { parcelId } = await params;
-        const { action } = await request.json();
+        const { action, intent, forceFailure } = await request.json();
 
         if (action !== "send" && action !== "resend") {
             return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        }
+
+        // Handle test failure injection
+        if (forceFailure && process.env.HELLO_SMS_TEST_MODE === "true") {
+            console.log("🧪 Test failure injection activated:", forceFailure);
+
+            if (forceFailure === "api_error") {
+                return NextResponse.json(
+                    { error: "Simulated API error for testing" },
+                    { status: 500 },
+                );
+            } else if (forceFailure === "invalid_phone") {
+                return NextResponse.json({ error: "Invalid phone number format" }, { status: 400 });
+            } else if (forceFailure === "rate_limit") {
+                return NextResponse.json(
+                    { error: "Rate limit exceeded (simulated)" },
+                    { status: 429 },
+                );
+            } else if (forceFailure === "service_unavailable") {
+                return NextResponse.json(
+                    { error: "SMS service temporarily unavailable" },
+                    { status: 503 },
+                );
+            }
         }
 
         // Get complete parcel data with household and location
@@ -86,22 +116,34 @@ export async function POST(
         const parcelData = result[0];
         const householdName = `${parcelData.householdName.first} ${parcelData.householdName.last}`;
 
-        // Check cooldown for resend (prevent spam)
-        if (action === "resend") {
-            const existingRecords = await getSmsRecordsForParcel(parcelId);
-            const recentRecord = existingRecords.find(record => {
-                const timeSince = Date.now() - record.createdAt.getTime();
-                return timeSince < 5 * 60 * 1000; // 5 minutes cooldown
-            });
+        // Determine the actual intent based on existing SMS and user request
+        const existingRecords = await getSmsRecordsForParcel(parcelId);
+        const hasSuccessfulInitial = existingRecords.some(record =>
+            ["sent", "delivered"].includes(record.status),
+        );
 
-            if (recentRecord) {
-                return NextResponse.json(
-                    {
-                        error: "Please wait at least 5 minutes before resending SMS",
-                    },
-                    { status: 429 },
-                );
-            }
+        // Determine SMS type for logging and response
+        let smsType = "initial"; // For logging and response
+
+        if (intent === "reminder" || (intent === "manual" && hasSuccessfulInitial)) {
+            smsType = "reminder";
+        } else if (intent === "initial" || intent === "manual") {
+            smsType = "initial";
+        }
+
+        // Check cooldown for any SMS sending (prevent spam)
+        const recentRecord = existingRecords.find(record => {
+            const timeSince = Date.now() - record.createdAt.getTime();
+            return timeSince < 5 * 60 * 1000; // 5 minutes cooldown
+        });
+
+        if (recentRecord) {
+            return NextResponse.json(
+                {
+                    error: "Please wait at least 5 minutes before sending another SMS",
+                },
+                { status: 429 },
+            );
         }
 
         // Generate SMS content
@@ -113,17 +155,20 @@ export async function POST(
             parcelData.householdLocale,
         );
 
-        const smsText = formatPickupReminderSms(
-            {
-                householdName,
-                pickupDate: date,
-                pickupTime: time,
-                locationName: parcelData.locationName,
-                locationAddress: parcelData.locationAddress,
-                publicUrl,
-            },
-            parcelData.householdLocale,
-        );
+        // Use appropriate template based on SMS type
+        const templateData = {
+            householdName,
+            pickupDate: date,
+            pickupTime: time,
+            locationName: parcelData.locationName,
+            locationAddress: parcelData.locationAddress,
+            publicUrl,
+        };
+
+        const smsText =
+            smsType === "reminder"
+                ? formatReminderPickupSms(templateData, parcelData.householdLocale)
+                : formatInitialPickupSms(templateData, parcelData.householdLocale);
 
         // Create SMS record
         const smsId = await createSmsRecord({
@@ -138,7 +183,11 @@ export async function POST(
         return NextResponse.json({
             success: true,
             smsId,
-            message: action === "resend" ? "SMS queued for resending" : "SMS queued for sending",
+            smsType, // Add the determined SMS type
+            message:
+                action === "resend"
+                    ? "SMS queued for resending"
+                    : `${smsType} SMS queued for sending`,
             testMode:
                 process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production",
         });

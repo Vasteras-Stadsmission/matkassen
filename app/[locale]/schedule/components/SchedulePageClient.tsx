@@ -26,7 +26,8 @@ import {
     IconCalendarDue,
     IconClock,
 } from "@tabler/icons-react";
-import { FoodParcel, PickupLocation, getFoodParcelsForWeek, getPickupLocations } from "../actions";
+import { getFoodParcelsForWeek, getPickupLocations } from "../actions";
+import { FoodParcel, PickupLocation } from "../types";
 import { recomputeOutsideHoursCountAction } from "../client-actions";
 import WeeklyScheduleGrid from "../components/WeeklyScheduleGrid";
 import { getISOWeekNumber, getWeekDates } from "../../../utils/date-utils";

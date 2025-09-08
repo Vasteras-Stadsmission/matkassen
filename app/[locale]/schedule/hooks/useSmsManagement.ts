@@ -3,16 +3,7 @@
 import { useState, useCallback } from "react";
 import { notifications } from "@mantine/notifications";
 import { useTranslations } from "next-intl";
-
-interface SmsRecord {
-    id: string;
-    intent: "initial" | "reminder" | "manual";
-    status: "pending" | "sent" | "delivered" | "failed" | "cancelled";
-    sentAt?: Date;
-    deliveredAt?: Date;
-    failureReason?: string;
-    retryCount: number;
-}
+import { SmsRecord } from "@/app/utils/sms/sms-service";
 
 export function useSmsManagement() {
     const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +18,7 @@ export function useSmsManagement() {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ action: "send" }),
+                    body: JSON.stringify({ action: "send", intent }),
                 });
 
                 const data = await response.json();
@@ -39,6 +30,15 @@ export function useSmsManagement() {
                         color: "green",
                     });
                     return true;
+                } else if (response.status === 429) {
+                    // Handle rate limiting gracefully with a warning notification
+                    notifications.show({
+                        title: "Rate Limited",
+                        message: data.error || "Please wait before sending another SMS",
+                        color: "yellow",
+                        autoClose: 7000, // Show longer for rate limit messages
+                    });
+                    return false;
                 } else {
                     throw new Error(data.error || "Failed to send SMS");
                 }
@@ -79,6 +79,15 @@ export function useSmsManagement() {
                         color: "green",
                     });
                     return true;
+                } else if (response.status === 429) {
+                    // Handle rate limiting gracefully with a warning notification
+                    notifications.show({
+                        title: "Rate Limited",
+                        message: data.error || "Please wait before resending SMS",
+                        color: "yellow",
+                        autoClose: 7000, // Show longer for rate limit messages
+                    });
+                    return false;
                 } else {
                     throw new Error(data.error || "Failed to resend SMS");
                 }
@@ -102,6 +111,7 @@ export function useSmsManagement() {
         try {
             const response = await fetch(`/api/admin/sms/parcel/${parcelId}`);
             const contentType = response.headers.get("content-type") || "";
+
             if (!response.ok) {
                 // Try to parse JSON error safely, otherwise use status text
                 let serverError = `${response.status} ${response.statusText}`;
@@ -112,6 +122,14 @@ export function useSmsManagement() {
                     } catch {}
                 }
                 console.error("Error fetching SMS history:", serverError);
+
+                // If it's a 401, the user might need to sign in again
+                if (response.status === 401) {
+                    console.warn(
+                        "Authentication required for SMS history. User may need to sign in again.",
+                    );
+                }
+
                 return [];
             }
 
@@ -122,7 +140,7 @@ export function useSmsManagement() {
             }
 
             const data = await response.json();
-            if (response.ok) {
+            if (response.ok && data.smsRecords) {
                 return data.smsRecords.map(
                     (sms: {
                         id: string;
