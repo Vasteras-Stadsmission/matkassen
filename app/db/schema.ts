@@ -194,13 +194,27 @@ export const pickupLocationScheduleDays = pgTable(
     ],
 );
 
+// Define SMS intent enum
+export const smsIntentEnum = pgEnum("sms_intent", ["pickup_reminder", "consent_enrolment"]);
+
+// Define SMS status enum
+export const smsStatusEnum = pgEnum("sms_status", [
+    "queued",
+    "sending",
+    "sent",
+    "delivered",
+    "not_delivered",
+    "retrying",
+    "failed",
+]);
+
 export const foodParcels = pgTable(
     "food_parcels",
     {
         id: text("id")
             .primaryKey()
             .notNull()
-            .$defaultFn(() => nanoid(8)),
+            .$defaultFn(() => nanoid(12)), // Change to 12 chars as requested
         household_id: text("household_id")
             .notNull()
             .references(() => households.id, { onDelete: "cascade" }),
@@ -210,12 +224,50 @@ export const foodParcels = pgTable(
         pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
         pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
         is_picked_up: boolean("is_picked_up").notNull().default(false),
+        picked_up_at: timestamp({ precision: 1, withTimezone: true }), // New field for pickup timestamp
+        picked_up_by_user_id: varchar("picked_up_by_user_id", { length: 50 }), // GitHub username of admin who marked as picked up
     },
     table => [
         check(
             "pickup_time_range_check",
             sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
         ),
+    ],
+);
+
+export const outgoingSms = pgTable(
+    "outgoing_sms",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(12)),
+        intent: smsIntentEnum("intent").notNull(),
+        parcel_id: text("parcel_id").references(() => foodParcels.id, { onDelete: "cascade" }), // Nullable for non-parcel intents
+        household_id: text("household_id")
+            .notNull()
+            .references(() => households.id, { onDelete: "cascade" }),
+        to_e164: varchar("to_e164", { length: 20 }).notNull(), // E.164 format phone number (+46...)
+        locale: varchar("locale", { length: 2 }).notNull(), // Stored at send time
+        text: text("text").notNull(), // Final message body
+        status: smsStatusEnum("status").notNull().default("queued"),
+        attempt_count: integer("attempt_count").notNull().default(0),
+        next_attempt_at: timestamp({ precision: 1, withTimezone: true }),
+        provider_message_id: varchar("provider_message_id", { length: 100 }), // HelloSMS message ID
+        last_error_code: varchar("last_error_code", { length: 20 }),
+        last_error_message: text("last_error_message"),
+        created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        sent_at: timestamp({ precision: 1, withTimezone: true }),
+        delivered_at: timestamp({ precision: 1, withTimezone: true }),
+        failed_at: timestamp({ precision: 1, withTimezone: true }),
+    },
+    table => [
+        // Ensure one SMS per parcel for reminder intent
+        index("idx_outgoing_sms_parcel_intent_unique").on(table.intent, table.parcel_id),
+        // Index for efficient querying by status and next attempt time
+        index("idx_outgoing_sms_status_next_attempt").on(table.status, table.next_attempt_at),
+        // Index for efficient lookup by provider message ID
+        index("idx_outgoing_sms_provider_id").on(table.provider_message_id),
     ],
 );
 

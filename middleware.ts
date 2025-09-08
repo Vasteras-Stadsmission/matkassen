@@ -29,7 +29,9 @@ function createCSP(nonce: string): string {
         "form-action 'self' https://github.com",
         "base-uri 'self'",
         "object-src 'none'",
-        "upgrade-insecure-requests",
+        // In development on http://localhost, forcing upgrade can break same-origin fetches
+        // with "TypeError: Failed to fetch". Only enable in non-dev environments.
+        ...(isDev ? [] : ["upgrade-insecure-requests"]),
         "report-uri /api/csp-report",
     ];
 
@@ -45,8 +47,8 @@ export default async function middleware(request: NextRequest) {
     // Generate nonce for CSP
     const nonce = generateNonce();
 
-    // Note: Our config.matcher already excludes:
-    // - /api/* routes (including /api/csp-report and /api/auth)
+    // Note: Our config.matcher excludes:
+    // - All /api/* routes (including /api/csp-report and /api/auth)
     // - /_next/* routes
     // - /static/* paths
     // - /favicon.svg and /flags/*
@@ -56,9 +58,18 @@ export default async function middleware(request: NextRequest) {
     const publicPatterns = [
         /^\/(en|sv)\/auth\/.*/, // Auth pages with locale prefixes
         /^\/auth\/.*/, // Auth pages without locale prefixes (from Auth.js redirects)
+        /^\/p\/.*/, // Public parcel pages (/p/[parcelId])
+        /^\/(en|sv)\/p\/.*/, // Public parcel pages with locale prefixes
     ];
 
     const isPublicRoute = publicPatterns.some(pattern => pattern.test(pathname));
+
+    // 2a. Public API routes - no auth, no i18n middleware
+    const publicApiPatterns = [
+        /^\/api\/sms\/callback\/.*/, // SMS delivery callback endpoint
+    ];
+
+    const isPublicApiRoute = publicApiPatterns.some(pattern => pattern.test(pathname));
 
     // Helper function to add CSP headers to response
     const addCSPHeaders = (response: NextResponse) => {
@@ -66,6 +77,11 @@ export default async function middleware(request: NextRequest) {
         response.headers.set("x-nonce", nonce);
         return response;
     };
+
+    if (isPublicApiRoute) {
+        const response = NextResponse.next();
+        return addCSPHeaders(response);
+    }
 
     if (isPublicRoute) {
         const response = intlMiddleware(request);
@@ -125,12 +141,9 @@ export const config = {
          * - _next/image (image optimization files)
          * - favicon.svg (favicon file)
          * - flags (flag images)
-         * - api/auth (Auth.js routes)
-         * - api/csp-report (CSP reporting endpoint)
-         * - api/health (Health check endpoint)
-         * This ensures that all other routes, including other API routes and all page routes,
-         * are processed by the middleware.
+         * - api/ (exclude all API routes from middleware)
+         * This ensures only page routes are processed by the middleware.
          */
-        "/((?!_next/static|_next/image|favicon.svg|flags/|api/auth|api/csp-report|api/health).*)",
+        "/((?!_next/static|_next/image|favicon.svg|flags/|api/).*)",
     ],
 };

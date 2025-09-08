@@ -281,6 +281,47 @@
             "dateUnavailable": "This date is not available for pickup",
             "noTimesAvailable": "No available times on this date",
             "requiredFields": "Please fill all required fields"
+        },
+        "sms": {
+            "title": "SMS Notifications",
+            "viewHistory": "View SMS history",
+            "status": {
+                "pending": "Pending",
+                "sent": "Sent",
+                "delivered": "Delivered",
+                "failed": "Failed",
+                "cancelled": "Cancelled"
+            },
+            "intent": {
+                "initial": "Initial notification",
+                "reminder": "Reminder",
+                "manual": "Manual message"
+            },
+            "actions": {
+                "sendInitial": "Send Initial",
+                "sendReminder": "Send Reminder",
+                "resend": "Resend"
+            },
+            "notifications": {
+                "noInitialSms": "Household has not been notified yet",
+                "sendSuccess": "SMS Sent",
+                "initialSendSuccess": "Initial notification sent successfully",
+                "reminderSendSuccess": "Reminder sent successfully",
+                "manualSendSuccess": "Manual message sent successfully",
+                "resendSuccess": "SMS Resent",
+                "smsQueued": "SMS has been queued for delivery",
+                "sendError": "Failed to Send SMS",
+                "resendError": "Failed to Resend SMS",
+                "genericError": "An unexpected error occurred"
+            },
+            "historyModal": {
+                "title": "SMS History",
+                "noHistory": "No SMS messages sent for this parcel",
+                "sentAt": "Sent",
+                "deliveredAt": "Delivered",
+                "error": "Error",
+                "retries": "Retries"
+            }
         }
     },
     "householdDetail": {
@@ -582,5 +623,55 @@
         "proceedAnyway": "Proceed anyway",
         "checking": "Checking...",
         "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion..."
+    },
+    "sms": {
+        "title": "SMS Notifications",
+        "testModeWarning": "TEST MODE: SMS messages will be simulated, not actually sent",
+        "status": {
+            "queued": "Queued",
+            "sending": "Sending",
+            "sent": "Sent",
+            "delivered": "Delivered",
+            "not_delivered": "Not Delivered",
+            "retrying": "Retrying",
+            "failed": "Failed"
+        },
+        "actions": {
+            "markPickedUp": "Mark as Picked Up",
+            "previewSms": "Preview SMS",
+            "resendSms": "Resend SMS",
+            "sendSms": "Send SMS",
+            "simulateDelivered": "Simulate Delivered",
+            "simulateNotDelivered": "Simulate Not Delivered"
+        },
+        "history": {
+            "title": "SMS History",
+            "noSms": "No SMS messages sent for this parcel",
+            "intent": "Type",
+            "status": "Status",
+            "attempts": "Attempts",
+            "createdAt": "Created",
+            "sentAt": "Sent",
+            "deliveredAt": "Delivered",
+            "error": "Error"
+        },
+        "preview": {
+            "title": "SMS Preview",
+            "recipient": "Recipient",
+            "message": "Message",
+            "locale": "Language"
+        },
+        "notifications": {
+            "markedPickedUp": "Food parcel marked as picked up",
+            "smsQueued": "SMS queued for sending",
+            "smsResent": "SMS queued for resending",
+            "deliverySimulated": "Delivery status simulated",
+            "cooldownActive": "Please wait before resending SMS",
+            "error": "An error occurred"
+        },
+        "cooldown": {
+            "message": "You can resend SMS in {minutes} minutes",
+            "active": "Resend cooldown active"
+        }
     }
 }
