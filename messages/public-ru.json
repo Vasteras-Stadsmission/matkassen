@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Сканировать QR-код"
+    },
+    "admin": {
+        "title": "Страница администрирования",
+        "openAdminPage": "Открыть страницу администрирования"
+    },
+    "parcel": {
+        "loadingStatus": "Загрузка статуса посылки...",
+        "ready": "Готово к получению",
+        "pickedUp": "Получено",
+        "overdue": "Просрочено",
+        "title": "Продуктовый пакет",
+        "pickupDetails": "Детали получения",
+        "time": "Время",
+        "location": "Место",
+        "status": "Статус",
+        "directions": "Маршрут"
+    },
+    "maps": {
+        "openInAppleMaps": "Открыть в Apple Maps",
+        "openInGoogleMaps": "Открыть в Google Maps"
+    }
+}

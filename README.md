@@ -101,6 +101,7 @@ Matkassen includes automated SMS notifications to inform households about their 
 ### SMS Content
 
 SMS messages include:
+
 - Household name and personalized greeting
 - Pickup date and time window
 - Pickup location name and address
@@ -111,6 +112,7 @@ SMS messages include:
 ### Configuration
 
 Set these environment variables for SMS functionality:
+
 - `HELLO_SMS_USERNAME` / `HELLO_SMS_PASSWORD` - HelloSMS API credentials
 - `HELLO_SMS_TEST_MODE=true/false` - Enable test mode for development
 - `HELLO_SMS_FROM=Matkassen` - Sender name displayed to recipients

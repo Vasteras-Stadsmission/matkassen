@@ -45,7 +45,6 @@ export default function SmsManagementPanel({
     onSendSms,
     onResendSms,
     isLoading = false,
-    testMode = false,
 }: SmsManagementPanelProps) {
     const t = useTranslations("schedule.sms");
     const [showHistory, setShowHistory] = useState(false);
@@ -54,9 +53,7 @@ export default function SmsManagementPanel({
         const statusConfig = {
             queued: { color: "yellow", icon: IconClock, label: "Queued" },
             sending: { color: "blue", icon: IconSend, label: "Sending" },
-            sent: { color: "blue", icon: IconSend, label: t("status.sent") },
-            delivered: { color: "green", icon: IconCheck, label: t("status.delivered") },
-            not_delivered: { color: "orange", icon: IconX, label: "Not Delivered" },
+            sent: { color: "green", icon: IconCheck, label: t("status.sent") },
             retrying: { color: "yellow", icon: IconRefresh, label: "Retrying" },
             failed: { color: "red", icon: IconX, label: t("status.failed") },
         } as const;
@@ -104,20 +101,18 @@ export default function SmsManagementPanel({
 
     const latestSms = smsHistory.length > 0 ? smsHistory[smsHistory.length - 1] : null;
 
-    // In test mode, consider "sent" as successfully notified since delivery confirmation may not happen
+    // In test mode, consider "sent" as successfully notified
     const hasBeenNotified = smsHistory.some(sms => {
-        const isDelivered = sms.status === "delivered";
-        const isSentInTestMode = testMode && sms.status === "sent";
+        const isSent = sms.status === "sent";
         // Check for "pickup_reminder" which is the actual intent used in the database for initial notifications
         const isInitial = sms.intent === "pickup_reminder";
-        return (isDelivered || isSentInTestMode) && isInitial;
+        return isSent && isInitial;
     });
 
     const canSendInitial =
         !hasBeenNotified && (!latestSms || !["queued", "sending"].includes(latestSms.status));
     const canSendReminder =
         hasBeenNotified && (!latestSms || !["queued", "sending"].includes(latestSms.status));
-
     return (
         <Card withBorder p="sm" radius="md">
             <Stack gap="xs">
@@ -206,18 +201,19 @@ export default function SmsManagementPanel({
                                             size={20}
                                             variant="filled"
                                             color={
-                                                sms.status === "delivered"
+                                                sms.status === "sent"
                                                     ? "green"
                                                     : sms.status === "failed"
                                                       ? "red"
-                                                      : sms.status === "sent"
-                                                        ? "blue"
-                                                        : "yellow"
+                                                      : sms.status === "retrying"
+                                                        ? "yellow"
+                                                        : "blue"
                                             }
                                         >
-                                            {sms.status === "delivered" && <IconCheck size={12} />}
+                                            {sms.status === "sent" && <IconCheck size={12} />}
                                             {sms.status === "failed" && <IconX size={12} />}
-                                            {sms.status === "sent" && <IconSend size={12} />}
+                                            {sms.status === "retrying" && <IconRefresh size={12} />}
+                                            {sms.status === "sending" && <IconSend size={12} />}
                                             {sms.status === "queued" && <IconClock size={12} />}
                                         </ThemeIcon>
                                     }
@@ -231,26 +227,20 @@ export default function SmsManagementPanel({
                                     }
                                 >
                                     <Stack gap="xs">
-                                        {sms.sentAt && (
-                                            <Text size="xs" c="dimmed">
-                                                {t("historyModal.sentAt")}:{" "}
-                                                {sms.sentAt.toLocaleString()}
-                                            </Text>
-                                        )}
-                                        {sms.deliveredAt && (
-                                            <Text size="xs" c="dimmed">
-                                                {t("historyModal.deliveredAt")}:{" "}
-                                                {sms.deliveredAt.toLocaleString()}
-                                            </Text>
-                                        )}
+                                        <Text size="xs" c="dimmed">
+                                            Created: {sms.createdAt.toLocaleString()}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            Phone: {sms.toE164}
+                                        </Text>
                                         {sms.lastErrorMessage && (
                                             <Text size="xs" c="red">
-                                                {t("historyModal.error")}: {sms.lastErrorMessage}
+                                                Error: {sms.lastErrorMessage}
                                             </Text>
                                         )}
                                         {sms.attemptCount > 0 && (
                                             <Text size="xs" c="dimmed">
-                                                {t("historyModal.retries")}: {sms.attemptCount}
+                                                Attempts: {sms.attemptCount}
                                             </Text>
                                         )}
                                     </Stack>

@@ -27,9 +27,9 @@ import {
 import { IconMapPin, IconClock, IconExternalLink } from "@tabler/icons-react";
 
 interface PublicParcelPageProps {
-    params: {
+    params: Promise<{
         parcelId: string;
-    };
+    }>;
 }
 
 // Load messages based on locale
@@ -100,7 +100,7 @@ function getStatusBadgeProps(status: ParcelStatus, messages: any) {
 }
 
 export default async function PublicParcelPage({ params }: PublicParcelPageProps) {
-    const { parcelId } = params;
+    const { parcelId } = await params;
 
     // Fetch parcel data
     const parcel = await getPublicParcelData(parcelId);

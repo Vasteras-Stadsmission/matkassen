@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "สแกน QR โค้ด"
+    },
+    "admin": {
+        "title": "หน้าการจัดการ",
+        "openAdminPage": "เปิดหน้าการจัดการ"
+    },
+    "parcel": {
+        "loadingStatus": "กำลังโหลดสถานะแพ็คเกจ...",
+        "ready": "พร้อมสำหรับการรับ",
+        "pickedUp": "รับแล้ว",
+        "overdue": "เกินกำหนด",
+        "title": "แพ็คเกจอาหาร",
+        "pickupDetails": "รายละเอียดการรับ",
+        "time": "เวลา",
+        "location": "สถานที่",
+        "status": "สถานะ",
+        "directions": "เส้นทาง"
+    },
+    "maps": {
+        "openInAppleMaps": "เปิดใน Apple Maps",
+        "openInGoogleMaps": "เปิดใน Google Maps"
+    }
+}

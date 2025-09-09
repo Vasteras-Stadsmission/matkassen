@@ -1,6 +1,6 @@
 /**
  * HelloSMS integration utility for sending SMS messages
- * Supports test mode and failure injection for development/testing
+ * Supports test mode for development/testing
  */
 
 export interface HelloSmsConfig {
@@ -38,10 +38,11 @@ export interface HelloSmsApiResponse {
 // Environment configuration
 export function getHelloSmsConfig(): HelloSmsConfig {
     return {
-        apiUrl: process.env.HELLO_SMS_API_URL || "https://api.hellosms.se/v1/sms",
+        apiUrl: process.env.HELLO_SMS_API_URL || "https://api.hellosms.se/api/v1/sms/send",
         username: process.env.HELLO_SMS_USERNAME || "",
         password: process.env.HELLO_SMS_PASSWORD || "",
-        testMode: process.env.HELLO_SMS_TEST_MODE === "true",
+        testMode:
+            process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production",
         from: process.env.HELLO_SMS_FROM || "Matkassen",
     };
 }

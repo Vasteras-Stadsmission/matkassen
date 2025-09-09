@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Scansiona codice QR"
+    },
+    "admin": {
+        "title": "Pagina di amministrazione",
+        "openAdminPage": "Apri pagina di amministrazione"
+    },
+    "parcel": {
+        "loadingStatus": "Caricamento stato del pacco...",
+        "ready": "Pronto per il ritiro",
+        "pickedUp": "Ritirato",
+        "overdue": "In ritardo",
+        "title": "Pacco alimentare",
+        "pickupDetails": "Dettagli del ritiro",
+        "time": "Ora",
+        "location": "Posizione",
+        "status": "Stato",
+        "directions": "Indicazioni"
+    },
+    "maps": {
+        "openInAppleMaps": "Apri in Apple Maps",
+        "openInGoogleMaps": "Apri in Google Maps"
+    }
+}

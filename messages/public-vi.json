@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Quét mã QR"
+    },
+    "admin": {
+        "title": "Trang quản trị",
+        "openAdminPage": "Mở trang quản trị"
+    },
+    "parcel": {
+        "loadingStatus": "Đang tải trạng thái gói hàng...",
+        "ready": "Sẵn sàng để nhận",
+        "pickedUp": "Đã nhận",
+        "overdue": "Quá hạn",
+        "title": "Gói thực phẩm",
+        "pickupDetails": "Chi tiết nhận hàng",
+        "time": "Thời gian",
+        "location": "Địa điểm",
+        "status": "Trạng thái",
+        "directions": "Hướng dẫn"
+    },
+    "maps": {
+        "openInAppleMaps": "Mở trong Apple Maps",
+        "openInGoogleMaps": "Mở trong Google Maps"
+    }
+}

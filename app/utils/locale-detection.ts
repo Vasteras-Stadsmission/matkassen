@@ -4,7 +4,29 @@
 
 import { headers } from "next/headers";
 
-export const SUPPORTED_LOCALES = ["sv", "en", "ar", "so"] as const;
+export const SUPPORTED_LOCALES = [
+    "sv", // Swedish
+    "en", // English
+    "ar", // Arabic
+    "fa", // Persian
+    "ku", // Kurdish
+    "es", // Spanish
+    "fr", // French
+    "de", // German
+    "el", // Greek
+    "sw", // Swahili
+    "so", // Somali
+    "so_so", // Southern Somali
+    "uk", // Ukrainian
+    "ru", // Russian
+    "ka", // Georgian
+    "fi", // Finnish
+    "it", // Italian
+    "th", // Thai
+    "vi", // Vietnamese
+    "pl", // Polish
+    "hy", // Armenian
+] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 /**
@@ -50,5 +72,5 @@ export async function detectPublicPageLocale(householdLocale?: string): Promise<
  * Check if locale supports RTL (right-to-left) text direction
  */
 export function isRtlLocale(locale: string): boolean {
-    return locale === "ar";
+    return locale === "ar" || locale === "fa" || locale === "ku";
 }

@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Koda QR biskenin"
+    },
+    "admin": {
+        "title": "Rûpela rêveberiyê",
+        "openAdminPage": "Rûpela rêveberiyê veke"
+    },
+    "parcel": {
+        "loadingStatus": "Rewşa pakêtê tê barkirin...",
+        "ready": "Ji bo hilgirtinê amade ye",
+        "pickedUp": "Hatiye hilgirtin",
+        "overdue": "Dema hilgirtinê derbas bûye",
+        "title": "Pakêta xwarinê",
+        "pickupDetails": "Hûrguliyên hilgirtinê",
+        "time": "Dem",
+        "location": "Cih",
+        "status": "Rewş",
+        "directions": "Rê"
+    },
+    "maps": {
+        "openInAppleMaps": "Di Apple Maps de veke",
+        "openInGoogleMaps": "Di Google Maps de veke"
+    }
+}

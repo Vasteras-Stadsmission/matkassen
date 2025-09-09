@@ -202,8 +202,6 @@ export const smsStatusEnum = pgEnum("sms_status", [
     "queued",
     "sending",
     "sent",
-    "delivered",
-    "not_delivered",
     "retrying",
     "failed",
 ]);
@@ -248,26 +246,18 @@ export const outgoingSms = pgTable(
             .notNull()
             .references(() => households.id, { onDelete: "cascade" }),
         to_e164: varchar("to_e164", { length: 20 }).notNull(), // E.164 format phone number (+46...)
-        locale: varchar("locale", { length: 2 }).notNull(), // Stored at send time
         text: text("text").notNull(), // Final message body
         status: smsStatusEnum("status").notNull().default("queued"),
-        attempt_count: integer("attempt_count").notNull().default(0),
-        next_attempt_at: timestamp({ precision: 1, withTimezone: true }),
-        provider_message_id: varchar("provider_message_id", { length: 100 }), // HelloSMS message ID
-        last_error_code: varchar("last_error_code", { length: 20 }),
-        last_error_message: text("last_error_message"),
+        attempt_count: integer("attempt_count").notNull().default(0), // Essential for retry logic
+        next_attempt_at: timestamp({ precision: 1, withTimezone: true }), // Essential for scheduling retries
+        last_error_message: text("last_error_message"), // Helpful for debugging failures
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
-        sent_at: timestamp({ precision: 1, withTimezone: true }),
-        delivered_at: timestamp({ precision: 1, withTimezone: true }),
-        failed_at: timestamp({ precision: 1, withTimezone: true }),
     },
     table => [
         // Ensure one SMS per parcel for reminder intent
         index("idx_outgoing_sms_parcel_intent_unique").on(table.intent, table.parcel_id),
-        // Index for efficient querying by status and next attempt time
-        index("idx_outgoing_sms_status_next_attempt").on(table.status, table.next_attempt_at),
-        // Index for efficient lookup by provider message ID
-        index("idx_outgoing_sms_provider_id").on(table.provider_message_id),
+        // Index for efficient querying ready-to-send SMS
+        index("idx_outgoing_sms_ready_to_send").on(table.status, table.next_attempt_at),
     ],
 );
 

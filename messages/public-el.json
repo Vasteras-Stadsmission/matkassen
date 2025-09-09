@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Σάρωση κώδικα QR"
+    },
+    "admin": {
+        "title": "Σελίδα διαχείρισης",
+        "openAdminPage": "Άνοιγμα σελίδας διαχείρισης"
+    },
+    "parcel": {
+        "loadingStatus": "Φόρτωση κατάστασης πακέτου...",
+        "ready": "Έτοιμο για παραλαβή",
+        "pickedUp": "Παραλήφθηκε",
+        "overdue": "Εκπρόθεσμο",
+        "title": "Πακέτο φαγητού",
+        "pickupDetails": "Λεπτομέρειες παραλαβής",
+        "time": "Ώρα",
+        "location": "Τοποθεσία",
+        "status": "Κατάσταση",
+        "directions": "Οδηγίες"
+    },
+    "maps": {
+        "openInAppleMaps": "Άνοιγμα σε Apple Maps",
+        "openInGoogleMaps": "Άνοιγμα σε Google Maps"
+    }
+}

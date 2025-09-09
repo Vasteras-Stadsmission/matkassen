@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Iska skan koodka QR"
+    },
+    "admin": {
+        "title": "Bogga maamulka",
+        "openAdminPage": "Fur bogga maamulka"
+    },
+    "parcel": {
+        "loadingStatus": "Waa la rarayo xaaladda xirmada...",
+        "ready": "Diyaar u ah in la qaato",
+        "pickedUp": "Waa la qaaday",
+        "overdue": "Waqtigii wuu dhaafay",
+        "title": "Xirmada cuntada",
+        "pickupDetails": "Faahfaahinta qaadashada",
+        "time": "Waqti",
+        "location": "Goob",
+        "status": "Xaalad",
+        "directions": "Hagitaan"
+    },
+    "maps": {
+        "openInAppleMaps": "Ku fur Apple Maps",
+        "openInGoogleMaps": "Ku fur Google Maps"
+    }
+}

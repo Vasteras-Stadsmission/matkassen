@@ -72,23 +72,62 @@ describe("SMS Message Templates", () => {
 
         it("should generate Somali pickup reminder with correct format", () => {
             const templateData: SmsTemplateData = {
-                householdName: "Amina Mohamed",
-                pickupDate: "January 15, 2024",
+                householdName: "Mohamed Hassan",
+                pickupDate: "isniin, 15 januar 2024",
                 pickupTime: "14:30",
                 locationName: "Community Center",
-                locationAddress: "Main Street 123, Stockholm",
-                publicUrl: "https://matkassen.org/pickup/jkl012",
+                locationAddress: "Rinkeby Centrum, Stockholm",
+                publicUrl: "https://matkassen.org/pickup/so789",
             };
 
             const message = formatPickupReminderSms(templateData, "so");
 
-            expect(message).toContain("Amina Mohamed");
+            expect(message).toContain("Mohamed Hassan");
             expect(message).toContain("Community Center");
-            expect(message).toContain("Main Street 123");
-            expect(message).toContain("January 15, 2024");
+            expect(message).toContain("isniin, 15 januar 2024");
             expect(message).toContain("14:30");
             expect(message).toMatch(/matkassen\.org/);
-            expect(message).toContain("Haye");
+            expect(message).toContain("xirmo cunto");
+        });
+
+        it("should generate German pickup reminder with correct format", () => {
+            const templateData: SmsTemplateData = {
+                householdName: "Klaus Müller",
+                pickupDate: "Montag, 15. Januar 2024",
+                pickupTime: "14:30",
+                locationName: "Gemeindezentrum",
+                locationAddress: "Hauptstraße 123, Stockholm",
+                publicUrl: "https://matkassen.org/pickup/de789",
+            };
+
+            const message = formatPickupReminderSms(templateData, "de");
+
+            expect(message).toContain("Klaus Müller");
+            expect(message).toContain("Gemeindezentrum");
+            expect(message).toContain("Montag, 15. Januar 2024");
+            expect(message).toContain("14:30");
+            expect(message).toMatch(/matkassen\.org/);
+            expect(message).toContain("Lebensmittelpaket");
+        });
+
+        it("should generate Ukrainian pickup reminder with correct format", () => {
+            const templateData: SmsTemplateData = {
+                householdName: "Олексій Петренко",
+                pickupDate: "понеділок, 15 січня 2024",
+                pickupTime: "14:30",
+                locationName: "Громадський центр",
+                locationAddress: "вул. Головна 123, Стокгольм",
+                publicUrl: "https://matkassen.org/pickup/uk789",
+            };
+
+            const message = formatPickupReminderSms(templateData, "uk");
+
+            expect(message).toContain("Олексій Петренко");
+            expect(message).toContain("Громадський центр");
+            expect(message).toContain("понеділок, 15 січня 2024");
+            expect(message).toContain("14:30");
+            expect(message).toMatch(/matkassen\.org/);
+            expect(message).toContain("продуктовий пакет");
         });
 
         it("should handle long location names gracefully", () => {
@@ -119,7 +158,7 @@ describe("SMS Message Templates", () => {
                 publicUrl: "https://matkassen.org/pickup/test456",
             };
 
-            const message = formatPickupReminderSms(templateData, "de"); // German not supported
+            const message = formatPickupReminderSms(templateData, "xyz"); // Unknown locale
 
             expect(message).toContain("Test User");
             expect(message).toContain("Hello"); // Should use English fallback

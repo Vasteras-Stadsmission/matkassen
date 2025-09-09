@@ -12,21 +12,13 @@ import { Time } from "@/app/utils/time-provider";
 import { nanoid } from "nanoid";
 
 export type SmsIntent = "pickup_reminder" | "consent_enrolment";
-export type SmsStatus =
-    | "queued"
-    | "sending"
-    | "sent"
-    | "delivered"
-    | "not_delivered"
-    | "retrying"
-    | "failed";
+export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed";
 
 export interface CreateSmsData {
     intent: SmsIntent;
     parcelId?: string; // Nullable for non-parcel intents
     householdId: string;
     toE164: string;
-    locale: string;
     text: string;
 }
 
@@ -36,18 +28,12 @@ export interface SmsRecord {
     parcelId?: string;
     householdId: string;
     toE164: string;
-    locale: string;
     text: string;
     status: SmsStatus;
     attemptCount: number;
     nextAttemptAt?: Date;
-    providerMessageId?: string;
-    lastErrorCode?: string;
     lastErrorMessage?: string;
     createdAt: Date;
-    sentAt?: Date;
-    deliveredAt?: Date;
-    failedAt?: Date;
 }
 
 // Create a new SMS record
@@ -61,11 +47,10 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
         parcel_id: data.parcelId,
         household_id: data.householdId,
         to_e164: data.toE164,
-        locale: data.locale,
         text: data.text,
         status: "queued",
         attempt_count: 0,
-        next_attempt_at: now, // Set to now so it's immediately ready for sending
+        next_attempt_at: now, // Ready to send immediately
         created_at: now,
     });
 
@@ -84,7 +69,7 @@ export async function getSmsRecordsForParcel(parcelId: string): Promise<SmsRecor
     return records.map(mapDbRecordToSmsRecord);
 }
 
-// Get SMS records ready for sending (due now)
+// Get SMS records ready for sending (includes retries due now)
 export async function getSmsRecordsReadyForSending(limit = 10): Promise<SmsRecord[]> {
     const now = Time.now().toUTC();
 
@@ -103,63 +88,33 @@ export async function getSmsRecordsReadyForSending(limit = 10): Promise<SmsRecor
     return records.map(mapDbRecordToSmsRecord);
 }
 
-// Update SMS status after sending attempt
+// Update SMS status (with retry support)
 export async function updateSmsStatus(
     id: string,
     status: SmsStatus,
     options: {
-        providerMessageId?: string;
-        errorCode?: string;
         errorMessage?: string;
         nextAttemptAt?: Date;
+        incrementAttempt?: boolean;
     } = {},
 ): Promise<void> {
     const updateData: Record<string, unknown> = {
         status,
-        attempt_count: sql`${outgoingSms.attempt_count} + 1`,
     };
 
-    if (status === "sent") {
-        updateData.sent_at = Time.now().toUTC();
-        updateData.provider_message_id = options.providerMessageId;
-    } else if (status === "delivered") {
-        updateData.delivered_at = Time.now().toUTC();
-    } else if (status === "failed") {
-        updateData.failed_at = Time.now().toUTC();
-        updateData.last_error_code = options.errorCode;
-        updateData.last_error_message = options.errorMessage;
-    } else if (status === "retrying") {
+    // Only increment attempt count when we're actually making a sending attempt
+    if (options.incrementAttempt) {
+        updateData.attempt_count = sql`${outgoingSms.attempt_count} + 1`;
+    }
+
+    if (status === "retrying" && options.nextAttemptAt) {
         updateData.next_attempt_at = options.nextAttemptAt;
-        updateData.last_error_code = options.errorCode;
         updateData.last_error_message = options.errorMessage;
-    } else if (status === "not_delivered") {
-        updateData.failed_at = new Date();
+    } else if (status === "failed") {
+        updateData.last_error_message = options.errorMessage;
     }
 
     await db.update(outgoingSms).set(updateData).where(eq(outgoingSms.id, id));
-}
-
-// Update SMS delivery status by provider message ID (for callbacks)
-export async function updateSmsDeliveryStatus(
-    providerMessageId: string,
-    delivered: boolean,
-): Promise<boolean> {
-    const status = delivered ? "delivered" : "not_delivered";
-    const updateData: Record<string, unknown> = { status };
-
-    if (delivered) {
-        updateData.delivered_at = Time.now().toUTC();
-    } else {
-        updateData.failed_at = Time.now().toUTC();
-    }
-
-    const result = await db
-        .update(outgoingSms)
-        .set(updateData)
-        .where(eq(outgoingSms.provider_message_id, providerMessageId))
-        .returning({ id: outgoingSms.id });
-
-    return result.length > 0;
 }
 
 // Check if SMS already exists for a parcel + intent
@@ -173,10 +128,10 @@ export async function smsExistsForParcel(parcelId: string, intent: SmsIntent): P
     return existing.length > 0;
 }
 
-// Send SMS and update record
+// Send SMS and update record (with smart retry logic)
 export async function sendSmsRecord(record: SmsRecord): Promise<void> {
-    // Mark as sending first
-    await updateSmsStatus(record.id, "sending");
+    // Mark as sending and increment attempt count
+    await updateSmsStatus(record.id, "sending", { incrementAttempt: true });
 
     try {
         const result: SendSmsResponse = await sendSms({
@@ -185,9 +140,7 @@ export async function sendSmsRecord(record: SmsRecord): Promise<void> {
         });
 
         if (result.success) {
-            await updateSmsStatus(record.id, "sent", {
-                providerMessageId: result.messageId,
-            });
+            await updateSmsStatus(record.id, "sent");
         } else {
             await handleSmsFailure(record, result);
         }
@@ -199,35 +152,44 @@ export async function sendSmsRecord(record: SmsRecord): Promise<void> {
     }
 }
 
-// Handle SMS sending failures with backoff
+// Handle SMS sending failures with simple retry logic
 async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Promise<void> {
-    const maxAttempts = 4; // Total attempts: initial + 3 retries
-    const nextAttemptCount = record.attemptCount + 1;
+    const maxAttempts = 3; // Total attempts: initial + 2 retries
+    const currentAttempt = record.attemptCount + 1; // We already incremented in sendSmsRecord
 
     // Check if we should retry based on error type
-    const shouldRetry =
-        nextAttemptCount < maxAttempts &&
-        (result.httpStatus === 429 || result.httpStatus === 503 || result.httpStatus === 500);
+    const isRetriableError =
+        result.httpStatus === 429 || // Rate limit
+        result.httpStatus === 500 || // Server error
+        result.httpStatus === 503; // Service unavailable
+
+    const shouldRetry = currentAttempt < maxAttempts && isRetriableError;
 
     if (shouldRetry) {
-        // Calculate backoff: 5s, 15s, 60s
-        const backoffSeconds = [5, 15, 60][Math.min(nextAttemptCount - 1, 2)];
-        const nextAttemptAt = Time.now()
-            .addMinutes(backoffSeconds / 60)
-            .toUTC();
+        // Simple backoff: 5 minutes, then 30 minutes
+        const backoffMinutes = currentAttempt === 1 ? 5 : 30;
+        const nextAttemptAt = Time.now().addMinutes(backoffMinutes).toUTC();
+
+        console.log(
+            `⏳ SMS ${record.id} will retry in ${backoffMinutes} minutes (attempt ${currentAttempt}/${maxAttempts})`,
+        );
 
         await updateSmsStatus(record.id, "retrying", {
-            errorCode: result.httpStatus?.toString(),
             errorMessage: result.error,
             nextAttemptAt,
         });
     } else {
+        console.log(
+            `❌ SMS ${record.id} failed permanently after ${currentAttempt} attempts: ${result.error}`,
+        );
+
         await updateSmsStatus(record.id, "failed", {
-            errorCode: result.httpStatus?.toString(),
             errorMessage: result.error,
         });
     }
 }
+
+// Remove complex retry logic - SIMPLIFIED
 
 // Map database record to SmsRecord interface
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -238,18 +200,12 @@ function mapDbRecordToSmsRecord(dbRecord: any): SmsRecord {
         parcelId: dbRecord.parcel_id,
         householdId: dbRecord.household_id,
         toE164: dbRecord.to_e164,
-        locale: dbRecord.locale,
         text: dbRecord.text,
         status: dbRecord.status,
         attemptCount: dbRecord.attempt_count,
         nextAttemptAt: dbRecord.next_attempt_at,
-        providerMessageId: dbRecord.provider_message_id,
-        lastErrorCode: dbRecord.last_error_code,
         lastErrorMessage: dbRecord.last_error_message,
         createdAt: dbRecord.created_at,
-        sentAt: dbRecord.sent_at,
-        deliveredAt: dbRecord.delivered_at,
-        failedAt: dbRecord.failed_at,
     };
 }
 

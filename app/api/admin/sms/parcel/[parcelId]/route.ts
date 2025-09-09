@@ -58,34 +58,10 @@ export async function POST(
         }
 
         const { parcelId } = await params;
-        const { action, intent, forceFailure } = await request.json();
+        const { action, intent } = await request.json();
 
         if (action !== "send" && action !== "resend") {
             return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-        }
-
-        // Handle test failure injection
-        if (forceFailure && process.env.HELLO_SMS_TEST_MODE === "true") {
-            console.log("🧪 Test failure injection activated:", forceFailure);
-
-            if (forceFailure === "api_error") {
-                return NextResponse.json(
-                    { error: "Simulated API error for testing" },
-                    { status: 500 },
-                );
-            } else if (forceFailure === "invalid_phone") {
-                return NextResponse.json({ error: "Invalid phone number format" }, { status: 400 });
-            } else if (forceFailure === "rate_limit") {
-                return NextResponse.json(
-                    { error: "Rate limit exceeded (simulated)" },
-                    { status: 429 },
-                );
-            } else if (forceFailure === "service_unavailable") {
-                return NextResponse.json(
-                    { error: "SMS service temporarily unavailable" },
-                    { status: 503 },
-                );
-            }
         }
 
         // Get complete parcel data with household and location
@@ -147,7 +123,11 @@ export async function POST(
         }
 
         // Generate SMS content
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://matkassen.org";
+        const baseUrl =
+            process.env.NEXT_PUBLIC_BASE_URL ||
+            (process.env.NODE_ENV === "production"
+                ? "https://matkassen.org"
+                : "http://localhost:3000");
         const publicUrl = `${baseUrl}/p/${parcelId}`;
 
         const { date, time } = formatDateTimeForSms(
@@ -176,7 +156,6 @@ export async function POST(
             parcelId: parcelData.parcelId,
             householdId: parcelData.householdId,
             toE164: normalizePhoneToE164(parcelData.householdPhone),
-            locale: parcelData.householdLocale,
             text: smsText,
         });
 

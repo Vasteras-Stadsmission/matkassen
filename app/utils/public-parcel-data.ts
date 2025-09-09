@@ -118,6 +118,8 @@ export function generateMapsUrls(locationName: string, address: string, postalCo
  * Generate admin URL for QR code
  */
 export function generateAdminUrl(parcelId: string): string {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://matkassen.org";
+    const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        (process.env.NODE_ENV === "production" ? "https://matkassen.org" : "http://localhost:3000");
     return `${baseUrl}/sv/schedule?parcel=${parcelId}`; // Use Swedish locale as default for admin
 }

@@ -34,7 +34,11 @@ export async function enqueueReminderSms(): Promise<number> {
     for (const parcel of parcels) {
         try {
             // Generate public URL for the parcel
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://matkassen.org";
+            const baseUrl =
+                process.env.NEXT_PUBLIC_BASE_URL ||
+                (process.env.NODE_ENV === "production"
+                    ? "https://matkassen.org"
+                    : "http://localhost:3000");
             const publicUrl = `${baseUrl}/p/${parcel.parcelId}`;
 
             // Format date and time for SMS
@@ -59,7 +63,6 @@ export async function enqueueReminderSms(): Promise<number> {
                 parcelId: parcel.parcelId,
                 householdId: parcel.householdId,
                 toE164: parcel.phone,
-                locale: parcel.locale,
                 text: smsText,
             });
 

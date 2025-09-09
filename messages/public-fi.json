@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Skannaa QR-koodi"
+    },
+    "admin": {
+        "title": "Hallintasivu",
+        "openAdminPage": "Avaa hallintasivu"
+    },
+    "parcel": {
+        "loadingStatus": "Ladataan paketin tilaa...",
+        "ready": "Valmis noudettavaksi",
+        "pickedUp": "Noudettu",
+        "overdue": "Myöhässä",
+        "title": "Ruokapaketti",
+        "pickupDetails": "Noutotiedot",
+        "time": "Aika",
+        "location": "Sijainti",
+        "status": "Tila",
+        "directions": "Reittiohjeet"
+    },
+    "maps": {
+        "openInAppleMaps": "Avaa Apple Mapsissa",
+        "openInGoogleMaps": "Avaa Google Mapsissa"
+    }
+}
