@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "QR-Code scannen"
+    },
+    "admin": {
+        "title": "Verwaltungsseite",
+        "openAdminPage": "Verwaltungsseite öffnen"
+    },
+    "parcel": {
+        "loadingStatus": "Paket-Status wird geladen...",
+        "ready": "Bereit zur Abholung",
+        "pickedUp": "Abgeholt",
+        "overdue": "Überfällig",
+        "title": "Lebensmittelpaket",
+        "pickupDetails": "Abholdetails",
+        "time": "Zeit",
+        "location": "Ort",
+        "status": "Status",
+        "directions": "Wegbeschreibung"
+    },
+    "maps": {
+        "openInAppleMaps": "In Apple Maps öffnen",
+        "openInGoogleMaps": "In Google Maps öffnen"
+    }
+}

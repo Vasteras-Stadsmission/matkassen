@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Scanner le code QR"
+    },
+    "admin": {
+        "title": "Page d'administration",
+        "openAdminPage": "Ouvrir la page d'administration"
+    },
+    "parcel": {
+        "loadingStatus": "Chargement du statut du colis...",
+        "ready": "Prêt à être récupéré",
+        "pickedUp": "Récupéré",
+        "overdue": "En retard",
+        "title": "Colis alimentaire",
+        "pickupDetails": "Détails de récupération",
+        "time": "Heure",
+        "location": "Lieu",
+        "status": "Statut",
+        "directions": "Itinéraire"
+    },
+    "maps": {
+        "openInAppleMaps": "Ouvrir dans Apple Maps",
+        "openInGoogleMaps": "Ouvrir dans Google Maps"
+    }
+}

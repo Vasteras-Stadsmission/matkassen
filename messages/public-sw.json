@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Skana msimbo wa QR"
+    },
+    "admin": {
+        "title": "Ukurasa wa uongozi",
+        "openAdminPage": "Fungua ukurasa wa uongozi"
+    },
+    "parcel": {
+        "loadingStatus": "Inapakia hali ya kifurushi...",
+        "ready": "Tayari kuchukuliwa",
+        "pickedUp": "Kimechukuliwa",
+        "overdue": "Kimechelewa",
+        "title": "Kifurushi cha chakula",
+        "pickupDetails": "Maelezo ya uchukuzi",
+        "time": "Wakati",
+        "location": "Mahali",
+        "status": "Hali",
+        "directions": "Mwelekeo"
+    },
+    "maps": {
+        "openInAppleMaps": "Fungua katika Apple Maps",
+        "openInGoogleMaps": "Fungua katika Google Maps"
+    }
+}

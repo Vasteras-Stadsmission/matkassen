@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "QR კოდის სკანირება"
+    },
+    "admin": {
+        "title": "ადმინისტრაციის გვერდი",
+        "openAdminPage": "ადმინისტრაციის გვერდის გახსნა"
+    },
+    "parcel": {
+        "loadingStatus": "ტვირთავს პაკეტის სტატუსს...",
+        "ready": "მზადაა აღებისთვის",
+        "pickedUp": "აღებულია",
+        "overdue": "გადავადებული",
+        "title": "საკვების პაკეტი",
+        "pickupDetails": "აღების დეტალები",
+        "time": "დრო",
+        "location": "ადგილი",
+        "status": "სტატუსი",
+        "directions": "მიმართულება"
+    },
+    "maps": {
+        "openInAppleMaps": "გახსნა Apple Maps-ში",
+        "openInGoogleMaps": "გახსნა Google Maps-ში"
+    }
+}

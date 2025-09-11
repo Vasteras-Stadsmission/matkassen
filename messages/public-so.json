@@ -1,0 +1,37 @@
+{
+    "publicParcel": {
+        "title": "Qaadashada Xirmada Cuntada",
+        "pickupInfo": "Macluumaadka Qaadashada",
+        "location": "Goobta",
+        "pickupWindow": "Waqtiga Qaadashada",
+        "qrCodeLabel": "Koodka QR",
+        "qrCodeDescription": "Tus koodkan QR marka aad qaadanayso xirmada cuntada",
+        "mapsLabel": "Hel Jihada",
+        "googleMaps": "Khariidada Google",
+        "appleMaps": "Khariidada Apple",
+        "status": {
+            "scheduled": "La qabanqaabiyay",
+            "ready": "Diyaar u ah qaadashada",
+            "collected": "La qaatay",
+            "expired": "Waqtigu dhammaaday"
+        },
+        "statusDescription": {
+            "scheduled": "Qaadashada waa la qabanqaabiyay. Fadlan soo gal inta waqtiga qaadashada.",
+            "ready": "Xirmada cuntada diyaar bay u tahay qaadashada hadda!",
+            "collected": "Xirmadan cuntada ayaa horay loo qaatay.",
+            "expired": "Qaadashadan ma aha mid xalaal ah. Fadlan la xiriir shaqaalaha haddii aad qabto su'aalo."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    }
+}

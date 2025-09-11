@@ -1,0 +1,37 @@
+{
+    "publicParcel": {
+        "title": "استلام طرد الطعام",
+        "pickupInfo": "معلومات الاستلام",
+        "location": "الموقع",
+        "pickupWindow": "وقت الاستلام",
+        "qrCodeLabel": "رمز QR",
+        "qrCodeDescription": "أظهر رمز QR هذا عند استلام طرد الطعام",
+        "mapsLabel": "احصل على الاتجاهات",
+        "googleMaps": "خرائط جوجل",
+        "appleMaps": "خرائط آبل",
+        "status": {
+            "scheduled": "مجدول",
+            "ready": "جاهز للاستلام",
+            "collected": "تم الاستلام",
+            "expired": "منتهي الصلاحية"
+        },
+        "statusDescription": {
+            "scheduled": "تم جدولة استلامك. يرجى الحضور خلال نافذة الاستلام.",
+            "ready": "طرد الطعام الخاص بك جاهز للاستلام الآن!",
+            "collected": "تم استلام هذا الطرد بالفعل.",
+            "expired": "هذا الاستلام لم يعد صالحاً. يرجى الاتصال بالموظفين إذا كان لديك أسئلة."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    }
+}

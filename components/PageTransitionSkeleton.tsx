@@ -253,11 +253,6 @@ export function PageTransitionSkeleton({
     );
 }
 
-// For backwards compatibility - exports the PageSkeletonOverlay as a wrapper around the main component
-export function PageSkeletonOverlay() {
-    return <PageTransitionSkeleton alwaysMounted={true} />;
-}
-
 // Default page skeleton for general content
 function DefaultPageSkeleton() {
     return (

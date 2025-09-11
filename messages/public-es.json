@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Escanear código QR"
+    },
+    "admin": {
+        "title": "Página de administración",
+        "openAdminPage": "Abrir página de administración"
+    },
+    "parcel": {
+        "loadingStatus": "Cargando estado del paquete...",
+        "ready": "Listo para recoger",
+        "pickedUp": "Recogido",
+        "overdue": "Vencido",
+        "title": "Paquete de comida",
+        "pickupDetails": "Detalles de recogida",
+        "time": "Hora",
+        "location": "Ubicación",
+        "status": "Estado",
+        "directions": "Indicaciones"
+    },
+    "maps": {
+        "openInAppleMaps": "Abrir en Apple Maps",
+        "openInGoogleMaps": "Abrir en Google Maps"
+    }
+}

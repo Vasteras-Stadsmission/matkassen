@@ -17,16 +17,6 @@ import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
 
-// Re-export types from the types file
-export type {
-    FoodParcel,
-    PickupLocation,
-    LocationSchedule,
-    LocationScheduleInfo,
-    DayInfo,
-    TimeSlotGridData,
-} from "./types";
-
 // Import types for use within this server action file
 import type {
     FoodParcel,

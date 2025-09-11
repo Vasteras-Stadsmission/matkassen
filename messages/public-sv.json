@@ -1,0 +1,37 @@
+{
+    "publicParcel": {
+        "title": "Matpaket Upphämtning",
+        "pickupInfo": "Upphämtningsinformation",
+        "location": "Plats",
+        "pickupWindow": "Upphämtningstid",
+        "qrCodeLabel": "QR-kod",
+        "qrCodeDescription": "Visa denna QR-kod när du hämtar ditt matpaket",
+        "mapsLabel": "Få vägbeskrivning",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Inplanerad",
+            "ready": "Redo för upphämtning",
+            "collected": "Hämtad",
+            "expired": "Utgången"
+        },
+        "statusDescription": {
+            "scheduled": "Din upphämtning är inplanerad. Kom under upphämtningstiden.",
+            "ready": "Ditt matpaket är redo för upphämtning nu!",
+            "collected": "Detta matpaket har redan hämtats.",
+            "expired": "Den här upphämtningen är inte längre giltig. Kontakta personalen om du har frågor."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    }
+}

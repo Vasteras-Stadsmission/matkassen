@@ -35,6 +35,9 @@ services:
             - AUTH_URL=http://localhost:8080/api/auth # Production preview auth URL
             - AUTH_TRUST_HOST=true # Trust proxy headers
             - NEXT_PUBLIC_BASE_URL=http://localhost:8080 # Public base URL
+            - HELLO_SMS_API_URL=https://api.hellosms.se/api/v1/sms/send # HelloSMS API endpoint
+            - HELLO_SMS_FROM=Matkassen # SMS sender name
+            - HELLO_SMS_TEST_MODE=true # Local mode - test SMS only
         env_file:
             - .env
         depends_on:

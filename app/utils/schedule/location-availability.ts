@@ -2,7 +2,7 @@
  * Schedule utility functions for location availability validation
  */
 import { Time } from "@/app/utils/time-provider";
-import { LocationScheduleInfo } from "@/app/[locale]/schedule/actions";
+import { LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 
 /**
  * Check if a date is available according to location schedules

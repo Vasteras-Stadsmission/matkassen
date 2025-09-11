@@ -1,12 +1,12 @@
 "use client";
 
 import {
-    type LocationScheduleInfo,
     updateFoodParcelSchedule,
     getPickupLocationSchedules,
     getLocationSlotDuration,
     recomputeOutsideHoursCount,
 } from "./actions";
+import type { LocationScheduleInfo } from "./types";
 
 /**
  * Client wrapper for updating a food parcel schedule

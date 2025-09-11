@@ -32,10 +32,12 @@
         "@mantine/notifications": "^8.1.1",
         "@octokit/auth-app": "^8.0.1",
         "@tabler/icons-react": "^3.34.0",
+        "@types/qrcode": "^1.5.5",
         "critters": "^0.0.23",
         "date-fns": "^4.1.0",
         "date-fns-tz": "^3.2.0",
         "dotenv": "^16.5.0",
+        "drizzle-kit": "^0.30.6",
         "drizzle-orm": "^0.42.0",
         "fast-deep-equal": "^3.1.3",
         "isomorphic-dompurify": "^2.25.0",
@@ -45,9 +47,9 @@
         "next-auth": "5.0.0-beta.29",
         "next-intl": "^4.3.1",
         "postgres": "^3.4.7",
+        "qrcode": "^1.5.4",
         "react": "^19.1.0",
-        "react-dom": "^19.1.0",
-        "drizzle-kit": "^0.30.6"
+        "react-dom": "^19.1.0"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.1",

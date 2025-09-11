@@ -1,0 +1,25 @@
+{
+    "qr": {
+        "scanQrCode": "Сканувати QR-код"
+    },
+    "admin": {
+        "title": "Сторінка адміністрування",
+        "openAdminPage": "Відкрити сторінку адміністрування"
+    },
+    "parcel": {
+        "loadingStatus": "Завантаження статусу пакета...",
+        "ready": "Готово до отримання",
+        "pickedUp": "Отримано",
+        "overdue": "Прострочено",
+        "title": "Продуктовий пакет",
+        "pickupDetails": "Деталі отримання",
+        "time": "Час",
+        "location": "Місце",
+        "status": "Статус",
+        "directions": "Маршрут"
+    },
+    "maps": {
+        "openInAppleMaps": "Відкрити в Apple Maps",
+        "openInGoogleMaps": "Відкрити в Google Maps"
+    }
+}
