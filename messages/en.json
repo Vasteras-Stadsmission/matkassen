@@ -293,21 +293,16 @@
                 "cancelled": "Cancelled"
             },
             "intent": {
-                "initial": "Initial notification",
-                "reminder": "Reminder",
-                "manual": "Manual message"
+                "pickup_reminder": "Pickup reminder"
             },
             "actions": {
-                "sendInitial": "Send Initial",
-                "sendReminder": "Send Reminder",
+                "sendSms": "Send SMS",
                 "resend": "Resend"
             },
             "notifications": {
-                "noInitialSms": "Household has not been notified yet",
                 "sendSuccess": "SMS Sent",
                 "initialSendSuccess": "Initial notification sent successfully",
                 "reminderSendSuccess": "Reminder sent successfully",
-                "manualSendSuccess": "Manual message sent successfully",
                 "resendSuccess": "SMS Resent",
                 "smsQueued": "SMS has been queued for delivery",
                 "sendError": "Failed to Send SMS",

@@ -290,21 +290,16 @@
                 "cancelled": "Avbrutet"
             },
             "intent": {
-                "initial": "Första notifiering",
-                "reminder": "Påminnelse",
-                "manual": "Manuellt meddelande"
+                "pickup_reminder": "Hämtningspåminnelse"
             },
             "actions": {
-                "sendInitial": "Skicka första",
-                "sendReminder": "Skicka påminnelse",
+                "sendSms": "Skicka SMS",
                 "resend": "Skicka igen"
             },
             "notifications": {
-                "noInitialSms": "Hushållet har inte blivit notifierat ännu",
                 "sendSuccess": "SMS skickat",
                 "initialSendSuccess": "Första notifiering skickades framgångsrikt",
                 "reminderSendSuccess": "Påminnelse skickades framgångsrikt",
-                "manualSendSuccess": "Manuellt meddelande skickades framgångsrikt",
                 "resendSuccess": "SMS skickat igen",
                 "smsQueued": "SMS har lagts i kö för leverans",
                 "sendError": "Misslyckades att skicka SMS",

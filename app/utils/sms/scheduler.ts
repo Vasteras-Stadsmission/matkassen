@@ -9,11 +9,12 @@ import {
     getSmsRecordsReadyForSending,
     sendSmsRecord,
 } from "@/app/utils/sms/sms-service";
-import { formatPickupReminderSms, formatDateTimeForSms } from "@/app/utils/sms/templates";
+import { formatPickupSms } from "@/app/utils/sms/templates";
+import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
 
 // Import type only when needed
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { SmsRecord } from "@/app/utils/sms/sms-service";
 
 let isRunning = false;
 let enqueueInterval: NodeJS.Timeout | null = null;
@@ -41,20 +42,15 @@ export async function enqueueReminderSms(): Promise<number> {
                     : "http://localhost:3000");
             const publicUrl = `${baseUrl}/p/${parcel.parcelId}`;
 
-            // Format date and time for SMS
-            const { date, time } = formatDateTimeForSms(parcel.pickupDate, parcel.locale);
-
-            // Generate SMS text
-            const smsText = formatPickupReminderSms(
+            // Generate SMS text with Date object (formatting handled inside template function)
+            const smsText = formatPickupSms(
                 {
                     householdName: parcel.householdName,
-                    pickupDate: date,
-                    pickupTime: time,
+                    pickupDate: parcel.pickupDate, // Pass Date object directly
                     locationName: parcel.locationName,
-                    locationAddress: parcel.locationAddress,
                     publicUrl,
                 },
-                parcel.locale,
+                parcel.locale as SupportedLocale,
             );
 
             // Create SMS record
@@ -123,7 +119,12 @@ export function startSmsScheduler(): void {
     }
 
     isRunning = true;
-    console.log("Starting SMS scheduler...");
+    const testMode = getHelloSmsConfig().testMode;
+    if (testMode) {
+        console.log("🚦 HelloSMS is running in TEST MODE (no real SMS will be sent)");
+    } else {
+        console.log("✅ HelloSMS is running in LIVE mode (real SMS will be sent)");
+    }
 
     // Start enqueue loop
     enqueueInterval = setInterval(async () => {

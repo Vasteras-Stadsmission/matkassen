@@ -258,6 +258,7 @@ Each food parcel gets a public pickup page at:
 ### Supported Locales:
 
 **Complete 20-language support:**
+
 - ✅ **Swedish (sv)** - Primary language
 - ✅ **English (en)** - Secondary language
 - ✅ **Arabic (ar)** - RTL support included

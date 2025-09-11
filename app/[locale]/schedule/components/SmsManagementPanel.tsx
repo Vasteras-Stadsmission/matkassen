@@ -12,7 +12,6 @@ import {
     Modal,
     Timeline,
     ThemeIcon,
-    Alert,
 } from "@mantine/core";
 import {
     IconSend,
@@ -21,7 +20,6 @@ import {
     IconCheck,
     IconX,
     IconClock,
-    IconInfoCircle,
     IconRefresh,
     IconQuestionMark,
 } from "@tabler/icons-react";
@@ -33,7 +31,7 @@ import { SmsRecord } from "@/app/utils/sms/sms-service";
 interface SmsManagementPanelProps {
     parcel: FoodParcel;
     smsHistory?: SmsRecord[];
-    onSendSms?: (parcelId: string, intent: "initial" | "reminder" | "manual") => void;
+    onSendSms?: (parcelId: string) => void;
     onResendSms?: (smsId: string) => void;
     isLoading?: boolean;
     testMode?: boolean; // Add testMode prop
@@ -74,24 +72,9 @@ export default function SmsManagementPanel({
             </Badge>
         );
     };
-    const getIntentLabel = (sms: SmsRecord, index: number, allSms: SmsRecord[]) => {
-        // Determine if this is initial or reminder based on sequence and existing SMS
-        const sortedSms = [...allSms].sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        );
-        const smsIndex = sortedSms.findIndex(s => s.id === sms.id);
-
-        // Count successful SMS before this one
-        const successfulSmsBefore = sortedSms
-            .slice(0, smsIndex)
-            .filter(s => ["sent", "delivered"].includes(s.status)).length;
-
+    const getIntentLabel = (sms: SmsRecord) => {
         if (sms.intent === "pickup_reminder") {
-            if (successfulSmsBefore === 0) {
-                return t("intent.initial");
-            } else {
-                return t("intent.reminder");
-            }
+            return t("intent.pickup_reminder");
         } else if (sms.intent === "consent_enrolment") {
             return "Consent Enrolment";
         }
@@ -101,18 +84,7 @@ export default function SmsManagementPanel({
 
     const latestSms = smsHistory.length > 0 ? smsHistory[smsHistory.length - 1] : null;
 
-    // In test mode, consider "sent" as successfully notified
-    const hasBeenNotified = smsHistory.some(sms => {
-        const isSent = sms.status === "sent";
-        // Check for "pickup_reminder" which is the actual intent used in the database for initial notifications
-        const isInitial = sms.intent === "pickup_reminder";
-        return isSent && isInitial;
-    });
-
-    const canSendInitial =
-        !hasBeenNotified && (!latestSms || !["queued", "sending"].includes(latestSms.status));
-    const canSendReminder =
-        hasBeenNotified && (!latestSms || !["queued", "sending"].includes(latestSms.status));
+    const canSendSms = !latestSms || !["queued", "sending"].includes(latestSms.status);
     return (
         <Card withBorder p="sm" radius="md">
             <Stack gap="xs">
@@ -139,23 +111,11 @@ export default function SmsManagementPanel({
                         size="xs"
                         variant="light"
                         leftSection={<IconSend size={14} />}
-                        disabled={!canSendInitial || isLoading}
-                        onClick={() => onSendSms?.(parcel.id, "initial")}
+                        disabled={!canSendSms || isLoading}
+                        onClick={() => onSendSms?.(parcel.id)}
                         loading={isLoading}
                     >
-                        {t("actions.sendInitial")}
-                    </Button>
-
-                    <Button
-                        size="xs"
-                        variant="light"
-                        color="orange"
-                        leftSection={<IconRepeat size={14} />}
-                        disabled={!canSendReminder || isLoading}
-                        onClick={() => onSendSms?.(parcel.id, "reminder")}
-                        loading={isLoading}
-                    >
-                        {t("actions.sendReminder")}
+                        {t("actions.sendSms")}
                     </Button>
 
                     {latestSms?.status === "failed" && (
@@ -172,12 +132,6 @@ export default function SmsManagementPanel({
                         </Button>
                     )}
                 </Group>
-
-                {!hasBeenNotified && (
-                    <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-                        {t("notifications.noInitialSms")}
-                    </Alert>
-                )}
             </Stack>
 
             <Modal
@@ -193,7 +147,7 @@ export default function SmsManagementPanel({
                         </Text>
                     ) : (
                         <Timeline active={smsHistory.length} bulletSize={24} lineWidth={2}>
-                            {smsHistory.map((sms, index) => (
+                            {smsHistory.map(sms => (
                                 <Timeline.Item
                                     key={sms.id}
                                     bullet={
@@ -220,7 +174,7 @@ export default function SmsManagementPanel({
                                     title={
                                         <Group gap="xs">
                                             <Text size="sm" fw={500}>
-                                                {getIntentLabel(sms, index, smsHistory)}
+                                                {getIntentLabel(sms)}
                                             </Text>
                                             {getStatusBadge(sms.status)}
                                         </Group>

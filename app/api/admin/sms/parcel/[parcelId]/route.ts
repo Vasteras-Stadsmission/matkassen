@@ -8,11 +8,8 @@ import {
     createSmsRecord,
     smsExistsForParcel,
 } from "@/app/utils/sms/sms-service";
-import {
-    formatInitialPickupSms,
-    formatReminderPickupSms,
-    formatDateTimeForSms,
-} from "@/app/utils/sms/templates";
+import { formatPickupSms } from "@/app/utils/sms/templates";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
 
 // GET /api/admin/sms/parcel/[parcelId] - Get SMS history for a parcel
@@ -58,7 +55,7 @@ export async function POST(
         }
 
         const { parcelId } = await params;
-        const { action, intent } = await request.json();
+        const { action } = await request.json();
 
         if (action !== "send" && action !== "resend") {
             return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -94,18 +91,6 @@ export async function POST(
 
         // Determine the actual intent based on existing SMS and user request
         const existingRecords = await getSmsRecordsForParcel(parcelId);
-        const hasSuccessfulInitial = existingRecords.some(record =>
-            ["sent", "delivered"].includes(record.status),
-        );
-
-        // Determine SMS type for logging and response
-        let smsType = "initial"; // For logging and response
-
-        if (intent === "reminder" || (intent === "manual" && hasSuccessfulInitial)) {
-            smsType = "reminder";
-        } else if (intent === "initial" || intent === "manual") {
-            smsType = "initial";
-        }
 
         // Check cooldown for any SMS sending (prevent spam)
         const recentRecord = existingRecords.find(record => {
@@ -125,30 +110,23 @@ export async function POST(
         // Generate SMS content
         const baseUrl =
             process.env.NEXT_PUBLIC_BASE_URL ||
-            (process.env.NODE_ENV === "production"
-                ? "https://matkassen.org"
-                : "http://localhost:3000");
+            (process.env.NODE_ENV === "production" ? "matkassen.org" : "localhost:3000");
+
+        // Create shorter URL for SMS limits
         const publicUrl = `${baseUrl}/p/${parcelId}`;
 
-        const { date, time } = formatDateTimeForSms(
-            parcelData.pickupDateTimeEarliest,
-            parcelData.householdLocale,
-        );
-
-        // Use appropriate template based on SMS type
+        // Use pickup SMS template with Date object
         const templateData = {
             householdName,
-            pickupDate: date,
-            pickupTime: time,
+            pickupDate: parcelData.pickupDateTimeEarliest, // Pass Date object directly
             locationName: parcelData.locationName,
-            locationAddress: parcelData.locationAddress,
             publicUrl,
         };
 
-        const smsText =
-            smsType === "reminder"
-                ? formatReminderPickupSms(templateData, parcelData.householdLocale)
-                : formatInitialPickupSms(templateData, parcelData.householdLocale);
+        const smsText = formatPickupSms(
+            templateData,
+            parcelData.householdLocale as SupportedLocale,
+        );
 
         // Create SMS record
         const smsId = await createSmsRecord({
@@ -162,11 +140,7 @@ export async function POST(
         return NextResponse.json({
             success: true,
             smsId,
-            smsType, // Add the determined SMS type
-            message:
-                action === "resend"
-                    ? "SMS queued for resending"
-                    : `${smsType} SMS queued for sending`,
+            message: action === "resend" ? "SMS queued for resending" : "SMS queued for sending",
             testMode:
                 process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production",
         });

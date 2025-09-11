@@ -96,8 +96,8 @@ function PickupCardWithSms({
     };
 
     // Handle SMS actions
-    const handleSendSms = async (parcelId: string, intent: "initial" | "reminder" | "manual") => {
-        const success = await sendSms(parcelId, intent);
+    const handleSendSms = async (parcelId: string) => {
+        const success = await sendSms(parcelId);
         if (success && smsExpanded) {
             // Refresh SMS history
             const newHistory = await fetchSmsHistory(parcelId);

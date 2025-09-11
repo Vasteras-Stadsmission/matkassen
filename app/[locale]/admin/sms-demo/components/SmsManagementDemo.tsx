@@ -97,9 +97,9 @@ export default function SmsManagementDemo() {
         }
     }, [selectedParcel]);
 
-    const handleSendSms = async (parcelId: string, intent: "initial" | "reminder" | "manual") => {
-        console.log(`Demo: Sending ${intent} SMS for parcel ${parcelId}`);
-        const success = await sendSms(parcelId, intent);
+    const handleSendSms = async (parcelId: string) => {
+        console.log(`Demo: Sending SMS for parcel ${parcelId}`);
+        const success = await sendSms(parcelId);
         if (success && selectedParcel) {
             // Add a small delay to ensure database is updated
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -132,7 +132,6 @@ export default function SmsManagementDemo() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     action: "send",
-                    intent: "manual",
                     forceFailure: failureType,
                 }),
             });
@@ -376,7 +375,7 @@ export default function SmsManagementDemo() {
 
                                     try {
                                         // Send a manual SMS (normal flow)
-                                        await handleSendSms(selectedParcel.id, "manual");
+                                        await handleSendSms(selectedParcel.id);
                                         console.log("Success test completed - SMS sent normally");
                                     } catch (error) {
                                         console.error("Failed to test success scenario:", error);

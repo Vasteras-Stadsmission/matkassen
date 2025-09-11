@@ -10,7 +10,7 @@ export function useSmsManagement() {
     const t = useTranslations("schedule.sms");
 
     const sendSms = useCallback(
-        async (parcelId: string, intent: "initial" | "reminder" | "manual"): Promise<boolean> => {
+        async (parcelId: string): Promise<boolean> => {
             setIsLoading(true);
             try {
                 const response = await fetch(`/api/admin/sms/parcel/${parcelId}`, {
@@ -18,7 +18,7 @@ export function useSmsManagement() {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ action: "send", intent }),
+                    body: JSON.stringify({ action: "send" }),
                 });
 
                 const data = await response.json();
@@ -26,7 +26,7 @@ export function useSmsManagement() {
                 if (response.ok) {
                     notifications.show({
                         title: t("notifications.sendSuccess"),
-                        message: t(`notifications.${intent}SendSuccess`),
+                        message: t("notifications.reminderSendSuccess"),
                         color: "green",
                     });
                     return true;
@@ -152,7 +152,7 @@ export function useSmsManagement() {
                         attemptCount: number;
                     }) => ({
                         id: sms.id,
-                        intent: sms.intent as "initial" | "reminder" | "manual",
+                        intent: sms.intent as "pickup_reminder" | "consent_enrolment",
                         status: sms.status as
                             | "pending"
                             | "sent"
