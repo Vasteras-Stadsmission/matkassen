@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { eq, gt } from "drizzle-orm";
 
 export async function GET() {
     try {
-        // Check authentication
-        const session = await auth();
-        if (!session) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        // Authentication is now handled by middleware
 
         // Fetch upcoming food parcels with household and location info
         const upcomingParcels = await db

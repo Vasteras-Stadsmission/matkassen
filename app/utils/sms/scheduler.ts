@@ -8,6 +8,7 @@ import {
     createSmsRecord,
     getSmsRecordsReadyForSending,
     sendSmsRecord,
+    processSendQueueWithLock,
 } from "@/app/utils/sms/sms-service";
 import { formatPickupSms } from "@/app/utils/sms/templates";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
@@ -19,10 +20,13 @@ import type { SupportedLocale } from "@/app/utils/locale-detection";
 let isRunning = false;
 let enqueueInterval: NodeJS.Timeout | null = null;
 let sendInterval: NodeJS.Timeout | null = null;
+let healthCheckInterval: NodeJS.Timeout | null = null;
+let lastHealthLog = 0; // Track when we last logged health status
 
 // Configuration
 const ENQUEUE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const SEND_INTERVAL_MS = 30 * 1000; // 30 seconds
+const HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const SEND_BATCH_SIZE = 5;
 
 /**
@@ -77,36 +81,52 @@ export async function enqueueReminderSms(): Promise<number> {
 }
 
 /**
- * Process SMS send queue
+ * Process SMS send queue with advisory lock protection
  */
 export async function processSendQueue(): Promise<number> {
-    console.log("🔄 Processing SMS send queue...");
-    const records = await getSmsRecordsReadyForSending(SEND_BATCH_SIZE);
-    console.log(`📨 Found ${records.length} SMS records ready for sending`);
+    // Use the protected version that handles locking
+    const result = await processSendQueueWithLock(async () => {
+        const records = await getSmsRecordsReadyForSending(SEND_BATCH_SIZE);
 
-    let sentCount = 0;
-
-    for (const record of records) {
-        try {
-            console.log(`📤 Sending SMS ${record.id} to ${record.toE164}`);
-            await sendSmsRecord(record);
-            sentCount++;
-            console.log(`✅ Sent SMS ${record.id} to ${record.toE164}`);
-
-            // Small delay between sends to be respectful to the API
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (error) {
-            console.error(`❌ Failed to send SMS ${record.id}:`, error);
+        // Only log processing when there are records to process
+        if (records.length > 0) {
+            console.log(`� Processing ${records.length} SMS records ready for sending`);
         }
+
+        let sentCount = 0;
+
+        for (const record of records) {
+            try {
+                await sendSmsRecord(record);
+                sentCount++;
+                console.log(
+                    `✅ SMS sent: ${record.intent} to household ${record.householdId} (${record.id})`,
+                );
+
+                // Small delay between sends to be respectful to the API
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (error) {
+                console.error(
+                    `❌ SMS failed: ${record.intent} to household ${record.householdId} (${record.id}):`,
+                    error,
+                );
+            }
+        }
+
+        if (sentCount > 0) {
+            console.log(`🎉 Sent ${sentCount} SMS messages`);
+        }
+        // Note: Removed "No SMS messages sent" log to reduce noise
+        // Only log when we actually send messages
+
+        return sentCount;
+    });
+
+    if (!result.lockAcquired) {
+        console.log("⏸️  Skipped SMS queue processing - already running elsewhere");
     }
 
-    if (sentCount > 0) {
-        console.log(`🎉 Sent ${sentCount} SMS messages`);
-    } else {
-        console.log("📭 No SMS messages sent");
-    }
-
-    return sentCount;
+    return result.processed;
 }
 
 /**
@@ -135,21 +155,31 @@ export function startSmsScheduler(): void {
         }
     }, ENQUEUE_INTERVAL_MS);
 
-    // Start send loop
-    sendInterval = setInterval(async () => {
+    // Start health check loop
+    healthCheckInterval = setInterval(async () => {
         try {
-            await processSendQueue();
+            const health = await smsHealthCheck();
+            if (health.status === "healthy") {
+                // Only log health every 30 minutes to reduce noise
+                const now = Date.now();
+                if (now - lastHealthLog > 30 * 60 * 1000) {
+                    console.log(`💚 SMS service healthy (${health.details.pendingSms} pending)`);
+                    lastHealthLog = now;
+                }
+            } else {
+                console.error(`💔 SMS service unhealthy:`, health.details);
+            }
         } catch (error) {
-            console.error("Error in SMS send loop:", error);
+            console.error("❌ SMS health check failed:", error);
         }
-    }, SEND_INTERVAL_MS);
+    }, HEALTH_CHECK_INTERVAL_MS);
 
     // Run once immediately
     enqueueReminderSms().catch(console.error);
     processSendQueue().catch(console.error);
 
     console.log(
-        `SMS scheduler started (enqueue: ${ENQUEUE_INTERVAL_MS}ms, send: ${SEND_INTERVAL_MS}ms)`,
+        `SMS scheduler started (enqueue: ${ENQUEUE_INTERVAL_MS}ms, send: ${SEND_INTERVAL_MS}ms, health: ${HEALTH_CHECK_INTERVAL_MS}ms)`,
     );
 }
 
@@ -172,6 +202,11 @@ export function stopSmsScheduler(): void {
     if (sendInterval) {
         clearInterval(sendInterval);
         sendInterval = null;
+    }
+
+    if (healthCheckInterval) {
+        clearInterval(healthCheckInterval);
+        healthCheckInterval = null;
     }
 
     console.log("SMS scheduler stopped");
@@ -204,20 +239,32 @@ export async function triggerEnqueue(): Promise<{
 }
 
 /**
- * Manual trigger for send queue processing (for testing/admin)
+ * Simple SMS service health check
  */
-export async function triggerSendQueue(): Promise<{
-    success: boolean;
-    count?: number;
-    error?: string;
+export async function smsHealthCheck(): Promise<{
+    status: "healthy" | "unhealthy";
+    details: Record<string, unknown>;
 }> {
     try {
-        const count = await processSendQueue();
-        return { success: true, count };
+        // Simple check: can we query pending SMS?
+        const pendingCount = await getSmsRecordsReadyForSending(5);
+
+        return {
+            status: "healthy",
+            details: {
+                schedulerRunning: isRunning,
+                testMode: getHelloSmsConfig().testMode,
+                pendingSms: pendingCount.length,
+                timestamp: new Date().toISOString(),
+            },
+        };
     } catch (error) {
         return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
+            status: "unhealthy",
+            details: {
+                error: error instanceof Error ? error.message : "Unknown error",
+                timestamp: new Date().toISOString(),
+            },
         };
     }
 }

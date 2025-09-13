@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { processSendQueue } from "@/app/utils/sms/scheduler";
 
 export async function POST() {
     try {
-        // Check authentication
-        const session = await auth();
-        if (!session) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        // Authentication is now handled by middleware
 
         // Manually trigger SMS queue processing
         const result = await processSendQueue();

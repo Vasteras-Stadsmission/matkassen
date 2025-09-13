@@ -2,6 +2,14 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { client } from "@/app/db/drizzle";
+import { smsHealthCheck } from "@/app/utils/sms/scheduler";
+import {
+    sendSmsHealthAlert,
+    sendDatabaseHealthAlert,
+    sendDiskSpaceHealthAlert,
+} from "@/app/utils/notifications/slack";
+import { promises as fs } from "fs";
+import { join } from "path";
 
 export async function GET(request: NextRequest) {
     const timestamp = new Date().toISOString();
@@ -55,10 +63,72 @@ export async function GET(request: NextRequest) {
             console.error("Database health check failed:", error);
         }
 
+        // Send Slack alert for database issues (with state tracking)
+        if (process.env.NODE_ENV === "production") {
+            sendDatabaseHealthAlert(dbStatus === "ok", dbError || undefined).catch(console.error);
+        }
+
+        // Test SMS service health
+        let smsStatus = "unknown";
+        let smsDetails = null;
+
+        try {
+            const smsHealth = await smsHealthCheck();
+            smsStatus = smsHealth.status;
+            smsDetails = smsHealth.details;
+        } catch (error) {
+            smsStatus = "error";
+            smsDetails = {
+                error: error instanceof Error ? error.message : "SMS health check failed",
+            };
+            console.error("SMS health check failed:", error);
+        }
+
+        // Send Slack alert for SMS issues (with state tracking)
+        if (process.env.NODE_ENV === "production") {
+            const smsIsHealthy = smsStatus === "ok";
+            sendSmsHealthAlert(smsIsHealthy, smsDetails || {}).catch(console.error);
+        }
+
+        // Test disk space
+        let diskStatus = "unknown";
+        let diskDetails = null;
+
+        try {
+            // Simple disk space check: try to write a small temp file
+            const tempFile = join(process.cwd(), "temp_health_check.txt");
+            const testData = "health_check_" + Date.now();
+
+            await fs.writeFile(tempFile, testData);
+            await fs.unlink(tempFile); // Clean up immediately
+
+            diskStatus = "ok";
+            diskDetails = { status: "writable" };
+        } catch (error) {
+            diskStatus = "error";
+            diskDetails = {
+                error: error instanceof Error ? error.message : "Disk space check failed",
+                status: "write_failed",
+            };
+            console.error("Disk space check failed:", error);
+        }
+
+        // Send Slack alert for disk space issues (with state tracking)
+        if (process.env.NODE_ENV === "production") {
+            const diskIsHealthy = diskStatus === "ok";
+            sendDiskSpaceHealthAlert(diskIsHealthy).catch(console.error);
+        }
+
         // Determine overall health status
-        const isHealthy = dbStatus === "ok";
-        const status = isHealthy ? "healthy" : "unhealthy";
-        const httpStatus = isHealthy ? 200 : 503;
+        // Database failure = unhealthy (critical)
+        // SMS failure = degraded (non-critical - web still works)
+        // Disk failure = degraded (non-critical but concerning)
+        const isCriticallyHealthy = dbStatus === "ok";
+        const isDegraded =
+            smsStatus === "unhealthy" || smsStatus === "error" || diskStatus === "error";
+
+        const status = !isCriticallyHealthy ? "unhealthy" : isDegraded ? "degraded" : "healthy";
+        const httpStatus = !isCriticallyHealthy ? 503 : 200; // Always return 200 if web+DB works
 
         const response = {
             status,
@@ -67,7 +137,11 @@ export async function GET(request: NextRequest) {
             checks: {
                 webServer: "ok",
                 database: dbStatus,
+                smsService: smsStatus,
+                diskSpace: diskStatus,
                 ...(dbError && { databaseError: dbError }),
+                ...(smsDetails && { smsDetails }),
+                ...(diskDetails && { diskDetails }),
             },
             ...(process.env.NODE_ENV !== "production" && {
                 debug: {
@@ -103,6 +177,8 @@ export async function GET(request: NextRequest) {
                 checks: {
                     webServer: "error",
                     database: "unknown",
+                    smsService: "unknown",
+                    diskSpace: "unknown",
                 },
             },
             { status: 500 },

@@ -15,7 +15,7 @@ services:
             - NEXT_PUBLIC_BASE_URL=https://matkassen.org # Production base URL
             - HELLO_SMS_API_URL=https://api.hellosms.se/api/v1/sms/send # HelloSMS API endpoint
             - HELLO_SMS_FROM=Matkassen # SMS sender name
-            - HELLO_SMS_TEST_MODE=false # Production mode - send real SMS
+            - HELLO_SMS_TEST_MODE=true # Production mode - keep SMS in test mode (no real SMS sent)
         env_file:
             - .env
         depends_on:
@@ -29,6 +29,10 @@ services:
             timeout: 10s
             retries: 3
             start_period: 40s
+        logging:
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     db:
         # Using specific PostgreSQL version for reproducible builds
@@ -51,6 +55,10 @@ services:
             timeout: 5s
             retries: 5
             start_period: 30s
+        logging:
+            options:
+                max-size: "10m"
+                max-file: "3"
 
 volumes:
     postgres_data:

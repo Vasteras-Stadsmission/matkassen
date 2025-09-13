@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig } from "next-auth";
-import { checkOrganizationMembership } from "./app/utils/github-app";
+import { validateOrganizationMembership } from "./app/utils/auth/organization-auth";
 
 const authConfig: NextAuthConfig = {
     providers: [
@@ -35,37 +35,20 @@ const authConfig: NextAuthConfig = {
         },
         async signIn({ account, profile }) {
             if (account?.provider === "github") {
-                const organization = process.env.GITHUB_ORG;
                 const username = profile?.login as string;
 
-                if (!organization || !username) {
-                    console.error("Missing required environment variables or user profile", {
-                        hasOrg: !!organization,
-                        hasUsername: !!username,
-                    });
-                    return `/auth/error?error=configuration`;
-                }
+                // Use centralized organization membership validation
+                const orgCheck = await validateOrganizationMembership(username, "signin");
 
-                try {
-                    // Check organization membership using GitHub App
-                    console.log(
-                        `Checking membership for user: ${username} in org: ${organization}`,
-                    );
-                    const isMember = await checkOrganizationMembership(username, organization);
-                    if (isMember) {
-                        console.log(`✅ Access granted to ${username}`);
-                        return true;
-                    } else {
-                        console.warn(
-                            `❌ Access denied: User ${username} is not a member of organization ${organization}`,
-                        );
-
-                        return false; // This will trigger AccessDenied error
+                if (!orgCheck.isValid) {
+                    if (orgCheck.error?.includes("configuration")) {
+                        return `/auth/error?error=configuration`;
                     }
-                } catch (error) {
-                    console.error("Error checking organization membership:", error);
-                    return `/auth/error?error=configuration`;
+                    // Access denied - return false to trigger AccessDenied error
+                    return false;
                 }
+
+                return true;
             }
             console.error("Invalid account provider:", account?.provider);
             return `/auth/error?error=invalid-provider`;

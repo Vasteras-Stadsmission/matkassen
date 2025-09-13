@@ -35,25 +35,17 @@ export async function register() {
         }
     }
 
-    // Start SMS scheduler in production/staging environments (server-side only)
-    // Only run in Node.js runtime, not Edge Runtime
-    // Check for Node.js specific globals that don't exist in Edge Runtime
-    const isNodeJs =
-        typeof process !== "undefined" &&
-        typeof process.versions !== "undefined" &&
-        typeof process.versions.node !== "undefined";
-
-    if (
-        (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "development") &&
-        typeof window === "undefined" &&
-        isNodeJs
-    ) {
+    // Start SMS scheduler (server-side only)
+    // Skip during build phase to avoid bundling Node.js modules
+    if (typeof window === "undefined" && process.env.NODE_ENV !== "development") {
         try {
-            const { startSmsScheduler } = await import("@/app/utils/sms/scheduler");
+            // Use string concatenation to prevent static analysis
+            const modulePath = "./app/utils/sms/" + "scheduler";
+            const { startSmsScheduler } = await import(modulePath);
             startSmsScheduler();
-            console.log("SMS scheduler started");
+            console.log("✅ SMS scheduler started successfully");
         } catch (error) {
-            console.error("Failed to start SMS scheduler:", error);
+            console.error("❌ Failed to start SMS scheduler:", error);
         }
     }
 }

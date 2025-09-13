@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import {
     getPublicParcelData,
     getParcelStatus,
@@ -31,6 +32,14 @@ interface PublicParcelPageProps {
         parcelId: string;
     }>;
 }
+
+// Metadata to prevent search engine indexing
+export const metadata: Metadata = {
+    robots: {
+        index: false,
+        follow: false,
+    },
+};
 
 // Load messages based on locale
 async function loadMessages(locale: SupportedLocale) {
@@ -147,9 +156,6 @@ export default async function PublicParcelPage({ params }: PublicParcelPageProps
                                     <Title order={1} size="h2" mb="xs">
                                         {messages.publicParcel.title}
                                     </Title>
-                                    <Text size="lg" fw={500} c="dark.6">
-                                        {parcel.householdName}
-                                    </Text>
                                 </div>
                                 <Badge size="lg" variant="filled" color={statusBadge.color}>
                                     {statusBadge.text}

@@ -7,6 +7,8 @@ import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/
 import { eq, and, lte, sql, gte } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
 import { Time } from "@/app/utils/time-provider";
+import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
+import { getPickupLocationSchedules } from "@/app/[locale]/schedule/actions";
 // Note: normalizePhoneToE164 available but not used in this service layer
 // Individual functions handle normalization as needed
 import { nanoid } from "nanoid";
@@ -14,12 +16,68 @@ import { nanoid } from "nanoid";
 export type SmsIntent = "pickup_reminder" | "consent_enrolment";
 export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed";
 
+// Advisory lock key for SMS queue processing
+const SMS_QUEUE_LOCK_KEY = "sms-queue-processing";
+
+/**
+ * Get numeric hash for advisory lock (PostgreSQL requires a numeric key)
+ */
+function getAdvisoryLockKey(key: string): number {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+        const char = key.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+}
+
+/**
+ * Acquire PostgreSQL advisory lock for SMS queue processing
+ * Returns true if lock was acquired, false if already held by another process
+ */
+async function acquireSmsQueueLock(): Promise<boolean> {
+    const lockKey = getAdvisoryLockKey(SMS_QUEUE_LOCK_KEY);
+
+    try {
+        const result = await db.execute(sql`SELECT pg_try_advisory_lock(${lockKey}) as acquired`);
+
+        const acquired = result[0]?.acquired as boolean;
+
+        if (acquired) {
+            console.log("🔒 Acquired SMS queue processing lock");
+        } else {
+            console.log("⏸️  SMS queue processing lock already held by another process");
+        }
+
+        return acquired;
+    } catch (error) {
+        console.error("Failed to acquire SMS queue lock:", error);
+        return false;
+    }
+}
+
+/**
+ * Release PostgreSQL advisory lock for SMS queue processing
+ */
+async function releaseSmsQueueLock(): Promise<void> {
+    const lockKey = getAdvisoryLockKey(SMS_QUEUE_LOCK_KEY);
+
+    try {
+        await db.execute(sql`SELECT pg_advisory_unlock(${lockKey})`);
+        console.log("🔓 Released SMS queue processing lock");
+    } catch (error) {
+        console.error("Failed to release SMS queue lock:", error);
+    }
+}
+
 export interface CreateSmsData {
     intent: SmsIntent;
     parcelId?: string; // Nullable for non-parcel intents
     householdId: string;
     toE164: string;
     text: string;
+    idempotencyKey?: string; // Optional - will be generated if not provided
 }
 
 export interface SmsRecord {
@@ -33,29 +91,66 @@ export interface SmsRecord {
     attemptCount: number;
     nextAttemptAt?: Date;
     lastErrorMessage?: string;
+    idempotencyKey: string;
+    providerMessageId?: string;
     createdAt: Date;
+}
+
+/**
+ * Generate idempotency key for SMS deduplication
+ * Based on parcelId, intent, and scheduled time (rounded to hour)
+ */
+function generateIdempotencyKey(data: CreateSmsData): string {
+    const scheduledHour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
+    const parts = [data.parcelId || "no-parcel", data.intent, data.householdId, scheduledHour];
+    return parts.join("|");
 }
 
 // Create a new SMS record
 export async function createSmsRecord(data: CreateSmsData): Promise<string> {
     const id = nanoid(16);
     const now = Time.now().toUTC();
+    const idempotencyKey = data.idempotencyKey || generateIdempotencyKey(data);
 
-    await db.insert(outgoingSms).values({
-        id,
-        intent: data.intent as "pickup_reminder" | "consent_enrolment",
-        parcel_id: data.parcelId,
-        household_id: data.householdId,
-        to_e164: data.toE164,
-        text: data.text,
-        status: "queued",
-        attempt_count: 0,
-        next_attempt_at: now, // Ready to send immediately
-        created_at: now,
-    });
+    try {
+        await db.insert(outgoingSms).values({
+            id,
+            intent: data.intent as "pickup_reminder" | "consent_enrolment",
+            parcel_id: data.parcelId,
+            household_id: data.householdId,
+            to_e164: data.toE164,
+            text: data.text,
+            status: "queued",
+            attempt_count: 0,
+            next_attempt_at: now, // Ready to send immediately
+            idempotency_key: idempotencyKey,
+            created_at: now,
+        });
 
-    console.log(`📧 SMS record created: ${id} for ${data.toE164} (${data.intent})`);
-    return id;
+        console.log(`📧 SMS queued: ${data.intent} for household ${data.householdId} (${id})`);
+        return id;
+    } catch (error: unknown) {
+        // Handle unique constraint violation on idempotency key
+        const dbError = error as { code?: string; constraint?: string };
+        if (
+            dbError?.code === "23505" &&
+            dbError?.constraint === "idx_outgoing_sms_idempotency_unique"
+        ) {
+            console.log(`🔄 SMS with idempotency key ${idempotencyKey} already exists, skipping`);
+
+            // Find and return the existing record ID
+            const existing = await db
+                .select({ id: outgoingSms.id })
+                .from(outgoingSms)
+                .where(eq(outgoingSms.idempotency_key, idempotencyKey))
+                .limit(1);
+
+            return existing[0]?.id || id; // Fallback to new ID if somehow not found
+        }
+
+        // Re-throw other errors
+        throw error;
+    }
 }
 
 // Get SMS records by parcel ID (for admin UI)
@@ -96,6 +191,7 @@ export async function updateSmsStatus(
         errorMessage?: string;
         nextAttemptAt?: Date;
         incrementAttempt?: boolean;
+        providerMessageId?: string;
     } = {},
 ): Promise<void> {
     const updateData: Record<string, unknown> = {
@@ -112,6 +208,8 @@ export async function updateSmsStatus(
         updateData.last_error_message = options.errorMessage;
     } else if (status === "failed") {
         updateData.last_error_message = options.errorMessage;
+    } else if (status === "sent" && options.providerMessageId) {
+        updateData.provider_message_id = options.providerMessageId;
     }
 
     await db.update(outgoingSms).set(updateData).where(eq(outgoingSms.id, id));
@@ -140,7 +238,9 @@ export async function sendSmsRecord(record: SmsRecord): Promise<void> {
         });
 
         if (result.success) {
-            await updateSmsStatus(record.id, "sent");
+            await updateSmsStatus(record.id, "sent", {
+                providerMessageId: result.messageId,
+            });
         } else {
             await handleSmsFailure(record, result);
         }
@@ -171,7 +271,7 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
         const nextAttemptAt = Time.now().addMinutes(backoffMinutes).toUTC();
 
         console.log(
-            `⏳ SMS ${record.id} will retry in ${backoffMinutes} minutes (attempt ${currentAttempt}/${maxAttempts})`,
+            `⏳ SMS retry: ${record.intent} to household ${record.householdId} in ${backoffMinutes}min (attempt ${currentAttempt}/${maxAttempts})`,
         );
 
         await updateSmsStatus(record.id, "retrying", {
@@ -180,7 +280,7 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
         });
     } else {
         console.log(
-            `❌ SMS ${record.id} failed permanently after ${currentAttempt} attempts: ${result.error}`,
+            `❌ SMS failed permanently: ${record.intent} to household ${record.householdId} after ${currentAttempt} attempts: ${result.error}`,
         );
 
         await updateSmsStatus(record.id, "failed", {
@@ -205,11 +305,13 @@ function mapDbRecordToSmsRecord(dbRecord: any): SmsRecord {
         attemptCount: dbRecord.attempt_count,
         nextAttemptAt: dbRecord.next_attempt_at,
         lastErrorMessage: dbRecord.last_error_message,
+        idempotencyKey: dbRecord.idempotency_key,
+        providerMessageId: dbRecord.provider_message_id,
         createdAt: dbRecord.created_at,
     };
 }
 
-// Get parcels that need reminder SMS (48h window)
+// Get parcels that need reminder SMS (48h window) - excludes parcels outside opening hours
 export async function getParcelsNeedingReminder(): Promise<
     Array<{
         parcelId: string;
@@ -234,6 +336,8 @@ export async function getParcelsNeedingReminder(): Promise<
             phone: households.phone_number,
             locale: households.locale,
             pickupDate: foodParcels.pickup_date_time_earliest,
+            pickupLatestDate: foodParcels.pickup_date_time_latest,
+            locationId: pickupLocations.id,
             locationName: pickupLocations.name,
             locationAddress: pickupLocations.street_address,
         })
@@ -256,7 +360,60 @@ export async function getParcelsNeedingReminder(): Promise<
             ),
         );
 
-    return parcels.map(p => ({
+    // Filter out parcels that are outside opening hours
+    const validParcels = [];
+    let filteredCount = 0;
+
+    for (const parcel of parcels) {
+        try {
+            // Get location schedules for opening hours validation
+            const locationSchedules = await getPickupLocationSchedules(parcel.locationId);
+
+            if (
+                !locationSchedules ||
+                !locationSchedules.schedules ||
+                locationSchedules.schedules.length === 0
+            ) {
+                // If no schedules available, include the parcel (fail-safe approach)
+                validParcels.push(parcel);
+                continue;
+            }
+
+            // Check if parcel is outside opening hours
+            const parcelTimeInfo = {
+                id: parcel.parcelId,
+                pickupEarliestTime: parcel.pickupDate,
+                pickupLatestTime: parcel.pickupLatestDate,
+                isPickedUp: false,
+            };
+
+            const isOutsideHours = isParcelOutsideOpeningHours(parcelTimeInfo, locationSchedules);
+
+            if (!isOutsideHours) {
+                validParcels.push(parcel);
+            } else {
+                filteredCount++;
+                console.log(
+                    `🚫 SMS skipped for parcel ${parcel.parcelId}: scheduled outside opening hours`,
+                );
+            }
+        } catch (error) {
+            // If there's an error checking opening hours, include the parcel (fail-safe)
+            console.warn(
+                `Warning: Could not validate opening hours for parcel ${parcel.parcelId}:`,
+                error,
+            );
+            validParcels.push(parcel);
+        }
+    }
+
+    if (filteredCount > 0) {
+        console.log(
+            `📊 SMS filtering: ${validParcels.length} parcels eligible, ${filteredCount} filtered out (outside opening hours)`,
+        );
+    }
+
+    return validParcels.map(p => ({
         parcelId: p.parcelId,
         householdId: p.householdId,
         householdName: p.householdName,
@@ -266,4 +423,25 @@ export async function getParcelsNeedingReminder(): Promise<
         locationName: p.locationName,
         locationAddress: p.locationAddress,
     }));
+}
+
+/**
+ * Protected version of queue processing that uses advisory locks
+ * to prevent concurrent execution
+ */
+export async function processSendQueueWithLock(
+    processingFunction: () => Promise<number>,
+): Promise<{ processed: number; lockAcquired: boolean }> {
+    const lockAcquired = await acquireSmsQueueLock();
+
+    if (!lockAcquired) {
+        return { processed: 0, lockAcquired: false };
+    }
+
+    try {
+        const processed = await processingFunction();
+        return { processed, lockAcquired: true };
+    } finally {
+        await releaseSmsQueueLock();
+    }
 }

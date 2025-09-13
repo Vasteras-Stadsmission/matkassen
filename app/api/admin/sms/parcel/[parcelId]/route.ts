@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,7 +7,7 @@ import {
     createSmsRecord,
     smsExistsForParcel,
 } from "@/app/utils/sms/sms-service";
-import { formatPickupSms } from "@/app/utils/sms/templates";
+import { formatPickupSms, type SmsTemplateData } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
 
@@ -18,10 +17,7 @@ export async function GET(
     { params }: { params: Promise<{ parcelId: string }> },
 ) {
     try {
-        const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // Authentication is now handled by middleware
 
         const { parcelId } = await params;
         const smsRecords = await getSmsRecordsForParcel(parcelId);
@@ -49,12 +45,11 @@ export async function POST(
     { params }: { params: Promise<{ parcelId: string }> },
 ) {
     try {
-        const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
         const { parcelId } = await params;
+
+        // Authentication is now handled by middleware
+        // Note: Rate limiting will need to be handled separately or removed for now
+
         const { action } = await request.json();
 
         if (action !== "send" && action !== "resend") {
@@ -110,15 +105,17 @@ export async function POST(
         // Generate SMS content
         const baseUrl =
             process.env.NEXT_PUBLIC_BASE_URL ||
-            (process.env.NODE_ENV === "production" ? "matkassen.org" : "localhost:3000");
+            (process.env.NODE_ENV === "production"
+                ? "https://matkassen.org"
+                : "http://localhost:3000");
 
         // Create shorter URL for SMS limits
         const publicUrl = `${baseUrl}/p/${parcelId}`;
 
-        // Use pickup SMS template with Date object
-        const templateData = {
+        // Template data - all fields guaranteed by database schema constraints
+        const templateData: SmsTemplateData = {
             householdName,
-            pickupDate: parcelData.pickupDateTimeEarliest, // Pass Date object directly
+            pickupDate: parcelData.pickupDateTimeEarliest,
             locationName: parcelData.locationName,
             publicUrl,
         };

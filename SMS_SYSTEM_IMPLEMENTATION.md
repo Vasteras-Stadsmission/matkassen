@@ -35,7 +35,8 @@ app/
 │       ├── hello-sms.ts             # HelloSMS API integration
 │       ├── sms-service.ts           # Database operations & queue management
 │       ├── templates.ts             # Localized SMS message templates
-│       └── scheduler.ts             # Background SMS processing
+│       ├── scheduler.ts             # Background SMS processing
+│       └── server-startup.ts        # Server-side scheduler initialization
 ├── [locale]/admin/sms-demo/         # Demo interface for testing
 │   ├── page.tsx                     # Demo page wrapper
 │   └── components/
@@ -45,7 +46,8 @@ app/
 │   └── AuthProtection/              # Authentication wrappers
 ├── db/schema.ts                     # Database schema (outgoing_sms table)
 ├── middleware.ts                    # Route handling for public pages
-└── instrumentation.ts               # SMS scheduler initialization
+├── instrumentation.ts               # Secrets loading
+└── server.js                        # Custom Next.js server with SMS scheduler initialization
 ```
 
 ## 🔧 Configuration (Production Ready)
@@ -356,7 +358,7 @@ formatPickupReminderSms(locale, parcelData, isReminder) {
 1. ✅ Configure HelloSMS credentials in production `.env` file (only secrets needed)
 2. ✅ Set `HELLO_SMS_TEST_MODE=false` in production docker-compose (optional - smart defaults work)
 3. ✅ Set production domain in docker-compose (optional - smart defaults work)
-4. ⚠️ **Enable SMS scheduler** in `instrumentation.ts` (currently commented out)
+4. ✅ **SMS scheduler enabled** - Automatically starts with custom Next.js server on application startup
 5. ⚠️ Configure NGINX rate limiting for `/p/*` routes (optional)
 
 ### Missing Admin Features (Separate PR):
@@ -401,4 +403,17 @@ formatPickupReminderSms(locale, parcelData, isReminder) {
 - Connect parcel parameter in schedule page
 - Add parcel-specific admin actions
 
-This separation keeps the current PR focused on the SMS system core functionality while leaving the admin workflow for a targeted follow-up implementation.
+**Critical SMS System Improvements (COMPLETED):**
+
+- ✅ **Opening Hours Validation**: Added checks to prevent SMS for parcels scheduled outside pickup location opening hours
+  - Integrates with existing `pickupLocationSchedules` and `pickupLocationScheduleDays` infrastructure
+  - Uses robust `isParcelOutsideOpeningHours()` validation function
+  - Includes fail-safe behavior (includes parcels when schedules unavailable or validation errors occur)
+  - Provides logging for filtering statistics and admin visibility
+  - **Test Coverage**: 6 focused tests covering normal filtering, fail-safe scenarios, error handling, and edge cases
+- ✅ **Template Variable Type Safety**: Improved TypeScript types to reflect NOT NULL database constraints
+  - Removed unnecessary runtime validation for guaranteed NOT NULL fields (first_name, last_name, location names, pickup dates)
+  - Added clear documentation explaining database schema guarantees
+  - Fixed base URL construction to properly include protocol in production
+
+This separation keeps the current PR focused on the SMS system core functionality while leaving the admin workflow and critical business logic improvements for a targeted follow-up implementation.

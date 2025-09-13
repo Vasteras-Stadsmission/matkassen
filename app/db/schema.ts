@@ -12,6 +12,7 @@ import {
     time,
     date,
     index,
+    uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -251,6 +252,8 @@ export const outgoingSms = pgTable(
         attempt_count: integer("attempt_count").notNull().default(0), // Essential for retry logic
         next_attempt_at: timestamp({ precision: 1, withTimezone: true }), // Essential for scheduling retries
         last_error_message: text("last_error_message"), // Helpful for debugging failures
+        idempotency_key: varchar("idempotency_key", { length: 100 }).notNull(), // Stable key for deduplication
+        provider_message_id: varchar("provider_message_id", { length: 50 }), // ID from SMS provider
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     },
     table => [
@@ -258,6 +261,8 @@ export const outgoingSms = pgTable(
         index("idx_outgoing_sms_parcel_intent_unique").on(table.intent, table.parcel_id),
         // Index for efficient querying ready-to-send SMS
         index("idx_outgoing_sms_ready_to_send").on(table.status, table.next_attempt_at),
+        // Unique constraint for idempotency
+        uniqueIndex("idx_outgoing_sms_idempotency_unique").on(table.idempotency_key),
     ],
 );
 
