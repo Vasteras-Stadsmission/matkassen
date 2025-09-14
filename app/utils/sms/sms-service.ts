@@ -228,8 +228,8 @@ export async function smsExistsForParcel(parcelId: string, intent: SmsIntent): P
 
 // Send SMS and update record (with smart retry logic)
 export async function sendSmsRecord(record: SmsRecord): Promise<void> {
-    // Mark as sending and increment attempt count
-    await updateSmsStatus(record.id, "sending", { incrementAttempt: true });
+    // Mark as sending (attempt count will be incremented only on failure)
+    await updateSmsStatus(record.id, "sending");
 
     try {
         const result: SendSmsResponse = await sendSms({
@@ -255,7 +255,7 @@ export async function sendSmsRecord(record: SmsRecord): Promise<void> {
 // Handle SMS sending failures with simple retry logic
 async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Promise<void> {
     const maxAttempts = 3; // Total attempts: initial + 2 retries
-    const currentAttempt = record.attemptCount + 1; // We already incremented in sendSmsRecord
+    const currentAttempt = record.attemptCount + 1; // This is the attempt we just made
 
     // Check if we should retry based on error type
     const isRetriableError =
@@ -277,6 +277,7 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
         await updateSmsStatus(record.id, "retrying", {
             errorMessage: result.error,
             nextAttemptAt,
+            incrementAttempt: true, // Increment only when we actually retry
         });
     } else {
         console.log(
@@ -285,6 +286,7 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
 
         await updateSmsStatus(record.id, "failed", {
             errorMessage: result.error,
+            incrementAttempt: true, // Increment for the final failed attempt
         });
     }
 }

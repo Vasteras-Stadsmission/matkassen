@@ -406,14 +406,14 @@ formatPickupReminderSms(locale, parcelData, isReminder) {
 **Critical SMS System Improvements (COMPLETED):**
 
 - ✅ **Opening Hours Validation**: Added checks to prevent SMS for parcels scheduled outside pickup location opening hours
-  - Integrates with existing `pickupLocationSchedules` and `pickupLocationScheduleDays` infrastructure
-  - Uses robust `isParcelOutsideOpeningHours()` validation function
-  - Includes fail-safe behavior (includes parcels when schedules unavailable or validation errors occur)
-  - Provides logging for filtering statistics and admin visibility
-  - **Test Coverage**: 6 focused tests covering normal filtering, fail-safe scenarios, error handling, and edge cases
+    - Integrates with existing `pickupLocationSchedules` and `pickupLocationScheduleDays` infrastructure
+    - Uses robust `isParcelOutsideOpeningHours()` validation function
+    - Includes fail-safe behavior (includes parcels when schedules unavailable or validation errors occur)
+    - Provides logging for filtering statistics and admin visibility
+    - **Test Coverage**: 6 focused tests covering normal filtering, fail-safe scenarios, error handling, and edge cases
 - ✅ **Template Variable Type Safety**: Improved TypeScript types to reflect NOT NULL database constraints
-  - Removed unnecessary runtime validation for guaranteed NOT NULL fields (first_name, last_name, location names, pickup dates)
-  - Added clear documentation explaining database schema guarantees
-  - Fixed base URL construction to properly include protocol in production
+    - Removed unnecessary runtime validation for guaranteed NOT NULL fields (first_name, last_name, location names, pickup dates)
+    - Added clear documentation explaining database schema guarantees
+    - Fixed base URL construction to properly include protocol in production
 
 This separation keeps the current PR focused on the SMS system core functionality while leaving the admin workflow and critical business logic improvements for a targeted follow-up implementation.

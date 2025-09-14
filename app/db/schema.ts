@@ -213,7 +213,7 @@ export const foodParcels = pgTable(
         id: text("id")
             .primaryKey()
             .notNull()
-            .$defaultFn(() => nanoid(12)), // Change to 12 chars as requested
+            .$defaultFn(() => nanoid(12)), // Use 12-character nanoid for IDs: balances collision resistance (with 62^12 possible values) and keeps IDs short for URLs and database efficiency
         household_id: text("household_id")
             .notNull()
             .references(() => households.id, { onDelete: "cascade" }),

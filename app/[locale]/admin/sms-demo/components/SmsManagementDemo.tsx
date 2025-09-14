@@ -177,17 +177,17 @@ export default function SmsManagementDemo() {
         }
     };
 
-    const handleResendSms = async (smsId: string) => {
+    const handleResendSms = async (parcelId: string) => {
         if (!selectedParcel) return;
-        console.log(`Demo: Resending SMS ${smsId} for parcel ${selectedParcel.id}`);
-        const success = await resendSms(smsId);
+        console.log(`Demo: Resending SMS for parcel ${parcelId}`);
+        const success = await resendSms(parcelId);
         if (success) {
             // Add a small delay to ensure database is updated
             await new Promise(resolve => setTimeout(resolve, 500));
 
             // Refresh history and test mode
             try {
-                const response = await fetch(`/api/admin/sms/parcel/${selectedParcel.id}`);
+                const response = await fetch(`/api/admin/sms/parcel/${parcelId}`);
                 if (response.ok) {
                     const data = await response.json();
                     setSmsHistory(data.smsRecords || []);

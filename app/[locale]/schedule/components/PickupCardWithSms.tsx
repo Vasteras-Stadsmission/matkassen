@@ -105,11 +105,11 @@ function PickupCardWithSms({
         }
     };
 
-    const handleResendSms = async (smsId: string) => {
-        const success = await resendSms(smsId);
+    const handleResendSms = async (parcelId: string) => {
+        const success = await resendSms(parcelId);
         if (success && smsExpanded) {
             // Refresh SMS history
-            const newHistory = await fetchSmsHistory(foodParcel.id);
+            const newHistory = await fetchSmsHistory(parcelId);
             setSmsHistory(newHistory);
         }
     };

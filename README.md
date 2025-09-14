@@ -103,17 +103,20 @@ Matkassen includes automated SMS notifications to inform households about their 
 The SMS system uses a custom Next.js server (`server.js`) that automatically starts the SMS scheduler when the application boots. This approach ensures reliable background processing without external dependencies:
 
 **Automatic Scheduler**:
+
 - Starts immediately when the application launches
 - Enqueues reminder SMS every 30 minutes
 - Processes SMS queue every 30 seconds
 - Includes health monitoring every 5 minutes
 
 **Queue Protection**:
+
 - Uses PostgreSQL advisory locks to prevent concurrent processing
 - Safe for multiple server instances or manual triggers
 - Automatic retry logic with exponential backoff (5s, 15s, 60s)
 
 **Reliability Features**:
+
 - Automatic startup with application
 - Comprehensive error handling and logging
 - Health checks integrated into `/api/health` endpoint
@@ -143,11 +146,13 @@ Set these environment variables for SMS functionality:
 The SMS system is designed for automatic operation, but includes manual triggers for flexibility:
 
 **Default Operation (Docker/VPS Deployment)**:
+
 - Background scheduler runs automatically with the application
 - No external cron jobs needed
 - Recommended for production Docker deployments
 
 **Manual Processing Endpoint**:
+
 ```bash
 # Manually trigger SMS queue processing
 curl -X POST http://localhost:3000/api/admin/sms/process-queue
@@ -182,14 +187,14 @@ ExecStart=/usr/bin/curl -X POST https://matkassen.org/api/admin/sms/process-queu
 # Example GitHub Actions workflow (every minute)
 name: SMS Queue Processing
 on:
-  schedule:
-    - cron: '* * * * *'
+    schedule:
+        - cron: "* * * * *"
 jobs:
-  process-sms:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger SMS Processing
-        run: curl -X POST https://matkassen.org/api/admin/sms/process-queue
+    process-sms:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Trigger SMS Processing
+              run: curl -X POST https://matkassen.org/api/admin/sms/process-queue
 ```
 
 **Note**: External cron is optional for the current Docker-based deployment but useful for serverless platforms like Vercel.
@@ -197,18 +202,21 @@ jobs:
 ### Production Deployment
 
 **SMS System Reliability**:
+
 - Custom Next.js server ensures automatic scheduler startup
 - PostgreSQL advisory locks prevent concurrent processing overlap
 - Health monitoring integrated into Docker health checks
 - Comprehensive error handling with retry logic
 
 **Monitoring**:
+
 - SMS health status available via `/api/health` endpoint
 - Docker health checks curl `/api/health` every 30 seconds
 - Logs include detailed SMS processing information
 - Slack notifications for health alerts in production
 
 **Scaling Considerations**:
+
 - Single scheduler instance per deployment (controlled by advisory locks)
 - Safe to run multiple application instances
 - Manual trigger endpoint allows external monitoring tools to force processing

@@ -9,6 +9,7 @@ describe("SMS Retry Logic", () => {
     // Helper function to simulate retry decision logic
     function shouldRetry(attemptCount: number, httpStatus?: number): boolean {
         const maxAttempts = 3;
+        // attemptCount is the number of attempts already made (not including current)
         const currentAttempt = attemptCount + 1;
 
         const isRetriableError =
@@ -21,6 +22,7 @@ describe("SMS Retry Logic", () => {
 
     // Helper function to calculate backoff time
     function getBackoffMinutes(attemptCount: number): number {
+        // attemptCount is the number of attempts already made
         const currentAttempt = attemptCount + 1;
         return currentAttempt === 1 ? 5 : 30;
     }

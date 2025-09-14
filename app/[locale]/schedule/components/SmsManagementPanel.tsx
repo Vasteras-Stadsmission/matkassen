@@ -32,7 +32,7 @@ interface SmsManagementPanelProps {
     parcel: FoodParcel;
     smsHistory?: SmsRecord[];
     onSendSms?: (parcelId: string) => void;
-    onResendSms?: (smsId: string) => void;
+    onResendSms?: (parcelId: string) => void;
     isLoading?: boolean;
     testMode?: boolean; // Add testMode prop
 }
@@ -125,7 +125,7 @@ export default function SmsManagementPanel({
                             color="red"
                             leftSection={<IconRepeat size={14} />}
                             disabled={isLoading}
-                            onClick={() => onResendSms?.(latestSms.id)}
+                            onClick={() => onResendSms?.(parcel.id)}
                             loading={isLoading}
                         >
                             {t("actions.resend")}
