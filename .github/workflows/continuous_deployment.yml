@@ -35,6 +35,9 @@ jobs:
                       export GITHUB_ORG="vasteras-stadsmission"
                       export DOMAIN_NAME="staging.matkassen.org"
                       export ENV_NAME="staging"
+                      export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
+                      export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
+                      export HELLO_SMS_TEST_MODE="true"
                       # Backups disabled on staging by policy (no secrets exported)
                       export SWIFT_PREFIX="backups/${ENV_NAME}"
 
@@ -91,6 +94,9 @@ jobs:
                       export GITHUB_ORG="vasteras-stadsmission"
                       export DOMAIN_NAME="matkassen.org"
                       export ENV_NAME="production"
+                      export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
+                      export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
+                      export HELLO_SMS_TEST_MODE="true"
                       # OpenStack Swift (env_auth) - hardcoded non-sensitive values
                       export OS_AUTH_TYPE=v3applicationcredential
                       export OS_AUTH_URL=https://ops.elastx.cloud:5000/v3
