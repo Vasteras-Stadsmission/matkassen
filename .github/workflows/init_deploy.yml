@@ -64,6 +64,9 @@ jobs:
                       export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
                       export GITHUB_ORG="vasteras-stadsmission"
                       export ENV_NAME="${{ github.event.inputs.environment }}"
+                      export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
+                      export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
+                      export HELLO_SMS_TEST_MODE="true"
 
                       # Set domain name based on environment
                       if [ "${{ github.event.inputs.environment }}" == "production" ]; then
