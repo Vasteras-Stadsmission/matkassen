@@ -22,6 +22,7 @@ let enqueueInterval: NodeJS.Timeout | null = null;
 let sendInterval: NodeJS.Timeout | null = null;
 let healthCheckInterval: NodeJS.Timeout | null = null;
 let lastHealthLog = 0; // Track when we last logged health status
+let hasEverStarted = false; // Track if scheduler has ever been started
 
 // Configuration
 const ENQUEUE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
@@ -138,7 +139,10 @@ export function startSmsScheduler(): void {
         return;
     }
 
+    const isFirstStartup = !hasEverStarted;
     isRunning = true;
+    hasEverStarted = true;
+
     const testMode = getHelloSmsConfig().testMode;
     if (testMode) {
         console.log("🚦 HelloSMS is running in TEST MODE (no real SMS will be sent)");
@@ -181,6 +185,42 @@ export function startSmsScheduler(): void {
     console.log(
         `SMS scheduler started (enqueue: ${ENQUEUE_INTERVAL_MS}ms, send: ${SEND_INTERVAL_MS}ms, health: ${HEALTH_CHECK_INTERVAL_MS}ms)`,
     );
+
+    // Send Slack notification for successful startup (always in production mode)
+    // Always notify on first startup, or when explicitly restarted
+    if (
+        process.env.NODE_ENV === "production" &&
+        (isFirstStartup || process.env.FORCE_STARTUP_NOTIFICATION === "true")
+    ) {
+        // Use dynamic import to avoid module resolution issues during build
+        import("../notifications/slack")
+            .then(({ sendSlackAlert }) => {
+                console.log("📢 Sending SMS scheduler startup notification to Slack...");
+                return sendSlackAlert({
+                    title: isFirstStartup ? "SMS Scheduler Started" : "SMS Scheduler Restarted",
+                    message:
+                        `SMS background scheduler ${isFirstStartup ? "started" : "restarted"} successfully in ${testMode ? "TEST" : "LIVE"} mode. ` +
+                        `Intervals: enqueue every ${ENQUEUE_INTERVAL_MS / 60000}min, send every ${SEND_INTERVAL_MS / 1000}s`,
+                    status: "success",
+                    details: {
+                        "Test Mode": testMode ? "Enabled (no real SMS)" : "Disabled (live SMS)",
+                        "Enqueue Interval": `${ENQUEUE_INTERVAL_MS / 60000} minutes`,
+                        "Health Check Interval": `${HEALTH_CHECK_INTERVAL_MS / 60000} minutes`,
+                        "Startup Type": isFirstStartup ? "Initial startup" : "Restart/Recovery",
+                    },
+                });
+            })
+            .then(success => {
+                if (success) {
+                    console.log("✅ SMS scheduler startup notification sent to Slack");
+                } else {
+                    console.warn("⚠️ Failed to send SMS scheduler startup notification to Slack");
+                }
+            })
+            .catch(error => {
+                console.error("❌ Error sending SMS scheduler startup notification:", error);
+            });
+    }
 }
 
 /**

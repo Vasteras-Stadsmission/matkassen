@@ -34,8 +34,17 @@ export interface HelloSmsApiResponse {
     }>;
 }
 
+// Cache configuration to prevent duplicate logging
+let cachedConfig: HelloSmsConfig | null = null;
+let hasLoggedConfig = false;
+
 // Environment configuration
 export function getHelloSmsConfig(): HelloSmsConfig {
+    // Return cached config if available
+    if (cachedConfig) {
+        return cachedConfig;
+    }
+
     // Check HELLO_SMS_TEST_MODE first - if explicitly set, always use that value
     const testModeFromEnv = process.env.HELLO_SMS_TEST_MODE;
     let testMode: boolean;
@@ -43,24 +52,32 @@ export function getHelloSmsConfig(): HelloSmsConfig {
     if (testModeFromEnv !== undefined && testModeFromEnv !== "") {
         // If explicitly set, use that value (this takes precedence over NODE_ENV)
         testMode = testModeFromEnv === "true";
-        console.log(
-            `🔧 SMS Test Mode explicitly set to: ${testMode} (HELLO_SMS_TEST_MODE="${testModeFromEnv}")`,
-        );
+        if (!hasLoggedConfig) {
+            console.log(
+                `🔧 SMS Test Mode explicitly set to: ${testMode} (HELLO_SMS_TEST_MODE="${testModeFromEnv}")`,
+            );
+            hasLoggedConfig = true;
+        }
     } else {
         // If not set, default based on NODE_ENV (safer default)
         testMode = process.env.NODE_ENV !== "production";
-        console.log(
-            `🔧 SMS Test Mode defaulted to: ${testMode} (NODE_ENV="${process.env.NODE_ENV}")`,
-        );
+        if (!hasLoggedConfig) {
+            console.log(
+                `🔧 SMS Test Mode defaulted to: ${testMode} (NODE_ENV="${process.env.NODE_ENV}")`,
+            );
+            hasLoggedConfig = true;
+        }
     }
 
-    return {
+    cachedConfig = {
         apiUrl: process.env.HELLO_SMS_API_URL || "https://api.hellosms.se/api/v1/sms/send",
         username: process.env.HELLO_SMS_USERNAME || "",
         password: process.env.HELLO_SMS_PASSWORD || "",
         testMode,
         from: process.env.HELLO_SMS_FROM || "Matkassen",
     };
+
+    return cachedConfig;
 }
 
 // Phone number validation and normalization to E.164 format

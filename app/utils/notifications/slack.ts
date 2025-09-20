@@ -102,7 +102,9 @@ export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
 
     const config = getSlackConfig();
     if (!config) {
-        console.warn("Slack configuration missing - skipping alert");
+        console.warn(
+            "⚠️ Slack configuration missing (SLACK_BOT_TOKEN or SLACK_CHANNEL_ID) - skipping alert",
+        );
         return false;
     }
 
@@ -173,10 +175,10 @@ export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
         const result = await response.json();
 
         if (result.ok) {
-            console.log("Slack alert sent successfully");
+            console.log("✅ Slack alert sent successfully to channel");
             return true;
         } else {
-            console.error("Failed to send Slack alert:", result.error);
+            console.error("❌ Failed to send Slack alert:", result.error);
             return false;
         }
     } catch (error) {

@@ -71,11 +71,45 @@ export async function GET(request: NextRequest) {
         // Test SMS service health
         let smsStatus = "unknown";
         let smsDetails = null;
+        let willAttemptRecovery = false;
 
         try {
             const smsHealth = await smsHealthCheck();
             smsStatus = smsHealth.status;
             smsDetails = smsHealth.details;
+
+            // Self-healing: If SMS scheduler is not running in production, try to start it
+            if (
+                process.env.NODE_ENV === "production" &&
+                smsHealth.details.schedulerRunning === false
+            ) {
+                willAttemptRecovery = true;
+                console.log("🔄 SMS scheduler not running, attempting to start...");
+
+                try {
+                    const { startSmsScheduler } = await import("@/app/utils/sms/scheduler");
+                    startSmsScheduler();
+                    console.log("✅ SMS scheduler started via health check auto-recovery");
+
+                    // Update status to healthy since we just started it
+                    smsStatus = "healthy";
+                    smsDetails = {
+                        ...smsDetails,
+                        schedulerRunning: true, // Update to reflect current state
+                        recoveryAttempted: true,
+                        autoStarted: true,
+                    };
+                } catch (startError) {
+                    console.error("❌ Failed to auto-start SMS scheduler:", startError);
+                    smsDetails = {
+                        ...smsDetails,
+                        recoveryAttempted: true,
+                        recoveryError:
+                            startError instanceof Error ? startError.message : "Unknown error",
+                    };
+                    willAttemptRecovery = false; // Recovery failed
+                }
+            }
         } catch (error) {
             smsStatus = "error";
             smsDetails = {
@@ -84,10 +118,19 @@ export async function GET(request: NextRequest) {
             console.error("SMS health check failed:", error);
         }
 
-        // Send Slack alert for SMS issues (with state tracking)
+        // Send Slack alert for SMS issues (with intelligent state tracking)
         if (process.env.NODE_ENV === "production") {
-            const smsIsHealthy = smsStatus === "ok";
-            sendSmsHealthAlert(smsIsHealthy, smsDetails || {}).catch(console.error);
+            const smsIsHealthy = smsStatus === "healthy";
+
+            if (willAttemptRecovery) {
+                // We successfully recovered - don't send unhealthy alert, let scheduler send success
+                console.log(
+                    "🔕 SMS auto-recovery successful - skipping health alert to avoid duplicate notifications",
+                );
+            } else {
+                // Normal health alerting (no recovery attempt or recovery failed)
+                sendSmsHealthAlert(smsIsHealthy, smsDetails || {}).catch(console.error);
+            }
         }
 
         // Test disk space
