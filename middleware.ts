@@ -29,7 +29,9 @@ function createCSP(nonce: string): string {
         "form-action 'self' https://github.com",
         "base-uri 'self'",
         "object-src 'none'",
-        "upgrade-insecure-requests",
+        // In development on http://localhost, forcing upgrade can break same-origin fetches
+        // with "TypeError: Failed to fetch". Only enable in non-dev environments.
+        ...(isDev ? [] : ["upgrade-insecure-requests"]),
         "report-uri /api/csp-report",
     ];
 
@@ -45,21 +47,6 @@ export default async function middleware(request: NextRequest) {
     // Generate nonce for CSP
     const nonce = generateNonce();
 
-    // Note: Our config.matcher already excludes:
-    // - /api/* routes (including /api/csp-report and /api/auth)
-    // - /_next/* routes
-    // - /static/* paths
-    // - /favicon.svg and /flags/*
-    // This means the middleware only runs on page routes that need locale handling
-
-    // 2. Public routes - apply only i18n middleware, no auth checks
-    const publicPatterns = [
-        /^\/(en|sv)\/auth\/.*/, // Auth pages with locale prefixes
-        /^\/auth\/.*/, // Auth pages without locale prefixes (from Auth.js redirects)
-    ];
-
-    const isPublicRoute = publicPatterns.some(pattern => pattern.test(pathname));
-
     // Helper function to add CSP headers to response
     const addCSPHeaders = (response: NextResponse) => {
         response.headers.set("Content-Security-Policy", createCSP(nonce));
@@ -67,12 +54,65 @@ export default async function middleware(request: NextRequest) {
         return response;
     };
 
+    // 1. Handle API routes first (new logic)
+    if (pathname.startsWith("/api/")) {
+        // Public API routes - no auth required
+        const publicApiPatterns = [
+            /^\/api\/health/, // Health check endpoint
+            /^\/api\/auth\//, // NextAuth endpoints
+            /^\/api\/csp-report/, // CSP violation reports
+            /^\/api\/pickup-locations/, // Public pickup locations (unused but keeping public)
+        ];
+
+        const isPublicApiRoute = publicApiPatterns.some(pattern => pattern.test(pathname));
+
+        if (isPublicApiRoute) {
+            const response = NextResponse.next();
+            return addCSPHeaders(response);
+        }
+
+        // All other API routes require authentication
+        // Basic cookie check - full validation happens in route handlers
+        const authToken =
+            request.cookies.get("next-auth.session-token")?.value ||
+            request.cookies.get("__Secure-next-auth.session-token")?.value;
+
+        if (!authToken) {
+            const response = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return addCSPHeaders(response);
+        }
+
+        // Basic check passed - route handlers will do full validation
+        const response = NextResponse.next();
+        return addCSPHeaders(response);
+    }
+
+    // 2. Handle page routes (existing logic)
+    const publicPatterns = [
+        /^\/(en|sv)\/auth\/.*/, // Auth pages with locale prefixes
+        /^\/auth\/.*/, // Auth pages without locale prefixes (from Auth.js redirects)
+    ];
+
+    // Public parcel pages should bypass locale routing entirely
+    const publicParcelPatterns = [
+        /^\/p\/.*/, // Public parcel pages (/p/[parcelId]) - no locale prefix
+    ];
+
+    const isPublicRoute = publicPatterns.some(pattern => pattern.test(pathname));
+    const isPublicParcelRoute = publicParcelPatterns.some(pattern => pattern.test(pathname));
+
+    // Handle public parcel pages - bypass locale routing completely
+    if (isPublicParcelRoute) {
+        const response = NextResponse.next();
+        return addCSPHeaders(response);
+    }
+
     if (isPublicRoute) {
         const response = intlMiddleware(request);
         return addCSPHeaders(response);
     }
 
-    // 3. For all other routes, apply authentication check
+    // 3. For all other page routes, apply authentication check
 
     // Get the session token from cookies
     const authToken =
@@ -110,13 +150,7 @@ export default async function middleware(request: NextRequest) {
     return addCSPHeaders(response);
 }
 
-// Configure the matcher to specifically include paths we want to process
-// This avoids applying middleware to static files or API routes
-// Note: We intentionally exclude /api/csp-report from middleware processing
-// because the CSP reporting endpoint should:
-// 1. Not have CSP headers itself (would create a reporting loop)
-// 2. Be accessible without authentication (for anonymous violation reports)
-// 3. Not be subject to locale rules (it's a pure API endpoint)
+// Configure the matcher to include both page routes and API routes
 export const config = {
     matcher: [
         /*
@@ -125,12 +159,8 @@ export const config = {
          * - _next/image (image optimization files)
          * - favicon.svg (favicon file)
          * - flags (flag images)
-         * - api/auth (Auth.js routes)
-         * - api/csp-report (CSP reporting endpoint)
-         * - api/health (Health check endpoint)
-         * This ensures that all other routes, including other API routes and all page routes,
-         * are processed by the middleware.
+         * Now includes /api/ routes for authentication checking
          */
-        "/((?!_next/static|_next/image|favicon.svg|flags/|api/auth|api/csp-report|api/health).*)",
+        "/((?!_next/static|_next/image|favicon.svg|flags/).*)",
     ],
 };

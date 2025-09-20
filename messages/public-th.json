@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "การรับแพ็คเกจอาหาร",
+        "pickupInfo": "ข้อมูลการรับ",
+        "location": "สถานที่",
+        "pickupWindow": "เวลารับ",
+        "qrCodeLabel": "QR โค้ด",
+        "qrCodeDescription": "แสดง QR โค้ดนี้เมื่อรับแพ็คเกจอาหารของคุณ",
+        "mapsLabel": "ขอเส้นทาง",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "กำหนดการแล้ว",
+            "ready": "พร้อมสำหรับการรับ",
+            "collected": "รับแล้ว",
+            "expired": "หมดอายุ"
+        },
+        "statusDescription": {
+            "scheduled": "การรับของคุณได้รับการกำหนดการแล้ว กรุณามาในช่วงเวลาที่กำหนด",
+            "ready": "แพ็คเกจอาหารของคุณพร้อมสำหรับการรับแล้ว!",
+            "collected": "แพ็คเกจอาหารนี้ได้รับไปแล้ว",
+            "expired": "การรับนี้ไม่ถูกต้องแล้ว กรุณาติดต่อเจ้าหน้าที่หากมีคำถาม"
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "สแกน QR โค้ด"
+    },
+    "admin": {
+        "title": "หน้าการจัดการ",
+        "openAdminPage": "เปิดหน้าการจัดการ"
+    },
+    "parcel": {
+        "loadingStatus": "กำลังโหลดสถานะแพ็คเกจ...",
+        "ready": "พร้อมสำหรับการรับ",
+        "pickedUp": "รับแล้ว",
+        "overdue": "เกินกำหนด",
+        "title": "แพ็คเกจอาหาร",
+        "pickupDetails": "รายละเอียดการรับ",
+        "time": "เวลา",
+        "location": "สถานที่",
+        "status": "สถานะ",
+        "directions": "เส้นทาง"
+    },
+    "maps": {
+        "openInAppleMaps": "เปิดใน Apple Maps",
+        "openInGoogleMaps": "เปิดใน Google Maps"
+    }
+}

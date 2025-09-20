@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "Ruokapaketin Nouto",
+        "pickupInfo": "Noutotiedot",
+        "location": "Sijainti",
+        "pickupWindow": "Noutoaika",
+        "qrCodeLabel": "QR-koodi",
+        "qrCodeDescription": "Näytä tämä QR-koodi kun notat ruokapakettisi",
+        "mapsLabel": "Hae Reittiohjeet",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Ajoitettu",
+            "ready": "Valmis Noudettavaksi",
+            "collected": "Noudettu",
+            "expired": "Vanhentunut"
+        },
+        "statusDescription": {
+            "scheduled": "Noutosi on ajoitettu. Saavu noutoaikana.",
+            "ready": "Ruokapakettisi on valmis noudettavaksi nyt!",
+            "collected": "Tämä ruokapaketti on jo noudettu.",
+            "expired": "Tämä nouto ei ole enää voimassa. Ota yhteyttä henkilökuntaan jos sinulla on kysymyksiä."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "Skannaa QR-koodi"
+    },
+    "admin": {
+        "title": "Hallintasivu",
+        "openAdminPage": "Avaa hallintasivu"
+    },
+    "parcel": {
+        "loadingStatus": "Ladataan paketin tilaa...",
+        "ready": "Valmis noudettavaksi",
+        "pickedUp": "Noudettu",
+        "overdue": "Myöhässä",
+        "title": "Ruokapaketti",
+        "pickupDetails": "Noutotiedot",
+        "time": "Aika",
+        "location": "Sijainti",
+        "status": "Tila",
+        "directions": "Reittiohjeet"
+    },
+    "maps": {
+        "openInAppleMaps": "Avaa Apple Mapsissa",
+        "openInGoogleMaps": "Avaa Google Mapsissa"
+    }
+}

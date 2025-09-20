@@ -5,7 +5,7 @@ import { Modal, Button, Group, Text, Select, Stack, Paper, Box } from "@mantine/
 import { IconCalendar, IconClock, IconCheck } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
 import { useTranslations } from "next-intl";
-import { FoodParcel, type LocationScheduleInfo } from "../actions";
+import { FoodParcel, type LocationScheduleInfo } from "../types";
 import { updateFoodParcelScheduleAction, getLocationSlotDurationAction } from "../client-actions";
 import { TranslationFunction } from "../../types";
 import {

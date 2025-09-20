@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "Odbiór Pakietu Żywności",
+        "pickupInfo": "Informacje o Odbiorze",
+        "location": "Lokalizacja",
+        "pickupWindow": "Czas Odbioru",
+        "qrCodeLabel": "Kod QR",
+        "qrCodeDescription": "Pokaż ten kod QR podczas odbierania pakietu żywności",
+        "mapsLabel": "Uzyskaj Wskazówki",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Zaplanowane",
+            "ready": "Gotowe do Odbioru",
+            "collected": "Odebrane",
+            "expired": "Wygasłe"
+        },
+        "statusDescription": {
+            "scheduled": "Twój odbiór jest zaplanowany. Proszę przybyć w czasie odbioru.",
+            "ready": "Twój pakiet żywności jest gotowy do odbioru teraz!",
+            "collected": "Ten pakiet żywności został już odebrany.",
+            "expired": "Ten odbiór nie jest już ważny. Skontaktuj się z personelem jeśli masz pytania."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "Skanuj kod QR"
+    },
+    "admin": {
+        "title": "Strona administracyjna",
+        "openAdminPage": "Otwórz stronę administracyjną"
+    },
+    "parcel": {
+        "loadingStatus": "Ładowanie statusu paczki...",
+        "ready": "Gotowe do odbioru",
+        "pickedUp": "Odebrane",
+        "overdue": "Przeterminowane",
+        "title": "Pakiet żywności",
+        "pickupDetails": "Szczegóły odbioru",
+        "time": "Czas",
+        "location": "Lokalizacja",
+        "status": "Status",
+        "directions": "Wskazówki"
+    },
+    "maps": {
+        "openInAppleMaps": "Otwórz w Apple Maps",
+        "openInGoogleMaps": "Otwórz w Google Maps"
+    }
+}

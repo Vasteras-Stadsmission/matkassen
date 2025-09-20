@@ -3,34 +3,31 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // Create a mock for the auth configuration
 // We'll test the signIn callback logic separately since testing NextAuth directly is complex
 const createMockSignInCallback = () => {
-    // Mock the checkOrganizationMembership function
-    const mockCheckMembership = vi.fn();
+    // Mock the validateOrganizationMembership function
+    const mockValidateOrganization = vi.fn();
 
     // Simulate the signIn callback logic from auth.ts
     const signInCallback = async ({ account, profile }: { account?: any; profile?: any }) => {
         if (account?.provider === "github") {
-            const organization = process.env.GITHUB_ORG;
             const username = profile?.login as string;
 
-            if (!organization || !username) {
-                return `/auth/error?error=configuration`;
+            // Use centralized organization membership validation
+            const orgCheck = await mockValidateOrganization(username, "signin");
+
+            if (!orgCheck.isValid) {
+                if (orgCheck.error?.includes("configuration")) {
+                    return `/auth/error?error=configuration`;
+                }
+                // Access denied - return false to trigger AccessDenied error
+                return false;
             }
 
-            try {
-                const isMember = await mockCheckMembership(username, organization);
-                if (isMember) {
-                    return true;
-                } else {
-                    return false; // This will trigger AccessDenied error
-                }
-            } catch (error) {
-                return `/auth/error?error=configuration`;
-            }
+            return true;
         }
         return `/auth/error?error=invalid-provider`;
     };
 
-    return { signInCallback, mockCheckMembership };
+    return { signInCallback, mockValidateOrganization };
 };
 
 describe("Authentication Flow", () => {
@@ -61,8 +58,11 @@ describe("Authentication Flow", () => {
         });
 
         it("should return configuration error when organization is missing", async () => {
-            delete process.env.GITHUB_ORG;
-            const { signInCallback } = createMockSignInCallback();
+            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
+            mockValidateOrganization.mockResolvedValue({
+                isValid: false,
+                error: "Server configuration error",
+            });
 
             const result = await signInCallback({
                 account: { provider: "github" },
@@ -73,7 +73,11 @@ describe("Authentication Flow", () => {
         });
 
         it("should return configuration error when username is missing", async () => {
-            const { signInCallback } = createMockSignInCallback();
+            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
+            mockValidateOrganization.mockResolvedValue({
+                isValid: false,
+                error: "Server configuration error",
+            });
 
             const result = await signInCallback({
                 account: { provider: "github" },
@@ -84,8 +88,8 @@ describe("Authentication Flow", () => {
         });
 
         it("should return true for valid organization member", async () => {
-            const { signInCallback, mockCheckMembership } = createMockSignInCallback();
-            mockCheckMembership.mockResolvedValue(true);
+            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
+            mockValidateOrganization.mockResolvedValue({ isValid: true });
 
             const result = await signInCallback({
                 account: { provider: "github" },
@@ -93,12 +97,15 @@ describe("Authentication Flow", () => {
             });
 
             expect(result).toBe(true);
-            expect(mockCheckMembership).toHaveBeenCalledWith("validuser", "vasteras-stadsmission");
+            expect(mockValidateOrganization).toHaveBeenCalledWith("validuser", "signin");
         });
 
         it("should return false for non-organization member (AccessDenied)", async () => {
-            const { signInCallback, mockCheckMembership } = createMockSignInCallback();
-            mockCheckMembership.mockResolvedValue(false);
+            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
+            mockValidateOrganization.mockResolvedValue({
+                isValid: false,
+                error: "Access denied: Organization membership required",
+            });
 
             const result = await signInCallback({
                 account: { provider: "github" },
@@ -106,12 +113,15 @@ describe("Authentication Flow", () => {
             });
 
             expect(result).toBe(false); // This triggers Auth.js AccessDenied error
-            expect(mockCheckMembership).toHaveBeenCalledWith("nonmember", "vasteras-stadsmission");
+            expect(mockValidateOrganization).toHaveBeenCalledWith("nonmember", "signin");
         });
 
         it("should return configuration error when membership check fails", async () => {
-            const { signInCallback, mockCheckMembership } = createMockSignInCallback();
-            mockCheckMembership.mockRejectedValue(new Error("API error"));
+            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
+            mockValidateOrganization.mockResolvedValue({
+                isValid: false,
+                error: "Server configuration error",
+            });
 
             const result = await signInCallback({
                 account: { provider: "github" },
@@ -119,7 +129,7 @@ describe("Authentication Flow", () => {
             });
 
             expect(result).toBe("/auth/error?error=configuration");
-            expect(mockCheckMembership).toHaveBeenCalledWith("testuser", "vasteras-stadsmission");
+            expect(mockValidateOrganization).toHaveBeenCalledWith("testuser", "signin");
         });
     });
 });

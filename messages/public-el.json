@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "Παραλαβή Πακέτου Φαγητού",
+        "pickupInfo": "Πληροφορίες Παραλαβής",
+        "location": "Τοποθεσία",
+        "pickupWindow": "Ώρα Παραλαβής",
+        "qrCodeLabel": "Κώδικας QR",
+        "qrCodeDescription": "Δείξτε αυτόν τον κώδικα QR όταν παραλαμβάνετε το πακέτο φαγητού σας",
+        "mapsLabel": "Λήψη Οδηγιών",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Προγραμματισμένο",
+            "ready": "Έτοιμο για Παραλαβή",
+            "collected": "Παραλήφθηκε",
+            "expired": "Έληξε"
+        },
+        "statusDescription": {
+            "scheduled": "Η παραλαβή σας είναι προγραμματισμένη. Παρακαλώ έρθετε κατά τη διάρκεια της ώρας παραλαβής.",
+            "ready": "Το πακέτο φαγητού σας είναι έτοιμο για παραλαβή τώρα!",
+            "collected": "Αυτό το πακέτο φαγητού έχει ήδη παραληφθεί.",
+            "expired": "Αυτή η παραλαβή δεν είναι πλέον έγκυρη. Παρακαλώ επικοινωνήστε με το προσωπικό εάν έχετε ερωτήσεις."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "Σάρωση κώδικα QR"
+    },
+    "admin": {
+        "title": "Σελίδα διαχείρισης",
+        "openAdminPage": "Άνοιγμα σελίδας διαχείρισης"
+    },
+    "parcel": {
+        "loadingStatus": "Φόρτωση κατάστασης πακέτου...",
+        "ready": "Έτοιμο για παραλαβή",
+        "pickedUp": "Παραλήφθηκε",
+        "overdue": "Εκπρόθεσμο",
+        "title": "Πακέτο φαγητού",
+        "pickupDetails": "Λεπτομέρειες παραλαβής",
+        "time": "Ώρα",
+        "location": "Τοποθεσία",
+        "status": "Κατάσταση",
+        "directions": "Οδηγίες"
+    },
+    "maps": {
+        "openInAppleMaps": "Άνοιγμα σε Apple Maps",
+        "openInGoogleMaps": "Άνοιγμα σε Google Maps"
+    }
+}

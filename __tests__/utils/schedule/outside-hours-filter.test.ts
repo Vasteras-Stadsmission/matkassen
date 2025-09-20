@@ -33,7 +33,7 @@ import { isTimeAvailable } from "@/app/utils/schedule/location-availability";
 const mockIsTimeAvailable = vi.mocked(isTimeAvailable);
 
 describe("outside-hours-filter", () => {
-    const fixedCurrentTime = new Date("2025-08-19T10:00:00Z");
+    const fixedCurrentTime = new Date("2025-08-18T08:00:00Z");
 
     const mockLocationSchedule: LocationScheduleInfo = {
         schedules: [
@@ -85,8 +85,8 @@ describe("outside-hours-filter", () => {
         it("should return false for parcels with past earliest pickup time", () => {
             const pastParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T08:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T09:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"),
+                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
                 isPickedUp: false,
             };
 
@@ -96,8 +96,8 @@ describe("outside-hours-filter", () => {
         it("should return false for parcels with earliest pickup time exactly at current time", () => {
             const currentParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T10:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T11:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T08:00:00Z"),
+                pickupLatestTime: new Date("2025-08-18T09:00:00Z"),
                 isPickedUp: false,
             };
 
@@ -131,8 +131,8 @@ describe("outside-hours-filter", () => {
         it("should return false for past parcels", () => {
             const pastParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T08:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T09:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"),
+                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
                 isPickedUp: false,
             };
 
@@ -208,26 +208,26 @@ describe("outside-hours-filter", () => {
         const parcels: ParcelTimeInfo[] = [
             {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T15:00:00Z"), // Future
-                pickupLatestTime: new Date("2025-08-19T16:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T15:00:00Z"), // Future
+                pickupLatestTime: new Date("2025-08-18T16:00:00Z"),
                 isPickedUp: false,
             },
             {
                 id: "2",
-                pickupEarliestTime: new Date("2025-08-19T08:00:00Z"), // Past
-                pickupLatestTime: new Date("2025-08-19T09:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
+                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
                 isPickedUp: false,
             },
             {
                 id: "3",
-                pickupEarliestTime: new Date("2025-08-19T12:00:00Z"), // Future, picked up
-                pickupLatestTime: new Date("2025-08-19T13:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T12:00:00Z"), // Future, picked up
+                pickupLatestTime: new Date("2025-08-18T13:00:00Z"),
                 isPickedUp: true,
             },
             {
                 id: "4",
-                pickupEarliestTime: new Date("2025-08-19T18:00:00Z"), // Future, outside hours
-                pickupLatestTime: new Date("2025-08-19T19:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T18:00:00Z"), // Future, outside hours
+                pickupLatestTime: new Date("2025-08-18T19:00:00Z"),
                 isPickedUp: false,
             },
         ];
@@ -305,20 +305,20 @@ describe("outside-hours-filter", () => {
             const parcels: ParcelTimeInfo[] = [
                 {
                     id: "1",
-                    pickupEarliestTime: new Date("2025-08-19T15:00:00Z"), // Future, not picked up
-                    pickupLatestTime: new Date("2025-08-19T16:00:00Z"),
+                    pickupEarliestTime: new Date("2025-08-18T15:00:00Z"), // Future, not picked up
+                    pickupLatestTime: new Date("2025-08-18T16:00:00Z"),
                     isPickedUp: false,
                 },
                 {
                     id: "2",
-                    pickupEarliestTime: new Date("2025-08-19T08:00:00Z"), // Past
-                    pickupLatestTime: new Date("2025-08-19T09:00:00Z"),
+                    pickupEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
+                    pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
                     isPickedUp: false,
                 },
                 {
                     id: "3",
-                    pickupEarliestTime: new Date("2025-08-19T12:00:00Z"), // Future, picked up
-                    pickupLatestTime: new Date("2025-08-19T13:00:00Z"),
+                    pickupEarliestTime: new Date("2025-08-18T12:00:00Z"), // Future, picked up
+                    pickupLatestTime: new Date("2025-08-18T13:00:00Z"),
                     isPickedUp: true,
                 },
             ];
@@ -330,12 +330,12 @@ describe("outside-hours-filter", () => {
         });
     });
 
-    describe.skip("isParcelAffectedByScheduleChange", () => {
+    describe("isParcelAffectedByScheduleChange", () => {
         it("should return true when parcel becomes outside hours with new schedule", () => {
             const parcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T09:30:00Z"), // Within current, outside proposed
-                pickupLatestTime: new Date("2025-08-19T10:30:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T09:30:00Z"), // Within current, outside proposed
+                pickupLatestTime: new Date("2025-08-18T10:30:00Z"),
                 isPickedUp: false,
             };
 
@@ -399,8 +399,8 @@ describe("outside-hours-filter", () => {
         it("should return false when parcel remains within hours", () => {
             const parcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T11:00:00Z"), // Within both schedules
-                pickupLatestTime: new Date("2025-08-19T12:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T11:00:00Z"), // Within both schedules
+                pickupLatestTime: new Date("2025-08-18T12:00:00Z"),
                 isPickedUp: false,
             };
 
@@ -462,8 +462,8 @@ describe("outside-hours-filter", () => {
         it("should return false for inactive parcels", () => {
             const pastParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T08:00:00Z"), // Past
-                pickupLatestTime: new Date("2025-08-19T09:00:00Z"),
+                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
+                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
                 isPickedUp: false,
             };
 
@@ -524,14 +524,14 @@ describe("outside-hours-filter", () => {
             const parcels: ParcelTimeInfo[] = [
                 {
                     id: "1",
-                    pickupEarliestTime: new Date("2025-08-19T09:30:00Z"), // Will be affected
-                    pickupLatestTime: new Date("2025-08-19T10:30:00Z"),
+                    pickupEarliestTime: new Date("2025-08-18T09:30:00Z"), // Will be affected
+                    pickupLatestTime: new Date("2025-08-18T10:30:00Z"),
                     isPickedUp: false,
                 },
                 {
                     id: "2",
-                    pickupEarliestTime: new Date("2025-08-19T11:00:00Z"), // Won't be affected
-                    pickupLatestTime: new Date("2025-08-19T12:00:00Z"),
+                    pickupEarliestTime: new Date("2025-08-18T11:00:00Z"), // Won't be affected
+                    pickupLatestTime: new Date("2025-08-18T12:00:00Z"),
                     isPickedUp: false,
                 },
             ];

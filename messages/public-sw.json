@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "Uchukuzi wa Kifurushi cha Chakula",
+        "pickupInfo": "Taarifa za Uchukuzi",
+        "location": "Mahali",
+        "pickupWindow": "Wakati wa Uchukuzi",
+        "qrCodeLabel": "Msimbo wa QR",
+        "qrCodeDescription": "Onyesha msimbo huu wa QR unapochukua kifurushi chako cha chakula",
+        "mapsLabel": "Pata Maelekezo",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Kimepangwa",
+            "ready": "Tayari Kuchukuliwa",
+            "collected": "Kimechukuliwa",
+            "expired": "Kimepitwa na wakati"
+        },
+        "statusDescription": {
+            "scheduled": "Uchukuzi wako umepangwa. Tafadhali fika wakati wa uchukuzi.",
+            "ready": "Kifurushi chako cha chakula kiko tayari kuchukuliwa sasa!",
+            "collected": "Kifurushi hiki cha chakula kimeshachukuliwa.",
+            "expired": "Uchukuzi huu haujaidi kuwa halali. Tafadhali wasiliana na wafanyakazi ikiwa una maswali."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "Skana msimbo wa QR"
+    },
+    "admin": {
+        "title": "Ukurasa wa uongozi",
+        "openAdminPage": "Fungua ukurasa wa uongozi"
+    },
+    "parcel": {
+        "loadingStatus": "Inapakia hali ya kifurushi...",
+        "ready": "Tayari kuchukuliwa",
+        "pickedUp": "Kimechukuliwa",
+        "overdue": "Kimechelewa",
+        "title": "Kifurushi cha chakula",
+        "pickupDetails": "Maelezo ya uchukuzi",
+        "time": "Wakati",
+        "location": "Mahali",
+        "status": "Hali",
+        "directions": "Mwelekeo"
+    },
+    "maps": {
+        "openInAppleMaps": "Fungua katika Apple Maps",
+        "openInGoogleMaps": "Fungua katika Google Maps"
+    }
+}

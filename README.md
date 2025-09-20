@@ -78,6 +78,150 @@ For detailed GitHub setup instructions, see:
 - Only `vasteras-stadsmission` organization members can access the application
 - Non-members see a clear access denied message
 
+## SMS Notifications
+
+Matkassen includes automated SMS notifications to inform households about their food parcel pickups. The system uses HelloSMS as the SMS provider and supports both test and production modes.
+
+### Features
+
+- **Automated Notifications**: Initial SMS when parcels are scheduled, reminder SMS closer to pickup time
+- **Multi-language Support**: SMS templates in Swedish, English, Arabic, and Somali
+- **Queue Processing**: Background scheduler processes SMS queue every 30 seconds
+- **Rate Limiting**: 5-minute cooldown between SMS to prevent spam
+- **Test Mode**: Safe testing environment with HelloSMS test mode
+- **Admin Interface**: SMS management panel for sending/resending individual messages
+
+### How It Works
+
+1. **Scheduling**: SMS are automatically queued when food parcels are created
+2. **Processing**: Background scheduler sends queued SMS via HelloSMS API
+3. **Delivery**: One-way SMS delivery - recipients cannot reply to notifications
+4. **Tracking**: All SMS delivery status and history is logged in the database
+
+### Background Processing
+
+The SMS system uses a custom Next.js server (`server.js`) that automatically starts the SMS scheduler when the application boots. This approach ensures reliable background processing without external dependencies:
+
+**Automatic Scheduler**:
+
+- Starts immediately when the application launches
+- Enqueues reminder SMS every 30 minutes
+- Processes SMS queue every 30 seconds
+- Includes health monitoring every 5 minutes
+
+**Queue Protection**:
+
+- Uses PostgreSQL advisory locks to prevent concurrent processing
+- Safe for multiple server instances or manual triggers
+- Automatic retry logic with exponential backoff (5s, 15s, 60s)
+
+**Reliability Features**:
+
+- Automatic startup with application
+- Comprehensive error handling and logging
+- Health checks integrated into `/api/health` endpoint
+- Test mode for safe development
+
+### SMS Content
+
+SMS messages include:
+
+- Household name and personalized greeting
+- Pickup date and time window
+- Pickup location name and address
+- Link to public parcel page with QR code for verification
+
+**Note**: SMS notifications are transactional (pickup reminders), not marketing messages. Recipients who no longer want notifications should be removed from the system entirely by an administrator.
+
+### Configuration
+
+Set these environment variables for SMS functionality:
+
+- `HELLO_SMS_USERNAME` / `HELLO_SMS_PASSWORD` - HelloSMS API credentials
+- `HELLO_SMS_TEST_MODE=true/false` - Enable test mode for development
+- `HELLO_SMS_FROM=Matkassen` - Sender name displayed to recipients
+
+### Operational Triggers
+
+The SMS system is designed for automatic operation, but includes manual triggers for flexibility:
+
+**Default Operation (Docker/VPS Deployment)**:
+
+- Background scheduler runs automatically with the application
+- No external cron jobs needed
+- Recommended for production Docker deployments
+
+**Manual Processing Endpoint**:
+
+```bash
+# Manually trigger SMS queue processing
+curl -X POST http://localhost:3000/api/admin/sms/process-queue
+```
+
+**Alternative: External Cron Setup**:
+For serverless deployments or additional reliability, you can set up external cron jobs:
+
+```bash
+# Example systemd timer (every 30 seconds)
+# /etc/systemd/system/sms-queue.timer
+[Unit]
+Description=SMS Queue Processing Timer
+
+[Timer]
+OnCalendar=*:*:00,30
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+# /etc/systemd/system/sms-queue.service
+[Unit]
+Description=SMS Queue Processing
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -X POST https://matkassen.org/api/admin/sms/process-queue
+```
+
+```yaml
+# Example GitHub Actions workflow (every minute)
+name: SMS Queue Processing
+on:
+    schedule:
+        - cron: "* * * * *"
+jobs:
+    process-sms:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Trigger SMS Processing
+              run: curl -X POST https://matkassen.org/api/admin/sms/process-queue
+```
+
+**Note**: External cron is optional for the current Docker-based deployment but useful for serverless platforms like Vercel.
+
+### Production Deployment
+
+**SMS System Reliability**:
+
+- Custom Next.js server ensures automatic scheduler startup
+- PostgreSQL advisory locks prevent concurrent processing overlap
+- Health monitoring integrated into Docker health checks
+- Comprehensive error handling with retry logic
+
+**Monitoring**:
+
+- SMS health status available via `/api/health` endpoint
+- Docker health checks curl `/api/health` every 30 seconds
+- Logs include detailed SMS processing information
+- Slack notifications for health alerts in production
+
+**Scaling Considerations**:
+
+- Single scheduler instance per deployment (controlled by advisory locks)
+- Safe to run multiple application instances
+- Manual trigger endpoint allows external monitoring tools to force processing
+- Queue processing scales automatically with database performance
+
 ## Database Migration Workflow
 
 The project uses Drizzle ORM with a migration-based approach:

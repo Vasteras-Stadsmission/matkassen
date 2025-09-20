@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "Hilgirtina Pakêta Xwarinê",
+        "pickupInfo": "Agahiyên Hilgirtinê",
+        "location": "Cih",
+        "pickupWindow": "Dema Hilgirtinê",
+        "qrCodeLabel": "Koda QR",
+        "qrCodeDescription": "Ev koda QR dema hilgirtina pakêta xwarinê nîşan bide",
+        "mapsLabel": "Rê Bistîne",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Plankirî",
+            "ready": "Ji bo Hilgirtinê Amade",
+            "collected": "Hatiye Hilgirtin",
+            "expired": "Dema wê derbas bûye"
+        },
+        "statusDescription": {
+            "scheduled": "Hilgirtina te plankirî ye. Ji kerema xwe di dema hilgirtinê de were.",
+            "ready": "Pakêta te ya xwarinê niha ji bo hilgirtinê amade ye!",
+            "collected": "Ev pakêta xwarinê jixwe hatiye hilgirtin.",
+            "expired": "Ev hilgirtin êdî ne derbasdar e. Ger pirsgirêk hebe ji karmendên me re bibêje."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "Koda QR biskenin"
+    },
+    "admin": {
+        "title": "Rûpela rêveberiyê",
+        "openAdminPage": "Rûpela rêveberiyê veke"
+    },
+    "parcel": {
+        "loadingStatus": "Rewşa pakêtê tê barkirin...",
+        "ready": "Ji bo hilgirtinê amade ye",
+        "pickedUp": "Hatiye hilgirtin",
+        "overdue": "Dema hilgirtinê derbas bûye",
+        "title": "Pakêta xwarinê",
+        "pickupDetails": "Hûrguliyên hilgirtinê",
+        "time": "Dem",
+        "location": "Cih",
+        "status": "Rewş",
+        "directions": "Rê"
+    },
+    "maps": {
+        "openInAppleMaps": "Di Apple Maps de veke",
+        "openInGoogleMaps": "Di Google Maps de veke"
+    }
+}

@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "Récupération de Colis Alimentaire",
+        "pickupInfo": "Informations de Récupération",
+        "location": "Lieu",
+        "pickupWindow": "Horaire de Récupération",
+        "qrCodeLabel": "Code QR",
+        "qrCodeDescription": "Montrez ce code QR lors de la récupération de votre colis alimentaire",
+        "mapsLabel": "Obtenir un Itinéraire",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Programmé",
+            "ready": "Prêt à être Récupéré",
+            "collected": "Récupéré",
+            "expired": "Expiré"
+        },
+        "statusDescription": {
+            "scheduled": "Votre récupération est programmée. Veuillez arriver pendant l'horaire de récupération.",
+            "ready": "Votre colis alimentaire est prêt à être récupéré maintenant !",
+            "collected": "Ce colis alimentaire a déjà été récupéré.",
+            "expired": "Cette récupération n'est plus valide. Veuillez contacter le personnel si vous avez des questions."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "Scanner le code QR"
+    },
+    "admin": {
+        "title": "Page d'administration",
+        "openAdminPage": "Ouvrir la page d'administration"
+    },
+    "parcel": {
+        "loadingStatus": "Chargement du statut du colis...",
+        "ready": "Prêt à être récupéré",
+        "pickedUp": "Récupéré",
+        "overdue": "En retard",
+        "title": "Colis alimentaire",
+        "pickupDetails": "Détails de récupération",
+        "time": "Heure",
+        "location": "Lieu",
+        "status": "Statut",
+        "directions": "Itinéraire"
+    },
+    "maps": {
+        "openInAppleMaps": "Ouvrir dans Apple Maps",
+        "openInGoogleMaps": "Ouvrir dans Google Maps"
+    }
+}

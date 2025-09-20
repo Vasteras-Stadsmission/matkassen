@@ -278,6 +278,42 @@
             "dateUnavailable": "Detta datum är inte tillgängligt för upphämtning",
             "noTimesAvailable": "Inga tillgängliga tider på detta datum",
             "requiredFields": "Fyll i alla obligatoriska fält"
+        },
+        "sms": {
+            "title": "SMS-notiser",
+            "viewHistory": "Visa SMS-historik",
+            "status": {
+                "pending": "Väntar",
+                "sent": "Skickat",
+                "delivered": "Levererat",
+                "failed": "Misslyckades",
+                "cancelled": "Avbrutet"
+            },
+            "intent": {
+                "pickup_reminder": "Hämtningspåminnelse"
+            },
+            "actions": {
+                "sendSms": "Skicka SMS",
+                "resend": "Skicka igen"
+            },
+            "notifications": {
+                "sendSuccess": "SMS skickat",
+                "initialSendSuccess": "Första notifiering skickades framgångsrikt",
+                "reminderSendSuccess": "Påminnelse skickades framgångsrikt",
+                "resendSuccess": "SMS skickat igen",
+                "smsQueued": "SMS har lagts i kö för leverans",
+                "sendError": "Misslyckades att skicka SMS",
+                "resendError": "Misslyckades att skicka SMS igen",
+                "genericError": "Ett oväntat fel inträffade"
+            },
+            "historyModal": {
+                "title": "SMS-historik",
+                "noHistory": "Inga SMS-meddelanden skickade för denna matkasse",
+                "sentAt": "Skickat",
+                "deliveredAt": "Levererat",
+                "error": "Fel",
+                "retries": "Försök igen"
+            }
         }
     },
     "householdDetail": {
@@ -581,5 +617,55 @@
         "proceedAnyway": "Fortsätt ändå",
         "checking": "Kontrollerar...",
         "checkingAffectedParcels": "Kontrollerar hur många matpaket som skulle påverkas av denna radering..."
+    },
+    "sms": {
+        "title": "SMS-meddelanden",
+        "testModeWarning": "TESTLÄGE: SMS-meddelanden kommer att simuleras, inte skickas på riktigt",
+        "status": {
+            "queued": "I kö",
+            "sending": "Skickar",
+            "sent": "Skickat",
+            "delivered": "Levererat",
+            "not_delivered": "Ej levererat",
+            "retrying": "Försöker igen",
+            "failed": "Misslyckades"
+        },
+        "actions": {
+            "markPickedUp": "Markera som upphämtat",
+            "previewSms": "Förhandsgranska SMS",
+            "resendSms": "Skicka SMS igen",
+            "sendSms": "Skicka SMS",
+            "simulateDelivered": "Simulera levererat",
+            "simulateNotDelivered": "Simulera ej levererat"
+        },
+        "history": {
+            "title": "SMS-historik",
+            "noSms": "Inga SMS-meddelanden skickade för detta paket",
+            "intent": "Typ",
+            "status": "Status",
+            "attempts": "Försök",
+            "createdAt": "Skapad",
+            "sentAt": "Skickat",
+            "deliveredAt": "Levererat",
+            "error": "Fel"
+        },
+        "preview": {
+            "title": "SMS-förhandsgranskning",
+            "recipient": "Mottagare",
+            "message": "Meddelande",
+            "locale": "Språk"
+        },
+        "notifications": {
+            "markedPickedUp": "Matpaket markerat som upphämtat",
+            "smsQueued": "SMS köad för sändning",
+            "smsResent": "SMS köad för omsändning",
+            "deliverySimulated": "Leveransstatus simulerad",
+            "cooldownActive": "Vänta innan du skickar SMS igen",
+            "error": "Ett fel uppstod"
+        },
+        "cooldown": {
+            "message": "Du kan skicka SMS igen om {minutes} minuter",
+            "active": "Omsändningsnedkylning aktiv"
+        }
     }
 }

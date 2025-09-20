@@ -44,9 +44,11 @@ RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# Copy standalone build
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
 # The below are needed for drizzle to work (db migrations inside the container)
 COPY drizzle.config.ts ./
 COPY --from=builder /app/migrations ./migrations

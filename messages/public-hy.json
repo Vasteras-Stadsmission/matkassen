@@ -1,0 +1,60 @@
+{
+    "publicParcel": {
+        "title": "Սննդային փաթեթի վերցում",
+        "pickupInfo": "Վերցման տեղեկատվություն",
+        "location": "Տեղակայություն",
+        "pickupWindow": "Վերցման ժամանակ",
+        "qrCodeLabel": "QR կոդ",
+        "qrCodeDescription": "Ցույց տվեք այս QR կոդը ձեր սննդային փաթեթը վերցնելիս",
+        "mapsLabel": "Ստանալ ուղղություններ",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Նախատեսված",
+            "ready": "Պատրաստ է վերցման համար",
+            "collected": "Վերցված է",
+            "expired": "Ժամկետը լրացել է"
+        },
+        "statusDescription": {
+            "scheduled": "Ձեր վերցումը նախատեսված է: Խնդրում ենք ժամանել վերցման ժամանակահատվածում:",
+            "ready": "Ձեր սննդային փաթեթը պատրաստ է վերցման համար:",
+            "collected": "Այս սննդային փաթեթը արդեն վերցված է:",
+            "expired": "Այս վերցումը այլևս վավեր չէ: Խնդրում ենք կապվել անձնակազմի հետ, եթե հարցեր ունեք:"
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
+    "qr": {
+        "scanQrCode": "QR կոդ սկանավորել"
+    },
+    "admin": {
+        "title": "Կարգավորման էջ",
+        "openAdminPage": "Բացել կարգավորման էջը"
+    },
+    "parcel": {
+        "loadingStatus": "Փաթեթի կարգավիճակը բեռնվում է...",
+        "ready": "Պատրաստ է վերցման համար",
+        "pickedUp": "Վերցվել է",
+        "overdue": "Ժամկետանց",
+        "title": "Սննդային փաթեթ",
+        "pickupDetails": "Վերցման մանրամասներ",
+        "time": "Ժամ",
+        "location": "Տեղակայություն",
+        "status": "Կարգավիճակ",
+        "directions": "Ուղղություններ"
+    },
+    "maps": {
+        "openInAppleMaps": "Բացել Apple Maps-ում",
+        "openInGoogleMaps": "Բացել Google Maps-ում"
+    }
+}

@@ -150,6 +150,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
     } | null>(null);
 
     const capacityNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const autoSelectedStateRef = useRef<FoodParcels | null>(null);
 
     const [capacityData, setCapacityData] = useState<{
         hasLimit: boolean;
@@ -288,6 +289,33 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
         fetchData();
     }, []);
+
+    useEffect(() => {
+        if (pickupLocations.length !== 1) return;
+
+        const onlyLocation = pickupLocations[0];
+        if (!onlyLocation?.value) return;
+
+        setFormState(prevState => {
+            if (prevState.pickupLocationId) {
+                return prevState;
+            }
+
+            const updatedState = {
+                ...prevState,
+                pickupLocationId: onlyLocation.value,
+            };
+            autoSelectedStateRef.current = updatedState;
+            return updatedState;
+        });
+    }, [pickupLocations]);
+
+    useEffect(() => {
+        if (!autoSelectedStateRef.current) return;
+
+        updateData(autoSelectedStateRef.current);
+        autoSelectedStateRef.current = null;
+    }, [formState.pickupLocationId, updateData]);
 
     useEffect(() => {
         return () => {

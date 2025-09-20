@@ -12,6 +12,7 @@ import {
     time,
     date,
     index,
+    uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -194,13 +195,25 @@ export const pickupLocationScheduleDays = pgTable(
     ],
 );
 
+// Define SMS intent enum
+export const smsIntentEnum = pgEnum("sms_intent", ["pickup_reminder", "consent_enrolment"]);
+
+// Define SMS status enum
+export const smsStatusEnum = pgEnum("sms_status", [
+    "queued",
+    "sending",
+    "sent",
+    "retrying",
+    "failed",
+]);
+
 export const foodParcels = pgTable(
     "food_parcels",
     {
         id: text("id")
             .primaryKey()
             .notNull()
-            .$defaultFn(() => nanoid(8)),
+            .$defaultFn(() => nanoid(12)), // Use 12-character nanoid for IDs: balances collision resistance (with 62^12 possible values) and keeps IDs short for URLs and database efficiency
         household_id: text("household_id")
             .notNull()
             .references(() => households.id, { onDelete: "cascade" }),
@@ -210,12 +223,46 @@ export const foodParcels = pgTable(
         pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
         pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
         is_picked_up: boolean("is_picked_up").notNull().default(false),
+        picked_up_at: timestamp({ precision: 1, withTimezone: true }), // New field for pickup timestamp
+        picked_up_by_user_id: varchar("picked_up_by_user_id", { length: 50 }), // GitHub username of admin who marked as picked up
     },
     table => [
         check(
             "pickup_time_range_check",
             sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
         ),
+    ],
+);
+
+export const outgoingSms = pgTable(
+    "outgoing_sms",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(12)),
+        intent: smsIntentEnum("intent").notNull(),
+        parcel_id: text("parcel_id").references(() => foodParcels.id, { onDelete: "cascade" }), // Nullable for non-parcel intents
+        household_id: text("household_id")
+            .notNull()
+            .references(() => households.id, { onDelete: "cascade" }),
+        to_e164: varchar("to_e164", { length: 20 }).notNull(), // E.164 format phone number (+46...)
+        text: text("text").notNull(), // Final message body
+        status: smsStatusEnum("status").notNull().default("queued"),
+        attempt_count: integer("attempt_count").notNull().default(0), // Essential for retry logic
+        next_attempt_at: timestamp({ precision: 1, withTimezone: true }), // Essential for scheduling retries
+        last_error_message: text("last_error_message"), // Helpful for debugging failures
+        idempotency_key: varchar("idempotency_key", { length: 100 }).notNull(), // Stable key for deduplication
+        provider_message_id: varchar("provider_message_id", { length: 50 }), // ID from SMS provider
+        created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    },
+    table => [
+        // Ensure one SMS per parcel for reminder intent
+        index("idx_outgoing_sms_parcel_intent_unique").on(table.intent, table.parcel_id),
+        // Index for efficient querying ready-to-send SMS
+        index("idx_outgoing_sms_ready_to_send").on(table.status, table.next_attempt_at),
+        // Unique constraint for idempotency
+        uniqueIndex("idx_outgoing_sms_idempotency_unique").on(table.idempotency_key),
     ],
 );
 

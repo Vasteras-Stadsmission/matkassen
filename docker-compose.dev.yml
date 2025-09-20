@@ -22,6 +22,10 @@ services:
             - NODE_ENV=development # Enables hot reloading
             - AUTH_URL=http://localhost:3000/api/auth # Development auth URL
             - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB} # Connect to DB on host
+            - NEXT_PUBLIC_BASE_URL=http://localhost:3000 # Development base URL
+            - HELLO_SMS_API_URL=https://api.hellosms.se/api/v1/sms/send # HelloSMS API endpoint
+            - HELLO_SMS_FROM=Matkassen # SMS sender name
+            - HELLO_SMS_TEST_MODE=true # Development mode - test SMS only
 
     db:
         image: postgres:17.5
