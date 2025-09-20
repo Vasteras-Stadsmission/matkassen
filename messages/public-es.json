@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "Recogida de Paquete de Comida",
+        "pickupInfo": "Información de Recogida",
+        "location": "Ubicación",
+        "pickupWindow": "Horario de Recogida",
+        "qrCodeLabel": "Código QR",
+        "qrCodeDescription": "Muestra este código QR al recoger tu paquete de comida",
+        "mapsLabel": "Obtener Direcciones",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Programado",
+            "ready": "Listo para Recoger",
+            "collected": "Recogido",
+            "expired": "Vencido"
+        },
+        "statusDescription": {
+            "scheduled": "Tu recogida está programada. Por favor llega durante el horario de recogida.",
+            "ready": "¡Tu paquete de comida está listo para recoger ahora!",
+            "collected": "Este paquete de comida ya ha sido recogido.",
+            "expired": "Esta recogida ya no es válida. Por favor contacta al personal si tienes preguntas."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "Escanear código QR"
     },

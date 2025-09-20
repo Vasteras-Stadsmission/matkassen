@@ -374,6 +374,7 @@ formatPickupReminderSms(locale, parcelData, isReminder) {
 - ❌ **Admin parcel management page** for QR code destination
 - ❌ **Volunteer pickup workflow** when scanning QR codes
 - ❌ **Mark as picked up functionality** in admin UI
+- ❌ **SMS log retention**: design TTL/archive strategy for `outgoing_sms` so the queue table stays lean and historic records move to cold storage
 
 **Note:** The QR codes currently point to `/sv/schedule?parcel=[parcelId]` but the schedule page doesn't handle the parcel parameter yet. This admin functionality should be implemented in a separate PR.
 

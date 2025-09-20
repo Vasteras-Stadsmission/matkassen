@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "Получение Продуктового Пакета",
+        "pickupInfo": "Информация о Получении",
+        "location": "Местоположение",
+        "pickupWindow": "Время Получения",
+        "qrCodeLabel": "QR-код",
+        "qrCodeDescription": "Покажите этот QR-код при получении продуктового пакета",
+        "mapsLabel": "Получить Маршрут",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Запланировано",
+            "ready": "Готово к Получению",
+            "collected": "Получено",
+            "expired": "Истекло"
+        },
+        "statusDescription": {
+            "scheduled": "Ваше получение запланировано. Пожалуйста, приходите в указанное время.",
+            "ready": "Ваш продуктовый пакет готов к получению прямо сейчас!",
+            "collected": "Этот продуктовый пакет уже был получен.",
+            "expired": "Это получение больше не действительно. Обратитесь к персоналу, если у вас есть вопросы."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "Сканировать QR-код"
     },

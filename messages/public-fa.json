@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "تحویل بسته غذایی",
+        "pickupInfo": "اطلاعات تحویل",
+        "location": "مکان",
+        "pickupWindow": "زمان تحویل",
+        "qrCodeLabel": "کد QR",
+        "qrCodeDescription": "هنگام تحویل گرفتن بسته غذایی، این کد QR را نشان دهید",
+        "mapsLabel": "دریافت مسیر",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "برنامه‌ریزی شده",
+            "ready": "آماده برای تحویل",
+            "collected": "تحویل داده شده",
+            "expired": "منقضی شده"
+        },
+        "statusDescription": {
+            "scheduled": "تحویل شما برنامه‌ریزی شده است. لطفاً در زمان تحویل حضور یابید.",
+            "ready": "بسته غذایی شما اکنون آماده تحویل است!",
+            "collected": "این بسته غذایی قبلاً تحویل داده شده است.",
+            "expired": "این تحویل دیگر معتبر نیست. در صورت داشتن سؤال با کارکنان تماس بگیرید."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "کد QR را اسکن کنید"
     },

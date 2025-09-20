@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "Qaadashada Xirmada Cuntada",
+        "pickupInfo": "Macluumaadka Qaadashada",
+        "location": "Goob",
+        "pickupWindow": "Waqtiga Qaadashada",
+        "qrCodeLabel": "Koodka QR",
+        "qrCodeDescription": "Tus koodkan QR markaad qaadanayso xirmadaada cuntada",
+        "mapsLabel": "Hel Hagitaan",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "La qorsheeyay",
+            "ready": "Diyaar u ah qaadashada",
+            "collected": "Waa la qaaday",
+            "expired": "Waqtigii wuu dhaafay"
+        },
+        "statusDescription": {
+            "scheduled": "Qaadashidaadu waa la qorsheeyay. Fadlan imaada waqtiga qaadashada.",
+            "ready": "Xirmadaada cuntada hadda diyaar bay u tahay in la qaado!",
+            "collected": "Xirmadan cuntada mar hore baa la qaaday.",
+            "expired": "Qaadashidan mar dambe ma aha mid sax ah. Fadlan kala soo xidhiidh shaqaalaha haddii aad qabto su'aalo."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "Iska skan koodka QR"
     },

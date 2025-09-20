@@ -3,15 +3,11 @@ import type { SupportedLocale } from "../locale-detection";
 /**
  * SMS template data interface
  * All fields are guaranteed to be non-null by database schema constraints:
- * - householdName: derived from households.first_name + last_name (both NOT NULL)
  * - pickupDate: from foodParcels.pickup_date_time_earliest (NOT NULL)
- * - locationName: from pickupLocations.name (NOT NULL)
  * - publicUrl: constructed from environment variables and parcel ID
  */
 export interface SmsTemplateData {
-    householdName: string;
     pickupDate: Date;
-    locationName: string;
     publicUrl: string;
 }
 

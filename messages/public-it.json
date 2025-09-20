@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "Ritiro Pacco Alimentare",
+        "pickupInfo": "Informazioni sul Ritiro",
+        "location": "Posizione",
+        "pickupWindow": "Orario di Ritiro",
+        "qrCodeLabel": "Codice QR",
+        "qrCodeDescription": "Mostra questo codice QR quando ritiri il tuo pacco alimentare",
+        "mapsLabel": "Ottieni Indicazioni",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Programmato",
+            "ready": "Pronto per il Ritiro",
+            "collected": "Ritirato",
+            "expired": "Scaduto"
+        },
+        "statusDescription": {
+            "scheduled": "Il tuo ritiro è programmato. Per favore arriva durante l'orario di ritiro.",
+            "ready": "Il tuo pacco alimentare è pronto per il ritiro ora!",
+            "collected": "Questo pacco alimentare è già stato ritirato.",
+            "expired": "Questo ritiro non è più valido. Per favore contatta il personale se hai domande."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "Scansiona codice QR"
     },

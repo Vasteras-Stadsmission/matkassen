@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "საკვების პაკეტის აღება",
+        "pickupInfo": "აღების ინფორმაცია",
+        "location": "ადგილი",
+        "pickupWindow": "აღების დრო",
+        "qrCodeLabel": "QR კოდი",
+        "qrCodeDescription": "აჩვენეთ ეს QR კოდი თქვენი საკვების პაკეტის აღებისას",
+        "mapsLabel": "მიმართულების მიღება",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "დაგეგმილი",
+            "ready": "მზადაა აღებისთვის",
+            "collected": "აღებულია",
+            "expired": "ვადა გასულია"
+        },
+        "statusDescription": {
+            "scheduled": "თქვენი აღება დაგეგმილია. გთხოვთ მობრძანდეთ აღების დროის ინტერვალში.",
+            "ready": "თქვენი საკვების პაკეტი მზადაა აღებისთვის!",
+            "collected": "ეს საკვების პაკეტი უკვე აღებულია.",
+            "expired": "ეს აღება აღარ არის ვალიდური. გთხოვთ დაუკავშირდეთ პერსონალს თუ კითხვები გაქვთ."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "QR კოდის სკანირება"
     },

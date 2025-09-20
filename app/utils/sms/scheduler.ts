@@ -50,9 +50,7 @@ export async function enqueueReminderSms(): Promise<number> {
             // Generate SMS text with Date object (formatting handled inside template function)
             const smsText = formatPickupSms(
                 {
-                    householdName: parcel.householdName,
                     pickupDate: parcel.pickupDate, // Pass Date object directly
-                    locationName: parcel.locationName,
                     publicUrl,
                 },
                 parcel.locale as SupportedLocale,

@@ -29,16 +29,41 @@ export const SUPPORTED_LOCALES = [
 ] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
+function toSupportedLocale(locale?: string | null): SupportedLocale | undefined {
+    if (!locale) {
+        return undefined;
+    }
+
+    const normalized = locale.toLowerCase().replace(/-/g, "_");
+
+    if (SUPPORTED_LOCALES.includes(normalized as SupportedLocale)) {
+        return normalized as SupportedLocale;
+    }
+
+    return undefined;
+}
+
 /**
  * Detect locale for public pages based on:
  * 1. Accept-Language header
  * 2. Household locale (passed as parameter)
  * 3. Default to 'en'
  */
-export async function detectPublicPageLocale(householdLocale?: string): Promise<SupportedLocale> {
+export async function detectPublicPageLocale(
+    householdLocale?: string,
+    explicitLocale?: string,
+): Promise<SupportedLocale> {
+    const overrideLocale = toSupportedLocale(explicitLocale);
+
+    if (overrideLocale) {
+        return overrideLocale;
+    }
+
     // First try household locale if provided
-    if (householdLocale && SUPPORTED_LOCALES.includes(householdLocale as SupportedLocale)) {
-        return householdLocale as SupportedLocale;
+    const householdPreferred = toSupportedLocale(householdLocale);
+
+    if (householdPreferred) {
+        return householdPreferred;
     }
 
     // Then try Accept-Language header
@@ -55,8 +80,10 @@ export async function detectPublicPageLocale(householdLocale?: string): Promise<
 
             // Find first supported language
             for (const lang of languages) {
-                if (SUPPORTED_LOCALES.includes(lang as SupportedLocale)) {
-                    return lang as SupportedLocale;
+                const supported = toSupportedLocale(lang);
+
+                if (supported) {
+                    return supported;
                 }
             }
         }

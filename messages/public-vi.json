@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "Nhận Gói Thực Phẩm",
+        "pickupInfo": "Thông Tin Nhận Hàng",
+        "location": "Địa Điểm",
+        "pickupWindow": "Thời Gian Nhận",
+        "qrCodeLabel": "Mã QR",
+        "qrCodeDescription": "Hiển thị mã QR này khi nhận gói thực phẩm của bạn",
+        "mapsLabel": "Nhận Chỉ Đường",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Đã Lên Lịch",
+            "ready": "Sẵn Sàng Để Nhận",
+            "collected": "Đã Nhận",
+            "expired": "Đã Hết Hạn"
+        },
+        "statusDescription": {
+            "scheduled": "Việc nhận hàng của bạn đã được lên lịch. Vui lòng đến trong khung thời gian nhận hàng.",
+            "ready": "Gói thực phẩm của bạn đã sẵn sàng để nhận ngay bây giờ!",
+            "collected": "Gói thực phẩm này đã được nhận rồi.",
+            "expired": "Việc nhận hàng này không còn hiệu lực. Vui lòng liên hệ với nhân viên nếu bạn có câu hỏi."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "Quét mã QR"
     },

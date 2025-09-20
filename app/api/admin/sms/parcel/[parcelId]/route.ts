@@ -95,7 +95,6 @@ export async function POST(
         }
 
         const parcelData = result[0];
-        const householdName = `${parcelData.householdName.first} ${parcelData.householdName.last}`;
 
         // Determine the actual intent based on existing SMS and user request
         const existingRecords = await getSmsRecordsForParcel(parcelId);
@@ -127,9 +126,7 @@ export async function POST(
 
         // Template data - all fields guaranteed by database schema constraints
         const templateData: SmsTemplateData = {
-            householdName,
             pickupDate: parcelData.pickupDateTimeEarliest,
-            locationName: parcelData.locationName,
             publicUrl,
         };
 

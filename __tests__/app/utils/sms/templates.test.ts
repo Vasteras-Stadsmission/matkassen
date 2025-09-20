@@ -13,9 +13,7 @@ describe("SMS Message Templates", () => {
         const testDate = new Date("2024-09-16T10:00:00.000Z");
 
         const templateData: SmsTemplateData = {
-            householdName: "Anna Andersson",
             pickupDate: testDate,
-            locationName: "Järntorget Community Center",
             publicUrl: "matkassen.org/p/123456789012",
         };
 
@@ -76,9 +74,7 @@ describe("SMS Message Templates", () => {
         const longerDate = new Date("2024-09-18T14:30:00Z"); // Wednesday, September 18, 2024 at 14:30
 
         const testData: SmsTemplateData = {
-            householdName: "Andersson", // Not used in new format
             pickupDate: longerDate,
-            locationName: "VSM", // Not used in new format
             publicUrl: "matkassen.org/p/123456789012", // Realistic URL length
         };
 

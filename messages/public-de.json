@@ -1,4 +1,39 @@
 {
+    "publicParcel": {
+        "title": "Lebensmittelpaket Abholung",
+        "pickupInfo": "Abholinformationen",
+        "location": "Standort",
+        "pickupWindow": "Abholzeit",
+        "qrCodeLabel": "QR-Code",
+        "qrCodeDescription": "Zeigen Sie diesen QR-Code beim Abholen Ihres Lebensmittelpakets",
+        "mapsLabel": "Wegbeschreibung abrufen",
+        "googleMaps": "Google Maps",
+        "appleMaps": "Apple Maps",
+        "status": {
+            "scheduled": "Geplant",
+            "ready": "Bereit zur Abholung",
+            "collected": "Abgeholt",
+            "expired": "Abgelaufen"
+        },
+        "statusDescription": {
+            "scheduled": "Ihre Abholung ist geplant. Bitte kommen Sie während der Abholzeit.",
+            "ready": "Ihr Lebensmittelpaket ist jetzt zur Abholung bereit!",
+            "collected": "Dieses Lebensmittelpaket wurde bereits abgeholt.",
+            "expired": "Diese Abholung ist nicht mehr gültig. Bitte wenden Sie sich bei Fragen an das Personal."
+        },
+        "pickupWindowFormat": "{startTime} - {endTime}",
+        "dateFormat": {
+            "weekday": "long",
+            "year": "numeric",
+            "month": "long",
+            "day": "numeric"
+        },
+        "timeFormat": {
+            "hour": "2-digit",
+            "minute": "2-digit",
+            "hour12": false
+        }
+    },
     "qr": {
         "scanQrCode": "QR-Code scannen"
     },

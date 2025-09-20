@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import type { FoodParcels } from "../../../../../app/[locale]/households/enroll/types";
+import FoodParcelsForm from "../../../../../app/[locale]/households/enroll/components/FoodParcelsForm";
 // Mock next-intl
 vi.mock("next-intl", () => ({
     useTranslations: () => (key: string, params?: any) => {
@@ -10,76 +12,19 @@ vi.mock("next-intl", () => ({
     },
 }));
 
-// Mock client actions
-const mockGetPickupLocations = vi.fn(() =>
-    Promise.resolve([
-        { value: "location-1", label: "Test Location 1" },
-        { value: "location-2", label: "Test Location 2" },
-    ]),
-);
+const {
+    mockGetPickupLocations,
+    mockGetPickupLocationSchedules,
+    mockGetPickupLocationCapacity,
+    mockGetLocationSlotDuration,
+} = vi.hoisted(() => ({
+    mockGetPickupLocations: vi.fn(),
+    mockGetPickupLocationSchedules: vi.fn(),
+    mockGetPickupLocationCapacity: vi.fn(),
+    mockGetLocationSlotDuration: vi.fn(),
+}));
 
-const mockGetPickupLocationSchedules = vi.fn(() =>
-    Promise.resolve({
-        schedules: [
-            {
-                id: "schedule-1",
-                location_id: "location-1",
-                name: "Regular Schedule",
-                startDate: new Date("2025-05-01"),
-                endDate: new Date("2025-05-31"),
-                days: [
-                    { weekday: "monday", isOpen: true, openingTime: "09:00", closingTime: "17:00" },
-                    {
-                        weekday: "tuesday",
-                        isOpen: true,
-                        openingTime: "09:00",
-                        closingTime: "17:00",
-                    },
-                    {
-                        weekday: "wednesday",
-                        isOpen: false,
-                        openingTime: "09:00",
-                        closingTime: "17:00",
-                    },
-                    {
-                        weekday: "thursday",
-                        isOpen: true,
-                        openingTime: "09:00",
-                        closingTime: "17:00",
-                    },
-                    { weekday: "friday", isOpen: true, openingTime: "09:00", closingTime: "17:00" },
-                    {
-                        weekday: "saturday",
-                        isOpen: false,
-                        openingTime: "09:00",
-                        closingTime: "17:00",
-                    },
-                    {
-                        weekday: "sunday",
-                        isOpen: false,
-                        openingTime: "09:00",
-                        closingTime: "17:00",
-                    },
-                ],
-            },
-        ],
-    }),
-);
-
-const mockGetPickupLocationCapacity = vi.fn(() =>
-    Promise.resolve({
-        maxPerDay: 5,
-        dateCapacities: {
-            "2025-05-02": 4, // Near capacity (4/5)
-            "2025-05-05": 5, // At capacity (5/5)
-            "2025-05-06": 2, // Low capacity (2/5)
-        },
-    }),
-);
-
-const mockGetLocationSlotDuration = vi.fn(() => Promise.resolve(30));
-
-vi.mock("../../../../app/[locale]/households/enroll/client-actions", () => ({
+vi.mock("../../../../../app/[locale]/households/enroll/client-actions", () => ({
     getPickupLocationsAction: mockGetPickupLocations,
     getPickupLocationSchedulesAction: mockGetPickupLocationSchedules,
     getPickupLocationCapacityForRangeAction: mockGetPickupLocationCapacity,
@@ -118,6 +63,7 @@ vi.mock("@mantine/core", () => ({
     ),
     Tooltip: ({ children }: any) => <div data-testid="tooltip">{children}</div>,
     Loader: () => <div data-testid="loader">Loading...</div>,
+    Modal: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
 vi.mock("@mantine/dates", () => ({
@@ -138,6 +84,8 @@ vi.mock("@mantine/dates", () => ({
             </div>
         </div>
     ),
+    TimeGrid: ({ children }: any) => <div data-testid="time-grid">{children}</div>,
+    getTimeRange: () => [],
 }));
 
 // Mock icons
@@ -174,6 +122,88 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         (mockGetPickupLocationSchedules as any).mockClear?.();
         (mockGetPickupLocationCapacity as any).mockClear?.();
         (mockGetLocationSlotDuration as any).mockClear?.();
+
+        (mockGetPickupLocations as any).mockImplementation?.(() =>
+            Promise.resolve([
+                { id: "location-1", name: "Test Location 1" },
+                { id: "location-2", name: "Test Location 2" },
+            ]),
+        );
+
+        (mockGetPickupLocationSchedules as any).mockImplementation?.(() =>
+            Promise.resolve({
+                schedules: [
+                    {
+                        id: "schedule-1",
+                        location_id: "location-1",
+                        name: "Regular Schedule",
+                        startDate: new Date("2025-05-01"),
+                        endDate: new Date("2025-05-31"),
+                        days: [
+                            {
+                                weekday: "monday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "tuesday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "wednesday",
+                                isOpen: false,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "thursday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "friday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "saturday",
+                                isOpen: false,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "sunday",
+                                isOpen: false,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
+
+        (mockGetPickupLocationCapacity as any).mockImplementation?.(() =>
+            Promise.resolve({
+                maxPerDay: 5,
+                dateCapacities: {
+                    "2025-05-02": 4,
+                    "2025-05-05": 5,
+                    "2025-05-06": 2,
+                },
+            }),
+        );
+
+        (mockGetLocationSlotDuration as any).mockImplementation?.(() => Promise.resolve(30));
+    });
+
+    afterEach(() => {
+        cleanup();
     });
 
     /**
@@ -535,6 +565,26 @@ describe("FoodParcelsForm Business Logic Tests", () => {
             expect(locationSchedules1.schedules).toHaveLength(1);
             expect(locationSchedules2.schedules).toHaveLength(1);
         }).not.toThrow();
+    });
+
+    it("auto-selects the only available pickup location", async () => {
+        (mockGetPickupLocations as any).mockImplementation?.(() =>
+            Promise.resolve([{ id: "location-1", name: "Only Location" }]),
+        );
+
+        const formData = createMockFormData();
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(mockGetPickupLocations).toHaveBeenCalled();
+        });
+
+        await waitFor(() => {
+            expect(mockUpdateData).toHaveBeenCalledWith(
+                expect.objectContaining({ pickupLocationId: "location-1" }),
+            );
+        });
     });
 });
 

@@ -22,6 +22,14 @@
             "env": { "node": true }
             // put per-test tweaks here, e.g.
             //"rules": { "@typescript-eslint/no-unsafe-call": "off" }
+        },
+        {
+            // Public pages and components need raw Next.js navigation APIs
+            // since they handle internationalization manually outside the main i18n system
+            "files": ["app/p/**/*.{js,ts,tsx}", "app/components/PublicLocaleSwitcher.tsx"],
+            "rules": {
+                "no-restricted-imports": "off"
+            }
         }
     ]
 }

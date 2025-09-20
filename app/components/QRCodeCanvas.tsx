@@ -7,9 +7,17 @@ interface QRCodeProps {
     value: string;
     size?: number;
     className?: string;
+    ariaLabel?: string;
+    ariaDescribedBy?: string;
 }
 
-export function QRCodeCanvas({ value, size = 200, className }: QRCodeProps) {
+export function QRCodeCanvas({
+    value,
+    size = 200,
+    className,
+    ariaLabel,
+    ariaDescribedBy,
+}: QRCodeProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -29,6 +37,9 @@ export function QRCodeCanvas({ value, size = 200, className }: QRCodeProps) {
         <canvas
             ref={canvasRef}
             className={className}
+            role="img"
+            aria-label={ariaLabel}
+            aria-describedby={ariaDescribedBy}
             style={{ maxWidth: "100%", height: "auto" }}
         />
     );
