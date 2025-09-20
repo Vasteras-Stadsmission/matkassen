@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { processSendQueue } from "@/app/utils/sms/scheduler";
+import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 
 export async function POST() {
     try {
-        // Authentication is now handled by middleware
+        // Validate authentication with rate limiting
+        const authResult = await authenticateAdminRequest({
+            endpoint: "queue-processing",
+            config: SMS_RATE_LIMITS.QUEUE_PROCESSING,
+        });
+        if (!authResult.success) {
+            return authResult.response!;
+        }
 
         // Manually trigger SMS queue processing
         const result = await processSendQueue();

@@ -10,6 +10,8 @@ import {
 import { formatPickupSms, type SmsTemplateData } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
+import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 
 // GET /api/admin/sms/parcel/[parcelId] - Get SMS history for a parcel
 export async function GET(
@@ -17,7 +19,11 @@ export async function GET(
     { params }: { params: Promise<{ parcelId: string }> },
 ) {
     try {
-        // Authentication is now handled by middleware
+        // Validate authentication and organization membership
+        const authResult = await authenticateAdminRequest();
+        if (!authResult.success) {
+            return authResult.response!;
+        }
 
         const { parcelId } = await params;
         const smsRecords = await getSmsRecordsForParcel(parcelId);
@@ -47,8 +53,15 @@ export async function POST(
     try {
         const { parcelId } = await params;
 
-        // Authentication is now handled by middleware
-        // Note: Rate limiting will need to be handled separately or removed for now
+        // Validate authentication with rate limiting
+        const authResult = await authenticateAdminRequest({
+            endpoint: "parcel-sms",
+            config: SMS_RATE_LIMITS.PARCEL_SMS,
+            identifier: parcelId,
+        });
+        if (!authResult.success) {
+            return authResult.response!;
+        }
 
         const { action } = await request.json();
 

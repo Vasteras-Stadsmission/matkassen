@@ -41,13 +41,43 @@ export const metadata: Metadata = {
     },
 };
 
+// Interface for public messages structure
+interface PublicMessages {
+    publicParcel: {
+        title: string;
+        pickupInfo: string;
+        location: string;
+        pickupWindow: string;
+        qrCodeLabel: string;
+        qrCodeDescription: string;
+        mapsLabel: string;
+        googleMaps: string;
+        appleMaps: string;
+        status: {
+            scheduled: string;
+            ready: string;
+            collected: string;
+            expired: string;
+        };
+        statusDescription: {
+            scheduled: string;
+            ready: string;
+            collected: string;
+            expired: string;
+        };
+        pickupWindowFormat: string;
+        dateFormat: Intl.DateTimeFormatOptions;
+        timeFormat: Intl.DateTimeFormatOptions;
+    };
+}
+
 // Load messages based on locale
-async function loadMessages(locale: SupportedLocale) {
+async function loadMessages(locale: SupportedLocale): Promise<PublicMessages> {
     try {
-        return (await import(`@/messages/public-${locale}.json`)).default;
+        return (await import(`@/messages/public-${locale}.json`)).default as PublicMessages;
     } catch {
         // Fallback to English if locale file doesn't exist
-        return (await import(`@/messages/public-en.json`)).default;
+        return (await import(`@/messages/public-en.json`)).default as PublicMessages;
     }
 }
 
@@ -55,8 +85,7 @@ async function loadMessages(locale: SupportedLocale) {
 function formatPickupWindow(
     parcel: PublicParcelData,
     locale: SupportedLocale,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    messages: any,
+    messages: PublicMessages,
 ) {
     const startDate = new Date(parcel.pickupDateTimeEarliest);
     const endDate = new Date(parcel.pickupDateTimeLatest);
@@ -92,8 +121,7 @@ function formatPickupWindow(
 }
 
 // Get status badge color and text
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getStatusBadgeProps(status: ParcelStatus, messages: any) {
+function getStatusBadgeProps(status: ParcelStatus, messages: PublicMessages) {
     switch (status) {
         case "scheduled":
             return { color: "blue", text: messages.publicParcel.status.scheduled };

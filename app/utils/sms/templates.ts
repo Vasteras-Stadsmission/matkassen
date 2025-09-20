@@ -197,13 +197,11 @@ export function formatDateTimeForSms(
 
         return { date: dateStr, time: timeStr };
     } catch {
-        // Fallback if locale formatting fails
+        // Fallback if locale formatting fails - use locale-neutral format
         const time = date.toISOString().substring(11, 16);
-        const day = date.getDate();
-        const month = date.getMonth() + 1;
-        const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const weekday = weekdays[date.getDay()];
-        const dateStr = `${weekday} ${day}/${month}`;
+        const day = date.getDate().toString().padStart(2, "0");
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const dateStr = `${day}/${month}`;
         return { date: dateStr, time };
     }
 }

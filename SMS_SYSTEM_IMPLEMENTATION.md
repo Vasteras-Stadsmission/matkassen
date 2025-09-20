@@ -17,6 +17,14 @@ The SMS system is fully implemented and tested with real SMS delivery via HelloS
 
 Visit `/[locale]/admin/sms-demo` to test the SMS functionality with a comprehensive demo interface.
 
+## 🔜 Roadmap & Integration Notes
+
+- **Production Demo (temporary)**: The `/[locale]/admin/sms-demo` route exists so we can exercise the HelloSMS integration safely in production behind admin auth. It should stay while rollout confidence is built, but plan to remove it once a proper admin workflow lands.
+- **Admin Schedule Integration**: `PickupCardWithSms`, `SmsManagementPanel`, and `useSmsManagement` currently ship with the branch but are not rendered by the live schedule. Next step is to swap the plain `PickupCard` in `WeeklyScheduleGrid` for the SMS-aware variant and surface the panel controls in the real admin UI.
+- **Parcel Pickup Endpoint**: `PATCH /api/admin/parcel/[parcelId]/pickup` is implemented and ready for use; the client still needs a "mark as collected" action wired up to it plus optimistic UI/state updates.
+- **Consolidated Admin Page**: Long term we want a first-class admin screen that combines parcel status (including pickup state) and SMS history/actions. When that exists, retire the demo page and keep the underlying APIs (`/api/admin/parcels/upcoming`, `/api/admin/sms/parcel/[parcelId]`, `/api/admin/sms/process-queue`) as the shared backend surface.
+- **Documentation Debt**: Update onboarding/docs when the above integrations are done so contributors know to use the admin schedule, not the demo, for manual interventions.
+
 ## 📁 File Structure (Implemented)
 
 ```

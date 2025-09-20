@@ -72,7 +72,7 @@ export default async function middleware(request: NextRequest) {
         }
 
         // All other API routes require authentication
-        // Get the session token from cookies
+        // Basic cookie check - full validation happens in route handlers
         const authToken =
             request.cookies.get("next-auth.session-token")?.value ||
             request.cookies.get("__Secure-next-auth.session-token")?.value;
@@ -82,7 +82,7 @@ export default async function middleware(request: NextRequest) {
             return addCSPHeaders(response);
         }
 
-        // If authenticated, allow the API request to proceed
+        // Basic check passed - route handlers will do full validation
         const response = NextResponse.next();
         return addCSPHeaders(response);
     }

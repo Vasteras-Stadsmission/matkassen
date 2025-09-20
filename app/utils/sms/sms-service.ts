@@ -5,6 +5,7 @@
 import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { eq, and, lte, sql, gte } from "drizzle-orm";
+import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
@@ -95,6 +96,9 @@ export interface SmsRecord {
     providerMessageId?: string;
     createdAt: Date;
 }
+
+// Type for database SMS records using Drizzle's type inference
+type DbSmsRecord = InferSelectModel<typeof outgoingSms>;
 
 /**
  * Generate idempotency key for SMS deduplication
@@ -294,21 +298,20 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
 // Remove complex retry logic - SIMPLIFIED
 
 // Map database record to SmsRecord interface
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapDbRecordToSmsRecord(dbRecord: any): SmsRecord {
+function mapDbRecordToSmsRecord(dbRecord: DbSmsRecord): SmsRecord {
     return {
         id: dbRecord.id,
         intent: dbRecord.intent,
-        parcelId: dbRecord.parcel_id,
+        parcelId: dbRecord.parcel_id ?? undefined,
         householdId: dbRecord.household_id,
         toE164: dbRecord.to_e164,
         text: dbRecord.text,
         status: dbRecord.status,
         attemptCount: dbRecord.attempt_count,
-        nextAttemptAt: dbRecord.next_attempt_at,
-        lastErrorMessage: dbRecord.last_error_message,
+        nextAttemptAt: dbRecord.next_attempt_at ?? undefined,
+        lastErrorMessage: dbRecord.last_error_message ?? undefined,
         idempotencyKey: dbRecord.idempotency_key,
-        providerMessageId: dbRecord.provider_message_id,
+        providerMessageId: dbRecord.provider_message_id ?? undefined,
         createdAt: dbRecord.created_at,
     };
 }

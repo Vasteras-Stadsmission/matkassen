@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { eq, gt } from "drizzle-orm";
+import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 
 export async function GET() {
     try {
-        // Authentication is now handled by middleware
+        // Validate authentication and organization membership
+        const authResult = await authenticateAdminRequest();
+        if (!authResult.success) {
+            return authResult.response!;
+        }
 
         // Fetch upcoming food parcels with household and location info
         const upcomingParcels = await db

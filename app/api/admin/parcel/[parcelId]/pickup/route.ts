@@ -7,8 +7,7 @@ import { auth } from "@/auth";
 // PATCH /api/admin/parcel/[parcelId]/pickup - Mark parcel as picked up
 export async function PATCH(request: NextRequest, { params }: { params: { parcelId: string } }) {
     try {
-        // Authentication is now handled by middleware
-        // But we still need the session to get the user info
+        // Validate session and get user info for audit trail
         const session = await auth();
         if (!session?.user?.name) {
             return NextResponse.json({ error: "Session not found" }, { status: 401 });
