@@ -121,5 +121,5 @@ export function generateAdminUrl(parcelId: string): string {
     const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         (process.env.NODE_ENV === "production" ? "https://matkassen.org" : "http://localhost:3000");
-    return `${baseUrl}/sv/schedule?parcel=${parcelId}`; // Use Swedish locale as default for admin
+    return `${baseUrl}/schedule?parcel=${parcelId}`; // Locale-agnostic, middleware will handle locale detection
 }

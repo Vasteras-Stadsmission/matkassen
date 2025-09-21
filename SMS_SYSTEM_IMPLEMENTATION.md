@@ -215,7 +215,7 @@ Each food parcel gets a public pickup page at:
 ### URL Structure:
 
 - Public page: `https://matkassen.org/p/[parcelId]`
-- QR code links to: `https://matkassen.org/sv/schedule?parcel=[parcelId]`
+- QR code links to: `https://matkassen.org/schedule?parcel=[parcelId]` (locale-agnostic)
 
 ### Technical Details:
 
@@ -376,7 +376,7 @@ formatPickupReminderSms(locale, parcelData, isReminder) {
 - ❌ **Mark as picked up functionality** in admin UI
 - ❌ **SMS log retention**: design TTL/archive strategy for `outgoing_sms` so the queue table stays lean and historic records move to cold storage
 
-**Note:** The QR codes currently point to `/sv/schedule?parcel=[parcelId]` but the schedule page doesn't handle the parcel parameter yet. This admin functionality should be implemented in a separate PR.
+**Note:** The QR codes now point to `/schedule?parcel=[parcelId]` (locale-agnostic) but the schedule page doesn't handle the parcel parameter yet. This admin functionality should be implemented in a separate PR.
 
 ## 🎯 What We Accomplished
 
