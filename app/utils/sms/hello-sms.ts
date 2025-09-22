@@ -46,15 +46,17 @@ export function getHelloSmsConfig(): HelloSmsConfig {
     }
 
     // Check HELLO_SMS_TEST_MODE first - if explicitly set, always use that value
-    const testModeFromEnv = process.env.HELLO_SMS_TEST_MODE;
+    const rawTestModeValue = process.env["HELLO_SMS_TEST_MODE"];
+    const normalizedTestModeValue =
+        typeof rawTestModeValue === "string" ? rawTestModeValue.trim().toLowerCase() : undefined;
     let testMode: boolean;
 
-    if (testModeFromEnv !== undefined && testModeFromEnv !== "") {
+    if (normalizedTestModeValue) {
         // If explicitly set, use that value (this takes precedence over NODE_ENV)
-        testMode = testModeFromEnv === "true";
+        testMode = ["true", "1", "yes", "on"].includes(normalizedTestModeValue);
         if (!hasLoggedConfig) {
             console.log(
-                `🔧 SMS Test Mode explicitly set to: ${testMode} (HELLO_SMS_TEST_MODE="${testModeFromEnv}")`,
+                `🔧 SMS Test Mode explicitly set to: ${testMode} (HELLO_SMS_TEST_MODE="${rawTestModeValue}")`,
             );
             hasLoggedConfig = true;
         }
