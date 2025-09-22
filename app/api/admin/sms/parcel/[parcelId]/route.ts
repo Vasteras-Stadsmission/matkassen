@@ -9,7 +9,7 @@ import {
 } from "@/app/utils/sms/sms-service";
 import { formatPickupSms, type SmsTemplateData } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
-import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
+import { normalizePhoneToE164, getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 
@@ -31,8 +31,7 @@ export async function GET(
         // Check if reminder SMS already exists
         const reminderExists = await smsExistsForParcel(parcelId, "pickup_reminder");
 
-        const testMode =
-            process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production";
+        const { testMode } = getHelloSmsConfig();
 
         return NextResponse.json({
             smsRecords,
@@ -144,12 +143,13 @@ export async function POST(
             text: smsText,
         });
 
+        const { testMode } = getHelloSmsConfig();
+
         return NextResponse.json({
             success: true,
             smsId,
             message: action === "resend" ? "SMS queued for resending" : "SMS queued for sending",
-            testMode:
-                process.env.HELLO_SMS_TEST_MODE === "true" || process.env.NODE_ENV !== "production",
+            testMode,
         });
     } catch (error) {
         console.error("Error sending SMS:", error);
