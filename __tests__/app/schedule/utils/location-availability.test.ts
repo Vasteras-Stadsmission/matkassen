@@ -176,7 +176,11 @@ describe("Location Availability Utilities", () => {
 
             // Wednesday at 10:15 (exactly at closing time)
             const wednesdayDate = new Date("2025-05-07");
-            const wednesdayClosingResult = isTimeAvailable(wednesdayDate, "10:15", mockScheduleInfo);
+            const wednesdayClosingResult = isTimeAvailable(
+                wednesdayDate,
+                "10:15",
+                mockScheduleInfo,
+            );
             expect(wednesdayClosingResult.isAvailable).toBe(true);
 
             // Saturday at 22:30 (exactly at closing time)
