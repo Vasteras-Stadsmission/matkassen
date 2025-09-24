@@ -448,7 +448,8 @@ export async function checkLocationAvailability(
                 const [closeHours, closeMinutes] = dayConfig.closingTime.split(":").map(Number);
                 const closeValue = closeHours * 60 + closeMinutes;
 
-                if (timeValue < openValue || timeValue >= closeValue) {
+                // Allow times that end exactly at closing time
+                if (timeValue < openValue || timeValue > closeValue) {
                     return {
                         isAvailable: false,
                         reason: `This location is only open from ${dayConfig.openingTime} to ${dayConfig.closingTime} on ${weekday}s`,
@@ -1070,6 +1071,66 @@ export async function getTotalOutsideHoursCount(): Promise<number> {
     } catch (error) {
         console.error("Error getting total outside hours count:", error);
         return 0;
+    }
+}
+
+/**
+ * Get all parcels scheduled for today across all locations
+ */
+export async function getTodaysParcels(): Promise<FoodParcel[]> {
+    try {
+        // Get today's date range in Stockholm timezone
+        const today = new Date();
+        const todayInStockholm = Time.fromDate(today);
+        const startTimeStockholm = todayInStockholm.startOfDay();
+        const endTimeStockholm = todayInStockholm.endOfDay();
+
+        // Convert to UTC for database query
+        const startDate = startTimeStockholm.toDate();
+        const endDate = endTimeStockholm.toDate();
+
+        // Query food parcels for today across all locations
+        const parcelsData = await db
+            .select({
+                id: foodParcels.id,
+                householdId: foodParcels.household_id,
+                firstName: households.first_name,
+                lastName: households.last_name,
+                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+                pickupLatestTime: foodParcels.pickup_date_time_latest,
+                isPickedUp: foodParcels.is_picked_up,
+                pickupLocationId: foodParcels.pickup_location_id,
+            })
+            .from(foodParcels)
+            .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .where(
+                and(
+                    gte(foodParcels.pickup_date_time_earliest, startDate),
+                    lte(foodParcels.pickup_date_time_earliest, endDate),
+                ),
+            )
+            .orderBy(foodParcels.pickup_date_time_earliest);
+
+        // Transform the data to the expected format with proper timezone handling
+        return parcelsData.map(parcel => {
+            // Create Stockholm timezone date for the pickup date
+            const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
+            const pickupDate = pickupTimeStockholm.startOfDay().toDate();
+
+            return {
+                id: parcel.id,
+                householdId: parcel.householdId,
+                householdName: `${parcel.firstName} ${parcel.lastName}`,
+                pickupDate,
+                pickupEarliestTime: new Date(parcel.pickupEarliestTime),
+                pickupLatestTime: new Date(parcel.pickupLatestTime),
+                isPickedUp: parcel.isPickedUp,
+                pickup_location_id: parcel.pickupLocationId,
+            };
+        });
+    } catch (error) {
+        console.error("Error fetching today's parcels:", error);
+        return [];
     }
 }
 

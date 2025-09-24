@@ -110,7 +110,8 @@ export function isTimeAvailable(
     const closeValue = closeHours * 60 + closeMinutes;
 
     // Check if time is within opening hours
-    if (timeValue < openValue || timeValue >= closeValue) {
+    // Allow times that end exactly at closing time (>= should be > for the end boundary)
+    if (timeValue < openValue || timeValue > closeValue) {
         return {
             isAvailable: false,
             reason: `This location is only open from ${openingTime} to ${closingTime} on this day`,

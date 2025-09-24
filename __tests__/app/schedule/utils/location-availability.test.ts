@@ -167,5 +167,26 @@ describe("Location Availability Utilities", () => {
             expect(sundayResult.isAvailable).toBe(false);
             expect(sundayResult.reason).toBeTruthy();
         });
+
+        it("returns true for times that end exactly at closing time", () => {
+            // Monday at 17:00 (exactly at closing time)
+            const mondayDate = new Date("2025-05-05");
+            const mondayClosingResult = isTimeAvailable(mondayDate, "17:00", mockScheduleInfo);
+            expect(mondayClosingResult.isAvailable).toBe(true);
+
+            // Wednesday at 10:15 (exactly at closing time)
+            const wednesdayDate = new Date("2025-05-07");
+            const wednesdayClosingResult = isTimeAvailable(
+                wednesdayDate,
+                "10:15",
+                mockScheduleInfo,
+            );
+            expect(wednesdayClosingResult.isAvailable).toBe(true);
+
+            // Saturday at 22:30 (exactly at closing time)
+            const saturdayDate = new Date("2025-05-10");
+            const saturdayClosingResult = isTimeAvailable(saturdayDate, "22:30", mockScheduleInfo);
+            expect(saturdayClosingResult.isAvailable).toBe(true);
+        });
     });
 });
