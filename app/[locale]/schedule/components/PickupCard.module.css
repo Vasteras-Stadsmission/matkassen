@@ -1,5 +1,7 @@
 .pickup-card-compact:hover .reschedule-button,
-.pickup-card:hover .reschedule-button {
+.pickup-card:hover .reschedule-button,
+.pickup-card-compact:hover .admin-button,
+.pickup-card:hover .admin-button {
     opacity: 1 !important;
 }
 

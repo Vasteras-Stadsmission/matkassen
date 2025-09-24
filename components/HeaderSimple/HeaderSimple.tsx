@@ -28,8 +28,8 @@ export function HeaderSimple() {
         () => [
             { link: "/households", label: t("households") },
             { link: "/schedule", label: t("schedule") },
+            { link: "/schedule/today", label: t("todayHandouts") },
             { link: "/handout-locations", label: t("locations") },
-            { link: "/households/enroll", label: t("newHousehold") },
         ],
         [t],
     );

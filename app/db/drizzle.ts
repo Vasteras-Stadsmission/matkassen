@@ -34,22 +34,55 @@ const createMockClient = () => {
 };
 
 const createMockDb = () => {
+    // Build a chainable, thenable query builder that always resolves to an empty array.
+    type EmptyRow = Record<string, unknown>;
+
+    interface MockSelectBuilder extends PromiseLike<EmptyRow[]> {
+        from: (...args: unknown[]) => MockSelectBuilder;
+        innerJoin: (...args: unknown[]) => MockSelectBuilder;
+        leftJoin: (...args: unknown[]) => MockSelectBuilder;
+        rightJoin: (...args: unknown[]) => MockSelectBuilder;
+        fullJoin: (...args: unknown[]) => MockSelectBuilder;
+        where: (...args: unknown[]) => MockSelectBuilder;
+        orderBy: (...args: unknown[]) => MockSelectBuilder;
+        limit: (...args: unknown[]) => MockSelectBuilder;
+        offset: (...args: unknown[]) => MockSelectBuilder;
+        catch: (onRejected: (reason: unknown) => unknown) => Promise<EmptyRow[]>;
+        finally: (onFinally: () => void) => Promise<EmptyRow[]>;
+    }
+
+    const makeSelectBuilder = (): MockSelectBuilder => {
+        // We purposefully ignore all arguments and always return the same builder
+        // so callers can chain methods like from().innerJoin().where().orderBy().limit()
+        // and finally await the result to get an empty array.
+        const resolved = Promise.resolve<EmptyRow[]>([]);
+
+        const builder: MockSelectBuilder = {
+            from: () => builder,
+            innerJoin: () => builder,
+            leftJoin: () => builder,
+            rightJoin: () => builder,
+            fullJoin: () => builder,
+            where: () => builder,
+            orderBy: () => builder,
+            limit: () => builder,
+            offset: () => builder,
+            // Make the builder thenable so `await db.select(...).from(...).where(...)` works.
+            then: (onFulfilled, onRejected) => resolved.then(onFulfilled, onRejected),
+            catch: onRejected => resolved.catch(onRejected) as Promise<EmptyRow[]>,
+            finally: onFinally => resolved.finally(onFinally) as Promise<EmptyRow[]>,
+        };
+        return builder;
+    };
+
     return new Proxy({} as ReturnType<typeof drizzle>, {
-        get(target, prop) {
+        get(_target, prop) {
             if (prop === "select") {
                 // Return a mock select function that handles chained calls properly
-                return () => ({
-                    from: () => Promise.resolve([]), // Direct select().from() calls
-                    where: () => ({
-                        orderBy: () => Promise.resolve([]),
-                        limit: () => Promise.resolve([]),
-                    }),
-                    orderBy: () => Promise.resolve([]),
-                    limit: () => Promise.resolve([]),
-                });
+                return () => makeSelectBuilder();
             }
 
-            // For other database operations, still throw to catch unexpected usage
+            // For other database operations, still throw to catch unexpected usage in tests
             throw new Error(
                 `Database accessed during build time or tests. Property: ${String(prop)}`,
             );

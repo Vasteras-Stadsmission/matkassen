@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense, useCallback, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "@/app/i18n/navigation";
 import {
     Container,
     Title,
@@ -16,6 +17,7 @@ import {
     ActionIcon,
     Modal,
     Badge,
+    SegmentedControl,
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
@@ -32,6 +34,7 @@ import { recomputeOutsideHoursCountAction } from "../client-actions";
 import WeeklyScheduleGrid from "../components/WeeklyScheduleGrid";
 import { getISOWeekNumber, getWeekDates } from "../../../utils/date-utils";
 import { useTranslations } from "next-intl";
+import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 
 const DEFAULT_MAX_PARCELS_PER_SLOT = 4;
 
@@ -52,6 +55,10 @@ function SchedulePageContent({
     dateFromParams: Date | null;
 }) {
     const t = useTranslations();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const parcelIdFromUrl = searchParams.get("parcel");
 
     // State for locations
     const [locations, setLocations] = useState<PickupLocation[]>([]);
@@ -65,46 +72,79 @@ function SchedulePageContent({
 
     // State for food parcels
     const [foodParcels, setFoodParcels] = useState<FoodParcel[]>([]);
+    const lastParcelsRequestRef = useRef<string | null>(null);
 
     // Loading states
     const [isLoadingLocations, setIsLoadingLocations] = useState(true);
     const [isLoadingParcels, setIsLoadingParcels] = useState(false);
+
+    // Today Only mode state
+    const [todayOnlyMode, setTodayOnlyMode] = useState<boolean>(false);
+
+    // Admin dialog state
+    const [adminDialogParcelId, setAdminDialogParcelId] = useState<string | null>(null);
+    const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
 
     // Date picker state
     const [datePickerOpened, { open: openDatePicker, close: closeDatePicker }] =
         useDisclosure(false);
 
     // Memoized loader to fetch parcels for a week
-    const loadFoodParcels = useCallback(async (locationId: string, inputDates: Date[]) => {
-        if (!locationId) return;
+    const loadFoodParcels = useCallback(
+        async (locationId: string, inputDates: Date[], options: { force?: boolean } = {}) => {
+            if (!locationId) return;
 
-        // Always ensure we have a complete 7-day week
-        let dates = inputDates;
-        if (!dates || dates.length !== 7) {
-            const baseDate = dates && dates[0] ? dates[0] : new Date();
-            const { start } = getWeekDates(baseDate);
-            dates = [];
-            const current = new Date(start);
-            for (let i = 0; i < 7; i++) {
-                dates.push(new Date(current));
-                current.setDate(current.getDate() + 1);
+            // Always ensure we have a complete 7-day week
+            let dates = inputDates;
+            if (!dates || dates.length !== 7) {
+                const baseDate = dates && dates[0] ? dates[0] : new Date();
+                const { start } = getWeekDates(baseDate);
+                dates = [];
+                const current = new Date(start);
+                for (let i = 0; i < 7; i++) {
+                    dates.push(new Date(current));
+                    current.setDate(current.getDate() + 1);
+                }
             }
-        }
 
-        setIsLoadingParcels(true);
-        try {
             const weekStart = dates[0];
             const weekEnd = dates[dates.length - 1];
+            const requestKey = `${locationId}|${weekStart.toISOString()}|${weekEnd.toISOString()}`;
 
-            const parcels = await getFoodParcelsForWeek(locationId, weekStart, weekEnd);
+            if (!options.force && lastParcelsRequestRef.current === requestKey) {
+                return;
+            }
 
-            setFoodParcels(parcels);
-        } catch (error) {
-            console.error("Error loading food parcels:", error);
-        } finally {
-            setIsLoadingParcels(false);
+            lastParcelsRequestRef.current = requestKey;
+
+            setIsLoadingParcels(true);
+            try {
+                const parcels = await getFoodParcelsForWeek(locationId, weekStart, weekEnd);
+                setFoodParcels(parcels);
+            } catch (error) {
+                console.error("Error loading food parcels:", error);
+                // Allow retry on the next call if this one failed
+                lastParcelsRequestRef.current = null;
+            } finally {
+                setIsLoadingParcels(false);
+            }
+        },
+        [],
+    );
+
+    // Sync admin dialog state with URL parcel param
+    useEffect(() => {
+        if (parcelIdFromUrl) {
+            if (adminDialogParcelId !== parcelIdFromUrl || !isAdminDialogOpen) {
+                setAdminDialogParcelId(parcelIdFromUrl);
+                setIsAdminDialogOpen(true);
+            }
+        } else if (isAdminDialogOpen || adminDialogParcelId) {
+            setIsAdminDialogOpen(false);
+            setAdminDialogParcelId(null);
         }
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [parcelIdFromUrl]);
 
     // Combined initialization effect that handles URL parameters and initial data loading
     useEffect(() => {
@@ -256,17 +296,72 @@ function SchedulePageContent({
         setCurrentDate(new Date());
     };
 
+    // Toggle Today Only mode
+    const handleViewModeChange = (value: string) => {
+        const newTodayOnlyMode = value === "today";
+        setTodayOnlyMode(newTodayOnlyMode);
+
+        if (newTodayOnlyMode) {
+            // Switch to today's date
+            const today = new Date();
+            setCurrentDate(today);
+        }
+    };
+
+    // Filter parcels for Today Only mode
+    const filteredFoodParcels = useMemo(() => {
+        if (!todayOnlyMode) {
+            return foodParcels;
+        }
+
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date();
+        const todayYMD =
+            today.getFullYear() +
+            "-" +
+            String(today.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(today.getDate()).padStart(2, "0");
+
+        // Filter parcels to only show today's
+        return foodParcels.filter(parcel => {
+            if (!parcel.pickupDate) return false;
+            const parcelDate = new Date(parcel.pickupDate);
+            const parcelYMD =
+                parcelDate.getFullYear() +
+                "-" +
+                String(parcelDate.getMonth() + 1).padStart(2, "0") +
+                "-" +
+                String(parcelDate.getDate()).padStart(2, "0");
+            return parcelYMD === todayYMD;
+        });
+    }, [foodParcels, todayOnlyMode]);
+
     // Refresh food parcels after rescheduling - reuse the helper function
     const handleParcelRescheduled = async () => {
         if (!selectedLocationId || weekDates.length === 0) return;
-        await loadFoodParcels(selectedLocationId, weekDates);
+        await loadFoodParcels(selectedLocationId, weekDates, { force: true });
+    };
+
+    const handleParcelUpdated = async () => {
+        if (!selectedLocationId || weekDates.length === 0) return;
+        await loadFoodParcels(selectedLocationId, weekDates, { force: true });
+    };
+
+    const closeAdminDialog = () => {
+        // Remove parcel param from URL
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("parcel");
+        const newUrl = `${pathname}?${params.toString()}`;
+        router.replace(newUrl, { scroll: false });
+        // State will be synced by the effect on parcelIdFromUrl
     };
 
     // Listen for schedule grid refresh events (e.g., when schedules are deleted)
     useEffect(() => {
         const handleRefreshScheduleGrid = async () => {
             if (!selectedLocationId || weekDates.length === 0) return;
-            await loadFoodParcels(selectedLocationId, weekDates);
+            await loadFoodParcels(selectedLocationId, weekDates, { force: true });
         };
 
         window.addEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
@@ -302,7 +397,14 @@ function SchedulePageContent({
 
                 {/* Controls section */}
                 <Paper withBorder p="xs" radius="md">
-                    <Group justify="space-between" align="center">
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr auto 1fr",
+                            alignItems: "center",
+                            gap: "16px",
+                        }}
+                    >
                         <Select
                             label={t("foodParcels.pickupLocation")}
                             placeholder={t("foodParcels.selectLocation")}
@@ -316,7 +418,7 @@ function SchedulePageContent({
                             onChange={handleLocationChange}
                             disabled={isLoadingLocations}
                             rightSection={isLoadingLocations ? <Loader size="xs" /> : null}
-                            style={{ minWidth: 250 }}
+                            style={{ minWidth: 250, maxWidth: 300 }}
                             size="xs"
                             renderOption={({ option }) => {
                                 // Type assertion to access our custom properties
@@ -344,14 +446,27 @@ function SchedulePageContent({
                             }}
                         />
 
-                        <Group gap="xs">
+                        <SegmentedControl
+                            value={todayOnlyMode ? "today" : "week"}
+                            onChange={handleViewModeChange}
+                            data={[
+                                { label: t("schedule.todaysHandouts"), value: "today" },
+                                { label: t("schedule.weekView"), value: "week" },
+                            ]}
+                            size="md"
+                            color="blue"
+                        />
+
+                        <Group gap="xs" justify="flex-end">
                             <Button
                                 variant="outline"
                                 leftSection={<IconCalendarDue size="0.9rem" />}
                                 onClick={goToToday}
                                 size="md"
+                                disabled={todayOnlyMode}
+                                style={{ minWidth: 140 }}
                             >
-                                {t("schedule.today")}
+                                {t("schedule.currentWeek")}
                             </Button>
 
                             <Group gap={8}>
@@ -360,6 +475,7 @@ function SchedulePageContent({
                                     color="blue"
                                     onClick={goToPreviousWeek}
                                     size="lg"
+                                    disabled={todayOnlyMode}
                                 >
                                     <IconChevronLeft size="1rem" />
                                 </ActionIcon>
@@ -369,11 +485,15 @@ function SchedulePageContent({
                                     onClick={openDatePicker}
                                     rightSection={<IconCalendar size="0.9rem" />}
                                     size="lg"
+                                    disabled={todayOnlyMode}
+                                    style={{ minWidth: 150 }}
                                 >
-                                    {t("schedule.weekLabel", {
-                                        week: String(weekNumber),
-                                        year: String(year),
-                                    })}
+                                    {todayOnlyMode
+                                        ? t("schedule.todayLabel")
+                                        : t("schedule.weekLabel", {
+                                              week: String(weekNumber),
+                                              year: String(year),
+                                          })}
                                 </Button>
 
                                 <ActionIcon
@@ -381,12 +501,13 @@ function SchedulePageContent({
                                     color="blue"
                                     onClick={goToNextWeek}
                                     size="lg"
+                                    disabled={todayOnlyMode}
                                 >
                                     <IconChevronRight size="1rem" />
                                 </ActionIcon>
                             </Group>
                         </Group>
-                    </Group>
+                    </div>
                 </Paper>
 
                 {/* Schedule grid */}
@@ -398,7 +519,7 @@ function SchedulePageContent({
                                 <Text c="dimmed">{t("schedule.loading")}</Text>
                             </Stack>
                         </Center>
-                    ) : foodParcels.length === 0 && !isLoadingParcels ? (
+                    ) : filteredFoodParcels.length === 0 && !isLoadingParcels ? (
                         <Center style={{ height: 400 }}>
                             <Stack align="center" gap="xs">
                                 <IconClock
@@ -406,7 +527,11 @@ function SchedulePageContent({
                                     stroke={1.5}
                                     color="var(--mantine-color-gray-5)"
                                 />
-                                <Text c="dimmed">{t("schedule.noFoodSupport")}</Text>
+                                <Text c="dimmed">
+                                    {todayOnlyMode
+                                        ? t("schedule.noFoodSupportToday")
+                                        : t("schedule.noFoodSupport")}
+                                </Text>
                                 {selectedLocationId && (
                                     <Button
                                         variant="outline"
@@ -420,12 +545,13 @@ function SchedulePageContent({
                         </Center>
                     ) : (
                         <WeeklyScheduleGrid
-                            weekDates={weekDates}
-                            foodParcels={foodParcels}
+                            weekDates={todayOnlyMode ? [new Date()] : weekDates}
+                            foodParcels={filteredFoodParcels}
                             maxParcelsPerDay={getMaxParcelsPerDay()}
                             maxParcelsPerSlot={DEFAULT_MAX_PARCELS_PER_SLOT}
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={selectedLocationId}
+                            todayOnlyMode={todayOnlyMode}
                         />
                     )}
                 </Paper>
@@ -450,6 +576,14 @@ function SchedulePageContent({
                     size="md"
                 />
             </Modal>
+
+            {/* Admin parcel dialog */}
+            <ParcelAdminDialog
+                parcelId={adminDialogParcelId}
+                opened={isAdminDialogOpen}
+                onClose={closeAdminDialog}
+                onParcelUpdated={handleParcelUpdated}
+            />
         </Container>
     );
 }
@@ -484,9 +618,19 @@ export default function SchedulePageClient() {
                 }
             }
 
-            setLocationId(newLocationId);
-            setDate(newDate);
-            setParamsLoaded(true);
+            setLocationId(prev => (prev === newLocationId ? prev : newLocationId));
+
+            setDate(prev => {
+                if (!newDate && !prev) {
+                    return prev;
+                }
+                if (newDate && prev && prev.getTime() === newDate.getTime()) {
+                    return prev;
+                }
+                return newDate;
+            });
+
+            setParamsLoaded(prev => (prev ? prev : true));
         }, [dateParam, locationIdFromUrl]);
 
         return null;

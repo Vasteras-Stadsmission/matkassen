@@ -6,6 +6,7 @@
         "authStatus": "Authentication status",
         "loggedInAs": "You are logged in as",
         "loginToAccess": "Please log in to access the application's features",
+        "close": "Close",
         "languages": {
             "sv": "Swedish"
         }
@@ -34,8 +35,9 @@
         "matkassen": "matkassen",
         "households": "Households",
         "schedule": "Schedule",
+        "todayHandouts": "Today's Handouts",
         "locations": "Locations",
-        "newHousehold": "Add Household +",
+        "newHousehold": "Add Household",
         "scanQrCode": "Scan QR Code",
         "navigation": "Navigation"
     },
@@ -218,9 +220,16 @@
     "schedule": {
         "title": "Food Support Scheduling",
         "today": "Today",
+        "currentWeek": "Current Week",
+        "todayLabel": "Today",
+        "todayOnlyMode": "Today Only",
+        "todayOnlyDescription": "Show only today's food parcels",
+        "todaysHandouts": "Today's handouts",
+        "weekView": "Week view",
         "weekLabel": "Week {week}, {year}",
         "loading": "Loading schedule...",
         "noFoodSupport": "No food support scheduled this week",
+        "noFoodSupportToday": "No food support scheduled for today",
         "refresh": "Refresh",
         "selectWeek": "Select Week",
         "pastDateError": "This date has already passed",
@@ -667,6 +676,39 @@
         "cooldown": {
             "message": "You can resend SMS in {minutes} minutes",
             "active": "Resend cooldown active"
+        }
+    },
+    "admin": {
+        "parcelDialog": {
+            "title": "Parcel Information",
+            "loading": "Loading parcel details...",
+            "pickupSchedule": "Pickup Schedule",
+            "pickedUp": "Picked Up",
+            "notPickedUp": "Not Picked Up",
+            "by": "by",
+            "householdDetails": "Household Details",
+            "viewDetails": "View Details",
+            "contactInfo": "Contact Information",
+            "postalCode": "Postal Code",
+            "language": "Language",
+            "householdComposition": "Household Composition",
+            "members": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
+            "pets": "Pets",
+            "dietaryRestrictions": "Dietary Restrictions",
+            "additionalNeeds": "Additional Needs",
+            "comments": "Comments",
+            "noComments": "No comments yet",
+            "addCommentPlaceholder": "Add a comment about this household...",
+            "addComment": "Add Comment",
+            "markPickedUp": "Mark as Picked Up",
+            "undoPickup": "Undo Pickup",
+            "errors": {
+                "parcelNotFound": "Parcel not found",
+                "loadFailed": "Failed to load parcel details",
+                "markPickupFailed": "Failed to mark as picked up",
+                "undoPickupFailed": "Failed to undo pickup",
+                "addCommentFailed": "Failed to add comment"
+            }
         }
     }
 }

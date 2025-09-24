@@ -4,7 +4,7 @@ import { Paper, Text, Tooltip, ActionIcon } from "@mantine/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FoodParcel } from "@/app/[locale]/schedule/types";
-import { IconCalendarTime } from "@tabler/icons-react";
+import { IconCalendarTime, IconInfoCircle } from "@tabler/icons-react";
 import styles from "./PickupCard.module.css"; // Import the CSS module
 import { useTranslations } from "next-intl";
 import { memo, useMemo } from "react";
@@ -13,9 +13,15 @@ interface PickupCardProps {
     foodParcel: FoodParcel;
     isCompact?: boolean;
     onReschedule?: (foodParcel: FoodParcel) => void;
+    onOpenAdminDialog?: (parcelId: string) => void;
 }
 
-function PickupCard({ foodParcel, isCompact = false, onReschedule }: PickupCardProps) {
+function PickupCard({
+    foodParcel,
+    isCompact = false,
+    onReschedule,
+    onOpenAdminDialog,
+}: PickupCardProps) {
     const t = useTranslations("schedule");
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: foodParcel.id,
@@ -71,6 +77,17 @@ function PickupCard({ foodParcel, isCompact = false, onReschedule }: PickupCardP
         }
     };
 
+    // Handle click to open admin dialog
+    const handleAdminDialogClick = (e: React.MouseEvent) => {
+        // Stop the click from triggering the parent's drag events
+        e.stopPropagation();
+
+        // Call the parent's onOpenAdminDialog function with the current parcel ID
+        if (onOpenAdminDialog) {
+            onOpenAdminDialog(foodParcel.id);
+        }
+    };
+
     const tooltipContent = (
         <div>
             <Text fw={600}>{foodParcel.householdName}</Text>
@@ -116,6 +133,28 @@ function PickupCard({ foodParcel, isCompact = false, onReschedule }: PickupCardP
                     <Text size="xs" truncate fw={500}>
                         {foodParcel.householdName}
                     </Text>
+
+                    {/* Add admin info button */}
+                    {onOpenAdminDialog && (
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color="blue"
+                            onClick={handleAdminDialogClick}
+                            style={{
+                                position: "absolute",
+                                top: "50%",
+                                right: onReschedule ? "20px" : "4px", // Adjust position if reschedule button is present
+                                transform: "translateY(-50%)",
+                                opacity: 0, // Hidden by default
+                                transition: "opacity 0.2s",
+                            }}
+                            className={styles["admin-button"]}
+                            title="View household details"
+                        >
+                            <IconInfoCircle size="0.8rem" />
+                        </ActionIcon>
+                    )}
 
                     {/* Add reschedule button */}
                     {onReschedule && (
@@ -196,6 +235,27 @@ function PickupCard({ foodParcel, isCompact = false, onReschedule }: PickupCardP
                 <Text size="xs" c="dimmed">
                     {timeDisplay.earliest}
                 </Text>
+
+                {/* Add admin info button */}
+                {onOpenAdminDialog && (
+                    <ActionIcon
+                        size="xs"
+                        variant="subtle"
+                        color="blue"
+                        onClick={handleAdminDialogClick}
+                        style={{
+                            position: "absolute",
+                            top: "4px",
+                            right: onReschedule ? "20px" : "4px", // Adjust position if reschedule button is present
+                            opacity: 0, // Hidden by default
+                            transition: "opacity 0.2s",
+                        }}
+                        className={styles["admin-button"]}
+                        title="View household details"
+                    >
+                        <IconInfoCircle size="0.8rem" />
+                    </ActionIcon>
+                )}
 
                 {/* Add reschedule button */}
                 {onReschedule && (

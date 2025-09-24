@@ -33,18 +33,20 @@ function SearchParamsHandler() {
     const success = searchParams.get("success");
     const action = searchParams.get("action");
     const householdName = searchParams.get("householdName");
+    const householdId = searchParams.get("household-id");
 
-    return { success, action, householdName };
+    return { success, action, householdName, householdId };
 }
 
 export default function HouseholdsPageClient({ initialHouseholds }: HouseholdsPageClientProps) {
     const t = useTranslations("households");
     const [households] = useState<Household[]>(initialHouseholds);
     const [error] = useState<string | null>(null);
+    const [targetHouseholdId, setTargetHouseholdId] = useState<string | null>(null);
 
     // Get search params through a component wrapped in Suspense
     const SearchParamsComponent = () => {
-        const { success, action, householdName } = SearchParamsHandler();
+        const { success, action, householdName, householdId } = SearchParamsHandler();
 
         // Show success notification when redirected with success parameters
         useEffect(() => {
@@ -65,6 +67,15 @@ export default function HouseholdsPageClient({ initialHouseholds }: HouseholdsPa
             }
         }, [success, action, householdName]);
 
+        // Set target household ID for opening modal
+        useEffect(() => {
+            if (householdId) {
+                setTargetHouseholdId(householdId);
+            } else {
+                setTargetHouseholdId(null);
+            }
+        }, [householdId]);
+
         return null;
     };
 
@@ -74,7 +85,11 @@ export default function HouseholdsPageClient({ initialHouseholds }: HouseholdsPa
                 <SearchParamsComponent />
             </Suspense>
 
-            {error ? <Text c="red">{error}</Text> : <HouseholdsTable households={households} />}
+            {error ? (
+                <Text c="red">{error}</Text>
+            ) : (
+                <HouseholdsTable households={households} targetHouseholdId={targetHouseholdId} />
+            )}
         </Box>
     );
 }

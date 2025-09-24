@@ -23,6 +23,7 @@ interface TimeSlotCellProps {
     dayIndex?: number;
     isUnavailable?: boolean;
     unavailableReason?: string;
+    onOpenAdminDialog?: (parcelId: string) => void;
 }
 
 function TimeSlotCell({
@@ -34,6 +35,7 @@ function TimeSlotCell({
     dayIndex = 0,
     isUnavailable = false,
     unavailableReason,
+    onOpenAdminDialog,
 }: TimeSlotCellProps) {
     // Memoize calculations for better performance
     const isPast = useMemo(() => isPastTimeSlot(date, time), [date, time]);
@@ -87,7 +89,12 @@ function TimeSlotCell({
                     "element" in parcel ? (
                         <div key={parcel.id}>{parcel.element}</div>
                     ) : (
-                        <PickupCard key={parcel.id} foodParcel={parcel} isCompact={true} />
+                        <PickupCard
+                            key={parcel.id}
+                            foodParcel={parcel}
+                            isCompact={true}
+                            onOpenAdminDialog={onOpenAdminDialog}
+                        />
                     ),
                 )}
             </Stack>

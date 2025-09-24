@@ -6,6 +6,7 @@
         "authStatus": "Autentiseringsstatus",
         "loggedInAs": "Du är inloggad som",
         "loginToAccess": "Logga in för att få tillgång till applikationens funktioner",
+        "close": "Stäng",
         "languages": {
             "sv": "Svenska"
         }
@@ -31,8 +32,9 @@
         "matkassen": "Matkassen",
         "households": "Hushåll",
         "schedule": "Schema",
+        "todayHandouts": "Dagens utlämningar",
         "locations": "Utlämningsställen",
-        "newHousehold": "Nytt hushåll +",
+        "newHousehold": "Nytt hushåll",
         "scanQrCode": "Skanna QR-kod",
         "navigation": "Navigation"
     },
@@ -215,9 +217,16 @@
     "schedule": {
         "title": "Schemaläggning av matutdelning",
         "today": "Idag",
+        "currentWeek": "Aktuell vecka",
+        "todayLabel": "Idag",
+        "todayOnlyMode": "Endast idag",
+        "todayOnlyDescription": "Visa endast dagens matpaket",
+        "todaysHandouts": "Dagens utlämningar",
+        "weekView": "Veckovy",
         "weekLabel": "Vecka {week}, {year}",
         "loading": "Laddar schema...",
         "noFoodSupport": "Ingen matutdelning schemalagd den här veckan",
+        "noFoodSupportToday": "Ingen matutdelning schemalagd för idag",
         "refresh": "Uppdatera",
         "selectWeek": "Välj vecka",
         "pastDateError": "Detta datum har redan passerat",
@@ -666,6 +675,39 @@
         "cooldown": {
             "message": "Du kan skicka SMS igen om {minutes} minuter",
             "active": "Omsändningsnedkylning aktiv"
+        }
+    },
+    "admin": {
+        "parcelDialog": {
+            "title": "Paketinformation",
+            "loading": "Laddar paketdetaljer...",
+            "pickupSchedule": "Hämtschema",
+            "pickedUp": "Hämtat",
+            "notPickedUp": "Ej hämtat",
+            "by": "av",
+            "householdDetails": "Hushållsdetaljer",
+            "viewDetails": "Visa detaljer",
+            "contactInfo": "Kontaktinformation",
+            "postalCode": "Postnummer",
+            "language": "Språk",
+            "householdComposition": "Hushållssammansättning",
+            "members": "{count, plural, =0 {Inga medlemmar} =1 {1 medlem} other {# medlemmar}}",
+            "pets": "Husdjur",
+            "dietaryRestrictions": "Kostbegränsningar",
+            "additionalNeeds": "Ytterligare behov",
+            "comments": "Kommentarer",
+            "noComments": "Inga kommentarer än",
+            "addCommentPlaceholder": "Lägg till en kommentar om detta hushåll...",
+            "addComment": "Lägg till kommentar",
+            "markPickedUp": "Markera som hämtat",
+            "undoPickup": "Ångra hämtning",
+            "errors": {
+                "parcelNotFound": "Paketet hittades inte",
+                "loadFailed": "Misslyckades med att ladda paketdetaljer",
+                "markPickupFailed": "Misslyckades med att markera som hämtat",
+                "undoPickupFailed": "Misslyckades med att ångra hämtning",
+                "addCommentFailed": "Misslyckades med att lägga till kommentar"
+            }
         }
     }
 }
