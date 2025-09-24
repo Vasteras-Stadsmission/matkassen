@@ -100,7 +100,6 @@ interface WeeklyScheduleGridProps {
     onParcelRescheduled: () => void;
     locationId?: string | null;
     onOpenAdminDialog?: (parcelId: string) => void;
-    todayOnlyMode?: boolean;
 }
 
 export default function WeeklyScheduleGrid({
@@ -111,7 +110,6 @@ export default function WeeklyScheduleGrid({
     onParcelRescheduled,
     locationId,
     onOpenAdminDialog,
-    todayOnlyMode = false, // eslint-disable-line @typescript-eslint/no-unused-vars
 }: WeeklyScheduleGridProps) {
     const t = useTranslations("schedule") as TranslationFunction;
 

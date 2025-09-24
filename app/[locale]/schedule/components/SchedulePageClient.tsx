@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, Suspense, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter, usePathname } from "@/app/i18n/navigation";
 import {
@@ -17,7 +17,6 @@ import {
     ActionIcon,
     Modal,
     Badge,
-    SegmentedControl,
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
@@ -77,9 +76,6 @@ function SchedulePageContent({
     // Loading states
     const [isLoadingLocations, setIsLoadingLocations] = useState(true);
     const [isLoadingParcels, setIsLoadingParcels] = useState(false);
-
-    // Today Only mode state
-    const [todayOnlyMode, setTodayOnlyMode] = useState<boolean>(false);
 
     // Admin dialog state
     const [adminDialogParcelId, setAdminDialogParcelId] = useState<string | null>(null);
@@ -296,47 +292,6 @@ function SchedulePageContent({
         setCurrentDate(new Date());
     };
 
-    // Toggle Today Only mode
-    const handleViewModeChange = (value: string) => {
-        const newTodayOnlyMode = value === "today";
-        setTodayOnlyMode(newTodayOnlyMode);
-
-        if (newTodayOnlyMode) {
-            // Switch to today's date
-            const today = new Date();
-            setCurrentDate(today);
-        }
-    };
-
-    // Filter parcels for Today Only mode
-    const filteredFoodParcels = useMemo(() => {
-        if (!todayOnlyMode) {
-            return foodParcels;
-        }
-
-        // Get today's date in YYYY-MM-DD format
-        const today = new Date();
-        const todayYMD =
-            today.getFullYear() +
-            "-" +
-            String(today.getMonth() + 1).padStart(2, "0") +
-            "-" +
-            String(today.getDate()).padStart(2, "0");
-
-        // Filter parcels to only show today's
-        return foodParcels.filter(parcel => {
-            if (!parcel.pickupDate) return false;
-            const parcelDate = new Date(parcel.pickupDate);
-            const parcelYMD =
-                parcelDate.getFullYear() +
-                "-" +
-                String(parcelDate.getMonth() + 1).padStart(2, "0") +
-                "-" +
-                String(parcelDate.getDate()).padStart(2, "0");
-            return parcelYMD === todayYMD;
-        });
-    }, [foodParcels, todayOnlyMode]);
-
     // Refresh food parcels after rescheduling - reuse the helper function
     const handleParcelRescheduled = async () => {
         if (!selectedLocationId || weekDates.length === 0) return;
@@ -446,16 +401,7 @@ function SchedulePageContent({
                             }}
                         />
 
-                        <SegmentedControl
-                            value={todayOnlyMode ? "today" : "week"}
-                            onChange={handleViewModeChange}
-                            data={[
-                                { label: t("schedule.todaysHandouts"), value: "today" },
-                                { label: t("schedule.weekView"), value: "week" },
-                            ]}
-                            size="md"
-                            color="blue"
-                        />
+                        {/* Today's handouts can be accessed via /schedule/today route */}
 
                         <Group gap="xs" justify="flex-end">
                             <Button
@@ -463,7 +409,6 @@ function SchedulePageContent({
                                 leftSection={<IconCalendarDue size="0.9rem" />}
                                 onClick={goToToday}
                                 size="md"
-                                disabled={todayOnlyMode}
                                 style={{ minWidth: 140 }}
                             >
                                 {t("schedule.currentWeek")}
@@ -475,7 +420,6 @@ function SchedulePageContent({
                                     color="blue"
                                     onClick={goToPreviousWeek}
                                     size="lg"
-                                    disabled={todayOnlyMode}
                                 >
                                     <IconChevronLeft size="1rem" />
                                 </ActionIcon>
@@ -485,15 +429,12 @@ function SchedulePageContent({
                                     onClick={openDatePicker}
                                     rightSection={<IconCalendar size="0.9rem" />}
                                     size="lg"
-                                    disabled={todayOnlyMode}
                                     style={{ minWidth: 150 }}
                                 >
-                                    {todayOnlyMode
-                                        ? t("schedule.todayLabel")
-                                        : t("schedule.weekLabel", {
-                                              week: String(weekNumber),
-                                              year: String(year),
-                                          })}
+                                    {t("schedule.weekLabel", {
+                                        week: String(weekNumber),
+                                        year: String(year),
+                                    })}
                                 </Button>
 
                                 <ActionIcon
@@ -501,7 +442,6 @@ function SchedulePageContent({
                                     color="blue"
                                     onClick={goToNextWeek}
                                     size="lg"
-                                    disabled={todayOnlyMode}
                                 >
                                     <IconChevronRight size="1rem" />
                                 </ActionIcon>
@@ -519,7 +459,7 @@ function SchedulePageContent({
                                 <Text c="dimmed">{t("schedule.loading")}</Text>
                             </Stack>
                         </Center>
-                    ) : filteredFoodParcels.length === 0 && !isLoadingParcels ? (
+                    ) : foodParcels.length === 0 && !isLoadingParcels ? (
                         <Center style={{ height: 400 }}>
                             <Stack align="center" gap="xs">
                                 <IconClock
@@ -527,11 +467,7 @@ function SchedulePageContent({
                                     stroke={1.5}
                                     color="var(--mantine-color-gray-5)"
                                 />
-                                <Text c="dimmed">
-                                    {todayOnlyMode
-                                        ? t("schedule.noFoodSupportToday")
-                                        : t("schedule.noFoodSupport")}
-                                </Text>
+                                <Text c="dimmed">{t("schedule.noFoodSupport")}</Text>
                                 {selectedLocationId && (
                                     <Button
                                         variant="outline"
@@ -545,13 +481,12 @@ function SchedulePageContent({
                         </Center>
                     ) : (
                         <WeeklyScheduleGrid
-                            weekDates={todayOnlyMode ? [new Date()] : weekDates}
-                            foodParcels={filteredFoodParcels}
+                            weekDates={weekDates}
+                            foodParcels={foodParcels}
                             maxParcelsPerDay={getMaxParcelsPerDay()}
                             maxParcelsPerSlot={DEFAULT_MAX_PARCELS_PER_SLOT}
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={selectedLocationId}
-                            todayOnlyMode={todayOnlyMode}
                         />
                     )}
                 </Paper>
