@@ -72,8 +72,13 @@ export function isParcelOutsideOpeningHours(
         // Align with grid logic: a slot that ends exactly at closing time is considered valid.
         // If the end check failed, but the end HH:mm equals the day's closing time, treat it as available.
         const closingTimeForDay = getClosingTimeForDate(startLocal.toDate(), locationSchedules);
-        if (!endAvailability.isAvailable && closingTimeForDay && closingTimeForDay === endTime) {
-            endAvailability = { isAvailable: true };
+        if (!endAvailability.isAvailable && closingTimeForDay && closingTimeForDay !== null) {
+            // Normalize time formats for comparison (remove seconds if present)
+            const normalizedClosingTime = closingTimeForDay.substring(0, 5); // "20:00:00" -> "20:00"
+            const normalizedEndTime = endTime.substring(0, 5); // Already "20:00" but just to be safe
+            if (normalizedClosingTime === normalizedEndTime) {
+                endAvailability = { isAvailable: true };
+            }
         }
 
         const isWithinHours = startAvailability.isAvailable && endAvailability.isAvailable;
