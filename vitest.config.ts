@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
             exclude: ["node_modules", "dist", ".next"],
             deps: {
                 external: [],
+                // Force inline dependencies that cause module resolution issues
+                inline: ["next-auth", "next/server", "@auth/core"],
             },
         },
         resolve: {
@@ -24,6 +26,11 @@ export default defineConfig(({ mode }) => {
                 "@": path.resolve(__dirname, "./"),
             },
             conditions: ["node", "default"],
+            extensionAlias: {
+                ".js": [".js", ".ts", ".tsx"],
+                ".mjs": [".mjs", ".mts"],
+                ".cjs": [".cjs", ".cts"],
+            },
         },
         define: {
             "process.env": env,

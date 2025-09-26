@@ -34,52 +34,39 @@ const createMockClient = () => {
 };
 
 const createMockDb = () => {
-    // Build a chainable, thenable query builder that always resolves to an empty array.
-    type EmptyRow = Record<string, unknown>;
+    /**
+     * Simple mock database that returns empty arrays for all operations.
+     * This mock supports method chaining by returning a promise that resolves to an empty array.
+     * The chainable pattern is necessary because Drizzle ORM uses method chaining extensively
+     * (e.g., db.select().from().where().orderBy()), and each method in the chain needs to be awaitable.
+     */
+    const emptyArrayPromise = Promise.resolve<Record<string, unknown>[]>([]);
 
-    interface MockSelectBuilder extends PromiseLike<EmptyRow[]> {
-        from: (...args: unknown[]) => MockSelectBuilder;
-        innerJoin: (...args: unknown[]) => MockSelectBuilder;
-        leftJoin: (...args: unknown[]) => MockSelectBuilder;
-        rightJoin: (...args: unknown[]) => MockSelectBuilder;
-        fullJoin: (...args: unknown[]) => MockSelectBuilder;
-        where: (...args: unknown[]) => MockSelectBuilder;
-        orderBy: (...args: unknown[]) => MockSelectBuilder;
-        limit: (...args: unknown[]) => MockSelectBuilder;
-        offset: (...args: unknown[]) => MockSelectBuilder;
-        catch: (onRejected: (reason: unknown) => unknown) => Promise<EmptyRow[]>;
-        finally: (onFinally: () => void) => Promise<EmptyRow[]>;
-    }
-
-    const makeSelectBuilder = (): MockSelectBuilder => {
-        // We purposefully ignore all arguments and always return the same builder
-        // so callers can chain methods like from().innerJoin().where().orderBy().limit()
-        // and finally await the result to get an empty array.
-        const resolved = Promise.resolve<EmptyRow[]>([]);
-
-        const builder: MockSelectBuilder = {
-            from: () => builder,
-            innerJoin: () => builder,
-            leftJoin: () => builder,
-            rightJoin: () => builder,
-            fullJoin: () => builder,
-            where: () => builder,
-            orderBy: () => builder,
-            limit: () => builder,
-            offset: () => builder,
-            // Make the builder thenable so `await db.select(...).from(...).where(...)` works.
-            then: (onFulfilled, onRejected) => resolved.then(onFulfilled, onRejected),
-            catch: onRejected => resolved.catch(onRejected) as Promise<EmptyRow[]>,
-            finally: onFinally => resolved.finally(onFinally) as Promise<EmptyRow[]>,
+    // Create a chainable mock that supports all common Drizzle methods
+    const createChainableMock = () => {
+        const mock = {
+            // Query builder methods - all return the same mock for chaining
+            from: () => mock,
+            innerJoin: () => mock,
+            leftJoin: () => mock,
+            rightJoin: () => mock,
+            fullJoin: () => mock,
+            where: () => mock,
+            orderBy: () => mock,
+            limit: () => mock,
+            offset: () => mock,
+            // Promise methods - delegate to the empty array promise
+            then: emptyArrayPromise.then.bind(emptyArrayPromise),
+            catch: emptyArrayPromise.catch.bind(emptyArrayPromise),
+            finally: emptyArrayPromise.finally.bind(emptyArrayPromise),
         };
-        return builder;
+        return mock;
     };
 
     return new Proxy({} as ReturnType<typeof drizzle>, {
         get(_target, prop) {
             if (prop === "select") {
-                // Return a mock select function that handles chained calls properly
-                return () => makeSelectBuilder();
+                return () => createChainableMock();
             }
 
             // For other database operations, still throw to catch unexpected usage in tests

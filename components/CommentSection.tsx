@@ -62,11 +62,11 @@ export default function CommentSection({
                     // If no callback is provided, fall back to page reload
                     window.location.reload();
                 } else {
-                    console.error("Failed to delete comment");
+                    console.error(t("errors.deleteFailed"));
                 }
             }
         } catch (error) {
-            console.error("Error deleting comment:", error);
+            console.error(t("errors.deleteError") + ":", error);
         }
     };
 

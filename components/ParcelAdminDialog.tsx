@@ -208,14 +208,14 @@ export function ParcelAdminDialog({
             } else {
                 setState(prev => ({
                     ...prev,
-                    error: "Failed to delete comment",
+                    error: t("admin.parcelDialog.errors.deleteCommentFailed"),
                 }));
             }
         } catch (error) {
-            console.error("Error deleting comment:", error);
+            console.error(t("admin.parcelDialog.errors.deleteCommentError") + ":", error);
             setState(prev => ({
                 ...prev,
-                error: "Error deleting comment",
+                error: t("admin.parcelDialog.errors.deleteCommentError"),
             }));
         }
     };

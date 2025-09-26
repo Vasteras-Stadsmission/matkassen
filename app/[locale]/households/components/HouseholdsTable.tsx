@@ -14,12 +14,12 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconSearch, IconX, IconEye, IconEdit, IconPlus } from "@tabler/icons-react";
+import { useTranslations } from "next-intl";
 import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../actions";
 import HouseholdDetail from "./HouseholdDetail";
 import { useRouter, usePathname } from "@/app/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { Comment } from "../enroll/types";
-import { useTranslations } from "next-intl";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 import { useLocale } from "next-intl";
 
@@ -97,6 +97,7 @@ export default function HouseholdsTable({
     const pathname = usePathname();
     const t = useTranslations("households");
     const tNav = useTranslations("navigation");
+    const tComments = useTranslations("comments");
     const currentLocale = useLocale();
     const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
@@ -239,7 +240,7 @@ export default function HouseholdsTable({
                 setHouseholdDetail(updatedDetails);
             }
         } catch (error) {
-            console.error("Error deleting comment:", error);
+            console.error(tComments("errors.deleteError") + ":", error);
         } finally {
             setLoading(false);
         }

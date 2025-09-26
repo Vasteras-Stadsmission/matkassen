@@ -412,7 +412,17 @@
         "title": "Kommentarer ({count})",
         "noComments": "Inga kommentarer tillagda",
         "placeholder": "Lägg till en kommentar om hushållet... (HTML stöds, t.ex. länkar)",
-        "add": "Lägg till"
+        "add": "Lägg till",
+        "errors": {
+            "deleteFailed": "Misslyckades att ta bort kommentar",
+            "deleteError": "Fel vid borttagning av kommentar"
+        },
+        "unknownName": "Namn Okänt",
+        "deleteTooltip": "Ta bort kommentar",
+        "deleteTitle": "Ta bort kommentar",
+        "deleteConfirmation": "Är du säker på att du vill ta bort denna kommentar?",
+        "deleteButton": "Ta bort",
+        "cancelButton": "Avbryt"
     },
     "wizard": {
         "stepBasics": "Grunduppgifter",
@@ -767,7 +777,9 @@
                 "loadFailed": "Misslyckades med att ladda paketdetaljer",
                 "markPickupFailed": "Misslyckades med att markera som hämtat",
                 "undoPickupFailed": "Misslyckades med att ångra hämtning",
-                "addCommentFailed": "Misslyckades med att lägga till kommentar"
+                "addCommentFailed": "Misslyckades med att lägga till kommentar",
+                "deleteCommentFailed": "Misslyckades att ta bort kommentar",
+                "deleteCommentError": "Fel vid borttagning av kommentar"
             }
         }
     }

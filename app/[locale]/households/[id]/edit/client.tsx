@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
 import { getHouseholdFormData, updateHousehold } from "./actions";
 import { FormData, Comment, GithubUserData } from "../../enroll/types";
 import { addHouseholdComment, deleteHouseholdComment } from "../../actions";
 
 export default function EditHouseholdClient({ id }: { id: string }) {
+    const t = useTranslations("comments");
     const [initialData, setInitialData] = useState<FormData | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -145,10 +147,10 @@ export default function EditHouseholdClient({ id }: { id: string }) {
                     };
                 });
             } else {
-                console.error("Failed to delete comment");
+                console.error(t("errors.deleteFailed"));
             }
         } catch (error) {
-            console.error("Error deleting comment during edit:", error);
+            console.error(t("errors.deleteError") + " during edit:", error);
         }
     };
 
