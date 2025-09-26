@@ -15,6 +15,7 @@ import {
 } from "@/app/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { fetchMultipleGithubUserData } from "@/app/[locale]/households/actions";
 
 export interface ParcelDetails {
     parcel: {
@@ -148,7 +149,7 @@ export async function GET(
             .where(eq(householdAdditionalNeeds.household_id, parcel.householdId));
 
         // Fetch comments (most recent first)
-        const comments = await db
+        const commentsResult = await db
             .select({
                 id: householdComments.id,
                 author: householdComments.author_github_username,
@@ -158,6 +159,20 @@ export async function GET(
             .from(householdComments)
             .where(eq(householdComments.household_id, parcel.householdId))
             .orderBy(desc(householdComments.created_at));
+
+        // Fetch GitHub user data for all comment authors in one batch
+        const usernames = commentsResult.map(comment => comment.author).filter(Boolean);
+
+        const githubUserDataMap = await fetchMultipleGithubUserData(usernames);
+
+        // Attach GitHub user data to comments
+        const comments = commentsResult.map(comment => ({
+            id: comment.id,
+            author: comment.author,
+            comment: comment.comment,
+            createdAt: comment.createdAt,
+            githubUserData: comment.author ? githubUserDataMap[comment.author] || null : null,
+        }));
 
         // Build response
         const response: ParcelDetails = {

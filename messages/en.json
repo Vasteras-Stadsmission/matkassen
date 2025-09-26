@@ -220,6 +220,72 @@
     "schedule": {
         "title": "Food Support Scheduling",
         "today": "Today",
+        "todayTab": "Today",
+        "weeklyTab": "Weekly",
+        "hub": {
+            "title": "Schedule",
+            "subtitle": "Select a handout location to view schedules",
+            "noLocations": "No handout locations found",
+            "noHandoutsToday": "No handouts today",
+            "parcelsToday": "{count} parcels today",
+            "completed": "completed",
+            "todayHandouts": "Today's Handouts",
+            "weeklySchedule": "Weekly Schedule",
+            "setAsFavorite": "Set as Favorite",
+            "favorite": "Favorite",
+            "favoriteSet": "{location} set as favorite",
+            "favoriteChanged": "Favorite changed to {location}",
+            "favoriteRemoved": "{location} removed from favorites",
+            "confirmSetFavorite": "Set {location} as your favorite?",
+            "confirmChangeFavorite": "Change your favorite from {oldLocation} to {newLocation}?",
+            "confirmRemoveFavorite": "Remove {location} as your favorite?",
+            "favoriteExplanation": "Setting a favorite will automatically take you there when browsing schedules, making it faster to access the location you use most often.",
+            "confirmRemoveFavoriteLabel": "Remove favorite",
+            "confirmChangeFavoriteLabel": "Change favorite",
+            "currentFavoriteLabel": "current favorite",
+            "notificationSuccessTitle": "Success",
+            "notificationErrorTitle": "Error",
+            "favoriteUpdateFailed": "Failed to update favorite location",
+            "cancelButton": "Cancel",
+            "tooltipSetFavorite": "Set {location} as favorite",
+            "tooltipRemoveFavorite": "Remove {location} as favorite"
+        },
+        "location": {
+            "header": {
+                "locations": "Handout Locations",
+                "completedToday": "{completed}/{total} completed today"
+            },
+            "landing": {
+                "title": "Schedule",
+                "selectView": "Select View",
+                "todayHandouts": "Today's Handouts",
+                "todayDescription": "View today's scheduled parcels",
+                "weeklySchedule": "Weekly Schedule",
+                "weeklyDescription": "View and manage weekly schedule",
+                "goToToday": "Go to Today",
+                "weeklyView": "Weekly View",
+                "locationError": "Location Error",
+                "locationNotFound": "Location not found"
+            }
+        },
+        "todayHandouts": {
+            "title": "Today's Handouts",
+            "pageTitle": "Today's Handouts",
+            "date": "{weekday}, {date}",
+            "selectLocation": "Select a location to view packages",
+            "clearSelection": "Clear selection",
+            "noLocation": "Select a location to view today's packages",
+            "noParcels": "No packages scheduled today at this location",
+            "completed": "completed",
+            "scheduled": "Scheduled",
+            "completedStatus": "Completed",
+            "parcels": "packages",
+            "noTimeSpecified": "No time specified",
+            "parcel": {
+                "scheduled": "Scheduled",
+                "completed": "Completed"
+            }
+        },
         "currentWeek": "Current Week",
         "todayLabel": "Today",
         "weekLabel": "Week {week}, {year}",

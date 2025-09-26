@@ -29,6 +29,7 @@
         "@mantine/dates": "^8.1.1",
         "@mantine/form": "^8.1.1",
         "@mantine/hooks": "^8.1.1",
+        "@mantine/modals": "^8.3.2",
         "@mantine/notifications": "^8.1.1",
         "@octokit/auth-app": "^8.0.1",
         "@tabler/icons-react": "^3.34.0",

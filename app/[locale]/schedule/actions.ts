@@ -28,8 +28,51 @@ import type {
 } from "./types";
 
 /**
- * Get all pickup locations for the dropdown selector
+ * Get a specific parcel by ID, regardless of date
  */
+export async function getParcelById(parcelId: string): Promise<FoodParcel | null> {
+    try {
+        const parcelsData = await db
+            .select({
+                id: foodParcels.id,
+                householdId: foodParcels.household_id,
+                firstName: households.first_name,
+                lastName: households.last_name,
+                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+                pickupLatestTime: foodParcels.pickup_date_time_latest,
+                isPickedUp: foodParcels.is_picked_up,
+                pickupLocationId: foodParcels.pickup_location_id,
+            })
+            .from(foodParcels)
+            .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .where(eq(foodParcels.id, parcelId))
+            .limit(1);
+
+        if (parcelsData.length === 0) {
+            return null;
+        }
+
+        const parcel = parcelsData[0];
+
+        // Create Stockholm timezone date for the pickup date
+        const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
+        const pickupDate = pickupTimeStockholm.startOfDay().toDate();
+
+        return {
+            id: parcel.id,
+            householdId: parcel.householdId,
+            householdName: `${parcel.firstName} ${parcel.lastName}`,
+            pickupDate,
+            pickupEarliestTime: new Date(parcel.pickupEarliestTime),
+            pickupLatestTime: new Date(parcel.pickupLatestTime),
+            isPickedUp: parcel.isPickedUp,
+            pickup_location_id: parcel.pickupLocationId,
+        };
+    } catch (error) {
+        console.error("Error fetching parcel by ID:", error);
+        return null;
+    }
+}
 export async function getPickupLocations(): Promise<PickupLocation[]> {
     try {
         const locations = await db

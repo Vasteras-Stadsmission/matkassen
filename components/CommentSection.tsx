@@ -3,49 +3,59 @@
 import { useState } from "react";
 import { Textarea, Button, Title, Text, Stack, Group, Divider, Box } from "@mantine/core";
 import { IconMessage, IconSend } from "@tabler/icons-react";
-import CommentHtml from "./CommentHtml";
-import { deleteHouseholdComment } from "../actions";
-import { Comment } from "../enroll/types";
+import CommentHtml from "@/app/[locale]/households/components/CommentHtml";
+import { Comment } from "@/app/[locale]/households/enroll/types";
 import { useTranslations } from "next-intl";
 
-interface HouseholdCommentsProps {
+interface CommentSectionProps {
     comments: Comment[];
     onAddComment?: (comment: string) => Promise<Comment | null | undefined>;
     onDeleteComment?: (commentId: string) => Promise<void>;
     showTitle?: boolean;
+    entityType?: "household" | "parcel";
+    placeholder?: string;
+    isSubmitting?: boolean;
 }
 
-export default function HouseholdComments({
+export default function CommentSection({
     comments = [],
     onAddComment,
     onDeleteComment,
     showTitle = true,
-}: HouseholdCommentsProps) {
+    entityType = "household",
+    placeholder,
+    isSubmitting: externalIsSubmitting = false,
+}: CommentSectionProps) {
     const t = useTranslations("comments");
     const [newComment, setNewComment] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
+
+    // Use external submitting state if provided, otherwise use internal state
+    const isSubmitting = externalIsSubmitting || internalIsSubmitting;
 
     const handleSubmit = async () => {
         if (!newComment.trim() || !onAddComment) return;
 
         try {
-            setIsSubmitting(true);
+            setInternalIsSubmitting(true);
             await onAddComment(newComment);
             setNewComment(""); // Clear input after successful submission
         } catch (error) {
             console.error("Error adding comment:", error);
         } finally {
-            setIsSubmitting(false);
+            setInternalIsSubmitting(false);
         }
     };
 
     const handleDeleteComment = async (commentId: string) => {
         try {
-            // If parent provided onDeleteComment function, use it
             if (onDeleteComment) {
                 await onDeleteComment(commentId);
             } else {
-                // Otherwise use the default implementation with page reload
+                // Import the delete function dynamically to avoid circular imports
+                const { deleteHouseholdComment } = await import(
+                    "@/app/[locale]/households/actions"
+                );
                 const success = await deleteHouseholdComment(commentId);
 
                 if (success) {
@@ -59,6 +69,12 @@ export default function HouseholdComments({
             console.error("Error deleting comment:", error);
         }
     };
+
+    // Default placeholder based on entity type
+    const defaultPlaceholder =
+        entityType === "parcel"
+            ? "Add a comment about this parcel... (HTML is supported, e.g. links)"
+            : placeholder || t("placeholder");
 
     return (
         <Box mb="md">
@@ -84,27 +100,32 @@ export default function HouseholdComments({
                 </Text>
             )}
 
-            <Divider my="md" />
-            <Textarea
-                placeholder={t("placeholder")}
-                value={newComment}
-                onChange={e => setNewComment(e.currentTarget.value)}
-                minRows={3}
-                mb="sm"
-                leftSection={<IconMessage size={16} />}
-            />
-            <Group justify="flex-end">
-                <Button
-                    variant="filled"
-                    color="blue"
-                    onClick={handleSubmit}
-                    disabled={!newComment.trim() || isSubmitting}
-                    loading={isSubmitting}
-                    leftSection={<IconSend size={16} />}
-                >
-                    {t("add")}
-                </Button>
-            </Group>
+            {onAddComment && (
+                <>
+                    <Divider my="md" />
+                    <Textarea
+                        placeholder={defaultPlaceholder}
+                        value={newComment}
+                        onChange={e => setNewComment(e.currentTarget.value)}
+                        minRows={3}
+                        mb="sm"
+                        leftSection={<IconMessage size={16} />}
+                        disabled={isSubmitting}
+                    />
+                    <Group justify="flex-end">
+                        <Button
+                            variant="filled"
+                            color="blue"
+                            onClick={handleSubmit}
+                            disabled={!newComment.trim() || isSubmitting}
+                            loading={isSubmitting}
+                            leftSection={<IconSend size={16} />}
+                        >
+                            {t("add")}
+                        </Button>
+                    </Group>
+                </>
+            )}
         </Box>
     );
 }

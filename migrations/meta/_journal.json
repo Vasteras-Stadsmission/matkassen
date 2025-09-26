@@ -127,6 +127,20 @@
       "when": 1757709902639,
       "tag": "0017_puzzling_marvel_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1758783388325,
+      "tag": "0018_brief_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1758826766937,
+      "tag": "0019_condemned_franklin_richards",
+      "breakpoints": true
     }
   ]
 }

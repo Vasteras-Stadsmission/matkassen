@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter, usePathname } from "@/app/i18n/navigation";
+import { useTranslations } from "next-intl";
 import {
     Container,
     Title,
@@ -21,9 +22,11 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { IconClock, IconMapPin, IconPackage } from "@tabler/icons-react";
 import { format } from "date-fns";
-import { getTodaysParcels, getPickupLocations } from "../../actions";
+import { sv } from "date-fns/locale";
+import { getTodaysParcels, getPickupLocations, getParcelById } from "../../actions";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import type { FoodParcel, PickupLocation } from "../../types";
+import type { TranslationFunction } from "../../../types";
 
 // Enhanced type for today's view with additional computed fields
 interface TodayParcel extends FoodParcel {
@@ -43,13 +46,13 @@ export function TodayHandoutsPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
+    const t = useTranslations("schedule") as TranslationFunction;
 
     // State
     const [parcels, setParcels] = useState<TodayParcel[]>([]);
     const [locations, setLocations] = useState<PickupLocation[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedLocation, setSelectedLocation] = useState<string>("");
-    const [highlightedParcelId, setHighlightedParcelId] = useState<string | null>(null);
 
     // Modal state
     const [dialogOpened, { open: openDialog, close: closeDialog }] = useDisclosure(false);
@@ -62,11 +65,12 @@ export function TodayHandoutsPage() {
         const parcelId = searchParams.get("parcel");
         if (parcelId) {
             if (selectedParcelId !== parcelId || !dialogOpened) {
-                setHighlightedParcelId(parcelId);
-                // Find the parcel and auto-select its location
-                const parcel = parcels.find(p => p.id === parcelId);
-                if (parcel && parcel.pickup_location_id) {
-                    setSelectedLocation(parcel.pickup_location_id);
+                // Find the parcel and auto-select its location only if parcels are loaded
+                if (parcels.length > 0) {
+                    const parcel = parcels.find(p => p.id === parcelId);
+                    if (parcel && parcel.pickup_location_id) {
+                        setSelectedLocation(parcel.pickup_location_id);
+                    }
                 }
                 setSelectedParcelId(parcelId);
                 openDialog();
@@ -74,9 +78,19 @@ export function TodayHandoutsPage() {
         } else if (dialogOpened || selectedParcelId) {
             closeDialog();
             setSelectedParcelId(null);
-            setHighlightedParcelId(null);
         }
     }, [searchParams, parcels, selectedParcelId, dialogOpened, openDialog, closeDialog]);
+
+    // Handle location selection when parcels finish loading and we have a parcel parameter
+    useEffect(() => {
+        const parcelId = searchParams.get("parcel");
+        if (parcelId && parcels.length > 0 && !selectedLocation) {
+            const parcel = parcels.find(p => p.id === parcelId);
+            if (parcel && parcel.pickup_location_id) {
+                setSelectedLocation(parcel.pickup_location_id);
+            }
+        }
+    }, [parcels, searchParams, selectedLocation, locations]);
 
     // Load data
     const loadData = useCallback(async () => {
@@ -87,7 +101,18 @@ export function TodayHandoutsPage() {
                 getPickupLocations(),
             ]);
 
-            // Enhance parcels with location info and computed fields
+            // Check if we need to fetch a specific parcel to get its location (but don't add it to the list)
+            const parcelId = searchParams.get("parcel");
+            let locationIdFromParcel: string | null = null;
+
+            if (parcelId && !parcelsData.find(p => p.id === parcelId)) {
+                const specificParcel = await getParcelById(parcelId);
+                if (specificParcel?.pickup_location_id) {
+                    locationIdFromParcel = specificParcel.pickup_location_id;
+                }
+            }
+
+            // Only use today's parcels for display
             const enhancedParcels = parcelsData.map((parcel): TodayParcel => {
                 const location = locationsData.find(l => l.id === parcel.pickup_location_id);
                 return {
@@ -101,20 +126,19 @@ export function TodayHandoutsPage() {
                 };
             });
 
-            console.log(
-                "QR Code Debug - All parcel IDs:",
-                enhancedParcels.map(p => p.id),
-            );
-            console.log("QR Code Debug - Looking for highlighted parcel:", highlightedParcelId);
-
             setParcels(enhancedParcels);
             setLocations(locationsData);
+
+            // Auto-select location if we found one from the specific parcel
+            if (locationIdFromParcel && !selectedLocation) {
+                setSelectedLocation(locationIdFromParcel);
+            }
         } catch (error) {
             console.error("Error loading today's parcels:", error);
         } finally {
             setLoading(false);
         }
-    }, [highlightedParcelId]);
+    }, [searchParams, selectedLocation]);
 
     useEffect(() => {
         loadData();
@@ -163,10 +187,14 @@ export function TodayHandoutsPage() {
     // Handle parcel click
     const handleParcelClick = useCallback(
         (parcel: TodayParcel) => {
-            setSelectedParcelId(parcel.id);
-            openDialog();
+            // Update URL with parcel parameter to trigger the modal
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("parcel", parcel.id);
+            const newUrl = `${pathname}?${params.toString()}`;
+            router.replace(newUrl);
+            // The useEffect watching searchParams will handle opening the modal
         },
-        [openDialog],
+        [searchParams, pathname, router],
     );
 
     // Close modal callback
@@ -177,10 +205,8 @@ export function TodayHandoutsPage() {
         const newUrl = `${pathname}?${params.toString()}`;
         router.replace(newUrl);
         // State will be synced by the effect on searchParams
-
-        // Reload data to get updated status
-        loadData();
-    }, [searchParams, pathname, router, loadData]);
+        // Note: No need to reload data just because we closed a dialog
+    }, [searchParams, pathname, router]);
 
     if (loading) {
         return (
@@ -206,10 +232,10 @@ export function TodayHandoutsPage() {
                 <Group justify="space-between" align="center">
                     <div>
                         <Title order={1} size="h2">
-                            Today's Handouts
+                            {t("todayHandouts.title")}
                         </Title>
                         <Text c="dimmed" size="sm">
-                            {format(today, "EEEE, MMMM d, yyyy")}
+                            {format(today, "EEEE, MMMM d, yyyy", { locale: sv })}
                         </Text>
                     </div>
                     <Group>
@@ -223,7 +249,7 @@ export function TodayHandoutsPage() {
                                 }
                                 size="lg"
                             >
-                                {completedParcels}/{totalParcels} completed
+                                {completedParcels}/{totalParcels} {t("todayHandouts.completed")}
                             </Badge>
                         )}
                     </Group>
@@ -234,7 +260,7 @@ export function TodayHandoutsPage() {
                     <Group>
                         <IconMapPin size={20} />
                         <Select
-                            placeholder="Select a location to view parcels"
+                            placeholder={t("todayHandouts.selectLocation")}
                             value={selectedLocation}
                             onChange={value => setSelectedLocation(value || "")}
                             data={locations.map(location => ({
@@ -249,7 +275,7 @@ export function TodayHandoutsPage() {
                                 size="sm"
                                 onClick={() => setSelectedLocation("")}
                             >
-                                Clear selection
+                                {t("todayHandouts.clearSelection")}
                             </Button>
                         )}
                     </Group>
@@ -263,8 +289,8 @@ export function TodayHandoutsPage() {
                                 <IconPackage size={48} color="gray" />
                                 <Text size="lg" c="dimmed">
                                     {selectedLocation
-                                        ? "No parcels scheduled for today at this location"
-                                        : "Select a location to view today's parcels"}
+                                        ? t("todayHandouts.noParcels")
+                                        : t("todayHandouts.noLocation")}
                                 </Text>
                             </Stack>
                         </Center>
@@ -281,7 +307,8 @@ export function TodayHandoutsPage() {
                                                     {group.location.name}
                                                 </Text>
                                                 <Text size="sm" c="dimmed">
-                                                    {group.parcels.length} parcels
+                                                    {group.parcels.length}{" "}
+                                                    {t("todayHandouts.parcels")}
                                                 </Text>
                                             </div>
                                             <IconMapPin size={20} color="blue" />
@@ -291,19 +318,6 @@ export function TodayHandoutsPage() {
                                     <Card.Section p="md">
                                         <Stack gap="xs">
                                             {group.parcels.map(parcel => {
-                                                const isHighlighted =
-                                                    highlightedParcelId === parcel.id;
-                                                if (highlightedParcelId) {
-                                                    console.log(
-                                                        "QR Code Debug - Checking parcel:",
-                                                        parcel.id,
-                                                        "against highlighted:",
-                                                        highlightedParcelId,
-                                                        "match:",
-                                                        isHighlighted,
-                                                    );
-                                                }
-
                                                 return (
                                                     <Paper
                                                         key={parcel.id}
@@ -311,12 +325,6 @@ export function TodayHandoutsPage() {
                                                         withBorder
                                                         style={{
                                                             cursor: "pointer",
-                                                            backgroundColor: isHighlighted
-                                                                ? "var(--mantine-color-yellow-1)"
-                                                                : undefined,
-                                                            borderColor: isHighlighted
-                                                                ? "var(--mantine-color-yellow-4)"
-                                                                : undefined,
                                                         }}
                                                         onClick={() => handleParcelClick(parcel)}
                                                     >
@@ -332,7 +340,9 @@ export function TodayHandoutsPage() {
                                                                     <IconClock size={14} />
                                                                     <Text size="xs" c="dimmed">
                                                                         {parcel.timeSlot ||
-                                                                            "No time specified"}
+                                                                            t(
+                                                                                "todayHandouts.noTimeSpecified",
+                                                                            )}
                                                                     </Text>
                                                                 </Group>
                                                             </div>
@@ -346,8 +356,12 @@ export function TodayHandoutsPage() {
                                                                 size="sm"
                                                             >
                                                                 {parcel.status === "completed"
-                                                                    ? "Completed"
-                                                                    : "Scheduled"}
+                                                                    ? t(
+                                                                          "todayHandouts.parcel.completed",
+                                                                      )
+                                                                    : t(
+                                                                          "todayHandouts.parcel.scheduled",
+                                                                      )}
                                                             </Badge>
                                                         </Group>
                                                     </Paper>

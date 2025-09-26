@@ -9,10 +9,8 @@ import {
     Button,
     Badge,
     Card,
-    Divider,
     Loader,
     Alert,
-    Textarea,
     Anchor,
     Box,
     SimpleGrid,
@@ -24,11 +22,12 @@ import {
     IconCalendar,
     IconCheck,
     IconX,
-    IconEdit,
     IconExternalLink,
 } from "@tabler/icons-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
+import CommentSection from "./CommentSection";
+import { convertParcelCommentsToComments } from "./commentHelpers";
 
 interface ParcelAdminDialogProps {
     parcelId: string | null;
@@ -42,7 +41,6 @@ interface ParcelDialogState {
     error: string | null;
     data: ParcelDetails | null;
     submitting: boolean;
-    newComment: string;
 }
 
 export function ParcelAdminDialog({
@@ -52,12 +50,12 @@ export function ParcelAdminDialog({
     onParcelUpdated,
 }: ParcelAdminDialogProps) {
     const t = useTranslations();
+    const locale = useLocale();
     const [state, setState] = useState<ParcelDialogState>({
         loading: false,
         error: null,
         data: null,
         submitting: false,
-        newComment: "",
     });
 
     const fetchParcelDetails = useCallback(async () => {
@@ -160,8 +158,8 @@ export function ParcelAdminDialog({
         }
     };
 
-    const handleAddComment = async () => {
-        if (!parcelId || !state.newComment.trim()) return;
+    const handleAddComment = async (commentText: string) => {
+        if (!parcelId || !commentText.trim()) return null;
 
         setState(prev => ({ ...prev, submitting: true }));
 
@@ -174,7 +172,7 @@ export function ParcelAdminDialog({
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        comment: state.newComment.trim(),
+                        comment: commentText.trim(),
                     }),
                 },
             );
@@ -184,40 +182,86 @@ export function ParcelAdminDialog({
                 throw new Error(errorData.error || `HTTP ${response.status}`);
             }
 
-            // Clear comment and refresh data
-            setState(prev => ({ ...prev, newComment: "" }));
+            // Refresh data to get the new comment
             await fetchParcelDetails();
+            return null; // CommentSection expects a return value
         } catch {
             setState(prev => ({
                 ...prev,
                 error: t("admin.parcelDialog.errors.addCommentFailed"),
             }));
+            return null;
         } finally {
             setState(prev => ({ ...prev, submitting: false }));
         }
     };
 
+    const handleDeleteComment = async (commentId: string): Promise<void> => {
+        try {
+            // Import the delete function dynamically to avoid circular imports
+            const { deleteHouseholdComment } = await import("@/app/[locale]/households/actions");
+            const success = await deleteHouseholdComment(commentId);
+
+            if (success) {
+                // Refresh data to get updated comments
+                await fetchParcelDetails();
+            } else {
+                setState(prev => ({
+                    ...prev,
+                    error: "Failed to delete comment",
+                }));
+            }
+        } catch (error) {
+            console.error("Error deleting comment:", error);
+            setState(prev => ({
+                ...prev,
+                error: "Error deleting comment",
+            }));
+        }
+    };
+
     const formatDateTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
-        return date.toLocaleString();
+        // Use appropriate locale for date/time formatting
+        const localeString = locale === "sv" ? "sv-SE" : "en-GB";
+        return date.toLocaleString(localeString, {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        });
     };
 
     const formatDate = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
-        return date.toLocaleDateString();
+        // Use appropriate locale for date formatting
+        const localeString = locale === "sv" ? "sv-SE" : "en-GB";
+        return date.toLocaleDateString(localeString, {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        });
     };
 
     const formatTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
-        return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        // Use appropriate locale for time formatting with 24-hour format
+        const localeString = locale === "sv" ? "sv-SE" : "en-GB";
+        return date.toLocaleTimeString(localeString, {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        });
     };
 
     const handleClose = () => {
-        setState(prev => ({ ...prev, newComment: "", error: null }));
+        setState(prev => ({ ...prev, error: null }));
         onClose();
     };
 
-    const { loading, error, data, submitting, newComment } = state;
+    const { loading, error, data, submitting } = state;
 
     return (
         <Modal
@@ -272,9 +316,7 @@ export function ParcelAdminDialog({
                                         </Text>
                                     </Group>
                                     <Text size="sm" c="dimmed">
-                                        {formatDate(data.parcel.pickupDateTimeEarliest)}
-                                    </Text>
-                                    <Text size="sm">
+                                        {formatDate(data.parcel.pickupDateTimeEarliest)} •{" "}
                                         {formatTime(data.parcel.pickupDateTimeEarliest)} -{" "}
                                         {formatTime(data.parcel.pickupDateTimeLatest)}
                                     </Text>
@@ -418,62 +460,14 @@ export function ParcelAdminDialog({
 
                         {/* Comments Section */}
                         <Card withBorder>
-                            <Stack gap="md">
-                                <Text fw={500}>{t("admin.parcelDialog.comments")}</Text>
-
-                                {/* Existing Comments */}
-                                {data.comments.length > 0 ? (
-                                    <Stack gap="sm">
-                                        {data.comments.map(comment => (
-                                            <Card key={comment.id} withBorder radius="sm">
-                                                <Stack gap="xs">
-                                                    <Group justify="space-between">
-                                                        <Text size="sm" fw={500}>
-                                                            {comment.author}
-                                                        </Text>
-                                                        <Text size="xs" c="dimmed">
-                                                            {formatDateTime(comment.createdAt)}
-                                                        </Text>
-                                                    </Group>
-                                                    <Text size="sm">{comment.comment}</Text>
-                                                </Stack>
-                                            </Card>
-                                        ))}
-                                    </Stack>
-                                ) : (
-                                    <Text size="sm" c="dimmed" ta="center" py="md">
-                                        {t("admin.parcelDialog.noComments")}
-                                    </Text>
-                                )}
-
-                                {/* Add Comment */}
-                                <Divider />
-                                <Stack gap="sm">
-                                    <Textarea
-                                        placeholder={t("admin.parcelDialog.addCommentPlaceholder")}
-                                        value={newComment}
-                                        onChange={event =>
-                                            setState(prev => ({
-                                                ...prev,
-                                                newComment: event.currentTarget.value,
-                                            }))
-                                        }
-                                        minRows={3}
-                                        disabled={submitting}
-                                    />
-                                    <Group justify="flex-end">
-                                        <Button
-                                            leftSection={<IconEdit size="0.9rem" />}
-                                            onClick={handleAddComment}
-                                            disabled={!newComment.trim() || submitting}
-                                            loading={submitting}
-                                            size="sm"
-                                        >
-                                            {t("admin.parcelDialog.addComment")}
-                                        </Button>
-                                    </Group>
-                                </Stack>
-                            </Stack>
+                            <CommentSection
+                                comments={convertParcelCommentsToComments(data.comments)}
+                                onAddComment={handleAddComment}
+                                onDeleteComment={handleDeleteComment}
+                                entityType="parcel"
+                                isSubmitting={submitting}
+                                placeholder={t("admin.parcelDialog.addCommentPlaceholder")}
+                            />
                         </Card>
 
                         {/* Actions */}

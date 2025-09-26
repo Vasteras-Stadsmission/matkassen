@@ -40,12 +40,12 @@ export function formatDateTimeForSms(
 
             case "en":
                 // English: "Mon 16 Sep"
-                dateStr = date.toLocaleDateString("en-US", {
+                dateStr = date.toLocaleDateString("en-GB", {
                     weekday: "short",
                     day: "numeric",
                     month: "short",
                 });
-                timeStr = date.toLocaleTimeString("en-US", {
+                timeStr = date.toLocaleTimeString("en-GB", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
@@ -178,12 +178,12 @@ export function formatDateTimeForSms(
             default:
                 // For all other locales including ku, el, sw, so, so_so, uk, ka, th, vi, hy
                 // Use English format as fallback
-                dateStr = date.toLocaleDateString("en-US", {
+                dateStr = date.toLocaleDateString("en-GB", {
                     weekday: "short",
                     day: "numeric",
                     month: "short",
                 });
-                timeStr = date.toLocaleTimeString("en-US", {
+                timeStr = date.toLocaleTimeString("en-GB", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,

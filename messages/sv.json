@@ -217,6 +217,72 @@
     "schedule": {
         "title": "Schemaläggning av matutdelning",
         "today": "Idag",
+        "todayTab": "Idag",
+        "weeklyTab": "Vecka",
+        "hub": {
+            "title": "Schema",
+            "subtitle": "Välj en utlämningsplats för att visa scheman",
+            "noLocations": "Inga utlämningsställen hittades",
+            "noHandoutsToday": "Inga utlämningar idag",
+            "parcelsToday": "{count} paket idag",
+            "completed": "slutförda",
+            "todayHandouts": "Dagens utlämningar",
+            "weeklySchedule": "Veckoschema",
+            "setAsFavorite": "Sätt som favorit",
+            "favorite": "Favorit",
+            "favoriteSet": "{location} är nu din favorit",
+            "favoriteChanged": "Favorit ändrad till {location}",
+            "favoriteRemoved": "{location} borttagen från favoriter",
+            "confirmSetFavorite": "Sätt {location} som din favorit?",
+            "confirmChangeFavorite": "Ändra din favorit från {oldLocation} till {newLocation}?",
+            "confirmRemoveFavorite": "Ta bort {location} som din favorit?",
+            "favoriteExplanation": "Att sätta en favorit tar dig automatiskt dit när du bläddrar i scheman, vilket gör det snabbare att komma åt platsen du använder oftast.",
+            "confirmRemoveFavoriteLabel": "Ta bort favorit",
+            "confirmChangeFavoriteLabel": "Byt favorit",
+            "currentFavoriteLabel": "nuvarande favorit",
+            "notificationSuccessTitle": "Klart",
+            "notificationErrorTitle": "Fel",
+            "favoriteUpdateFailed": "Det gick inte att uppdatera favoritplatsen",
+            "cancelButton": "Avbryt",
+            "tooltipSetFavorite": "Sätt {location} som favorit",
+            "tooltipRemoveFavorite": "Ta bort {location} som favorit"
+        },
+        "location": {
+            "header": {
+                "locations": "Utlämningsställen",
+                "completedToday": "{completed}/{total} slutförda idag"
+            },
+            "landing": {
+                "title": "Schema",
+                "selectView": "Välj vy",
+                "todayHandouts": "Dagens utlämningar",
+                "todayDescription": "Visa dagens schemalagda paket",
+                "weeklySchedule": "Veckoschema",
+                "weeklyDescription": "Visa och hantera veckoschema",
+                "goToToday": "Gå till idag",
+                "weeklyView": "Veckovy",
+                "locationError": "Platsfel",
+                "locationNotFound": "Plats hittades inte"
+            }
+        },
+        "todayHandouts": {
+            "title": "Dagens utlämningar",
+            "pageTitle": "Dagens utlämningar",
+            "date": "{weekday}, {date}",
+            "selectLocation": "Välj en plats för att visa paket",
+            "clearSelection": "Rensa val",
+            "noLocation": "Välj en plats för att visa dagens paket",
+            "noParcels": "Inga paket schemalagda idag på denna plats",
+            "completed": "slutförda",
+            "scheduled": "Schemalagd",
+            "completedStatus": "Slutförd",
+            "parcels": "paket",
+            "noTimeSpecified": "Ingen tid angiven",
+            "parcel": {
+                "scheduled": "Schemalagd",
+                "completed": "Slutförd"
+            }
+        },
         "currentWeek": "Aktuell vecka",
         "todayLabel": "Idag",
         "weekLabel": "Vecka {week}, {year}",
