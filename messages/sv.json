@@ -753,8 +753,14 @@
             "title": "Paketinformation",
             "loading": "Laddar paketdetaljer...",
             "pickupSchedule": "Hämtschema",
-            "pickedUp": "Hämtat",
-            "notPickedUp": "Ej hämtat",
+            "pickedUp": "Upphämtad",
+            "notPickedUp": "Ej hämtad",
+            "status": {
+                "pickedUp": "Upphämtad",
+                "wrongDay": "Fel dag",
+                "checkTime": "Kolla tid",
+                "okToHandOut": "OK att lämna ut"
+            },
             "by": "av",
             "householdDetails": "Hushållsdetaljer",
             "viewDetails": "Visa detaljer",
