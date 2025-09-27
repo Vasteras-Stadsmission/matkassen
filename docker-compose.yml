@@ -15,7 +15,6 @@ services:
             - NEXT_PUBLIC_BASE_URL=https://matkassen.org # Production base URL
             - HELLO_SMS_API_URL=https://api.hellosms.se/api/v1/sms/send # HelloSMS API endpoint
             - HELLO_SMS_FROM=Matkassen # SMS sender name
-            - HELLO_SMS_TEST_MODE=true # Enable test mode in production (no real SMS)
         env_file:
             - .env
         depends_on:

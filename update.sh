@@ -69,6 +69,9 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     printf 'POSTGRES_PASSWORD="%s"\n' "${POSTGRES_PASSWORD}"
     printf 'POSTGRES_USER="%s"\n' "${POSTGRES_USER}"
     printf 'ENV_NAME="%s"\n' "${ENV_NAME:-}"
+    printf 'HELLO_SMS_USERNAME="%s"\n' "${HELLO_SMS_USERNAME:-}"
+    printf 'HELLO_SMS_PASSWORD="%s"\n' "${HELLO_SMS_PASSWORD:-}"
+    printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
 } > "$tmp"
 
 # Add production-only backup configuration
