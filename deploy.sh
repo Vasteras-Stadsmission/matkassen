@@ -191,6 +191,9 @@ echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
 echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
+echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"
+echo "HELLO_SMS_PASSWORD=\"$HELLO_SMS_PASSWORD\"" >> "$APP_DIR/.env"
+echo "HELLO_SMS_TEST_MODE=\"$HELLO_SMS_TEST_MODE\"" >> "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y

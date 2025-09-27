@@ -256,6 +256,32 @@ The project uses Drizzle ORM with a migration-based approach:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
     - All migrations are tracked in version control for better history management
 
+## Environment Variables Management
+
+Adding new environment variables requires updates across multiple deployment files due to the application's multi-stage deployment architecture.
+
+### Quick Guide
+
+1. **Document in `.env.example`** with description and example value
+2. **Add to GitHub Secrets** (if sensitive data)
+3. **Update 4 deployment files** by finding similar variables and copying the pattern:
+    - `.github/workflows/init_deploy.yml`
+    - `.github/workflows/continuous_deployment.yml`
+    - `deploy.sh`
+    - `update.sh`
+
+### Troubleshooting
+
+**Variable missing in production?** Check that all 4 files above include your variable.
+
+**Need different values per environment?** Use different GitHub Secret names or add environment-specific logic in the deployment scripts.
+
+### Best Practices
+
+- Start with `.env.example` documentation first
+- Never hardcode secrets in `docker-compose.yml`
+- Test locally before deploying
+
 ## Database Backups
 
 The system includes automated nightly PostgreSQL backups to Elastx Object Store:
