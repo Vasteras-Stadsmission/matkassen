@@ -258,87 +258,29 @@ The project uses Drizzle ORM with a migration-based approach:
 
 ## Environment Variables Management
 
-Adding new environment variables requires updates across multiple files due to the application's deployment architecture. This section provides a comprehensive guide to ensure variables are properly configured in all environments.
+Adding new environment variables requires updates across multiple deployment files due to the application's multi-stage deployment architecture.
 
-### Overview
+### Quick Guide
 
-The application uses a multi-stage environment variable flow:
-
-```
-.env.example → Local .env → GitHub Secrets → Workflows → Scripts → Container .env → Application
-```
-
-### Quick Reference
-
-**Start here:** All environment variables should first be documented in `.env.example` with clear descriptions and example values.
-
-### Step-by-Step Guide
-
-When adding a new environment variable:
-
-1. **Document in `.env.example`**:
-   - Add the variable with a descriptive comment
-   - Provide example values (non-sensitive)
-   - Mark as optional or required
-
-2. **Add to GitHub Repository Secrets** (if sensitive):
-   - Go to GitHub repository Settings → Secrets and variables → Actions
-   - Add secrets for both staging and production environments if values differ
-
-3. **Update GitHub Workflows**:
-   - `.github/workflows/init_deploy.yml` - Initial deployment workflow
-   - `.github/workflows/continuous_deployment.yml` - Continuous deployment workflow
-   - Add `export VARIABLE_NAME="${{ secrets.VARIABLE_NAME }}"` in both staging and production sections
-
-4. **Update Deployment Scripts**:
-   - `deploy.sh` - Add to the .env file creation section (around line 200)
-   - `update.sh` - Add to the .env file creation section (around line 60)
-   - Use printf format: `printf 'VARIABLE_NAME="%s"\n' "${VARIABLE_NAME:-default_value}"`
-
-5. **Test Locally**:
-   - Copy from `.env.example` to your local `.env`
-   - Update with real values for local development
-   - Verify the application reads the variable correctly
-
-### File Locations Summary
-
-| File                        | Purpose                        | Variable Format                                              |
-| --------------------------- | ------------------------------ | ------------------------------------------------------------ |
-| `.env.example`              | Documentation & local template | `VARIABLE_NAME="example_value"`                              |
-| `init_deploy.yml`           | Initial deployment             | `export VARIABLE_NAME="${{ secrets.VARIABLE_NAME }}"`        |
-| `continuous_deployment.yml` | CI/CD updates                  | `export VARIABLE_NAME="${{ secrets.VARIABLE_NAME }}"`        |
-| `deploy.sh`                 | Server setup script            | `echo "VARIABLE_NAME=\"$VARIABLE_NAME\"" >> "$APP_DIR/.env"` |
-| `update.sh`                 | Update script                  | `printf 'VARIABLE_NAME="%s"\n' "${VARIABLE_NAME:-default}"`  |
-
-### Environment-Specific Variables
-
-**Development Only**: Add to `.env.example` and local `.env` only
-**Staging/Production**: Follow the full workflow above
-**Production Secrets**: Store in GitHub Secrets, never commit to code
+1. **Document in `.env.example`** with description and example value
+2. **Add to GitHub Secrets** (if sensitive data)
+3. **Update 4 deployment files** by finding similar variables and copying the pattern:
+   - `.github/workflows/init_deploy.yml`
+   - `.github/workflows/continuous_deployment.yml`
+   - `deploy.sh`
+   - `update.sh`
 
 ### Troubleshooting
 
-**Variable not available in container?**
-1. Check if it's in the deployment script's .env creation section
-2. Verify the GitHub workflow exports it
-3. Ensure GitHub Secrets are properly named and accessible
+**Variable missing in production?** Check that all 4 files above include your variable.
 
-**Different values per environment?**
-- Use different GitHub Secrets for staging vs production
-- Environment-specific logic can be added to deployment scripts using `$ENV_NAME`
-
-**Variable missing in workflows?**
-- Both `init_deploy.yml` and `continuous_deployment.yml` need the export statement
-- The variable must be exported before calling the deployment scripts
+**Need different values per environment?** Use different GitHub Secret names or add environment-specific logic in the deployment scripts.
 
 ### Best Practices
 
-- **Never hardcode secrets** in docker-compose.yml or code
-- **Always document** new variables in .env.example first
-- **Use descriptive names** that indicate purpose and scope
-- **Provide defaults** where sensible using `${VAR:-default}` syntax
-- **Group related variables** with comments in .env.example
-- **Test the full deployment flow** when adding new variables
+- Start with `.env.example` documentation first
+- Never hardcode secrets in `docker-compose.yml`
+- Test locally before deploying
 
 ## Database Backups
 
