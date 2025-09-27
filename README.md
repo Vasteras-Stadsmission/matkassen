@@ -265,10 +265,10 @@ Adding new environment variables requires updates across multiple deployment fil
 1. **Document in `.env.example`** with description and example value
 2. **Add to GitHub Secrets** (if sensitive data)
 3. **Update 4 deployment files** by finding similar variables and copying the pattern:
-   - `.github/workflows/init_deploy.yml`
-   - `.github/workflows/continuous_deployment.yml`
-   - `deploy.sh`
-   - `update.sh`
+    - `.github/workflows/init_deploy.yml`
+    - `.github/workflows/continuous_deployment.yml`
+    - `deploy.sh`
+    - `update.sh`
 
 ### Troubleshooting
 
