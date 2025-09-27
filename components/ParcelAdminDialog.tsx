@@ -28,6 +28,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
 import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
+import { getLanguageName } from "@/app/constants/languages";
+import { Time } from "@/app/utils/time-provider";
 
 interface ParcelAdminDialogProps {
     parcelId: string | null;
@@ -256,6 +258,28 @@ export function ParcelAdminDialog({
         });
     };
 
+    const getPickupStatus = (parcel: ParcelDetails["parcel"]) => {
+        const now = Time.now();
+        const pickupStart = Time.fromString(parcel.pickupDateTimeEarliest);
+        const pickupEnd = Time.fromString(parcel.pickupDateTimeLatest);
+        const isToday = now.toDateString() === pickupStart.toDateString();
+
+        if (parcel.isPickedUp) {
+            return { color: "green", key: "pickedUp" };
+        } else if (!isToday) {
+            return { color: "red", key: "wrongDay" };
+        } else if (now.isAfter(pickupStart) && now.isBefore(pickupEnd)) {
+            return { color: "green", key: "okToHandOut" };
+        } else {
+            // Today but outside pickup window (early or late)
+            return { color: "orange", key: "checkTime" };
+        }
+    };
+
+    const getPickupTimeColor = (parcel: ParcelDetails["parcel"]) => {
+        return getPickupStatus(parcel).color;
+    };
+
     const handleClose = () => {
         setState(prev => ({ ...prev, error: null }));
         onClose();
@@ -270,8 +294,8 @@ export function ParcelAdminDialog({
             title={
                 <Group gap="sm">
                     <IconInfoCircle size="1.2rem" />
-                    <Text fw={600}>
-                        {t("admin.parcelDialog.title")} {parcelId ? `#${parcelId}` : ""}
+                    <Text fw={700} size="lg">
+                        {t("admin.parcelDialog.title")}
                     </Text>
                 </Group>
             }
@@ -306,37 +330,63 @@ export function ParcelAdminDialog({
                 {data && !loading && (
                     <>
                         {/* Pickup Status */}
-                        <Card withBorder>
+                        <Card withBorder p="lg">
                             <Group justify="space-between" align="flex-start">
-                                <Stack gap="xs">
+                                <Stack gap="sm">
                                     <Group gap="sm">
-                                        <IconCalendar size="1rem" />
-                                        <Text fw={500}>
-                                            {t("admin.parcelDialog.pickupSchedule")}
+                                        <IconCalendar size="1.2rem" />
+                                        <Text
+                                            size="lg"
+                                            fw={700}
+                                            c={getPickupTimeColor(data.parcel)}
+                                        >
+                                            {formatDate(data.parcel.pickupDateTimeEarliest)}
+                                        </Text>
+                                        <Text
+                                            size="md"
+                                            fw={600}
+                                            c={getPickupTimeColor(data.parcel)}
+                                        >
+                                            {formatTime(data.parcel.pickupDateTimeEarliest)} -{" "}
+                                            {formatTime(data.parcel.pickupDateTimeLatest)}
                                         </Text>
                                     </Group>
-                                    <Text size="sm" c="dimmed">
-                                        {formatDate(data.parcel.pickupDateTimeEarliest)} •{" "}
-                                        {formatTime(data.parcel.pickupDateTimeEarliest)} -{" "}
-                                        {formatTime(data.parcel.pickupDateTimeLatest)}
-                                    </Text>
-                                    <Group gap="xs">
-                                        <IconMapPin size="0.9rem" />
-                                        <Text size="sm">{data.parcel.pickupLocationName}</Text>
+                                    <Group gap="sm" mt="xs">
+                                        <IconMapPin
+                                            size="1rem"
+                                            color="var(--mantine-color-blue-6)"
+                                        />
+                                        <Text size="md" fw={500}>
+                                            {data.parcel.pickupLocationName}
+                                        </Text>
                                     </Group>
-                                    <Text size="xs" c="dimmed">
-                                        {data.parcel.pickupLocationAddress}
-                                    </Text>
                                 </Stack>
 
-                                <Stack gap="xs" align="flex-end">
+                                <Stack gap="sm" align="flex-end">
                                     <Badge
-                                        color={data.parcel.isPickedUp ? "green" : "gray"}
-                                        variant={data.parcel.isPickedUp ? "filled" : "outline"}
+                                        color={getPickupStatus(data.parcel).color}
+                                        variant="filled"
+                                        size="lg"
+                                        radius="md"
+                                        style={{ fontSize: "0.875rem", fontWeight: 600 }}
                                     >
-                                        {data.parcel.isPickedUp
-                                            ? t("admin.parcelDialog.pickedUp")
-                                            : t("admin.parcelDialog.notPickedUp")}
+                                        {(() => {
+                                            const status = getPickupStatus(data.parcel);
+                                            switch (status.key) {
+                                                case "pickedUp":
+                                                    return t("admin.parcelDialog.status.pickedUp");
+                                                case "wrongDay":
+                                                    return t("admin.parcelDialog.status.wrongDay");
+                                                case "checkTime":
+                                                    return t("admin.parcelDialog.status.checkTime");
+                                                case "okToHandOut":
+                                                    return t(
+                                                        "admin.parcelDialog.status.okToHandOut",
+                                                    );
+                                                default:
+                                                    return t("admin.parcelDialog.notPickedUp");
+                                            }
+                                        })()}
                                     </Badge>
 
                                     {data.parcel.isPickedUp && data.parcel.pickedUpAt && (
@@ -373,39 +423,48 @@ export function ParcelAdminDialog({
                                     </Anchor>
                                 </Group>
 
-                                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                                    <Stack gap="xs">
-                                        <Text size="sm" fw={500}>
-                                            {t("admin.parcelDialog.contactInfo")}
+                                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
+                                    <Stack gap="sm">
+                                        <Text fw={700} size="lg">
+                                            {data.household.firstName} {data.household.lastName}
                                         </Text>
-                                        <Group gap="xs">
-                                            <Text fw={500}>
-                                                {data.household.firstName} {data.household.lastName}
+                                        <Group gap="sm">
+                                            <IconPhone
+                                                size="1rem"
+                                                color="var(--mantine-color-gray-6)"
+                                            />
+                                            <Text size="md">{data.household.phoneNumber}</Text>
+                                        </Group>
+                                        <Group gap="sm" align="baseline">
+                                            <Text size="sm" c="dimmed" fw={500}>
+                                                {t("admin.parcelDialog.postalCode")}:
+                                            </Text>
+                                            <Text size="sm" c="dark">
+                                                {data.household.postalCode}
                                             </Text>
                                         </Group>
-                                        <Group gap="xs">
-                                            <IconPhone size="0.9rem" />
-                                            <Text size="sm">{data.household.phoneNumber}</Text>
+                                        <Group gap="sm" align="baseline">
+                                            <Text size="sm" c="dimmed" fw={500}>
+                                                {t("admin.parcelDialog.language")}:
+                                            </Text>
+                                            <Text size="sm" c="dark" fw={500}>
+                                                {getLanguageName(data.household.locale, locale)}
+                                            </Text>
                                         </Group>
-                                        <Text size="sm" c="dimmed">
-                                            {t("admin.parcelDialog.postalCode")}:{" "}
-                                            {data.household.postalCode}
-                                        </Text>
-                                        <Text size="sm" c="dimmed">
-                                            {t("admin.parcelDialog.language")}:{" "}
-                                            {data.household.locale.toUpperCase()}
-                                        </Text>
                                     </Stack>
 
-                                    <Stack gap="xs">
-                                        <Text size="sm" fw={500}>
-                                            {t("admin.parcelDialog.householdComposition")}
-                                        </Text>
-                                        <Text size="sm">
-                                            {t("admin.parcelDialog.members", {
-                                                count: data.household.members.length,
-                                            })}
-                                        </Text>
+                                    <Stack gap="sm">
+                                        <Group gap="sm" align="baseline">
+                                            <Text size="sm" c="dimmed" fw={500}>
+                                                {t("admin.parcelDialog.members", {
+                                                    count: data.household.members.length,
+                                                })}
+                                                :
+                                            </Text>
+                                            <Text size="sm" c="dark" fw={600}>
+                                                {data.household.members.length}
+                                            </Text>
+                                        </Group>
                                         {data.household.pets.length > 0 && (
                                             <Text size="sm">
                                                 {t("admin.parcelDialog.pets")}:{" "}

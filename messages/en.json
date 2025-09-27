@@ -756,6 +756,12 @@
             "pickupSchedule": "Pickup Schedule",
             "pickedUp": "Picked Up",
             "notPickedUp": "Not Picked Up",
+            "status": {
+                "pickedUp": "Picked Up",
+                "wrongDay": "Wrong Day",
+                "checkTime": "Check Time",
+                "okToHandOut": "OK to Hand Out"
+            },
             "by": "by",
             "householdDetails": "Household Details",
             "viewDetails": "View Details",
