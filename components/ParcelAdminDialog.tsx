@@ -29,6 +29,7 @@ import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
 import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
 import { getLanguageName } from "@/app/constants/languages";
+import { Time } from "@/app/utils/time-provider";
 
 interface ParcelAdminDialogProps {
     parcelId: string | null;
@@ -258,16 +259,16 @@ export function ParcelAdminDialog({
     };
 
     const getPickupStatus = (parcel: ParcelDetails["parcel"]) => {
-        const now = new Date();
-        const pickupStart = new Date(parcel.pickupDateTimeEarliest);
-        const pickupEnd = new Date(parcel.pickupDateTimeLatest);
+        const now = Time.now();
+        const pickupStart = Time.fromString(parcel.pickupDateTimeEarliest);
+        const pickupEnd = Time.fromString(parcel.pickupDateTimeLatest);
         const isToday = now.toDateString() === pickupStart.toDateString();
 
         if (parcel.isPickedUp) {
             return { color: "green", key: "pickedUp" };
         } else if (!isToday) {
             return { color: "red", key: "wrongDay" };
-        } else if (now >= pickupStart && now <= pickupEnd) {
+        } else if (now.isAfter(pickupStart) && now.isBefore(pickupEnd)) {
             return { color: "green", key: "okToHandOut" };
         } else {
             // Today but outside pickup window (early or late)
@@ -455,7 +456,10 @@ export function ParcelAdminDialog({
                                     <Stack gap="sm">
                                         <Group gap="sm" align="baseline">
                                             <Text size="sm" c="dimmed" fw={500}>
-                                                Members:
+                                                {t("admin.parcelDialog.members", {
+                                                    count: data.household.members.length,
+                                                })}
+                                                :
                                             </Text>
                                             <Text size="sm" c="dark" fw={600}>
                                                 {data.household.members.length}
