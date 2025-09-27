@@ -331,3 +331,17 @@ export const cspViolations = pgTable("csp_violations", {
     user_agent: text("user_agent"), // User agent string of the client
     script_sample: text("script_sample"), // Sample of the violating script/resource
 });
+
+// Users table for storing user preferences
+export const users = pgTable("users", {
+    id: text("id")
+        .primaryKey()
+        .notNull()
+        .$defaultFn(() => nanoid(8)),
+    created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    github_username: varchar("github_username", { length: 100 }).notNull().unique(),
+    favorite_pickup_location_id: text("favorite_pickup_location_id").references(
+        () => pickupLocations.id,
+        { onDelete: "set null" },
+    ),
+});

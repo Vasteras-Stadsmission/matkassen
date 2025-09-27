@@ -27,7 +27,7 @@ import {
 } from "@tabler/icons-react";
 import { FormData, Comment } from "../types";
 import { getPickupLocationsAction } from "../client-actions";
-import HouseholdComments from "../../components/HouseholdComments";
+import CommentSection from "@/components/CommentSection";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
 import LocalizedDate from "@/components/LocalizedDate";
@@ -321,10 +321,11 @@ export default function ReviewForm({
 
                     {/* Comments Section - Moved to left column and wrapped in Paper */}
                     <Paper withBorder p="md" radius="md" mb="md">
-                        <HouseholdComments
+                        <CommentSection
                             comments={formData.comments || []}
                             onAddComment={onAddComment}
                             onDeleteComment={onDeleteComment}
+                            entityType="household"
                         />
                     </Paper>
                 </Box>

@@ -34,22 +34,42 @@ const createMockClient = () => {
 };
 
 const createMockDb = () => {
+    /**
+     * Simple mock database that returns empty arrays for all operations.
+     * This mock supports method chaining by returning a promise that resolves to an empty array.
+     * The chainable pattern is necessary because Drizzle ORM uses method chaining extensively
+     * (e.g., db.select().from().where().orderBy()), and each method in the chain needs to be awaitable.
+     */
+    const emptyArrayPromise = Promise.resolve<Record<string, unknown>[]>([]);
+
+    // Create a chainable mock that supports all common Drizzle methods
+    const createChainableMock = () => {
+        const mock = {
+            // Query builder methods - all return the same mock for chaining
+            from: () => mock,
+            innerJoin: () => mock,
+            leftJoin: () => mock,
+            rightJoin: () => mock,
+            fullJoin: () => mock,
+            where: () => mock,
+            orderBy: () => mock,
+            limit: () => mock,
+            offset: () => mock,
+            // Promise methods - delegate to the empty array promise
+            then: emptyArrayPromise.then.bind(emptyArrayPromise),
+            catch: emptyArrayPromise.catch.bind(emptyArrayPromise),
+            finally: emptyArrayPromise.finally.bind(emptyArrayPromise),
+        };
+        return mock;
+    };
+
     return new Proxy({} as ReturnType<typeof drizzle>, {
-        get(target, prop) {
+        get(_target, prop) {
             if (prop === "select") {
-                // Return a mock select function that handles chained calls properly
-                return () => ({
-                    from: () => Promise.resolve([]), // Direct select().from() calls
-                    where: () => ({
-                        orderBy: () => Promise.resolve([]),
-                        limit: () => Promise.resolve([]),
-                    }),
-                    orderBy: () => Promise.resolve([]),
-                    limit: () => Promise.resolve([]),
-                });
+                return () => createChainableMock();
             }
 
-            // For other database operations, still throw to catch unexpected usage
+            // For other database operations, still throw to catch unexpected usage in tests
             throw new Error(
                 `Database accessed during build time or tests. Property: ${String(prop)}`,
             );

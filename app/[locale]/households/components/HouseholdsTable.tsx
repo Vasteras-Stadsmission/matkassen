@@ -5,20 +5,21 @@ import { DataTable } from "mantine-datatable";
 import {
     Modal,
     TextInput,
-    Box,
     LoadingOverlay,
     ActionIcon,
     Tooltip,
     Title,
     Group,
+    Button,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconSearch, IconX, IconEye, IconEdit } from "@tabler/icons-react";
+import { IconSearch, IconX, IconEye, IconEdit, IconPlus } from "@tabler/icons-react";
+import { useTranslations } from "next-intl";
 import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../actions";
 import HouseholdDetail from "./HouseholdDetail";
-import { useRouter } from "@/app/i18n/navigation";
+import { useRouter, usePathname } from "@/app/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import { Comment } from "../enroll/types";
-import { useTranslations } from "next-intl";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 import { useLocale } from "next-intl";
 
@@ -84,9 +85,19 @@ interface HouseholdDetail {
     comments?: Comment[];
 }
 
-export default function HouseholdsTable({ households }: { households: Household[] }) {
+export default function HouseholdsTable({
+    households,
+    targetHouseholdId,
+}: {
+    households: Household[];
+    targetHouseholdId?: string | null;
+}) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
     const t = useTranslations("households");
+    const tNav = useTranslations("navigation");
+    const tComments = useTranslations("comments");
     const currentLocale = useLocale();
     const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
@@ -94,6 +105,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     const [opened, { open, close }] = useDisclosure(false);
     const [loading, setLoading] = useState(false);
     const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
+    const [isClosing, setIsClosing] = useState(false);
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: "last_name",
         direction: "asc" as "asc" | "desc",
@@ -142,20 +154,59 @@ export default function HouseholdsTable({ households }: { households: Household[
     };
 
     // Handle row click to open detail modal
-    const handleRowClick = async (householdId: string) => {
-        setLoading(true);
-        setSelectedHouseholdId(householdId);
-        open();
+    const handleRowClick = useCallback(
+        async (householdId: string) => {
+            // Add household-id to URL
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("household-id", householdId);
+            const newUrl = `${pathname}?${params.toString()}`;
+            router.replace(newUrl, { scroll: false });
 
-        try {
-            const details = await getHouseholdDetails(householdId);
-            setHouseholdDetail(details);
-        } catch (error) {
-            console.error("Error fetching household details:", error);
-        } finally {
-            setLoading(false);
+            // The modal will be opened by the URL parameter change,
+            // so we don't need to manually open it here
+        },
+        [searchParams, pathname, router],
+    );
+
+    // Open modal directly (used by URL parameter system)
+    const openModalForHousehold = useCallback(
+        async (householdId: string) => {
+            setLoading(true);
+            setSelectedHouseholdId(householdId);
+            open();
+
+            try {
+                const details = await getHouseholdDetails(householdId);
+                setHouseholdDetail(details);
+            } catch (error) {
+                console.error("Error fetching household details:", error);
+            } finally {
+                setLoading(false);
+            }
+        },
+        [open],
+    );
+
+    // Auto-open modal if targetHouseholdId is provided
+    useEffect(() => {
+        if (isClosing) {
+            return;
         }
-    };
+
+        if (targetHouseholdId && households.some(h => h.id === targetHouseholdId)) {
+            // Only open if we don't have this household already selected
+            if (selectedHouseholdId !== targetHouseholdId) {
+                openModalForHousehold(targetHouseholdId);
+            }
+        }
+    }, [
+        targetHouseholdId,
+        households,
+        openModalForHousehold,
+        selectedHouseholdId,
+        opened,
+        isClosing,
+    ]);
 
     // Handle adding a comment
     const handleAddComment = async (comment: string) => {
@@ -189,7 +240,7 @@ export default function HouseholdsTable({ households }: { households: Household[
                 setHouseholdDetail(updatedDetails);
             }
         } catch (error) {
-            console.error("Error deleting comment:", error);
+            console.error(tComments("errors.deleteError") + ":", error);
         } finally {
             setLoading(false);
         }
@@ -265,15 +316,30 @@ export default function HouseholdsTable({ households }: { households: Household[
 
     // Close modal and reset selected household
     const handleCloseModal = () => {
+        // Set closing flag to prevent reopening
+        setIsClosing(true);
+
+        // First close the modal and clear state
         close();
         setHouseholdDetail(null);
         setSelectedHouseholdId(null);
+
+        // Then remove household-id param from URL
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("household-id");
+        const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+        router.replace(newUrl, { scroll: false });
+
+        // Reset closing flag after URL and state have had time to update
+        setTimeout(() => {
+            setIsClosing(false);
+        }, 100);
     };
 
     return (
         <>
-            {/* Search input */}
-            <Box mb="md">
+            {/* Header section with search and new household button */}
+            <Group justify="space-between" mb="md" gap="md">
                 <TextInput
                     placeholder={t("search.placeholder")}
                     value={search}
@@ -288,8 +354,17 @@ export default function HouseholdsTable({ households }: { households: Household[
                             />
                         ) : null
                     }
+                    style={{ flex: 1, maxWidth: "500px" }}
                 />
-            </Box>
+                <Button
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => router.push("/households/enroll")}
+                    variant="filled"
+                    color="blue"
+                >
+                    {tNav("newHousehold")}
+                </Button>
+            </Group>
 
             <DataTable
                 withTableBorder

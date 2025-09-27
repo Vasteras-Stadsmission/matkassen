@@ -15,7 +15,9 @@ import {
 } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
+import { useTranslations } from "next-intl";
 import { Comment } from "../enroll/types";
+import { TranslationFunction } from "../../types";
 import classes from "./CommentHtml.module.css";
 
 // Used when creating a new comment before sending to server
@@ -29,6 +31,7 @@ interface CommentHtmlProps {
 }
 
 export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
+    const t = useTranslations("comments") as TranslationFunction;
     const [isDeleting, setIsDeleting] = useState(false);
     const [opened, { open, close }] = useDisclosure(false);
     // State to store sanitized HTML
@@ -88,7 +91,7 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
             await onDelete(comment.id);
             close();
         } catch (error) {
-            console.error("Error deleting comment:", error);
+            console.error(t("errors.deleteError") + ":", error);
         } finally {
             setIsDeleting(false);
         }
@@ -97,8 +100,8 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
     const githubUser = comment.githubUserData;
     const avatarUrl = githubUser?.avatar_url;
 
-    // Display "Namn Okänt" if no full name is available
-    const displayName = githubUser?.name || "Namn Okänt";
+    // Display "Unknown Name" if no full name is available
+    const displayName = githubUser?.name || t("unknownName");
 
     return (
         <>
@@ -124,12 +127,12 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
                     </Group>
 
                     {comment.id && onDelete && (
-                        <Tooltip label="Ta bort kommentar">
+                        <Tooltip label={t("deleteTooltip")}>
                             <ActionIcon
                                 color="red"
                                 variant="light"
                                 onClick={open}
-                                aria-label="Ta bort kommentar"
+                                aria-label={t("deleteTooltip")}
                             >
                                 <IconTrash size={18} />
                             </ActionIcon>
@@ -145,8 +148,8 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
             </Paper>
 
             {/* Confirmation Modal */}
-            <Modal opened={opened} onClose={close} title="Ta bort kommentar" centered>
-                <Text>Är du säker på att du vill ta bort denna kommentar?</Text>
+            <Modal opened={opened} onClose={close} title={t("deleteTitle")} centered>
+                <Text>{t("deleteConfirmation")}</Text>
                 <Stack mt="md">
                     <Button
                         color="red"
@@ -154,10 +157,10 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
                         loading={isDeleting}
                         leftSection={<IconTrash size={16} />}
                     >
-                        Ta bort
+                        {t("deleteButton")}
                     </Button>
                     <Button variant="outline" onClick={close} disabled={isDeleting}>
-                        Avbryt
+                        {t("cancelButton")}
                     </Button>
                 </Stack>
             </Modal>

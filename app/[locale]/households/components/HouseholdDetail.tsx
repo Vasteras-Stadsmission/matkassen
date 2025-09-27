@@ -13,7 +13,7 @@ import {
     IconGenderBigender,
     IconLanguage,
 } from "@tabler/icons-react";
-import HouseholdComments from "@/app/[locale]/households/components/HouseholdComments";
+import CommentSection from "@/components/CommentSection";
 import { Comment } from "@/app/[locale]/households/enroll/types";
 import { useTranslations, useLocale } from "next-intl";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
@@ -355,11 +355,12 @@ export default function InternationalizedHouseholdDetail({
                                 count: String(householdDetail.comments?.length || 0),
                             })}
                         </Title>
-                        <HouseholdComments
+                        <CommentSection
                             comments={householdDetail.comments || []}
                             onAddComment={onAddComment}
                             onDeleteComment={onDeleteComment}
                             showTitle={false}
+                            entityType="household"
                         />
                     </Paper>
                 </Box>
@@ -407,7 +408,6 @@ export default function InternationalizedHouseholdDetail({
                                                     : "xs"
                                             }
                                             bg={isPast ? "gray.0" : undefined}
-                                            opacity={isPast ? 0.8 : 1}
                                         >
                                             <Group justify="space-between" wrap="nowrap">
                                                 <Group gap="xs">
@@ -444,16 +444,14 @@ export default function InternationalizedHouseholdDetail({
 
                                             {/* Status badges */}
                                             <Group mt="xs" gap="xs">
-                                                {isPast ? (
-                                                    isPickedUp ? (
-                                                        <Badge color="green" variant="light">
-                                                            {t("status.pickedUp")}
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge color="red" variant="light">
-                                                            {t("status.notPickedUp")}
-                                                        </Badge>
-                                                    )
+                                                {isPickedUp ? (
+                                                    <Badge color="green" variant="light">
+                                                        {t("status.pickedUp")}
+                                                    </Badge>
+                                                ) : isPast ? (
+                                                    <Badge color="red" variant="light">
+                                                        {t("status.notPickedUp")}
+                                                    </Badge>
                                                 ) : (
                                                     <Badge color="blue" variant="light">
                                                         {t("status.upcoming")}

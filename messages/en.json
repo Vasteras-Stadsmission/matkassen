@@ -6,6 +6,7 @@
         "authStatus": "Authentication status",
         "loggedInAs": "You are logged in as",
         "loginToAccess": "Please log in to access the application's features",
+        "close": "Close",
         "languages": {
             "sv": "Swedish"
         }
@@ -34,8 +35,9 @@
         "matkassen": "matkassen",
         "households": "Households",
         "schedule": "Schedule",
+        "todayHandouts": "Today's Handouts",
         "locations": "Locations",
-        "newHousehold": "Add Household +",
+        "newHousehold": "Add Household",
         "scanQrCode": "Scan QR Code",
         "navigation": "Navigation"
     },
@@ -218,6 +220,74 @@
     "schedule": {
         "title": "Food Support Scheduling",
         "today": "Today",
+        "todayTab": "Today",
+        "weeklyTab": "Weekly",
+        "hub": {
+            "title": "Schedule",
+            "subtitle": "Select a handout location to view schedules",
+            "noLocations": "No handout locations found",
+            "noHandoutsToday": "No handouts today",
+            "parcelsToday": "{count} parcels today",
+            "completed": "completed",
+            "todayHandouts": "Today's Handouts",
+            "weeklySchedule": "Weekly Schedule",
+            "setAsFavorite": "Set as Favorite",
+            "favorite": "Favorite",
+            "favoriteSet": "{location} set as favorite",
+            "favoriteChanged": "Favorite changed to {location}",
+            "favoriteRemoved": "{location} removed from favorites",
+            "confirmSetFavorite": "Set {location} as your favorite?",
+            "confirmChangeFavorite": "Change your favorite from {oldLocation} to {newLocation}?",
+            "confirmRemoveFavorite": "Remove {location} as your favorite?",
+            "favoriteExplanation": "Setting a favorite will automatically take you there when browsing schedules, making it faster to access the location you use most often.",
+            "confirmRemoveFavoriteLabel": "Remove favorite",
+            "confirmChangeFavoriteLabel": "Change favorite",
+            "currentFavoriteLabel": "current favorite",
+            "notificationSuccessTitle": "Success",
+            "notificationErrorTitle": "Error",
+            "favoriteUpdateFailed": "Failed to update favorite location",
+            "cancelButton": "Cancel",
+            "tooltipSetFavorite": "Set {location} as favorite",
+            "tooltipRemoveFavorite": "Remove {location} as favorite"
+        },
+        "location": {
+            "header": {
+                "locations": "Handout Locations",
+                "completedToday": "{completed}/{total} completed today"
+            },
+            "landing": {
+                "title": "Schedule",
+                "selectView": "Select View",
+                "todayHandouts": "Today's Handouts",
+                "todayDescription": "View today's scheduled parcels",
+                "weeklySchedule": "Weekly Schedule",
+                "weeklyDescription": "View and manage weekly schedule",
+                "goToToday": "Go to Today",
+                "weeklyView": "Weekly View",
+                "locationError": "Location Error",
+                "locationNotFound": "Location not found"
+            }
+        },
+        "todayHandouts": {
+            "title": "Today's Handouts",
+            "pageTitle": "Today's Handouts",
+            "date": "{weekday}, {date}",
+            "selectLocation": "Select a location to view packages",
+            "clearSelection": "Clear selection",
+            "noLocation": "Select a location to view today's packages",
+            "noParcels": "No packages scheduled today at this location",
+            "completed": "completed",
+            "scheduled": "Scheduled",
+            "completedStatus": "Completed",
+            "parcels": "packages",
+            "noTimeSpecified": "No time specified",
+            "parcel": {
+                "scheduled": "Scheduled",
+                "completed": "Completed"
+            }
+        },
+        "currentWeek": "Current Week",
+        "todayLabel": "Today",
         "weekLabel": "Week {week}, {year}",
         "loading": "Loading schedule...",
         "noFoodSupport": "No food support scheduled this week",
@@ -345,7 +415,17 @@
         "title": "Comments ({count})",
         "noComments": "No comments added",
         "placeholder": "Add a comment about the household... (HTML is supported, e.g. links)",
-        "add": "Add"
+        "add": "Add",
+        "errors": {
+            "deleteFailed": "Failed to delete comment",
+            "deleteError": "Error deleting comment"
+        },
+        "unknownName": "Unknown Name",
+        "deleteTooltip": "Delete comment",
+        "deleteTitle": "Delete comment",
+        "deleteConfirmation": "Are you sure you want to delete this comment?",
+        "deleteButton": "Delete",
+        "cancelButton": "Cancel"
     },
     "wizard": {
         "stepBasics": "Basic Information",
@@ -667,6 +747,41 @@
         "cooldown": {
             "message": "You can resend SMS in {minutes} minutes",
             "active": "Resend cooldown active"
+        }
+    },
+    "admin": {
+        "parcelDialog": {
+            "title": "Parcel Information",
+            "loading": "Loading parcel details...",
+            "pickupSchedule": "Pickup Schedule",
+            "pickedUp": "Picked Up",
+            "notPickedUp": "Not Picked Up",
+            "by": "by",
+            "householdDetails": "Household Details",
+            "viewDetails": "View Details",
+            "contactInfo": "Contact Information",
+            "postalCode": "Postal Code",
+            "language": "Language",
+            "householdComposition": "Household Composition",
+            "members": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
+            "pets": "Pets",
+            "dietaryRestrictions": "Dietary Restrictions",
+            "additionalNeeds": "Additional Needs",
+            "comments": "Comments",
+            "noComments": "No comments yet",
+            "addCommentPlaceholder": "Add a comment about this household...",
+            "addComment": "Add Comment",
+            "markPickedUp": "Mark as Picked Up",
+            "undoPickup": "Undo Pickup",
+            "errors": {
+                "parcelNotFound": "Parcel not found",
+                "loadFailed": "Failed to load parcel details",
+                "markPickupFailed": "Failed to mark as picked up",
+                "undoPickupFailed": "Failed to undo pickup",
+                "addCommentFailed": "Failed to add comment",
+                "deleteCommentFailed": "Failed to delete comment",
+                "deleteCommentError": "Error deleting comment"
+            }
         }
     }
 }

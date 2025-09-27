@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import { Burger, Button, Container, Group, Text, Box, Drawer } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -19,9 +19,11 @@ const HOME_LINK = "/";
 export function HeaderSimple() {
     const pathname = usePathname();
     const [opened, { toggle, close }] = useDisclosure(false);
-    const [active, setActive] = useState("");
     const t = useTranslations("navigation");
     const tCommon = useTranslations("common");
+
+    // State to track active link - initialized as empty string to ensure consistent SSR/client rendering
+    const [active, setActive] = useState("");
 
     // Define navigation links with translated labels using useMemo to avoid dependency changes
     const links = useMemo(
@@ -29,10 +31,33 @@ export function HeaderSimple() {
             { link: "/households", label: t("households") },
             { link: "/schedule", label: t("schedule") },
             { link: "/handout-locations", label: t("locations") },
-            { link: "/households/enroll", label: t("newHousehold") },
         ],
         [t],
     );
+
+    // Calculate active link after hydration to prevent SSR/client mismatch
+    useEffect(() => {
+        if (!pathname) return;
+
+        if (pathname === "/" || pathname === "") {
+            setActive(HOME_LINK);
+            return;
+        }
+
+        // First check for exact matches
+        const exactMatch = links.find(link => link.link === pathname);
+        if (exactMatch) {
+            setActive(exactMatch.link);
+            return;
+        }
+
+        // If we have a nested path like /households/enroll, prioritize the most specific match
+        const matchingLinks = links
+            .filter(link => pathname.startsWith(link.link))
+            .sort((a, b) => b.link.length - a.link.length); // Sort by length descending to get most specific match first
+
+        setActive(matchingLinks.length > 0 ? matchingLinks[0].link : "");
+    }, [pathname, links]);
 
     // QR Code scanning link component
     const ScanQRCodeLink = () => (
@@ -41,34 +66,7 @@ export function HeaderSimple() {
         </a>
     );
 
-    // Initialize the active state based on the current path
-    useEffect(() => {
-        if (pathname === "/" || pathname === "") {
-            // On home page, no nav link should be active
-            setActive(HOME_LINK);
-        } else {
-            // First check for exact matches
-            const exactMatch = links.find(link => link.link === pathname);
-            if (exactMatch) {
-                setActive(exactMatch.link);
-                return;
-            }
-
-            // If we have a nested path like /households/enroll, prioritize the most specific match
-            const matchingLinks = links
-                .filter(link => pathname.startsWith(link.link))
-                .sort((a, b) => b.link.length - a.link.length); // Sort by length descending to get most specific match first
-
-            if (matchingLinks.length > 0) {
-                setActive(matchingLinks[0].link);
-            }
-        }
-    }, [pathname, links]);
-
-    const handleNavigation = (link: string) => () => {
-        // Set the active state
-        setActive(link);
-
+    const handleNavigation = () => {
         // Close mobile menu if open
         if (opened) {
             close();
@@ -87,7 +85,7 @@ export function HeaderSimple() {
             href={link.link}
             label={link.label}
             active={active === link.link}
-            onClick={handleNavigation(link.link)}
+            onClick={handleNavigation}
             className={classes.link}
         />
     ));
@@ -99,7 +97,7 @@ export function HeaderSimple() {
             href={link.link}
             label={link.label}
             active={active === link.link}
-            onClick={handleNavigation(link.link)}
+            onClick={handleNavigation}
             className={classes.mobileLink}
         />
     ));

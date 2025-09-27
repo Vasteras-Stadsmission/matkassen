@@ -99,6 +99,7 @@ interface WeeklyScheduleGridProps {
     maxParcelsPerSlot?: number;
     onParcelRescheduled: () => void;
     locationId?: string | null;
+    onOpenAdminDialog?: (parcelId: string) => void;
 }
 
 export default function WeeklyScheduleGrid({
@@ -108,6 +109,7 @@ export default function WeeklyScheduleGrid({
     maxParcelsPerSlot = 3,
     onParcelRescheduled,
     locationId,
+    onOpenAdminDialog,
 }: WeeklyScheduleGridProps) {
     const t = useTranslations("schedule") as TranslationFunction;
 
@@ -197,9 +199,6 @@ export default function WeeklyScheduleGrid({
                 try {
                     const duration = await getLocationSlotDurationAction(locationId);
                     setSlotDuration(duration);
-                    console.log(
-                        `[fetchSlotDuration] Location ${locationId} has slot duration: ${duration} minutes`,
-                    );
                 } catch (error) {
                     console.error("Error fetching slot duration:", error);
                 }
@@ -268,13 +267,6 @@ export default function WeeklyScheduleGrid({
                 }
 
                 daySlots[dateFormatted] = slots;
-
-                // Debug log (only in development)
-                if (process.env.NODE_ENV === "development") {
-                    console.log(
-                        `[generateDaySpecificTimeSlots] Day ${dateFormatted} has ${slots.length} slots from ${earliestTime} to ${latestTime} with ${slotDuration}min interval`,
-                    );
-                }
             });
 
             return daySlots;
@@ -335,15 +327,10 @@ export default function WeeklyScheduleGrid({
                 }
 
                 if (fetchLocationId) {
-                    // Skip if we've already fetched this location's schedule
+                    // Only log in development
                     if (lastFetchedLocationIdRef.current === fetchLocationId && locationSchedules) {
                         setIsLoadingSchedule(false);
                         return;
-                    }
-
-                    // Only log in development
-                    if (process.env.NODE_ENV === "development") {
-                        console.log(`Fetching schedules for location ID: ${fetchLocationId}`);
                     }
 
                     const scheduleInfo = await getPickupLocationSchedulesAction(fetchLocationId);
@@ -361,14 +348,34 @@ export default function WeeklyScheduleGrid({
                     // Generate a complete list of unique time slots across all days
                     let allTimeSlots = getAllUniqueTimeSlots(daySlots);
 
-                    // Fallback: if no slots derived from schedules, show a default day timeline
-                    if (allTimeSlots.length === 0) {
-                        allTimeSlots = generateTimeSlotsBetween(
-                            "09:00",
-                            "17:00",
-                            slotDuration,
-                            false,
-                        );
+                    // Special handling for today-only mode: show all time slots for today
+                    if (weekDates.length === 1) {
+                        const today = weekDates[0];
+                        const todayKey = formatDateToYMD(today);
+                        const todaySlots = daySlots[todayKey] || [];
+
+                        // If we have slots for today, use all of them
+                        if (todaySlots.length > 0) {
+                            allTimeSlots = todaySlots.sort();
+                        } else {
+                            // Fallback: generate slots for the whole day if none available
+                            allTimeSlots = generateTimeSlotsBetween(
+                                "09:00",
+                                "17:00",
+                                slotDuration,
+                                false,
+                            );
+                        }
+                    } else {
+                        // Fallback: if no slots derived from schedules, show a default day timeline
+                        if (allTimeSlots.length === 0) {
+                            allTimeSlots = generateTimeSlotsBetween(
+                                "09:00",
+                                "17:00",
+                                slotDuration,
+                                false,
+                            );
+                        }
                     }
 
                     setFilteredTimeSlots(allTimeSlots);
@@ -475,12 +482,6 @@ export default function WeeklyScheduleGrid({
 
     // Organize parcels by date and time slot
     useEffect(() => {
-        console.log("🔍 [WeeklyScheduleGrid] Organizing parcels by slot");
-        console.log("  - foodParcels.length:", foodParcels.length);
-        console.log("  - weekDates.length:", weekDates.length);
-        console.log("  - filteredTimeSlots:", filteredTimeSlots);
-        console.log("  - slotDuration:", slotDuration);
-
         const newParcelsBySlot: Record<string, Record<string, FoodParcel[]>> = {};
         const newParcelCountByDate: Record<string, number> = {};
 
@@ -490,26 +491,15 @@ export default function WeeklyScheduleGrid({
             newParcelsBySlot[dateKey] = {};
             newParcelCountByDate[dateKey] = 0;
 
-            console.log(`🔍 [WeeklyScheduleGrid] Initializing date: ${dateKey}`);
-
             // Initialize all available time slots for this day
             (filteredTimeSlots || []).forEach(timeSlot => {
                 newParcelsBySlot[dateKey][timeSlot] = [];
             });
         });
 
-        console.log("🔍 [WeeklyScheduleGrid] Processing food parcels:");
-
         // Place parcels in their respective slots
-        foodParcels.forEach((parcel, index) => {
-            console.log(
-                `🔍 [WeeklyScheduleGrid] Processing parcel ${index + 1}/${foodParcels.length}:`,
-                parcel.householdName,
-            );
-
+        foodParcels.forEach(parcel => {
             const dateKey = formatDateToYMD(parcel.pickupDate);
-            console.log(`     - parcel.pickupDate: ${parcel.pickupDate.toISOString()}`);
-            console.log(`     - dateKey: ${dateKey}`);
 
             // Count parcels by date
             if (!newParcelCountByDate[dateKey]) {
@@ -519,48 +509,24 @@ export default function WeeklyScheduleGrid({
 
             // Round to the nearest slot based on slot duration
             const pickupTime = toStockholmTime(parcel.pickupEarliestTime);
-            console.log(
-                `     - parcel.pickupEarliestTime: ${parcel.pickupEarliestTime.toISOString()}`,
-            );
-            console.log(`     - pickupTime (Stockholm): ${pickupTime.toISOString()}`);
 
             const hours = pickupTime.getHours();
             const minutes = pickupTime.getMinutes();
-            console.log(`     - hours: ${hours}, minutes: ${minutes}`);
 
             // Round down to the nearest slotDuration
             const slotIndex = Math.floor(minutes / slotDuration);
             const slotMinutes = slotIndex * slotDuration;
             const timeSlot = minutesToHHmm(hours * 60 + slotMinutes);
-            console.log(
-                `     - slotIndex: ${slotIndex}, slotMinutes: ${slotMinutes}, timeSlot: ${timeSlot}`,
-            );
 
             // Add parcel to corresponding slot
             if (newParcelsBySlot[dateKey] && !newParcelsBySlot[dateKey][timeSlot]) {
                 newParcelsBySlot[dateKey][timeSlot] = [];
-                console.log(`     - Created new slot: ${dateKey} ${timeSlot}`);
             }
 
             if (newParcelsBySlot[dateKey] && newParcelsBySlot[dateKey][timeSlot]) {
                 newParcelsBySlot[dateKey][timeSlot].push(parcel);
-                console.log(`     - ✅ Added to slot ${dateKey} ${timeSlot}`);
-            } else {
-                console.log(
-                    `     - ❌ Could not add to slot! dateKey: ${dateKey}, timeSlot: ${timeSlot}`,
-                );
-                console.log(`     - Available dates:`, Object.keys(newParcelsBySlot));
-                if (newParcelsBySlot[dateKey]) {
-                    console.log(
-                        `     - Available time slots for ${dateKey}:`,
-                        Object.keys(newParcelsBySlot[dateKey]),
-                    );
-                }
             }
         });
-
-        console.log("🔍 [WeeklyScheduleGrid] Final parcelsBySlot:", newParcelsBySlot);
-        console.log("🔍 [WeeklyScheduleGrid] Final parcelCountByDate:", newParcelCountByDate);
 
         setParcelsBySlot(newParcelsBySlot);
         setParcelCountByDate(newParcelCountByDate);
@@ -1000,8 +966,10 @@ export default function WeeklyScheduleGrid({
                                         : true; // Default to unavailable if no schedule data
 
                                     // Determine background color for day header
+                                    // In today-only mode, don't grey out today even if it's "past"
                                     const getBgColor = () => {
-                                        if (isPast || isDateUnavailable) return "gray.7"; // Grey out past or unavailable dates
+                                        const shouldGreyOut = isPast || isDateUnavailable;
+                                        if (shouldGreyOut) return "gray.7"; // Grey out past or unavailable dates
                                         return "blue.7";
                                     };
 
@@ -1159,6 +1127,9 @@ export default function WeeklyScheduleGrid({
                                                                                     isCompact={true}
                                                                                     onReschedule={
                                                                                         handleRescheduleClick
+                                                                                    }
+                                                                                    onOpenAdminDialog={
+                                                                                        onOpenAdminDialog
                                                                                     }
                                                                                 />
                                                                             ),
