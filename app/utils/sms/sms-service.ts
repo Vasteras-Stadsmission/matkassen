@@ -4,6 +4,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
+import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, sql, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
@@ -135,10 +136,22 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
         return id;
     } catch (error: unknown) {
         // Handle unique constraint violation on idempotency key
-        const dbError = error as { code?: string; constraint?: string };
+        const dbError = error as {
+            code?: string;
+            constraint?: string;
+            constraint_name?: string;
+            detail?: string;
+        };
+        const constraintName =
+            dbError?.constraint ||
+            dbError?.constraint_name ||
+            (dbError?.detail?.includes("idx_outgoing_sms_idempotency_unique")
+                ? "idx_outgoing_sms_idempotency_unique"
+                : undefined);
+
         if (
-            dbError?.code === "23505" &&
-            dbError?.constraint === "idx_outgoing_sms_idempotency_unique"
+            dbError?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
+            constraintName === "idx_outgoing_sms_idempotency_unique"
         ) {
             console.log(`🔄 SMS with idempotency key ${idempotencyKey} already exists, skipping`);
 
