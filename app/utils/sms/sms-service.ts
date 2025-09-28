@@ -4,6 +4,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
+import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, sql, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
@@ -19,6 +20,7 @@ export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed";
 
 // Advisory lock key for SMS queue processing
 const SMS_QUEUE_LOCK_KEY = "sms-queue-processing";
+const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
 
 /**
  * Get numeric hash for advisory lock (PostgreSQL requires a numeric key)
@@ -110,7 +112,9 @@ function generateIdempotencyKey(data: CreateSmsData): string {
     return parts.join("|");
 }
 
-// Create a new SMS record
+// Create a new SMS record. Returns the ID of the queued SMS. If an SMS with the
+// same idempotency key already exists, this returns the ID of that existing
+// record instead of creating a duplicate.
 export async function createSmsRecord(data: CreateSmsData): Promise<string> {
     const id = nanoid(16);
     const now = Time.now().toUTC();
@@ -135,10 +139,22 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
         return id;
     } catch (error: unknown) {
         // Handle unique constraint violation on idempotency key
-        const dbError = error as { code?: string; constraint?: string };
+        const dbError = error as {
+            code?: string;
+            constraint?: string;
+            constraint_name?: string;
+            detail?: string;
+        };
+        const constraintName =
+            dbError?.constraint ||
+            dbError?.constraint_name ||
+            (dbError?.detail?.includes(SMS_IDEMPOTENCY_CONSTRAINT)
+                ? SMS_IDEMPOTENCY_CONSTRAINT
+                : undefined);
+
         if (
-            dbError?.code === "23505" &&
-            dbError?.constraint === "idx_outgoing_sms_idempotency_unique"
+            dbError?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
+            constraintName === SMS_IDEMPOTENCY_CONSTRAINT
         ) {
             console.log(`🔄 SMS with idempotency key ${idempotencyKey} already exists, skipping`);
 
@@ -149,7 +165,13 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
                 .where(eq(outgoingSms.idempotency_key, idempotencyKey))
                 .limit(1);
 
-            return existing[0]?.id || id; // Fallback to new ID if somehow not found
+            if (existing.length > 0 && existing[0]?.id) {
+                return existing[0].id;
+            }
+
+            throw new Error(
+                `Duplicate SMS detected for idempotency key ${idempotencyKey}, but existing record could not be fetched`,
+            );
         }
 
         // Re-throw other errors
