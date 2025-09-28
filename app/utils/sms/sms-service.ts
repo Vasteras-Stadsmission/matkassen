@@ -20,6 +20,7 @@ export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed";
 
 // Advisory lock key for SMS queue processing
 const SMS_QUEUE_LOCK_KEY = "sms-queue-processing";
+const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
 
 /**
  * Get numeric hash for advisory lock (PostgreSQL requires a numeric key)
@@ -145,13 +146,13 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
         const constraintName =
             dbError?.constraint ||
             dbError?.constraint_name ||
-            (dbError?.detail?.includes("idx_outgoing_sms_idempotency_unique")
-                ? "idx_outgoing_sms_idempotency_unique"
+            (dbError?.detail?.includes(SMS_IDEMPOTENCY_CONSTRAINT)
+                ? SMS_IDEMPOTENCY_CONSTRAINT
                 : undefined);
 
         if (
             dbError?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
-            constraintName === "idx_outgoing_sms_idempotency_unique"
+            constraintName === SMS_IDEMPOTENCY_CONSTRAINT
         ) {
             console.log(`🔄 SMS with idempotency key ${idempotencyKey} already exists, skipping`);
 
