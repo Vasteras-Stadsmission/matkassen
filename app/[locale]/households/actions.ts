@@ -200,20 +200,6 @@ export async function getHouseholdDetails(householdId: string) {
                 .limit(1);
         }
 
-        // Build week pattern info based on first food parcel date
-        let weekday = "1"; // Default to Monday
-        const repeatValue = "weekly"; // Default to weekly
-        let startDate = new Date(); // Default to current date
-
-        if (foodParcelsResult.length > 0) {
-            const firstParcel = foodParcelsResult[0];
-            startDate = firstParcel.pickup_date_time_earliest;
-            // Get day of week (0 = Sunday, 1 = Monday, etc.)
-            weekday = new Date(startDate).getDay().toString();
-            // Convert 0 (Sunday) to 7 to match the expected format
-            if (weekday === "0") weekday = "7";
-        }
-
         // Get comments
         const commentsResult = await db
             .select({
@@ -253,10 +239,6 @@ export async function getHouseholdDetails(householdId: string) {
             pets: householdPets,
             foodParcels: {
                 pickupLocationId: pickupLocation?.id || "",
-                totalCount: foodParcelsResult.length,
-                weekday: weekday,
-                repeatValue: repeatValue,
-                startDate: startDate,
                 parcels: foodParcelsResult.map(parcel => ({
                     id: parcel.id,
                     pickupDate: parcel.pickup_date_time_earliest,

@@ -75,6 +75,33 @@
             "updateError": "Ett fel uppstod vid uppdatering av hushåll."
         }
     },
+    "parcelManagement": {
+        "breadcrumb": {
+            "households": "Hushåll",
+            "manageParcels": "Hantera matkassar för {householdName}"
+        },
+        "success": {
+            "title": "Klart",
+            "parcelsUpdated": "Matkassarna har uppdaterats!"
+        },
+        "error": {
+            "title": "Fel",
+            "general": "Ett fel uppstod",
+            "unknown": "Okänt fel",
+            "updateFailed": "Misslyckades med att uppdatera matkassar. Försök igen."
+        },
+        "validation": {
+            "pickupLocationRequired": "Välj en upphämtningsplats"
+        },
+        "submitting": {
+            "update": "Uppdaterar matkassar..."
+        },
+        "actions": {
+            "back": "Tillbaka till hushåll",
+            "saveParcels": "Spara matkassar"
+        },
+        "backToHouseholds": "Tillbaka till hushåll"
+    },
     "householdForm": {
         "basics": "Grunduppgifter",
         "basicDescription": "Fyll i grundläggande kontaktuppgifter för hushållet. Dessa uppgifter används för att kontakta hushållet.",
@@ -507,6 +534,12 @@
         "submitting": {
             "create": "Skapar nytt hushåll...",
             "update": "Uppdaterar hushåll..."
+        },
+        "addParcels": {
+            "title": "Lägg till matkassar?",
+            "message": "Detta hushåll har inga kommande matkassar. Vill du lägga till några nu?",
+            "addNow": "Lägg till nu",
+            "later": "Lägg till senare"
         }
     },
     "buttons": {

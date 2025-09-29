@@ -39,6 +39,7 @@ export default function EnrollHouseholdPage() {
             return {
                 success: result.success,
                 error: result.error,
+                householdId: result.householdId,
             };
         } catch (error) {
             console.error("Error in enrollment handleSubmit:", error);

@@ -180,10 +180,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
     const [formState, setFormState] = useState<FoodParcels>({
         pickupLocationId: data.pickupLocationId || "",
-        totalCount: data.totalCount || 4,
-        weekday: data.weekday || "1",
-        repeatValue: data.repeatValue || "weekly",
-        startDate: data.startDate ? new Date(data.startDate) : new Date(),
         parcels: data.parcels || [],
     });
 
@@ -838,17 +834,13 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         const updatedState = {
             ...formState,
             parcels,
-            totalCount: selectedDates.length,
         };
 
-        if (
-            JSON.stringify(updatedState.parcels) !== JSON.stringify(formState.parcels) ||
-            updatedState.totalCount !== formState.totalCount
-        ) {
+        if (JSON.stringify(updatedState.parcels) !== JSON.stringify(formState.parcels)) {
             setFormState(updatedState);
             updateData(updatedState);
         }
-    }, [formState, generateParcels, updateData, selectedDates.length]);
+    }, [formState, generateParcels, updateData]);
 
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
         // Only allow updating the start time (pickupEarliestTime)

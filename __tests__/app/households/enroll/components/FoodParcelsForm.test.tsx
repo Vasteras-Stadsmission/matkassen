@@ -103,10 +103,6 @@ vi.mock("@tabler/icons-react", () => ({
 // Test helper to create mock form data
 const createMockFormData = (overrides: Partial<FoodParcels> = {}): FoodParcels => ({
     pickupLocationId: "",
-    totalCount: 0,
-    weekday: "1",
-    repeatValue: "weekly",
-    startDate: new Date(),
     parcels: [],
     ...overrides,
 });

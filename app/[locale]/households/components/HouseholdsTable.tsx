@@ -13,7 +13,7 @@ import {
     Button,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconSearch, IconX, IconEye, IconEdit, IconPlus } from "@tabler/icons-react";
+import { IconSearch, IconX, IconPlus, IconEye, IconEdit, IconPackage } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../actions";
 import HouseholdDetail from "./HouseholdDetail";
@@ -65,10 +65,6 @@ interface HouseholdDetail {
     }[];
     foodParcels: {
         pickupLocationId: string;
-        totalCount: number;
-        weekday: string;
-        repeatValue: string;
-        startDate: Date;
         parcels: {
             id?: string;
             pickupDate: Date;
@@ -252,6 +248,12 @@ export default function HouseholdsTable({
         router.push(`/households/${householdId}/edit`);
     };
 
+    // Handle navigation to parcel management page
+    const handleManageParcelsClick = (householdId: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row click handler from firing
+        router.push(`/households/${householdId}/parcels`);
+    };
+
     // Filter households based on search term
     useEffect(() => {
         if (!search.trim()) {
@@ -376,7 +378,7 @@ export default function HouseholdsTable({
                     {
                         accessor: "actions",
                         title: "",
-                        width: 120,
+                        width: 160,
                         render: household => (
                             <Group gap="xs">
                                 <Tooltip label={t("actions.view")} withArrow position="left">
@@ -386,6 +388,15 @@ export default function HouseholdsTable({
                                         onClick={() => handleRowClick(household.id)}
                                     >
                                         <IconEye size={18} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Manage Parcels" withArrow position="top">
+                                    <ActionIcon
+                                        color="green"
+                                        variant="subtle"
+                                        onClick={e => handleManageParcelsClick(household.id, e)}
+                                    >
+                                        <IconPackage size={18} />
                                     </ActionIcon>
                                 </Tooltip>
                                 <Tooltip label={t("actions.edit")} withArrow position="right">

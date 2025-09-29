@@ -47,10 +47,6 @@ export async function getHouseholdFormData(householdId: string): Promise<FormDat
             pets: details.pets,
             foodParcels: {
                 pickupLocationId: details.foodParcels.pickupLocationId,
-                totalCount: details.foodParcels.totalCount,
-                weekday: details.foodParcels.weekday || "1", // Default to Monday if not set
-                repeatValue: details.foodParcels.repeatValue || "weekly", // Default to weekly if not set
-                startDate: details.foodParcels.startDate || new Date(),
                 parcels: details.foodParcels.parcels,
             },
             comments: details.comments,
@@ -186,41 +182,6 @@ async function getHouseholdEditData(householdId: string) {
         };
     });
 
-    // Get weekday and repeat pattern (from first food parcel)
-    let weekday = "1"; // Default to Monday
-    let repeatValue = "weekly"; // Default to weekly
-    let startDate = new Date();
-
-    if (foodParcelsData.length > 0) {
-        const firstParcelDate = new Date(foodParcelsData[0].pickupDate);
-        weekday = firstParcelDate.getDay().toString();
-        startDate = firstParcelDate;
-
-        // Try to determine repeat pattern by analyzing intervals between parcels
-        if (foodParcelsData.length > 1) {
-            const intervals = [];
-            for (let i = 1; i < foodParcelsData.length; i++) {
-                const prev = new Date(foodParcelsData[i - 1].pickupDate);
-                const current = new Date(foodParcelsData[i].pickupDate);
-                const daysDiff = Math.round(
-                    (current.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24),
-                );
-                intervals.push(daysDiff);
-            }
-
-            // Calculate the average interval
-            const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-
-            if (avgInterval >= 25 && avgInterval <= 35) {
-                repeatValue = "monthly";
-            } else if (avgInterval >= 12 && avgInterval <= 16) {
-                repeatValue = "bi-weekly";
-            } else {
-                repeatValue = "weekly";
-            }
-        }
-    }
-
     // Prepare parcels in the format expected by the form
     const parcels = foodParcelsData.map(parcel => ({
         id: parcel.id,
@@ -233,10 +194,6 @@ async function getHouseholdEditData(householdId: string) {
     // Format food parcels in a way that the form can use
     const foodParcelsFormatted = {
         pickupLocationId: foodParcelsData.length > 0 ? foodParcelsData[0].pickupLocationId : "",
-        totalCount: parcels.length,
-        weekday,
-        repeatValue,
-        startDate,
         parcels,
     };
 

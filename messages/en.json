@@ -55,7 +55,8 @@
         },
         "actions": {
             "view": "View",
-            "edit": "Edit"
+            "edit": "Edit",
+            "manageParcels": "Manage Parcels"
         },
         "table": {
             "firstName": "First Name",
@@ -77,6 +78,33 @@
             "createError": "An error occurred while registering the household.",
             "updateError": "An error occurred while updating the household."
         }
+    },
+    "parcelManagement": {
+        "breadcrumb": {
+            "households": "Households",
+            "manageParcels": "Manage Parcels for {householdName}"
+        },
+        "success": {
+            "title": "Success",
+            "parcelsUpdated": "Food parcels have been updated successfully!"
+        },
+        "error": {
+            "title": "Error",
+            "general": "An error occurred",
+            "unknown": "Unknown error",
+            "updateFailed": "Failed to update parcels. Please try again."
+        },
+        "validation": {
+            "pickupLocationRequired": "Please select a pickup location"
+        },
+        "submitting": {
+            "update": "Updating parcels..."
+        },
+        "actions": {
+            "back": "Back to Households",
+            "saveParcels": "Save Parcels"
+        },
+        "backToHouseholds": "Back to Households"
     },
     "householdForm": {
         "basics": "Basic Information",
@@ -510,6 +538,12 @@
         "submitting": {
             "create": "Creating new household...",
             "update": "Updating household..."
+        },
+        "addParcels": {
+            "title": "Add Food Parcels?",
+            "message": "This household has no upcoming food parcels. Would you like to add some now?",
+            "addNow": "Add Parcels Now",
+            "later": "Add Later"
         }
     },
     "buttons": {

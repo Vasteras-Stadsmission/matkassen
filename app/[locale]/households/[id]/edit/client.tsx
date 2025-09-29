@@ -162,6 +162,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
     return (
         <HouseholdWizard
             mode="edit"
+            householdId={id}
             title={title}
             initialData={initialData}
             onSubmit={handleSubmit}
