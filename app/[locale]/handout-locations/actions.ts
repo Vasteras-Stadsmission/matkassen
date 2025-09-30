@@ -9,6 +9,7 @@ import {
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { verifyServerActionAuth } from "@/app/utils/auth/server-action-auth";
 import {
     LocationFormInput,
     PickupLocationWithAllData,
@@ -114,6 +115,17 @@ export async function getLocation(id: string): Promise<PickupLocationWithAllData
 
 // Create a new location
 export async function createLocation(locationData: LocationFormInput): Promise<void> {
+    // Authorization: Verify user is authenticated and is an org member
+    const authResult = await verifyServerActionAuth();
+    if (!authResult.authorized) {
+        throw new Error(authResult.error?.message || "Unauthorized");
+    }
+
+    // Log the action for audit trail
+    console.log(
+        `[AUDIT] User ${authResult.session?.user?.name} creating location: ${locationData.name}`,
+    );
+
     try {
         // Process email to ensure it's either null or a valid format
         const contact_email = locationData.contact_email?.trim()
@@ -148,6 +160,17 @@ export async function createLocation(locationData: LocationFormInput): Promise<v
 
 // Update an existing location
 export async function updateLocation(id: string, locationData: LocationFormInput): Promise<void> {
+    // Authorization: Verify user is authenticated and is an org member
+    const authResult = await verifyServerActionAuth();
+    if (!authResult.authorized) {
+        throw new Error(authResult.error?.message || "Unauthorized");
+    }
+
+    // Log the action for audit trail
+    console.log(
+        `[AUDIT] User ${authResult.session?.user?.name} updating location ${id}: ${locationData.name}`,
+    );
+
     try {
         // Process email to ensure it's either null or a valid format
         const contact_email = locationData.contact_email?.trim()
@@ -182,6 +205,15 @@ export async function updateLocation(id: string, locationData: LocationFormInput
 
 // Delete a location
 export async function deleteLocation(id: string): Promise<void> {
+    // Authorization: Verify user is authenticated and is an org member
+    const authResult = await verifyServerActionAuth();
+    if (!authResult.authorized) {
+        throw new Error(authResult.error?.message || "Unauthorized");
+    }
+
+    // Log the action for audit trail
+    console.log(`[AUDIT] User ${authResult.session?.user?.name} deleting location ${id}`);
+
     try {
         // Delete the location (cascade will delete related records)
         await db.delete(pickupLocations).where(eq(pickupLocations.id, id));
@@ -204,6 +236,17 @@ export async function createSchedule(
     locationId: string,
     scheduleData: ScheduleInput,
 ): Promise<PickupLocationScheduleWithDays> {
+    // Authorization: Verify user is authenticated and is an org member
+    const authResult = await verifyServerActionAuth();
+    if (!authResult.authorized) {
+        throw new Error(authResult.error?.message || "Unauthorized");
+    }
+
+    // Log the action for audit trail
+    console.log(
+        `[AUDIT] User ${authResult.session?.user?.name} creating schedule for location ${locationId}: ${scheduleData.name}`,
+    );
+
     try {
         // Validate schedule overlap using shared utility
         const { validateScheduleOverlap } = await import("@/app/utils/schedule/overlap-validation");
@@ -291,6 +334,17 @@ export async function updateSchedule(
     scheduleId: string,
     scheduleData: ScheduleInput,
 ): Promise<PickupLocationScheduleWithDays> {
+    // Authorization: Verify user is authenticated and is an org member
+    const authResult = await verifyServerActionAuth();
+    if (!authResult.authorized) {
+        throw new Error(authResult.error?.message || "Unauthorized");
+    }
+
+    // Log the action for audit trail
+    console.log(
+        `[AUDIT] User ${authResult.session?.user?.name} updating schedule ${scheduleId}: ${scheduleData.name}`,
+    );
+
     try {
         // Get the current schedule to find the location
         const currentSchedule = await db
@@ -393,6 +447,15 @@ export async function updateSchedule(
 
 // Delete a schedule
 export async function deleteSchedule(scheduleId: string): Promise<void> {
+    // Authorization: Verify user is authenticated and is an org member
+    const authResult = await verifyServerActionAuth();
+    if (!authResult.authorized) {
+        throw new Error(authResult.error?.message || "Unauthorized");
+    }
+
+    // Log the action for audit trail
+    console.log(`[AUDIT] User ${authResult.session?.user?.name} deleting schedule ${scheduleId}`);
+
     try {
         // Determine location before deletion
         const [scheduleRow] = await db

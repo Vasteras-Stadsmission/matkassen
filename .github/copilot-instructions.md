@@ -1,7 +1,7 @@
 Never create intermediate files. Alter the original file directly.
-This application ishas not yet been released, so we don't need to worry about backwards compatibility.
+This application has not yet been released, so we don't need to worry about backwards compatibility.
 Never run `pnpm dev`, I will do that myself, and expect the local dev environment to be running on http://localhost:3000.
-Never create additional README files unless I explicitly say so.
+Never create additional markdown files unless I explicitly say so.
 Use TypeScript strict mode in a Next.js App Router project.
 Use React function components with hooks; avoid class components.
 Favor server components; add `"use client"` only when using browser APIs.

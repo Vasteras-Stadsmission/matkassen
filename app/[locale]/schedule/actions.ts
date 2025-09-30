@@ -16,6 +16,7 @@ import { getAvailableTimeRange } from "@/app/utils/schedule/location-availabilit
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { verifyServerActionAuth } from "@/app/utils/auth/server-action-auth";
 
 // Import types for use within this server action file
 import type {
@@ -294,12 +295,44 @@ export async function updateFoodParcelSchedule(
         startTime: Date;
         endTime: Date;
     },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+    success: boolean;
+    error?: string;
+    errors?: Array<{
+        field: string;
+        code: string;
+        message: string;
+        details?: Record<string, unknown>;
+    }>;
+}> {
     try {
+        // Authorization: Verify user is authenticated and is an org member
+        const authResult = await verifyServerActionAuth();
+        if (!authResult.authorized) {
+            return {
+                success: false,
+                error: authResult.error?.message || "Unauthorized",
+                errors: [
+                    {
+                        field: authResult.error?.field || "auth",
+                        code: authResult.error?.code || "UNAUTHORIZED",
+                        message:
+                            authResult.error?.message ||
+                            "You must be authenticated to perform this action",
+                    },
+                ],
+            };
+        }
+
+        // Log the action for audit trail
+        console.log(
+            `[AUDIT] User ${authResult.session?.user?.name} rescheduling parcel ${parcelId}`,
+        );
+
         // We'll use a transaction to make the capacity check and update atomic
         // This prevents race conditions where two parallel operations could both pass the capacity check
         return await db.transaction(async tx => {
-            // Check if the timeslot is available (not exceeding max capacity)
+            // Get parcel information first
             const [parcel] = await tx
                 .select({
                     locationId: foodParcels.pickup_location_id,
@@ -309,13 +342,22 @@ export async function updateFoodParcelSchedule(
                 .limit(1);
 
             if (!parcel) {
-                return { success: false, error: "Food parcel not found" };
+                return {
+                    success: false,
+                    error: "Food parcel not found",
+                    errors: [
+                        {
+                            field: "parcelId",
+                            code: "PARCEL_NOT_FOUND",
+                            message: "Food parcel not found",
+                        },
+                    ],
+                };
             }
 
-            // Get the location's max parcels per day and slot duration
+            // Get the location's slot duration to calculate proper end time
             const [location] = await tx
                 .select({
-                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                     slotDuration: pickupLocations.default_slot_duration_minutes,
                 })
                 .from(pickupLocations)
@@ -323,59 +365,38 @@ export async function updateFoodParcelSchedule(
                 .limit(1);
 
             // Calculate the correct end time based on the location's slot duration
-            const slotDurationMinutes = location.slotDuration;
+            const slotDurationMinutes = location?.slotDuration || 15;
             const endTime = new Date(newTimeslot.startTime);
             endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
 
-            // Check if the location is open at this time using the location-availability utility
-            const locationSchedules = await getPickupLocationSchedules(parcel.locationId);
-            const startTimeStr = Time.fromDate(newTimeslot.startTime).toTimeString();
-
-            // Check if time is within operating hours
-            const timeAvailability = isTimeAvailable(
-                newTimeslot.date,
-                startTimeStr,
-                locationSchedules,
+            // Use comprehensive validation
+            const { validateParcelAssignment } = await import(
+                "@/app/utils/validation/parcel-assignment"
             );
-            if (!timeAvailability.isAvailable) {
+            const validationResult = await validateParcelAssignment({
+                parcelId,
+                newLocationId: parcel.locationId,
+                newTimeslot: {
+                    startTime: newTimeslot.startTime,
+                    endTime, // Use calculated end time
+                },
+                newDate: newTimeslot.startTime.toISOString().split("T")[0],
+                tx,
+            });
+
+            if (!validationResult.success) {
+                // Return the first error for backward compatibility, but include all errors
+                const errors = validationResult.errors || [];
+                const primaryError = errors[0];
+                const { formatValidationError } = await import(
+                    "@/app/utils/validation/parcel-assignment"
+                );
+
                 return {
                     success: false,
-                    error:
-                        timeAvailability.reason || "The selected time is outside operating hours",
+                    error: formatValidationError(primaryError),
+                    errors,
                 };
-            }
-
-            if (location.maxParcelsPerDay !== null) {
-                // Get the date in Stockholm timezone for consistent comparison
-                const dateInStockholm = Time.fromDate(newTimeslot.date);
-
-                // Get the start and end of the date in Stockholm timezone
-                const startTimeStockholm = dateInStockholm.startOfDay();
-                const endTimeStockholm = dateInStockholm.endOfDay();
-
-                // Convert to UTC for database query
-                const startDate = startTimeStockholm.toDate();
-                const endDate = endTimeStockholm.toDate();
-
-                // Count food parcels for this date (excluding the one we're updating)
-                const [{ count }] = await tx
-                    .select({ count: sql<number>`count(*)` })
-                    .from(foodParcels)
-                    .where(
-                        and(
-                            eq(foodParcels.pickup_location_id, parcel.locationId),
-                            between(foodParcels.pickup_date_time_earliest, startDate, endDate),
-                            ne(foodParcels.id, parcelId),
-                        ),
-                    )
-                    .execute();
-
-                if (count >= location.maxParcelsPerDay) {
-                    return {
-                        success: false,
-                        error: `Max capacity (${location.maxParcelsPerDay}) reached for this date`,
-                    };
-                }
             }
 
             // Update the food parcel's schedule using the calculated endTime
@@ -401,6 +422,79 @@ export async function updateFoodParcelSchedule(
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error occurred",
+            errors: [
+                {
+                    field: "general",
+                    code: "INTERNAL_ERROR",
+                    message: error instanceof Error ? error.message : "Unknown error occurred",
+                },
+            ],
+        };
+    }
+}
+
+/**
+ * Validate parcel assignments for forms (without actually updating)
+ */
+export async function validateParcelAssignments(
+    parcels: Array<{
+        id?: string; // Optional for new parcels
+        householdId: string;
+        locationId: string;
+        pickupDate: Date;
+        pickupStartTime: Date;
+        pickupEndTime: Date;
+    }>,
+): Promise<{
+    success: boolean;
+    errors: Array<{
+        field: string;
+        code: string;
+        message: string;
+        details?: Record<string, unknown>;
+    }>;
+}> {
+    try {
+        if (parcels.length === 0) {
+            return { success: true, errors: [] };
+        }
+
+        // Get location schedules for the first location (assuming all parcels are for the same location)
+        const locationId = parcels[0].locationId;
+
+        // Import validation utilities
+        const { validateBulkParcelAssignments } = await import(
+            "@/app/utils/validation/parcel-assignment"
+        );
+
+        // Prepare assignments for validation
+        const assignments = parcels.map(parcel => ({
+            parcelId: parcel.id || `temp_${Math.random()}`, // Generate temp ID for new parcels
+            timeslot: {
+                date: parcel.pickupDate.toISOString().split("T")[0],
+                startTime: parcel.pickupStartTime,
+                endTime: parcel.pickupEndTime,
+            },
+        }));
+
+        // Use bulk validation for form submissions
+        const validationResult = await validateBulkParcelAssignments(assignments, locationId);
+
+        return {
+            success: validationResult.success,
+            errors: validationResult.errors || [],
+        };
+    } catch (error) {
+        console.error("Error validating parcel assignments:", error);
+        return {
+            success: false,
+            errors: [
+                {
+                    field: "general",
+                    code: "VALIDATION_ERROR",
+                    message: "An error occurred during validation",
+                },
+            ],
         };
     }
 }
@@ -415,9 +509,8 @@ export const getPickupLocationSchedules = async (
     const cachedFetchSchedules = unstable_cache(
         async (): Promise<LocationScheduleInfo> => {
             try {
-                const currentDate = new Date();
-                // Use SQL date formatting for correct comparison with database date values
-                const currentDateStr = currentDate.toISOString().split("T")[0];
+                // Use localized date to align with Stockholm schedule boundaries
+                const currentDateStr = Time.now().toDateString();
 
                 // Get all current and upcoming schedules for this location
                 // (end_date is in the future - this includes both active and upcoming schedules)
@@ -509,26 +602,18 @@ export async function checkLocationAvailability(
     try {
         const scheduleInfo = await getPickupLocationSchedules(locationId);
 
-        // Get the day of the week for regular schedule check
-        const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-        const weekdayNames = [
-            "sunday",
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-        ];
-        const weekday = weekdayNames[dayOfWeek];
+        // Rebase the input date into Stockholm time to align with stored schedules
+        const requestDate = Time.fromDate(date);
+        const weekday = requestDate.getWeekdayName();
+        const requestDayStart = requestDate.startOfDay();
 
         // Check regular schedules
         for (const schedule of scheduleInfo.schedules) {
-            const startDate = new Date(schedule.startDate);
-            const endDate = new Date(schedule.endDate);
+            const scheduleStart = Time.fromDate(new Date(schedule.startDate)).startOfDay();
+            const scheduleEnd = Time.fromDate(new Date(schedule.endDate)).endOfDay();
 
             // Check if date is within schedule's range
-            if (date >= startDate && date <= endDate) {
+            if (requestDayStart.isBetween(scheduleStart, scheduleEnd)) {
                 const dayConfig = schedule.days.find(day => day.weekday === weekday);
 
                 // If the day is closed in this schedule, continue to the next schedule

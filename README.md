@@ -222,6 +222,20 @@ jobs:
 - Manual trigger endpoint allows external monitoring tools to force processing
 - Queue processing scales automatically with database performance
 
+## Server Action Security
+
+All server actions must be wrapped with `protectedAction()` or `protectedHouseholdAction()` for automatic authentication enforcement.
+
+```typescript
+import { protectedAction } from "@/app/utils/auth/protected-action";
+
+export const myAction = protectedAction(async (session, data: FormData) => {
+    // session is already verified - no manual auth checks needed
+});
+```
+
+The build validation (`pnpm run validate`) will fail if server actions are missing protection wrappers.
+
 ## Database Migration Workflow
 
 The project uses Drizzle ORM with a migration-based approach:

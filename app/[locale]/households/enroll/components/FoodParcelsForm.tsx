@@ -46,6 +46,7 @@ import { type LocationScheduleInfo, type LocationScheduleDay } from "@/app/[loca
 interface ValidationError {
     field: string;
     message: string;
+    code?: string;
 }
 
 interface PickupLocation {
@@ -57,9 +58,20 @@ interface FoodParcelsFormProps {
     data: FoodParcels;
     updateData: (data: FoodParcels) => void;
     error?: ValidationError | null;
+    validationErrors?: Array<{
+        field: string;
+        code: string;
+        message: string;
+        details?: Record<string, unknown>;
+    }>;
 }
 
-export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
+export default function FoodParcelsForm({
+    data,
+    updateData,
+    error,
+    validationErrors,
+}: FoodParcelsFormProps) {
     const t = useTranslations("foodParcels") as TranslationFunction;
     const tCommon = useTranslations("handoutLocations");
 
@@ -999,6 +1011,33 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         )}
                         <Text size="sm">{capacityNotification.message}</Text>
                     </Group>
+                </Paper>
+            )}
+
+            {/* Show validation errors */}
+            {validationErrors && validationErrors.length > 0 && (
+                <Paper
+                    p="sm"
+                    withBorder
+                    mb="md"
+                    style={{
+                        backgroundColor: "var(--mantine-color-red-0)",
+                        borderColor: "var(--mantine-color-red-4)",
+                    }}
+                >
+                    <Stack gap="xs">
+                        <Group>
+                            <IconExclamationMark size="1rem" color="var(--mantine-color-red-6)" />
+                            <Text size="sm" fw={600} c="red">
+                                {t("validationErrors.title", { default: "Validation Errors" })}
+                            </Text>
+                        </Group>
+                        {validationErrors.map((error, index) => (
+                            <Text key={index} size="sm" c="red" ml="lg">
+                                • {error.message}
+                            </Text>
+                        ))}
+                    </Stack>
                 </Paper>
             )}
 

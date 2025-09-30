@@ -266,10 +266,29 @@ export async function addHouseholdComment(
     }
 
     try {
+        // Authorization: Verify user is authenticated and is an org member
+        const { validateOrganizationMembership } = await import(
+            "@/app/utils/auth/organization-auth"
+        );
+
         // Get the current user from the session
         const session = await auth();
         // Get the GitHub username from the name field, which contains the GitHub username
         const githubUsername = session?.user?.name || "anonymous";
+
+        // Check organization membership
+        if (githubUsername !== "anonymous") {
+            const orgCheck = await validateOrganizationMembership(githubUsername, "server-action");
+            if (!orgCheck.isValid) {
+                console.error(
+                    `Unauthorized comment attempt by ${githubUsername}: ${orgCheck.error}`,
+                );
+                return null;
+            }
+        }
+
+        // Log the action for audit trail
+        console.log(`[AUDIT] User ${githubUsername} adding comment to household ${householdId}`);
 
         // Insert the comment with the github username
         const [dbComment] = await db
@@ -307,6 +326,17 @@ export async function addHouseholdComment(
 // Function to delete a comment
 export async function deleteHouseholdComment(commentId: string): Promise<boolean> {
     try {
+        // Authorization: Verify user is authenticated and is an org member
+        const { verifyServerActionAuth } = await import("@/app/utils/auth/server-action-auth");
+        const authResult = await verifyServerActionAuth();
+        if (!authResult.authorized) {
+            console.error("Unauthorized delete comment attempt:", authResult.error);
+            return false;
+        }
+
+        // Log the action for audit trail
+        console.log(`[AUDIT] User ${authResult.session?.user?.name} deleting comment ${commentId}`);
+
         // Delete the comment with the given ID
         const result = await db
             .delete(householdComments)

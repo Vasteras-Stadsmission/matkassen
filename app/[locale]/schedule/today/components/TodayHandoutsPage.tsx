@@ -208,6 +208,11 @@ export function TodayHandoutsPage() {
         // Note: No need to reload data just because we closed a dialog
     }, [searchParams, pathname, router]);
 
+    // Handle parcel updates from ParcelAdminDialog
+    const handleParcelUpdated = useCallback(async () => {
+        await loadData();
+    }, [loadData]);
+
     if (loading) {
         return (
             <Container size="xl" py="md">
@@ -382,6 +387,7 @@ export function TodayHandoutsPage() {
                     parcelId={selectedParcelId}
                     opened={dialogOpened}
                     onClose={handleDialogClose}
+                    onParcelUpdated={handleParcelUpdated}
                 />
             )}
         </Container>

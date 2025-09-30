@@ -390,7 +390,11 @@ export default function HouseholdsTable({
                                         <IconEye size={18} />
                                     </ActionIcon>
                                 </Tooltip>
-                                <Tooltip label="Manage Parcels" withArrow position="top">
+                                <Tooltip
+                                    label={t("actions.manageParcels")}
+                                    withArrow
+                                    position="top"
+                                >
                                     <ActionIcon
                                         color="green"
                                         variant="subtle"

@@ -35,14 +35,14 @@ import React from "react";
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
     try {
-        const response = await fetch(`/api/admin/parcels/upcoming`);
+        const response = await fetch(
+            `/api/admin/parcels/upcoming?householdId=${encodeURIComponent(householdId)}`,
+        );
         if (!response.ok) return false;
 
         const upcomingParcels = await response.json();
-        // Check if any upcoming parcels belong to this household
-        return upcomingParcels.some(
-            (parcel: { householdId: string }) => parcel.householdId === householdId,
-        );
+        // Since we're filtering server-side, any result means there are upcoming parcels
+        return upcomingParcels.length > 0;
     } catch (error) {
         console.error("Error checking upcoming parcels:", error);
         return false; // Assume no parcels on error to be safe
@@ -149,6 +149,7 @@ export function HouseholdWizard({
     const [showError, { open: openError, close: closeError }] = useDisclosure(false);
     const [showAddParcelsModal, setShowAddParcelsModal] = useState(false);
     const [createdHouseholdId, setCreatedHouseholdId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Use localized default values if not provided
     const defaultTitle = mode === "create" ? t("createHousehold") : t("editHousehold");
@@ -250,8 +251,9 @@ export function HouseholdWizard({
     };
 
     const handleSubmit = async () => {
-        if (!onSubmit) return;
+        if (!onSubmit || isSubmitting) return;
 
+        setIsSubmitting(true);
         try {
             // Submit data using the provided onSubmit function
             const result = await onSubmit(formData);
@@ -299,6 +301,8 @@ export function HouseholdWizard({
                 color: "red",
                 icon: React.createElement(IconX, { size: "1.1rem" }),
             });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -466,6 +470,8 @@ export function HouseholdWizard({
                             onClick={handleSubmit}
                             color={submitButtonColor}
                             rightSection={<IconCheck size="1rem" />}
+                            loading={isSubmitting}
+                            disabled={isSubmitting}
                         >
                             {submitButtonText || defaultSubmitButtonText}
                         </Button>
@@ -479,7 +485,14 @@ export function HouseholdWizard({
                 onClose={() => {
                     setShowAddParcelsModal(false);
                     setCreatedHouseholdId(null);
-                    router.push("/households");
+                    // Navigate with success parameters when closing modal
+                    const url = new URL("/households", window.location.origin);
+                    url.searchParams.set("success", "true");
+                    const successMessage =
+                        mode === "create" ? t("success.created") : t("success.updated");
+                    url.searchParams.set("message", successMessage);
+                    url.searchParams.set("title", t("success.title"));
+                    router.push(url.pathname + url.search);
                 }}
                 title={t("addParcels.title")}
                 centered
@@ -492,7 +505,14 @@ export function HouseholdWizard({
                             onClick={() => {
                                 setShowAddParcelsModal(false);
                                 setCreatedHouseholdId(null);
-                                router.push("/households");
+                                // Navigate with success parameters when selecting "Later"
+                                const url = new URL("/households", window.location.origin);
+                                url.searchParams.set("success", "true");
+                                const successMessage =
+                                    mode === "create" ? t("success.created") : t("success.updated");
+                                url.searchParams.set("message", successMessage);
+                                url.searchParams.set("title", t("success.title"));
+                                router.push(url.pathname + url.search);
                             }}
                         >
                             {t("addParcels.later")}
@@ -503,9 +523,19 @@ export function HouseholdWizard({
                                 setShowAddParcelsModal(false);
                                 setCreatedHouseholdId(null);
                                 if (createdHouseholdId) {
+                                    // Navigate to parcels page without success params - user will see success there
                                     router.push(`/households/${createdHouseholdId}/parcels`);
                                 } else {
-                                    router.push("/households");
+                                    // Fallback: navigate to households with success params
+                                    const url = new URL("/households", window.location.origin);
+                                    url.searchParams.set("success", "true");
+                                    const successMessage =
+                                        mode === "create"
+                                            ? t("success.created")
+                                            : t("success.updated");
+                                    url.searchParams.set("message", successMessage);
+                                    url.searchParams.set("title", t("success.title"));
+                                    router.push(url.pathname + url.search);
                                 }
                             }}
                         >

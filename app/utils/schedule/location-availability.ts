@@ -19,6 +19,7 @@ export function isDateAvailable(
     // Convert date to Stockholm time to ensure consistent timezone handling
     const stockholmTime = Time.fromDate(date);
     const weekdayName = stockholmTime.getWeekdayName();
+    const dateStart = stockholmTime.startOfDay();
 
     // Track the most "permissive" schedule (prioritize open over closed)
     let bestSchedule: {
@@ -36,11 +37,11 @@ export function isDateAvailable(
 
     // Check all schedules for this date
     for (const schedule of schedulesToCheck) {
-        const startDate = new Date(schedule.startDate);
-        const endDate = new Date(schedule.endDate);
+        const scheduleStart = Time.fromDate(new Date(schedule.startDate)).startOfDay();
+        const scheduleEnd = Time.fromDate(new Date(schedule.endDate)).endOfDay();
 
         // Skip schedules that don't include this date
-        if (date < startDate || date > endDate) {
+        if (!dateStart.isBetween(scheduleStart, scheduleEnd)) {
             continue;
         }
 
@@ -134,6 +135,7 @@ export function getAvailableTimeRange(
     // Convert date to Stockholm time to ensure consistent timezone handling
     const stockholmTime = Time.fromDate(date);
     const weekdayName = stockholmTime.getWeekdayName();
+    const dateStart = stockholmTime.startOfDay();
 
     // Use either schedules or weeklySchedules for test compatibility
     const schedulesToCheck = locationSchedule.schedules || [];
@@ -145,11 +147,11 @@ export function getAvailableTimeRange(
 
     // Check all schedules for this date
     for (const schedule of schedulesToCheck) {
-        const startDate = new Date(schedule.startDate);
-        const endDate = new Date(schedule.endDate);
+        const scheduleStart = Time.fromDate(new Date(schedule.startDate)).startOfDay();
+        const scheduleEnd = Time.fromDate(new Date(schedule.endDate)).endOfDay();
 
         // Skip schedules that don't include this date
-        if (date < startDate || date > endDate) {
+        if (!dateStart.isBetween(scheduleStart, scheduleEnd)) {
             continue;
         }
 

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 import { useForm } from "@mantine/form";
 import { mockDate, cleanupMockedDate } from "../test-helpers";
 
@@ -250,7 +250,10 @@ describe("ScheduleForm Validation", () => {
         );
 
         // Validate the form
-        const validation = result.current.validate();
+        let validation: any;
+        act(() => {
+            validation = result.current.validate();
+        });
         expect(validation.hasErrors).toBe(true);
         expect(validation.errors.name).toBe("scheduleName.required");
     });
@@ -263,7 +266,10 @@ describe("ScheduleForm Validation", () => {
             }),
         );
 
-        const validation = result.current.validate();
+        let validation: any;
+        act(() => {
+            validation = result.current.validate();
+        });
         expect(validation.hasErrors).toBe(true);
         expect(validation.errors.start_date).toBe("startDate.required");
     });
@@ -277,7 +283,10 @@ describe("ScheduleForm Validation", () => {
             }),
         );
 
-        const validation = result.current.validate();
+        let validation: any;
+        act(() => {
+            validation = result.current.validate();
+        });
         expect(validation.hasErrors).toBe(true);
         expect(validation.errors.end_date).toBe("endDate.required");
     });
@@ -291,7 +300,10 @@ describe("ScheduleForm Validation", () => {
             }),
         );
 
-        const validation = result.current.validate();
+        let validation: any;
+        act(() => {
+            validation = result.current.validate();
+        });
         expect(validation.hasErrors).toBe(true);
         expect(validation.errors.end_date).toBe("endDate.afterStartDate");
     });
@@ -307,7 +319,10 @@ describe("ScheduleForm Validation", () => {
         );
 
         // This test checks if same date doesn't trigger the endDate.afterStartDate error
-        const validation = result.current.validate();
+        let validation: any;
+        act(() => {
+            validation = result.current.validate();
+        });
         expect(validation.errors.end_date).not.toBe("endDate.afterStartDate");
     });
 
@@ -364,7 +379,10 @@ describe("ScheduleForm Validation", () => {
             }),
         );
 
-        const validation = result.current.validate();
+        let validation: any;
+        act(() => {
+            validation = result.current.validate();
+        });
         expect(validation.hasErrors).toBe(true);
         expect(validation.errors.days).toBe("days.atLeastOneRequired");
     });
@@ -422,7 +440,10 @@ describe("ScheduleForm Validation", () => {
             }),
         );
 
-        const validation = result.current.validate();
+        let validation: any;
+        act(() => {
+            validation = result.current.validate();
+        });
         expect(validation.hasErrors).toBe(false);
     });
 });

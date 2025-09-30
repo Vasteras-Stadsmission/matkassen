@@ -51,7 +51,7 @@ flowchart LR
         HouseholdsList --> HouseholdDetailModal
         HouseholdDetailModal["Household detail modal<br/>- members, needs, parcel history<br/>- comment thread add/delete via API"]
         HouseholdsList --> EnrollWizard
-        EnrollWizard["Household wizard create<br/>- steps: basics → members → needs → schedule → review<br/>- submit calls enrollHousehold action"]
+        EnrollWizard["Household wizard create<br/>- steps: basics → members → needs → review<br/>- submit calls enrollHousehold action<br/>- redirects to schedule page after save"]
         HouseholdsList --> EditWizard
         EditWizard["Household wizard edit<br/>- prefilled data & comment hooks<br/>- updateHousehold + add/delete comments"]
 

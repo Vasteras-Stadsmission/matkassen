@@ -15,8 +15,8 @@ import {
 } from "@/app/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { FormData } from "../../enroll/types";
-import { auth } from "@/auth";
 import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
+import { verifyServerActionAuth, verifyHouseholdAccess } from "@/app/utils/auth/server-action-auth";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -225,6 +225,29 @@ export async function updateHousehold(
     data: FormData,
 ): Promise<HouseholdUpdateResult> {
     try {
+        // Authorization: Verify user is authenticated and is an org member
+        const authResult = await verifyServerActionAuth();
+        if (!authResult.authorized) {
+            return {
+                success: false,
+                error: authResult.error?.message || "Unauthorized",
+            };
+        }
+
+        // Authorization: Verify household exists
+        const householdCheck = await verifyHouseholdAccess(householdId);
+        if (!householdCheck.exists) {
+            return {
+                success: false,
+                error: householdCheck.error?.message || "Household not found",
+            };
+        }
+
+        // Log the action for audit trail
+        console.log(
+            `[AUDIT] User ${authResult.session?.user?.name} updating household ${householdId} (${householdCheck.household?.first_name} ${householdCheck.household?.last_name})`,
+        );
+
         // Start transaction to ensure all related data is updated atomically
         return await db.transaction(async tx => {
             // 1. Update the household basic information
@@ -462,9 +485,27 @@ export async function addComment(householdId: string, commentText: string) {
     if (!commentText.trim()) return null;
 
     try {
+        // Authorization: Verify user is authenticated and is an org member
+        const authResult = await verifyServerActionAuth();
+        if (!authResult.authorized) {
+            console.error("Unauthorized attempt to add comment:", authResult.error);
+            return null;
+        }
+
+        // Authorization: Verify household exists
+        const householdCheck = await verifyHouseholdAccess(householdId);
+        if (!householdCheck.exists) {
+            console.error("Attempt to add comment to non-existent household:", householdId);
+            return null;
+        }
+
         // Get the current user from the session
-        const session = await auth();
-        const username = session?.user?.name || "anonymous";
+        const username = authResult.session?.user?.name || "anonymous";
+
+        // Log the action for audit trail
+        console.log(
+            `[AUDIT] User ${username} adding comment to household ${householdId} (${householdCheck.household?.first_name} ${householdCheck.household?.last_name})`,
+        );
 
         // Insert the comment
         const [comment] = await db

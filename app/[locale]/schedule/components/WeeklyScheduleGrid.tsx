@@ -724,9 +724,41 @@ export default function WeeklyScheduleGrid({
                 });
                 onParcelRescheduled();
             } else {
+                // Use structured error if available, fall back to generic error
+                let errorMessage = result.error || t("reschedule.genericError", {});
+
+                // Check for specific error codes to provide better messages
+                if (!result.success && result.error) {
+                    const firstError = { message: result.error, code: "UNKNOWN" };
+                    switch (firstError.code) {
+                        case "MAX_DAILY_CAPACITY_REACHED":
+                            errorMessage = t("reschedule.capacityError", {
+                                default: firstError.message,
+                            });
+                            break;
+                        case "MAX_SLOT_CAPACITY_REACHED":
+                            errorMessage = t("reschedule.slotCapacityError", {
+                                default: "This time slot is fully booked",
+                            });
+                            break;
+                        case "HOUSEHOLD_DOUBLE_BOOKING":
+                            errorMessage = t("reschedule.doubleBookingError", {
+                                default: "Household already has a parcel scheduled for this date",
+                            });
+                            break;
+                        case "OUTSIDE_OPERATING_HOURS":
+                            errorMessage = t("reschedule.operatingHoursError", {
+                                default: firstError.message,
+                            });
+                            break;
+                        default:
+                            errorMessage = firstError.message;
+                    }
+                }
+
                 showNotification({
                     title: t("reschedule.error", {}),
-                    message: result.error || t("reschedule.genericError", {}),
+                    message: errorMessage,
                     color: "red",
                 });
             }

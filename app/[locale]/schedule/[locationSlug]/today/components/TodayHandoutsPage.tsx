@@ -166,6 +166,16 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
         loadData();
     }, [loadData]);
 
+    // Listen for schedule grid refresh events (e.g., when parcels are updated elsewhere)
+    useEffect(() => {
+        const handleRefreshScheduleGrid = async () => {
+            await loadData(true); // Force refresh
+        };
+
+        window.addEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+        return () => window.removeEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+    }, [loadData]);
+
     // Navigation handlers
     const handleBackToHub = useCallback(() => {
         router.push("/schedule");
@@ -180,6 +190,12 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             await loadData(true);
         }
     }, [isRefreshing, loading, loadData]);
+
+    // Handle parcel updates from ParcelAdminDialog
+    // Handle parcel updates from ParcelAdminDialog
+    const handleParcelUpdated = useCallback(async () => {
+        await loadData(true); // Force refresh
+    }, [loadData]);
 
     // Pull to refresh handlers
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -226,15 +242,6 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
         },
         [searchParams, pathname, router],
     );
-
-    // Close modal callback
-    const handleDialogClose = useCallback(() => {
-        // Remove parcel param from URL
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("parcel");
-        const newUrl = `${pathname}?${params.toString()}`;
-        router.replace(newUrl);
-    }, [searchParams, pathname, router]);
 
     if (loading) {
         return (
@@ -507,7 +514,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                     <ParcelAdminDialog
                         parcelId={selectedParcelId}
                         opened={dialogOpened}
-                        onClose={handleDialogClose}
+                        onClose={closeDialog}
+                        onParcelUpdated={handleParcelUpdated}
                     />
                 )}
             </Container>

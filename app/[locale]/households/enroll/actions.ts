@@ -22,6 +22,7 @@ import {
     getDateParts,
     formatDateToISOString,
 } from "@/app/utils/date-utils";
+import { verifyServerActionAuth } from "@/app/utils/auth/server-action-auth";
 
 import {
     HouseholdCreateData,
@@ -35,186 +36,268 @@ export async function enrollHousehold(data: HouseholdCreateData) {
     "use server";
 
     try {
-        // 1. Create household
-        const [household] = await db
-            .insert(households)
-            .values({
-                first_name: data.headOfHousehold.firstName,
-                last_name: data.headOfHousehold.lastName,
-                phone_number: data.headOfHousehold.phoneNumber,
-                locale: data.headOfHousehold.locale || "sv",
-                postal_code: data.headOfHousehold.postalCode,
-            })
-            .returning();
-
-        // 2. Add household members
-        if (data.members && data.members.length > 0) {
-            await db.insert(householdMembers).values(
-                data.members.map((member: HouseholdMemberData) => ({
-                    household_id: household.id,
-                    first_name: member.firstName,
-                    last_name: member.lastName,
-                    age: member.age,
-                    sex: member.sex as "male" | "female" | "other",
-                })),
-            );
+        // Authorization: Verify user is authenticated and is an org member
+        const authResult = await verifyServerActionAuth();
+        if (!authResult.authorized) {
+            return {
+                success: false,
+                error: authResult.error?.message || "Unauthorized",
+                validationErrors: [
+                    {
+                        field: authResult.error?.field || "auth",
+                        code: authResult.error?.code || "UNAUTHORIZED",
+                        message:
+                            authResult.error?.message ||
+                            "You must be authenticated to perform this action",
+                    },
+                ],
+            };
         }
 
-        // 3. Add dietary restrictions
-        if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
-            // First, ensure all dietary restrictions exist in the database
-            for (const restriction of data.dietaryRestrictions) {
-                // Check if the dietary restriction already exists
-                const [existingRestriction] = await db
-                    .select()
-                    .from(dietaryRestrictionsTable)
-                    .where(eq(dietaryRestrictionsTable.id, restriction.id))
-                    .limit(1);
+        // Log the action for audit trail
+        console.log(
+            `[AUDIT] User ${authResult.session?.user?.name} enrolling new household: ${data.headOfHousehold.firstName} ${data.headOfHousehold.lastName}`,
+        );
 
-                // If not found by ID, check by name (for dummy data with r1, r2, etc.)
-                if (!existingRestriction) {
-                    const [existingByName] = await db
+        // Use a transaction to ensure all operations succeed or fail together
+        return await db.transaction(async tx => {
+            // 1. Create household
+            const [household] = await tx
+                .insert(households)
+                .values({
+                    first_name: data.headOfHousehold.firstName,
+                    last_name: data.headOfHousehold.lastName,
+                    phone_number: data.headOfHousehold.phoneNumber,
+                    locale: data.headOfHousehold.locale || "sv",
+                    postal_code: data.headOfHousehold.postalCode,
+                })
+                .returning();
+
+            // 2. Add household members
+            if (data.members && data.members.length > 0) {
+                await tx.insert(householdMembers).values(
+                    data.members.map((member: HouseholdMemberData) => ({
+                        household_id: household.id,
+                        first_name: member.firstName,
+                        last_name: member.lastName,
+                        age: member.age,
+                        sex: member.sex as "male" | "female" | "other",
+                    })),
+                );
+            }
+
+            // 3. Add dietary restrictions
+            if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
+                // First, ensure all dietary restrictions exist in the database
+                for (const restriction of data.dietaryRestrictions) {
+                    // Check if the dietary restriction already exists
+                    const [existingRestriction] = await tx
                         .select()
                         .from(dietaryRestrictionsTable)
-                        .where(eq(dietaryRestrictionsTable.name, restriction.name))
+                        .where(eq(dietaryRestrictionsTable.id, restriction.id))
                         .limit(1);
 
-                    // If found by name, use its ID instead
-                    if (existingByName) {
-                        restriction.id = existingByName.id;
-                    } else {
-                        // If not found at all, insert a new entry
-                        const [newRestriction] = await db
-                            .insert(dietaryRestrictionsTable)
-                            .values({
-                                name: restriction.name,
-                            })
-                            .returning();
-                        restriction.id = newRestriction.id;
+                    // If not found by ID, check by name (for dummy data with r1, r2, etc.)
+                    if (!existingRestriction) {
+                        const [existingByName] = await tx
+                            .select()
+                            .from(dietaryRestrictionsTable)
+                            .where(eq(dietaryRestrictionsTable.name, restriction.name))
+                            .limit(1);
+
+                        // If found by name, use its ID instead
+                        if (existingByName) {
+                            restriction.id = existingByName.id;
+                        } else {
+                            // If not found at all, insert a new entry
+                            const [newRestriction] = await tx
+                                .insert(dietaryRestrictionsTable)
+                                .values({
+                                    name: restriction.name,
+                                })
+                                .returning();
+                            restriction.id = newRestriction.id;
+                        }
                     }
                 }
+
+                // Then link all restrictions to the household
+                await tx.insert(householdDietaryRestrictionsTable).values(
+                    data.dietaryRestrictions.map((restriction: DietaryRestrictionData) => ({
+                        household_id: household.id,
+                        dietary_restriction_id: restriction.id,
+                    })),
+                );
             }
 
-            // Then link all restrictions to the household
-            await db.insert(householdDietaryRestrictionsTable).values(
-                data.dietaryRestrictions.map((restriction: DietaryRestrictionData) => ({
-                    household_id: household.id,
-                    dietary_restriction_id: restriction.id,
-                })),
-            );
-        }
+            // 4. Add pets
+            if (data.pets && data.pets.length > 0) {
+                // First, ensure all pet species exist in the database
+                for (const pet of data.pets) {
+                    // Check if the pet species already exists
+                    let existingPetSpecies: { id: string; name: string } | undefined;
 
-        // 4. Add pets
-        if (data.pets && data.pets.length > 0) {
-            // First, ensure all pet species exist in the database
-            for (const pet of data.pets) {
-                // Check if the pet species already exists
-                let existingPetSpecies: { id: string; name: string } | undefined;
+                    if (pet.species) {
+                        [existingPetSpecies] = await tx
+                            .select()
+                            .from(petSpeciesTable)
+                            .where(eq(petSpeciesTable.id, pet.species))
+                            .limit(1);
+                    }
 
-                if (pet.species) {
-                    [existingPetSpecies] = await db
-                        .select()
-                        .from(petSpeciesTable)
-                        .where(eq(petSpeciesTable.id, pet.species))
-                        .limit(1);
-                }
+                    // If not found by ID, check by name (in case it's a new species)
+                    if (!existingPetSpecies && pet.speciesName) {
+                        const [existingByName] = await tx
+                            .select()
+                            .from(petSpeciesTable)
+                            .where(eq(petSpeciesTable.name, pet.speciesName))
+                            .limit(1);
 
-                // If not found by ID, check by name (in case it's a new species)
-                if (!existingPetSpecies && pet.speciesName) {
-                    const [existingByName] = await db
-                        .select()
-                        .from(petSpeciesTable)
-                        .where(eq(petSpeciesTable.name, pet.speciesName))
-                        .limit(1);
+                        // If found by name, use its ID instead
+                        if (existingByName) {
+                            pet.species = existingByName.id;
+                        } else {
+                            // If not found at all, insert a new entry
+                            const [newSpecies] = await tx
+                                .insert(petSpeciesTable)
+                                .values({
+                                    name: pet.speciesName,
+                                })
+                                .returning();
 
-                    // If found by name, use its ID instead
-                    if (existingByName) {
-                        pet.species = existingByName.id;
-                    } else {
-                        // If not found at all, insert a new entry
-                        const [newSpecies] = await db
-                            .insert(petSpeciesTable)
-                            .values({
-                                name: pet.speciesName,
-                            })
-                            .returning();
-
-                        // Update the species ID to the newly inserted ID
-                        pet.species = newSpecies.id;
+                            // Update the species ID to the newly inserted ID
+                            pet.species = newSpecies.id;
+                        }
                     }
                 }
+
+                // Then add all pets to the database
+                await tx.insert(petsTable).values(
+                    data.pets.map(
+                        (pet: { species: string; speciesName?: string; count?: number }) => ({
+                            household_id: household.id,
+                            pet_species_id: pet.species,
+                        }),
+                    ),
+                );
             }
 
-            // Then add all pets to the database
-            await db.insert(petsTable).values(
-                data.pets.map((pet: { species: string; speciesName?: string; count?: number }) => ({
-                    household_id: household.id,
-                    pet_species_id: pet.species,
-                })),
-            );
-        }
+            // 5. Add additional needs
+            if (data.additionalNeeds && data.additionalNeeds.length > 0) {
+                // First, create any new additional needs that don't exist yet and update their IDs
+                for (const need of data.additionalNeeds) {
+                    if (need.isCustom) {
+                        const [existingNeed] = await tx
+                            .select()
+                            .from(additionalNeedsTable)
+                            .where(eq(additionalNeedsTable.need, need.need))
+                            .limit(1);
 
-        // 5. Add additional needs
-        if (data.additionalNeeds && data.additionalNeeds.length > 0) {
-            // First, create any new additional needs that don't exist yet and update their IDs
-            for (const need of data.additionalNeeds) {
-                if (need.isCustom) {
-                    const [existingNeed] = await db
-                        .select()
-                        .from(additionalNeedsTable)
-                        .where(eq(additionalNeedsTable.need, need.need))
-                        .limit(1);
+                        if (!existingNeed) {
+                            const [newNeed] = await tx
+                                .insert(additionalNeedsTable)
+                                .values({
+                                    need: need.need,
+                                })
+                                .returning();
 
-                    if (!existingNeed) {
-                        const [newNeed] = await db
-                            .insert(additionalNeedsTable)
-                            .values({
-                                need: need.need,
-                            })
-                            .returning();
-
-                        // Update the need ID to the newly inserted ID
-                        need.id = newNeed.id;
-                    } else {
-                        // Use the existing need's ID
-                        need.id = existingNeed.id;
+                            // Update the need ID to the newly inserted ID
+                            need.id = newNeed.id;
+                        } else {
+                            // Use the existing need's ID
+                            need.id = existingNeed.id;
+                        }
                     }
                 }
+
+                // Then link all needs to the household
+                await tx.insert(householdAdditionalNeedsTable).values(
+                    data.additionalNeeds.map((need: AdditionalNeedData) => ({
+                        household_id: household.id,
+                        additional_need_id: need.id,
+                    })),
+                );
             }
 
-            // Then link all needs to the household
-            await db.insert(householdAdditionalNeedsTable).values(
-                data.additionalNeeds.map((need: AdditionalNeedData) => ({
-                    household_id: household.id,
-                    additional_need_id: need.id,
-                })),
-            );
-        }
-
-        // 6. Add food parcels
-        if (data.foodParcels && data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
-            await db.insert(foodParcels).values(
-                data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
-                    household_id: household.id,
-                    pickup_location_id: data.foodParcels.pickupLocationId,
-                    pickup_date_time_earliest: parcel.pickupEarliestTime,
-                    pickup_date_time_latest: parcel.pickupLatestTime,
-                    is_picked_up: false,
-                })),
-            );
-
-            // Recompute outside-hours count for the location after creating parcels
-            try {
-                const { recomputeOutsideHoursCount } = await import(
+            // 6. Create food parcels if provided
+            if (
+                data.foodParcels &&
+                data.foodParcels.parcels &&
+                data.foodParcels.parcels.length > 0
+            ) {
+                // Validate all parcel assignments before creating any
+                const { validateParcelAssignments } = await import(
                     "@/app/[locale]/schedule/actions"
                 );
-                await recomputeOutsideHoursCount(data.foodParcels.pickupLocationId);
-            } catch (e) {
-                console.error("Failed to recompute outside-hours count after enrollment:", e);
-            }
-        }
 
-        return { success: true, householdId: household.id };
+                const parcelsToValidate = data.foodParcels.parcels.map(parcel => ({
+                    householdId: household.id,
+                    locationId: data.foodParcels.pickupLocationId,
+                    pickupDate: new Date(parcel.pickupEarliestTime.toDateString()), // Date only
+                    pickupStartTime: parcel.pickupEarliestTime,
+                    pickupEndTime: parcel.pickupLatestTime,
+                }));
+
+                const validationResult = await validateParcelAssignments(parcelsToValidate);
+
+                if (!validationResult.success) {
+                    // Return structured validation errors
+                    return {
+                        success: false,
+                        error: "Parcel validation failed",
+                        validationErrors: validationResult.errors,
+                    };
+                }
+
+                // Check for existing parcels with same household, location, and dates to prevent duplicates
+                for (const parcel of data.foodParcels.parcels) {
+                    const existingParcel = await tx
+                        .select({ id: foodParcels.id })
+                        .from(foodParcels)
+                        .where(
+                            and(
+                                eq(foodParcels.household_id, household.id),
+                                eq(
+                                    foodParcels.pickup_location_id,
+                                    data.foodParcels.pickupLocationId,
+                                ),
+                                eq(
+                                    foodParcels.pickup_date_time_earliest,
+                                    parcel.pickupEarliestTime,
+                                ),
+                                eq(foodParcels.pickup_date_time_latest, parcel.pickupLatestTime),
+                            ),
+                        )
+                        .limit(1);
+
+                    if (existingParcel.length > 0) {
+                        // Skip this parcel as it already exists (idempotency)
+                        continue;
+                    }
+                }
+
+                await tx.insert(foodParcels).values(
+                    data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
+                        household_id: household.id,
+                        pickup_location_id: data.foodParcels.pickupLocationId,
+                        pickup_date_time_earliest: parcel.pickupEarliestTime,
+                        pickup_date_time_latest: parcel.pickupLatestTime,
+                        is_picked_up: false,
+                    })),
+                );
+
+                // Recompute outside-hours count for the location after creating parcels
+                try {
+                    const { recomputeOutsideHoursCount } = await import(
+                        "@/app/[locale]/schedule/actions"
+                    );
+                    await recomputeOutsideHoursCount(data.foodParcels.pickupLocationId);
+                } catch (e) {
+                    console.error("Failed to recompute outside-hours count after enrollment:", e);
+                }
+            }
+            return { success: true, householdId: household.id };
+        });
     } catch (error: unknown) {
         console.error("Error enrolling household:", error);
         return {
