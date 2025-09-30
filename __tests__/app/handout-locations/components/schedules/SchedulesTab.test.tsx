@@ -79,7 +79,7 @@ vi.mock("../../../../../app/[locale]/handout-locations/components/schedules/Sche
     },
 }));
 
-const actionSuccess = <T,>(data: T) => ({ success: true, data } as const);
+const actionSuccess = <T,>(data: T) => ({ success: true, data }) as const;
 const actionFailure = (message: string) => ({
     success: false as const,
     error: { code: "TEST_ERROR", message },

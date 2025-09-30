@@ -232,23 +232,25 @@ All protected actions return `ActionResult<T>`, a discriminated union that ensur
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
-export const myAction = protectedAction(async (session, data: FormData): Promise<ActionResult<string>> => {
-    // session is already verified - no manual auth checks needed
+export const myAction = protectedAction(
+    async (session, data: FormData): Promise<ActionResult<string>> => {
+        // session is already verified - no manual auth checks needed
 
-    try {
-        // Your business logic here
-        const result = await doSomething(data);
+        try {
+            // Your business logic here
+            const result = await doSomething(data);
 
-        // Return success with data
-        return success(result);
-    } catch (error) {
-        // Return typed error
-        return failure({
-            code: "OPERATION_FAILED",
-            message: "Failed to perform operation",
-        });
-    }
-});
+            // Return success with data
+            return success(result);
+        } catch (error) {
+            // Return typed error
+            return failure({
+                code: "OPERATION_FAILED",
+                message: "Failed to perform operation",
+            });
+        }
+    },
+);
 ```
 
 **Calling server actions from components:**

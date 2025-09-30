@@ -14,7 +14,7 @@ import {
     householdComments,
 } from "@/app/db/schema";
 import { eq, and, gt } from "drizzle-orm";
-import { FormData } from "../../enroll/types";
+import { FormData, GithubUserData } from "../../enroll/types";
 import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
 import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
@@ -483,7 +483,7 @@ export const addComment = protectedHouseholdAction(
             household_id: string;
             author_github_username: string;
             comment: string;
-            githubUserData: any | null;
+            githubUserData: GithubUserData | null;
         }>
     > => {
         if (!commentText.trim()) {
