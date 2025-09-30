@@ -43,7 +43,18 @@ export function FavoriteStar({
 
         try {
             // Get current favorite to determine the action
-            const currentFavoriteId = await getUserFavoriteLocation();
+            const result = await getUserFavoriteLocation();
+
+            if (!result.success) {
+                notifications.show({
+                    title: t("hub.notificationErrorTitle"),
+                    message: result.error.message,
+                    color: "red",
+                });
+                return;
+            }
+
+            const currentFavoriteId = result.data;
 
             if (isFavorite) {
                 // Remove favorite
@@ -53,8 +64,8 @@ export function FavoriteStar({
                     confirmLabel: t("hub.confirmRemoveFavoriteLabel"),
                     confirmColor: "red",
                     action: async () => {
-                        const success = await setUserFavoriteLocation(null);
-                        if (success) {
+                        const updateResult = await setUserFavoriteLocation(null);
+                        if (updateResult.success) {
                             notifications.show({
                                 title: t("hub.notificationSuccessTitle"),
                                 message: t("hub.favoriteRemoved", { location: locationName }),
@@ -64,7 +75,7 @@ export function FavoriteStar({
                         } else {
                             notifications.show({
                                 title: t("hub.notificationErrorTitle"),
-                                message: t("hub.favoriteUpdateFailed"),
+                                message: updateResult.error.message,
                                 color: "red",
                             });
                         }
@@ -80,8 +91,8 @@ export function FavoriteStar({
                     message: t("hub.favoriteExplanation"),
                     confirmLabel: t("hub.confirmChangeFavoriteLabel"),
                     action: async () => {
-                        const success = await setUserFavoriteLocation(locationId);
-                        if (success) {
+                        const updateResult = await setUserFavoriteLocation(locationId);
+                        if (updateResult.success) {
                             notifications.show({
                                 title: t("hub.notificationSuccessTitle"),
                                 message: t("hub.favoriteChanged", { location: locationName }),
@@ -91,7 +102,7 @@ export function FavoriteStar({
                         } else {
                             notifications.show({
                                 title: t("hub.notificationErrorTitle"),
-                                message: t("hub.favoriteUpdateFailed"),
+                                message: updateResult.error.message,
                                 color: "red",
                             });
                         }
@@ -104,8 +115,8 @@ export function FavoriteStar({
                     message: t("hub.favoriteExplanation"),
                     confirmLabel: t("hub.setAsFavorite"),
                     action: async () => {
-                        const success = await setUserFavoriteLocation(locationId);
-                        if (success) {
+                        const updateResult = await setUserFavoriteLocation(locationId);
+                        if (updateResult.success) {
                             notifications.show({
                                 title: t("hub.notificationSuccessTitle"),
                                 message: t("hub.favoriteSet", { location: locationName }),
@@ -115,7 +126,7 @@ export function FavoriteStar({
                         } else {
                             notifications.show({
                                 title: t("hub.notificationErrorTitle"),
-                                message: t("hub.favoriteUpdateFailed"),
+                                message: updateResult.error.message,
                                 color: "red",
                             });
                         }

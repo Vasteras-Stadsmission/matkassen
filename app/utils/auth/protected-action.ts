@@ -1,22 +1,24 @@
 import {
     verifyServerActionAuth,
     verifyHouseholdAccess,
-    type ServerActionAuthResult,
+    type AuthSession,
+    type HouseholdData,
 } from "./server-action-auth";
-
-// Use the session type from our auth result for better type safety
-type AuthSession = NonNullable<ServerActionAuthResult["session"]>;
+import { type ActionResult } from "./action-result";
 
 /**
  * Higher-order function that wraps server actions with automatic authentication.
  * This ensures all protected server actions have authentication enforced at runtime.
  *
+ * Actions must return ActionResult<T> to ensure type-safe error handling.
+ *
  * @example
  * ```typescript
- * export const updateHousehold = protectedAction(async (session, data: FormData) => {
+ * export const updateHousehold = protectedAction(async (session, data: FormData): Promise<ActionResult<string>> => {
  *   // session is automatically provided and verified
  *   const userName = session.user?.name;
  *   // your logic here
+ *   return success("Updated successfully");
  * });
  * ```
  *
@@ -25,25 +27,25 @@ type AuthSession = NonNullable<ServerActionAuthResult["session"]>;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function protectedAction<T extends any[], R>(
-    action: (session: AuthSession, ...args: T) => Promise<R>,
-): (...args: T) => Promise<R> {
-    return async (...args: T): Promise<R> => {
+    action: (session: AuthSession, ...args: T) => Promise<ActionResult<R>>,
+): (...args: T) => Promise<ActionResult<R>> {
+    return async (...args: T): Promise<ActionResult<R>> => {
         const authResult = await verifyServerActionAuth();
 
-        if (!authResult.authorized || !authResult.session) {
-            // Return the validation error structure
-            return authResult.error as R;
+        if (!authResult.success) {
+            // Return the auth error
+            return authResult;
         }
 
         // Audit log for security monitoring
         console.log("[PROTECTED_ACTION]", {
             timestamp: new Date().toISOString(),
-            userName: authResult.session.user?.name,
-            userEmail: authResult.session.user?.email,
+            userName: authResult.data.user?.name,
+            userEmail: authResult.data.user?.email,
             action: action.name || "anonymous",
         });
 
-        return action(authResult.session, ...args);
+        return action(authResult.data, ...args);
     };
 }
 
@@ -51,11 +53,14 @@ export function protectedAction<T extends any[], R>(
  * Higher-order function for server actions that need household access verification.
  * Combines authentication with household existence check.
  *
+ * Actions must return ActionResult<T> to ensure type-safe error handling.
+ *
  * @example
  * ```typescript
- * export const updateParcels = protectedHouseholdAction(async (session, household, data: FormData) => {
+ * export const updateParcels = protectedHouseholdAction(async (session, household, data: FormData): Promise<ActionResult<void>> => {
  *   // Both session and household are verified
  *   // your logic here
+ *   return success(undefined);
  * });
  * ```
  *
@@ -66,36 +71,36 @@ export function protectedAction<T extends any[], R>(
 export function protectedHouseholdAction<T extends [string, ...any[]], R>(
     action: (
         session: AuthSession,
-        household: { id: string; first_name: string; last_name: string },
+        household: HouseholdData,
         ...args: T extends [string, ...infer Rest] ? Rest : never
-    ) => Promise<R>,
-): (...args: T) => Promise<R> {
-    return async (...args: T): Promise<R> => {
+    ) => Promise<ActionResult<R>>,
+): (...args: T) => Promise<ActionResult<R>> {
+    return async (...args: T): Promise<ActionResult<R>> => {
         const [householdId, ...restArgs] = args;
 
         const authResult = await verifyServerActionAuth();
 
-        if (!authResult.authorized || !authResult.session) {
-            return authResult.error as R;
+        if (!authResult.success) {
+            return authResult;
         }
 
         const householdResult = await verifyHouseholdAccess(householdId as string);
 
-        if (!householdResult.exists || !householdResult.household) {
-            return householdResult.error as R;
+        if (!householdResult.success) {
+            return householdResult;
         }
 
         // Audit log
         console.log("[PROTECTED_HOUSEHOLD_ACTION]", {
             timestamp: new Date().toISOString(),
-            userName: authResult.session.user?.name,
-            userEmail: authResult.session.user?.email,
-            householdId: householdResult.household.id,
-            householdName: `${householdResult.household.first_name} ${householdResult.household.last_name}`,
+            userName: authResult.data.user?.name,
+            userEmail: authResult.data.user?.email,
+            householdId: householdResult.data.id,
+            householdName: `${householdResult.data.first_name} ${householdResult.data.last_name}`,
             action: action.name || "anonymous",
         });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return action(authResult.session, householdResult.household, ...(restArgs as any));
+        return action(authResult.data, householdResult.data, ...(restArgs as any));
     };
 }

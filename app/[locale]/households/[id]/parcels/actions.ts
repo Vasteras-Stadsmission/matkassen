@@ -6,26 +6,22 @@ import { eq, gt, and } from "drizzle-orm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
 import { nanoid } from "@/app/db/schema";
 import { protectedHouseholdAction } from "@/app/utils/auth/protected-action";
-
-interface ParcelUpdateResult {
-    success: boolean;
-    error?: string;
-    validationErrors?: Array<{
-        field: string;
-        code: string;
-        message: string;
-        details?: Record<string, unknown>;
-    }>;
-}
+import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
+import {
+    success,
+    failure,
+    validationFailure,
+    type ActionResult,
+} from "@/app/utils/auth/action-result";
 
 export const updateHouseholdParcels = protectedHouseholdAction(
-    async (session, household, parcelsData: FoodParcels): Promise<ParcelUpdateResult> => {
+    async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
         try {
             // Auth and household verification already done by protectedHouseholdAction
             const locationId = parcelsData.pickupLocationId;
 
             // Start transaction to ensure all related data is updated atomically
-            const result = await db.transaction(async tx => {
+            await db.transaction(async tx => {
                 // Delete existing future food parcels for this household
                 const now = new Date();
                 await tx
@@ -59,11 +55,9 @@ export const updateHouseholdParcels = protectedHouseholdAction(
 
                         if (!validationResult.success) {
                             // Throw to trigger transaction rollback
-                            throw new Error(
-                                JSON.stringify({
-                                    code: "VALIDATION_ERROR",
-                                    validationErrors: validationResult.errors,
-                                }),
+                            throw new ParcelValidationError(
+                                "Parcel validation failed",
+                                validationResult.errors || [],
                             );
                         }
                     }
@@ -112,48 +106,30 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                         }
                     }
                 }
-
-                return { success: true };
             });
 
             // Recompute outside-hours count after transaction commits (with committed data)
-            if (result.success) {
-                try {
-                    const { recomputeOutsideHoursCount } = await import(
-                        "@/app/[locale]/schedule/actions"
-                    );
-                    await recomputeOutsideHoursCount(locationId);
-                } catch (e) {
-                    console.error(
-                        "Failed to recompute outside-hours count after parcel update:",
-                        e,
-                    );
-                }
+            try {
+                const { recomputeOutsideHoursCount } = await import(
+                    "@/app/[locale]/schedule/actions"
+                );
+                await recomputeOutsideHoursCount(locationId);
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count after parcel update:", e);
             }
 
-            return result;
+            return success(undefined);
         } catch (error: unknown) {
             // Check if this is a validation error from within the transaction
-            if (error instanceof Error && error.message.startsWith("{")) {
-                try {
-                    const parsed = JSON.parse(error.message);
-                    if (parsed.code === "VALIDATION_ERROR") {
-                        return {
-                            success: false,
-                            error: "Parcel validation failed",
-                            validationErrors: parsed.validationErrors,
-                        };
-                    }
-                } catch {
-                    // If parsing fails, fall through to generic error handling
-                }
+            if (error instanceof ParcelValidationError) {
+                return validationFailure(error.message, error.validationErrors);
             }
 
             console.error("Error updating household parcels:", error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : "Unknown error occurred",
-            };
+            return failure({
+                code: "INTERNAL_ERROR",
+                message: error instanceof Error ? error.message : "Unknown error occurred",
+            });
         }
     },
 );

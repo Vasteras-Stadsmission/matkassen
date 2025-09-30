@@ -7,20 +7,12 @@ import { useRouter } from "@/app/i18n/navigation";
 import { useTranslations } from "next-intl";
 import FoodParcelsForm from "@/app/[locale]/households/enroll/components/FoodParcelsForm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
+import { ActionResult } from "@/app/utils/auth/action-result";
 
 interface ParcelManagementFormProps {
     householdName: string;
     initialData?: FoodParcels;
-    onSubmit?: (data: FoodParcels) => Promise<{
-        success: boolean;
-        error?: string;
-        validationErrors?: Array<{
-            field: string;
-            code: string;
-            message: string;
-            details?: Record<string, unknown>;
-        }>;
-    }>;
+    onSubmit?: (data: FoodParcels) => Promise<ActionResult<void>>;
     isLoading?: boolean;
     loadError?: string | null;
 }
@@ -92,10 +84,10 @@ export function ParcelManagementForm({
                 // Show success notification here if needed
             } else {
                 // Handle validation errors
-                if (result.validationErrors && result.validationErrors.length > 0) {
-                    setValidationErrors(result.validationErrors);
+                if (result.error.validationErrors && result.error.validationErrors.length > 0) {
+                    setValidationErrors(result.error.validationErrors);
                     // Also set a simple error for pickup location if relevant
-                    const locationError = result.validationErrors.find(
+                    const locationError = result.error.validationErrors.find(
                         err => err.field === "pickupLocationId" || err.field === "capacity",
                     );
                     if (locationError) {
@@ -108,7 +100,7 @@ export function ParcelManagementForm({
                 } else {
                     setValidationError({
                         field: "general",
-                        message: result.error || t("error.update"),
+                        message: result.error.message || t("error.update"),
                         code: "SUBMISSION_ERROR",
                     });
                 }

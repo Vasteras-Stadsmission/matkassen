@@ -39,12 +39,12 @@ export default function EnrollHouseholdPage() {
             if (result.success) {
                 return {
                     success: true,
-                    householdId: (result as { success: true; householdId: string }).householdId,
+                    householdId: result.data.householdId,
                 };
             } else {
                 return {
                     success: false,
-                    error: (result as { success: false; error: string }).error,
+                    error: result.error.message,
                 };
             }
         } catch (error) {

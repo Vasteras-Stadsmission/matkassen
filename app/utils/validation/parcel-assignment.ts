@@ -17,6 +17,8 @@
  */
 
 import { and, eq, sql, between, ne } from "drizzle-orm";
+import { type PgTransaction } from "drizzle-orm/pg-core";
+import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, pickupLocations } from "@/app/db/schema";
 import { Time } from "@/app/utils/time-provider";
@@ -75,12 +77,20 @@ export const ValidationErrorCodes = {
 
 export type ValidationErrorCode = (typeof ValidationErrorCodes)[keyof typeof ValidationErrorCodes];
 
+/**
+ * Type alias for Drizzle database or transaction
+ * Uses a generic type that's compatible with both the main db instance and transaction objects.
+ * The 'any' types here are intentional to allow flexibility while still maintaining the core interface.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DbOrTransaction = PgTransaction<PostgresJsQueryResultHKT, any, any> | typeof db;
+
 interface ParcelAssignmentParams {
     parcelId: string;
     newLocationId: string;
     newTimeslot: { startTime: Date; endTime: Date };
     newDate: string;
-    tx?: unknown;
+    tx?: DbOrTransaction;
 }
 
 /**
@@ -123,7 +133,7 @@ export async function validateParcelAssignment({
     newDate,
     tx,
 }: ParcelAssignmentParams): Promise<ValidationResult> {
-    const dbInstance = tx ? (tx as typeof db) : db;
+    const dbInstance = tx ?? db;
     const errors: ValidationError[] = [];
 
     try {
@@ -361,7 +371,7 @@ export async function validateBulkParcelAssignments(
         };
     }>,
     locationId: string,
-    tx?: unknown,
+    tx?: DbOrTransaction,
 ): Promise<ValidationResult> {
     const allErrors: ValidationError[] = [];
 

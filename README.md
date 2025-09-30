@@ -226,12 +226,43 @@ jobs:
 
 All server actions must be wrapped with `protectedAction()` or `protectedHouseholdAction()` for automatic authentication enforcement.
 
+All protected actions return `ActionResult<T>`, a discriminated union that ensures type-safe error handling:
+
 ```typescript
 import { protectedAction } from "@/app/utils/auth/protected-action";
+import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
-export const myAction = protectedAction(async (session, data: FormData) => {
+export const myAction = protectedAction(async (session, data: FormData): Promise<ActionResult<string>> => {
     // session is already verified - no manual auth checks needed
+
+    try {
+        // Your business logic here
+        const result = await doSomething(data);
+
+        // Return success with data
+        return success(result);
+    } catch (error) {
+        // Return typed error
+        return failure({
+            code: "OPERATION_FAILED",
+            message: "Failed to perform operation",
+        });
+    }
 });
+```
+
+**Calling server actions from components:**
+
+```typescript
+const result = await myAction(formData);
+
+if (result.success) {
+    // TypeScript knows result.data exists here
+    console.log(result.data);
+} else {
+    // TypeScript knows result.error exists here
+    console.error(result.error.message);
+}
 ```
 
 The build validation (`pnpm run validate`) will fail if server actions are missing protection wrappers.

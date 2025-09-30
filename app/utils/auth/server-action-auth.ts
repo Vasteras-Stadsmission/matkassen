@@ -8,36 +8,39 @@ import { validateOrganizationMembership } from "@/app/utils/auth/organization-au
 import { db } from "@/app/db/drizzle";
 import { households } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
+import { type ActionResult, failure } from "./action-result";
 
-export interface ServerActionAuthResult {
-    authorized: boolean;
-    session?: {
-        user?: {
-            name?: string | null;
-            email?: string | null;
-            image?: string | null;
-        };
-    };
-    error?: {
-        code: string;
-        message: string;
-        field?: string;
+/**
+ * Session type for authenticated users
+ */
+export interface AuthSession {
+    user?: {
+        name?: string | null;
+        email?: string | null;
+        image?: string | null;
     };
 }
 
-export interface HouseholdAccessResult {
-    exists: boolean;
-    household?: {
-        id: string;
-        first_name: string;
-        last_name: string;
-    };
-    error?: {
-        code: string;
-        message: string;
-        field?: string;
-    };
+/**
+ * Household data returned after access verification
+ */
+export interface HouseholdData {
+    id: string;
+    first_name: string;
+    last_name: string;
 }
+
+/**
+ * Auth result type (for internal use in protected-action.ts)
+ * External callers should use ActionResult<T> instead
+ */
+export type ServerActionAuthResult = ActionResult<AuthSession>;
+
+/**
+ * Household access result type (for internal use in protected-action.ts)
+ * External callers should use ActionResult<T> instead
+ */
+export type HouseholdAccessResult = ActionResult<HouseholdData>;
 
 /**
  * Verify that the user is authenticated and is an organization member
@@ -49,14 +52,11 @@ export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> 
         const session = await auth();
 
         if (!session?.user?.name) {
-            return {
-                authorized: false,
-                error: {
-                    code: "UNAUTHORIZED",
-                    message: "You must be authenticated to perform this action",
-                    field: "auth",
-                },
-            };
+            return failure({
+                code: "UNAUTHORIZED",
+                message: "You must be authenticated to perform this action",
+                field: "auth",
+            });
         }
 
         // Check organization membership
@@ -65,32 +65,26 @@ export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> 
 
         if (!orgCheck.isValid) {
             const isConfigError = orgCheck.error?.includes("configuration");
-            return {
-                authorized: false,
-                error: {
-                    code: isConfigError ? "CONFIGURATION_ERROR" : "FORBIDDEN",
-                    message: isConfigError
-                        ? "Server configuration error. Please contact support."
-                        : "You don't have permission to perform this action",
-                    field: "auth",
-                },
-            };
+            return failure({
+                code: isConfigError ? "CONFIGURATION_ERROR" : "FORBIDDEN",
+                message: isConfigError
+                    ? "Server configuration error. Please contact support."
+                    : "You don't have permission to perform this action",
+                field: "auth",
+            });
         }
 
         return {
-            authorized: true,
-            session,
+            success: true,
+            data: session,
         };
     } catch (error) {
         console.error("Error in server action auth check:", error);
-        return {
-            authorized: false,
-            error: {
-                code: "AUTH_CHECK_FAILED",
-                message: "Authentication check failed",
-                field: "auth",
-            },
-        };
+        return failure({
+            code: "AUTH_CHECK_FAILED",
+            message: "Authentication check failed",
+            field: "auth",
+        });
     }
 }
 
@@ -101,14 +95,11 @@ export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> 
 export async function verifyHouseholdAccess(householdId: string): Promise<HouseholdAccessResult> {
     try {
         if (!householdId || typeof householdId !== "string") {
-            return {
-                exists: false,
-                error: {
-                    code: "INVALID_HOUSEHOLD_ID",
-                    message: "Invalid household ID provided",
-                    field: "householdId",
-                },
-            };
+            return failure({
+                code: "INVALID_HOUSEHOLD_ID",
+                message: "Invalid household ID provided",
+                field: "householdId",
+            });
         }
 
         const [household] = await db
@@ -122,29 +113,23 @@ export async function verifyHouseholdAccess(householdId: string): Promise<Househ
             .limit(1);
 
         if (!household) {
-            return {
-                exists: false,
-                error: {
-                    code: "HOUSEHOLD_NOT_FOUND",
-                    message: "The specified household does not exist",
-                    field: "householdId",
-                },
-            };
+            return failure({
+                code: "HOUSEHOLD_NOT_FOUND",
+                message: "The specified household does not exist",
+                field: "householdId",
+            });
         }
 
         return {
-            exists: true,
-            household,
+            success: true,
+            data: household,
         };
     } catch (error) {
         console.error("Error checking household access:", error);
-        return {
-            exists: false,
-            error: {
-                code: "HOUSEHOLD_CHECK_FAILED",
-                message: "Failed to verify household access",
-                field: "householdId",
-            },
-        };
+        return failure({
+            code: "HOUSEHOLD_CHECK_FAILED",
+            message: "Failed to verify household access",
+            field: "householdId",
+        });
     }
 }
