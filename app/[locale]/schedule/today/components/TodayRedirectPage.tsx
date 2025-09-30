@@ -38,10 +38,20 @@ export function TodayRedirectPage() {
     useEffect(() => {
         async function handleAutoRedirect() {
             try {
-                const [favoriteLocationId, locations] = await Promise.all([
+                const [favoriteResult, locations] = await Promise.all([
                     getUserFavoriteLocation(),
                     getPickupLocations(),
                 ]);
+
+                if (!favoriteResult.success) {
+                    console.error(
+                        "Failed to determine favorite location for today auto-redirect:",
+                        favoriteResult.error.message,
+                    );
+                    return;
+                }
+
+                const favoriteLocationId = favoriteResult.data;
 
                 if (favoriteLocationId && locations.length > 0) {
                     const slug = getLocationSlugById(locations, favoriteLocationId);

@@ -17,6 +17,7 @@ import { eq, and, gt } from "drizzle-orm";
 import { FormData } from "../../enroll/types";
 import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
 import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
+import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -26,18 +27,21 @@ export interface HouseholdUpdateResult {
 
 // Function to format household details from DB format to form format for editing
 export const getHouseholdFormData = protectedAction(
-    async (_: unknown, householdId: string): Promise<FormData | null> => {
+    async (_: unknown, householdId: string): Promise<ActionResult<FormData>> => {
         try {
             // Auth already verified by protectedAction wrapper
             // Get the household details using the existing function
             const details = await getHouseholdEditData(householdId);
 
             if (!details) {
-                return null;
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Household not found",
+                });
             }
 
             // Format the data for the enrollment wizard
-            return {
+            return success({
                 household: details.household,
                 members: details.members.map(member => ({
                     id: member.id,
@@ -52,10 +56,13 @@ export const getHouseholdFormData = protectedAction(
                     parcels: details.foodParcels.parcels,
                 },
                 comments: details.comments,
-            };
+            });
         } catch (error) {
             console.error("Error getting household form data:", error);
-            return null;
+            return failure({
+                code: "DATABASE_ERROR",
+                message: "Failed to load household data",
+            });
         }
     },
 );
@@ -224,12 +231,12 @@ async function getHouseholdEditData(householdId: string) {
 
 // Function to update an existing household
 export const updateHousehold = protectedHouseholdAction(
-    async (session, household, data: FormData): Promise<HouseholdUpdateResult> => {
+    async (session, household, data: FormData): Promise<ActionResult<{ householdId: string }>> => {
         try {
             // Auth and household access already verified by protectedHouseholdAction wrapper
 
             // Start transaction to ensure all related data is updated atomically
-            return await db.transaction(async tx => {
+            await db.transaction(async tx => {
                 // 1. Update the household basic information
                 await tx
                     .update(households)
@@ -439,15 +446,15 @@ export const updateHousehold = protectedHouseholdAction(
                         );
                     }
                 }
-
-                return { success: true, householdId: household.id };
             });
+
+            return success({ householdId: household.id });
         } catch (error: unknown) {
             console.error("Error updating household:", error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : "Unknown error occurred",
-            };
+            return failure({
+                code: "DATABASE_ERROR",
+                message: error instanceof Error ? error.message : "Unknown error occurred",
+            });
         }
     },
 );
@@ -465,8 +472,26 @@ export async function recomputeOutsideHoursForLocation(locationId: string) {
 
 // Add comment to a household (for edit page)
 export const addComment = protectedHouseholdAction(
-    async (session, household, commentText: string) => {
-        if (!commentText.trim()) return null;
+    async (
+        session,
+        household,
+        commentText: string,
+    ): Promise<
+        ActionResult<{
+            id: string;
+            created_at: Date;
+            household_id: string;
+            author_github_username: string;
+            comment: string;
+            githubUserData: any | null;
+        }>
+    > => {
+        if (!commentText.trim()) {
+            return failure({
+                code: "VALIDATION_ERROR",
+                message: "Comment text is required",
+            });
+        }
 
         try {
             // Auth and household access already verified by protectedHouseholdAction wrapper
@@ -491,13 +516,16 @@ export const addComment = protectedHouseholdAction(
             }
 
             // Return the comment with GitHub user data
-            return {
+            return success({
                 ...comment,
                 githubUserData,
-            };
+            });
         } catch (error) {
             console.error("Error adding comment:", error);
-            return null;
+            return failure({
+                code: "DATABASE_ERROR",
+                message: "Failed to add comment",
+            });
         }
     },
 );

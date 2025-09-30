@@ -80,11 +80,22 @@ export function ScheduleHubPage() {
 
             try {
                 // Load locations, today's parcels, and favorite location in parallel
-                const [locationsData, todaysParcels, currentFavoriteId] = await Promise.all([
+                const [locationsData, todaysParcels, favoriteResult] = await Promise.all([
                     getPickupLocations(),
                     getTodaysParcels(),
                     getUserFavoriteLocation(),
                 ]);
+
+                let currentFavoriteId: string | null = null;
+
+                if (favoriteResult.success) {
+                    currentFavoriteId = favoriteResult.data;
+                } else {
+                    console.error(
+                        "Failed to load favorite location for schedule hub:",
+                        favoriteResult.error.message,
+                    );
+                }
 
                 // Create summaries for each location
                 const summaries: LocationSummary[] = locationsData.map(

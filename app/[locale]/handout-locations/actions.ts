@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
+import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import {
     LocationFormInput,
     PickupLocationWithAllData,
@@ -18,57 +19,59 @@ import {
 } from "./types";
 
 // Get all locations with their schedules
-export const getLocations = protectedAction(async (): Promise<PickupLocationWithAllData[]> => {
-    try {
-        // Auth already verified by protectedAction wrapper
-        // Fetch all locations
-        const locations = await db.select().from(pickupLocations);
+export const getLocations = protectedAction(
+    async (): Promise<ActionResult<PickupLocationWithAllData[]>> => {
+        try {
+            // Auth already verified by protectedAction wrapper
+            // Fetch all locations
+            const locations = await db.select().from(pickupLocations);
 
-        // For each location, fetch the related data
-        const locationsWithSchedules = await Promise.all(
-            locations.map(async location => {
-                // Fetch schedules
-                const schedules = await db
-                    .select()
-                    .from(pickupLocationSchedules)
-                    .where(eq(pickupLocationSchedules.pickup_location_id, location.id));
+            // For each location, fetch the related data
+            const locationsWithSchedules = await Promise.all(
+                locations.map(async location => {
+                    // Fetch schedules
+                    const schedules = await db
+                        .select()
+                        .from(pickupLocationSchedules)
+                        .where(eq(pickupLocationSchedules.pickup_location_id, location.id));
 
-                // For each schedule, fetch the related days
-                const schedulesWithDays = await Promise.all(
-                    schedules.map(async schedule => {
-                        const days = await db
-                            .select()
-                            .from(pickupLocationScheduleDays)
-                            .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+                    // For each schedule, fetch the related days
+                    const schedulesWithDays = await Promise.all(
+                        schedules.map(async schedule => {
+                            const days = await db
+                                .select()
+                                .from(pickupLocationScheduleDays)
+                                .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
 
-                        return {
-                            ...schedule,
-                            days,
-                        };
-                    }),
-                );
+                            return {
+                                ...schedule,
+                                days,
+                            };
+                        }),
+                    );
 
-                // Return location with related data
-                return {
-                    ...location,
-                    schedules: schedulesWithDays,
-                };
-            }),
-        );
+                    // Return location with related data
+                    return {
+                        ...location,
+                        schedules: schedulesWithDays,
+                    };
+                }),
+            );
 
-        return locationsWithSchedules;
-    } catch (error) {
-        console.error("Error fetching locations:", error);
-        // Re-throw to let client handle error
-        throw new Error(
-            `Failed to fetch locations: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-});
+            return success(locationsWithSchedules);
+        } catch (error) {
+            console.error("Error fetching locations:", error);
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to fetch locations: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        }
+    },
+);
 
 // Get a single location with schedules by ID
 export const getLocation = protectedAction(
-    async (_: unknown, id: string): Promise<PickupLocationWithAllData | null> => {
+    async (_: unknown, id: string): Promise<ActionResult<PickupLocationWithAllData | null>> => {
         try {
             // Auth already verified by protectedAction wrapper
             // Fetch the location
@@ -79,7 +82,7 @@ export const getLocation = protectedAction(
                 .then(res => res[0] || null);
 
             if (!location) {
-                return null;
+                return success(null);
             }
 
             // Fetch schedules
@@ -104,22 +107,23 @@ export const getLocation = protectedAction(
             );
 
             // Return location with related data
-            return {
+            return success({
                 ...location,
                 schedules: schedulesWithDays,
-            };
+            });
         } catch (error) {
             console.error(`Error fetching location with ID ${id}:`, error);
-            throw new Error(
-                `Failed to fetch location: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to fetch location: ${error instanceof Error ? error.message : String(error)}`,
+            });
         }
     },
 );
 
 // Create a new location
 export const createLocation = protectedAction(
-    async (_: unknown, locationData: LocationFormInput): Promise<void> => {
+    async (_: unknown, locationData: LocationFormInput): Promise<ActionResult<void>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -146,18 +150,24 @@ export const createLocation = protectedAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            return success(undefined);
         } catch (error) {
             console.error("Error creating location:", error);
-            throw new Error(
-                `Failed to create location: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to create location: ${error instanceof Error ? error.message : String(error)}`,
+            });
         }
     },
 );
 
 // Update an existing location
 export const updateLocation = protectedAction(
-    async (_: unknown, id: string, locationData: LocationFormInput): Promise<void> => {
+    async (
+        _: unknown,
+        id: string,
+        locationData: LocationFormInput,
+    ): Promise<ActionResult<void>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -184,35 +194,41 @@ export const updateLocation = protectedAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            return success(undefined);
         } catch (error) {
             console.error(`Error updating location with ID ${id}:`, error);
-            throw new Error(
-                `Failed to update location: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to update location: ${error instanceof Error ? error.message : String(error)}`,
+            });
         }
     },
 );
 
 // Delete a location
-export const deleteLocation = protectedAction(async (_: unknown, id: string): Promise<void> => {
-    // Auth already verified by protectedAction wrapper
+export const deleteLocation = protectedAction(
+    async (_: unknown, id: string): Promise<ActionResult<void>> => {
+        // Auth already verified by protectedAction wrapper
 
-    try {
-        // Delete the location (cascade will delete related records)
-        await db.delete(pickupLocations).where(eq(pickupLocations.id, id));
+        try {
+            // Delete the location (cascade will delete related records)
+            await db.delete(pickupLocations).where(eq(pickupLocations.id, id));
 
-        // Get the current locale from headers
-        const locale = (await headers()).get("x-locale") || "en";
+            // Get the current locale from headers
+            const locale = (await headers()).get("x-locale") || "en";
 
-        // Revalidate the path to update the UI
-        revalidatePath(`/${locale}/handout-locations`, "page");
-    } catch (error) {
-        console.error(`Error deleting location with ID ${id}:`, error);
-        throw new Error(
-            `Failed to delete location: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-});
+            // Revalidate the path to update the UI
+            revalidatePath(`/${locale}/handout-locations`, "page");
+            return success(undefined);
+        } catch (error) {
+            console.error(`Error deleting location with ID ${id}:`, error);
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to delete location: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        }
+    },
+);
 
 // Create a new schedule for a location
 export const createSchedule = protectedAction(
@@ -220,7 +236,7 @@ export const createSchedule = protectedAction(
         _: unknown,
         locationId: string,
         scheduleData: ScheduleInput,
-    ): Promise<PickupLocationScheduleWithDays> => {
+    ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -298,12 +314,13 @@ export const createSchedule = protectedAction(
                 console.error("Failed to recompute outside-hours count after schedule create:", e);
             }
 
-            return createdSchedule!;
+            return success(createdSchedule!);
         } catch (error) {
             console.error(`Error creating schedule for location ${locationId}:`, error);
-            throw new Error(
-                `Failed to create schedule: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to create schedule: ${error instanceof Error ? error.message : String(error)}`,
+            });
         }
     },
 );
@@ -314,7 +331,7 @@ export const updateSchedule = protectedAction(
         _: unknown,
         scheduleId: string,
         scheduleData: ScheduleInput,
-    ): Promise<PickupLocationScheduleWithDays> => {
+    ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -326,7 +343,10 @@ export const updateSchedule = protectedAction(
                 .limit(1);
 
             if (currentSchedule.length === 0) {
-                throw new Error(`Schedule with ID ${scheduleId} not found`);
+                return failure({
+                    code: "NOT_FOUND",
+                    message: `Schedule with ID ${scheduleId} not found`,
+                });
             }
 
             const locationId = currentSchedule[0].pickup_location_id;
@@ -410,12 +430,13 @@ export const updateSchedule = protectedAction(
                 console.error("Failed to recompute outside-hours count after schedule update:", e);
             }
 
-            return updatedSchedule!;
+            return success(updatedSchedule!);
         } catch (error) {
             console.error(`Error updating schedule with ID ${scheduleId}:`, error);
-            throw new Error(
-                `Failed to update schedule: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to update schedule: ${error instanceof Error ? error.message : String(error)}`,
+            });
         }
     },
 );
@@ -423,7 +444,7 @@ export const updateSchedule = protectedAction(
 // Delete a schedule
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const deleteSchedule = protectedAction(
-    async (_session, scheduleId: string): Promise<void> => {
+    async (_session, scheduleId: string): Promise<ActionResult<void>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -456,11 +477,13 @@ export const deleteSchedule = protectedAction(
             } catch (e) {
                 console.error("Failed to recompute outside-hours count after schedule delete:", e);
             }
+            return success(undefined);
         } catch (error) {
             console.error(`Error deleting schedule with ID ${scheduleId}:`, error);
-            throw new Error(
-                `Failed to delete schedule: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            return failure({
+                code: "DATABASE_ERROR",
+                message: `Failed to delete schedule: ${error instanceof Error ? error.message : String(error)}`,
+            });
         }
     },
 );

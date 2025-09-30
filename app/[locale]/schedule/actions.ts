@@ -17,6 +17,7 @@ import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { protectedAction } from "@/app/utils/auth/protected-action";
+import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
 // Import types for use within this server action file
 import type {
@@ -297,16 +298,7 @@ export const updateFoodParcelSchedule = protectedAction(
             startTime: Date;
             endTime: Date;
         },
-    ): Promise<{
-        success: boolean;
-        error?: string;
-        errors?: Array<{
-            field: string;
-            code: string;
-            message: string;
-            details?: Record<string, unknown>;
-        }>;
-    }> => {
+    ): Promise<ActionResult<void>> => {
         try {
             // Auth already verified by protectedAction wrapper
             // Get the parcel's location ID first (before transaction)
@@ -319,24 +311,18 @@ export const updateFoodParcelSchedule = protectedAction(
                 .limit(1);
 
             if (!existingParcel) {
-                return {
-                    success: false,
-                    error: "Food parcel not found",
-                    errors: [
-                        {
-                            field: "parcelId",
-                            code: "PARCEL_NOT_FOUND",
-                            message: "Food parcel not found",
-                        },
-                    ],
-                };
+                return failure({
+                    code: "PARCEL_NOT_FOUND",
+                    message: "Food parcel not found",
+                    field: "parcelId",
+                });
             }
 
             const locationId = existingParcel.locationId;
 
             // We'll use a transaction to make the capacity check and update atomic
             // This prevents race conditions where two parallel operations could both pass the capacity check
-            const result = await db.transaction(async tx => {
+            await db.transaction(async tx => {
                 // Get parcel information again within transaction (for consistency)
                 const [parcel] = await tx
                     .select({
@@ -347,17 +333,7 @@ export const updateFoodParcelSchedule = protectedAction(
                     .limit(1);
 
                 if (!parcel) {
-                    return {
-                        success: false,
-                        error: "Food parcel not found",
-                        errors: [
-                            {
-                                field: "parcelId",
-                                code: "PARCEL_NOT_FOUND",
-                                message: "Food parcel not found",
-                            },
-                        ],
-                    };
+                    throw new Error("Food parcel not found");
                 }
 
                 // Get the location's slot duration to calculate proper end time
@@ -397,11 +373,7 @@ export const updateFoodParcelSchedule = protectedAction(
                         "@/app/utils/validation/parcel-assignment"
                     );
 
-                    return {
-                        success: false,
-                        error: formatValidationError(primaryError),
-                        errors,
-                    };
+                    throw new Error(formatValidationError(primaryError));
                 }
 
                 // Update the food parcel's schedule using the calculated endTime
@@ -412,33 +384,22 @@ export const updateFoodParcelSchedule = protectedAction(
                         pickup_date_time_latest: endTime, // Use our calculated end time
                     })
                     .where(eq(foodParcels.id, parcelId));
-
-                return { success: true };
             });
 
             // Recompute persisted outside-hours count after transaction commits (with committed data)
-            if (result.success) {
-                try {
-                    await recomputeOutsideHoursCount(locationId);
-                } catch (e) {
-                    console.error("Failed to recompute outside-hours count:", e);
-                }
+            try {
+                await recomputeOutsideHoursCount(locationId);
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count:", e);
             }
 
-            return result;
+            return success(undefined);
         } catch (error) {
             console.error("Error updating food parcel schedule:", error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : "Unknown error occurred",
-                errors: [
-                    {
-                        field: "general",
-                        code: "INTERNAL_ERROR",
-                        message: error instanceof Error ? error.message : "Unknown error occurred",
-                    },
-                ],
-            };
+            return failure({
+                code: "INTERNAL_ERROR",
+                message: error instanceof Error ? error.message : "Unknown error occurred",
+            });
         }
     },
 );

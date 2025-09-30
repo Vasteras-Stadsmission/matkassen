@@ -19,6 +19,7 @@ import { asc, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
 import { protectedAction } from "@/app/utils/auth/protected-action";
+import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
 // Cache GitHub user data fetching
 export const fetchGithubUserData = cache(
@@ -326,7 +327,7 @@ export async function addHouseholdComment(
 
 // Function to delete a comment
 export const deleteHouseholdComment = protectedAction(
-    async (session, commentId: string): Promise<boolean> => {
+    async (session, commentId: string): Promise<ActionResult<boolean>> => {
         try {
             // Auth already verified by protectedAction wrapper
             // Delete the comment with the given ID
@@ -336,10 +337,13 @@ export const deleteHouseholdComment = protectedAction(
                 .returning({ id: householdComments.id });
 
             // Return true if a comment was deleted, false otherwise
-            return result.length > 0;
+            return success(result.length > 0);
         } catch (error) {
             console.error("Error deleting household comment:", error);
-            return false;
+            return failure({
+                code: "DATABASE_ERROR",
+                message: "Failed to delete comment",
+            });
         }
     },
 );

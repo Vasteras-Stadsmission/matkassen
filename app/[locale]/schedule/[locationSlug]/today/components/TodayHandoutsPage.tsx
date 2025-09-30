@@ -119,8 +119,17 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                 setCurrentLocation(location);
 
                 // Check if current location is favorite
-                const favoriteId = await getUserFavoriteLocation();
-                setIsFavorite(favoriteId === location.id);
+                const favoriteResult = await getUserFavoriteLocation();
+
+                if (favoriteResult.success) {
+                    setIsFavorite(favoriteResult.data === location.id);
+                } else {
+                    console.error(
+                        "Failed to determine favorite location:",
+                        favoriteResult.error.message,
+                    );
+                    setIsFavorite(false);
+                }
 
                 // Load today's parcels
                 const parcelsData = await getTodaysParcels();

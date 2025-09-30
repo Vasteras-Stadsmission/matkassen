@@ -10,7 +10,13 @@ export const dynamic = "force-dynamic";
 
 export default async function HandoutLocationsPage() {
     // Fetch locations on the server, once per request (cached by Next.js)
-    const locations = await getLocations();
+    const result = await getLocations();
+
+    if (!result.success) {
+        throw new Error(result.error.message);
+    }
+
+    const locations = result.data;
 
     return (
         <AuthProtection>

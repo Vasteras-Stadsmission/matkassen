@@ -13,16 +13,17 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
     const { id: householdId } = await params;
 
     // Get household data for the form
-    const householdData = await getHouseholdFormData(householdId);
+    const result = await getHouseholdFormData(householdId);
 
-    if (!householdData) {
+    if (!result.success) {
         return (
             <AuthProtection>
-                <div>Household not found</div>
+                <div>Household not found: {result.error.message}</div>
             </AuthProtection>
         );
     }
 
+    const householdData = result.data;
     const householdName = `${householdData.household.first_name} ${householdData.household.last_name}`;
 
     return (
