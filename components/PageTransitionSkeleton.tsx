@@ -92,7 +92,7 @@ export function PageTransitionSkeleton({
             if (link && !link.target && link.href) {
                 try {
                     const url = new URL(link.href);
-                    if (url.origin === window.location.origin) {
+                    if (typeof window !== "undefined" && url.origin === window.location.origin) {
                         const path = url.pathname;
                         if (path !== pathname) {
                             setDestinationPath(path);

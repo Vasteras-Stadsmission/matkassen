@@ -1032,8 +1032,8 @@ export default function FoodParcelsForm({
                                 {t("validationErrors.title", { default: "Validation Errors" })}
                             </Text>
                         </Group>
-                        {validationErrors.map((error, index) => (
-                            <Text key={index} size="sm" c="red" ml="lg">
+                        {validationErrors.map(error => (
+                            <Text key={`${error.field}-${error.code}`} size="sm" c="red" ml="lg">
                                 • {error.message}
                             </Text>
                         ))}

@@ -275,7 +275,12 @@ export function HouseholdWizard({
                 }
 
                 // Navigate directly with success parameters for standard success flow
-                const url = new URL("/households", window.location.origin);
+                const url = new URL(
+                    "/households",
+                    typeof window !== "undefined"
+                        ? window.location.origin
+                        : "http://localhost:3000",
+                );
                 url.searchParams.set("success", "true");
                 const successMessage =
                     mode === "create" ? t("success.created") : t("success.updated");
@@ -486,7 +491,12 @@ export function HouseholdWizard({
                     setShowAddParcelsModal(false);
                     setCreatedHouseholdId(null);
                     // Navigate with success parameters when closing modal
-                    const url = new URL("/households", window.location.origin);
+                    const url = new URL(
+                        "/households",
+                        typeof window !== "undefined"
+                            ? window.location.origin
+                            : "http://localhost:3000",
+                    );
                     url.searchParams.set("success", "true");
                     const successMessage =
                         mode === "create" ? t("success.created") : t("success.updated");
@@ -506,7 +516,12 @@ export function HouseholdWizard({
                                 setShowAddParcelsModal(false);
                                 setCreatedHouseholdId(null);
                                 // Navigate with success parameters when selecting "Later"
-                                const url = new URL("/households", window.location.origin);
+                                const url = new URL(
+                                    "/households",
+                                    typeof window !== "undefined"
+                                        ? window.location.origin
+                                        : "http://localhost:3000",
+                                );
                                 url.searchParams.set("success", "true");
                                 const successMessage =
                                     mode === "create" ? t("success.created") : t("success.updated");
@@ -527,7 +542,12 @@ export function HouseholdWizard({
                                     router.push(`/households/${createdHouseholdId}/parcels`);
                                 } else {
                                     // Fallback: navigate to households with success params
-                                    const url = new URL("/households", window.location.origin);
+                                    const url = new URL(
+                                        "/households",
+                                        typeof window !== "undefined"
+                                            ? window.location.origin
+                                            : "http://localhost:3000",
+                                    );
                                     url.searchParams.set("success", "true");
                                     const successMessage =
                                         mode === "create"

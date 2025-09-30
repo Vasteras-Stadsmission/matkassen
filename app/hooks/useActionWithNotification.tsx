@@ -48,7 +48,12 @@ export function useActionWithNotification() {
 
             if (result.success) {
                 // Navigate immediately with success state
-                const url = new URL(successRedirect, window.location.origin);
+                const url = new URL(
+                    successRedirect,
+                    typeof window !== "undefined"
+                        ? window.location.origin
+                        : "http://localhost:3000",
+                );
                 url.searchParams.set("success", "true");
                 url.searchParams.set("message", options.successMessage);
                 if (options.successTitle) {
@@ -106,14 +111,16 @@ export function useActionWithNotification() {
             });
 
             // Clean up URL parameters
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.delete("success");
-            newUrl.searchParams.delete("message");
-            newUrl.searchParams.delete("title");
+            if (typeof window !== "undefined") {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete("success");
+                newUrl.searchParams.delete("message");
+                newUrl.searchParams.delete("title");
 
-            // Only update URL if we actually removed parameters
-            if (window.location.search !== newUrl.search) {
-                window.history.replaceState({}, "", newUrl.pathname + newUrl.search);
+                // Only update URL if we actually removed parameters
+                if (window.location.search !== newUrl.search) {
+                    window.history.replaceState({}, "", newUrl.pathname + newUrl.search);
+                }
             }
         }
     }, []);
