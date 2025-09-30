@@ -16,7 +16,7 @@ import { getAvailableTimeRange } from "@/app/utils/schedule/location-availabilit
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { verifyServerActionAuth } from "@/app/utils/auth/server-action-auth";
+import { protectedAction } from "@/app/utils/auth/protected-action";
 
 // Import types for use within this server action file
 import type {
@@ -288,52 +288,29 @@ export async function getTimeslotCounts(
 /**
  * Update a food parcel's schedule (used when dragging to a new timeslot)
  */
-export async function updateFoodParcelSchedule(
-    parcelId: string,
-    newTimeslot: {
-        date: Date;
-        startTime: Date;
-        endTime: Date;
-    },
-): Promise<{
-    success: boolean;
-    error?: string;
-    errors?: Array<{
-        field: string;
-        code: string;
-        message: string;
-        details?: Record<string, unknown>;
-    }>;
-}> {
-    try {
-        // Authorization: Verify user is authenticated and is an org member
-        const authResult = await verifyServerActionAuth();
-        if (!authResult.authorized) {
-            return {
-                success: false,
-                error: authResult.error?.message || "Unauthorized",
-                errors: [
-                    {
-                        field: authResult.error?.field || "auth",
-                        code: authResult.error?.code || "UNAUTHORIZED",
-                        message:
-                            authResult.error?.message ||
-                            "You must be authenticated to perform this action",
-                    },
-                ],
-            };
-        }
-
-        // Log the action for audit trail
-        console.log(
-            `[AUDIT] User ${authResult.session?.user?.name} rescheduling parcel ${parcelId}`,
-        );
-
-        // We'll use a transaction to make the capacity check and update atomic
-        // This prevents race conditions where two parallel operations could both pass the capacity check
-        return await db.transaction(async tx => {
-            // Get parcel information first
-            const [parcel] = await tx
+export const updateFoodParcelSchedule = protectedAction(
+    async (
+        session,
+        parcelId: string,
+        newTimeslot: {
+            date: Date;
+            startTime: Date;
+            endTime: Date;
+        },
+    ): Promise<{
+        success: boolean;
+        error?: string;
+        errors?: Array<{
+            field: string;
+            code: string;
+            message: string;
+            details?: Record<string, unknown>;
+        }>;
+    }> => {
+        try {
+            // Auth already verified by protectedAction wrapper
+            // Get the parcel's location ID first (before transaction)
+            const [existingParcel] = await db
                 .select({
                     locationId: foodParcels.pickup_location_id,
                 })
@@ -341,7 +318,7 @@ export async function updateFoodParcelSchedule(
                 .where(eq(foodParcels.id, parcelId))
                 .limit(1);
 
-            if (!parcel) {
+            if (!existingParcel) {
                 return {
                     success: false,
                     error: "Food parcel not found",
@@ -355,83 +332,116 @@ export async function updateFoodParcelSchedule(
                 };
             }
 
-            // Get the location's slot duration to calculate proper end time
-            const [location] = await tx
-                .select({
-                    slotDuration: pickupLocations.default_slot_duration_minutes,
-                })
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, parcel.locationId))
-                .limit(1);
+            const locationId = existingParcel.locationId;
 
-            // Calculate the correct end time based on the location's slot duration
-            const slotDurationMinutes = location?.slotDuration || 15;
-            const endTime = new Date(newTimeslot.startTime);
-            endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
+            // We'll use a transaction to make the capacity check and update atomic
+            // This prevents race conditions where two parallel operations could both pass the capacity check
+            const result = await db.transaction(async tx => {
+                // Get parcel information again within transaction (for consistency)
+                const [parcel] = await tx
+                    .select({
+                        locationId: foodParcels.pickup_location_id,
+                    })
+                    .from(foodParcels)
+                    .where(eq(foodParcels.id, parcelId))
+                    .limit(1);
 
-            // Use comprehensive validation
-            const { validateParcelAssignment } = await import(
-                "@/app/utils/validation/parcel-assignment"
-            );
-            const validationResult = await validateParcelAssignment({
-                parcelId,
-                newLocationId: parcel.locationId,
-                newTimeslot: {
-                    startTime: newTimeslot.startTime,
-                    endTime, // Use calculated end time
-                },
-                newDate: newTimeslot.startTime.toISOString().split("T")[0],
-                tx,
-            });
+                if (!parcel) {
+                    return {
+                        success: false,
+                        error: "Food parcel not found",
+                        errors: [
+                            {
+                                field: "parcelId",
+                                code: "PARCEL_NOT_FOUND",
+                                message: "Food parcel not found",
+                            },
+                        ],
+                    };
+                }
 
-            if (!validationResult.success) {
-                // Return the first error for backward compatibility, but include all errors
-                const errors = validationResult.errors || [];
-                const primaryError = errors[0];
-                const { formatValidationError } = await import(
+                // Get the location's slot duration to calculate proper end time
+                const [location] = await tx
+                    .select({
+                        slotDuration: pickupLocations.default_slot_duration_minutes,
+                    })
+                    .from(pickupLocations)
+                    .where(eq(pickupLocations.id, parcel.locationId))
+                    .limit(1);
+
+                // Calculate the correct end time based on the location's slot duration
+                const slotDurationMinutes = location?.slotDuration || 15;
+                const endTime = new Date(newTimeslot.startTime);
+                endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
+
+                // Use comprehensive validation
+                const { validateParcelAssignment } = await import(
                     "@/app/utils/validation/parcel-assignment"
                 );
+                const validationResult = await validateParcelAssignment({
+                    parcelId,
+                    newLocationId: parcel.locationId,
+                    newTimeslot: {
+                        startTime: newTimeslot.startTime,
+                        endTime, // Use calculated end time
+                    },
+                    newDate: newTimeslot.startTime.toISOString().split("T")[0],
+                    tx,
+                });
 
-                return {
-                    success: false,
-                    error: formatValidationError(primaryError),
-                    errors,
-                };
+                if (!validationResult.success) {
+                    // Return the first error for backward compatibility, but include all errors
+                    const errors = validationResult.errors || [];
+                    const primaryError = errors[0];
+                    const { formatValidationError } = await import(
+                        "@/app/utils/validation/parcel-assignment"
+                    );
+
+                    return {
+                        success: false,
+                        error: formatValidationError(primaryError),
+                        errors,
+                    };
+                }
+
+                // Update the food parcel's schedule using the calculated endTime
+                await tx
+                    .update(foodParcels)
+                    .set({
+                        pickup_date_time_earliest: newTimeslot.startTime,
+                        pickup_date_time_latest: endTime, // Use our calculated end time
+                    })
+                    .where(eq(foodParcels.id, parcelId));
+
+                return { success: true };
+            });
+
+            // Recompute persisted outside-hours count after transaction commits (with committed data)
+            if (result.success) {
+                try {
+                    await recomputeOutsideHoursCount(locationId);
+                } catch (e) {
+                    console.error("Failed to recompute outside-hours count:", e);
+                }
             }
 
-            // Update the food parcel's schedule using the calculated endTime
-            await tx
-                .update(foodParcels)
-                .set({
-                    pickup_date_time_earliest: newTimeslot.startTime,
-                    pickup_date_time_latest: endTime, // Use our calculated end time
-                })
-                .where(eq(foodParcels.id, parcelId));
-
-            // Recompute persisted outside-hours count for this location
-            try {
-                await recomputeOutsideHoursCount(parcel.locationId);
-            } catch (e) {
-                console.error("Failed to recompute outside-hours count:", e);
-            }
-
-            return { success: true };
-        });
-    } catch (error) {
-        console.error("Error updating food parcel schedule:", error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
-            errors: [
-                {
-                    field: "general",
-                    code: "INTERNAL_ERROR",
-                    message: error instanceof Error ? error.message : "Unknown error occurred",
-                },
-            ],
-        };
-    }
-}
+            return result;
+        } catch (error) {
+            console.error("Error updating food parcel schedule:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error occurred",
+                errors: [
+                    {
+                        field: "general",
+                        code: "INTERNAL_ERROR",
+                        message: error instanceof Error ? error.message : "Unknown error occurred",
+                    },
+                ],
+            };
+        }
+    },
+);
 
 /**
  * Validate parcel assignments for forms (without actually updating)

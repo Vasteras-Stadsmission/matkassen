@@ -113,7 +113,8 @@ export function ParcelManagementForm({
                     });
                 }
             }
-        } catch {
+        } catch (error) {
+            console.error("Unexpected error during parcel update:", error);
             setValidationError({
                 field: "general",
                 message: t("error.update"),

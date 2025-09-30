@@ -3,7 +3,7 @@
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconX } from "@tabler/icons-react";
 import { useRouter } from "@/app/i18n/navigation";
-import React, { useRef } from "react";
+import React, { useRef, useCallback } from "react";
 
 interface ActionResult {
     success: boolean;
@@ -19,9 +19,19 @@ interface NotificationOptions {
     errorColor?: string;
 }
 
+/**
+ * Custom hook for handling actions with automatic notifications and redirects.
+ *
+ * Features:
+ * - Automatic success/error notification display
+ * - URL-based state passing for post-redirect notifications
+ * - Duplicate notification prevention in React StrictMode
+ * - Automatic URL cleanup after showing notifications
+ */
 export function useActionWithNotification() {
     const router = useRouter();
-    const shownNotificationsRef = useRef<Set<string>>(new Set());
+    // Track the last shown notification to prevent duplicates in StrictMode
+    const lastShownNotificationRef = useRef<string | null>(null);
 
     /**
      * Handles an action with automatic notification and navigation:
@@ -68,9 +78,10 @@ export function useActionWithNotification() {
     };
 
     /**
-     * Shows a success notification from URL parameters (to be called on destination pages)
+     * Shows a success notification from URL parameters (to be called on destination pages).
+     * Uses a ref to prevent duplicate notifications in React StrictMode.
      */
-    const showSuccessFromParams = (searchParams: URLSearchParams): void => {
+    const showSuccessFromParams = useCallback((searchParams: URLSearchParams): void => {
         const success = searchParams.get("success");
         const message = searchParams.get("message");
         const title = searchParams.get("title");
@@ -79,17 +90,17 @@ export function useActionWithNotification() {
             // Create a unique key for this notification to prevent duplicates (React StrictMode)
             const notificationKey = `${success}-${message}-${title || ""}`;
 
-            // Check if we've already shown this notification
-            if (shownNotificationsRef.current.has(notificationKey)) {
+            // Check if we've already shown this exact notification
+            if (lastShownNotificationRef.current === notificationKey) {
                 return; // Skip duplicate
             }
 
             // Mark this notification as shown
-            shownNotificationsRef.current.add(notificationKey);
+            lastShownNotificationRef.current = notificationKey;
 
             notifications.show({
                 title: title || "Success",
-                message: decodeURIComponent(message),
+                message: message,
                 color: "green",
                 icon: React.createElement(IconCheck, { size: "1.1rem" }),
             });
@@ -105,7 +116,7 @@ export function useActionWithNotification() {
                 window.history.replaceState({}, "", newUrl.pathname + newUrl.search);
             }
         }
-    };
+    }, []);
 
     return {
         handleActionWithRedirect,

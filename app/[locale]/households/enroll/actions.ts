@@ -22,7 +22,7 @@ import {
     getDateParts,
     formatDateToISOString,
 } from "@/app/utils/date-utils";
-import { verifyServerActionAuth } from "@/app/utils/auth/server-action-auth";
+import { protectedAction } from "@/app/utils/auth/protected-action";
 
 import {
     HouseholdCreateData,
@@ -32,35 +32,14 @@ import {
     AdditionalNeedData,
 } from "./types";
 
-export async function enrollHousehold(data: HouseholdCreateData) {
-    "use server";
-
+export const enrollHousehold = protectedAction(async (session, data: HouseholdCreateData) => {
     try {
-        // Authorization: Verify user is authenticated and is an org member
-        const authResult = await verifyServerActionAuth();
-        if (!authResult.authorized) {
-            return {
-                success: false,
-                error: authResult.error?.message || "Unauthorized",
-                validationErrors: [
-                    {
-                        field: authResult.error?.field || "auth",
-                        code: authResult.error?.code || "UNAUTHORIZED",
-                        message:
-                            authResult.error?.message ||
-                            "You must be authenticated to perform this action",
-                    },
-                ],
-            };
-        }
-
-        // Log the action for audit trail
-        console.log(
-            `[AUDIT] User ${authResult.session?.user?.name} enrolling new household: ${data.headOfHousehold.firstName} ${data.headOfHousehold.lastName}`,
-        );
+        // Auth already verified by protectedAction wrapper
+        // Store locationId for recompute after transaction
+        const locationId = data.foodParcels?.pickupLocationId;
 
         // Use a transaction to ensure all operations succeed or fail together
-        return await db.transaction(async tx => {
+        const result = await db.transaction(async tx => {
             // 1. Create household
             const [household] = await tx
                 .insert(households)
@@ -241,12 +220,13 @@ export async function enrollHousehold(data: HouseholdCreateData) {
                 const validationResult = await validateParcelAssignments(parcelsToValidate);
 
                 if (!validationResult.success) {
-                    // Return structured validation errors
-                    return {
-                        success: false,
-                        error: "Parcel validation failed",
-                        validationErrors: validationResult.errors,
-                    };
+                    // Throw to trigger transaction rollback
+                    throw new Error(
+                        JSON.stringify({
+                            code: "VALIDATION_ERROR",
+                            validationErrors: validationResult.errors,
+                        }),
+                    );
                 }
 
                 // Check for existing parcels with same household, location, and dates to prevent duplicates
@@ -285,27 +265,47 @@ export async function enrollHousehold(data: HouseholdCreateData) {
                         is_picked_up: false,
                     })),
                 );
-
-                // Recompute outside-hours count for the location after creating parcels
-                try {
-                    const { recomputeOutsideHoursCount } = await import(
-                        "@/app/[locale]/schedule/actions"
-                    );
-                    await recomputeOutsideHoursCount(data.foodParcels.pickupLocationId);
-                } catch (e) {
-                    console.error("Failed to recompute outside-hours count after enrollment:", e);
-                }
             }
             return { success: true, householdId: household.id };
         });
+
+        // Recompute outside-hours count after transaction commits (with committed data)
+        if (result.success && locationId) {
+            try {
+                const { recomputeOutsideHoursCount } = await import(
+                    "@/app/[locale]/schedule/actions"
+                );
+                await recomputeOutsideHoursCount(locationId);
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count after enrollment:", e);
+            }
+        }
+
+        return result;
     } catch (error: unknown) {
+        // Check if this is a validation error from within the transaction
+        if (error instanceof Error && error.message.startsWith("{")) {
+            try {
+                const parsed = JSON.parse(error.message);
+                if (parsed.code === "VALIDATION_ERROR") {
+                    return {
+                        success: false,
+                        error: "Parcel validation failed",
+                        validationErrors: parsed.validationErrors,
+                    };
+                }
+            } catch {
+                // If parsing fails, fall through to generic error handling
+            }
+        }
+
         console.error("Error enrolling household:", error);
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error occurred",
         };
     }
-}
+});
 
 // Helper function to get all dietary restrictions
 export async function getDietaryRestrictions() {

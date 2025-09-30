@@ -18,6 +18,7 @@ import {
 import { asc, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
+import { protectedAction } from "@/app/utils/auth/protected-action";
 
 // Cache GitHub user data fetching
 export const fetchGithubUserData = cache(
@@ -324,29 +325,21 @@ export async function addHouseholdComment(
 }
 
 // Function to delete a comment
-export async function deleteHouseholdComment(commentId: string): Promise<boolean> {
-    try {
-        // Authorization: Verify user is authenticated and is an org member
-        const { verifyServerActionAuth } = await import("@/app/utils/auth/server-action-auth");
-        const authResult = await verifyServerActionAuth();
-        if (!authResult.authorized) {
-            console.error("Unauthorized delete comment attempt:", authResult.error);
+export const deleteHouseholdComment = protectedAction(
+    async (session, commentId: string): Promise<boolean> => {
+        try {
+            // Auth already verified by protectedAction wrapper
+            // Delete the comment with the given ID
+            const result = await db
+                .delete(householdComments)
+                .where(eq(householdComments.id, commentId))
+                .returning({ id: householdComments.id });
+
+            // Return true if a comment was deleted, false otherwise
+            return result.length > 0;
+        } catch (error) {
+            console.error("Error deleting household comment:", error);
             return false;
         }
-
-        // Log the action for audit trail
-        console.log(`[AUDIT] User ${authResult.session?.user?.name} deleting comment ${commentId}`);
-
-        // Delete the comment with the given ID
-        const result = await db
-            .delete(householdComments)
-            .where(eq(householdComments.id, commentId))
-            .returning({ id: householdComments.id });
-
-        // Return true if a comment was deleted, false otherwise
-        return result.length > 0;
-    } catch (error) {
-        console.error("Error deleting household comment:", error);
-        return false;
-    }
-}
+    },
+);

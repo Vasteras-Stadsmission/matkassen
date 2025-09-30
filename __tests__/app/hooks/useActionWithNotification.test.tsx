@@ -254,14 +254,14 @@ describe("useActionWithNotification", () => {
             expect(notifications.show).not.toHaveBeenCalled();
         });
 
-        it("should decode URL-encoded message", () => {
+        it("should handle messages with special characters like %", () => {
             const { result } = renderHook(() => useActionWithNotification());
 
             const mockSearchParams = {
                 get: vi
                     .fn()
                     .mockReturnValueOnce("true") // success
-                    .mockReturnValueOnce("Operation%20completed%20successfully") // message
+                    .mockReturnValueOnce("Bucket is 50% full") // message with % - already decoded by URLSearchParams
                     .mockReturnValueOnce("Success"), // title
             } as any;
 
@@ -271,7 +271,7 @@ describe("useActionWithNotification", () => {
 
             expect(notifications.show).toHaveBeenCalledWith({
                 title: "Success",
-                message: "Operation completed successfully",
+                message: "Bucket is 50% full",
                 color: "green",
                 icon: expect.anything(),
             });

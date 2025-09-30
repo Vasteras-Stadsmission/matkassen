@@ -1,7 +1,29 @@
+/**
+ * Parcel Assignment Validation Utilities
+ *
+ * This module provides comprehensive validation for parcel assignment and rescheduling operations.
+ * It ensures that parcels are assigned to valid time slots without exceeding capacity limits
+ * or creating conflicts.
+ *
+ * Key validations:
+ * - Location and parcel existence
+ * - Daily capacity limits (location-specific)
+ * - Time slot capacity limits (MAX_PARCELS_PER_SLOT concurrent parcels)
+ * - Double booking prevention (one parcel per household per day)
+ * - Operating hours validation
+ * - Past date prevention
+ *
+ * @module validation/parcel-assignment
+ */
+
 import { and, eq, sql, between, ne } from "drizzle-orm";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, pickupLocations } from "@/app/db/schema";
 import { Time } from "@/app/utils/time-provider";
+
+// Configuration constants
+/** Maximum number of parcels allowed in a single time slot */
+const MAX_PARCELS_PER_SLOT = 4;
 
 // Structured error types for validation
 export interface ValidationError {
@@ -62,7 +84,37 @@ interface ParcelAssignmentParams {
 }
 
 /**
- * Comprehensive validation for parcel assignment/rescheduling
+ * Comprehensive validation for parcel assignment/rescheduling.
+ *
+ * Validates that a parcel can be assigned to a specific location and time slot
+ * by checking multiple constraints:
+ * 1. Parcel and location existence
+ * 2. Time slot is not in the past
+ * 3. Daily capacity at the location
+ * 4. Time slot capacity (concurrent parcels)
+ * 5. Household double booking prevention
+ *
+ * @param params - Validation parameters
+ * @param params.parcelId - ID of the parcel to validate
+ * @param params.newLocationId - Target location ID
+ * @param params.newTimeslot - Target time slot
+ * @param params.newDate - Target date (ISO string)
+ * @param params.tx - Optional transaction context
+ * @returns Validation result with success flag and any errors
+ *
+ * @example
+ * ```typescript
+ * const result = await validateParcelAssignment({
+ *   parcelId: "parcel-123",
+ *   newLocationId: "loc-1",
+ *   newTimeslot: { startTime: new Date(), endTime: new Date() },
+ *   newDate: "2025-10-01"
+ * });
+ *
+ * if (!result.success) {
+ *   console.error("Validation failed:", result.errors);
+ * }
+ * ```
  */
 export async function validateParcelAssignment({
     parcelId,
@@ -222,17 +274,16 @@ export async function validateParcelAssignment({
             )
             .execute();
 
-        // Allow up to 4 parcels per time slot (configurable)
-        const maxParcelsPerSlot = 4;
-        if (slotCount >= maxParcelsPerSlot) {
+        // Allow up to MAX_PARCELS_PER_SLOT parcels per time slot
+        if (slotCount >= MAX_PARCELS_PER_SLOT) {
             const startTimeStr = Time.fromDate(newTimeslot.startTime).toTimeString();
             errors.push({
                 field: "timeSlot",
                 code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
-                message: `Maximum capacity (${maxParcelsPerSlot}) reached for this time slot`,
+                message: `Maximum capacity (${MAX_PARCELS_PER_SLOT}) reached for this time slot`,
                 details: {
                     current: slotCount,
-                    maximum: maxParcelsPerSlot,
+                    maximum: MAX_PARCELS_PER_SLOT,
                     date: newDate,
                     locationId: newLocationId,
                     timeSlot: startTimeStr,
@@ -257,7 +308,20 @@ export async function validateParcelAssignment({
 }
 
 /**
- * Helper function to create user-friendly error messages
+ * Helper function to create user-friendly error messages from validation errors.
+ *
+ * Converts structured validation errors into human-readable messages that can be
+ * displayed to end users.
+ *
+ * @param error - The validation error to format
+ * @param locationName - Optional location name for more specific messages
+ * @returns A user-friendly error message string
+ *
+ * @example
+ * ```typescript
+ * const message = formatValidationError(error, "Central Food Bank");
+ * // => "Central Food Bank has reached its maximum capacity of 50 parcels for 2025-10-01"
+ * ```
  */
 export function formatValidationError(error: ValidationError, locationName?: string): string {
     switch (error.code) {

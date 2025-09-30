@@ -5,7 +5,7 @@ import { foodParcels } from "@/app/db/schema";
 import { eq, gt, and } from "drizzle-orm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
 import { nanoid } from "@/app/db/schema";
-import { verifyServerActionAuth, verifyHouseholdAccess } from "@/app/utils/auth/server-action-auth";
+import { protectedHouseholdAction } from "@/app/utils/auth/protected-action";
 
 interface ParcelUpdateResult {
     success: boolean;
@@ -18,146 +18,142 @@ interface ParcelUpdateResult {
     }>;
 }
 
-export async function updateHouseholdParcels(
-    householdId: string,
-    parcelsData: FoodParcels,
-): Promise<ParcelUpdateResult> {
-    try {
-        // Authorization: Verify user is authenticated and is an org member
-        const authResult = await verifyServerActionAuth();
-        if (!authResult.authorized) {
-            return {
-                success: false,
-                error: authResult.error?.message || "Unauthorized",
-                validationErrors: [
-                    {
-                        field: authResult.error?.field || "auth",
-                        code: authResult.error?.code || "UNAUTHORIZED",
-                        message:
-                            authResult.error?.message ||
-                            "You must be authenticated to perform this action",
-                    },
-                ],
-            };
-        }
+export const updateHouseholdParcels = protectedHouseholdAction(
+    async (session, household, parcelsData: FoodParcels): Promise<ParcelUpdateResult> => {
+        try {
+            // Auth and household verification already done by protectedHouseholdAction
+            const locationId = parcelsData.pickupLocationId;
 
-        // Authorization: Verify household exists
-        const householdCheck = await verifyHouseholdAccess(householdId);
-        if (!householdCheck.exists) {
-            return {
-                success: false,
-                error: householdCheck.error?.message || "Household not found",
-                validationErrors: [
-                    {
-                        field: householdCheck.error?.field || "householdId",
-                        code: householdCheck.error?.code || "HOUSEHOLD_NOT_FOUND",
-                        message:
-                            householdCheck.error?.message ||
-                            "The specified household does not exist",
-                    },
-                ],
-            };
-        }
+            // Start transaction to ensure all related data is updated atomically
+            const result = await db.transaction(async tx => {
+                // Delete existing future food parcels for this household
+                const now = new Date();
+                await tx
+                    .delete(foodParcels)
+                    .where(
+                        and(
+                            eq(foodParcels.household_id, household.id),
+                            gt(foodParcels.pickup_date_time_latest, now),
+                        ),
+                    );
 
-        // Log the action for audit trail
-        console.log(
-            `[AUDIT] User ${authResult.session?.user?.name} updating parcels for household ${householdId} (${householdCheck.household?.first_name} ${householdCheck.household?.last_name})`,
-        );
+                // Create new food parcels based on the updated schedule
+                if (parcelsData.parcels && parcelsData.parcels.length > 0) {
+                    // Validate all parcel assignments before creating any
+                    const { validateParcelAssignments } = await import(
+                        "@/app/[locale]/schedule/actions"
+                    );
 
-        // Proceed with the update logic
-        // Start transaction to ensure all related data is updated atomically
-        return await db.transaction(async tx => {
-            // Delete existing future food parcels for this household
-            const now = new Date();
-            await tx
-                .delete(foodParcels)
-                .where(
-                    eq(foodParcels.household_id, householdId) &&
-                        gt(foodParcels.pickup_date_time_latest, now),
-                );
+                    const parcelsToValidate = parcelsData.parcels
+                        .filter(parcel => new Date(parcel.pickupDate) > now) // Only future parcels
+                        .map(parcel => ({
+                            householdId: household.id,
+                            locationId: parcelsData.pickupLocationId,
+                            pickupDate: new Date(parcel.pickupDate),
+                            pickupStartTime: parcel.pickupEarliestTime,
+                            pickupEndTime: parcel.pickupLatestTime,
+                        }));
 
-            // Create new food parcels based on the updated schedule
-            if (parcelsData.parcels && parcelsData.parcels.length > 0) {
-                // Validate all parcel assignments before creating any
-                const { validateParcelAssignments } = await import(
-                    "@/app/[locale]/schedule/actions"
-                );
+                    if (parcelsToValidate.length > 0) {
+                        const validationResult = await validateParcelAssignments(parcelsToValidate);
 
-                const parcelsToValidate = parcelsData.parcels
-                    .filter(parcel => new Date(parcel.pickupDate) > now) // Only future parcels
-                    .map(parcel => ({
-                        householdId: householdId,
-                        locationId: parcelsData.pickupLocationId,
-                        pickupDate: new Date(parcel.pickupDate),
-                        pickupStartTime: parcel.pickupEarliestTime,
-                        pickupEndTime: parcel.pickupLatestTime,
-                    }));
-
-                if (parcelsToValidate.length > 0) {
-                    const validationResult = await validateParcelAssignments(parcelsToValidate);
-
-                    if (!validationResult.success) {
-                        // Return structured validation errors
-                        return {
-                            success: false,
-                            error: "Parcel validation failed",
-                            validationErrors: validationResult.errors,
-                        };
+                        if (!validationResult.success) {
+                            // Throw to trigger transaction rollback
+                            throw new Error(
+                                JSON.stringify({
+                                    code: "VALIDATION_ERROR",
+                                    validationErrors: validationResult.errors,
+                                }),
+                            );
+                        }
                     }
-                }
 
-                // Filter to only future parcels (safety check)
-                const futureParcels = parcelsData.parcels
-                    .filter(parcel => new Date(parcel.pickupDate) > now)
-                    .map(parcel => ({
-                        id: nanoid(),
-                        household_id: householdId,
-                        pickup_location_id: parcelsData.pickupLocationId,
-                        pickup_date_time_earliest: parcel.pickupEarliestTime,
-                        pickup_date_time_latest: parcel.pickupLatestTime,
-                        is_picked_up: false,
-                    }));
+                    // Filter to only future parcels (safety check)
+                    const futureParcels = parcelsData.parcels
+                        .filter(parcel => new Date(parcel.pickupDate) > now)
+                        .map(parcel => ({
+                            id: nanoid(),
+                            household_id: household.id,
+                            pickup_location_id: parcelsData.pickupLocationId,
+                            pickup_date_time_earliest: parcel.pickupEarliestTime,
+                            pickup_date_time_latest: parcel.pickupLatestTime,
+                            is_picked_up: false,
+                        }));
 
-                // Only insert if there are future parcels and check for duplicates (idempotency)
-                if (futureParcels.length > 0) {
-                    for (const parcel of futureParcels) {
-                        const existingParcel = await tx
-                            .select({ id: foodParcels.id })
-                            .from(foodParcels)
-                            .where(
-                                and(
-                                    eq(foodParcels.household_id, householdId),
-                                    eq(
-                                        foodParcels.pickup_location_id,
-                                        parcelsData.pickupLocationId,
+                    // Only insert if there are future parcels and check for duplicates (idempotency)
+                    if (futureParcels.length > 0) {
+                        for (const parcel of futureParcels) {
+                            const existingParcel = await tx
+                                .select({ id: foodParcels.id })
+                                .from(foodParcels)
+                                .where(
+                                    and(
+                                        eq(foodParcels.household_id, household.id),
+                                        eq(
+                                            foodParcels.pickup_location_id,
+                                            parcelsData.pickupLocationId,
+                                        ),
+                                        eq(
+                                            foodParcels.pickup_date_time_earliest,
+                                            parcel.pickup_date_time_earliest,
+                                        ),
+                                        eq(
+                                            foodParcels.pickup_date_time_latest,
+                                            parcel.pickup_date_time_latest,
+                                        ),
                                     ),
-                                    eq(
-                                        foodParcels.pickup_date_time_earliest,
-                                        parcel.pickup_date_time_earliest,
-                                    ),
-                                    eq(
-                                        foodParcels.pickup_date_time_latest,
-                                        parcel.pickup_date_time_latest,
-                                    ),
-                                ),
-                            )
-                            .limit(1);
+                                )
+                                .limit(1);
 
-                        // Only insert if this exact parcel doesn't already exist
-                        if (existingParcel.length === 0) {
-                            await tx.insert(foodParcels).values([parcel]);
+                            // Only insert if this exact parcel doesn't already exist
+                            if (existingParcel.length === 0) {
+                                await tx.insert(foodParcels).values([parcel]);
+                            }
                         }
                     }
                 }
+
+                return { success: true };
+            });
+
+            // Recompute outside-hours count after transaction commits (with committed data)
+            if (result.success) {
+                try {
+                    const { recomputeOutsideHoursCount } = await import(
+                        "@/app/[locale]/schedule/actions"
+                    );
+                    await recomputeOutsideHoursCount(locationId);
+                } catch (e) {
+                    console.error(
+                        "Failed to recompute outside-hours count after parcel update:",
+                        e,
+                    );
+                }
             }
 
-            return { success: true };
-        });
-    } catch (error: unknown) {
-        console.error("Error updating household parcels:", error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
-        };
-    }
-}
+            return result;
+        } catch (error: unknown) {
+            // Check if this is a validation error from within the transaction
+            if (error instanceof Error && error.message.startsWith("{")) {
+                try {
+                    const parsed = JSON.parse(error.message);
+                    if (parsed.code === "VALIDATION_ERROR") {
+                        return {
+                            success: false,
+                            error: "Parcel validation failed",
+                            validationErrors: parsed.validationErrors,
+                        };
+                    }
+                } catch {
+                    // If parsing fails, fall through to generic error handling
+                }
+            }
+
+            console.error("Error updating household parcels:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error occurred",
+            };
+        }
+    },
+);
