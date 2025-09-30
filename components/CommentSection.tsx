@@ -60,9 +60,7 @@ export default function CommentSection({
 
                 if (success) {
                     // If no callback is provided, fall back to page reload
-                    if (typeof window !== "undefined") {
-                        window.location.reload();
-                    }
+                    window.location.reload();
                 } else {
                     console.error(t("errors.deleteFailed"));
                 }
