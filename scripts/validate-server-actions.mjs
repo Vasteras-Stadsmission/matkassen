@@ -4,15 +4,14 @@
  * Validation script to ensure all server actions use protectedAction wrapper
  * This runs in CI/CD to enforce security at build time
  *
- * NOTE: This script focuses on NEW code in the current branch.
- * For legacy code violations, create separate cleanup issues.
+ * EXCEPTION: app/db/actions.ts contains storeCspViolationAction which is intentionally
+ * public because CSP reports are sent automatically by browsers without authentication.
  */
 
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { execSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,15 +26,6 @@ const colors = {
     blue: "\x1b[34m",
     dim: "\x1b[2m",
 };
-
-// Files known to have legacy violations (before this security framework was introduced)
-// TODO: Create issues to refactor these files
-const LEGACY_VIOLATIONS = [
-    "app/[locale]/handout-locations/actions.ts",
-    "app/[locale]/households/[id]/edit/actions.ts",
-    "app/[locale]/schedule/utils/user-preferences.ts",
-    "app/db/actions.ts",
-];
 
 let hasErrors = false;
 const violations = [];
@@ -69,9 +59,24 @@ function checkFile(filePath) {
     const content = readFileSync(filePath, "utf-8");
     const relativePath = relative(rootDir, filePath);
 
-    // Skip legacy violation files
-    if (LEGACY_VIOLATIONS.includes(relativePath)) {
-        console.log(`${colors.dim}Skipping (legacy):${colors.reset} ${relativePath}`);
+    // Special case: app/db/actions.ts contains intentionally public CSP violation handler
+    if (relativePath === "app/db/actions.ts") {
+        // Verify it only contains storeCspViolationAction (no other unprotected actions)
+        const hasOtherActions =
+            content.includes("export async function") &&
+            !content.match(/export async function storeCspViolationAction/);
+
+        if (hasOtherActions) {
+            violations.push({
+                file: relativePath,
+                type: "UNEXPECTED_PUBLIC_ACTION",
+                message: `File contains public server actions other than storeCspViolationAction. Only CSP handler should be public.`,
+            });
+            hasErrors = true;
+        }
+        console.log(
+            `${colors.dim}Skipping (CSP handler):${colors.reset} ${relativePath} - storeCspViolationAction is intentionally public`,
+        );
         return;
     }
 
@@ -153,9 +158,6 @@ console.log(`\n${colors.blue}═════════════════
 
 if (violations.length === 0) {
     console.log(`${colors.green}✅ All server actions are properly protected!${colors.reset}\n`);
-    console.log(
-        `${colors.dim}Note: ${LEGACY_VIOLATIONS.length} legacy files skipped. See file header for details.${colors.reset}\n`,
-    );
     process.exit(0);
 } else {
     console.log(
@@ -178,8 +180,5 @@ if (violations.length === 0) {
     });
 
     console.log(`${colors.red}Fix these issues before deploying.${colors.reset}\n`);
-    console.log(
-        `${colors.dim}Note: ${LEGACY_VIOLATIONS.length} legacy files skipped.${colors.reset}\n`,
-    );
     process.exit(1);
 }

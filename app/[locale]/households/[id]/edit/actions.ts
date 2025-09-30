@@ -16,7 +16,7 @@ import {
 import { eq, and, gt } from "drizzle-orm";
 import { FormData } from "../../enroll/types";
 import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
-import { verifyServerActionAuth, verifyHouseholdAccess } from "@/app/utils/auth/server-action-auth";
+import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -25,37 +25,40 @@ export interface HouseholdUpdateResult {
 }
 
 // Function to format household details from DB format to form format for editing
-export async function getHouseholdFormData(householdId: string): Promise<FormData | null> {
-    try {
-        // Get the household details using the existing function
-        const details = await getHouseholdEditData(householdId);
+export const getHouseholdFormData = protectedAction(
+    async (_: unknown, householdId: string): Promise<FormData | null> => {
+        try {
+            // Auth already verified by protectedAction wrapper
+            // Get the household details using the existing function
+            const details = await getHouseholdEditData(householdId);
 
-        if (!details) {
+            if (!details) {
+                return null;
+            }
+
+            // Format the data for the enrollment wizard
+            return {
+                household: details.household,
+                members: details.members.map(member => ({
+                    id: member.id,
+                    age: member.age,
+                    sex: member.sex,
+                })),
+                dietaryRestrictions: details.dietaryRestrictions,
+                additionalNeeds: details.additionalNeeds,
+                pets: details.pets,
+                foodParcels: {
+                    pickupLocationId: details.foodParcels.pickupLocationId,
+                    parcels: details.foodParcels.parcels,
+                },
+                comments: details.comments,
+            };
+        } catch (error) {
+            console.error("Error getting household form data:", error);
             return null;
         }
-
-        // Format the data for the enrollment wizard
-        return {
-            household: details.household,
-            members: details.members.map(member => ({
-                id: member.id,
-                age: member.age,
-                sex: member.sex,
-            })),
-            dietaryRestrictions: details.dietaryRestrictions,
-            additionalNeeds: details.additionalNeeds,
-            pets: details.pets,
-            foodParcels: {
-                pickupLocationId: details.foodParcels.pickupLocationId,
-                parcels: details.foodParcels.parcels,
-            },
-            comments: details.comments,
-        };
-    } catch (error) {
-        console.error("Error getting household form data:", error);
-        return null;
-    }
-}
+    },
+);
 
 // Function to get household data for editing
 async function getHouseholdEditData(householdId: string) {
@@ -220,254 +223,234 @@ async function getHouseholdEditData(householdId: string) {
 }
 
 // Function to update an existing household
-export async function updateHousehold(
-    householdId: string,
-    data: FormData,
-): Promise<HouseholdUpdateResult> {
-    try {
-        // Authorization: Verify user is authenticated and is an org member
-        const authResult = await verifyServerActionAuth();
-        if (!authResult.authorized) {
-            return {
-                success: false,
-                error: authResult.error?.message || "Unauthorized",
-            };
-        }
+export const updateHousehold = protectedHouseholdAction(
+    async (session, household, data: FormData): Promise<HouseholdUpdateResult> => {
+        try {
+            // Auth and household access already verified by protectedHouseholdAction wrapper
 
-        // Authorization: Verify household exists
-        const householdCheck = await verifyHouseholdAccess(householdId);
-        if (!householdCheck.exists) {
-            return {
-                success: false,
-                error: householdCheck.error?.message || "Household not found",
-            };
-        }
+            // Start transaction to ensure all related data is updated atomically
+            return await db.transaction(async tx => {
+                // 1. Update the household basic information
+                await tx
+                    .update(households)
+                    .set({
+                        first_name: data.household.first_name,
+                        last_name: data.household.last_name,
+                        phone_number: data.household.phone_number,
+                        locale: data.household.locale,
+                        postal_code: data.household.postal_code,
+                    })
+                    .where(eq(households.id, household.id));
 
-        // Log the action for audit trail
-        console.log(
-            `[AUDIT] User ${authResult.session?.user?.name} updating household ${householdId} (${householdCheck.household?.first_name} ${householdCheck.household?.last_name})`,
-        );
+                // 2. Handle household members - first delete existing members
+                await tx
+                    .delete(householdMembers)
+                    .where(eq(householdMembers.household_id, household.id));
 
-        // Start transaction to ensure all related data is updated atomically
-        return await db.transaction(async tx => {
-            // 1. Update the household basic information
-            await tx
-                .update(households)
-                .set({
-                    first_name: data.household.first_name,
-                    last_name: data.household.last_name,
-                    phone_number: data.household.phone_number,
-                    locale: data.household.locale,
-                    postal_code: data.household.postal_code,
-                })
-                .where(eq(households.id, householdId));
-
-            // 2. Handle household members - first delete existing members
-            await tx.delete(householdMembers).where(eq(householdMembers.household_id, householdId));
-
-            // Then add updated members
-            if (data.members && data.members.length > 0) {
-                await tx.insert(householdMembers).values(
-                    data.members.map(member => ({
-                        household_id: householdId,
-                        age: member.age,
-                        sex: member.sex as "male" | "female" | "other",
-                    })),
-                );
-            }
-
-            // 3. Handle dietary restrictions - first delete existing restrictions
-            await tx
-                .delete(householdDietaryRestrictions)
-                .where(eq(householdDietaryRestrictions.household_id, householdId));
-
-            // Then add updated restrictions
-            if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
-                // First, ensure all dietary restrictions exist in the database
-                for (const restriction of data.dietaryRestrictions) {
-                    // Check if the restriction exists
-                    const [existingRestriction] = await tx
-                        .select()
-                        .from(dietaryRestrictions)
-                        .where(eq(dietaryRestrictions.id, restriction.id))
-                        .limit(1);
-
-                    // If not found, create it
-                    if (!existingRestriction) {
-                        const [newRestriction] = await tx
-                            .insert(dietaryRestrictions)
-                            .values({
-                                name: restriction.name,
-                            })
-                            .returning();
-                        restriction.id = newRestriction.id;
-                    }
+                // Then add updated members
+                if (data.members && data.members.length > 0) {
+                    await tx.insert(householdMembers).values(
+                        data.members.map(member => ({
+                            household_id: household.id,
+                            age: member.age,
+                            sex: member.sex as "male" | "female" | "other",
+                        })),
+                    );
                 }
 
-                // Then link restrictions to the household
-                await tx.insert(householdDietaryRestrictions).values(
-                    data.dietaryRestrictions.map(restriction => ({
-                        household_id: householdId,
-                        dietary_restriction_id: restriction.id,
-                    })),
-                );
-            }
+                // 3. Handle dietary restrictions - first delete existing restrictions
+                await tx
+                    .delete(householdDietaryRestrictions)
+                    .where(eq(householdDietaryRestrictions.household_id, household.id));
 
-            // 4. Handle pets - first delete existing pets
-            await tx.delete(pets).where(eq(pets.household_id, householdId));
-
-            // Then add updated pets
-            if (data.pets && data.pets.length > 0) {
-                // First, ensure all pet species exist in the database
-                for (const pet of data.pets) {
-                    // Check if the species exists
-                    let existingPetSpecies: { id: string; name: string } | undefined;
-
-                    if (pet.species) {
-                        [existingPetSpecies] = await tx
+                // Then add updated restrictions
+                if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
+                    // First, ensure all dietary restrictions exist in the database
+                    for (const restriction of data.dietaryRestrictions) {
+                        // Check if the restriction exists
+                        const [existingRestriction] = await tx
                             .select()
-                            .from(petSpecies)
-                            .where(eq(petSpecies.id, pet.species))
+                            .from(dietaryRestrictions)
+                            .where(eq(dietaryRestrictions.id, restriction.id))
                             .limit(1);
+
+                        // If not found, create it
+                        if (!existingRestriction) {
+                            const [newRestriction] = await tx
+                                .insert(dietaryRestrictions)
+                                .values({
+                                    name: restriction.name,
+                                })
+                                .returning();
+                            restriction.id = newRestriction.id;
+                        }
                     }
 
-                    // If not found and we have a species name, create it
-                    if (!existingPetSpecies && pet.speciesName) {
-                        const [existingByName] = await tx
+                    // Then link restrictions to the household
+                    await tx.insert(householdDietaryRestrictions).values(
+                        data.dietaryRestrictions.map(restriction => ({
+                            household_id: household.id,
+                            dietary_restriction_id: restriction.id,
+                        })),
+                    );
+                }
+
+                // 4. Handle pets - first delete existing pets
+                await tx.delete(pets).where(eq(pets.household_id, household.id));
+
+                // Then add updated pets
+                if (data.pets && data.pets.length > 0) {
+                    // First, ensure all pet species exist in the database
+                    for (const pet of data.pets) {
+                        // Check if the species exists
+                        let existingPetSpecies: { id: string; name: string } | undefined;
+
+                        if (pet.species) {
+                            [existingPetSpecies] = await tx
+                                .select()
+                                .from(petSpecies)
+                                .where(eq(petSpecies.id, pet.species))
+                                .limit(1);
+                        }
+
+                        // If not found and we have a species name, create it
+                        if (!existingPetSpecies && pet.speciesName) {
+                            const [existingByName] = await tx
+                                .select()
+                                .from(petSpecies)
+                                .where(eq(petSpecies.name, pet.speciesName))
+                                .limit(1);
+
+                            if (existingByName) {
+                                pet.species = existingByName.id;
+                            } else {
+                                // Create the pet species without specifying id (let DB generate it)
+                                const [newSpecies] = await tx
+                                    .insert(petSpecies)
+                                    .values({
+                                        name: pet.speciesName,
+                                    })
+                                    .returning();
+
+                                // Assign the generated id to pet.species
+                                pet.species = newSpecies.id;
+                            }
+                        }
+                    }
+
+                    // Then add pets to the database
+                    await tx.insert(pets).values(
+                        data.pets.map(pet => ({
+                            household_id: household.id,
+                            pet_species_id: pet.species,
+                        })),
+                    );
+                }
+
+                // 5. Handle additional needs - first delete existing needs
+                await tx
+                    .delete(householdAdditionalNeeds)
+                    .where(eq(householdAdditionalNeeds.household_id, household.id));
+
+                // Then add updated needs
+                if (data.additionalNeeds && data.additionalNeeds.length > 0) {
+                    // First, ensure all additional needs exist in the database
+                    const customNeeds = data.additionalNeeds.filter(n => n.isCustom);
+
+                    for (const need of customNeeds) {
+                        const [existingNeed] = await tx
                             .select()
-                            .from(petSpecies)
-                            .where(eq(petSpecies.name, pet.speciesName))
+                            .from(additionalNeeds)
+                            .where(eq(additionalNeeds.need, need.need))
                             .limit(1);
 
-                        if (existingByName) {
-                            pet.species = existingByName.id;
-                        } else {
-                            // Create the pet species without specifying id (let DB generate it)
-                            const [newSpecies] = await tx
-                                .insert(petSpecies)
+                        // If not found, create it
+                        if (!existingNeed) {
+                            // Create without specifying id
+                            const [newNeed] = await tx
+                                .insert(additionalNeeds)
                                 .values({
-                                    name: pet.speciesName,
+                                    need: need.need,
                                 })
                                 .returning();
 
-                            // Assign the generated id to pet.species
-                            pet.species = newSpecies.id;
+                            // Use the generated id
+                            need.id = newNeed.id;
                         }
                     }
+
+                    // Then link needs to the household
+                    await tx.insert(householdAdditionalNeeds).values(
+                        data.additionalNeeds.map(need => ({
+                            household_id: household.id,
+                            additional_need_id: need.id,
+                        })),
+                    );
                 }
 
-                // Then add pets to the database
-                await tx.insert(pets).values(
-                    data.pets.map(pet => ({
-                        household_id: householdId,
-                        pet_species_id: pet.species,
-                    })),
-                );
-            }
+                // 6. Handle food parcels - first delete future food parcels
+                // Keep past parcels (that have been picked up) to maintain history
+                const now = new Date();
+                await tx
+                    .delete(foodParcels)
+                    .where(
+                        and(
+                            eq(foodParcels.household_id, household.id),
+                            eq(foodParcels.is_picked_up, false),
+                            gt(foodParcels.pickup_date_time_earliest, now),
+                        ),
+                    );
 
-            // 5. Handle additional needs - first delete existing needs
-            await tx
-                .delete(householdAdditionalNeeds)
-                .where(eq(householdAdditionalNeeds.household_id, householdId));
+                // Then add new food parcels
+                if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
+                    // Filter parcels to only include future ones
+                    const futureParcels = data.foodParcels.parcels
+                        .filter(parcel => new Date(parcel.pickupEarliestTime) > now)
+                        .map(parcel => ({
+                            household_id: household.id,
+                            pickup_location_id: data.foodParcels.pickupLocationId,
+                            pickup_date_time_earliest: parcel.pickupEarliestTime,
+                            pickup_date_time_latest: parcel.pickupLatestTime,
+                            is_picked_up: false,
+                        }));
 
-            // Then add updated needs
-            if (data.additionalNeeds && data.additionalNeeds.length > 0) {
-                // First, ensure all additional needs exist in the database
-                const customNeeds = data.additionalNeeds.filter(n => n.isCustom);
-
-                for (const need of customNeeds) {
-                    const [existingNeed] = await tx
-                        .select()
-                        .from(additionalNeeds)
-                        .where(eq(additionalNeeds.need, need.need))
-                        .limit(1);
-
-                    // If not found, create it
-                    if (!existingNeed) {
-                        // Create without specifying id
-                        const [newNeed] = await tx
-                            .insert(additionalNeeds)
-                            .values({
-                                need: need.need,
-                            })
-                            .returning();
-
-                        // Use the generated id
-                        need.id = newNeed.id;
+                    // Only insert if there are future parcels
+                    if (futureParcels.length > 0) {
+                        await tx.insert(foodParcels).values(futureParcels);
                     }
                 }
 
-                // Then link needs to the household
-                await tx.insert(householdAdditionalNeeds).values(
-                    data.additionalNeeds.map(need => ({
-                        household_id: householdId,
-                        additional_need_id: need.id,
-                    })),
-                );
-            }
+                // 7. Handle comments - add new comments if any were added during editing
+                if (data.comments && data.comments.length > 0) {
+                    // Filter out any comments that already have an ID (meaning they already exist in the DB)
+                    // and only add the ones that don't have an ID (new comments added during editing)
+                    const newComments = data.comments.filter(c => !c.id && c.comment.trim() !== "");
 
-            // 6. Handle food parcels - first delete future food parcels
-            // Keep past parcels (that have been picked up) to maintain history
-            const now = new Date();
-            await tx
-                .delete(foodParcels)
-                .where(
-                    and(
-                        eq(foodParcels.household_id, householdId),
-                        eq(foodParcels.is_picked_up, false),
-                        gt(foodParcels.pickup_date_time_earliest, now),
-                    ),
-                );
-
-            // Then add new food parcels
-            if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
-                // Filter parcels to only include future ones
-                const futureParcels = data.foodParcels.parcels
-                    .filter(parcel => new Date(parcel.pickupEarliestTime) > now)
-                    .map(parcel => ({
-                        household_id: householdId,
-                        pickup_location_id: data.foodParcels.pickupLocationId,
-                        pickup_date_time_earliest: parcel.pickupEarliestTime,
-                        pickup_date_time_latest: parcel.pickupLatestTime,
-                        is_picked_up: false,
-                    }));
-
-                // Only insert if there are future parcels
-                if (futureParcels.length > 0) {
-                    await tx.insert(foodParcels).values(futureParcels);
+                    if (newComments.length > 0) {
+                        await Promise.all(
+                            newComments.map(comment =>
+                                tx.insert(householdComments).values({
+                                    household_id: household.id,
+                                    comment: comment.comment.trim(),
+                                    author_github_username:
+                                        comment.author_github_username || "anonymous",
+                                }),
+                            ),
+                        );
+                    }
                 }
-            }
 
-            // 7. Handle comments - add new comments if any were added during editing
-            if (data.comments && data.comments.length > 0) {
-                // Filter out any comments that already have an ID (meaning they already exist in the DB)
-                // and only add the ones that don't have an ID (new comments added during editing)
-                const newComments = data.comments.filter(c => !c.id && c.comment.trim() !== "");
-
-                if (newComments.length > 0) {
-                    await Promise.all(
-                        newComments.map(comment =>
-                            tx.insert(householdComments).values({
-                                household_id: householdId,
-                                comment: comment.comment.trim(),
-                                author_github_username:
-                                    comment.author_github_username || "anonymous",
-                            }),
-                        ),
-                    );
-                }
-            }
-
-            return { success: true, householdId };
-        });
-    } catch (error: unknown) {
-        console.error("Error updating household:", error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
-        };
-    }
-}
+                return { success: true, householdId: household.id };
+            });
+        } catch (error: unknown) {
+            console.error("Error updating household:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error occurred",
+            };
+        }
+    },
+);
 
 // After successful update, recompute outside-hours count for the affected location.
 // Note: This is defined outside the transaction above to avoid circular imports during tx.
@@ -481,55 +464,40 @@ export async function recomputeOutsideHoursForLocation(locationId: string) {
 }
 
 // Add comment to a household (for edit page)
-export async function addComment(householdId: string, commentText: string) {
-    if (!commentText.trim()) return null;
+export const addComment = protectedHouseholdAction(
+    async (session, household, commentText: string) => {
+        if (!commentText.trim()) return null;
 
-    try {
-        // Authorization: Verify user is authenticated and is an org member
-        const authResult = await verifyServerActionAuth();
-        if (!authResult.authorized) {
-            console.error("Unauthorized attempt to add comment:", authResult.error);
+        try {
+            // Auth and household access already verified by protectedHouseholdAction wrapper
+
+            // Get the current user from the session
+            const username = session.user?.name || "anonymous";
+
+            // Insert the comment
+            const [comment] = await db
+                .insert(householdComments)
+                .values({
+                    household_id: household.id,
+                    comment: commentText.trim(),
+                    author_github_username: username,
+                })
+                .returning();
+
+            // Fetch GitHub user data for the comment author
+            let githubUserData = null;
+            if (username && username !== "anonymous") {
+                githubUserData = await fetchGithubUserData(username);
+            }
+
+            // Return the comment with GitHub user data
+            return {
+                ...comment,
+                githubUserData,
+            };
+        } catch (error) {
+            console.error("Error adding comment:", error);
             return null;
         }
-
-        // Authorization: Verify household exists
-        const householdCheck = await verifyHouseholdAccess(householdId);
-        if (!householdCheck.exists) {
-            console.error("Attempt to add comment to non-existent household:", householdId);
-            return null;
-        }
-
-        // Get the current user from the session
-        const username = authResult.session?.user?.name || "anonymous";
-
-        // Log the action for audit trail
-        console.log(
-            `[AUDIT] User ${username} adding comment to household ${householdId} (${householdCheck.household?.first_name} ${householdCheck.household?.last_name})`,
-        );
-
-        // Insert the comment
-        const [comment] = await db
-            .insert(householdComments)
-            .values({
-                household_id: householdId,
-                comment: commentText.trim(),
-                author_github_username: username,
-            })
-            .returning();
-
-        // Fetch GitHub user data for the comment author
-        let githubUserData = null;
-        if (username && username !== "anonymous") {
-            githubUserData = await fetchGithubUserData(username);
-        }
-
-        // Return the comment with GitHub user data
-        return {
-            ...comment,
-            githubUserData,
-        };
-    } catch (error) {
-        console.error("Error adding comment:", error);
-        return null;
-    }
-}
+    },
+);

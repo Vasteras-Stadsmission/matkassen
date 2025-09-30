@@ -9,7 +9,7 @@ import {
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { verifyServerActionAuth } from "@/app/utils/auth/server-action-auth";
+import { protectedAction } from "@/app/utils/auth/protected-action";
 import {
     LocationFormInput,
     PickupLocationWithAllData,
@@ -18,8 +18,9 @@ import {
 } from "./types";
 
 // Get all locations with their schedules
-export async function getLocations(): Promise<PickupLocationWithAllData[]> {
+export const getLocations = protectedAction(async (): Promise<PickupLocationWithAllData[]> => {
     try {
+        // Auth already verified by protectedAction wrapper
         // Fetch all locations
         const locations = await db.select().from(pickupLocations);
 
@@ -63,156 +64,138 @@ export async function getLocations(): Promise<PickupLocationWithAllData[]> {
             `Failed to fetch locations: ${error instanceof Error ? error.message : String(error)}`,
         );
     }
-}
+});
 
 // Get a single location with schedules by ID
-export async function getLocation(id: string): Promise<PickupLocationWithAllData | null> {
-    try {
-        // Fetch the location
-        const location = await db
-            .select()
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, id))
-            .then(res => res[0] || null);
+export const getLocation = protectedAction(
+    async (_: unknown, id: string): Promise<PickupLocationWithAllData | null> => {
+        try {
+            // Auth already verified by protectedAction wrapper
+            // Fetch the location
+            const location = await db
+                .select()
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, id))
+                .then(res => res[0] || null);
 
-        if (!location) {
-            return null;
+            if (!location) {
+                return null;
+            }
+
+            // Fetch schedules
+            const schedules = await db
+                .select()
+                .from(pickupLocationSchedules)
+                .where(eq(pickupLocationSchedules.pickup_location_id, id));
+
+            // For each schedule, fetch the related days
+            const schedulesWithDays = await Promise.all(
+                schedules.map(async schedule => {
+                    const days = await db
+                        .select()
+                        .from(pickupLocationScheduleDays)
+                        .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+
+                    return {
+                        ...schedule,
+                        days,
+                    };
+                }),
+            );
+
+            // Return location with related data
+            return {
+                ...location,
+                schedules: schedulesWithDays,
+            };
+        } catch (error) {
+            console.error(`Error fetching location with ID ${id}:`, error);
+            throw new Error(
+                `Failed to fetch location: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
-
-        // Fetch schedules
-        const schedules = await db
-            .select()
-            .from(pickupLocationSchedules)
-            .where(eq(pickupLocationSchedules.pickup_location_id, id));
-
-        // For each schedule, fetch the related days
-        const schedulesWithDays = await Promise.all(
-            schedules.map(async schedule => {
-                const days = await db
-                    .select()
-                    .from(pickupLocationScheduleDays)
-                    .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
-
-                return {
-                    ...schedule,
-                    days,
-                };
-            }),
-        );
-
-        // Return location with related data
-        return {
-            ...location,
-            schedules: schedulesWithDays,
-        };
-    } catch (error) {
-        console.error(`Error fetching location with ID ${id}:`, error);
-        throw new Error(
-            `Failed to fetch location: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-}
+    },
+);
 
 // Create a new location
-export async function createLocation(locationData: LocationFormInput): Promise<void> {
-    // Authorization: Verify user is authenticated and is an org member
-    const authResult = await verifyServerActionAuth();
-    if (!authResult.authorized) {
-        throw new Error(authResult.error?.message || "Unauthorized");
-    }
+export const createLocation = protectedAction(
+    async (_: unknown, locationData: LocationFormInput): Promise<void> => {
+        // Auth already verified by protectedAction wrapper
 
-    // Log the action for audit trail
-    console.log(
-        `[AUDIT] User ${authResult.session?.user?.name} creating location: ${locationData.name}`,
-    );
+        try {
+            // Process email to ensure it's either null or a valid format
+            const contact_email = locationData.contact_email?.trim()
+                ? locationData.contact_email.trim()
+                : null;
 
-    try {
-        // Process email to ensure it's either null or a valid format
-        const contact_email = locationData.contact_email?.trim()
-            ? locationData.contact_email.trim()
-            : null;
+            // Insert the location
+            const locationValues = {
+                name: locationData.name,
+                street_address: locationData.street_address,
+                postal_code: locationData.postal_code,
+                parcels_max_per_day: locationData.parcels_max_per_day,
+                contact_name: locationData.contact_name,
+                contact_email: contact_email, // Use processed email value
+                contact_phone_number: locationData.contact_phone_number,
+                default_slot_duration_minutes: locationData.default_slot_duration_minutes,
+            };
+            await db.insert(pickupLocations).values(locationValues);
 
-        // Insert the location
-        const locationValues = {
-            name: locationData.name,
-            street_address: locationData.street_address,
-            postal_code: locationData.postal_code,
-            parcels_max_per_day: locationData.parcels_max_per_day,
-            contact_name: locationData.contact_name,
-            contact_email: contact_email, // Use processed email value
-            contact_phone_number: locationData.contact_phone_number,
-            default_slot_duration_minutes: locationData.default_slot_duration_minutes,
-        };
-        await db.insert(pickupLocations).values(locationValues);
+            // Get the current locale from headers
+            const locale = (await headers()).get("x-locale") || "en";
 
-        // Get the current locale from headers
-        const locale = (await headers()).get("x-locale") || "en";
-
-        // Revalidate the path to update the UI
-        revalidatePath(`/${locale}/handout-locations`, "page");
-    } catch (error) {
-        console.error("Error creating location:", error);
-        throw new Error(
-            `Failed to create location: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-}
+            // Revalidate the path to update the UI
+            revalidatePath(`/${locale}/handout-locations`, "page");
+        } catch (error) {
+            console.error("Error creating location:", error);
+            throw new Error(
+                `Failed to create location: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    },
+);
 
 // Update an existing location
-export async function updateLocation(id: string, locationData: LocationFormInput): Promise<void> {
-    // Authorization: Verify user is authenticated and is an org member
-    const authResult = await verifyServerActionAuth();
-    if (!authResult.authorized) {
-        throw new Error(authResult.error?.message || "Unauthorized");
-    }
+export const updateLocation = protectedAction(
+    async (_: unknown, id: string, locationData: LocationFormInput): Promise<void> => {
+        // Auth already verified by protectedAction wrapper
 
-    // Log the action for audit trail
-    console.log(
-        `[AUDIT] User ${authResult.session?.user?.name} updating location ${id}: ${locationData.name}`,
-    );
+        try {
+            // Process email to ensure it's either null or a valid format
+            const contact_email = locationData.contact_email?.trim()
+                ? locationData.contact_email.trim()
+                : null;
 
-    try {
-        // Process email to ensure it's either null or a valid format
-        const contact_email = locationData.contact_email?.trim()
-            ? locationData.contact_email.trim()
-            : null;
+            // Update the location
+            const locationValues = {
+                name: locationData.name,
+                street_address: locationData.street_address,
+                postal_code: locationData.postal_code,
+                parcels_max_per_day: locationData.parcels_max_per_day,
+                contact_name: locationData.contact_name,
+                contact_email: contact_email, // Use processed email value
+                contact_phone_number: locationData.contact_phone_number,
+                default_slot_duration_minutes: locationData.default_slot_duration_minutes,
+            };
+            await db.update(pickupLocations).set(locationValues).where(eq(pickupLocations.id, id));
 
-        // Update the location
-        const locationValues = {
-            name: locationData.name,
-            street_address: locationData.street_address,
-            postal_code: locationData.postal_code,
-            parcels_max_per_day: locationData.parcels_max_per_day,
-            contact_name: locationData.contact_name,
-            contact_email: contact_email, // Use processed email value
-            contact_phone_number: locationData.contact_phone_number,
-            default_slot_duration_minutes: locationData.default_slot_duration_minutes,
-        };
-        await db.update(pickupLocations).set(locationValues).where(eq(pickupLocations.id, id));
+            // Get the current locale from headers
+            const locale = (await headers()).get("x-locale") || "en";
 
-        // Get the current locale from headers
-        const locale = (await headers()).get("x-locale") || "en";
-
-        // Revalidate the path to update the UI
-        revalidatePath(`/${locale}/handout-locations`, "page");
-    } catch (error) {
-        console.error(`Error updating location with ID ${id}:`, error);
-        throw new Error(
-            `Failed to update location: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-}
+            // Revalidate the path to update the UI
+            revalidatePath(`/${locale}/handout-locations`, "page");
+        } catch (error) {
+            console.error(`Error updating location with ID ${id}:`, error);
+            throw new Error(
+                `Failed to update location: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    },
+);
 
 // Delete a location
-export async function deleteLocation(id: string): Promise<void> {
-    // Authorization: Verify user is authenticated and is an org member
-    const authResult = await verifyServerActionAuth();
-    if (!authResult.authorized) {
-        throw new Error(authResult.error?.message || "Unauthorized");
-    }
-
-    // Log the action for audit trail
-    console.log(`[AUDIT] User ${authResult.session?.user?.name} deleting location ${id}`);
+export const deleteLocation = protectedAction(async (_: unknown, id: string): Promise<void> => {
+    // Auth already verified by protectedAction wrapper
 
     try {
         // Delete the location (cascade will delete related records)
@@ -229,269 +212,258 @@ export async function deleteLocation(id: string): Promise<void> {
             `Failed to delete location: ${error instanceof Error ? error.message : String(error)}`,
         );
     }
-}
+});
 
 // Create a new schedule for a location
-export async function createSchedule(
-    locationId: string,
-    scheduleData: ScheduleInput,
-): Promise<PickupLocationScheduleWithDays> {
-    // Authorization: Verify user is authenticated and is an org member
-    const authResult = await verifyServerActionAuth();
-    if (!authResult.authorized) {
-        throw new Error(authResult.error?.message || "Unauthorized");
-    }
+export const createSchedule = protectedAction(
+    async (
+        _: unknown,
+        locationId: string,
+        scheduleData: ScheduleInput,
+    ): Promise<PickupLocationScheduleWithDays> => {
+        // Auth already verified by protectedAction wrapper
 
-    // Log the action for audit trail
-    console.log(
-        `[AUDIT] User ${authResult.session?.user?.name} creating schedule for location ${locationId}: ${scheduleData.name}`,
-    );
-
-    try {
-        // Validate schedule overlap using shared utility
-        const { validateScheduleOverlap } = await import("@/app/utils/schedule/overlap-validation");
-        await validateScheduleOverlap(scheduleData, locationId);
-
-        let createdSchedule: PickupLocationScheduleWithDays;
-
-        // Begin a transaction
-        await db.transaction(async tx => {
-            // Insert the schedule
-            const [schedule] = await tx
-                .insert(pickupLocationSchedules)
-                .values({
-                    pickup_location_id: locationId,
-                    name: scheduleData.name,
-                    // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
-                    start_date:
-                        scheduleData.start_date instanceof Date
-                            ? scheduleData.start_date.toISOString().split("T")[0]
-                            : scheduleData.start_date,
-                    end_date:
-                        scheduleData.end_date instanceof Date
-                            ? scheduleData.end_date.toISOString().split("T")[0]
-                            : scheduleData.end_date,
-                })
-                .returning();
-
-            // Insert the weekday schedules
-            const scheduleDays = await Promise.all(
-                scheduleData.days.map(async day => {
-                    const [createdDay] = await tx
-                        .insert(pickupLocationScheduleDays)
-                        .values({
-                            schedule_id: schedule.id,
-                            weekday: day.weekday,
-                            is_open: day.is_open,
-                            opening_time: day.opening_time || null,
-                            closing_time: day.closing_time || null,
-                            // NOTE: Drizzle ORM type inference issue - the actual schema includes
-                            // all these fields, but auto-generated types don't reflect this correctly.
-                            // This is a known limitation with complex enum + nullable field combinations.
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        } as any)
-                        .returning();
-
-                    return createdDay;
-                }),
-            );
-
-            // Create the return object
-            createdSchedule = {
-                ...schedule,
-                days: scheduleDays,
-            };
-        });
-
-        // Get the current locale from headers
-        const locale = (await headers()).get("x-locale") || "en";
-
-        // Revalidate the path to update the UI
-        revalidatePath(`/${locale}/handout-locations`, "page");
-
-        // Recompute outside-hours count for this location after schedule change
         try {
-            const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
-                "@/app/[locale]/schedule/actions"
+            // Validate schedule overlap using shared utility
+            const { validateScheduleOverlap } = await import(
+                "@/app/utils/schedule/overlap-validation"
             );
-            await recomputeOutsideHoursCount(locationId);
-            await clearLocationSchedulesCache(locationId);
-        } catch (e) {
-            console.error("Failed to recompute outside-hours count after schedule create:", e);
-        }
+            await validateScheduleOverlap(scheduleData, locationId);
 
-        return createdSchedule!;
-    } catch (error) {
-        console.error(`Error creating schedule for location ${locationId}:`, error);
-        throw new Error(
-            `Failed to create schedule: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-}
+            let createdSchedule: PickupLocationScheduleWithDays;
 
-// Update an existing schedule
-export async function updateSchedule(
-    scheduleId: string,
-    scheduleData: ScheduleInput,
-): Promise<PickupLocationScheduleWithDays> {
-    // Authorization: Verify user is authenticated and is an org member
-    const authResult = await verifyServerActionAuth();
-    if (!authResult.authorized) {
-        throw new Error(authResult.error?.message || "Unauthorized");
-    }
+            // Begin a transaction
+            await db.transaction(async tx => {
+                // Insert the schedule
+                const [schedule] = await tx
+                    .insert(pickupLocationSchedules)
+                    .values({
+                        pickup_location_id: locationId,
+                        name: scheduleData.name,
+                        // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
+                        start_date:
+                            scheduleData.start_date instanceof Date
+                                ? scheduleData.start_date.toISOString().split("T")[0]
+                                : scheduleData.start_date,
+                        end_date:
+                            scheduleData.end_date instanceof Date
+                                ? scheduleData.end_date.toISOString().split("T")[0]
+                                : scheduleData.end_date,
+                    })
+                    .returning();
 
-    // Log the action for audit trail
-    console.log(
-        `[AUDIT] User ${authResult.session?.user?.name} updating schedule ${scheduleId}: ${scheduleData.name}`,
-    );
+                // Insert the weekday schedules
+                const scheduleDays = await Promise.all(
+                    scheduleData.days.map(async day => {
+                        const [createdDay] = await tx
+                            .insert(pickupLocationScheduleDays)
+                            .values({
+                                schedule_id: schedule.id,
+                                weekday: day.weekday,
+                                is_open: day.is_open,
+                                opening_time: day.opening_time || null,
+                                closing_time: day.closing_time || null,
+                                // NOTE: Drizzle ORM type inference issue - the actual schema includes
+                                // all these fields, but auto-generated types don't reflect this correctly.
+                                // This is a known limitation with complex enum + nullable field combinations.
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            } as any)
+                            .returning();
 
-    try {
-        // Get the current schedule to find the location
-        const currentSchedule = await db
-            .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
-            .from(pickupLocationSchedules)
-            .where(eq(pickupLocationSchedules.id, scheduleId))
-            .limit(1);
+                        return createdDay;
+                    }),
+                );
 
-        if (currentSchedule.length === 0) {
-            throw new Error(`Schedule with ID ${scheduleId} not found`);
-        }
+                // Create the return object
+                createdSchedule = {
+                    ...schedule,
+                    days: scheduleDays,
+                };
+            });
 
-        const locationId = currentSchedule[0].pickup_location_id;
+            // Get the current locale from headers
+            const locale = (await headers()).get("x-locale") || "en";
 
-        // Validate schedule overlap using shared utility (excluding current schedule)
-        const { validateScheduleOverlap } = await import("@/app/utils/schedule/overlap-validation");
-        await validateScheduleOverlap(scheduleData, locationId, scheduleId);
+            // Revalidate the path to update the UI
+            revalidatePath(`/${locale}/handout-locations`, "page");
 
-        let updatedSchedule: PickupLocationScheduleWithDays;
-
-        // Begin a transaction
-        await db.transaction(async tx => {
-            // Update the schedule
-            const [schedule] = await tx
-                .update(pickupLocationSchedules)
-                .set({
-                    name: scheduleData.name,
-                    // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
-                    start_date:
-                        scheduleData.start_date instanceof Date
-                            ? scheduleData.start_date.toISOString().split("T")[0]
-                            : scheduleData.start_date,
-                    end_date:
-                        scheduleData.end_date instanceof Date
-                            ? scheduleData.end_date.toISOString().split("T")[0]
-                            : scheduleData.end_date,
-                })
-                .where(eq(pickupLocationSchedules.id, scheduleId))
-                .returning();
-
-            // Delete existing weekday schedules
-            await tx
-                .delete(pickupLocationScheduleDays)
-                .where(eq(pickupLocationScheduleDays.schedule_id, scheduleId));
-
-            // Insert the updated weekday schedules
-            const scheduleDays = await Promise.all(
-                scheduleData.days.map(async day => {
-                    const [createdDay] = await tx
-                        .insert(pickupLocationScheduleDays)
-                        .values({
-                            schedule_id: scheduleId,
-                            weekday: day.weekday,
-                            is_open: day.is_open,
-                            opening_time: day.opening_time || null,
-                            closing_time: day.closing_time || null,
-                            // NOTE: Drizzle ORM type inference issue - the actual schema includes
-                            // all these fields, but auto-generated types don't reflect this correctly.
-                            // This is a known limitation with complex enum + nullable field combinations.
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        } as any)
-                        .returning();
-
-                    return createdDay;
-                }),
-            );
-
-            // Create the return object
-            updatedSchedule = {
-                ...schedule,
-                days: scheduleDays,
-            };
-        });
-
-        // Get the current locale from headers
-        const locale = (await headers()).get("x-locale") || "en";
-
-        // Revalidate the path to update the UI
-        revalidatePath(`/${locale}/handout-locations`, "page");
-
-        // Recompute outside-hours count for this location after schedule update
-        try {
-            const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
-                "@/app/[locale]/schedule/actions"
-            );
-            await recomputeOutsideHoursCount(locationId);
-            await clearLocationSchedulesCache(locationId);
-        } catch (e) {
-            console.error("Failed to recompute outside-hours count after schedule update:", e);
-        }
-
-        return updatedSchedule!;
-    } catch (error) {
-        console.error(`Error updating schedule with ID ${scheduleId}:`, error);
-        throw new Error(
-            `Failed to update schedule: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-}
-
-// Delete a schedule
-export async function deleteSchedule(scheduleId: string): Promise<void> {
-    // Authorization: Verify user is authenticated and is an org member
-    const authResult = await verifyServerActionAuth();
-    if (!authResult.authorized) {
-        throw new Error(authResult.error?.message || "Unauthorized");
-    }
-
-    // Log the action for audit trail
-    console.log(`[AUDIT] User ${authResult.session?.user?.name} deleting schedule ${scheduleId}`);
-
-    try {
-        // Determine location before deletion
-        const [scheduleRow] = await db
-            .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
-            .from(pickupLocationSchedules)
-            .where(eq(pickupLocationSchedules.id, scheduleId))
-            .limit(1);
-
-        // Delete the schedule (cascade will delete related days)
-        await db.delete(pickupLocationSchedules).where(eq(pickupLocationSchedules.id, scheduleId));
-
-        // Get the current locale from headers
-        const locale = (await headers()).get("x-locale") || "en";
-
-        // Revalidate the path to update the UI
-        revalidatePath(`/${locale}/handout-locations`, "page");
-
-        // Recompute outside-hours count for this location after schedule deletion
-        try {
-            if (scheduleRow?.pickup_location_id) {
+            // Recompute outside-hours count for this location after schedule change
+            try {
                 const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
                     "@/app/[locale]/schedule/actions"
                 );
-                await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
-                await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
+                await recomputeOutsideHoursCount(locationId);
+                await clearLocationSchedulesCache(locationId);
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count after schedule create:", e);
             }
-        } catch (e) {
-            console.error("Failed to recompute outside-hours count after schedule delete:", e);
+
+            return createdSchedule!;
+        } catch (error) {
+            console.error(`Error creating schedule for location ${locationId}:`, error);
+            throw new Error(
+                `Failed to create schedule: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
-    } catch (error) {
-        console.error(`Error deleting schedule with ID ${scheduleId}:`, error);
-        throw new Error(
-            `Failed to delete schedule: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
-}
+    },
+);
+
+// Update an existing schedule
+export const updateSchedule = protectedAction(
+    async (
+        _: unknown,
+        scheduleId: string,
+        scheduleData: ScheduleInput,
+    ): Promise<PickupLocationScheduleWithDays> => {
+        // Auth already verified by protectedAction wrapper
+
+        try {
+            // Get the current schedule to find the location
+            const currentSchedule = await db
+                .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
+                .from(pickupLocationSchedules)
+                .where(eq(pickupLocationSchedules.id, scheduleId))
+                .limit(1);
+
+            if (currentSchedule.length === 0) {
+                throw new Error(`Schedule with ID ${scheduleId} not found`);
+            }
+
+            const locationId = currentSchedule[0].pickup_location_id;
+
+            // Validate schedule overlap using shared utility (excluding current schedule)
+            const { validateScheduleOverlap } = await import(
+                "@/app/utils/schedule/overlap-validation"
+            );
+            await validateScheduleOverlap(scheduleData, locationId, scheduleId);
+
+            let updatedSchedule: PickupLocationScheduleWithDays;
+
+            // Begin a transaction
+            await db.transaction(async tx => {
+                // Update the schedule
+                const [schedule] = await tx
+                    .update(pickupLocationSchedules)
+                    .set({
+                        name: scheduleData.name,
+                        // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
+                        start_date:
+                            scheduleData.start_date instanceof Date
+                                ? scheduleData.start_date.toISOString().split("T")[0]
+                                : scheduleData.start_date,
+                        end_date:
+                            scheduleData.end_date instanceof Date
+                                ? scheduleData.end_date.toISOString().split("T")[0]
+                                : scheduleData.end_date,
+                    })
+                    .where(eq(pickupLocationSchedules.id, scheduleId))
+                    .returning();
+
+                // Delete existing weekday schedules
+                await tx
+                    .delete(pickupLocationScheduleDays)
+                    .where(eq(pickupLocationScheduleDays.schedule_id, scheduleId));
+
+                // Insert the updated weekday schedules
+                const scheduleDays = await Promise.all(
+                    scheduleData.days.map(async day => {
+                        const [createdDay] = await tx
+                            .insert(pickupLocationScheduleDays)
+                            .values({
+                                schedule_id: scheduleId,
+                                weekday: day.weekday,
+                                is_open: day.is_open,
+                                opening_time: day.opening_time || null,
+                                closing_time: day.closing_time || null,
+                                // NOTE: Drizzle ORM type inference issue - the actual schema includes
+                                // all these fields, but auto-generated types don't reflect this correctly.
+                                // This is a known limitation with complex enum + nullable field combinations.
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            } as any)
+                            .returning();
+
+                        return createdDay;
+                    }),
+                );
+
+                // Create the return object
+                updatedSchedule = {
+                    ...schedule,
+                    days: scheduleDays,
+                };
+            });
+
+            // Get the current locale from headers
+            const locale = (await headers()).get("x-locale") || "en";
+
+            // Revalidate the path to update the UI
+            revalidatePath(`/${locale}/handout-locations`, "page");
+
+            // Recompute outside-hours count for this location after schedule update
+            try {
+                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
+                    "@/app/[locale]/schedule/actions"
+                );
+                await recomputeOutsideHoursCount(locationId);
+                await clearLocationSchedulesCache(locationId);
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count after schedule update:", e);
+            }
+
+            return updatedSchedule!;
+        } catch (error) {
+            console.error(`Error updating schedule with ID ${scheduleId}:`, error);
+            throw new Error(
+                `Failed to update schedule: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    },
+);
+
+// Delete a schedule
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const deleteSchedule = protectedAction(
+    async (_session, scheduleId: string): Promise<void> => {
+        // Auth already verified by protectedAction wrapper
+
+        try {
+            // Determine location before deletion
+            const [scheduleRow] = await db
+                .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
+                .from(pickupLocationSchedules)
+                .where(eq(pickupLocationSchedules.id, scheduleId))
+                .limit(1);
+
+            // Delete the schedule (cascade will delete related days)
+            await db
+                .delete(pickupLocationSchedules)
+                .where(eq(pickupLocationSchedules.id, scheduleId));
+
+            // Get the current locale from headers
+            const locale = (await headers()).get("x-locale") || "en";
+
+            // Revalidate the path to update the UI
+            revalidatePath(`/${locale}/handout-locations`, "page");
+
+            // Recompute outside-hours count for this location after schedule deletion
+            try {
+                if (scheduleRow?.pickup_location_id) {
+                    const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                        await import("@/app/[locale]/schedule/actions");
+                    await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
+                    await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
+                }
+            } catch (e) {
+                console.error("Failed to recompute outside-hours count after schedule delete:", e);
+            }
+        } catch (error) {
+            console.error(`Error deleting schedule with ID ${scheduleId}:`, error);
+            throw new Error(
+                `Failed to delete schedule: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    },
+);
 
 // PickupLocation interface
 export interface PickupLocation {
