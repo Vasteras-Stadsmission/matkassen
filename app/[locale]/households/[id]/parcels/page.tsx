@@ -1,6 +1,9 @@
 import { getHouseholdFormData } from "../edit/actions";
 import { AuthProtection } from "@/components/AuthProtection";
 import { ParcelManagementClient } from "./ParcelManagementClient";
+import { getTranslations } from "next-intl/server";
+import { Alert } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 
 interface ParcelManagementPageProps {
     params: Promise<{
@@ -11,6 +14,7 @@ interface ParcelManagementPageProps {
 
 export default async function ParcelManagementPage({ params }: ParcelManagementPageProps) {
     const { id: householdId } = await params;
+    const t = await getTranslations("parcelManagement.error");
 
     // Get household data for the form
     const result = await getHouseholdFormData(householdId);
@@ -18,7 +22,14 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
     if (!result.success) {
         return (
             <AuthProtection>
-                <div>Household not found: {result.error.message}</div>
+                <Alert
+                    icon={<IconAlertCircle size="1rem" />}
+                    title={t("title")}
+                    color="red"
+                    mt="md"
+                >
+                    {t("householdNotFound")}
+                </Alert>
             </AuthProtection>
         );
     }

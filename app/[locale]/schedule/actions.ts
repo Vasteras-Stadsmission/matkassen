@@ -386,11 +386,27 @@ export const updateFoodParcelSchedule = protectedAction(
                     .where(eq(foodParcels.id, parcelId));
             });
 
-            // Recompute persisted outside-hours count after transaction commits (with committed data)
+            /**
+             * EVENTUAL CONSISTENCY: Recompute outside-hours count after transaction commits.
+             *
+             * This is intentionally executed AFTER the transaction to avoid holding database locks
+             * during the potentially expensive recomputation. The trade-off is that there's a brief
+             * window where the count might be stale if another request modifies parcels between
+             * transaction commit and this recomputation.
+             *
+             * This is acceptable because:
+             * 1. The outside-hours count is a UI convenience feature, not critical business logic
+             * 2. The count will eventually converge to the correct value
+             * 3. Keeping it inside the transaction would increase lock contention and reduce throughput
+             * 4. Any stale count will be corrected by the next schedule operation
+             *
+             * If stronger consistency is required, consider moving this to a background job queue.
+             */
             try {
                 await recomputeOutsideHoursCount(locationId);
             } catch (e) {
                 console.error("Failed to recompute outside-hours count:", e);
+                // Non-fatal: The count will be corrected by the next schedule operation
             }
 
             return success(undefined);
@@ -439,14 +455,19 @@ export async function validateParcelAssignments(
         );
 
         // Prepare assignments for validation
-        const assignments = parcels.map(parcel => ({
-            parcelId: parcel.id || `temp_${Math.random()}`, // Generate temp ID for new parcels
-            timeslot: {
-                date: parcel.pickupDate.toISOString().split("T")[0],
-                startTime: parcel.pickupStartTime,
-                endTime: parcel.pickupEndTime,
-            },
-        }));
+        const assignments = parcels.map(parcel => {
+            const isNewParcel = !parcel.id;
+            return {
+                parcelId: parcel.id || `temp_${Math.random()}`, // Generate temp ID for new parcels
+                timeslot: {
+                    date: parcel.pickupDate.toISOString().split("T")[0],
+                    startTime: parcel.pickupStartTime,
+                    endTime: parcel.pickupEndTime,
+                },
+                isNewParcel,
+                householdId: isNewParcel ? parcel.householdId : undefined,
+            };
+        });
 
         // Use bulk validation for form submissions
         const validationResult = await validateBulkParcelAssignments(assignments, locationId);

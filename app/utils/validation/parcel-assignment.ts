@@ -91,6 +91,8 @@ interface ParcelAssignmentParams {
     newTimeslot: { startTime: Date; endTime: Date };
     newDate: string;
     tx?: DbOrTransaction;
+    isNewParcel?: boolean;
+    householdId?: string;
 }
 
 /**
@@ -98,27 +100,40 @@ interface ParcelAssignmentParams {
  *
  * Validates that a parcel can be assigned to a specific location and time slot
  * by checking multiple constraints:
- * 1. Parcel and location existence
+ * 1. Parcel and location existence (skipped for new parcels)
  * 2. Time slot is not in the past
  * 3. Daily capacity at the location
  * 4. Time slot capacity (concurrent parcels)
  * 5. Household double booking prevention
  *
  * @param params - Validation parameters
- * @param params.parcelId - ID of the parcel to validate
+ * @param params.parcelId - ID of the parcel to validate (can be temporary for new parcels)
  * @param params.newLocationId - Target location ID
  * @param params.newTimeslot - Target time slot
  * @param params.newDate - Target date (ISO string)
  * @param params.tx - Optional transaction context
+ * @param params.isNewParcel - If true, skip parcel existence check (for new parcels not yet in DB)
+ * @param params.householdId - Required when isNewParcel is true (household ID for the new parcel)
  * @returns Validation result with success flag and any errors
  *
  * @example
  * ```typescript
+ * // Validating an existing parcel
  * const result = await validateParcelAssignment({
  *   parcelId: "parcel-123",
  *   newLocationId: "loc-1",
  *   newTimeslot: { startTime: new Date(), endTime: new Date() },
  *   newDate: "2025-10-01"
+ * });
+ *
+ * // Validating a new parcel
+ * const result = await validateParcelAssignment({
+ *   parcelId: "temp_12345",
+ *   newLocationId: "loc-1",
+ *   newTimeslot: { startTime: new Date(), endTime: new Date() },
+ *   newDate: "2025-10-01",
+ *   isNewParcel: true,
+ *   householdId: "household-123"
  * });
  *
  * if (!result.success) {
@@ -132,30 +147,50 @@ export async function validateParcelAssignment({
     newTimeslot,
     newDate,
     tx,
+    isNewParcel = false,
+    householdId: providedHouseholdId,
 }: ParcelAssignmentParams): Promise<ValidationResult> {
     const dbInstance = tx ?? db;
     const errors: ValidationError[] = [];
 
     try {
-        // 1. Verify parcel exists and get its details
-        const [parcel] = await dbInstance
-            .select({
-                id: foodParcels.id,
-                householdId: foodParcels.household_id,
-                locationId: foodParcels.pickup_location_id,
-            })
-            .from(foodParcels)
-            .where(eq(foodParcels.id, parcelId))
-            .limit(1);
+        // 1. Verify parcel exists and get its details (skip for new parcels)
+        let householdId: string;
 
-        if (!parcel) {
-            errors.push({
-                field: "parcelId",
-                code: ValidationErrorCodes.PARCEL_NOT_FOUND,
-                message: "Food parcel not found",
-                details: { parcelId },
-            });
-            return { success: false, errors };
+        if (isNewParcel) {
+            // For new parcels, use the provided household ID
+            if (!providedHouseholdId) {
+                errors.push({
+                    field: "householdId",
+                    code: "HOUSEHOLD_ID_REQUIRED",
+                    message: "Household ID is required for new parcel validation",
+                    details: { parcelId },
+                });
+                return { success: false, errors };
+            }
+            householdId = providedHouseholdId;
+        } else {
+            // For existing parcels, look up the parcel in the database
+            const [parcel] = await dbInstance
+                .select({
+                    id: foodParcels.id,
+                    householdId: foodParcels.household_id,
+                    locationId: foodParcels.pickup_location_id,
+                })
+                .from(foodParcels)
+                .where(eq(foodParcels.id, parcelId))
+                .limit(1);
+
+            if (!parcel) {
+                errors.push({
+                    field: "parcelId",
+                    code: ValidationErrorCodes.PARCEL_NOT_FOUND,
+                    message: "Food parcel not found",
+                    details: { parcelId },
+                });
+                return { success: false, errors };
+            }
+            householdId = parcel.householdId;
         }
 
         // 2. Get location information using the newLocationId
@@ -244,7 +279,7 @@ export async function validateParcelAssignment({
             .from(foodParcels)
             .where(
                 and(
-                    eq(foodParcels.household_id, parcel.householdId),
+                    eq(foodParcels.household_id, householdId),
                     between(foodParcels.pickup_date_time_earliest, startDate, endDate),
                     ne(foodParcels.id, parcelId), // Exclude current parcel
                 ),
@@ -259,7 +294,7 @@ export async function validateParcelAssignment({
                 message: "Household already has a parcel scheduled for this date",
                 details: {
                     conflictingParcelId: conflictingParcel.id,
-                    householdId: parcel.householdId,
+                    householdId: householdId,
                     timeSlot: startTimeStr,
                     date: newDate,
                 } as ConflictValidationDetails,
@@ -369,6 +404,8 @@ export async function validateBulkParcelAssignments(
             startTime: Date;
             endTime: Date;
         };
+        isNewParcel?: boolean;
+        householdId?: string;
     }>,
     locationId: string,
     tx?: DbOrTransaction,
@@ -385,6 +422,8 @@ export async function validateBulkParcelAssignments(
             },
             newDate: assignment.timeslot.date,
             tx,
+            isNewParcel: assignment.isNewParcel,
+            householdId: assignment.householdId,
         });
 
         // Add field prefixes to distinguish between different parcels in bulk operations

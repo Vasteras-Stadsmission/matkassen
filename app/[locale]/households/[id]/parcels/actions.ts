@@ -41,7 +41,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                     );
 
                     const parcelsToValidate = parcelsData.parcels
-                        .filter(parcel => new Date(parcel.pickupDate) > now) // Only future parcels
+                        .filter(parcel => parcel.pickupLatestTime > now) // Only parcels with future pickup windows
                         .map(parcel => ({
                             householdId: household.id,
                             locationId: parcelsData.pickupLocationId,
@@ -64,7 +64,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
 
                     // Filter to only future parcels (safety check)
                     const futureParcels = parcelsData.parcels
-                        .filter(parcel => new Date(parcel.pickupDate) > now)
+                        .filter(parcel => parcel.pickupLatestTime > now)
                         .map(parcel => ({
                             id: nanoid(),
                             household_id: household.id,
@@ -108,7 +108,22 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 }
             });
 
-            // Recompute outside-hours count after transaction commits (with committed data)
+            /**
+             * EVENTUAL CONSISTENCY: Recompute outside-hours count after transaction commits.
+             *
+             * This is intentionally executed AFTER the transaction to avoid holding database locks
+             * during the potentially expensive recomputation. The trade-off is that there's a brief
+             * window where the count might be stale if another request modifies parcels between
+             * transaction commit and this recomputation.
+             *
+             * This is acceptable because:
+             * 1. The outside-hours count is a UI convenience feature, not critical business logic
+             * 2. The count will eventually converge to the correct value
+             * 3. Keeping it inside the transaction would increase lock contention and reduce throughput
+             * 4. Any stale count will be corrected by the next schedule operation
+             *
+             * If stronger consistency is required, consider moving this to a background job queue.
+             */
             try {
                 const { recomputeOutsideHoursCount } = await import(
                     "@/app/[locale]/schedule/actions"
@@ -116,6 +131,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 await recomputeOutsideHoursCount(locationId);
             } catch (e) {
                 console.error("Failed to recompute outside-hours count after parcel update:", e);
+                // Non-fatal: The count will be corrected by the next schedule operation
             }
 
             return success(undefined);
