@@ -22,16 +22,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
 
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
-                // Delete existing future food parcels for this household
                 const now = new Date();
-                await tx
-                    .delete(foodParcels)
-                    .where(
-                        and(
-                            eq(foodParcels.household_id, household.id),
-                            gt(foodParcels.pickup_date_time_latest, now),
-                        ),
-                    );
 
                 // Create new food parcels based on the updated schedule
                 if (parcelsData.parcels && parcelsData.parcels.length > 0) {
@@ -62,7 +53,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                         }
                     }
 
-                    // Filter to only future parcels (safety check)
+                    // Filter to only future parcels
                     const futureParcels = parcelsData.parcels
                         .filter(parcel => parcel.pickupLatestTime > now)
                         .map(parcel => ({
@@ -74,36 +65,61 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                             is_picked_up: false,
                         }));
 
-                    // Only insert if there are future parcels and check for duplicates (idempotency)
+                    // Use upsert pattern to ensure idempotency during concurrent operations
+                    // The unique constraint on (household_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // guarantees that we won't create duplicates even if multiple requests run concurrently
                     if (futureParcels.length > 0) {
-                        for (const parcel of futureParcels) {
-                            const existingParcel = await tx
-                                .select({ id: foodParcels.id })
-                                .from(foodParcels)
-                                .where(
-                                    and(
-                                        eq(foodParcels.household_id, household.id),
-                                        eq(
-                                            foodParcels.pickup_location_id,
-                                            parcelsData.pickupLocationId,
-                                        ),
-                                        eq(
-                                            foodParcels.pickup_date_time_earliest,
-                                            parcel.pickup_date_time_earliest,
-                                        ),
-                                        eq(
-                                            foodParcels.pickup_date_time_latest,
-                                            parcel.pickup_date_time_latest,
-                                        ),
-                                    ),
-                                )
-                                .limit(1);
+                        await tx
+                            .insert(foodParcels)
+                            .values(futureParcels)
+                            .onConflictDoNothing({
+                                target: [
+                                    foodParcels.household_id,
+                                    foodParcels.pickup_date_time_earliest,
+                                    foodParcels.pickup_date_time_latest,
+                                ],
+                            });
+                    }
+                }
 
-                            // Only insert if this exact parcel doesn't already exist
-                            if (existingParcel.length === 0) {
-                                await tx.insert(foodParcels).values([parcel]);
-                            }
-                        }
+                // Delete parcels that are no longer in the desired schedule
+                // This handles cases where the user removed parcels from the schedule
+                // We do this AFTER the insert to avoid a window where no parcels exist
+                const desiredParcelTimes = new Set(
+                    parcelsData.parcels
+                        .filter(p => p.pickupLatestTime > now)
+                        .map(
+                            p =>
+                                `${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
+                        ),
+                );
+
+                // Get all existing future parcels for this household
+                const existingFutureParcels = await tx
+                    .select({
+                        id: foodParcels.id,
+                        earliest: foodParcels.pickup_date_time_earliest,
+                        latest: foodParcels.pickup_date_time_latest,
+                    })
+                    .from(foodParcels)
+                    .where(
+                        and(
+                            eq(foodParcels.household_id, household.id),
+                            gt(foodParcels.pickup_date_time_latest, now),
+                        ),
+                    );
+
+                // Delete parcels that are not in the desired schedule
+                const parcelsToDelete = existingFutureParcels.filter(
+                    p =>
+                        !desiredParcelTimes.has(
+                            `${p.earliest.toISOString()}-${p.latest.toISOString()}`,
+                        ),
+                );
+
+                if (parcelsToDelete.length > 0) {
+                    for (const parcel of parcelsToDelete) {
+                        await tx.delete(foodParcels).where(eq(foodParcels.id, parcel.id));
                     }
                 }
             });

@@ -235,45 +235,27 @@ export const enrollHousehold = protectedAction(
                         );
                     }
 
-                    // Check for existing parcels with same household, location, and dates to prevent duplicates
-                    for (const parcel of data.foodParcels.parcels) {
-                        const existingParcel = await tx
-                            .select({ id: foodParcels.id })
-                            .from(foodParcels)
-                            .where(
-                                and(
-                                    eq(foodParcels.household_id, household.id),
-                                    eq(
-                                        foodParcels.pickup_location_id,
-                                        data.foodParcels.pickupLocationId,
-                                    ),
-                                    eq(
-                                        foodParcels.pickup_date_time_earliest,
-                                        parcel.pickupEarliestTime,
-                                    ),
-                                    eq(
-                                        foodParcels.pickup_date_time_latest,
-                                        parcel.pickupLatestTime,
-                                    ),
-                                ),
-                            )
-                            .limit(1);
-
-                        if (existingParcel.length > 0) {
-                            // Skip this parcel as it already exists (idempotency)
-                            continue;
-                        }
-                    }
-
-                    await tx.insert(foodParcels).values(
-                        data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
-                            household_id: household.id,
-                            pickup_location_id: data.foodParcels.pickupLocationId,
-                            pickup_date_time_earliest: parcel.pickupEarliestTime,
-                            pickup_date_time_latest: parcel.pickupLatestTime,
-                            is_picked_up: false,
-                        })),
-                    );
+                    // Use upsert pattern to ensure idempotency under concurrent operations
+                    // The unique constraint on (household_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // guarantees that we won't create duplicates even if multiple requests run concurrently
+                    await tx
+                        .insert(foodParcels)
+                        .values(
+                            data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
+                                household_id: household.id,
+                                pickup_location_id: data.foodParcels.pickupLocationId,
+                                pickup_date_time_earliest: parcel.pickupEarliestTime,
+                                pickup_date_time_latest: parcel.pickupLatestTime,
+                                is_picked_up: false,
+                            })),
+                        )
+                        .onConflictDoNothing({
+                            target: [
+                                foodParcels.household_id,
+                                foodParcels.pickup_date_time_earliest,
+                                foodParcels.pickup_date_time_latest,
+                            ],
+                        });
                 }
                 return { householdId: household.id };
             });

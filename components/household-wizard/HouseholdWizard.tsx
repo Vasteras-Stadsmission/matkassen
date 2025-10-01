@@ -38,7 +38,17 @@ async function checkHouseholdUpcomingParcels(householdId: string): Promise<boole
         const response = await fetch(
             `/api/admin/parcels/upcoming?householdId=${encodeURIComponent(householdId)}`,
         );
-        if (!response.ok) return false;
+
+        if (!response.ok) {
+            // Log HTTP errors with status and response details for debugging
+            const responseText = await response.text().catch(() => "Unable to read response");
+            console.error(
+                `Failed to check upcoming parcels for household ${householdId}:`,
+                `HTTP ${response.status} ${response.statusText}`,
+                responseText,
+            );
+            return false; // Assume no parcels on error to be safe
+        }
 
         const upcomingParcels = await response.json();
         // Since we're filtering server-side, any result means there are upcoming parcels

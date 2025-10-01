@@ -395,20 +395,11 @@ export const updateHousehold = protectedHouseholdAction(
                     );
                 }
 
-                // 6. Handle food parcels - first delete future food parcels
+                // 6. Handle food parcels using upsert pattern for idempotency
                 // Keep past parcels (that have been picked up) to maintain history
                 const now = new Date();
-                await tx
-                    .delete(foodParcels)
-                    .where(
-                        and(
-                            eq(foodParcels.household_id, household.id),
-                            eq(foodParcels.is_picked_up, false),
-                            gt(foodParcels.pickup_date_time_earliest, now),
-                        ),
-                    );
 
-                // Then add new food parcels
+                // First, insert or update new food parcels
                 if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
                     // Filter parcels to only include future ones
                     const futureParcels = data.foodParcels.parcels
@@ -421,9 +412,56 @@ export const updateHousehold = protectedHouseholdAction(
                             is_picked_up: false,
                         }));
 
-                    // Only insert if there are future parcels
+                    // Use upsert to ensure idempotency under concurrent operations
                     if (futureParcels.length > 0) {
-                        await tx.insert(foodParcels).values(futureParcels);
+                        await tx
+                            .insert(foodParcels)
+                            .values(futureParcels)
+                            .onConflictDoNothing({
+                                target: [
+                                    foodParcels.household_id,
+                                    foodParcels.pickup_date_time_earliest,
+                                    foodParcels.pickup_date_time_latest,
+                                ],
+                            });
+                    }
+                }
+
+                // Then delete future parcels that are no longer in the desired schedule
+                const desiredParcelTimes = new Set(
+                    data.foodParcels.parcels
+                        ?.filter(p => new Date(p.pickupEarliestTime) > now)
+                        .map(
+                            p =>
+                                `${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
+                        ) || [],
+                );
+
+                const existingFutureParcels = await tx
+                    .select({
+                        id: foodParcels.id,
+                        earliest: foodParcels.pickup_date_time_earliest,
+                        latest: foodParcels.pickup_date_time_latest,
+                    })
+                    .from(foodParcels)
+                    .where(
+                        and(
+                            eq(foodParcels.household_id, household.id),
+                            eq(foodParcels.is_picked_up, false),
+                            gt(foodParcels.pickup_date_time_earliest, now),
+                        ),
+                    );
+
+                const parcelsToDelete = existingFutureParcels.filter(
+                    p =>
+                        !desiredParcelTimes.has(
+                            `${p.earliest.toISOString()}-${p.latest.toISOString()}`,
+                        ),
+                );
+
+                if (parcelsToDelete.length > 0) {
+                    for (const parcel of parcelsToDelete) {
+                        await tx.delete(foodParcels).where(eq(foodParcels.id, parcel.id));
                     }
                 }
 

@@ -231,6 +231,13 @@ export const foodParcels = pgTable(
             "pickup_time_range_check",
             sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
         ),
+        // Unique constraint to prevent duplicate parcels for the same household and time window
+        // This ensures idempotency for concurrent parcel creation operations
+        uniqueIndex("food_parcels_household_time_unique").on(
+            table.household_id,
+            table.pickup_date_time_earliest,
+            table.pickup_date_time_latest,
+        ),
     ],
 );
 
