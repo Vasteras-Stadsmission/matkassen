@@ -28,16 +28,17 @@ vi.mock("@/app/db/drizzle", () => {
         }),
         select: vi.fn(() => ({
             from: vi.fn(() => ({
-                where: vi.fn(() => ({
-                    limit: vi.fn(() => Promise.resolve([])), // No existing parcels
-                })),
+                where: vi.fn(() => Promise.resolve([])), // No existing parcels by default
             })),
         })),
         insert: vi.fn((table: any) => ({
             values: vi.fn((values: any) => {
                 // Store the inserted parcels for verification
                 insertedParcels.push(...values);
-                return Promise.resolve();
+                // Return an object with onConflictDoNothing method for upsert support
+                return {
+                    onConflictDoNothing: vi.fn(() => Promise.resolve()),
+                };
             }),
         })),
     };
@@ -53,7 +54,11 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
         // Return a function that calls the original with mock session and household
         return async (householdId: string, ...args: any[]) => {
             const mockSession = {
-                user: { id: "test-user-id", email: "test@example.com" },
+                user: {
+                    githubUsername: "test-user",
+                    name: "Test User",
+                    email: "test@example.com",
+                },
             };
             const mockHousehold = {
                 id: householdId,
@@ -124,8 +129,9 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Verify the result was successful
             expect(result.success).toBe(true);
 
-            // Verify the delete was called (to remove existing future parcels)
-            expect(deleteCalled).toBe(true);
+            // With the new upsert pattern, delete is only called if there are parcels to remove
+            // Since the mock returns empty array for existing parcels, delete may not be called
+            // The important thing is that the parcel was inserted
 
             // Verify the parcel was inserted (not filtered out)
             expect(insertedParcels).toHaveLength(1);
@@ -179,8 +185,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Verify the result was successful (no error, just no parcels inserted)
             expect(result.success).toBe(true);
 
-            // Verify delete was called (to remove existing future parcels)
-            expect(deleteCalled).toBe(true);
+            // With the new upsert pattern, delete is only called if there are parcels to remove
+            // The important thing is that NO parcel was inserted (because it's in the past)
 
             // Verify NO parcel was inserted (because it's in the past)
             expect(insertedParcels).toHaveLength(0);
@@ -234,8 +240,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Verify the result was successful
             expect(result.success).toBe(true);
 
-            // Verify delete was called
-            expect(deleteCalled).toBe(true);
+            // With the new upsert pattern, delete is only called if there are parcels to remove
+            // The important thing is that the parcel was inserted
 
             // Verify the parcel was inserted
             expect(insertedParcels).toHaveLength(1);
@@ -315,8 +321,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Verify the result was successful
             expect(result.success).toBe(true);
 
-            // Verify delete was called
-            expect(deleteCalled).toBe(true);
+            // With the new upsert pattern, delete is only called if there are parcels to remove
+            // The important thing is that only future parcels were inserted
 
             // Verify only the future parcels were inserted (later today + tomorrow)
             expect(insertedParcels).toHaveLength(2);

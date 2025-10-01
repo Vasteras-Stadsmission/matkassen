@@ -66,8 +66,9 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                         }));
 
                     // Use upsert pattern to ensure idempotency during concurrent operations
-                    // The unique constraint on (household_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // The unique constraint on (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
                     // guarantees that we won't create duplicates even if multiple requests run concurrently
+                    // Including location ensures that location changes are properly handled
                     if (futureParcels.length > 0) {
                         await tx
                             .insert(foodParcels)
@@ -75,6 +76,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                             .onConflictDoNothing({
                                 target: [
                                     foodParcels.household_id,
+                                    foodParcels.pickup_location_id,
                                     foodParcels.pickup_date_time_earliest,
                                     foodParcels.pickup_date_time_latest,
                                 ],
@@ -83,14 +85,15 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 }
 
                 // Delete parcels that are no longer in the desired schedule
-                // This handles cases where the user removed parcels from the schedule
+                // This handles cases where the user removed parcels or changed locations
                 // We do this AFTER the insert to avoid a window where no parcels exist
-                const desiredParcelTimes = new Set(
+                // Key includes location to properly handle location changes
+                const desiredParcelKeys = new Set(
                     parcelsData.parcels
                         .filter(p => p.pickupLatestTime > now)
                         .map(
                             p =>
-                                `${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
+                                `${parcelsData.pickupLocationId}-${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
                         ),
                 );
 
@@ -98,6 +101,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 const existingFutureParcels = await tx
                     .select({
                         id: foodParcels.id,
+                        locationId: foodParcels.pickup_location_id,
                         earliest: foodParcels.pickup_date_time_earliest,
                         latest: foodParcels.pickup_date_time_latest,
                     })
@@ -112,8 +116,8 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 // Delete parcels that are not in the desired schedule
                 const parcelsToDelete = existingFutureParcels.filter(
                     p =>
-                        !desiredParcelTimes.has(
-                            `${p.earliest.toISOString()}-${p.latest.toISOString()}`,
+                        !desiredParcelKeys.has(
+                            `${p.locationId}-${p.earliest.toISOString()}-${p.latest.toISOString()}`,
                         ),
                 );
 

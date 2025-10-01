@@ -15,6 +15,7 @@ import { type ActionResult, failure } from "./action-result";
  */
 export interface AuthSession {
     user?: {
+        githubUsername?: string;
         name?: string | null;
         email?: string | null;
         image?: string | null;
@@ -51,7 +52,7 @@ export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> 
         // Check basic authentication
         const session = await auth();
 
-        if (!session?.user?.name) {
+        if (!session?.user?.githubUsername) {
             return failure({
                 code: "UNAUTHORIZED",
                 message: "You must be authenticated to perform this action",
@@ -59,8 +60,8 @@ export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> 
             });
         }
 
-        // Check organization membership
-        const username = session.user.name;
+        // Check organization membership using GitHub username (not display name)
+        const username = session.user.githubUsername;
         const orgCheck = await validateOrganizationMembership(username, "server-action");
 
         if (!orgCheck.isValid) {

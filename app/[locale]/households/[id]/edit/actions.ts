@@ -413,6 +413,7 @@ export const updateHousehold = protectedHouseholdAction(
                         }));
 
                     // Use upsert to ensure idempotency under concurrent operations
+                    // Including location ensures that location changes are properly handled
                     if (futureParcels.length > 0) {
                         await tx
                             .insert(foodParcels)
@@ -420,6 +421,7 @@ export const updateHousehold = protectedHouseholdAction(
                             .onConflictDoNothing({
                                 target: [
                                     foodParcels.household_id,
+                                    foodParcels.pickup_location_id,
                                     foodParcels.pickup_date_time_earliest,
                                     foodParcels.pickup_date_time_latest,
                                 ],
@@ -428,18 +430,20 @@ export const updateHousehold = protectedHouseholdAction(
                 }
 
                 // Then delete future parcels that are no longer in the desired schedule
-                const desiredParcelTimes = new Set(
+                // Key includes location to properly handle location changes
+                const desiredParcelKeys = new Set(
                     data.foodParcels.parcels
                         ?.filter(p => new Date(p.pickupEarliestTime) > now)
                         .map(
                             p =>
-                                `${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
+                                `${data.foodParcels.pickupLocationId}-${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
                         ) || [],
                 );
 
                 const existingFutureParcels = await tx
                     .select({
                         id: foodParcels.id,
+                        locationId: foodParcels.pickup_location_id,
                         earliest: foodParcels.pickup_date_time_earliest,
                         latest: foodParcels.pickup_date_time_latest,
                     })
@@ -454,8 +458,8 @@ export const updateHousehold = protectedHouseholdAction(
 
                 const parcelsToDelete = existingFutureParcels.filter(
                     p =>
-                        !desiredParcelTimes.has(
-                            `${p.earliest.toISOString()}-${p.latest.toISOString()}`,
+                        !desiredParcelKeys.has(
+                            `${p.locationId}-${p.earliest.toISOString()}-${p.latest.toISOString()}`,
                         ),
                 );
 
@@ -534,8 +538,8 @@ export const addComment = protectedHouseholdAction(
         try {
             // Auth and household access already verified by protectedHouseholdAction wrapper
 
-            // Get the current user from the session
-            const username = session.user?.name || "anonymous";
+            // Get the current user from the session (use GitHub username for DB records)
+            const username = session.user?.githubUsername || "anonymous";
 
             // Insert the comment
             const [comment] = await db

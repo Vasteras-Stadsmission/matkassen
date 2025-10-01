@@ -31,7 +31,7 @@ export async function POST(
             .insert(householdComments)
             .values({
                 household_id: householdId,
-                author_github_username: authResult.session!.user.name,
+                author_github_username: authResult.session!.user.githubUsername,
                 comment: body.comment.trim(),
             })
             .returning({

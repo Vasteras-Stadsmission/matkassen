@@ -13,11 +13,11 @@ export const getUserFavoriteLocation = protectedAction(
     async (session): Promise<ActionResult<string | null>> => {
         try {
             // Auth already verified by protectedAction wrapper
-            const username = session.user?.name;
+            const username = session.user?.githubUsername;
             if (!username) {
                 return failure({
                     code: "NO_USERNAME",
-                    message: "User session does not contain username",
+                    message: "User session does not contain GitHub username",
                     field: "username",
                 });
             }
@@ -46,11 +46,11 @@ export const setUserFavoriteLocation = protectedAction(
     async (session, locationId: string | null): Promise<ActionResult<void>> => {
         try {
             // Auth already verified by protectedAction wrapper
-            const username = session.user?.name;
+            const username = session.user?.githubUsername;
             if (!username) {
                 return failure({
                     code: "NO_USERNAME",
-                    message: "User session does not contain username",
+                    message: "User session does not contain GitHub username",
                     field: "username",
                 });
             }
@@ -95,10 +95,10 @@ export const setUserPreferredLocation = setUserFavoriteLocation;
  * Get current user info (for debugging/display)
  */
 export const getCurrentUser = protectedAction(
-    async (_session): Promise<ActionResult<{ username: string | null; isLoggedIn: boolean }>> => {
+    async (session): Promise<ActionResult<{ username: string | null; isLoggedIn: boolean }>> => {
         // Auth already verified by protectedAction wrapper
         return success({
-            username: _session.user?.name || null,
+            username: session.user?.githubUsername || null,
             isLoggedIn: true, // If we got here, user is logged in
         });
     },

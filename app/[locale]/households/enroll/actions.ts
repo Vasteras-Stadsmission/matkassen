@@ -236,8 +236,9 @@ export const enrollHousehold = protectedAction(
                     }
 
                     // Use upsert pattern to ensure idempotency under concurrent operations
-                    // The unique constraint on (household_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // The unique constraint on (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
                     // guarantees that we won't create duplicates even if multiple requests run concurrently
+                    // Including location ensures that location changes are properly handled
                     await tx
                         .insert(foodParcels)
                         .values(
@@ -252,6 +253,7 @@ export const enrollHousehold = protectedAction(
                         .onConflictDoNothing({
                             target: [
                                 foodParcels.household_id,
+                                foodParcels.pickup_location_id,
                                 foodParcels.pickup_date_time_earliest,
                                 foodParcels.pickup_date_time_latest,
                             ],

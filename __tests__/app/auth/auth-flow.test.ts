@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createMockGitHubProfile } from "../../test-helpers";
 
 // Create a mock for the auth configuration
 // We'll test the signIn callback logic separately since testing NextAuth directly is complex
@@ -130,6 +131,48 @@ describe("Authentication Flow", () => {
 
             expect(result).toBe("/auth/error?error=configuration");
             expect(mockValidateOrganization).toHaveBeenCalledWith("testuser", "signin");
+        });
+    });
+
+    describe("Full authentication flow with GitHub username preservation", () => {
+        it("should preserve GitHub login through sign-in", async () => {
+            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
+            mockValidateOrganization.mockResolvedValue({ isValid: true });
+
+            const mockProfile = createMockGitHubProfile({
+                login: "johndoe123",
+                name: "John Doe",
+            });
+
+            const result = await signInCallback({
+                account: { provider: "github" },
+                profile: mockProfile,
+            });
+
+            expect(result).toBe(true);
+            // Verify that the actual GitHub login was used, not the display name
+            expect(mockValidateOrganization).toHaveBeenCalledWith("johndoe123", "signin");
+        });
+
+        it("REGRESSION: users with display names should sign in successfully", async () => {
+            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
+            mockValidateOrganization.mockResolvedValue({ isValid: true });
+
+            // User with display name different from login
+            const mockProfile = createMockGitHubProfile({
+                login: "johndoe123",
+                name: "John Doe", // Display name
+            });
+
+            const result = await signInCallback({
+                account: { provider: "github" },
+                profile: mockProfile,
+            });
+
+            expect(result).toBe(true);
+            // Critical: Should use login, not name
+            expect(mockValidateOrganization).toHaveBeenCalledWith("johndoe123", "signin");
+            expect(mockValidateOrganization).not.toHaveBeenCalledWith("John Doe", "signin");
         });
     });
 });

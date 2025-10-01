@@ -141,6 +141,13 @@
       "when": 1758826766937,
       "tag": "0019_condemned_franklin_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1759298368780,
+      "tag": "0020_sour_cerebro",
+      "breakpoints": true
     }
   ]
 }
