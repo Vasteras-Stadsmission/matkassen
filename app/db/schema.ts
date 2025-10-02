@@ -13,6 +13,7 @@ import {
     date,
     index,
     uniqueIndex,
+    unique,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -233,7 +234,7 @@ export const foodParcels = pgTable(
         ),
         // Unique constraint to prevent duplicate parcels for the same household, location, and time window
         // This ensures idempotency for concurrent parcel creation operations and correctly handles location updates
-        uniqueIndex("food_parcels_household_location_time_unique").on(
+        unique("food_parcels_household_location_time_unique").on(
             table.household_id,
             table.pickup_location_id,
             table.pickup_date_time_earliest,

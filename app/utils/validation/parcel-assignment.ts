@@ -16,7 +16,7 @@
  * @module validation/parcel-assignment
  */
 
-import { and, eq, sql, between, ne } from "drizzle-orm";
+import { and, eq, sql, between, ne, lt, gt } from "drizzle-orm";
 import { type PgTransaction } from "drizzle-orm/pg-core";
 import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
@@ -153,6 +153,23 @@ export async function validateParcelAssignment({
     const dbInstance = tx ?? db;
     const errors: ValidationError[] = [];
 
+    // 🔍 DEBUG: Log all input parameters
+    console.log("[validateParcelAssignment] Input params:", {
+        parcelId,
+        newLocationId,
+        newDate,
+        newDateType: typeof newDate,
+        newDateValue: newDate,
+        newTimeslot: {
+            startTime: newTimeslot.startTime,
+            startTimeType: typeof newTimeslot.startTime,
+            endTime: newTimeslot.endTime,
+            endTimeType: typeof newTimeslot.endTime,
+        },
+        isNewParcel,
+        providedHouseholdId,
+    });
+
     try {
         // 1. Verify parcel exists and get its details (skip for new parcels)
         let householdId: string;
@@ -194,6 +211,7 @@ export async function validateParcelAssignment({
         }
 
         // 2. Get location information using the newLocationId
+        console.log("[validateParcelAssignment] About to query location:", newLocationId);
         const [location] = await dbInstance
             .select({
                 id: pickupLocations.id,
@@ -204,6 +222,7 @@ export async function validateParcelAssignment({
             .from(pickupLocations)
             .where(eq(pickupLocations.id, newLocationId))
             .limit(1);
+        console.log("[validateParcelAssignment] Location query succeeded:", location);
 
         if (!location) {
             errors.push({
@@ -217,6 +236,13 @@ export async function validateParcelAssignment({
 
         // 3. Validate time slot is not in the past
         const now = new Date();
+        console.log("[validateParcelAssignment] Time validation:", {
+            now,
+            newTimeslotStartTime: newTimeslot.startTime,
+            newTimeslotStartTimeType: typeof newTimeslot.startTime,
+            comparison: newTimeslot.startTime <= now,
+        });
+
         if (newTimeslot.startTime <= now) {
             errors.push({
                 field: "timeSlot",
@@ -231,11 +257,39 @@ export async function validateParcelAssignment({
 
         // 4. Validate daily capacity if set
         if (location.maxParcelsPerDay !== null) {
+            console.log("[validateParcelAssignment] Daily capacity check - START:", {
+                newDate,
+                newDateType: typeof newDate,
+                maxParcelsPerDay: location.maxParcelsPerDay,
+            });
+
+            console.log(
+                "[validateParcelAssignment] About to call Time.fromDate with:",
+                new Date(newDate),
+            );
             const dateInStockholm = Time.fromDate(new Date(newDate));
+            console.log("[validateParcelAssignment] Time.fromDate succeeded");
+            console.log("[validateParcelAssignment] After Time.fromDate:", {
+                dateInStockholm,
+                dateInStockholmType: typeof dateInStockholm,
+            });
+
             const startTimeStockholm = dateInStockholm.startOfDay();
             const endTimeStockholm = dateInStockholm.endOfDay();
-            const startDate = startTimeStockholm.toDate();
-            const endDate = endTimeStockholm.toDate();
+            console.log("[validateParcelAssignment] Day boundaries:", {
+                startTimeStockholm,
+                endTimeStockholm,
+                startTimeStockholmType: typeof startTimeStockholm,
+            });
+
+            // Use toUTC() to get clean Date objects for database queries (DB stores timestamps in UTC)
+            const startDate = startTimeStockholm.toUTC();
+            const endDate = endTimeStockholm.toUTC();
+            console.log("[validateParcelAssignment] Converted to UTC Date:", {
+                startDate,
+                endDate,
+                startDateType: typeof startDate,
+            });
 
             const [{ count }] = await dbInstance
                 .select({ count: sql<number>`count(*)` })
@@ -257,7 +311,10 @@ export async function validateParcelAssignment({
                     details: {
                         current: count,
                         maximum: location.maxParcelsPerDay,
-                        date: newDate,
+                        date:
+                            typeof newDate === "string"
+                                ? newDate
+                                : new Date(newDate).toISOString().split("T")[0],
                         locationId: newLocationId,
                     } as CapacityValidationDetails,
                 });
@@ -268,8 +325,17 @@ export async function validateParcelAssignment({
         const dateInStockholm = Time.fromDate(new Date(newDate));
         const startTimeStockholm = dateInStockholm.startOfDay();
         const endTimeStockholm = dateInStockholm.endOfDay();
-        const startDate = startTimeStockholm.toDate();
-        const endDate = endTimeStockholm.toDate();
+        // Use toUTC() to get clean Date objects for database queries (DB stores timestamps in UTC)
+        const startDate = startTimeStockholm.toUTC();
+        const endDate = endTimeStockholm.toUTC();
+
+        console.log("[validateParcelAssignment] Double booking window:", {
+            householdId,
+            startDate,
+            endDate,
+            startDateType: typeof startDate,
+            endDateType: typeof endDate,
+        });
 
         const conflictingParcels = await dbInstance
             .select({
@@ -296,14 +362,25 @@ export async function validateParcelAssignment({
                     conflictingParcelId: conflictingParcel.id,
                     householdId: householdId,
                     timeSlot: startTimeStr,
-                    date: newDate,
+                    date:
+                        typeof newDate === "string"
+                            ? newDate
+                            : new Date(newDate).toISOString().split("T")[0],
+                    locationId: newLocationId,
                 } as ConflictValidationDetails,
             });
         }
 
         // 6. Validate slot-level capacity (parcels in the same time slot)
-        const slotStart = newTimeslot.startTime;
-        const slotEnd = newTimeslot.endTime;
+        const slotStartUTC = new Date(newTimeslot.startTime);
+        const slotEndUTC = new Date(newTimeslot.endTime);
+
+        console.log("[validateParcelAssignment] Slot capacity window:", {
+            slotStartUTC,
+            slotEndUTC,
+            slotStartType: typeof slotStartUTC,
+            slotEndType: typeof slotEndUTC,
+        });
 
         const [{ slotCount }] = await dbInstance
             .select({ slotCount: sql<number>`count(*)` })
@@ -311,9 +388,9 @@ export async function validateParcelAssignment({
             .where(
                 and(
                     eq(foodParcels.pickup_location_id, newLocationId),
-                    // Check for overlapping time slots
-                    sql`${foodParcels.pickup_date_time_earliest} < ${slotEnd}`,
-                    sql`${foodParcels.pickup_date_time_latest} > ${slotStart}`,
+                    // Check for overlapping time slots using UTC comparisons
+                    lt(foodParcels.pickup_date_time_earliest, slotEndUTC),
+                    gt(foodParcels.pickup_date_time_latest, slotStartUTC),
                     ne(foodParcels.id, parcelId), // Exclude current parcel
                 ),
             )
@@ -329,7 +406,10 @@ export async function validateParcelAssignment({
                 details: {
                     current: slotCount,
                     maximum: MAX_PARCELS_PER_SLOT,
-                    date: newDate,
+                    date:
+                        typeof newDate === "string"
+                            ? newDate
+                            : new Date(newDate).toISOString().split("T")[0],
                     locationId: newLocationId,
                     timeSlot: startTimeStr,
                 } as CapacityValidationDetails,
@@ -342,6 +422,12 @@ export async function validateParcelAssignment({
         };
     } catch (error) {
         console.error("Error during parcel assignment validation:", error);
+        console.error("Stack trace:", error instanceof Error ? error.stack : "No stack available");
+        console.error("Error details:", {
+            errorType: typeof error,
+            errorConstructor: error?.constructor?.name,
+            errorCode: error && typeof error === "object" && "code" in error ? error.code : "N/A",
+        });
         errors.push({
             field: "general",
             code: "VALIDATION_ERROR",

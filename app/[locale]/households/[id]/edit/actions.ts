@@ -18,6 +18,7 @@ import { FormData, GithubUserData } from "../../enroll/types";
 import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
 import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
+import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -27,7 +28,7 @@ export interface HouseholdUpdateResult {
 
 // Function to format household details from DB format to form format for editing
 export const getHouseholdFormData = protectedAction(
-    async (_: unknown, householdId: string): Promise<ActionResult<FormData>> => {
+    async (session: AuthSession, householdId: string): Promise<ActionResult<FormData>> => {
         try {
             // Auth already verified by protectedAction wrapper
             // Get the household details using the existing function

@@ -457,10 +457,25 @@ export async function validateParcelAssignments(
         // Prepare assignments for validation
         const assignments = parcels.map(parcel => {
             const isNewParcel = !parcel.id;
+
+            console.log("[validateParcelAssignments] Processing parcel:", {
+                parcelId: parcel.id,
+                pickupDate: parcel.pickupDate,
+                pickupDateType: typeof parcel.pickupDate,
+                pickupDateConstructor: parcel.pickupDate?.constructor?.name,
+                pickupStartTime: parcel.pickupStartTime,
+                pickupStartTimeType: typeof parcel.pickupStartTime,
+                pickupEndTime: parcel.pickupEndTime,
+                pickupEndTimeType: typeof parcel.pickupEndTime,
+            });
+
+            const dateString = parcel.pickupDate.toISOString().split("T")[0];
+            console.log("[validateParcelAssignments] Converted date string:", dateString);
+
             return {
                 parcelId: parcel.id || `temp_${Math.random()}`, // Generate temp ID for new parcels
                 timeslot: {
-                    date: parcel.pickupDate.toISOString().split("T")[0],
+                    date: dateString,
                     startTime: parcel.pickupStartTime,
                     endTime: parcel.pickupEndTime,
                 },

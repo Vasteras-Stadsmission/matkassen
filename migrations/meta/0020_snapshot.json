@@ -200,41 +200,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "food_parcels_household_location_time_unique": {
-          "name": "food_parcels_household_location_time_unique",
-          "columns": [
-            {
-              "expression": "household_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "pickup_location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "pickup_date_time_earliest",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "pickup_date_time_latest",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "food_parcels_household_id_households_id_fk": {
           "name": "food_parcels_household_id_households_id_fk",
@@ -264,7 +230,18 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "food_parcels_household_location_time_unique": {
+          "name": "food_parcels_household_location_time_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "household_id",
+            "pickup_location_id",
+            "pickup_date_time_earliest",
+            "pickup_date_time_latest"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "pickup_time_range_check": {

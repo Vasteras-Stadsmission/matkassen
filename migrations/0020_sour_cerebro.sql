@@ -14,4 +14,4 @@ WHERE id IN (
     ) t
     WHERE t.rn > 1
 );--> statement-breakpoint
-CREATE UNIQUE INDEX "food_parcels_household_location_time_unique" ON "food_parcels" USING btree ("household_id","pickup_location_id","pickup_date_time_earliest","pickup_date_time_latest");
+ALTER TABLE "food_parcels" ADD CONSTRAINT "food_parcels_household_location_time_unique" UNIQUE("household_id","pickup_location_id","pickup_date_time_earliest","pickup_date_time_latest");
