@@ -36,6 +36,13 @@ vi.mock("@mantine/core", () => ({
     Card: ({ children }: any) => <div data-testid="card">{children}</div>,
     Title: ({ children }: any) => <h1 data-testid="title">{children}</h1>,
     Text: ({ children }: any) => <span data-testid="text">{children}</span>,
+    Alert: ({ children, title, icon }: any) => (
+        <div data-testid="alert">
+            {icon ? <span data-testid="alert-icon">{icon}</span> : null}
+            {title ? <strong data-testid="alert-title">{title}</strong> : null}
+            {children}
+        </div>
+    ),
     Select: ({ value, onChange, data }: any) => (
         <select data-testid="select" value={value || ""} onChange={e => onChange?.(e.target.value)}>
             {data?.map((item: any) => (
@@ -96,6 +103,7 @@ vi.mock("@tabler/icons-react", () => ({
     IconCheck: () => <span data-testid="icon-check">✓</span>,
     IconX: () => <span data-testid="icon-x">✗</span>,
     IconExclamationMark: () => <span data-testid="icon-exclamation">!</span>,
+    IconAlertCircle: () => <span data-testid="icon-alert-circle">!</span>,
     IconChevronDown: () => <span data-testid="icon-chevron-down">▼</span>,
     IconBuildingStore: () => <span data-testid="icon-building-store">🏪</span>,
 }));
