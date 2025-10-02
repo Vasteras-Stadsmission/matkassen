@@ -22,6 +22,14 @@ import {
     getDateParts,
     formatDateToISOString,
 } from "@/app/utils/date-utils";
+import { protectedAction } from "@/app/utils/auth/protected-action";
+import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
+import {
+    success,
+    failure,
+    validationFailure,
+    type ActionResult,
+} from "@/app/utils/auth/action-result";
 
 import {
     HouseholdCreateData,
@@ -31,198 +39,272 @@ import {
     AdditionalNeedData,
 } from "./types";
 
-export async function enrollHousehold(data: HouseholdCreateData) {
-    "use server";
+export const enrollHousehold = protectedAction(
+    async (session, data: HouseholdCreateData): Promise<ActionResult<{ householdId: string }>> => {
+        try {
+            // Auth already verified by protectedAction wrapper
+            // Store locationId for recompute after transaction
+            const locationId = data.foodParcels?.pickupLocationId;
 
-    try {
-        // 1. Create household
-        const [household] = await db
-            .insert(households)
-            .values({
-                first_name: data.headOfHousehold.firstName,
-                last_name: data.headOfHousehold.lastName,
-                phone_number: data.headOfHousehold.phoneNumber,
-                locale: data.headOfHousehold.locale || "sv",
-                postal_code: data.headOfHousehold.postalCode,
-            })
-            .returning();
+            // Use a transaction to ensure all operations succeed or fail together
+            const result = await db.transaction(async tx => {
+                // 1. Create household
+                const [household] = await tx
+                    .insert(households)
+                    .values({
+                        first_name: data.headOfHousehold.firstName,
+                        last_name: data.headOfHousehold.lastName,
+                        phone_number: data.headOfHousehold.phoneNumber,
+                        locale: data.headOfHousehold.locale || "sv",
+                        postal_code: data.headOfHousehold.postalCode,
+                    })
+                    .returning();
 
-        // 2. Add household members
-        if (data.members && data.members.length > 0) {
-            await db.insert(householdMembers).values(
-                data.members.map((member: HouseholdMemberData) => ({
-                    household_id: household.id,
-                    first_name: member.firstName,
-                    last_name: member.lastName,
-                    age: member.age,
-                    sex: member.sex as "male" | "female" | "other",
-                })),
-            );
-        }
+                // 2. Add household members
+                if (data.members && data.members.length > 0) {
+                    await tx.insert(householdMembers).values(
+                        data.members.map((member: HouseholdMemberData) => ({
+                            household_id: household.id,
+                            first_name: member.firstName,
+                            last_name: member.lastName,
+                            age: member.age,
+                            sex: member.sex as "male" | "female" | "other",
+                        })),
+                    );
+                }
 
-        // 3. Add dietary restrictions
-        if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
-            // First, ensure all dietary restrictions exist in the database
-            for (const restriction of data.dietaryRestrictions) {
-                // Check if the dietary restriction already exists
-                const [existingRestriction] = await db
-                    .select()
-                    .from(dietaryRestrictionsTable)
-                    .where(eq(dietaryRestrictionsTable.id, restriction.id))
-                    .limit(1);
+                // 3. Add dietary restrictions
+                if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
+                    // First, ensure all dietary restrictions exist in the database
+                    for (const restriction of data.dietaryRestrictions) {
+                        // Check if the dietary restriction already exists
+                        const [existingRestriction] = await tx
+                            .select()
+                            .from(dietaryRestrictionsTable)
+                            .where(eq(dietaryRestrictionsTable.id, restriction.id))
+                            .limit(1);
 
-                // If not found by ID, check by name (for dummy data with r1, r2, etc.)
-                if (!existingRestriction) {
-                    const [existingByName] = await db
-                        .select()
-                        .from(dietaryRestrictionsTable)
-                        .where(eq(dietaryRestrictionsTable.name, restriction.name))
-                        .limit(1);
+                        // If not found by ID, check by name (for dummy data with r1, r2, etc.)
+                        if (!existingRestriction) {
+                            const [existingByName] = await tx
+                                .select()
+                                .from(dietaryRestrictionsTable)
+                                .where(eq(dietaryRestrictionsTable.name, restriction.name))
+                                .limit(1);
 
-                    // If found by name, use its ID instead
-                    if (existingByName) {
-                        restriction.id = existingByName.id;
-                    } else {
-                        // If not found at all, insert a new entry
-                        const [newRestriction] = await db
-                            .insert(dietaryRestrictionsTable)
-                            .values({
-                                name: restriction.name,
-                            })
-                            .returning();
-                        restriction.id = newRestriction.id;
+                            // If found by name, use its ID instead
+                            if (existingByName) {
+                                restriction.id = existingByName.id;
+                            } else {
+                                // If not found at all, insert a new entry
+                                const [newRestriction] = await tx
+                                    .insert(dietaryRestrictionsTable)
+                                    .values({
+                                        name: restriction.name,
+                                    })
+                                    .returning();
+                                restriction.id = newRestriction.id;
+                            }
+                        }
                     }
-                }
-            }
 
-            // Then link all restrictions to the household
-            await db.insert(householdDietaryRestrictionsTable).values(
-                data.dietaryRestrictions.map((restriction: DietaryRestrictionData) => ({
-                    household_id: household.id,
-                    dietary_restriction_id: restriction.id,
-                })),
-            );
-        }
-
-        // 4. Add pets
-        if (data.pets && data.pets.length > 0) {
-            // First, ensure all pet species exist in the database
-            for (const pet of data.pets) {
-                // Check if the pet species already exists
-                let existingPetSpecies: { id: string; name: string } | undefined;
-
-                if (pet.species) {
-                    [existingPetSpecies] = await db
-                        .select()
-                        .from(petSpeciesTable)
-                        .where(eq(petSpeciesTable.id, pet.species))
-                        .limit(1);
+                    // Then link all restrictions to the household
+                    await tx.insert(householdDietaryRestrictionsTable).values(
+                        data.dietaryRestrictions.map((restriction: DietaryRestrictionData) => ({
+                            household_id: household.id,
+                            dietary_restriction_id: restriction.id,
+                        })),
+                    );
                 }
 
-                // If not found by ID, check by name (in case it's a new species)
-                if (!existingPetSpecies && pet.speciesName) {
-                    const [existingByName] = await db
-                        .select()
-                        .from(petSpeciesTable)
-                        .where(eq(petSpeciesTable.name, pet.speciesName))
-                        .limit(1);
+                // 4. Add pets
+                if (data.pets && data.pets.length > 0) {
+                    // First, ensure all pet species exist in the database
+                    for (const pet of data.pets) {
+                        // Check if the pet species already exists
+                        let existingPetSpecies: { id: string; name: string } | undefined;
 
-                    // If found by name, use its ID instead
-                    if (existingByName) {
-                        pet.species = existingByName.id;
-                    } else {
-                        // If not found at all, insert a new entry
-                        const [newSpecies] = await db
-                            .insert(petSpeciesTable)
-                            .values({
-                                name: pet.speciesName,
-                            })
-                            .returning();
+                        if (pet.species) {
+                            [existingPetSpecies] = await tx
+                                .select()
+                                .from(petSpeciesTable)
+                                .where(eq(petSpeciesTable.id, pet.species))
+                                .limit(1);
+                        }
 
-                        // Update the species ID to the newly inserted ID
-                        pet.species = newSpecies.id;
+                        // If not found by ID, check by name (in case it's a new species)
+                        if (!existingPetSpecies && pet.speciesName) {
+                            const [existingByName] = await tx
+                                .select()
+                                .from(petSpeciesTable)
+                                .where(eq(petSpeciesTable.name, pet.speciesName))
+                                .limit(1);
+
+                            // If found by name, use its ID instead
+                            if (existingByName) {
+                                pet.species = existingByName.id;
+                            } else {
+                                // If not found at all, insert a new entry
+                                const [newSpecies] = await tx
+                                    .insert(petSpeciesTable)
+                                    .values({
+                                        name: pet.speciesName,
+                                    })
+                                    .returning();
+
+                                // Update the species ID to the newly inserted ID
+                                pet.species = newSpecies.id;
+                            }
+                        }
                     }
+
+                    // Then add all pets to the database
+                    await tx.insert(petsTable).values(
+                        data.pets.map(
+                            (pet: { species: string; speciesName?: string; count?: number }) => ({
+                                household_id: household.id,
+                                pet_species_id: pet.species,
+                            }),
+                        ),
+                    );
                 }
-            }
 
-            // Then add all pets to the database
-            await db.insert(petsTable).values(
-                data.pets.map((pet: { species: string; speciesName?: string; count?: number }) => ({
-                    household_id: household.id,
-                    pet_species_id: pet.species,
-                })),
-            );
-        }
+                // 5. Add additional needs
+                if (data.additionalNeeds && data.additionalNeeds.length > 0) {
+                    // First, create any new additional needs that don't exist yet and update their IDs
+                    for (const need of data.additionalNeeds) {
+                        if (need.isCustom) {
+                            const [existingNeed] = await tx
+                                .select()
+                                .from(additionalNeedsTable)
+                                .where(eq(additionalNeedsTable.need, need.need))
+                                .limit(1);
 
-        // 5. Add additional needs
-        if (data.additionalNeeds && data.additionalNeeds.length > 0) {
-            // First, create any new additional needs that don't exist yet and update their IDs
-            for (const need of data.additionalNeeds) {
-                if (need.isCustom) {
-                    const [existingNeed] = await db
-                        .select()
-                        .from(additionalNeedsTable)
-                        .where(eq(additionalNeedsTable.need, need.need))
-                        .limit(1);
+                            if (!existingNeed) {
+                                const [newNeed] = await tx
+                                    .insert(additionalNeedsTable)
+                                    .values({
+                                        need: need.need,
+                                    })
+                                    .returning();
 
-                    if (!existingNeed) {
-                        const [newNeed] = await db
-                            .insert(additionalNeedsTable)
-                            .values({
-                                need: need.need,
-                            })
-                            .returning();
-
-                        // Update the need ID to the newly inserted ID
-                        need.id = newNeed.id;
-                    } else {
-                        // Use the existing need's ID
-                        need.id = existingNeed.id;
+                                // Update the need ID to the newly inserted ID
+                                need.id = newNeed.id;
+                            } else {
+                                // Use the existing need's ID
+                                need.id = existingNeed.id;
+                            }
+                        }
                     }
+
+                    // Then link all needs to the household
+                    await tx.insert(householdAdditionalNeedsTable).values(
+                        data.additionalNeeds.map((need: AdditionalNeedData) => ({
+                            household_id: household.id,
+                            additional_need_id: need.id,
+                        })),
+                    );
+                }
+
+                // 6. Create food parcels if provided
+                if (
+                    data.foodParcels &&
+                    data.foodParcels.parcels &&
+                    data.foodParcels.parcels.length > 0
+                ) {
+                    // Validate all parcel assignments before creating any
+                    const { validateParcelAssignments } = await import(
+                        "@/app/[locale]/schedule/actions"
+                    );
+
+                    const parcelsToValidate = data.foodParcels.parcels.map(parcel => ({
+                        householdId: household.id,
+                        locationId: data.foodParcels.pickupLocationId,
+                        pickupDate: new Date(parcel.pickupEarliestTime.toDateString()), // Date only
+                        pickupStartTime: parcel.pickupEarliestTime,
+                        pickupEndTime: parcel.pickupLatestTime,
+                    }));
+
+                    const validationResult = await validateParcelAssignments(parcelsToValidate);
+
+                    if (!validationResult.success) {
+                        // Throw to trigger transaction rollback
+                        throw new ParcelValidationError(
+                            "Parcel validation failed",
+                            validationResult.errors || [],
+                        );
+                    }
+
+                    // Use upsert pattern to ensure idempotency under concurrent operations
+                    // The unique constraint on (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // guarantees that we won't create duplicates even if multiple requests run concurrently
+                    // Including location ensures that location changes are properly handled
+                    await tx
+                        .insert(foodParcels)
+                        .values(
+                            data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
+                                household_id: household.id,
+                                pickup_location_id: data.foodParcels.pickupLocationId,
+                                pickup_date_time_earliest: parcel.pickupEarliestTime,
+                                pickup_date_time_latest: parcel.pickupLatestTime,
+                                is_picked_up: false,
+                            })),
+                        )
+                        .onConflictDoNothing({
+                            target: [
+                                foodParcels.household_id,
+                                foodParcels.pickup_location_id,
+                                foodParcels.pickup_date_time_earliest,
+                                foodParcels.pickup_date_time_latest,
+                            ],
+                        });
+                }
+                return { householdId: household.id };
+            });
+
+            /**
+             * EVENTUAL CONSISTENCY: Recompute outside-hours count after transaction commits.
+             *
+             * This is intentionally executed AFTER the transaction to avoid holding database locks
+             * during the potentially expensive recomputation. The trade-off is that there's a brief
+             * window where the count might be stale if another request modifies parcels between
+             * transaction commit and this recomputation.
+             *
+             * This is acceptable because:
+             * 1. The outside-hours count is a UI convenience feature, not critical business logic
+             * 2. The count will eventually converge to the correct value
+             * 3. Keeping it inside the transaction would increase lock contention and reduce throughput
+             * 4. Any stale count will be corrected by the next schedule operation
+             *
+             * If stronger consistency is required, consider moving this to a background job queue.
+             */
+            if (locationId) {
+                try {
+                    const { recomputeOutsideHoursCount } = await import(
+                        "@/app/[locale]/schedule/actions"
+                    );
+                    await recomputeOutsideHoursCount(locationId);
+                } catch (e) {
+                    console.error("Failed to recompute outside-hours count after enrollment:", e);
+                    // Non-fatal: The count will be corrected by the next schedule operation
                 }
             }
 
-            // Then link all needs to the household
-            await db.insert(householdAdditionalNeedsTable).values(
-                data.additionalNeeds.map((need: AdditionalNeedData) => ({
-                    household_id: household.id,
-                    additional_need_id: need.id,
-                })),
-            );
-        }
-
-        // 6. Add food parcels
-        if (data.foodParcels && data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
-            await db.insert(foodParcels).values(
-                data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
-                    household_id: household.id,
-                    pickup_location_id: data.foodParcels.pickupLocationId,
-                    pickup_date_time_earliest: parcel.pickupEarliestTime,
-                    pickup_date_time_latest: parcel.pickupLatestTime,
-                    is_picked_up: false,
-                })),
-            );
-
-            // Recompute outside-hours count for the location after creating parcels
-            try {
-                const { recomputeOutsideHoursCount } = await import(
-                    "@/app/[locale]/schedule/actions"
-                );
-                await recomputeOutsideHoursCount(data.foodParcels.pickupLocationId);
-            } catch (e) {
-                console.error("Failed to recompute outside-hours count after enrollment:", e);
+            return success(result);
+        } catch (error: unknown) {
+            // Check if this is a validation error from within the transaction
+            if (error instanceof ParcelValidationError) {
+                return validationFailure(error.message, error.validationErrors);
             }
-        }
 
-        return { success: true, householdId: household.id };
-    } catch (error: unknown) {
-        console.error("Error enrolling household:", error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
-        };
-    }
-}
+            console.error("Error enrolling household:", error);
+            return failure({
+                code: "INTERNAL_ERROR",
+                message: error instanceof Error ? error.message : "Unknown error occurred",
+            });
+        }
+    },
+);
 
 // Helper function to get all dietary restrictions
 export async function getDietaryRestrictions() {

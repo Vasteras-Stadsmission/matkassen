@@ -19,7 +19,7 @@ const authConfig: NextAuthConfig = {
     },
     cookies: {
         sessionToken: {
-            name: `next-auth.session-token`,
+            name: `next-auth.session-token.v2`,
             options: {
                 httpOnly: true,
                 sameSite: "lax",
@@ -52,6 +52,21 @@ const authConfig: NextAuthConfig = {
             }
             console.error("Invalid account provider:", account?.provider);
             return `/auth/error?error=invalid-provider`;
+        },
+        // JWT callback: Store GitHub login in token during sign-in
+        async jwt({ token, profile, account }) {
+            // On initial sign-in, capture the GitHub login (username)
+            if (account?.provider === "github" && profile) {
+                token.githubUsername = (profile as any).login;
+            }
+            return token;
+        },
+        // Session callback: Transfer GitHub username from token to session
+        async session({ session, token }) {
+            if (token.githubUsername) {
+                session.user.githubUsername = token.githubUsername;
+            }
+            return session;
         },
         // Redirect to home page after successful authentication
         async redirect({ url, baseUrl }) {

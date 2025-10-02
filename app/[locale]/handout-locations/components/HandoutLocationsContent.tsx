@@ -43,7 +43,11 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
         async (locationId: string) => {
             if (window.confirm(confirmDeleteText)) {
                 try {
-                    await deleteLocation(locationId);
+                    const result = await deleteLocation(locationId);
+
+                    if (!result.success) {
+                        throw new Error(result.error.message);
+                    }
 
                     // Manual state update for optimistic UI
                     setLocations(prev => prev.filter(loc => loc.id !== locationId));

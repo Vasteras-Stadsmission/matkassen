@@ -1,49 +1,24 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { db } from "./drizzle";
-import { households, cspViolations } from "./schema";
-import { eq } from "drizzle-orm";
+import { cspViolations } from "./schema";
 
-export async function addHouseholdAction(formData: FormData) {
-    const firstName = formData.get("first_name") as string;
-    const lastName = formData.get("last_name") as string;
-    const phoneNumber = formData.get("phone_number") as string;
-    const locale = formData.get("locale") as string;
-    const postalCode = formData.get("postal_code") as string;
-
-    await db.insert(households).values({
-        first_name: firstName,
-        last_name: lastName,
-        phone_number: phoneNumber,
-        locale: locale,
-        postal_code: postalCode,
-    });
-    revalidatePath("/db");
-}
-
-export async function deleteHouseholdAction(formData: FormData) {
-    const id = formData.get("id") as string;
-    await db.delete(households).where(eq(households.id, id));
-    revalidatePath("/db");
-}
-
-// Define the minimum required fields based on the schema
-type CspViolationInsert = {
-    violated_directive: string;
-    disposition: string;
-    blocked_uri?: string;
-    effective_directive?: string;
-    original_policy?: string;
-    referrer?: string;
-    source_file?: string;
-    line_number?: number;
-    column_number?: number;
-    user_agent?: string;
-    script_sample?: string;
-};
-
-// CSP violation storage action
+/**
+ * Store a Content Security Policy (CSP) violation report in the database.
+ *
+ * NOTE: This action is intentionally PUBLIC and does NOT use protectedAction wrapper.
+ * CSP violation reports are sent automatically by browsers via the CSP report-uri/report-to
+ * directive and do not include user authentication.
+ *
+ * Security considerations:
+ * - No sensitive data is exposed through this endpoint
+ * - Database writes are limited to violation reports only
+ * - API endpoint (app/api/csp-report/route.ts) implements rate limiting
+ * - Input data is sanitized and validated before storage
+ * - Reports help identify security issues and improve application security posture
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
+ */
 export async function storeCspViolationAction(violationData: {
     blockedUri?: string;
     violatedDirective: string;
@@ -59,7 +34,7 @@ export async function storeCspViolationAction(violationData: {
 }): Promise<{ success: boolean; error?: string }> {
     try {
         // Map the camelCase input params to snake_case for Drizzle schema
-        const insertData: CspViolationInsert = {
+        await db.insert(cspViolations).values({
             blocked_uri: violationData.blockedUri,
             violated_directive: violationData.violatedDirective,
             effective_directive: violationData.effectiveDirective,
@@ -71,9 +46,7 @@ export async function storeCspViolationAction(violationData: {
             column_number: violationData.columnNumber,
             user_agent: violationData.userAgent,
             script_sample: violationData.scriptSample,
-        };
-
-        await db.insert(cspViolations).values(insertData);
+        });
 
         return { success: true };
     } catch (error) {

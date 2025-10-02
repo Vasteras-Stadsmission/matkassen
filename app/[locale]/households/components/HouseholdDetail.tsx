@@ -47,7 +47,6 @@ interface HouseholdDetailProps {
         }>;
         foodParcels: {
             pickupLocationId: string;
-            totalCount: number;
             parcels: Array<{
                 id?: string;
                 pickupDate: Date | string;

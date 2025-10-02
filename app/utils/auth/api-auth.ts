@@ -31,15 +31,15 @@ export async function authenticateAdminRequest(rateLimitConfig?: {
     try {
         // Check basic authentication
         const session = await auth();
-        if (!session?.user?.name) {
+        if (!session?.user?.githubUsername) {
             return {
                 success: false,
                 response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
             };
         }
 
-        // Check organization membership (centralized logic)
-        const username = session.user.name;
+        // Check organization membership using GitHub username (not display name)
+        const username = session.user.githubUsername;
         const orgCheck = await validateOrganizationMembership(username, "api");
 
         if (!orgCheck.isValid) {

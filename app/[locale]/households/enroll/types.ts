@@ -48,10 +48,6 @@ export interface FoodParcel {
 
 export interface FoodParcels {
     pickupLocationId: string;
-    totalCount: number;
-    weekday: string;
-    repeatValue: string;
-    startDate: Date;
     parcels: FoodParcel[];
 }
 

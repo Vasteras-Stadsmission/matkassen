@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Stack, Paper, Text, LoadingOverlay } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { notifications } from "@mantine/notifications";
+import type { ActionResult } from "@/app/utils/auth/action-result";
 import {
     PickupLocationWithAllData,
     ScheduleInput,
@@ -42,7 +43,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
 
     // Helper function to handle common operation pattern: loading state, server action, state update, and callbacks
     const handleScheduleOperation = async <T,>(
-        operation: () => Promise<T>,
+        operation: () => Promise<ActionResult<T>>,
         updateSchedules: (
             result: T,
             prev: PickupLocationScheduleWithDays[],
@@ -54,7 +55,13 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
         setError(null);
 
         try {
-            const result = await operation();
+            const actionResult = await operation();
+
+            if (!actionResult.success) {
+                throw new Error(actionResult.error.message);
+            }
+
+            const result = actionResult.data;
 
             // Compute next schedules from current state outside of render phase
             const nextSchedules = updateSchedules(result, schedules);

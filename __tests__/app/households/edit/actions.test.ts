@@ -44,10 +44,6 @@ describe("Household Edit Actions", () => {
         pets: [],
         foodParcels: {
             pickupLocationId: "location1",
-            totalCount: 0,
-            weekday: "1",
-            repeatValue: "weekly",
-            startDate: new Date(),
             parcels: [],
         },
         comments: [],

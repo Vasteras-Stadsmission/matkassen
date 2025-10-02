@@ -98,7 +98,11 @@ export function LocationForm({
 
                 if (location) {
                     // Update existing location
-                    await updateLocation(location.id, values);
+                    const result = await updateLocation(location.id, values);
+
+                    if (!result.success) {
+                        throw new Error(result.error.message);
+                    }
 
                     // Show success notification
                     notifications.show({
@@ -113,7 +117,11 @@ export function LocationForm({
                     }
                 } else {
                     // Create new location
-                    await createLocation(values);
+                    const result = await createLocation(values);
+
+                    if (!result.success) {
+                        throw new Error(result.error.message);
+                    }
 
                     notifications.show({
                         title: locationCreatedTitle,

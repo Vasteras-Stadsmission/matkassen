@@ -79,6 +79,12 @@ vi.mock("../../../../../app/[locale]/handout-locations/components/schedules/Sche
     },
 }));
 
+const actionSuccess = <T,>(data: T) => ({ success: true, data }) as const;
+const actionFailure = (message: string) => ({
+    success: false as const,
+    error: { code: "TEST_ERROR", message },
+});
+
 describe("SchedulesTab", () => {
     const mockSchedule: PickupLocationScheduleWithDays = {
         id: "schedule-1",
@@ -146,7 +152,7 @@ describe("SchedulesTab", () => {
         const onUpdated = vi.fn();
         const newSchedule = { ...mockSchedule, id: "schedule-2", name: "New Schedule" };
 
-        (createSchedule as any).mockResolvedValue(newSchedule);
+        (createSchedule as any).mockResolvedValue(actionSuccess(newSchedule));
 
         const { container } = render(
             <TestWrapper>
@@ -181,8 +187,7 @@ describe("SchedulesTab", () => {
     });
 
     it("handles schedule creation error", async () => {
-        const error = new Error("Creation failed");
-        (createSchedule as any).mockRejectedValue(error);
+        (createSchedule as any).mockResolvedValue(actionFailure("Creation failed"));
 
         const { container } = render(
             <TestWrapper>
@@ -232,7 +237,7 @@ describe("SchedulesTab", () => {
         });
 
         // Resolve the promise
-        resolveCreate!({ ...mockSchedule, id: "new-schedule" });
+        resolveCreate!(actionSuccess({ ...mockSchedule, id: "new-schedule" }));
 
         // Wait for loading to finish - just verify the operation completed
         await waitFor(() => {
@@ -241,7 +246,7 @@ describe("SchedulesTab", () => {
     });
 
     it("dispatches refresh events on delete", async () => {
-        (deleteSchedule as any).mockResolvedValue(undefined);
+        (deleteSchedule as any).mockResolvedValue(actionSuccess(undefined));
 
         const { container } = render(
             <TestWrapper>

@@ -25,7 +25,7 @@ export async function PATCH(
             .set({
                 is_picked_up: true,
                 picked_up_at: now,
-                picked_up_by_user_id: authResult.session!.user.name, // GitHub username
+                picked_up_by_user_id: authResult.session!.user.githubUsername, // GitHub username
             })
             .where(eq(foodParcels.id, parcelId))
             .returning({ id: foodParcels.id });
@@ -37,7 +37,7 @@ export async function PATCH(
         return NextResponse.json({
             success: true,
             pickedUpAt: now.toISOString(),
-            pickedUpBy: authResult.session!.user.name,
+            pickedUpBy: authResult.session!.user.githubUsername,
             message: "Parcel marked as picked up",
         });
     } catch (error) {

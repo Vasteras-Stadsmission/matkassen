@@ -35,31 +35,34 @@ export default function EditHouseholdClient({ id }: { id: string }) {
         async function loadHouseholdData() {
             try {
                 setLoading(true);
-                const data = await getHouseholdFormData(id);
+                const result = await getHouseholdFormData(id);
 
-                if (data) {
-                    // If there are comments with GitHub usernames, fetch their data
-                    if (data.comments && data.comments.length > 0) {
-                        const updatedComments = await Promise.all(
-                            data.comments.map(async comment => {
-                                if (comment.author_github_username) {
-                                    const githubUserData = await fetchGithubUserData(
-                                        comment.author_github_username,
-                                    );
-                                    if (githubUserData) {
-                                        return { ...comment, githubUserData };
-                                    }
-                                }
-                                return comment;
-                            }),
-                        );
-                        data.comments = updatedComments;
-                    }
-
-                    setInitialData(data);
-                } else {
-                    setLoadError("Kunde inte hitta hushållet. Kontrollera att ID är korrekt.");
+                if (!result.success) {
+                    setLoadError(result.error.message);
+                    return;
                 }
+
+                const data = result.data;
+
+                // If there are comments with GitHub usernames, fetch their data
+                if (data.comments && data.comments.length > 0) {
+                    const updatedComments = await Promise.all(
+                        data.comments.map(async comment => {
+                            if (comment.author_github_username) {
+                                const githubUserData = await fetchGithubUserData(
+                                    comment.author_github_username,
+                                );
+                                if (githubUserData) {
+                                    return { ...comment, githubUserData };
+                                }
+                            }
+                            return comment;
+                        }),
+                    );
+                    data.comments = updatedComments;
+                }
+
+                setInitialData(data);
             } catch (error) {
                 console.error("Error loading household data:", error);
                 setLoadError("Ett fel uppstod när hushållsdata skulle laddas. Försök igen senare.");
@@ -74,9 +77,14 @@ export default function EditHouseholdClient({ id }: { id: string }) {
     const handleSubmit = async (formData: FormData) => {
         try {
             const result = await updateHousehold(id, formData);
+            if (!result.success) {
+                return {
+                    success: false,
+                    error: result.error.message,
+                };
+            }
             return {
-                success: result.success,
-                error: result.error,
+                success: true,
             };
         } catch (error) {
             console.error("Error in handleSubmit:", error);
@@ -162,6 +170,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
     return (
         <HouseholdWizard
             mode="edit"
+            householdId={id}
             title={title}
             initialData={initialData}
             onSubmit={handleSubmit}

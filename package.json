@@ -13,12 +13,13 @@
         "format": "prettier --write .",
         "lint": "next lint",
         "preview:production": "docker compose -f docker-compose.local.yml up --build",
+        "security:check": "node scripts/validate-server-actions.mjs",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:ui": "vitest --ui",
         "start": "next start",
         "typecheck": "tsc --noEmit",
-        "validate": "pnpm run lint && pnpm run typecheck && pnpm run format-check"
+        "validate": "pnpm run lint && pnpm run typecheck && pnpm run format-check && pnpm run security:check"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

@@ -20,7 +20,14 @@ export async function updateFoodParcelScheduleAction(
     },
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        return updateFoodParcelSchedule(parcelId, newTimeslot);
+        const result = await updateFoodParcelSchedule(parcelId, newTimeslot);
+        if (!result.success) {
+            return {
+                success: false,
+                error: result.error.message,
+            };
+        }
+        return { success: true };
     } catch (error) {
         console.error("Error calling updateFoodParcelSchedule:", error);
         return {

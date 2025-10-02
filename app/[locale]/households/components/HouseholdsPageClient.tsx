@@ -3,10 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { Box, Text } from "@mantine/core";
 import { useSearchParams } from "next/navigation";
-import { notifications } from "@mantine/notifications";
-import { IconCheck } from "@tabler/icons-react";
 import HouseholdsTable from "../components/HouseholdsTable";
-import { useTranslations } from "next-intl";
+import { useActionWithNotification } from "@/app/hooks/useActionWithNotification";
 
 // Define the Household interface based on the return type of getHouseholds
 interface Household {
@@ -30,44 +28,27 @@ interface HouseholdsPageClientProps {
 // This component handles the search params and is wrapped in Suspense
 function SearchParamsHandler() {
     const searchParams = useSearchParams();
-    const success = searchParams.get("success");
-    const action = searchParams.get("action");
-    const householdName = searchParams.get("householdName");
+    const { showSuccessFromParams } = useActionWithNotification();
     const householdId = searchParams.get("household-id");
 
-    return { success, action, householdName, householdId };
+    // Show success notifications from URL parameters
+    useEffect(() => {
+        showSuccessFromParams(searchParams);
+    }, [searchParams, showSuccessFromParams]);
+
+    return { householdId };
 }
 
 export default function HouseholdsPageClient({ initialHouseholds }: HouseholdsPageClientProps) {
-    const t = useTranslations("households");
     const [households] = useState<Household[]>(initialHouseholds);
     const [error] = useState<string | null>(null);
     const [targetHouseholdId, setTargetHouseholdId] = useState<string | null>(null);
 
     // Get search params through a component wrapped in Suspense
     const SearchParamsComponent = () => {
-        const { success, action, householdName, householdId } = SearchParamsHandler();
+        const { householdId } = SearchParamsHandler();
 
-        // Show success notification when redirected with success parameters
-        useEffect(() => {
-            if (success === "true" && householdName) {
-                // Small delay to ensure the notifications system is fully initialized
-                setTimeout(() => {
-                    const message = action === "create" ? t("newHousehold") : t("updatedHousehold");
-
-                    notifications.show({
-                        id: "household-success",
-                        title: t("title"),
-                        message,
-                        color: "green",
-                        icon: <IconCheck size="1.1rem" />,
-                        autoClose: 5000,
-                    });
-                }, 100);
-            }
-        }, [success, action, householdName]);
-
-        // Set target household ID for opening modal
+        // Set target household ID for opening modal (used for direct links to household details)
         useEffect(() => {
             if (householdId) {
                 setTargetHouseholdId(householdId);

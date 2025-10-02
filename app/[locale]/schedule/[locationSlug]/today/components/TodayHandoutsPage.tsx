@@ -79,15 +79,15 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     useEffect(() => {
         const parcelId = searchParams.get("parcel");
         if (parcelId) {
-            if (selectedParcelId !== parcelId || !dialogOpened) {
+            if (selectedParcelId !== parcelId) {
                 setSelectedParcelId(parcelId);
                 openDialog();
             }
-        } else if (dialogOpened || selectedParcelId) {
+        } else if (selectedParcelId) {
             closeDialog();
             setSelectedParcelId(null);
         }
-    }, [searchParams, selectedParcelId, dialogOpened, openDialog, closeDialog]);
+    }, [searchParams, selectedParcelId, openDialog, closeDialog]);
 
     // Load data
     const loadData = useCallback(
@@ -119,8 +119,17 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                 setCurrentLocation(location);
 
                 // Check if current location is favorite
-                const favoriteId = await getUserFavoriteLocation();
-                setIsFavorite(favoriteId === location.id);
+                const favoriteResult = await getUserFavoriteLocation();
+
+                if (favoriteResult.success) {
+                    setIsFavorite(favoriteResult.data === location.id);
+                } else {
+                    console.error(
+                        "Failed to determine favorite location:",
+                        favoriteResult.error.message,
+                    );
+                    setIsFavorite(false);
+                }
 
                 // Load today's parcels
                 const parcelsData = await getTodaysParcels();
@@ -166,6 +175,16 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
         loadData();
     }, [loadData]);
 
+    // Listen for schedule grid refresh events (e.g., when parcels are updated elsewhere)
+    useEffect(() => {
+        const handleRefreshScheduleGrid = async () => {
+            await loadData(true); // Force refresh
+        };
+
+        window.addEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+        return () => window.removeEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
+    }, [loadData]);
+
     // Navigation handlers
     const handleBackToHub = useCallback(() => {
         router.push("/schedule");
@@ -180,6 +199,20 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             await loadData(true);
         }
     }, [isRefreshing, loading, loadData]);
+
+    // Handle parcel updates from ParcelAdminDialog
+    const handleParcelUpdated = useCallback(async () => {
+        await loadData(true); // Force refresh
+    }, [loadData]);
+
+    // Handle dialog close - remove parcel parameter from URL
+    const handleDialogClose = useCallback(() => {
+        // Remove the parcel parameter from URL
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("parcel");
+        const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+        router.replace(newUrl);
+    }, [searchParams, pathname, router]);
 
     // Pull to refresh handlers
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -226,15 +259,6 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
         },
         [searchParams, pathname, router],
     );
-
-    // Close modal callback
-    const handleDialogClose = useCallback(() => {
-        // Remove parcel param from URL
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("parcel");
-        const newUrl = `${pathname}?${params.toString()}`;
-        router.replace(newUrl);
-    }, [searchParams, pathname, router]);
 
     if (loading) {
         return (
@@ -306,16 +330,18 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                     >
                         <Stack gap={8}>
                             {/* Top Row: Navigation + Location + Progress */}
-                            <Group justify="space-between" align="center" wrap="nowrap">
-                                {/* Left: Back Button */}
+                            <Group justify="space-between" align="center" wrap="nowrap" gap={4}>
+                                {/* Left: Back Button - Icon only on mobile */}
                                 <Button
                                     variant="subtle"
-                                    size="xs"
-                                    leftSection={<IconArrowLeft size={14} />}
+                                    size="compact-xs"
                                     onClick={handleBackToHub}
-                                    style={{ flexShrink: 0 }}
+                                    p={{ base: 4, sm: "xs" }}
+                                    style={{ flexShrink: 0, minWidth: "auto" }}
+                                    aria-label={t("location.header.locations")}
                                 >
-                                    <Text size="sm" visibleFrom="sm">
+                                    <IconArrowLeft size={20} />
+                                    <Text size="sm" visibleFrom="sm" ml={4}>
                                         {t("location.header.locations")}
                                     </Text>
                                 </Button>
@@ -324,15 +350,16 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                     justify="space-between"
                                     align="center"
                                     wrap="nowrap"
-                                    style={{ flex: 1, minWidth: 0, mx: 12 }}
+                                    gap={4}
+                                    style={{ flex: 1, minWidth: 0 }}
                                 >
                                     <Group
-                                        gap={6}
+                                        gap={4}
                                         align="center"
                                         wrap="nowrap"
                                         style={{ minWidth: 0, flex: 1 }}
                                     >
-                                        <IconMapPin size={14} style={{ flexShrink: 0 }} />
+                                        <IconMapPin size={16} style={{ flexShrink: 0 }} />
                                         <Text fw={500} size="sm" truncate style={{ flex: 1 }}>
                                             {currentLocation?.name}
                                         </Text>
@@ -508,6 +535,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                         parcelId={selectedParcelId}
                         opened={dialogOpened}
                         onClose={handleDialogClose}
+                        onParcelUpdated={handleParcelUpdated}
                     />
                 )}
             </Container>

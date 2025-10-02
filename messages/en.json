@@ -55,7 +55,8 @@
         },
         "actions": {
             "view": "View",
-            "edit": "Edit"
+            "edit": "Edit",
+            "manageParcels": "Manage Parcels"
         },
         "table": {
             "firstName": "First Name",
@@ -77,6 +78,42 @@
             "createError": "An error occurred while registering the household.",
             "updateError": "An error occurred while updating the household."
         }
+    },
+    "parcelManagement": {
+        "breadcrumb": {
+            "households": "Households",
+            "manageParcels": "Manage Parcels for {householdName}"
+        },
+        "success": {
+            "title": "Success",
+            "parcelsUpdated": "Food parcels have been updated successfully!"
+        },
+        "error": {
+            "title": "Error",
+            "general": "An error occurred",
+            "unknown": "Unknown error",
+            "updateFailed": "Failed to update parcels. Please try again.",
+            "unauthorized": "You must be authenticated to manage parcels",
+            "forbidden": "You don't have permission to perform this action",
+            "householdNotFound": "The specified household does not exist",
+            "configurationError": "Server configuration error. Please contact support."
+        },
+        "validation": {
+            "pickupLocationRequired": "Please select a pickup location",
+            "title": "Could not save",
+            "description": "Parcels could not be saved due to validation errors",
+            "summaryTitle": "Parcels could not be saved",
+            "summaryDescription": "The following issues must be resolved:",
+            "jumpToError": "↑ Jump to form to fix"
+        },
+        "submitting": {
+            "update": "Updating parcels..."
+        },
+        "actions": {
+            "back": "Back to Households",
+            "saveParcels": "Save Parcels"
+        },
+        "backToHouseholds": "Back to Households"
     },
     "householdForm": {
         "basics": "Basic Information",
@@ -200,8 +237,12 @@
             "latest": "Latest pickup time",
             "updateAll": "Update all",
             "error": "Earliest time must be before latest time",
-            "dateAndPickup": "Date and pickup time"
+            "dateAndPickup": "Date and pickup time",
+            "noAvailableTimes": "No available times",
+            "noAvailableTimesForToday": "All times for today have passed. Please select a future date."
         },
+        "cancel": "Cancel",
+        "for": "for",
         "table": {
             "date": "Date",
             "pickupTime": "Pickup Time",
@@ -210,6 +251,14 @@
         "slotDuration": "Slot Duration: {duration} minutes",
         "errors": {
             "selectLocation": "Select a pickup location"
+        },
+        "validationErrors": {
+            "title": "Validation Errors",
+            "capacityReached": "Location capacity exceeded for selected date",
+            "slotCapacityReached": "Time slot is fully booked",
+            "doubleBooking": "Household already has a parcel scheduled for this date",
+            "outsideOperatingHours": "Selected time is outside operating hours",
+            "pastTimeSlot": "Cannot schedule pickup in the past"
         }
     },
     "review": {
@@ -334,6 +383,10 @@
             "error": "Scheduling error",
             "pastError": "Cannot schedule food support in the past.",
             "pastSourceError": "Cannot reschedule food support from a time in the past.",
+            "capacityError": "This location has reached its maximum capacity for the selected date.",
+            "slotCapacityError": "This time slot is fully booked. Please select a different time.",
+            "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
+            "operatingHoursError": "The selected time is outside the location's operating hours.",
             "genericError": "An unexpected error occurred.",
             "outsideWeek": "Schedule outside of current week",
             "selectDateError": "You must select a date",
@@ -510,6 +563,12 @@
         "submitting": {
             "create": "Creating new household...",
             "update": "Updating household..."
+        },
+        "addParcels": {
+            "title": "Add Food Parcels?",
+            "message": "This household has no upcoming food parcels. Would you like to add some now?",
+            "addNow": "Add Parcels Now",
+            "later": "Add Later"
         }
     },
     "buttons": {
@@ -691,6 +750,8 @@
         "pastSchedulesHidden": "past schedules hidden",
         "noPastSchedules": "No schedules to display. Try showing past schedules.",
         "deleteLocationAriaLabel": "Delete location",
+        "error": "Error",
+        "errorFetchingLocation": "An error occurred while fetching the location. Please try again.",
         "scheduleChangeWarning": "Schedule Change Warning",
         "parcelsWillBeAffected": "Food parcels will be affected",
         "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",

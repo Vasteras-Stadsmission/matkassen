@@ -36,10 +36,17 @@ export default function EnrollHouseholdPage() {
             };
 
             const result = await enrollHousehold(householdData);
-            return {
-                success: result.success,
-                error: result.error,
-            };
+            if (result.success) {
+                return {
+                    success: true,
+                    householdId: result.data.householdId,
+                };
+            } else {
+                return {
+                    success: false,
+                    error: result.error.message,
+                };
+            }
         } catch (error) {
             console.error("Error in enrollment handleSubmit:", error);
             return {

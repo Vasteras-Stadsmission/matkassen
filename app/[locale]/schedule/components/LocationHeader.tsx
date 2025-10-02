@@ -26,8 +26,13 @@ export function LocationHeader({ currentLocation, todayStats }: LocationHeaderPr
     // Check if current location is favorite
     useEffect(() => {
         async function checkFavorite() {
-            const favoriteId = await getUserFavoriteLocation();
-            setIsFavorite(favoriteId === currentLocation.id);
+            const result = await getUserFavoriteLocation();
+            if (result.success) {
+                setIsFavorite(result.data === currentLocation.id);
+            } else {
+                console.error("Failed to determine favorite location:", result.error.message);
+                setIsFavorite(false);
+            }
         }
         checkFavorite();
     }, [currentLocation.id]);

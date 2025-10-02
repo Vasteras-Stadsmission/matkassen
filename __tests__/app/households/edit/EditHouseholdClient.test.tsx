@@ -29,10 +29,6 @@ const mockHouseholdData = {
     additionalNeeds: [{ id: "need1", need: "Baby Food" }],
     foodParcels: {
         pickupLocationId: "location1",
-        totalCount: 4,
-        weekday: "1",
-        repeatValue: "weekly",
-        startDate: new Date("2025-05-01"),
         parcels: [
             {
                 id: "parcel1",

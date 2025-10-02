@@ -18,6 +18,8 @@ import {
 import { asc, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
+import { protectedAction } from "@/app/utils/auth/protected-action";
+import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
 // Cache GitHub user data fetching
 export const fetchGithubUserData = cache(
@@ -200,20 +202,6 @@ export async function getHouseholdDetails(householdId: string) {
                 .limit(1);
         }
 
-        // Build week pattern info based on first food parcel date
-        let weekday = "1"; // Default to Monday
-        const repeatValue = "weekly"; // Default to weekly
-        let startDate = new Date(); // Default to current date
-
-        if (foodParcelsResult.length > 0) {
-            const firstParcel = foodParcelsResult[0];
-            startDate = firstParcel.pickup_date_time_earliest;
-            // Get day of week (0 = Sunday, 1 = Monday, etc.)
-            weekday = new Date(startDate).getDay().toString();
-            // Convert 0 (Sunday) to 7 to match the expected format
-            if (weekday === "0") weekday = "7";
-        }
-
         // Get comments
         const commentsResult = await db
             .select({
@@ -253,10 +241,6 @@ export async function getHouseholdDetails(householdId: string) {
             pets: householdPets,
             foodParcels: {
                 pickupLocationId: pickupLocation?.id || "",
-                totalCount: foodParcelsResult.length,
-                weekday: weekday,
-                repeatValue: repeatValue,
-                startDate: startDate,
                 parcels: foodParcelsResult.map(parcel => ({
                     id: parcel.id,
                     pickupDate: parcel.pickup_date_time_earliest,
@@ -284,10 +268,29 @@ export async function addHouseholdComment(
     }
 
     try {
+        // Authorization: Verify user is authenticated and is an org member
+        const { validateOrganizationMembership } = await import(
+            "@/app/utils/auth/organization-auth"
+        );
+
         // Get the current user from the session
         const session = await auth();
         // Get the GitHub username from the name field, which contains the GitHub username
         const githubUsername = session?.user?.name || "anonymous";
+
+        // Check organization membership
+        if (githubUsername !== "anonymous") {
+            const orgCheck = await validateOrganizationMembership(githubUsername, "server-action");
+            if (!orgCheck.isValid) {
+                console.error(
+                    `Unauthorized comment attempt by ${githubUsername}: ${orgCheck.error}`,
+                );
+                return null;
+            }
+        }
+
+        // Log the action for audit trail
+        console.log(`[AUDIT] User ${githubUsername} adding comment to household ${householdId}`);
 
         // Insert the comment with the github username
         const [dbComment] = await db
@@ -323,18 +326,24 @@ export async function addHouseholdComment(
 }
 
 // Function to delete a comment
-export async function deleteHouseholdComment(commentId: string): Promise<boolean> {
-    try {
-        // Delete the comment with the given ID
-        const result = await db
-            .delete(householdComments)
-            .where(eq(householdComments.id, commentId))
-            .returning({ id: householdComments.id });
+export const deleteHouseholdComment = protectedAction(
+    async (session, commentId: string): Promise<ActionResult<boolean>> => {
+        try {
+            // Auth already verified by protectedAction wrapper
+            // Delete the comment with the given ID
+            const result = await db
+                .delete(householdComments)
+                .where(eq(householdComments.id, commentId))
+                .returning({ id: householdComments.id });
 
-        // Return true if a comment was deleted, false otherwise
-        return result.length > 0;
-    } catch (error) {
-        console.error("Error deleting household comment:", error);
-        return false;
-    }
-}
+            // Return true if a comment was deleted, false otherwise
+            return success(result.length > 0);
+        } catch (error) {
+            console.error("Error deleting household comment:", error);
+            return failure({
+                code: "DATABASE_ERROR",
+                message: "Failed to delete comment",
+            });
+        }
+    },
+);

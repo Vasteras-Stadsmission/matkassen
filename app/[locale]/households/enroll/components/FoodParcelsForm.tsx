@@ -18,6 +18,7 @@ import {
     ActionIcon,
     Loader,
     Modal,
+    Alert,
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
 import { nanoid } from "@/app/db/schema";
@@ -30,6 +31,7 @@ import {
     IconX,
     IconExclamationMark,
     IconBuildingStore,
+    IconAlertCircle,
 } from "@tabler/icons-react";
 import { getTimeRange, TimeGrid } from "@mantine/dates";
 import {
@@ -46,6 +48,7 @@ import { type LocationScheduleInfo, type LocationScheduleDay } from "@/app/[loca
 interface ValidationError {
     field: string;
     message: string;
+    code?: string;
 }
 
 interface PickupLocation {
@@ -57,9 +60,20 @@ interface FoodParcelsFormProps {
     data: FoodParcels;
     updateData: (data: FoodParcels) => void;
     error?: ValidationError | null;
+    validationErrors?: Array<{
+        field: string;
+        code: string;
+        message: string;
+        details?: Record<string, unknown>;
+    }>;
 }
 
-export default function FoodParcelsForm({ data, updateData, error }: FoodParcelsFormProps) {
+export default function FoodParcelsForm({
+    data,
+    updateData,
+    error,
+    validationErrors,
+}: FoodParcelsFormProps) {
     const t = useTranslations("foodParcels") as TranslationFunction;
     const tCommon = useTranslations("handoutLocations");
 
@@ -180,10 +194,6 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
 
     const [formState, setFormState] = useState<FoodParcels>({
         pickupLocationId: data.pickupLocationId || "",
-        totalCount: data.totalCount || 4,
-        weekday: data.weekday || "1",
-        repeatValue: data.repeatValue || "weekly",
-        startDate: data.startDate ? new Date(data.startDate) : new Date(),
         parcels: data.parcels || [],
     });
 
@@ -692,6 +702,30 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         [slotDuration],
     );
 
+    // Filter time slots to exclude past times for today
+    const filterPastTimeSlots = useCallback((slots: string[], date: Date): string[] => {
+        // If not today, return all slots
+        const today = new Date();
+        const todayStockholm = toStockholmTime(today);
+        todayStockholm.setHours(0, 0, 0, 0);
+
+        const compareDateStockholm = toStockholmTime(date);
+        compareDateStockholm.setHours(0, 0, 0, 0);
+
+        if (compareDateStockholm.getTime() !== todayStockholm.getTime()) {
+            return slots; // Future date - all slots valid
+        }
+
+        // For today, filter out past slots
+        const now = new Date();
+        return slots.filter(slot => {
+            const [hours, minutes] = slot.split(":").map(Number);
+            const slotDateTime = new Date(date);
+            slotDateTime.setHours(hours, minutes, 0, 0);
+            return slotDateTime > now;
+        });
+    }, []);
+
     // Get the first available slot for a given opening/closing time
     const getFirstAvailableSlot = useCallback(
         (openingTime: string = "09:00", closingTime: string = "17:00"): string => {
@@ -838,17 +872,13 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
         const updatedState = {
             ...formState,
             parcels,
-            totalCount: selectedDates.length,
         };
 
-        if (
-            JSON.stringify(updatedState.parcels) !== JSON.stringify(formState.parcels) ||
-            updatedState.totalCount !== formState.totalCount
-        ) {
+        if (JSON.stringify(updatedState.parcels) !== JSON.stringify(formState.parcels)) {
             setFormState(updatedState);
             updateData(updatedState);
         }
-    }, [formState, generateParcels, updateData, selectedDates.length]);
+    }, [formState, generateParcels, updateData]);
 
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
         // Only allow updating the start time (pickupEarliestTime)
@@ -1007,6 +1037,33 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                         )}
                         <Text size="sm">{capacityNotification.message}</Text>
                     </Group>
+                </Paper>
+            )}
+
+            {/* Show validation errors */}
+            {validationErrors && validationErrors.length > 0 && (
+                <Paper
+                    p="sm"
+                    withBorder
+                    mb="md"
+                    style={{
+                        backgroundColor: "var(--mantine-color-red-0)",
+                        borderColor: "var(--mantine-color-red-4)",
+                    }}
+                >
+                    <Stack gap="xs">
+                        <Group>
+                            <IconExclamationMark size="1rem" color="var(--mantine-color-red-6)" />
+                            <Text size="sm" fw={600} c="red">
+                                {t("validationErrors.title", { default: "Validation Errors" })}
+                            </Text>
+                        </Group>
+                        {validationErrors.map(error => (
+                            <Text key={`${error.field}-${error.code}`} size="sm" c="red" ml="lg">
+                                • {error.message}
+                            </Text>
+                        ))}
+                    </Stack>
                 </Paper>
             )}
 
@@ -1703,16 +1760,16 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                     setTimeModalOpened(false);
                     setSelectedParcelIndex(null);
                 }}
-                title="Select Pickup Time"
+                title={t("time.dateAndPickup")}
                 size="md"
                 centered
             >
                 <Stack gap="md">
                     <Text size="sm" c="dimmed">
                         {selectedParcelIndex === -1
-                            ? "Select time for all parcels"
+                            ? t("setBulkTimes")
                             : selectedParcelIndex !== null
-                              ? `Select time for parcel on ${
+                              ? `${t("table.pickupTime")} ${t("for")} ${
                                     formState.parcels[selectedParcelIndex]?.pickupDate
                                         ? new Date(
                                               formState.parcels[selectedParcelIndex].pickupDate,
@@ -1722,97 +1779,120 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                               : ""}
                     </Text>
 
-                    <TimeGrid
-                        value={
-                            selectedParcelIndex === -1
-                                ? bulkStartTime
-                                : selectedParcelIndex !== null &&
-                                    formState.parcels[selectedParcelIndex]
-                                  ? (() => {
-                                        const parcel = formState.parcels[selectedParcelIndex];
-                                        const hours = parcel.pickupEarliestTime
-                                            .getHours()
-                                            .toString()
-                                            .padStart(2, "0");
-                                        const mins = parcel.pickupEarliestTime.getMinutes();
-                                        const roundedMins = Math.floor(mins / 15) * 15;
-                                        const minutes = roundedMins.toString().padStart(2, "0");
-                                        return `${hours}:${minutes}`;
-                                    })()
-                                  : "12:00"
-                        }
-                        onChange={timeString => {
-                            if (!timeString) return;
+                    {(() => {
+                        const interval = minutesToHHmm(slotDuration);
+                        let availableSlots: string[] = [];
 
-                            if (selectedParcelIndex === -1) {
-                                // Bulk mode: ensure stored value is HH:mm (strip seconds if provided)
-                                const parts = timeString.split(":");
-                                const hh = (parts[0] || "00").padStart(2, "0");
-                                const mm = (parts[1] || "00").padStart(2, "0");
-                                setBulkStartTime(`${hh}:${mm}`);
-                            } else if (selectedParcelIndex !== null) {
-                                // Individual parcel mode
-                                const [hours, minutes] = timeString.split(":");
-                                const parcel = formState.parcels[selectedParcelIndex];
-                                const newDate = new Date(parcel.pickupEarliestTime);
-                                newDate.setHours(parseInt(hours, 10));
-                                newDate.setMinutes(parseInt(minutes, 10));
-                                updateParcelTime(
-                                    selectedParcelIndex,
-                                    "pickupEarliestTime",
-                                    newDate,
-                                );
-                            }
+                        if (selectedParcelIndex === -1) {
+                            // Bulk mode
+                            const start = bulkCommonRange?.openingTime || "09:00";
+                            const rawEnd = bulkCommonRange?.closingTime || "17:00";
+                            const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
+                            availableSlots = getTimeRange({
+                                startTime: start,
+                                endTime: adjustedEnd,
+                                interval,
+                            });
+                        } else if (
+                            selectedParcelIndex !== null &&
+                            formState.parcels[selectedParcelIndex]
+                        ) {
+                            // Individual parcel mode
+                            const parcel = formState.parcels[selectedParcelIndex];
+                            const parcelDate = new Date(parcel.pickupDate);
+                            const range = getOpeningHoursForDate(parcelDate);
+                            const start = range?.openingTime || "09:00";
+                            const rawEnd = range?.closingTime || "17:00";
+                            const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
 
-                            setTimeModalOpened(false);
-                            setSelectedParcelIndex(null);
-                        }}
-                        data={(() => {
-                            const interval = minutesToHHmm(slotDuration);
-                            if (selectedParcelIndex === -1) {
-                                // Bulk mode is only enabled when hours match
-                                const start = bulkCommonRange?.openingTime || "09:00";
-                                const rawEnd = bulkCommonRange?.closingTime || "17:00";
-                                // Ensure last selectable start fits within closing - slotDuration
-                                const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
-                                return getTimeRange({
-                                    startTime: start,
-                                    endTime: adjustedEnd,
-                                    interval,
-                                });
-                            }
+                            const allSlots = getTimeRange({
+                                startTime: start,
+                                endTime: adjustedEnd,
+                                interval,
+                            });
 
-                            if (
-                                selectedParcelIndex !== null &&
-                                formState.parcels[selectedParcelIndex]
-                            ) {
-                                const parcel = formState.parcels[selectedParcelIndex];
-                                const range = getOpeningHoursForDate(new Date(parcel.pickupDate));
-                                const start = range?.openingTime || "09:00";
-                                const rawEnd = range?.closingTime || "17:00";
-                                const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
-                                return getTimeRange({
-                                    startTime: start,
-                                    endTime: adjustedEnd,
-                                    interval,
-                                });
-                            }
-
+                            availableSlots = filterPastTimeSlots(allSlots, parcelDate);
+                        } else {
                             const adjusted = subtractMinutesFromHHmm("17:00", slotDuration);
-                            return getTimeRange({
+                            availableSlots = getTimeRange({
                                 startTime: "09:00",
                                 endTime: adjusted,
                                 interval,
                             });
-                        })()}
-                        size="sm"
-                        styles={{
-                            control: {
-                                minWidth: "100px",
-                                padding: "8px 12px",
-                            },
-                        }}
-                    />
+                        }
+
+                        if (availableSlots.length === 0) {
+                            return (
+                                <Alert
+                                    icon={<IconAlertCircle size="1rem" />}
+                                    title={t("time.noAvailableTimes")}
+                                    color="yellow"
+                                >
+                                    {t("time.noAvailableTimesForToday")}
+                                </Alert>
+                            );
+                        }
+
+                        return (
+                            <TimeGrid
+                                value={
+                                    selectedParcelIndex === -1
+                                        ? bulkStartTime
+                                        : selectedParcelIndex !== null &&
+                                            formState.parcels[selectedParcelIndex]
+                                          ? (() => {
+                                                const parcel =
+                                                    formState.parcels[selectedParcelIndex];
+                                                const hours = parcel.pickupEarliestTime
+                                                    .getHours()
+                                                    .toString()
+                                                    .padStart(2, "0");
+                                                const mins = parcel.pickupEarliestTime.getMinutes();
+                                                const roundedMins = Math.floor(mins / 15) * 15;
+                                                const minutes = roundedMins
+                                                    .toString()
+                                                    .padStart(2, "0");
+                                                return `${hours}:${minutes}`;
+                                            })()
+                                          : "12:00"
+                                }
+                                onChange={timeString => {
+                                    if (!timeString) return;
+
+                                    if (selectedParcelIndex === -1) {
+                                        // Bulk mode: ensure stored value is HH:mm (strip seconds if provided)
+                                        const parts = timeString.split(":");
+                                        const hh = (parts[0] || "00").padStart(2, "0");
+                                        const mm = (parts[1] || "00").padStart(2, "0");
+                                        setBulkStartTime(`${hh}:${mm}`);
+                                    } else if (selectedParcelIndex !== null) {
+                                        // Individual parcel mode
+                                        const [hours, minutes] = timeString.split(":");
+                                        const parcel = formState.parcels[selectedParcelIndex];
+                                        const newDate = new Date(parcel.pickupEarliestTime);
+                                        newDate.setHours(parseInt(hours, 10));
+                                        newDate.setMinutes(parseInt(minutes, 10));
+                                        updateParcelTime(
+                                            selectedParcelIndex,
+                                            "pickupEarliestTime",
+                                            newDate,
+                                        );
+                                    }
+
+                                    setTimeModalOpened(false);
+                                    setSelectedParcelIndex(null);
+                                }}
+                                data={availableSlots}
+                                size="sm"
+                                styles={{
+                                    control: {
+                                        minWidth: "100px",
+                                        padding: "8px 12px",
+                                    },
+                                }}
+                            />
+                        );
+                    })()}
 
                     <Group justify="flex-end" mt="md">
                         <Button
@@ -1822,7 +1902,7 @@ export default function FoodParcelsForm({ data, updateData, error }: FoodParcels
                                 setSelectedParcelIndex(null);
                             }}
                         >
-                            Cancel
+                            {t("cancel")}
                         </Button>
                     </Group>
                 </Stack>

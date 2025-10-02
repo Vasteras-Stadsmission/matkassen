@@ -14,12 +14,77 @@ import {
     Alert,
     Notification,
     Box,
+    Modal,
+    Stack,
 } from "@mantine/core";
-import { IconCheck, IconAlertCircle, IconArrowRight, IconArrowLeft } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import {
+    IconCheck,
+    IconAlertCircle,
+    IconArrowRight,
+    IconArrowLeft,
+    IconPackage,
+    IconX,
+} from "@tabler/icons-react";
 import { useRouter } from "@/app/i18n/navigation";
 import { useDisclosure } from "@mantine/hooks";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
+import React from "react";
+
+// Helper function to check if upcoming parcels exist for a household
+async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
+    try {
+        const response = await fetch(
+            `/api/admin/parcels/upcoming?householdId=${encodeURIComponent(householdId)}`,
+        );
+
+        if (!response.ok) {
+            // Log HTTP errors with status and response details for debugging
+            const responseText = await response.text().catch(() => "Unable to read response");
+            console.error(
+                `Failed to check upcoming parcels for household ${householdId}:`,
+                `HTTP ${response.status} ${response.statusText}`,
+                responseText,
+            );
+            return false; // Assume no parcels on error to be safe
+        }
+
+        const upcomingParcels = await response.json();
+        // Since we're filtering server-side, any result means there are upcoming parcels
+        return upcomingParcels.length > 0;
+    } catch (error) {
+        console.error("Error checking upcoming parcels:", error);
+        return false; // Assume no parcels on error to be safe
+    }
+}
+
+// Helper function to determine if we should show the add parcels dialog
+async function shouldShowAddParcelsDialog(
+    mode: "create" | "edit",
+    resultHouseholdId: string | undefined,
+    editHouseholdId: string | undefined,
+    formData: FormData,
+): Promise<{ show: boolean; householdId?: string }> {
+    if (mode === "create" && resultHouseholdId) {
+        // For create mode, check if form has any parcels
+        const hasExistingParcels =
+            formData.foodParcels?.parcels && formData.foodParcels.parcels.length > 0;
+        return {
+            show: !hasExistingParcels,
+            householdId: resultHouseholdId,
+        };
+    } else if (mode === "edit" && editHouseholdId) {
+        // For edit mode, check if household has upcoming parcels in the database
+        const hasUpcomingParcels = await checkHouseholdUpcomingParcels(editHouseholdId);
+        return {
+            show: !hasUpcomingParcels,
+            householdId: editHouseholdId,
+        };
+    }
+
+    return { show: false };
+}
 
 // Import form components
 import HouseholdForm from "@/app/[locale]/households/enroll/components/HouseholdForm";
@@ -27,7 +92,6 @@ import MembersForm from "@/app/[locale]/households/enroll/components/MembersForm
 import DietaryRestrictionsForm from "@/app/[locale]/households/enroll/components/DietaryRestrictionsForm";
 import AdditionalNeedsForm from "@/app/[locale]/households/enroll/components/AdditionalNeedsForm";
 import PetsForm from "@/app/[locale]/households/enroll/components/PetsForm";
-import FoodParcelsForm from "@/app/[locale]/households/enroll/components/FoodParcelsForm";
 import ReviewForm from "@/app/[locale]/households/enroll/components/ReviewForm";
 
 // Import types
@@ -37,15 +101,8 @@ import {
     HouseholdMember,
     DietaryRestriction,
     AdditionalNeed,
-    FoodParcels,
     Comment,
 } from "@/app/[locale]/households/enroll/types";
-
-// Define type for submit status
-interface SubmitStatus {
-    type: "success" | "error";
-    message: string;
-}
 
 // Define type for validation errors
 interface ValidationError {
@@ -59,10 +116,14 @@ interface HouseholdWizardProps {
     mode: "create" | "edit";
     // Initial data (empty for enrollment, pre-populated for editing)
     initialData?: FormData;
+    // Household ID (used for edit mode to check upcoming parcels)
+    householdId?: string;
     // Title to display at the top (optional, will use default if not provided)
     title?: string | React.ReactNode;
     // Submit function (different for enrollment vs editing)
-    onSubmit?: (data: FormData) => Promise<{ success: boolean; error?: string }>;
+    onSubmit?: (
+        data: FormData,
+    ) => Promise<{ success: boolean; error?: string; householdId?: string }>;
     // Optional function to add comments (passed from the parent for edit mode)
     onAddComment?: (comment: string) => Promise<Comment | undefined>;
     // Optional function to delete comments (passed from the parent for edit mode)
@@ -80,6 +141,7 @@ interface HouseholdWizardProps {
 export function HouseholdWizard({
     mode,
     initialData,
+    householdId,
     title,
     onSubmit,
     onAddComment,
@@ -93,10 +155,11 @@ export function HouseholdWizard({
     const locale = useLocale();
     const router = useRouter();
     const [active, setActive] = useState(0);
-    const [submitting, setSubmitting] = useState(false);
-    const [submitStatus, setSubmitStatus] = useState<SubmitStatus | null>(null);
     const [validationError, setValidationError] = useState<ValidationError | null>(null);
     const [showError, { open: openError, close: closeError }] = useDisclosure(false);
+    const [showAddParcelsModal, setShowAddParcelsModal] = useState(false);
+    const [createdHouseholdId, setCreatedHouseholdId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Use localized default values if not provided
     const defaultTitle = mode === "create" ? t("createHousehold") : t("editHousehold");
@@ -118,10 +181,6 @@ export function HouseholdWizard({
             pets: [],
             foodParcels: {
                 pickupLocationId: "",
-                totalCount: 4,
-                weekday: "1", // Monday
-                repeatValue: "weekly", // weekly, bi-weekly, monthly
-                startDate: new Date(),
                 parcels: [],
             },
             comments: [],
@@ -188,21 +247,8 @@ export function HouseholdWizard({
             }
         }
 
-        // For food parcels step, validate pickup location
-        if (active === 5) {
-            const { pickupLocationId } = formData.foodParcels;
-            if (!pickupLocationId) {
-                setValidationError({
-                    field: "pickupLocationId",
-                    message: t("validation.pickupLocation"),
-                });
-                openError();
-                return;
-            }
-        }
-
         // If all validations pass, move to the next step
-        setActive(current => (current < 6 ? current + 1 : current));
+        setActive(current => (current < 5 ? current + 1 : current));
     };
 
     const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
@@ -212,54 +258,61 @@ export function HouseholdWizard({
             ...prev,
             [section]: data,
         }));
-
-        // Clear validation error when pickup location is updated
-        if (
-            section === "foodParcels" &&
-            (data as FoodParcels).pickupLocationId &&
-            validationError?.field === "pickupLocationId"
-        ) {
-            setValidationError(null);
-            closeError();
-        }
     };
 
     const handleSubmit = async () => {
-        if (!onSubmit) return;
+        if (!onSubmit || isSubmitting) return;
 
+        setIsSubmitting(true);
         try {
-            setSubmitting(true);
-            setSubmitStatus(null);
-
             // Submit data using the provided onSubmit function
             const result = await onSubmit(formData);
 
             if (result.success) {
-                setSubmitStatus({
-                    type: "success",
-                    message: mode === "create" ? t("success.created") : t("success.updated"),
-                });
-
-                // Navigate to destination with success message in query params
-                router.push(
-                    `/households?success=true&action=${mode}&householdName=${encodeURIComponent(
-                        formData.household.first_name + " " + formData.household.last_name,
-                    )}`,
+                // Check if we should show the add parcels dialog
+                const shouldShowDialog = await shouldShowAddParcelsDialog(
+                    mode,
+                    result.householdId,
+                    householdId,
+                    formData,
                 );
+
+                if (shouldShowDialog.show) {
+                    // Show the add parcels modal (no notification yet)
+                    setCreatedHouseholdId(shouldShowDialog.householdId!);
+                    setShowAddParcelsModal(true);
+                    return; // Don't navigate yet
+                }
+
+                // Navigate directly with success parameters for standard success flow
+                const url = new URL("/households", window.location.origin);
+                url.searchParams.set("success", "true");
+                const successMessage =
+                    mode === "create" ? t("success.created") : t("success.updated");
+                url.searchParams.set("message", successMessage);
+                url.searchParams.set("title", t("success.title"));
+                router.push(url.pathname + url.search);
             } else {
-                setSubmitStatus({
-                    type: "error",
+                // Show error notification and stay on page
+                notifications.show({
+                    title: t("error.title"),
                     message: `${t("error.general")}: ${result.error || t("error.unknown")}`,
+                    color: "red",
+                    icon: React.createElement(IconX, { size: "1.1rem" }),
                 });
-                setSubmitting(false); // Only stop the spinner if there's an error
             }
         } catch (error) {
             console.error(`Error ${mode === "create" ? "creating" : "updating"} household:`, error);
-            setSubmitStatus({
-                type: "error",
+
+            // Show error notification
+            notifications.show({
+                title: t("error.title"),
                 message: mode === "create" ? t("error.create") : t("error.update"),
+                color: "red",
+                icon: React.createElement(IconX, { size: "1.1rem" }),
             });
-            setSubmitting(false);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -305,34 +358,6 @@ export function HouseholdWizard({
                     {title || defaultTitle}
                 </Title>
             </Box>
-
-            {submitting && (
-                <Center my="md">
-                    <Group>
-                        <Loader size="md" />
-                        <Text>
-                            {mode === "create" ? t("submitting.create") : t("submitting.update")}
-                        </Text>
-                    </Group>
-                </Center>
-            )}
-
-            {submitStatus && (
-                <Alert
-                    icon={
-                        submitStatus.type === "success" ? (
-                            <IconCheck size="1rem" />
-                        ) : (
-                            <IconAlertCircle size="1rem" />
-                        )
-                    }
-                    title={submitStatus.type === "success" ? t("success.title") : t("error.title")}
-                    color={submitStatus.type === "success" ? "green" : "red"}
-                    mb="md"
-                >
-                    {submitStatus.message}
-                </Alert>
-            )}
 
             {showError && validationError && (
                 <Notification
@@ -413,21 +438,6 @@ export function HouseholdWizard({
                     </Stepper.Step>
 
                     <Stepper.Step
-                        label={t("steps.parcels.label")}
-                        description={t("steps.parcels.description")}
-                    >
-                        <FoodParcelsForm
-                            data={formData.foodParcels}
-                            updateData={(data: FoodParcels) => updateFormData("foodParcels", data)}
-                            error={
-                                validationError?.field === "pickupLocationId"
-                                    ? validationError
-                                    : null
-                            }
-                        />
-                    </Stepper.Step>
-
-                    <Stepper.Step
                         label={t("steps.review.label")}
                         description={t("steps.review.description")}
                     >
@@ -440,7 +450,7 @@ export function HouseholdWizard({
                     </Stepper.Step>
                 </Stepper>
 
-                {active !== 6 && (
+                {active !== 5 && (
                     <Group justify="center" mt="md">
                         {active !== 0 && (
                             <Button
@@ -457,7 +467,7 @@ export function HouseholdWizard({
                     </Group>
                 )}
 
-                {active === 6 && (
+                {active === 5 && (
                     <Group justify="center" mt="md">
                         <Button
                             variant="default"
@@ -469,14 +479,81 @@ export function HouseholdWizard({
                         <Button
                             onClick={handleSubmit}
                             color={submitButtonColor}
-                            loading={submitting}
                             rightSection={<IconCheck size="1rem" />}
+                            loading={isSubmitting}
+                            disabled={isSubmitting}
                         >
                             {submitButtonText || defaultSubmitButtonText}
                         </Button>
                     </Group>
                 )}
             </Card>
+
+            {/* Modal for adding parcels to newly created household */}
+            <Modal
+                opened={showAddParcelsModal}
+                onClose={() => {
+                    setShowAddParcelsModal(false);
+                    setCreatedHouseholdId(null);
+                    // Navigate with success parameters when closing modal
+                    const url = new URL("/households", window.location.origin);
+                    url.searchParams.set("success", "true");
+                    const successMessage =
+                        mode === "create" ? t("success.created") : t("success.updated");
+                    url.searchParams.set("message", successMessage);
+                    url.searchParams.set("title", t("success.title"));
+                    router.push(url.pathname + url.search);
+                }}
+                title={t("addParcels.title")}
+                centered
+            >
+                <Stack gap="md">
+                    <Text>{t("addParcels.message")}</Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowAddParcelsModal(false);
+                                setCreatedHouseholdId(null);
+                                // Navigate with success parameters when selecting "Later"
+                                const url = new URL("/households", window.location.origin);
+                                url.searchParams.set("success", "true");
+                                const successMessage =
+                                    mode === "create" ? t("success.created") : t("success.updated");
+                                url.searchParams.set("message", successMessage);
+                                url.searchParams.set("title", t("success.title"));
+                                router.push(url.pathname + url.search);
+                            }}
+                        >
+                            {t("addParcels.later")}
+                        </Button>
+                        <Button
+                            leftSection={<IconPackage size="1rem" />}
+                            onClick={() => {
+                                setShowAddParcelsModal(false);
+                                setCreatedHouseholdId(null);
+                                if (createdHouseholdId) {
+                                    // Navigate to parcels page without success params - user will see success there
+                                    router.push(`/households/${createdHouseholdId}/parcels`);
+                                } else {
+                                    // Fallback: navigate to households with success params
+                                    const url = new URL("/households", window.location.origin);
+                                    url.searchParams.set("success", "true");
+                                    const successMessage =
+                                        mode === "create"
+                                            ? t("success.created")
+                                            : t("success.updated");
+                                    url.searchParams.set("message", successMessage);
+                                    url.searchParams.set("title", t("success.title"));
+                                    router.push(url.pathname + url.search);
+                                }
+                            }}
+                        >
+                            {t("addParcels.addNow")}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Container>
     );
 }

@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
-import { eq, gt } from "drizzle-orm";
+import { eq, gt, and } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         // Validate authentication and organization membership
         const authResult = await authenticateAdminRequest();
         if (!authResult.success) {
             return authResult.response!;
+        }
+
+        // Parse query parameters
+        const { searchParams } = new URL(request.url);
+        const householdId = searchParams.get("householdId");
+
+        // Build where conditions
+        const whereConditions = [gt(foodParcels.pickup_date_time_earliest, new Date())];
+        if (householdId) {
+            whereConditions.push(eq(foodParcels.household_id, householdId));
         }
 
         // Fetch upcoming food parcels with household and location info
@@ -27,7 +37,7 @@ export async function GET() {
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
-            .where(gt(foodParcels.pickup_date_time_earliest, new Date()))
+            .where(and(...whereConditions))
             .orderBy(foodParcels.pickup_date_time_earliest);
 
         // Transform to match the expected interface

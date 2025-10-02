@@ -25,6 +25,9 @@
         "errors": {
             "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen för att logga in.",
             "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
+            "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
+            "accessDenied": "Åtkomst nekad. Du har inte behörighet att logga in.",
+            "verification": "Verifiering misslyckades. Försök logga in igen.",
             "default": "Ett fel uppstod vid inloggningen. Försök igen."
         }
     },
@@ -52,7 +55,8 @@
         },
         "actions": {
             "view": "Visa",
-            "edit": "Redigera"
+            "edit": "Redigera",
+            "manageParcels": "Hantera matkassar"
         },
         "table": {
             "firstName": "Förnamn",
@@ -74,6 +78,42 @@
             "createError": "Ett fel uppstod vid registrering av hushåll.",
             "updateError": "Ett fel uppstod vid uppdatering av hushåll."
         }
+    },
+    "parcelManagement": {
+        "breadcrumb": {
+            "households": "Hushåll",
+            "manageParcels": "Hantera paket för {householdName}"
+        },
+        "success": {
+            "title": "Klart",
+            "parcelsUpdated": "Matpaket har uppdaterats!"
+        },
+        "error": {
+            "title": "Fel",
+            "general": "Ett fel uppstod",
+            "unknown": "Okänt fel",
+            "updateFailed": "Det gick inte att uppdatera paket. Försök igen.",
+            "unauthorized": "Du måste vara autentiserad för att hantera paket",
+            "forbidden": "Du har inte behörighet att utföra denna åtgärd",
+            "householdNotFound": "Det angivna hushållet finns inte",
+            "configurationError": "Serverfel. Kontakta support."
+        },
+        "validation": {
+            "pickupLocationRequired": "Välj en upphämtningsplats",
+            "title": "Kunde inte spara",
+            "description": "Paket kunde inte sparas på grund av valideringsfel",
+            "summaryTitle": "Paket kunde inte sparas",
+            "summaryDescription": "Följande problem måste åtgärdas:",
+            "jumpToError": "↑ Hoppa till formuläret för att åtgärda"
+        },
+        "submitting": {
+            "update": "Uppdaterar paket..."
+        },
+        "actions": {
+            "back": "Tillbaka till hushåll",
+            "saveParcels": "Spara paket"
+        },
+        "backToHouseholds": "Tillbaka till hushåll"
     },
     "householdForm": {
         "basics": "Grunduppgifter",
@@ -197,8 +237,12 @@
             "latest": "Senast hämttid",
             "updateAll": "Uppdatera alla",
             "error": "Tidigast tid måste vara före senast tid",
-            "dateAndPickup": "Datum och hämttid"
+            "dateAndPickup": "Datum och hämttid",
+            "noAvailableTimes": "Inga tillgängliga tider",
+            "noAvailableTimesForToday": "Alla tider för idag har passerat. Välj ett framtida datum."
         },
+        "cancel": "Avbryt",
+        "for": "för",
         "table": {
             "date": "Datum",
             "pickupTime": "Hämttid",
@@ -207,6 +251,14 @@
         "slotDuration": "Slottlängd: {duration} minuter",
         "errors": {
             "selectLocation": "Välj en hämtplats"
+        },
+        "validationErrors": {
+            "title": "Valideringsfel",
+            "capacityReached": "Platsens kapacitet överskriden för valt datum",
+            "slotCapacityReached": "Tidsluckan är fullbokad",
+            "doubleBooking": "Hushållet har redan en matkasse schemalagd för detta datum",
+            "outsideOperatingHours": "Vald tid är utanför öppettider",
+            "pastTimeSlot": "Kan inte schemalägga upphämtning i det förflutna"
         }
     },
     "review": {
@@ -331,6 +383,10 @@
             "error": "Fel vid schemaläggning",
             "pastError": "Det går inte att boka matstöd i det förflutna.",
             "pastSourceError": "Det går inte att boka om matstöd från en tidpunkt i det förflutna.",
+            "capacityError": "Denna plats har nått sin maximala kapacitet för det valda datumet.",
+            "slotCapacityError": "Denna tidslucka är fullbokad. Välj en annan tid.",
+            "doubleBookingError": "Detta hushåll har redan en matkasse schemalagd för det valda datumet.",
+            "operatingHoursError": "Den valda tiden är utanför platsens öppettider.",
             "genericError": "Ett oväntat fel inträffade.",
             "outsideWeek": "Schemalägg utanför vecka",
             "selectDateError": "Du måste välja ett datum",
@@ -507,6 +563,12 @@
         "submitting": {
             "create": "Skapar nytt hushåll...",
             "update": "Uppdaterar hushåll..."
+        },
+        "addParcels": {
+            "title": "Lägg till matkassar?",
+            "message": "Detta hushåll har inga kommande matkassar. Vill du lägga till några nu?",
+            "addNow": "Lägg till nu",
+            "later": "Lägg till senare"
         }
     },
     "buttons": {
