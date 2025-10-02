@@ -234,25 +234,29 @@ export async function validateParcelAssignment({
             return { success: false, errors };
         }
 
-        // 3. Validate time slot is not in the past
-        const now = new Date();
-        console.log("[validateParcelAssignment] Time validation:", {
-            now,
-            newTimeslotStartTime: newTimeslot.startTime,
-            newTimeslotStartTimeType: typeof newTimeslot.startTime,
-            comparison: newTimeslot.startTime <= now,
-        });
-
-        if (newTimeslot.startTime <= now) {
-            errors.push({
-                field: "timeSlot",
-                code: ValidationErrorCodes.PAST_TIME_SLOT,
-                message: "Cannot schedule pickup in the past",
-                details: {
-                    requestedTime: newTimeslot.startTime.toISOString(),
-                    currentTime: now.toISOString(),
-                },
+        // 3. Validate time slot is not in the past (only for NEW parcels)
+        // Existing parcels can be updated even if their time has passed
+        if (isNewParcel) {
+            const now = new Date();
+            console.log("[validateParcelAssignment] Time validation:", {
+                now,
+                newTimeslotStartTime: newTimeslot.startTime,
+                newTimeslotStartTimeType: typeof newTimeslot.startTime,
+                comparison: newTimeslot.startTime <= now,
+                isNewParcel,
             });
+
+            if (newTimeslot.startTime <= now) {
+                errors.push({
+                    field: "timeSlot",
+                    code: ValidationErrorCodes.PAST_TIME_SLOT,
+                    message: "Cannot create new parcel with pickup time in the past",
+                    details: {
+                        requestedTime: newTimeslot.startTime.toISOString(),
+                        currentTime: now.toISOString(),
+                    },
+                });
+            }
         }
 
         // 4. Validate daily capacity if set

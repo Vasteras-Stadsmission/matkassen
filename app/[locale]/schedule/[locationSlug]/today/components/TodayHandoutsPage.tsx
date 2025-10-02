@@ -79,15 +79,15 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     useEffect(() => {
         const parcelId = searchParams.get("parcel");
         if (parcelId) {
-            if (selectedParcelId !== parcelId || !dialogOpened) {
+            if (selectedParcelId !== parcelId) {
                 setSelectedParcelId(parcelId);
                 openDialog();
             }
-        } else if (dialogOpened || selectedParcelId) {
+        } else if (selectedParcelId) {
             closeDialog();
             setSelectedParcelId(null);
         }
-    }, [searchParams, selectedParcelId, dialogOpened, openDialog, closeDialog]);
+    }, [searchParams, selectedParcelId, openDialog, closeDialog]);
 
     // Load data
     const loadData = useCallback(
@@ -201,10 +201,18 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     }, [isRefreshing, loading, loadData]);
 
     // Handle parcel updates from ParcelAdminDialog
-    // Handle parcel updates from ParcelAdminDialog
     const handleParcelUpdated = useCallback(async () => {
         await loadData(true); // Force refresh
     }, [loadData]);
+
+    // Handle dialog close - remove parcel parameter from URL
+    const handleDialogClose = useCallback(() => {
+        // Remove the parcel parameter from URL
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("parcel");
+        const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+        router.replace(newUrl);
+    }, [searchParams, pathname, router]);
 
     // Pull to refresh handlers
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -322,16 +330,18 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                     >
                         <Stack gap={8}>
                             {/* Top Row: Navigation + Location + Progress */}
-                            <Group justify="space-between" align="center" wrap="nowrap">
-                                {/* Left: Back Button */}
+                            <Group justify="space-between" align="center" wrap="nowrap" gap={4}>
+                                {/* Left: Back Button - Icon only on mobile */}
                                 <Button
                                     variant="subtle"
-                                    size="xs"
-                                    leftSection={<IconArrowLeft size={14} />}
+                                    size="compact-xs"
                                     onClick={handleBackToHub}
-                                    style={{ flexShrink: 0 }}
+                                    p={{ base: 4, sm: "xs" }}
+                                    style={{ flexShrink: 0, minWidth: "auto" }}
+                                    aria-label={t("location.header.locations")}
                                 >
-                                    <Text size="sm" visibleFrom="sm">
+                                    <IconArrowLeft size={20} />
+                                    <Text size="sm" visibleFrom="sm" ml={4}>
                                         {t("location.header.locations")}
                                     </Text>
                                 </Button>
@@ -340,15 +350,16 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                     justify="space-between"
                                     align="center"
                                     wrap="nowrap"
-                                    style={{ flex: 1, minWidth: 0, mx: 12 }}
+                                    gap={4}
+                                    style={{ flex: 1, minWidth: 0 }}
                                 >
                                     <Group
-                                        gap={6}
+                                        gap={4}
                                         align="center"
                                         wrap="nowrap"
                                         style={{ minWidth: 0, flex: 1 }}
                                     >
-                                        <IconMapPin size={14} style={{ flexShrink: 0 }} />
+                                        <IconMapPin size={16} style={{ flexShrink: 0 }} />
                                         <Text fw={500} size="sm" truncate style={{ flex: 1 }}>
                                             {currentLocation?.name}
                                         </Text>
@@ -523,7 +534,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                     <ParcelAdminDialog
                         parcelId={selectedParcelId}
                         opened={dialogOpened}
-                        onClose={closeDialog}
+                        onClose={handleDialogClose}
                         onParcelUpdated={handleParcelUpdated}
                     />
                 )}

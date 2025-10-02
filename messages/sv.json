@@ -99,7 +99,12 @@
             "configurationError": "Serverfel. Kontakta support."
         },
         "validation": {
-            "pickupLocationRequired": "Välj en upphämtningsplats"
+            "pickupLocationRequired": "Välj en upphämtningsplats",
+            "title": "Kunde inte spara",
+            "description": "Paket kunde inte sparas på grund av valideringsfel",
+            "summaryTitle": "Paket kunde inte sparas",
+            "summaryDescription": "Följande problem måste åtgärdas:",
+            "jumpToError": "↑ Hoppa till formuläret för att åtgärda"
         },
         "submitting": {
             "update": "Uppdaterar paket..."
@@ -232,8 +237,12 @@
             "latest": "Senast hämttid",
             "updateAll": "Uppdatera alla",
             "error": "Tidigast tid måste vara före senast tid",
-            "dateAndPickup": "Datum och hämttid"
+            "dateAndPickup": "Datum och hämttid",
+            "noAvailableTimes": "Inga tillgängliga tider",
+            "noAvailableTimesForToday": "Alla tider för idag har passerat. Välj ett framtida datum."
         },
+        "cancel": "Avbryt",
+        "for": "för",
         "table": {
             "date": "Datum",
             "pickupTime": "Hämttid",

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Container, Title, Button, Group, Alert, Card, Loader, Center } from "@mantine/core";
 import { IconArrowLeft, IconCheck, IconAlertCircle } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 import { useRouter } from "@/app/i18n/navigation";
 import { useTranslations } from "next-intl";
 import FoodParcelsForm from "@/app/[locale]/households/enroll/components/FoodParcelsForm";
@@ -79,13 +80,44 @@ export function ParcelManagementForm({
             const result = await onSubmit(formData);
 
             if (result.success) {
-                // Navigate to households page with success message
+                // Show success toast
+                notifications.show({
+                    title: tParcel("success.title"),
+                    message: tParcel("success.parcelsUpdated"),
+                    color: "green",
+                    icon: <IconCheck size="1rem" />,
+                });
+                // Navigate to households page
                 router.push("/households");
-                // Show success notification here if needed
             } else {
                 // Handle validation errors
                 if (result.error.validationErrors && result.error.validationErrors.length > 0) {
                     setValidationErrors(result.error.validationErrors);
+
+                    // Show error toast
+                    notifications.show({
+                        title: tParcel("actions.back").includes("Tillbaka")
+                            ? "Kunde inte spara"
+                            : "Could not save",
+                        message: tParcel("actions.back").includes("Tillbaka")
+                            ? "Paket kunde inte sparas på grund av valideringsfel"
+                            : "Parcels could not be saved due to validation errors",
+                        color: "red",
+                        icon: <IconAlertCircle size="1rem" />,
+                        autoClose: 5000,
+                    });
+
+                    // Scroll to first error (food parcels form area)
+                    setTimeout(() => {
+                        const parcelFormElement = document.querySelector("[data-parcel-form]");
+                        if (parcelFormElement) {
+                            parcelFormElement.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                            });
+                        }
+                    }, 100);
+
                     // Also set a simple error for pickup location if relevant
                     const locationError = result.error.validationErrors.find(
                         err => err.field === "pickupLocationId" || err.field === "capacity",
@@ -98,6 +130,14 @@ export function ParcelManagementForm({
                         });
                     }
                 } else {
+                    // Show general error toast
+                    notifications.show({
+                        title: tParcel("error.title"),
+                        message: result.error.message || t("error.update"),
+                        color: "red",
+                        icon: <IconAlertCircle size="1rem" />,
+                    });
+
                     setValidationError({
                         field: "general",
                         message: result.error.message || t("error.update"),
@@ -159,12 +199,16 @@ export function ParcelManagementForm({
 
             {/* Main form */}
             <Card withBorder radius="md" p="md">
-                <FoodParcelsForm
-                    data={formData}
-                    updateData={updateFormData}
-                    error={validationError?.field === "pickupLocationId" ? validationError : null}
-                    validationErrors={validationErrors}
-                />
+                <div data-parcel-form>
+                    <FoodParcelsForm
+                        data={formData}
+                        updateData={updateFormData}
+                        error={
+                            validationError?.field === "pickupLocationId" ? validationError : null
+                        }
+                        validationErrors={validationErrors}
+                    />
+                </div>
 
                 {/* Action buttons */}
                 <Group justify="center" mt="xl">

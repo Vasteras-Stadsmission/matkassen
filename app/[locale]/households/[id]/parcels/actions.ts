@@ -24,6 +24,31 @@ export const updateHouseholdParcels = protectedHouseholdAction(
             await db.transaction(async tx => {
                 const now = new Date();
 
+                // Validate that NEW parcels are not in the past
+                // (Existing parcels can remain even if they become past)
+                const newPastParcels = parcelsData.parcels.filter(
+                    parcel => !parcel.id && parcel.pickupLatestTime <= now,
+                );
+
+                if (newPastParcels.length > 0) {
+                    const { formatStockholmDate } = await import("@/app/utils/date-utils");
+                    const dates = newPastParcels
+                        .map(p => formatStockholmDate(new Date(p.pickupDate), "yyyy-MM-dd"))
+                        .join(", ");
+
+                    throw new ParcelValidationError(
+                        `Cannot create parcels with past pickup times`,
+                        [
+                            {
+                                field: "parcels",
+                                code: "PAST_PICKUP_TIME",
+                                message: `Cannot create parcels with past pickup times for: ${dates}. Please select a future time or remove these dates.`,
+                                details: { affectedDates: dates },
+                            },
+                        ],
+                    );
+                }
+
                 // Create new food parcels based on the updated schedule
                 if (parcelsData.parcels && parcelsData.parcels.length > 0) {
                     // Validate all parcel assignments before creating any
@@ -32,8 +57,9 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                     );
 
                     const parcelsToValidate = parcelsData.parcels
-                        .filter(parcel => parcel.pickupLatestTime > now) // Only parcels with future pickup windows
+                        .filter(parcel => parcel.pickupLatestTime > now || parcel.id) // Future parcels OR existing parcels being updated
                         .map(parcel => ({
+                            id: parcel.id,
                             householdId: household.id,
                             locationId: parcelsData.pickupLocationId,
                             pickupDate: new Date(parcel.pickupDate),
@@ -53,9 +79,9 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                         }
                     }
 
-                    // Filter to only future parcels
-                    const futureParcels = parcelsData.parcels
-                        .filter(parcel => parcel.pickupLatestTime > now)
+                    // Filter to only future parcels (but allow existing parcels to be updated even if past)
+                    const parcelsToSave = parcelsData.parcels
+                        .filter(parcel => parcel.pickupLatestTime > now || parcel.id)
                         .map(parcel => ({
                             id: nanoid(),
                             household_id: household.id,
@@ -69,10 +95,10 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                     // The unique constraint on (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
                     // guarantees that we won't create duplicates even if multiple requests run concurrently
                     // Including location ensures that location changes are properly handled
-                    if (futureParcels.length > 0) {
+                    if (parcelsToSave.length > 0) {
                         await tx
                             .insert(foodParcels)
-                            .values(futureParcels)
+                            .values(parcelsToSave)
                             .onConflictDoNothing({
                                 target: [
                                     foodParcels.household_id,

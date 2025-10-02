@@ -99,7 +99,12 @@
             "configurationError": "Server configuration error. Please contact support."
         },
         "validation": {
-            "pickupLocationRequired": "Please select a pickup location"
+            "pickupLocationRequired": "Please select a pickup location",
+            "title": "Could not save",
+            "description": "Parcels could not be saved due to validation errors",
+            "summaryTitle": "Parcels could not be saved",
+            "summaryDescription": "The following issues must be resolved:",
+            "jumpToError": "↑ Jump to form to fix"
         },
         "submitting": {
             "update": "Updating parcels..."
@@ -232,8 +237,12 @@
             "latest": "Latest pickup time",
             "updateAll": "Update all",
             "error": "Earliest time must be before latest time",
-            "dateAndPickup": "Date and pickup time"
+            "dateAndPickup": "Date and pickup time",
+            "noAvailableTimes": "No available times",
+            "noAvailableTimesForToday": "All times for today have passed. Please select a future date."
         },
+        "cancel": "Cancel",
+        "for": "for",
         "table": {
             "date": "Date",
             "pickupTime": "Pickup Time",

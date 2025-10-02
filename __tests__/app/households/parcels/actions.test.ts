@@ -143,7 +143,7 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
         }
     });
 
-    it("should exclude parcels scheduled for past times today", async () => {
+    it("should reject new parcels scheduled for past times today", async () => {
         // Import after mocks are set up
         const { updateHouseholdParcels } = await import(
             "@/app/[locale]/households/[id]/parcels/actions"
@@ -182,13 +182,20 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Call the action
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
-            // Verify the result was successful (no error, just no parcels inserted)
-            expect(result.success).toBe(true);
+            // New parcels in the past should surface a validation error
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.validationErrors).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            code: "PAST_PICKUP_TIME",
+                            field: "parcels",
+                        }),
+                    ]),
+                );
+            }
 
-            // With the new upsert pattern, delete is only called if there are parcels to remove
-            // The important thing is that NO parcel was inserted (because it's in the past)
-
-            // Verify NO parcel was inserted (because it's in the past)
+            // Verify NO parcel was inserted (because validation failed)
             expect(insertedParcels).toHaveLength(0);
         } finally {
             vi.useRealTimers();
@@ -253,7 +260,7 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
         }
     });
 
-    it("should handle mixed parcels: past, later today, and future", async () => {
+    it("should fail the whole submission when a new past parcel is included", async () => {
         // Import after mocks are set up
         const { updateHouseholdParcels } = await import(
             "@/app/[locale]/households/[id]/parcels/actions"
@@ -318,22 +325,185 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Call the action
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
-            // Verify the result was successful
+            // Any new past parcel should block the submission
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.validationErrors).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            code: "PAST_PICKUP_TIME",
+                            field: "parcels",
+                        }),
+                    ]),
+                );
+            }
+
+            // No inserts should have happened because validation failed before persisting
+            expect(insertedParcels).toHaveLength(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("should keep existing past parcels while saving future updates", async () => {
+        const { updateHouseholdParcels } = await import(
+            "@/app/[locale]/households/[id]/parcels/actions"
+        );
+
+        const now = new Date();
+        now.setHours(14, 0, 0, 0);
+
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+
+        try {
+            const pastStart = new Date(now);
+            pastStart.setHours(10, 0, 0, 0);
+            const pastEnd = new Date(now);
+            pastEnd.setHours(10, 30, 0, 0);
+
+            const futureStart = new Date(now);
+            futureStart.setDate(futureStart.getDate() + 1);
+            futureStart.setHours(12, 0, 0, 0);
+            const futureEnd = new Date(futureStart);
+            futureEnd.setMinutes(futureEnd.getMinutes() + 30);
+
+            const parcelsData: FoodParcels = {
+                pickupLocationId: testLocationId,
+                parcels: [
+                    {
+                        id: "persisted-past-parcel",
+                        pickupDate: pastStart,
+                        pickupEarliestTime: pastStart,
+                        pickupLatestTime: pastEnd,
+                    },
+                    {
+                        pickupDate: futureStart,
+                        pickupEarliestTime: futureStart,
+                        pickupLatestTime: futureEnd,
+                    },
+                ],
+            };
+
+            const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
+
             expect(result.success).toBe(true);
+            expect(insertedParcels.length).toBeGreaterThanOrEqual(1);
+            const futureInsert = insertedParcels.find(
+                parcel => parcel.pickup_date_time_earliest.getTime() === futureStart.getTime(),
+            );
+            expect(futureInsert).toBeDefined();
+            expect(futureInsert?.pickup_date_time_latest).toEqual(futureEnd);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 
-            // With the new upsert pattern, delete is only called if there are parcels to remove
-            // The important thing is that only future parcels were inserted
+    it("should treat persisted parcels with past pickup times as existing during validation", async () => {
+        const { updateHouseholdParcels } = await import(
+            "@/app/[locale]/households/[id]/parcels/actions"
+        );
+        const scheduleActions = await import("@/app/[locale]/schedule/actions");
+        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
 
-            // Verify only the future parcels were inserted (later today + tomorrow)
-            expect(insertedParcels).toHaveLength(2);
+        const now = new Date();
+        now.setHours(14, 30, 0, 0);
 
-            // First parcel should be later today (4:00 PM)
-            expect(insertedParcels[0].pickup_date_time_earliest).toEqual(laterTodayStart);
-            expect(insertedParcels[0].pickup_date_time_latest).toEqual(laterTodayEnd);
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
 
-            // Second parcel should be tomorrow (2:00 PM)
-            expect(insertedParcels[1].pickup_date_time_earliest).toEqual(futureStart);
-            expect(insertedParcels[1].pickup_date_time_latest).toEqual(futureEnd);
+        try {
+            const pastStart = new Date(now);
+            pastStart.setHours(13, 45, 0, 0);
+            const pastEnd = new Date(now);
+            pastEnd.setHours(14, 0, 0, 0);
+
+            validateParcelAssignmentsMock.mockImplementationOnce(async parcels => {
+                expect(parcels).toHaveLength(1);
+                expect(parcels[0].id).toBe("existing-parcel-id");
+                expect(parcels[0].pickupEndTime <= now).toBe(true);
+                return { success: true, errors: [] };
+            });
+
+            const parcelsData: FoodParcels = {
+                pickupLocationId: testLocationId,
+                parcels: [
+                    {
+                        id: "existing-parcel-id",
+                        pickupDate: pastStart,
+                        pickupEarliestTime: pastStart,
+                        pickupLatestTime: pastEnd,
+                    },
+                ],
+            };
+
+            const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
+
+            expect(result.success).toBe(true);
+            expect(validateParcelAssignmentsMock).toHaveBeenCalledTimes(1);
+            const callArgs = validateParcelAssignmentsMock.mock.calls[0][0];
+            expect(callArgs[0].id).toBe("existing-parcel-id");
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("should propagate validation failures from schedule validation", async () => {
+        const { updateHouseholdParcels } = await import(
+            "@/app/[locale]/households/[id]/parcels/actions"
+        );
+        const scheduleActions = await import("@/app/[locale]/schedule/actions");
+        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
+
+        validateParcelAssignmentsMock.mockResolvedValueOnce({
+            success: false,
+            errors: [
+                {
+                    field: "timeSlot",
+                    code: "HOUSEHOLD_DOUBLE_BOOKING",
+                    message: "Household already has a parcel scheduled for this date",
+                },
+            ],
+        });
+
+        const now = new Date();
+        now.setHours(10, 0, 0, 0);
+
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+
+        try {
+            const start = new Date(now);
+            start.setDate(start.getDate() + 1);
+            start.setHours(12, 0, 0, 0);
+            const end = new Date(start);
+            end.setMinutes(end.getMinutes() + 30);
+
+            const parcelsData: FoodParcels = {
+                pickupLocationId: testLocationId,
+                parcels: [
+                    {
+                        pickupDate: start,
+                        pickupEarliestTime: start,
+                        pickupLatestTime: end,
+                    },
+                ],
+            };
+
+            const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.validationErrors).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            code: "HOUSEHOLD_DOUBLE_BOOKING",
+                            field: "timeSlot",
+                        }),
+                    ]),
+                );
+            }
+            expect(insertedParcels).toHaveLength(0);
         } finally {
             vi.useRealTimers();
         }

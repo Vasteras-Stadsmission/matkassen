@@ -400,11 +400,32 @@ export const updateHousehold = protectedHouseholdAction(
                 // Keep past parcels (that have been picked up) to maintain history
                 const now = new Date();
 
+                // Validate that NEW parcels (without id) are not in the past
+                if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
+                    const newPastParcels = data.foodParcels.parcels.filter(
+                        parcel => !parcel.id && new Date(parcel.pickupLatestTime) <= now,
+                    );
+
+                    if (newPastParcels.length > 0) {
+                        const { formatStockholmDate } = await import("@/app/utils/date-utils");
+                        const dates = newPastParcels
+                            .map(p =>
+                                formatStockholmDate(new Date(p.pickupEarliestTime), "yyyy-MM-dd"),
+                            )
+                            .join(", ");
+
+                        return failure({
+                            code: "PAST_PICKUP_TIME",
+                            message: `Cannot create parcels with past pickup times for: ${dates}. Please select a future time or remove these dates.`,
+                        });
+                    }
+                }
+
                 // First, insert or update new food parcels
                 if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
-                    // Filter parcels to only include future ones
-                    const futureParcels = data.foodParcels.parcels
-                        .filter(parcel => new Date(parcel.pickupEarliestTime) > now)
+                    // Filter parcels to only include future ones OR existing parcels being updated
+                    const parcelsToSave = data.foodParcels.parcels
+                        .filter(parcel => new Date(parcel.pickupEarliestTime) > now || parcel.id)
                         .map(parcel => ({
                             household_id: household.id,
                             pickup_location_id: data.foodParcels.pickupLocationId,
@@ -415,10 +436,10 @@ export const updateHousehold = protectedHouseholdAction(
 
                     // Use upsert to ensure idempotency under concurrent operations
                     // Including location ensures that location changes are properly handled
-                    if (futureParcels.length > 0) {
+                    if (parcelsToSave.length > 0) {
                         await tx
                             .insert(foodParcels)
-                            .values(futureParcels)
+                            .values(parcelsToSave)
                             .onConflictDoNothing({
                                 target: [
                                     foodParcels.household_id,
@@ -434,7 +455,7 @@ export const updateHousehold = protectedHouseholdAction(
                 // Key includes location to properly handle location changes
                 const desiredParcelKeys = new Set(
                     data.foodParcels.parcels
-                        ?.filter(p => new Date(p.pickupEarliestTime) > now)
+                        ?.filter(p => new Date(p.pickupEarliestTime) > now || p.id)
                         .map(
                             p =>
                                 `${data.foodParcels.pickupLocationId}-${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
