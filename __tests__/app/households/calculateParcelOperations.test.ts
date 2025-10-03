@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getStockholmDateKey } from "@/app/utils/date-utils";
-import { calculateParcelOperations } from "@/app/[locale]/households/[id]/edit/actions";
+import { calculateParcelOperations } from "@/app/[locale]/households/[id]/edit/calculateParcelOperations";
 
 /**
  * Tests for calculateParcelOperations function
