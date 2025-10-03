@@ -36,7 +36,12 @@ services:
                 condition: service_healthy
         networks:
             - my_network
-        command: ["/bin/sh", "-lc", "chmod 600 /etc/crontabs/root && /usr/sbin/crond -f -l 8 -L /dev/stdout"]
+        command:
+            [
+                "/bin/sh",
+                "-lc",
+                "chmod 600 /etc/crontabs/root && /usr/sbin/crond -f -l 8 -L /dev/stdout",
+            ]
         healthcheck:
             test: ["CMD", "pgrep", "crond"]
             interval: 60s

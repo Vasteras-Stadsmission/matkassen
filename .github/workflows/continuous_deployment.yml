@@ -104,7 +104,7 @@ jobs:
                           echo "Discarding any local changes..."
                           git reset --hard HEAD
                           git clean -fd
-                          git pull --depth 1 origin main
+                          git pull origin main
 
                           # Run the update.sh script which will apply migrations
                           chmod +x update.sh
@@ -175,7 +175,7 @@ jobs:
                           echo "Discarding any local changes..."
                           git reset --hard HEAD
                           git clean -fd
-                          git pull --depth 1 origin main
+                          git pull origin main
 
                           # Run the update.sh script which will apply migrations
                           chmod +x update.sh
