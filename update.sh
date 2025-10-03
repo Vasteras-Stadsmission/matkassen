@@ -2,7 +2,17 @@
 
 # This script updates the Next.js app, rebuilding the Docker containers and restarting them.
 # It assumes that the app is already set up with Docker and Docker Compose
-# and that the git repository is already up to date (handled by CI/CD workflow).
+## Start backup service automatically on production
+if [ "${ENV_NAME:-}" = "production" ]; then
+  echo "Starting backup service (profile: backup)..."
+  # Pull the backup image from GHCR
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull
+  # Start the backup service (explicitly specify env file location)
+  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d db-backup
+  echo "✅ Backup service started successfully"
+fi
+
+# Output final messagehe git repository is already up to date (handled by CI/CD workflow).
 # It also assumes that the .env file is already created and contains the necessary environment variables.
 
 set -Eeuo pipefail
@@ -130,13 +140,13 @@ sudo systemctl start nginx
 sudo systemctl enable nginx  # Ensure it's enabled
 echo "✅ Nginx configuration updated and restarted cleanly"
 
-# Build and restart the Docker containers
-echo "Rebuilding and restarting Docker containers..."
+# Pull and restart the Docker containers
+echo "Pulling latest Docker images from GitHub Container Registry..."
 cd "$APP_DIR"
-# Enable Docker Compose Bake for potentially better build performance (if not already set)
-export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
-# Enable Docker BuildKit for faster builds (without inline cache to avoid hangs)
-DOCKER_BUILDKIT=1 sudo docker compose build
+if ! sudo docker compose pull; then
+  echo "Failed to pull Docker images from GHCR"
+  exit 1
+fi
 
 echo "Starting Docker containers..."
 timeout 300 sudo docker compose up -d || {

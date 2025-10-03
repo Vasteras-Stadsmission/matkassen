@@ -6,10 +6,7 @@ services:
     db-backup:
         profiles:
             - backup
-        build:
-            context: .
-            dockerfile: Dockerfile.db-backup
-        image: matkassen-db-backup:latest
+        image: ghcr.io/vasteras-stadsmission/matkassen-db-backup:latest
         restart: unless-stopped
         environment:
             - POSTGRES_USER=${POSTGRES_USER}
@@ -39,12 +36,7 @@ services:
                 condition: service_healthy
         networks:
             - my_network
-        command:
-            [
-                "/bin/sh",
-                "-lc",
-                "chmod 600 /etc/crontabs/root && /usr/sbin/crond -f -l 8 -L /dev/stdout",
-            ]
+        command: ["/bin/sh", "-lc", "chmod 600 /etc/crontabs/root && /usr/sbin/crond -f -l 8 -L /dev/stdout"]
         healthcheck:
             test: ["CMD", "pgrep", "crond"]
             interval: 60s

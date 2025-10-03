@@ -1,5 +1,7 @@
 FROM alpine:3.22
 
+LABEL org.opencontainers.image.source=https://github.com/Vasteras-Stadsmission/matkassen
+
 ENV TZ=Europe/Stockholm
 
 RUN apk add --no-cache \
