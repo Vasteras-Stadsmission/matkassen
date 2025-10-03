@@ -2,17 +2,7 @@
 
 # This script updates the Next.js app, rebuilding the Docker containers and restarting them.
 # It assumes that the app is already set up with Docker and Docker Compose
-## Start backup service automatically on production
-if [ "${ENV_NAME:-}" = "production" ]; then
-  echo "Starting backup service (profile: backup)..."
-  # Pull the backup image from GHCR
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull
-  # Start the backup service (explicitly specify env file location)
-  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d db-backup
-  echo "✅ Backup service started successfully"
-fi
-
-# Output final messagehe git repository is already up to date (handled by CI/CD workflow).
+# Note: The git repository is already up to date (handled by CI/CD workflow).
 # It also assumes that the .env file is already created and contains the necessary environment variables.
 
 set -Eeuo pipefail
@@ -193,8 +183,8 @@ echo "✅ Docker cleanup completed"
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Starting backup service (profile: backup)..."
-  # Build the backup image to ensure scripts are included
-  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup build db-backup
+  # Pull the backup image from GHCR
+  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup pull
   # Start the backup service (explicitly specify env file location)
   sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d db-backup
   echo "✅ Backup service started successfully"
