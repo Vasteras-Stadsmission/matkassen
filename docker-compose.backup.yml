@@ -6,10 +6,7 @@ services:
     db-backup:
         profiles:
             - backup
-        build:
-            context: .
-            dockerfile: Dockerfile.db-backup
-        image: matkassen-db-backup:latest
+        image: ghcr.io/vasteras-stadsmission/matkassen-db-backup:latest
         restart: unless-stopped
         environment:
             - POSTGRES_USER=${POSTGRES_USER}

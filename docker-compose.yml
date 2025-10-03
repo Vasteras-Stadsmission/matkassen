@@ -5,7 +5,7 @@
 
 services:
     web:
-        build: .
+        image: ghcr.io/vasteras-stadsmission/matkassen:latest
         restart: always
         ports:
             - "3000:3000"
