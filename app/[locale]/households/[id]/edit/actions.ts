@@ -405,7 +405,7 @@ export const updateHousehold = protectedHouseholdAction(
                 // Validate that NEW parcels are not in the past
                 if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
                     const pastParcels = data.foodParcels.parcels.filter(
-                        parcel => new Date(parcel.pickupLatestTime) <= now,
+                        parcel => !parcel.id && new Date(parcel.pickupLatestTime) <= now,
                     );
 
                     if (pastParcels.length > 0) {

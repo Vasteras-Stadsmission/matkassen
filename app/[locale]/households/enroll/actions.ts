@@ -237,28 +237,43 @@ export const enrollHousehold = protectedAction(
                     }
 
                     // Use upsert pattern to ensure idempotency under concurrent operations
-                    // The unique constraint on (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
-                    // guarantees that we won't create duplicates even if multiple requests run concurrently
-                    // Including location ensures that location changes are properly handled
-                    await tx
-                        .insert(foodParcels)
-                        .values(
-                            data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
-                                household_id: household.id,
-                                pickup_location_id: data.foodParcels.pickupLocationId,
-                                pickup_date_time_earliest: parcel.pickupEarliestTime,
-                                pickup_date_time_latest: parcel.pickupLatestTime,
-                                is_picked_up: false,
-                            })),
+                    // The partial unique index food_parcels_household_location_time_active_unique
+                    // (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // WHERE deleted_at IS NULL guarantees that we won't create duplicates even if
+                    // multiple requests run concurrently. Including location ensures that location
+                    // changes are properly handled.
+                    //
+                    // We use raw SQL for ON CONFLICT because Drizzle ORM doesn't support
+                    // partial index targeting (WITH WHERE clause) in its DSL as of v0.42.0
+                    const parcelsToInsert = data.foodParcels.parcels.map(
+                        (parcel: FoodParcelCreateData) => ({
+                            household_id: household.id,
+                            pickup_location_id: data.foodParcels.pickupLocationId,
+                            pickup_date_time_earliest: parcel.pickupEarliestTime,
+                            pickup_date_time_latest: parcel.pickupLatestTime,
+                            is_picked_up: false,
+                        }),
+                    );
+
+                    // Build VALUES clause with proper parameterization
+                    const valuesClause = parcelsToInsert.map(
+                        p =>
+                            sql`(${p.household_id}, ${p.pickup_location_id}, ${p.pickup_date_time_earliest}, ${p.pickup_date_time_latest}, ${p.is_picked_up})`,
+                    );
+
+                    // Construct the full INSERT with ON CONFLICT targeting the partial index
+                    const query = sql`
+                        INSERT INTO food_parcels (
+                            household_id, pickup_location_id,
+                            pickup_date_time_earliest, pickup_date_time_latest, is_picked_up
                         )
-                        .onConflictDoNothing({
-                            target: [
-                                foodParcels.household_id,
-                                foodParcels.pickup_location_id,
-                                foodParcels.pickup_date_time_earliest,
-                                foodParcels.pickup_date_time_latest,
-                            ],
-                        });
+                        VALUES ${sql.join(valuesClause, sql`, `)}
+                        ON CONFLICT (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
+                        WHERE deleted_at IS NULL
+                        DO NOTHING
+                    `;
+
+                    await tx.execute(query);
                 }
                 return { householdId: household.id };
             });

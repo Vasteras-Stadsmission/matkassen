@@ -16,6 +16,7 @@ import type { ActionResult } from "@/app/utils/auth/action-result";
 
 // Track what gets inserted/rejected
 let insertedParcels: any[] = [];
+let executeCalled = false;
 let validationErrors: any[] = [];
 let deleteCalled = false;
 
@@ -44,6 +45,16 @@ vi.mock("@/app/db/drizzle", () => {
                 };
             }),
         })),
+        execute: vi.fn(async (query: any) => {
+            // Mock execute for raw SQL queries (used for ON CONFLICT with partial indexes)
+            if (query && query.queryChunks) {
+                const sqlString = JSON.stringify(query.queryChunks);
+                if (sqlString.includes("INSERT INTO food_parcels")) {
+                    executeCalled = true;
+                }
+            }
+            return Promise.resolve();
+        }),
     };
 
     return {
@@ -87,6 +98,7 @@ describe("Past Parcel Prevention - Backend Validation", () => {
 
     beforeEach(() => {
         insertedParcels = [];
+        executeCalled = false;
         validationErrors = [];
         deleteCalled = false;
         vi.clearAllMocks();
@@ -200,7 +212,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
         expect(result.success).toBe(true);
 
         // Should insert/update the parcel
-        expect(insertedParcels.length).toBe(1);
+        // With raw SQL implementation, verify execute was called
+        expect(executeCalled).toBe(true);
 
         vi.useRealTimers();
     });
@@ -240,7 +253,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
         }
 
         // Should NOT insert any parcels (transaction should rollback)
-        expect(insertedParcels.length).toBe(0);
+        // With raw SQL implementation, verify execute was NOT called
+        expect(executeCalled).toBe(false);
 
         vi.useRealTimers();
     });
@@ -304,7 +318,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
 
         // Should succeed
         expect(result.success).toBe(true);
-        expect(insertedParcels.length).toBe(1);
+        // With raw SQL implementation, verify execute was called
+        expect(executeCalled).toBe(true);
 
         vi.useRealTimers();
     });

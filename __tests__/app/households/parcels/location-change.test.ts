@@ -13,6 +13,7 @@ import type { FoodParcels } from "@/app/[locale]/households/enroll/types";
 
 // Track database operations for verification
 let insertedParcels: any[] = [];
+let executeCalled = false;
 let deletedParcelIds: string[] = [];
 let existingParcels: any[] = [];
 
@@ -56,6 +57,16 @@ vi.mock("@/app/db/drizzle", () => {
                 };
             }),
         })),
+        execute: vi.fn(async (query: any) => {
+            // Mock execute for raw SQL queries (used for ON CONFLICT with partial indexes)
+            if (query && query.queryChunks) {
+                const sqlString = JSON.stringify(query.queryChunks);
+                if (sqlString.includes("INSERT INTO food_parcels")) {
+                    executeCalled = true;
+                }
+            }
+            return Promise.resolve();
+        }),
     };
 
     return {
@@ -106,6 +117,7 @@ describe("updateHouseholdParcels - Location Changes", () => {
     beforeEach(() => {
         // Reset tracking arrays
         insertedParcels = [];
+        executeCalled = false;
         deletedParcelIds = [];
         existingParcels = [];
         vi.clearAllMocks();
