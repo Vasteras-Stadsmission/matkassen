@@ -325,13 +325,16 @@ for gz_file in $(find "$APP_DIR" -name "*.gz" -type f 2>/dev/null || true); do
   sudo rm -f "$gz_file"
 done
 
-# Build the containers with proper error handling
-echo "Building Docker containers..."
-# Enable Docker Compose Bake for potentially better build performance (if not already set)
-export COMPOSE_BAKE=${COMPOSE_BAKE:-true}
-if ! sudo docker compose build --no-cache; then
-  echo "Docker build failed. Check the build logs above."
-  exit 1
+# Pull pre-built images from GHCR (with fallback to build for first-time setup)
+echo "Pulling Docker images from GitHub Container Registry..."
+if ! sudo docker compose pull; then
+  echo "⚠️  Failed to pull images from GHCR (this is expected on first deployment)"
+  echo "Falling back to building images locally..."
+  if ! sudo docker compose build --no-cache; then
+    echo "❌ Docker build also failed. Check the logs above."
+    exit 1
+  fi
+  echo "✅ Images built successfully locally"
 fi
 
 # Start the containers with health check dependencies
@@ -396,8 +399,8 @@ sudo docker system prune -af
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Starting backup service (profile: backup)..."
-  # Build the backup image to ensure scripts are included
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup build db-backup || true
+  # Pull the backup image from GHCR
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull || true
   SWIFT_PREFIX="$SWIFT_PREFIX" \
   OS_AUTH_TYPE="$OS_AUTH_TYPE" \
   OS_AUTH_URL="$OS_AUTH_URL" \
