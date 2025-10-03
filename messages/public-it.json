@@ -13,13 +13,15 @@
             "scheduled": "Programmato",
             "ready": "Pronto per il Ritiro",
             "collected": "Ritirato",
-            "expired": "Scaduto"
+            "expired": "Scaduto",
+            "cancelled": "Annullato"
         },
         "statusDescription": {
             "scheduled": "Il tuo ritiro è programmato. Per favore arriva durante l'orario di ritiro.",
             "ready": "Il tuo pacco alimentare è pronto per il ritiro ora!",
             "collected": "Questo pacco alimentare è già stato ritirato.",
-            "expired": "Questo ritiro non è più valido. Per favore contatta il personale se hai domande."
+            "expired": "Questo ritiro non è più valido. Per favore contatta il personale se hai domande.",
+            "cancelled": "Questo ritiro è stato annullato. Non è necessario venire."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

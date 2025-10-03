@@ -4,6 +4,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
+import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, sql, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
@@ -16,7 +17,7 @@ import { getPickupLocationSchedules } from "@/app/[locale]/schedule/actions";
 import { nanoid } from "nanoid";
 
 export type SmsIntent = "pickup_reminder" | "consent_enrolment";
-export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed";
+export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
 // Advisory lock key for SMS queue processing
 const SMS_QUEUE_LOCK_KEY = "sms-queue-processing";
@@ -384,6 +385,7 @@ export async function getParcelsNeedingReminder(): Promise<
                 lte(foodParcels.pickup_date_time_earliest, end),
                 eq(foodParcels.is_picked_up, false),
                 sql`${outgoingSms.id} IS NULL`, // No existing SMS
+                notDeleted(),
             ),
         );
 

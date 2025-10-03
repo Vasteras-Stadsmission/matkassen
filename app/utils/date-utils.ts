@@ -295,3 +295,28 @@ export function generateTimeSlotsBetween(
     }
     return slots;
 }
+
+/**
+ * Get a Stockholm timezone date key (YYYY-MM-DD) for same-day matching logic.
+ *
+ * CRITICAL: This function ensures date boundaries respect Stockholm timezone,
+ * not UTC, which prevents bugs when comparing dates near midnight.
+ *
+ * Example: 2025-10-15T00:15:00+02:00 (Stockholm) = 2025-10-14T22:15:00Z (UTC)
+ * - Using UTC methods would incorrectly treat this as Oct 14
+ * - This function correctly treats it as Oct 15
+ *
+ * This is essential for:
+ * - Same-day parcel matching (updating vs creating new parcels)
+ * - Daily capacity calculations
+ * - Household double-booking prevention
+ *
+ * DST Safety: Uses formatInTimeZone which automatically handles DST transitions,
+ * ensuring dates remain consistent during spring/fall clock changes.
+ *
+ * @param date - The date to convert to a date key
+ * @returns Date string in YYYY-MM-DD format according to Stockholm timezone
+ */
+export function getStockholmDateKey(date: Date): string {
+    return formatInTimeZone(date, TIMEZONE, "yyyy-MM-dd");
+}

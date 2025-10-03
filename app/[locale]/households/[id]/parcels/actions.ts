@@ -13,6 +13,7 @@ import {
     validationFailure,
     type ActionResult,
 } from "@/app/utils/auth/action-result";
+import { notDeleted } from "@/app/db/query-helpers";
 
 export const updateHouseholdParcels = protectedHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
@@ -83,7 +84,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                     const parcelsToSave = parcelsData.parcels
                         .filter(parcel => parcel.pickupLatestTime > now || parcel.id)
                         .map(parcel => ({
-                            id: nanoid(),
+                            id: nanoid(12), // Food parcels use 12-character IDs
                             household_id: household.id,
                             pickup_location_id: parcelsData.pickupLocationId,
                             pickup_date_time_earliest: parcel.pickupEarliestTime,
@@ -136,10 +137,13 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                         and(
                             eq(foodParcels.household_id, household.id),
                             gt(foodParcels.pickup_date_time_latest, now),
+                            notDeleted(),
                         ),
                     );
 
-                // Delete parcels that are not in the desired schedule
+                // Soft delete parcels that are not in the desired schedule
+                // This preserves audit trail, keeps public QR code links working,
+                // and handles SMS cancellation intelligently
                 const parcelsToDelete = existingFutureParcels.filter(
                     p =>
                         !desiredParcelKeys.has(
@@ -148,8 +152,17 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 );
 
                 if (parcelsToDelete.length > 0) {
+                    // Import helper function for SMS-aware soft deletion
+                    const { softDeleteParcelInTransaction } = await import(
+                        "@/app/[locale]/parcels/actions"
+                    );
+
                     for (const parcel of parcelsToDelete) {
-                        await tx.delete(foodParcels).where(eq(foodParcels.id, parcel.id));
+                        await softDeleteParcelInTransaction(
+                            tx,
+                            parcel.id,
+                            session.user?.githubUsername || "system",
+                        );
                     }
                 }
             });

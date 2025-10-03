@@ -15,9 +15,10 @@ import {
     pickupLocations,
     householdComments,
 } from "@/app/db/schema";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, and } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
+import { notDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
@@ -78,7 +79,7 @@ export async function getHouseholds() {
             const householdParcels = await db
                 .select()
                 .from(foodParcels)
-                .where(eq(foodParcels.household_id, household.id))
+                .where(and(eq(foodParcels.household_id, household.id), notDeleted()))
                 .orderBy(foodParcels.pickup_date_time_latest);
 
             // Get the first and last food parcel dates (if any parcels exist)
@@ -184,7 +185,7 @@ export async function getHouseholdDetails(householdId: string) {
                 is_picked_up: foodParcels.is_picked_up,
             })
             .from(foodParcels)
-            .where(eq(foodParcels.household_id, householdId))
+            .where(and(eq(foodParcels.household_id, householdId), notDeleted()))
             .orderBy(asc(foodParcels.pickup_date_time_earliest));
 
         // Get pickup location info

@@ -13,13 +13,15 @@
             "scheduled": "Scheduled",
             "ready": "Ready for Pickup",
             "collected": "Collected",
-            "expired": "Expired"
+            "expired": "Expired",
+            "cancelled": "Cancelled"
         },
         "statusDescription": {
             "scheduled": "Your pickup is scheduled. Please arrive during the pickup window.",
             "ready": "Your food parcel is ready for pickup now!",
             "collected": "This food parcel has already been collected.",
-            "expired": "This pickup is no longer valid. Please contact staff if you have questions."
+            "expired": "This pickup is no longer valid. Please contact staff if you have questions.",
+            "cancelled": "This pickup has been cancelled. You do not need to come."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

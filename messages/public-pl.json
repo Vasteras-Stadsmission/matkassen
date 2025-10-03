@@ -13,13 +13,15 @@
             "scheduled": "Zaplanowane",
             "ready": "Gotowe do Odbioru",
             "collected": "Odebrane",
-            "expired": "Wygasłe"
+            "expired": "Wygasłe",
+            "cancelled": "Odwołane"
         },
         "statusDescription": {
             "scheduled": "Twój odbiór jest zaplanowany. Proszę przybyć w czasie odbioru.",
             "ready": "Twój pakiet żywności jest gotowy do odbioru teraz!",
             "collected": "Ten pakiet żywności został już odebrany.",
-            "expired": "Ten odbiór nie jest już ważny. Skontaktuj się z personelem jeśli masz pytania."
+            "expired": "Ten odbiór nie jest już ważny. Skontaktuj się z personelem jeśli masz pytania.",
+            "cancelled": "Ten odbiór został odwołany. Nie musisz przychodzić."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

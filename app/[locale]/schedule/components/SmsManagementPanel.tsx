@@ -54,6 +54,7 @@ export default function SmsManagementPanel({
             sent: { color: "green", icon: IconCheck, label: t("status.sent") },
             retrying: { color: "yellow", icon: IconRefresh, label: "Retrying" },
             failed: { color: "red", icon: IconX, label: t("status.failed") },
+            cancelled: { color: "gray", icon: IconX, label: t("status.cancelled") },
         } as const;
 
         const config = statusConfig[status] || {

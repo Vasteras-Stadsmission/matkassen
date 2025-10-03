@@ -840,6 +840,18 @@
             "addComment": "Lägg till kommentar",
             "markPickedUp": "Markera som hämtat",
             "undoPickup": "Ångra hämtning",
+            "deleteParcel": "Ta bort paket",
+            "deleteConfirmTitle": "Bekräfta borttagning",
+            "deleteConfirmMessage": "Är du säker på att du vill ta bort detta paket? {smsWarning}",
+            "smsWarning": "Ett avboknings-SMS kommer att skickas till hushållet.",
+            "smsNoWarning": "Inget SMS har skickats ännu.",
+            "confirmDelete": "Ja, ta bort",
+            "cancelDelete": "Avbryt",
+            "deleting": "Tar bort...",
+            "success": {
+                "parcelDeleted": "Paket borttaget",
+                "parcelDeletedMessage": "Matkassen har tagits bort"
+            },
             "errors": {
                 "parcelNotFound": "Paketet hittades inte",
                 "loadFailed": "Misslyckades med att ladda paketdetaljer",
@@ -847,7 +859,10 @@
                 "undoPickupFailed": "Misslyckades med att ångra hämtning",
                 "addCommentFailed": "Misslyckades med att lägga till kommentar",
                 "deleteCommentFailed": "Misslyckades att ta bort kommentar",
-                "deleteCommentError": "Fel vid borttagning av kommentar"
+                "deleteCommentError": "Fel vid borttagning av kommentar",
+                "deleteParcelFailed": "Misslyckades med att ta bort paket",
+                "parcelAlreadyPickedUp": "Kan inte ta bort ett paket som redan är upphämtat",
+                "parcelInPast": "Kan inte ta bort ett paket från det förflutna"
             }
         }
     }

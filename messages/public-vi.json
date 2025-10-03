@@ -13,13 +13,15 @@
             "scheduled": "Đã Lên Lịch",
             "ready": "Sẵn Sàng Để Nhận",
             "collected": "Đã Nhận",
-            "expired": "Đã Hết Hạn"
+            "expired": "Đã Hết Hạn",
+            "cancelled": "Đã hủy"
         },
         "statusDescription": {
             "scheduled": "Việc nhận hàng của bạn đã được lên lịch. Vui lòng đến trong khung thời gian nhận hàng.",
             "ready": "Gói thực phẩm của bạn đã sẵn sàng để nhận ngay bây giờ!",
             "collected": "Gói thực phẩm này đã được nhận rồi.",
-            "expired": "Việc nhận hàng này không còn hiệu lực. Vui lòng liên hệ với nhân viên nếu bạn có câu hỏi."
+            "expired": "Việc nhận hàng này không còn hiệu lực. Vui lòng liên hệ với nhân viên nếu bạn có câu hỏi.",
+            "cancelled": "Lần lấy này đã bị hủy. Bạn không cần đến."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

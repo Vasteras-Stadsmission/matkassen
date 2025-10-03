@@ -16,6 +16,7 @@ import {
     pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
 } from "@/app/db/schema";
 import { eq, and, sql } from "drizzle-orm";
+import { notDeleted } from "@/app/db/query-helpers";
 import {
     setToStartOfDay,
     setToEndOfDay,
@@ -399,6 +400,9 @@ export async function checkPickupLocationCapacity(
             whereConditions.push(sql`${foodParcels.household_id} != ${excludeHouseholdId}`);
         }
 
+        // Exclude soft-deleted parcels from capacity calculations
+        whereConditions.push(notDeleted());
+
         // Execute the query with all conditions
         const parcels = await db
             .select()
@@ -474,6 +478,7 @@ export async function getPickupLocationCapacityForRange(
                     eq(foodParcels.pickup_location_id, locationId),
                     sql`${foodParcels.pickup_date_time_earliest} >= ${start.toISOString()}`,
                     sql`${foodParcels.pickup_date_time_earliest} <= ${end.toISOString()}`,
+                    notDeleted(),
                 ),
             );
 

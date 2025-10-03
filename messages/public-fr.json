@@ -13,13 +13,15 @@
             "scheduled": "Programmé",
             "ready": "Prêt à être Récupéré",
             "collected": "Récupéré",
-            "expired": "Expiré"
+            "expired": "Expiré",
+            "cancelled": "Annulée"
         },
         "statusDescription": {
             "scheduled": "Votre récupération est programmée. Veuillez arriver pendant l'horaire de récupération.",
             "ready": "Votre colis alimentaire est prêt à être récupéré maintenant !",
             "collected": "Ce colis alimentaire a déjà été récupéré.",
-            "expired": "Cette récupération n'est plus valide. Veuillez contacter le personnel si vous avez des questions."
+            "expired": "Cette récupération n'est plus valide. Veuillez contacter le personnel si vous avez des questions.",
+            "cancelled": "Ce retrait a été annulé. Vous n'avez pas besoin de venir."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

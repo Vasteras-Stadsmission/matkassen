@@ -255,3 +255,62 @@ export function formatPickupSms(data: SmsTemplateData, locale: SupportedLocale):
             return `Food pickup ${date} ${time}: ${data.publicUrl}`;
     }
 }
+
+/**
+ * Generate cancellation SMS for when a parcel is deleted
+ * Simple, clear message that pickup has been cancelled
+ */
+export function generateCancellationSmsText(
+    locale: string,
+    now: Date,
+    scheduledPickupTime: Date,
+): string {
+    const normalizedLocale = (locale as SupportedLocale) || "sv";
+    const { date, time } = formatDateTimeForSms(scheduledPickupTime, normalizedLocale);
+
+    switch (normalizedLocale) {
+        case "sv":
+            return `Matpaket ${date} ${time} är inställt.`;
+        case "en":
+            return `Food pickup ${date} ${time} is cancelled.`;
+        case "ar":
+            return `تم إلغاء استلام الطعام ${date} ${time}.`;
+        case "fa":
+            return `دریافت غذا ${date} ${time} لغو شد.`;
+        case "ku":
+            return `Xwarin ${date} ${time} hate betalkirin.`;
+        case "es":
+            return `Comida ${date} ${time} cancelada.`;
+        case "fr":
+            return `Collecte ${date} ${time} annulée.`;
+        case "de":
+            return `Essen ${date} ${time} abgesagt.`;
+        case "el":
+            return `Φαγητό ${date} ${time} ακυρώθηκε.`;
+        case "sw":
+            return `Chakula ${date} ${time} imesitishwa.`;
+        case "so":
+        case "so_so":
+            return `Cunto ${date} ${time} waa la joojiyay.`;
+        case "uk":
+            return `Їжа ${date} ${time} скасована.`;
+        case "ru":
+            return `Еда ${date} ${time} отменена.`;
+        case "ka":
+            return `საკვები ${date} ${time} გაუქმებულია.`;
+        case "fi":
+            return `Ruoka ${date} ${time} peruttu.`;
+        case "it":
+            return `Cibo ${date} ${time} annullato.`;
+        case "th":
+            return `อาหาร ${date} ${time} ถูกยกเลิก.`;
+        case "vi":
+            return `Thức ăn ${date} ${time} đã hủy.`;
+        case "pl":
+            return `Jedzenie ${date} ${time} odwołane.`;
+        case "hy":
+            return `Սնունդ ${date} ${time} չեղարկվել է.`;
+        default:
+            return `Food pickup ${date} ${time} is cancelled.`;
+    }
+}

@@ -19,6 +19,122 @@ import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions"
 import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { type AuthSession } from "@/app/utils/auth/server-action-auth";
+import { notDeleted } from "@/app/db/query-helpers";
+import { nanoid } from "@/app/db/schema";
+import { getStockholmDateKey } from "@/app/utils/date-utils";
+
+/**
+ * Calculate parcel operations using same-day matching logic (Option B).
+ * This enables surgical updates: only time changes on the same day update the existing parcel,
+ * preserving parcel IDs and preventing SMS cancellations.
+ *
+ * Matching logic:
+ * - Same location + same date (ignoring time) = UPDATE existing parcel with new times
+ * - Different location or different date = DELETE old + CREATE new
+ */
+export function calculateParcelOperations(
+    existing: Array<{
+        id: string;
+        locationId: string;
+        earliest: Date;
+        latest: Date;
+    }>,
+    desired: Array<{
+        id?: string;
+        pickupEarliestTime: Date;
+        pickupLatestTime: Date;
+    }>,
+    newLocationId: string,
+    householdId: string,
+): {
+    toCreate: Array<{
+        id: string;
+        household_id: string;
+        pickup_location_id: string;
+        pickup_date_time_earliest: Date;
+        pickup_date_time_latest: Date;
+        is_picked_up: boolean;
+    }>;
+    toUpdate: Array<{
+        id: string;
+        pickup_date_time_earliest: Date;
+        pickup_date_time_latest: Date;
+    }>;
+    toDelete: string[];
+} {
+    const toCreate: Array<{
+        id: string;
+        household_id: string;
+        pickup_location_id: string;
+        pickup_date_time_earliest: Date;
+        pickup_date_time_latest: Date;
+        is_picked_up: boolean;
+    }> = [];
+    const toUpdate: Array<{
+        id: string;
+        pickup_date_time_earliest: Date;
+        pickup_date_time_latest: Date;
+    }> = [];
+    const toDelete: string[] = [];
+
+    // Build map of existing parcels: location-date -> parcel
+    // Uses Stockholm timezone for date keys to ensure correct same-day matching
+    // across midnight boundaries and DST transitions
+    const existingMap = new Map<string, (typeof existing)[0]>();
+    for (const parcel of existing) {
+        const key = `${parcel.locationId}-${getStockholmDateKey(parcel.earliest)}`;
+        existingMap.set(key, parcel);
+    }
+
+    // Track which existing parcels we've matched
+    const matchedExistingIds = new Set<string>();
+
+    // Process desired parcels
+    for (const desiredParcel of desired) {
+        const desiredDateKey = getStockholmDateKey(desiredParcel.pickupEarliestTime);
+        const key = `${newLocationId}-${desiredDateKey}`;
+
+        const existingParcel = existingMap.get(key);
+
+        if (existingParcel) {
+            // Same location + same date = UPDATE times if changed
+            matchedExistingIds.add(existingParcel.id);
+
+            // Check if times actually changed
+            const timesChanged =
+                existingParcel.earliest.getTime() !== desiredParcel.pickupEarliestTime.getTime() ||
+                existingParcel.latest.getTime() !== desiredParcel.pickupLatestTime.getTime();
+
+            if (timesChanged) {
+                toUpdate.push({
+                    id: existingParcel.id,
+                    pickup_date_time_earliest: desiredParcel.pickupEarliestTime,
+                    pickup_date_time_latest: desiredParcel.pickupLatestTime,
+                });
+            }
+            // If times unchanged, do nothing (parcel already correct)
+        } else {
+            // No match = CREATE new parcel
+            toCreate.push({
+                id: nanoid(12), // Food parcels use 12-character IDs
+                household_id: householdId,
+                pickup_location_id: newLocationId,
+                pickup_date_time_earliest: desiredParcel.pickupEarliestTime,
+                pickup_date_time_latest: desiredParcel.pickupLatestTime,
+                is_picked_up: false,
+            });
+        }
+    }
+
+    // Any unmatched existing parcels should be deleted
+    for (const parcel of existing) {
+        if (!matchedExistingIds.has(parcel.id)) {
+            toDelete.push(parcel.id);
+        }
+    }
+
+    return { toCreate, toUpdate, toDelete };
+}
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -161,7 +277,7 @@ async function getHouseholdEditData(householdId: string) {
             isPickedUp: foodParcels.is_picked_up,
         })
         .from(foodParcels)
-        .where(eq(foodParcels.household_id, householdId))
+        .where(and(eq(foodParcels.household_id, householdId), notDeleted()))
         .orderBy(foodParcels.pickup_date_time_latest);
 
     // Get comments
@@ -396,19 +512,19 @@ export const updateHousehold = protectedHouseholdAction(
                     );
                 }
 
-                // 6. Handle food parcels using upsert pattern for idempotency
-                // Keep past parcels (that have been picked up) to maintain history
+                // 6. Handle food parcels using surgical operations with same-day matching
+                // This preserves parcel IDs when only times change on the same day (Option B)
                 const now = new Date();
 
-                // Validate that NEW parcels (without id) are not in the past
+                // Validate that NEW parcels are not in the past
                 if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
-                    const newPastParcels = data.foodParcels.parcels.filter(
-                        parcel => !parcel.id && new Date(parcel.pickupLatestTime) <= now,
+                    const pastParcels = data.foodParcels.parcels.filter(
+                        parcel => new Date(parcel.pickupLatestTime) <= now,
                     );
 
-                    if (newPastParcels.length > 0) {
+                    if (pastParcels.length > 0) {
                         const { formatStockholmDate } = await import("@/app/utils/date-utils");
-                        const dates = newPastParcels
+                        const dates = pastParcels
                             .map(p =>
                                 formatStockholmDate(new Date(p.pickupEarliestTime), "yyyy-MM-dd"),
                             )
@@ -421,47 +537,7 @@ export const updateHousehold = protectedHouseholdAction(
                     }
                 }
 
-                // First, insert or update new food parcels
-                if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
-                    // Filter parcels to only include future ones OR existing parcels being updated
-                    const parcelsToSave = data.foodParcels.parcels
-                        .filter(parcel => new Date(parcel.pickupEarliestTime) > now || parcel.id)
-                        .map(parcel => ({
-                            household_id: household.id,
-                            pickup_location_id: data.foodParcels.pickupLocationId,
-                            pickup_date_time_earliest: parcel.pickupEarliestTime,
-                            pickup_date_time_latest: parcel.pickupLatestTime,
-                            is_picked_up: false,
-                        }));
-
-                    // Use upsert to ensure idempotency under concurrent operations
-                    // Including location ensures that location changes are properly handled
-                    if (parcelsToSave.length > 0) {
-                        await tx
-                            .insert(foodParcels)
-                            .values(parcelsToSave)
-                            .onConflictDoNothing({
-                                target: [
-                                    foodParcels.household_id,
-                                    foodParcels.pickup_location_id,
-                                    foodParcels.pickup_date_time_earliest,
-                                    foodParcels.pickup_date_time_latest,
-                                ],
-                            });
-                    }
-                }
-
-                // Then delete future parcels that are no longer in the desired schedule
-                // Key includes location to properly handle location changes
-                const desiredParcelKeys = new Set(
-                    data.foodParcels.parcels
-                        ?.filter(p => new Date(p.pickupEarliestTime) > now || p.id)
-                        .map(
-                            p =>
-                                `${data.foodParcels.pickupLocationId}-${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
-                        ) || [],
-                );
-
+                // Get existing future parcels
                 const existingFutureParcels = await tx
                     .select({
                         id: foodParcels.id,
@@ -475,19 +551,48 @@ export const updateHousehold = protectedHouseholdAction(
                             eq(foodParcels.household_id, household.id),
                             eq(foodParcels.is_picked_up, false),
                             gt(foodParcels.pickup_date_time_earliest, now),
+                            notDeleted(),
                         ),
                     );
 
-                const parcelsToDelete = existingFutureParcels.filter(
-                    p =>
-                        !desiredParcelKeys.has(
-                            `${p.locationId}-${p.earliest.toISOString()}-${p.latest.toISOString()}`,
-                        ),
+                // Calculate surgical operations
+                const desiredParcels = data.foodParcels.parcels || [];
+                const operations = calculateParcelOperations(
+                    existingFutureParcels,
+                    desiredParcels,
+                    data.foodParcels.pickupLocationId,
+                    household.id,
                 );
 
-                if (parcelsToDelete.length > 0) {
-                    for (const parcel of parcelsToDelete) {
-                        await tx.delete(foodParcels).where(eq(foodParcels.id, parcel.id));
+                // Execute CREATE operations
+                if (operations.toCreate.length > 0) {
+                    await tx.insert(foodParcels).values(operations.toCreate);
+                }
+
+                // Execute UPDATE operations (same-day time changes)
+                for (const op of operations.toUpdate) {
+                    await tx
+                        .update(foodParcels)
+                        .set({
+                            pickup_date_time_earliest: op.pickup_date_time_earliest,
+                            pickup_date_time_latest: op.pickup_date_time_latest,
+                        })
+                        .where(eq(foodParcels.id, op.id));
+                }
+
+                // Execute DELETE operations (soft delete with SMS cancellation handling)
+                if (operations.toDelete.length > 0) {
+                    // Import helper function for SMS-aware soft deletion
+                    const { softDeleteParcelInTransaction } = await import(
+                        "@/app/[locale]/parcels/actions"
+                    );
+
+                    for (const parcelId of operations.toDelete) {
+                        await softDeleteParcelInTransaction(
+                            tx,
+                            parcelId,
+                            session.user?.githubUsername || "system",
+                        );
                     }
                 }
 

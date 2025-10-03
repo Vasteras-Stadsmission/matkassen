@@ -67,12 +67,14 @@ interface PublicMessages {
             ready: string;
             collected: string;
             expired: string;
+            cancelled: string;
         };
         statusDescription: {
             scheduled: string;
             ready: string;
             collected: string;
             expired: string;
+            cancelled: string;
         };
         pickupWindowFormat: string;
         dateFormat: Intl.DateTimeFormatOptions;
@@ -120,6 +122,7 @@ async function loadMessages(locale: SupportedLocale): Promise<PublicMessages> {
                         ready: "Ready for Pickup",
                         collected: "Collected",
                         expired: "Expired",
+                        cancelled: "Cancelled",
                     },
                     statusDescription: {
                         scheduled:
@@ -128,6 +131,7 @@ async function loadMessages(locale: SupportedLocale): Promise<PublicMessages> {
                         collected: "This food parcel has already been collected.",
                         expired:
                             "This pickup is no longer valid. Please contact staff if you have questions.",
+                        cancelled: "This pickup has been cancelled. You do not need to come.",
                     },
                     pickupWindowFormat: "{startTime} - {endTime}",
                     dateFormat: {
@@ -200,6 +204,8 @@ function getStatusBadgeProps(status: ParcelStatus, messages: PublicMessages) {
             return { color: "gray", text: statusMessages.collected };
         case "expired":
             return { color: "red", text: statusMessages.expired };
+        case "cancelled":
+            return { color: "orange", text: statusMessages.cancelled };
         default:
             return { color: "gray", text: "Unknown" };
     }
@@ -290,7 +296,7 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
                             p="md"
                             radius="md"
                             bg={
-                                status === "expired"
+                                status === "expired" || status === "cancelled"
                                     ? "red.0"
                                     : status === "ready"
                                       ? "green.0"
@@ -300,7 +306,7 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
                             <Text
                                 size="sm"
                                 c={
-                                    status === "expired"
+                                    status === "expired" || status === "cancelled"
                                         ? "red.7"
                                         : status === "ready"
                                           ? "green.7"
@@ -393,7 +399,7 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
                         </Paper>
 
                         {/* QR Code - Mobile First, Large and Centered */}
-                        {status !== "expired" && (
+                        {status !== "expired" && status !== "cancelled" && (
                             <Paper p="lg" radius="md" shadow="sm">
                                 <Stack gap="md" align="center">
                                     <QRCodeCanvas

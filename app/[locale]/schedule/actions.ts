@@ -9,6 +9,7 @@ import {
     pickupLocationSchedules,
     pickupLocationScheduleDays,
 } from "@/app/db/schema";
+import { notDeleted } from "@/app/db/query-helpers";
 import { isTimeAvailable, isDateAvailable } from "@/app/utils/schedule/location-availability";
 import { generateTimeSlotsBetween } from "@/app/utils/date-utils";
 import { Time } from "@/app/utils/time-provider";
@@ -47,7 +48,7 @@ export async function getParcelById(parcelId: string): Promise<FoodParcel | null
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
-            .where(eq(foodParcels.id, parcelId))
+            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
             .limit(1);
 
         if (parcelsData.length === 0) {
@@ -127,6 +128,7 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 and(
                     gte(foodParcels.pickup_date_time_earliest, startDate),
                     lte(foodParcels.pickup_date_time_earliest, endDate),
+                    notDeleted(),
                 ),
             )
             .orderBy(foodParcels.pickup_date_time_earliest);
@@ -190,6 +192,7 @@ export async function getFoodParcelsForWeek(
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
                     between(foodParcels.pickup_date_time_earliest, startDate, endDate),
+                    notDeleted(),
                 ),
             )
             .orderBy(foodParcels.pickup_date_time_earliest);
@@ -255,6 +258,7 @@ export async function getTimeslotCounts(
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
                     between(foodParcels.pickup_date_time_earliest, startDate, endDate),
+                    notDeleted(),
                 ),
             );
 
@@ -307,7 +311,7 @@ export const updateFoodParcelSchedule = protectedAction(
                     locationId: foodParcels.pickup_location_id,
                 })
                 .from(foodParcels)
-                .where(eq(foodParcels.id, parcelId))
+                .where(and(eq(foodParcels.id, parcelId), notDeleted()))
                 .limit(1);
 
             if (!existingParcel) {
@@ -329,7 +333,7 @@ export const updateFoodParcelSchedule = protectedAction(
                         locationId: foodParcels.pickup_location_id,
                     })
                     .from(foodParcels)
-                    .where(eq(foodParcels.id, parcelId))
+                    .where(and(eq(foodParcels.id, parcelId), notDeleted()))
                     .limit(1);
 
                 if (!parcel) {
@@ -857,6 +861,7 @@ export async function checkParcelsAffectedByScheduleChange(
                 eq(foodParcels.pickup_location_id, locationId),
                 eq(foodParcels.is_picked_up, false),
                 gt(foodParcels.pickup_date_time_earliest, now.toUTC()),
+                notDeleted(),
             ),
         );
 
@@ -1068,6 +1073,7 @@ export async function checkParcelsAffectedByScheduleDeletion(
                 eq(foodParcels.pickup_location_id, locationId),
                 eq(foodParcels.is_picked_up, false),
                 gt(foodParcels.pickup_date_time_earliest, now.toUTC()),
+                notDeleted(),
             ),
         );
 
@@ -1193,6 +1199,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
                     eq(foodParcels.pickup_location_id, locationId),
                     eq(foodParcels.is_picked_up, false),
                     gt(foodParcels.pickup_date_time_earliest, now.toUTC()),
+                    notDeleted(),
                 ),
             );
     } catch (error) {
