@@ -162,6 +162,20 @@
       "when": 1759476695310,
       "tag": "0022_fix-soft-delete-unique-constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1759582063186,
+      "tag": "0023_add_sms_update_and_cancel_intents",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1759612658608,
+      "tag": "0024_change_sms_fk_to_set_null",
+      "breakpoints": true
     }
   ]
 }

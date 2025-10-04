@@ -2,7 +2,17 @@
 
 import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
-import { Burger, Button, Container, Group, Text, Box, Drawer } from "@mantine/core";
+import {
+    Burger,
+    Button,
+    Container,
+    Group,
+    Text,
+    Box,
+    Drawer,
+    Badge,
+    Indicator,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { NavigationLink } from "../NavigationUtils";
 import { TransitionLink } from "../TransitionLink";
@@ -10,6 +20,7 @@ import { LanguageSwitcher } from "../LanguageSwitcher";
 import { AuthDropdown } from "../AuthDropdown/AuthDropdown";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
+import type { TranslationFunction } from "@/app/[locale]/types";
 
 import classes from "./HeaderSimple.module.css";
 
@@ -19,20 +30,42 @@ const HOME_LINK = "/";
 export function HeaderSimple() {
     const pathname = usePathname();
     const [opened, { toggle, close }] = useDisclosure(false);
-    const t = useTranslations("navigation");
-    const tCommon = useTranslations("common");
+    const t = useTranslations() as TranslationFunction;
+    const tCommon = useTranslations() as TranslationFunction;
 
     // State to track active link - initialized as empty string to ensure consistent SSR/client rendering
     const [active, setActive] = useState("");
+    const [smsFailureCount, setSmsFailureCount] = useState(0);
+
+    // Fetch SMS failure count
+    useEffect(() => {
+        const fetchFailureCount = async () => {
+            try {
+                const response = await fetch("/api/admin/sms/failure-count");
+                if (response.ok) {
+                    const data = await response.json();
+                    setSmsFailureCount(data.count || 0);
+                }
+            } catch (error) {
+                console.error("Failed to fetch SMS failure count:", error);
+            }
+        };
+
+        fetchFailureCount();
+        // Refresh count every 30 seconds
+        const interval = setInterval(fetchFailureCount, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Define navigation links with translated labels using useMemo to avoid dependency changes
     const links = useMemo(
         () => [
-            { link: "/households", label: t("households") },
-            { link: "/schedule", label: t("schedule") },
-            { link: "/handout-locations", label: t("locations") },
+            { link: "/households", label: t("navigation.households") },
+            { link: "/schedule", label: t("navigation.schedule") },
+            { link: "/handout-locations", label: t("navigation.locations") },
+            { link: "/sms-dashboard", label: t("navigation.smsDashboard"), badge: smsFailureCount },
         ],
-        [t],
+        [t, smsFailureCount],
     );
 
     // Calculate active link after hydration to prevent SSR/client mismatch
@@ -62,7 +95,7 @@ export function HeaderSimple() {
     // QR Code scanning link component
     const ScanQRCodeLink = () => (
         <a href="https://scanapp.org/" target="_blank" rel="noreferrer">
-            <Button variant="outline">{t("scanQrCode")}</Button>
+            <Button variant="outline">{t("navigation.scanQrCode")}</Button>
         </a>
     );
 
@@ -80,26 +113,53 @@ export function HeaderSimple() {
 
     // Desktop navigation links
     const desktopLinks = links.map(link => (
-        <NavigationLink
-            key={link.label}
-            href={link.link}
-            label={link.label}
-            active={active === link.link}
-            onClick={handleNavigation}
-            className={classes.link}
-        />
+        <Box key={link.label} style={{ position: "relative" }}>
+            {link.badge && link.badge > 0 ? (
+                <Indicator
+                    inline
+                    label={link.badge}
+                    size={16}
+                    color="red"
+                    offset={7}
+                    position="top-end"
+                >
+                    <NavigationLink
+                        href={link.link}
+                        label={link.label}
+                        active={active === link.link}
+                        onClick={handleNavigation}
+                        className={classes.link}
+                    />
+                </Indicator>
+            ) : (
+                <NavigationLink
+                    href={link.link}
+                    label={link.label}
+                    active={active === link.link}
+                    onClick={handleNavigation}
+                    className={classes.link}
+                />
+            )}
+        </Box>
     ));
 
     // Mobile navigation links
     const mobileLinks = links.map(link => (
-        <NavigationLink
-            key={link.label}
-            href={link.link}
-            label={link.label}
-            active={active === link.link}
-            onClick={handleNavigation}
-            className={classes.mobileLink}
-        />
+        <Group key={link.label} justify="space-between" wrap="nowrap" style={{ width: "100%" }}>
+            <NavigationLink
+                href={link.link}
+                label={link.label}
+                active={active === link.link}
+                onClick={handleNavigation}
+                className={classes.mobileLink}
+                style={{ flex: 1 }}
+            />
+            {link.badge && link.badge > 0 && (
+                <Badge color="red" variant="filled" size="sm" circle>
+                    {link.badge}
+                </Badge>
+            )}
+        </Group>
     ));
 
     return (
@@ -114,7 +174,7 @@ export function HeaderSimple() {
                         >
                             <Image src="/favicon.svg" alt="Logo" width={30} height={30} />
                             <Text component="span" fw={500} size="lg" ml={8}>
-                                {tCommon("matkassen")}
+                                {tCommon("common.matkassen")}
                             </Text>
                         </TransitionLink>
                     </Box>
@@ -134,7 +194,7 @@ export function HeaderSimple() {
             <Drawer
                 opened={opened}
                 onClose={close}
-                title={t("navigation")}
+                title={t("navigation.navigation")}
                 size="xs"
                 hiddenFrom="xs"
                 zIndex={1000}

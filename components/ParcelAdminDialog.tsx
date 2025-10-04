@@ -24,11 +24,14 @@ import {
     IconX,
     IconExternalLink,
     IconTrash,
+    IconSend,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
 import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
+import { SmsActionButton } from "./SmsActionButton";
+import type { TranslationFunction } from "@/app/[locale]/types";
 import { getLanguageName } from "@/app/constants/languages";
 import { Time } from "@/app/utils/time-provider";
 import { modals } from "@mantine/modals";
@@ -61,7 +64,7 @@ export function ParcelAdminDialog({
     onClose,
     onParcelUpdated,
 }: ParcelAdminDialogProps) {
-    const t = useTranslations();
+    const t = useTranslations() as TranslationFunction;
     const locale = useLocale();
     const [state, setState] = useState<ParcelDialogState>({
         loading: false,
@@ -619,6 +622,60 @@ export function ParcelAdminDialog({
                                 placeholder={t("admin.parcelDialog.addCommentPlaceholder")}
                             />
                         </Card>
+
+                        {/* SMS Status */}
+                        {state.smsRecords.length > 0 && (
+                            <Card withBorder>
+                                <Stack gap="md">
+                                    <Group justify="space-between">
+                                        <Group gap="xs">
+                                            <IconSend size="1rem" />
+                                            <Text fw={500}>
+                                                {t("admin.parcelDialog.smsStatus.title")}
+                                            </Text>
+                                        </Group>
+                                        <SmsActionButton
+                                            parcelId={parcelId!}
+                                            smsStatus={
+                                                state.smsRecords[0]?.status as
+                                                    | "queued"
+                                                    | "sending"
+                                                    | "sent"
+                                                    | "retrying"
+                                                    | "failed"
+                                                    | "cancelled"
+                                            }
+                                            onSuccess={fetchParcelDetails}
+                                            variant="light"
+                                            size="sm"
+                                        />
+                                    </Group>
+                                    {state.smsRecords.map(sms => (
+                                        <Group key={sms.id} justify="space-between">
+                                            <Group gap="xs">
+                                                <Badge
+                                                    color={
+                                                        sms.status === "sent"
+                                                            ? "green"
+                                                            : sms.status === "failed"
+                                                              ? "red"
+                                                              : sms.status === "queued"
+                                                                ? "blue"
+                                                                : "gray"
+                                                    }
+                                                    size="sm"
+                                                >
+                                                    {t(`admin.smsDashboard.status.${sms.status}`)}
+                                                </Badge>
+                                                <Text size="sm" c="dimmed">
+                                                    {t(`admin.smsDashboard.intent.${sms.intent}`)}
+                                                </Text>
+                                            </Group>
+                                        </Group>
+                                    ))}
+                                </Stack>
+                            </Card>
+                        )}
 
                         {/* Actions */}
                         <Group justify="space-between">
