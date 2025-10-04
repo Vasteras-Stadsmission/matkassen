@@ -29,6 +29,15 @@ vi.mock("@/app/db/drizzle", () => {
                 return Promise.resolve();
             }),
         })),
+        update: vi.fn(() => ({
+            set: vi.fn(() => ({
+                where: vi.fn((condition: any) => {
+                    // Mock soft delete via update - track the operation
+                    // In real implementation, this would set deleted_at and deleted_by_user_id
+                    return Promise.resolve();
+                }),
+            })),
+        })),
         select: vi.fn(() => ({
             from: vi.fn(() => ({
                 where: vi.fn(() => {
@@ -47,6 +56,10 @@ vi.mock("@/app/db/drizzle", () => {
                 };
             }),
         })),
+        execute: vi.fn(async () => {
+            // Mock execute for any raw SQL queries
+            return Promise.resolve();
+        }),
     };
 
     return {
@@ -79,6 +92,14 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
 vi.mock("@/app/[locale]/schedule/actions", () => ({
     validateParcelAssignments: vi.fn(async () => ({ success: true })),
     recomputeOutsideHoursCount: vi.fn(async () => {}),
+}));
+
+// Mock the parcels actions (soft delete helper)
+vi.mock("@/app/[locale]/parcels/actions", () => ({
+    softDeleteParcelInTransaction: vi.fn(async (tx, parcelId, deletedBy) => {
+        // Mock SMS-aware soft delete - just track that it was called
+        return { smsCancelled: false, smsSent: false };
+    }),
 }));
 
 describe("updateHouseholdParcels - Location Changes", () => {

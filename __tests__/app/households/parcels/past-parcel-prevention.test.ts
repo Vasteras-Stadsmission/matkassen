@@ -44,6 +44,10 @@ vi.mock("@/app/db/drizzle", () => {
                 };
             }),
         })),
+        execute: vi.fn(async () => {
+            // Mock execute for any raw SQL queries
+            return Promise.resolve();
+        }),
     };
 
     return {
@@ -201,6 +205,7 @@ describe("Past Parcel Prevention - Backend Validation", () => {
 
         // Should insert/update the parcel
         expect(insertedParcels.length).toBe(1);
+        expect(insertedParcels[0].pickup_date_time_earliest).toEqual(pastTime);
 
         vi.useRealTimers();
     });
@@ -304,7 +309,9 @@ describe("Past Parcel Prevention - Backend Validation", () => {
 
         // Should succeed
         expect(result.success).toBe(true);
+        // Verify parcel was inserted
         expect(insertedParcels.length).toBe(1);
+        expect(insertedParcels[0].pickup_date_time_earliest).toEqual(laterToday);
 
         vi.useRealTimers();
     });

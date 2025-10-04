@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { FoodParcels } from "@/app/[locale]/households/enroll/types";
 
-// Track inserted parcels for verification
+// Track database operations for verification
 let insertedParcels: any[] = [];
 let deleteCalled = false;
 
@@ -41,6 +41,10 @@ vi.mock("@/app/db/drizzle", () => {
                 };
             }),
         })),
+        execute: vi.fn(async () => {
+            // Mock execute for any raw SQL queries
+            return Promise.resolve();
+        }),
     };
 
     return {
@@ -83,7 +87,6 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     beforeEach(() => {
         // Reset tracking arrays
         insertedParcels = [];
-        deleteCalled = false;
         vi.clearAllMocks();
     });
 
@@ -129,11 +132,7 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Verify the result was successful
             expect(result.success).toBe(true);
 
-            // With the new upsert pattern, delete is only called if there are parcels to remove
-            // Since the mock returns empty array for existing parcels, delete may not be called
-            // The important thing is that the parcel was inserted
-
-            // Verify the parcel was inserted (not filtered out)
+            // Verify the parcel was inserted
             expect(insertedParcels).toHaveLength(1);
             expect(insertedParcels[0].pickup_location_id).toBe(testLocationId);
             expect(insertedParcels[0].pickup_date_time_earliest).toEqual(pickupStart);
@@ -388,12 +387,16 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
             expect(result.success).toBe(true);
-            expect(insertedParcels.length).toBeGreaterThanOrEqual(1);
-            const futureInsert = insertedParcels.find(
-                parcel => parcel.pickup_date_time_earliest.getTime() === futureStart.getTime(),
+            // Both parcels should be inserted:
+            // 1. The past parcel (has id, allowed to be updated)
+            // 2. The future parcel (new, in the future)
+            expect(insertedParcels).toHaveLength(2);
+            // Find the future parcel (should be the one with future time)
+            const futureParcel = insertedParcels.find(
+                p => p.pickup_date_time_earliest.getTime() === futureStart.getTime(),
             );
-            expect(futureInsert).toBeDefined();
-            expect(futureInsert?.pickup_date_time_latest).toEqual(futureEnd);
+            expect(futureParcel).toBeDefined();
+            expect(futureParcel.pickup_date_time_earliest).toEqual(futureStart);
         } finally {
             vi.useRealTimers();
         }

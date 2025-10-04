@@ -2,6 +2,7 @@
 
 import { MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
+import { ModalsProvider } from "@mantine/modals";
 import { SessionProvider } from "next-auth/react";
 import { HeaderSimple } from "@/components/HeaderSimple/HeaderSimple";
 import { AppShell, Box } from "@mantine/core";
@@ -19,17 +20,19 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     return (
         <SessionProvider>
             <MantineProvider defaultColorScheme="light">
-                <Notifications />
-                <AppShell header={{ height: 60 }} padding="md">
-                    <AppShell.Header>
-                        <HeaderSimple />
-                    </AppShell.Header>
-                    <AppShell.Main>
-                        <Box style={{ position: "relative" }}>
-                            <SearchParamsProvider>{children}</SearchParamsProvider>
-                        </Box>
-                    </AppShell.Main>
-                </AppShell>
+                <ModalsProvider>
+                    <Notifications />
+                    <AppShell header={{ height: 60 }} padding="md">
+                        <AppShell.Header>
+                            <HeaderSimple />
+                        </AppShell.Header>
+                        <AppShell.Main>
+                            <Box style={{ position: "relative" }}>
+                                <SearchParamsProvider>{children}</SearchParamsProvider>
+                            </Box>
+                        </AppShell.Main>
+                    </AppShell>
+                </ModalsProvider>
             </MantineProvider>
         </SessionProvider>
     );

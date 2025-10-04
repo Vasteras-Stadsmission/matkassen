@@ -336,14 +336,21 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                     variant="subtle"
                                     size="compact-xs"
                                     onClick={handleBackToHub}
-                                    p={{ base: 4, sm: "xs" }}
-                                    style={{ flexShrink: 0, minWidth: "auto" }}
+                                    style={{ flexShrink: 0 }}
                                     aria-label={t("location.header.locations")}
+                                    hiddenFrom="sm"
                                 >
                                     <IconArrowLeft size={20} />
-                                    <Text size="sm" visibleFrom="sm" ml={4}>
-                                        {t("location.header.locations")}
-                                    </Text>
+                                </Button>
+                                <Button
+                                    variant="subtle"
+                                    size="compact-sm"
+                                    onClick={handleBackToHub}
+                                    leftSection={<IconArrowLeft size={20} />}
+                                    style={{ flexShrink: 0 }}
+                                    visibleFrom="sm"
+                                >
+                                    {t("location.header.locations")}
                                 </Button>
                                 {/* Center: Location Name with Star */}
                                 <Group

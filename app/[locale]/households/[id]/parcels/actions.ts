@@ -4,7 +4,6 @@ import { db } from "@/app/db/drizzle";
 import { foodParcels } from "@/app/db/schema";
 import { eq, gt, and } from "drizzle-orm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
-import { nanoid } from "@/app/db/schema";
 import { protectedHouseholdAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
@@ -13,6 +12,7 @@ import {
     validationFailure,
     type ActionResult,
 } from "@/app/utils/auth/action-result";
+import { notDeleted } from "@/app/db/query-helpers";
 
 export const updateHouseholdParcels = protectedHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
@@ -83,7 +83,6 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                     const parcelsToSave = parcelsData.parcels
                         .filter(parcel => parcel.pickupLatestTime > now || parcel.id)
                         .map(parcel => ({
-                            id: nanoid(),
                             household_id: household.id,
                             pickup_location_id: parcelsData.pickupLocationId,
                             pickup_date_time_earliest: parcel.pickupEarliestTime,
@@ -91,23 +90,9 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                             is_picked_up: false,
                         }));
 
-                    // Use upsert pattern to ensure idempotency during concurrent operations
-                    // The unique constraint on (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
-                    // guarantees that we won't create duplicates even if multiple requests run concurrently
-                    // Including location ensures that location changes are properly handled
-                    if (parcelsToSave.length > 0) {
-                        await tx
-                            .insert(foodParcels)
-                            .values(parcelsToSave)
-                            .onConflictDoNothing({
-                                target: [
-                                    foodParcels.household_id,
-                                    foodParcels.pickup_location_id,
-                                    foodParcels.pickup_date_time_earliest,
-                                    foodParcels.pickup_date_time_latest,
-                                ],
-                            });
-                    }
+                    // Use centralized helper for proper conflict handling
+                    const { insertParcels } = await import("@/app/db/insert-parcels");
+                    await insertParcels(tx, parcelsToSave);
                 }
 
                 // Delete parcels that are no longer in the desired schedule
@@ -136,10 +121,13 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                         and(
                             eq(foodParcels.household_id, household.id),
                             gt(foodParcels.pickup_date_time_latest, now),
+                            notDeleted(),
                         ),
                     );
 
-                // Delete parcels that are not in the desired schedule
+                // Soft delete parcels that are not in the desired schedule
+                // This preserves audit trail, keeps public QR code links working,
+                // and handles SMS cancellation intelligently
                 const parcelsToDelete = existingFutureParcels.filter(
                     p =>
                         !desiredParcelKeys.has(
@@ -148,8 +136,17 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 );
 
                 if (parcelsToDelete.length > 0) {
+                    // Import helper function for SMS-aware soft deletion
+                    const { softDeleteParcelInTransaction } = await import(
+                        "@/app/[locale]/parcels/actions"
+                    );
+
                     for (const parcel of parcelsToDelete) {
-                        await tx.delete(foodParcels).where(eq(foodParcels.id, parcel.id));
+                        await softDeleteParcelInTransaction(
+                            tx,
+                            parcel.id,
+                            session.user?.githubUsername || "system",
+                        );
                     }
                 }
             });

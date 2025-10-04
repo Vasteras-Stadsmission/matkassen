@@ -13,13 +13,15 @@
             "scheduled": "Kimepangwa",
             "ready": "Tayari Kuchukuliwa",
             "collected": "Kimechukuliwa",
-            "expired": "Kimepitwa na wakati"
+            "expired": "Kimepitwa na wakati",
+            "cancelled": "Imesitishwa"
         },
         "statusDescription": {
             "scheduled": "Uchukuzi wako umepangwa. Tafadhali fika wakati wa uchukuzi.",
             "ready": "Kifurushi chako cha chakula kiko tayari kuchukuliwa sasa!",
             "collected": "Kifurushi hiki cha chakula kimeshachukuliwa.",
-            "expired": "Uchukuzi huu haujaidi kuwa halali. Tafadhali wasiliana na wafanyakazi ikiwa una maswali."
+            "expired": "Uchukuzi huu haujaidi kuwa halali. Tafadhali wasiliana na wafanyakazi ikiwa una maswali.",
+            "cancelled": "Uchukuzi huu umesitishwa. Huhitaji kuja."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

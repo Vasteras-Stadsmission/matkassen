@@ -13,13 +13,15 @@
             "scheduled": "Plankirî",
             "ready": "Ji bo Hilgirtinê Amade",
             "collected": "Hatiye Hilgirtin",
-            "expired": "Dema wê derbas bûye"
+            "expired": "Dema wê derbas bûye",
+            "cancelled": "Betalkirin"
         },
         "statusDescription": {
             "scheduled": "Hilgirtina te plankirî ye. Ji kerema xwe di dema hilgirtinê de were.",
             "ready": "Pakêta te ya xwarinê niha ji bo hilgirtinê amade ye!",
             "collected": "Ev pakêta xwarinê jixwe hatiye hilgirtin.",
-            "expired": "Ev hilgirtin êdî ne derbasdar e. Ger pirsgirêk hebe ji karmendên me re bibêje."
+            "expired": "Ev hilgirtin êdî ne derbasdar e. Ger pirsgirêk hebe ji karmendên me re bibêje.",
+            "cancelled": "Ev hilgirtin hate betalkirin. Tu divê nehêyi."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

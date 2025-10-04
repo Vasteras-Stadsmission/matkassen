@@ -13,13 +13,15 @@
             "scheduled": "La qabanqaabiyay",
             "ready": "Diyaar u ah qaadashada",
             "collected": "La qaatay",
-            "expired": "Waqtigu dhammaaday"
+            "expired": "Waqtigu dhammaaday",
+            "cancelled": "La joojiyay"
         },
         "statusDescription": {
             "scheduled": "Qaadashada waa la qabanqaabiyay. Fadlan soo gal inta waqtiga qaadashada.",
             "ready": "Xirmada cuntada diyaar bay u tahay qaadashada hadda!",
             "collected": "Xirmadan cuntada ayaa horay loo qaatay.",
-            "expired": "Qaadashadan ma aha mid xalaal ah. Fadlan la xiriir shaqaalaha haddii aad qabto su'aalo."
+            "expired": "Qaadashadan ma aha mid xalaal ah. Fadlan la xiriir shaqaalaha haddii aad qabto su'aalo.",
+            "cancelled": "Qaadashadan waa la joojiyay. Uma baahnid inaad timaaddo."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

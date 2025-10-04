@@ -13,12 +13,12 @@ import {
     date,
     index,
     uniqueIndex,
-    unique,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
 // Needed to create a default nanoid value for the primary key
-export const nanoid = (length = 14) => {
+// Default to 12 for food parcels - other tables explicitly specify nanoid(8)
+export const nanoid = (length = 12) => {
     const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     return customAlphabet(alphabet, length)();
 };
@@ -206,6 +206,7 @@ export const smsStatusEnum = pgEnum("sms_status", [
     "sent",
     "retrying",
     "failed",
+    "cancelled",
 ]);
 
 export const foodParcels = pgTable(
@@ -226,20 +227,28 @@ export const foodParcels = pgTable(
         is_picked_up: boolean("is_picked_up").notNull().default(false),
         picked_up_at: timestamp({ precision: 1, withTimezone: true }), // New field for pickup timestamp
         picked_up_by_user_id: varchar("picked_up_by_user_id", { length: 50 }), // GitHub username of admin who marked as picked up
+        deleted_at: timestamp({ precision: 1, withTimezone: true }), // Soft delete timestamp
+        deleted_by_user_id: varchar("deleted_by_user_id", { length: 50 }), // GitHub username of admin who deleted the parcel
     },
     table => [
         check(
             "pickup_time_range_check",
             sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
         ),
-        // Unique constraint to prevent duplicate parcels for the same household, location, and time window
-        // This ensures idempotency for concurrent parcel creation operations and correctly handles location updates
-        unique("food_parcels_household_location_time_unique").on(
-            table.household_id,
-            table.pickup_location_id,
-            table.pickup_date_time_earliest,
-            table.pickup_date_time_latest,
-        ),
+        // NOTE: The unique constraint for preventing duplicate active parcels is implemented as a
+        // PARTIAL UNIQUE INDEX in migration 0022_fix-soft-delete-unique-constraint.sql
+        // (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
+        // WHERE deleted_at IS NULL
+        //
+        // ALL parcel inserts must use the insertParcels() helper from app/db/insert-parcels.ts
+        // which properly handles conflict resolution via onConflictDoNothing with the partial index.
+        //
+        // The partial index ensures:
+        // 1. Only one ACTIVE parcel per (household, location, time) slot
+        // 2. Multiple soft-deleted parcels with same values are allowed (preserves history)
+        // 3. Parcels can be recreated after soft-deletion (critical business requirement)
+        //
+        // Do not insert food parcels directly - always use the helper to maintain idempotency.
     ],
 );
 

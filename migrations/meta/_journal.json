@@ -148,6 +148,20 @@
       "when": 1759298368780,
       "tag": "0020_sour_cerebro",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1759435301553,
+      "tag": "0021_add-soft-delete-to-food-parcels",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1759476695310,
+      "tag": "0022_fix-soft-delete-unique-constraint",
+      "breakpoints": true
     }
   ]
 }

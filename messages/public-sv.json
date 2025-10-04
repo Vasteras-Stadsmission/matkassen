@@ -10,16 +10,18 @@
         "googleMaps": "Google Maps",
         "appleMaps": "Apple Maps",
         "status": {
-            "scheduled": "Inplanerad",
+            "scheduled": "Planerad",
             "ready": "Redo för upphämtning",
-            "collected": "Hämtad",
-            "expired": "Utgången"
+            "collected": "Upphämtad",
+            "expired": "Förfallen",
+            "cancelled": "Inställd"
         },
         "statusDescription": {
-            "scheduled": "Din upphämtning är inplanerad. Kom under upphämtningstiden.",
+            "scheduled": "Din upphämtning är planerad. Vänligen kom under upphämtningstiden.",
             "ready": "Ditt matpaket är redo för upphämtning nu!",
             "collected": "Detta matpaket har redan hämtats.",
-            "expired": "Den här upphämtningen är inte längre giltig. Kontakta personalen om du har frågor."
+            "expired": "Denna upphämtning är inte längre giltig. Vänligen kontakta personal om du har frågor.",
+            "cancelled": "Denna upphämtning har ställts in. Du behöver inte komma."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

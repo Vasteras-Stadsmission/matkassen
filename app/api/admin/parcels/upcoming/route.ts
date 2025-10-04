@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
+import { notDeleted } from "@/app/db/query-helpers";
 import { eq, gt, and } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 
@@ -17,7 +18,10 @@ export async function GET(request: Request) {
         const householdId = searchParams.get("householdId");
 
         // Build where conditions
-        const whereConditions = [gt(foodParcels.pickup_date_time_earliest, new Date())];
+        const whereConditions = [
+            gt(foodParcels.pickup_date_time_earliest, new Date()),
+            notDeleted(),
+        ];
         if (householdId) {
             whereConditions.push(eq(foodParcels.household_id, householdId));
         }

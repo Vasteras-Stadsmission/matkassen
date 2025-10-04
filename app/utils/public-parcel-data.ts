@@ -18,9 +18,10 @@ export interface PublicParcelData {
     locationName: string;
     locationAddress: string;
     locationPostalCode: string;
+    deletedAt?: Date | null;
 }
 
-export type ParcelStatus = "scheduled" | "ready" | "collected" | "expired";
+export type ParcelStatus = "scheduled" | "ready" | "collected" | "expired" | "cancelled";
 
 /**
  * Get public parcel data by ID
@@ -42,6 +43,7 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
                 locationName: pickupLocations.name,
                 locationAddress: pickupLocations.street_address,
                 locationPostalCode: pickupLocations.postal_code,
+                deletedAt: foodParcels.deleted_at,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
@@ -66,6 +68,7 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
             locationName: data.locationName,
             locationAddress: data.locationAddress,
             locationPostalCode: data.locationPostalCode,
+            deletedAt: data.deletedAt || null,
         };
     } catch (error) {
         console.error("Error fetching public parcel data:", error);
@@ -77,6 +80,11 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
  * Determine parcel status based on current time and pickup window
  */
 export function getParcelStatus(parcel: PublicParcelData): ParcelStatus {
+    // Check if cancelled (soft deleted)
+    if (parcel.deletedAt) {
+        return "cancelled";
+    }
+
     if (parcel.isPickedUp) {
         return "collected";
     }

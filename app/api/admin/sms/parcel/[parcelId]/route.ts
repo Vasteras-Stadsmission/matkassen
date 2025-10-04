@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
-import { eq } from "drizzle-orm";
+import { notDeleted } from "@/app/db/query-helpers";
+import { eq, and } from "drizzle-orm";
 import {
     getSmsRecordsForParcel,
     createSmsRecord,
@@ -86,7 +87,7 @@ export async function POST(
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
-            .where(eq(foodParcels.id, parcelId))
+            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
             .limit(1);
 
         if (result.length === 0) {

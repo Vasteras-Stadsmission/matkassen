@@ -23,6 +23,7 @@ import {
     IconCheck,
     IconX,
     IconExternalLink,
+    IconTrash,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
@@ -30,6 +31,8 @@ import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
 import { getLanguageName } from "@/app/constants/languages";
 import { Time } from "@/app/utils/time-provider";
+import { modals } from "@mantine/modals";
+import { notifications } from "@mantine/notifications";
 
 interface ParcelAdminDialogProps {
     parcelId: string | null;
@@ -38,11 +41,18 @@ interface ParcelAdminDialogProps {
     onParcelUpdated?: () => void;
 }
 
+interface SmsRecord {
+    id: string;
+    status: "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
+    intent: string;
+}
+
 interface ParcelDialogState {
     loading: boolean;
     error: string | null;
     data: ParcelDetails | null;
     submitting: boolean;
+    smsRecords: SmsRecord[];
 }
 
 export function ParcelAdminDialog({
@@ -58,6 +68,7 @@ export function ParcelAdminDialog({
         error: null,
         data: null,
         submitting: false,
+        smsRecords: [],
     });
 
     const fetchParcelDetails = useCallback(async () => {
@@ -66,22 +77,32 @@ export function ParcelAdminDialog({
         setState(prev => ({ ...prev, loading: true, error: null }));
 
         try {
-            const response = await fetch(`/api/admin/parcel/${parcelId}/details`);
+            // Fetch parcel details and SMS records in parallel
+            const [parcelResponse, smsResponse] = await Promise.all([
+                fetch(`/api/admin/parcel/${parcelId}/details`),
+                fetch(`/api/admin/sms/parcel/${parcelId}`),
+            ]);
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP ${response.status}`);
+            if (!parcelResponse.ok) {
+                throw new Error(t("admin.parcelDialog.errors.loadFailed"));
             }
 
-            const data = await response.json();
-            setState(prev => ({ ...prev, data, loading: false }));
+            const parcelData = await parcelResponse.json();
+            const smsData = smsResponse.ok ? await smsResponse.json() : { smsRecords: [] };
+
+            setState(prev => ({
+                ...prev,
+                loading: false,
+                data: parcelData,
+                smsRecords: smsData.smsRecords || [],
+            }));
         } catch (error) {
             setState(prev => ({
                 ...prev,
                 loading: false,
                 error:
-                    error instanceof Error && error.message.includes("not found")
-                        ? t("admin.parcelDialog.errors.parcelNotFound")
+                    error instanceof Error
+                        ? error.message
                         : t("admin.parcelDialog.errors.loadFailed"),
             }));
         }
@@ -222,6 +243,76 @@ export function ParcelAdminDialog({
         }
     };
 
+    const handleDeleteParcel = () => {
+        if (!parcelId || !data) return;
+
+        // Check if SMS was actually sent to household based on SMS records
+        // Default to true if no SMS data available (safer to warn than not)
+        const hasSentSms =
+            state.smsRecords.length === 0 || state.smsRecords.some(sms => sms.status === "sent");
+        const smsWarning = hasSentSms
+            ? t("admin.parcelDialog.smsWarning")
+            : t("admin.parcelDialog.smsNoWarning");
+
+        modals.openConfirmModal({
+            title: t("admin.parcelDialog.deleteConfirmTitle"),
+            children: (
+                <Text size="sm">
+                    {t("admin.parcelDialog.deleteConfirmMessage", { smsWarning })}
+                </Text>
+            ),
+            labels: {
+                confirm: t("admin.parcelDialog.confirmDelete"),
+                cancel: t("admin.parcelDialog.cancelDelete"),
+            },
+            confirmProps: { color: "red" },
+            onConfirm: async () => {
+                setState(prev => ({ ...prev, submitting: true }));
+
+                try {
+                    const response = await fetch(`/api/admin/parcel/${parcelId}`, {
+                        method: "DELETE",
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+
+                        // Map error codes to user-friendly messages
+                        let errorMessage = t("admin.parcelDialog.errors.deleteParcelFailed");
+                        if (errorData.code === "ALREADY_PICKED_UP") {
+                            errorMessage = t("admin.parcelDialog.errors.parcelAlreadyPickedUp");
+                        } else if (errorData.code === "PAST_PARCEL") {
+                            errorMessage = t("admin.parcelDialog.errors.parcelInPast");
+                        }
+
+                        throw new Error(errorMessage);
+                    }
+
+                    // Success! Show notification and close dialog
+                    notifications.show({
+                        title: t("admin.parcelDialog.success.parcelDeleted"),
+                        message: t("admin.parcelDialog.success.parcelDeletedMessage"),
+                        color: "green",
+                        icon: <IconCheck size="1rem" />,
+                    });
+
+                    onParcelUpdated?.();
+                    handleClose();
+                } catch (error) {
+                    setState(prev => ({
+                        ...prev,
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : t("admin.parcelDialog.errors.deleteParcelFailed"),
+                    }));
+                } finally {
+                    setState(prev => ({ ...prev, submitting: false }));
+                }
+            },
+        });
+    };
+
     const formatDateTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
         // Use appropriate locale for date/time formatting
@@ -281,7 +372,7 @@ export function ParcelAdminDialog({
     };
 
     const handleClose = () => {
-        setState(prev => ({ ...prev, error: null }));
+        setState(prev => ({ ...prev, error: null, smsRecords: [] }));
         onClose();
     };
 
@@ -530,8 +621,21 @@ export function ParcelAdminDialog({
                         </Card>
 
                         {/* Actions */}
-                        <Group justify="flex-end">
-                            <Group>
+                        <Group justify="space-between">
+                            {/* Delete button - only show if not picked up */}
+                            {!data.parcel.isPickedUp && (
+                                <Button
+                                    color="red"
+                                    variant="subtle"
+                                    leftSection={<IconTrash size="0.9rem" />}
+                                    onClick={handleDeleteParcel}
+                                    loading={submitting}
+                                >
+                                    {t("admin.parcelDialog.deleteParcel")}
+                                </Button>
+                            )}
+
+                            <Group ml="auto">
                                 {data.parcel.isPickedUp ? (
                                     <Button
                                         color="orange"

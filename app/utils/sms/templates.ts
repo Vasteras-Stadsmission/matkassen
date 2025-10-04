@@ -13,6 +13,7 @@ export interface SmsTemplateData {
 
 /**
  * Format date and time for SMS in the appropriate locale with compact formatting for SMS length limits
+ * Always uses Europe/Stockholm timezone since the service operates in Sweden
  */
 export function formatDateTimeForSms(
     date: Date,
@@ -22,6 +23,9 @@ export function formatDateTimeForSms(
         let dateStr: string;
         let timeStr: string;
 
+        // All formatting uses Europe/Stockholm timezone (Swedish operations)
+        const timeZone = "Europe/Stockholm";
+
         // Get locale-specific formatting
         switch (locale) {
             case "sv":
@@ -30,11 +34,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("sv-SE", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -44,11 +50,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("en-GB", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -57,11 +65,13 @@ export function formatDateTimeForSms(
                 dateStr = date.toLocaleDateString("ar-SA", {
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("ar-SA", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -70,11 +80,13 @@ export function formatDateTimeForSms(
                 dateStr = date.toLocaleDateString("fa-IR", {
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("fa-IR", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -84,11 +96,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("es-ES", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -98,11 +112,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("fr-FR", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -112,11 +128,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("de-DE", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -126,11 +144,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("ru-RU", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -140,11 +160,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("fi-FI", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -154,11 +176,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("it-IT", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -167,11 +191,13 @@ export function formatDateTimeForSms(
                 dateStr = date.toLocaleDateString("pl-PL", {
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("pl-PL", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
 
@@ -182,11 +208,13 @@ export function formatDateTimeForSms(
                     weekday: "short",
                     day: "numeric",
                     month: "short",
+                    timeZone,
                 });
                 timeStr = date.toLocaleTimeString("en-GB", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                 });
                 break;
         }
@@ -253,5 +281,64 @@ export function formatPickupSms(data: SmsTemplateData, locale: SupportedLocale):
             return `Սնունդ ${date} ${time}: ${data.publicUrl}`;
         default:
             return `Food pickup ${date} ${time}: ${data.publicUrl}`;
+    }
+}
+
+/**
+ * Generate cancellation SMS for when a parcel is deleted
+ * Simple, clear message that pickup has been cancelled
+ */
+export function generateCancellationSmsText(
+    locale: string,
+    now: Date,
+    scheduledPickupTime: Date,
+): string {
+    const normalizedLocale = (locale as SupportedLocale) || "sv";
+    const { date, time } = formatDateTimeForSms(scheduledPickupTime, normalizedLocale);
+
+    switch (normalizedLocale) {
+        case "sv":
+            return `Matpaket ${date} ${time} är inställt.`;
+        case "en":
+            return `Food pickup ${date} ${time} is cancelled.`;
+        case "ar":
+            return `تم إلغاء استلام الطعام ${date} ${time}.`;
+        case "fa":
+            return `دریافت غذا ${date} ${time} لغو شد.`;
+        case "ku":
+            return `Xwarin ${date} ${time} hate betalkirin.`;
+        case "es":
+            return `Comida ${date} ${time} cancelada.`;
+        case "fr":
+            return `Collecte ${date} ${time} annulée.`;
+        case "de":
+            return `Essen ${date} ${time} abgesagt.`;
+        case "el":
+            return `Φαγητό ${date} ${time} ακυρώθηκε.`;
+        case "sw":
+            return `Chakula ${date} ${time} imesitishwa.`;
+        case "so":
+        case "so_so":
+            return `Cunto ${date} ${time} waa la joojiyay.`;
+        case "uk":
+            return `Їжа ${date} ${time} скасована.`;
+        case "ru":
+            return `Еда ${date} ${time} отменена.`;
+        case "ka":
+            return `საკვები ${date} ${time} გაუქმებულია.`;
+        case "fi":
+            return `Ruoka ${date} ${time} peruttu.`;
+        case "it":
+            return `Cibo ${date} ${time} annullato.`;
+        case "th":
+            return `อาหาร ${date} ${time} ถูกยกเลิก.`;
+        case "vi":
+            return `Thức ăn ${date} ${time} đã hủy.`;
+        case "pl":
+            return `Jedzenie ${date} ${time} odwołane.`;
+        case "hy":
+            return `Սնունդ ${date} ${time} չեղարկվել է.`;
+        default:
+            return `Food pickup ${date} ${time} is cancelled.`;
     }
 }

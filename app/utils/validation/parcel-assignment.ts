@@ -21,6 +21,7 @@ import { type PgTransaction } from "drizzle-orm/pg-core";
 import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, pickupLocations } from "@/app/db/schema";
+import { notDeleted } from "@/app/db/query-helpers";
 import { Time } from "@/app/utils/time-provider";
 
 // Configuration constants
@@ -195,7 +196,7 @@ export async function validateParcelAssignment({
                     locationId: foodParcels.pickup_location_id,
                 })
                 .from(foodParcels)
-                .where(eq(foodParcels.id, parcelId))
+                .where(and(eq(foodParcels.id, parcelId), notDeleted()))
                 .limit(1);
 
             if (!parcel) {
@@ -303,6 +304,7 @@ export async function validateParcelAssignment({
                         eq(foodParcels.pickup_location_id, newLocationId),
                         between(foodParcels.pickup_date_time_earliest, startDate, endDate),
                         ne(foodParcels.id, parcelId), // Exclude current parcel
+                        notDeleted(),
                     ),
                 )
                 .execute();
@@ -352,6 +354,7 @@ export async function validateParcelAssignment({
                     eq(foodParcels.household_id, householdId),
                     between(foodParcels.pickup_date_time_earliest, startDate, endDate),
                     ne(foodParcels.id, parcelId), // Exclude current parcel
+                    notDeleted(),
                 ),
             );
 
@@ -396,6 +399,7 @@ export async function validateParcelAssignment({
                     lt(foodParcels.pickup_date_time_earliest, slotEndUTC),
                     gt(foodParcels.pickup_date_time_latest, slotStartUTC),
                     ne(foodParcels.id, parcelId), // Exclude current parcel
+                    notDeleted(),
                 ),
             )
             .execute();

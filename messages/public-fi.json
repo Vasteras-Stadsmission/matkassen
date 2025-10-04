@@ -13,13 +13,15 @@
             "scheduled": "Ajoitettu",
             "ready": "Valmis Noudettavaksi",
             "collected": "Noudettu",
-            "expired": "Vanhentunut"
+            "expired": "Vanhentunut",
+            "cancelled": "Peruttu"
         },
         "statusDescription": {
             "scheduled": "Noutosi on ajoitettu. Saavu noutoaikana.",
             "ready": "Ruokapakettisi on valmis noudettavaksi nyt!",
             "collected": "Tämä ruokapaketti on jo noudettu.",
-            "expired": "Tämä nouto ei ole enää voimassa. Ota yhteyttä henkilökuntaan jos sinulla on kysymyksiä."
+            "expired": "Tämä nouto ei ole enää voimassa. Ota yhteyttä henkilökuntaan jos sinulla on kysymyksiä.",
+            "cancelled": "Tämä nouto on peruttu. Sinun ei tarvitse tulla."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

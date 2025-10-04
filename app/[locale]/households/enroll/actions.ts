@@ -16,6 +16,7 @@ import {
     pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
 } from "@/app/db/schema";
 import { eq, and, sql } from "drizzle-orm";
+import { notDeleted } from "@/app/db/query-helpers";
 import {
     setToStartOfDay,
     setToEndOfDay,
@@ -236,28 +237,27 @@ export const enrollHousehold = protectedAction(
                     }
 
                     // Use upsert pattern to ensure idempotency under concurrent operations
-                    // The unique constraint on (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
-                    // guarantees that we won't create duplicates even if multiple requests run concurrently
-                    // Including location ensures that location changes are properly handled
-                    await tx
-                        .insert(foodParcels)
-                        .values(
-                            data.foodParcels.parcels.map((parcel: FoodParcelCreateData) => ({
-                                household_id: household.id,
-                                pickup_location_id: data.foodParcels.pickupLocationId,
-                                pickup_date_time_earliest: parcel.pickupEarliestTime,
-                                pickup_date_time_latest: parcel.pickupLatestTime,
-                                is_picked_up: false,
-                            })),
-                        )
-                        .onConflictDoNothing({
-                            target: [
-                                foodParcels.household_id,
-                                foodParcels.pickup_location_id,
-                                foodParcels.pickup_date_time_earliest,
-                                foodParcels.pickup_date_time_latest,
-                            ],
-                        });
+                    // The partial unique index food_parcels_household_location_time_active_unique
+                    // (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // WHERE deleted_at IS NULL guarantees that we won't create duplicates even if
+                    // multiple requests run concurrently. Including location ensures that location
+                    // changes are properly handled.
+                    //
+                    // Drizzle ORM supports partial index targeting through the 'where' parameter
+                    // in onConflictDoNothing (supported since v0.31.0, we're on v0.42.0)
+                    const parcelsToInsert = data.foodParcels.parcels.map(
+                        (parcel: FoodParcelCreateData) => ({
+                            household_id: household.id,
+                            pickup_location_id: data.foodParcels.pickupLocationId,
+                            pickup_date_time_earliest: parcel.pickupEarliestTime,
+                            pickup_date_time_latest: parcel.pickupLatestTime,
+                            is_picked_up: false,
+                        }),
+                    );
+
+                    // Use centralized helper for proper conflict handling
+                    const { insertParcels } = await import("@/app/db/insert-parcels");
+                    await insertParcels(tx, parcelsToInsert);
                 }
                 return { householdId: household.id };
             });
@@ -399,6 +399,9 @@ export async function checkPickupLocationCapacity(
             whereConditions.push(sql`${foodParcels.household_id} != ${excludeHouseholdId}`);
         }
 
+        // Exclude soft-deleted parcels from capacity calculations
+        whereConditions.push(notDeleted());
+
         // Execute the query with all conditions
         const parcels = await db
             .select()
@@ -474,6 +477,7 @@ export async function getPickupLocationCapacityForRange(
                     eq(foodParcels.pickup_location_id, locationId),
                     sql`${foodParcels.pickup_date_time_earliest} >= ${start.toISOString()}`,
                     sql`${foodParcels.pickup_date_time_earliest} <= ${end.toISOString()}`,
+                    notDeleted(),
                 ),
             );
 
