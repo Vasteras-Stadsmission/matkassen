@@ -243,8 +243,8 @@ export const enrollHousehold = protectedAction(
                     // multiple requests run concurrently. Including location ensures that location
                     // changes are properly handled.
                     //
-                    // We use raw SQL for ON CONFLICT because Drizzle ORM doesn't support
-                    // partial index targeting (WITH WHERE clause) in its DSL as of v0.42.0
+                    // Drizzle ORM supports partial index targeting through the 'where' parameter
+                    // in onConflictDoNothing (supported since v0.31.0, we're on v0.42.0)
                     const parcelsToInsert = data.foodParcels.parcels.map(
                         (parcel: FoodParcelCreateData) => ({
                             household_id: household.id,
@@ -255,25 +255,9 @@ export const enrollHousehold = protectedAction(
                         }),
                     );
 
-                    // Build VALUES clause with proper parameterization
-                    const valuesClause = parcelsToInsert.map(
-                        p =>
-                            sql`(${p.household_id}, ${p.pickup_location_id}, ${p.pickup_date_time_earliest}, ${p.pickup_date_time_latest}, ${p.is_picked_up})`,
-                    );
-
-                    // Construct the full INSERT with ON CONFLICT targeting the partial index
-                    const query = sql`
-                        INSERT INTO food_parcels (
-                            household_id, pickup_location_id,
-                            pickup_date_time_earliest, pickup_date_time_latest, is_picked_up
-                        )
-                        VALUES ${sql.join(valuesClause, sql`, `)}
-                        ON CONFLICT (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
-                        WHERE deleted_at IS NULL
-                        DO NOTHING
-                    `;
-
-                    await tx.execute(query);
+                    // Use centralized helper for proper conflict handling
+                    const { insertParcels } = await import("@/app/db/insert-parcels");
+                    await insertParcels(tx, parcelsToInsert);
                 }
                 return { householdId: household.id };
             });

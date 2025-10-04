@@ -60,14 +60,28 @@ export async function softDeleteParcelInTransaction(
     // Handle SMS cancellation logic - process ALL records to prevent orphaned reminders
     for (const sms of smsRecords) {
         if (sms.status === "queued" || sms.status === "sending") {
-            // Case 1: SMS not yet sent - cancel silently
+            // Case 1: SMS not yet sent or in-flight - cancel silently
+            // "sending" status means HTTP request is active but can still be effectively cancelled
+            // since the SMS processor won't pick it up again with cancelled status
             await tx
                 .update(outgoingSms)
                 .set({ status: "cancelled" })
                 .where(eq(outgoingSms.id, sms.id));
             smsCancelled = true;
+        } else if (sms.status === "retrying") {
+            // Case 2: SMS in retry backoff - cancel silently and clear retry attempt
+            // This prevents getSmsRecordsReadyForSending from picking it up on next poll
+            await tx
+                .update(outgoingSms)
+                .set({
+                    status: "cancelled",
+                    next_attempt_at: null, // Clear scheduled retry
+                })
+                .where(eq(outgoingSms.id, sms.id));
+            smsCancelled = true;
         } else if (sms.status === "sent" && !smsSent) {
-            // Case 2: SMS already sent - send cancellation SMS (only once)
+            // Case 3: SMS already delivered - too late to cancel
+            // Send cancellation SMS to inform household
             const cancellationText = generateCancellationSmsText(
                 household.locale,
                 Time.now().toDate(),
@@ -91,7 +105,7 @@ export async function softDeleteParcelInTransaction(
 
             smsSent = true;
         }
-        // For "failed", "retrying", "cancelled" - no action needed
+        // For "failed" and "cancelled" - no action needed (already in terminal state)
     }
 
     // Soft delete the parcel

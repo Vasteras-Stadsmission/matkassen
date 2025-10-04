@@ -2,9 +2,8 @@
 
 import { db } from "@/app/db/drizzle";
 import { foodParcels } from "@/app/db/schema";
-import { eq, gt, and, sql } from "drizzle-orm";
+import { eq, gt, and } from "drizzle-orm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
-import { nanoid } from "@/app/db/schema";
 import { protectedHouseholdAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
@@ -84,7 +83,6 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                     const parcelsToSave = parcelsData.parcels
                         .filter(parcel => parcel.pickupLatestTime > now || parcel.id)
                         .map(parcel => ({
-                            id: nanoid(12), // Food parcels use 12-character IDs
                             household_id: household.id,
                             pickup_location_id: parcelsData.pickupLocationId,
                             pickup_date_time_earliest: parcel.pickupEarliestTime,
@@ -92,36 +90,9 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                             is_picked_up: false,
                         }));
 
-                    // Use upsert pattern to ensure idempotency during concurrent operations
-                    // The partial unique index food_parcels_household_location_time_active_unique
-                    // (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
-                    // WHERE deleted_at IS NULL guarantees that we won't create duplicates even if
-                    // multiple requests run concurrently. Including location ensures that location
-                    // changes are properly handled.
-                    //
-                    // We use raw SQL for ON CONFLICT because Drizzle ORM doesn't support
-                    // partial index targeting (WITH WHERE clause) in its DSL as of v0.42.0
-                    if (parcelsToSave.length > 0) {
-                        // Build VALUES clause with proper parameterization
-                        const valuesClause = parcelsToSave.map(
-                            p =>
-                                sql`(${p.id}, ${p.household_id}, ${p.pickup_location_id}, ${p.pickup_date_time_earliest}, ${p.pickup_date_time_latest}, ${p.is_picked_up})`,
-                        );
-
-                        // Construct the full INSERT with ON CONFLICT targeting the partial index
-                        const query = sql`
-                            INSERT INTO food_parcels (
-                                id, household_id, pickup_location_id,
-                                pickup_date_time_earliest, pickup_date_time_latest, is_picked_up
-                            )
-                            VALUES ${sql.join(valuesClause, sql`, `)}
-                            ON CONFLICT (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
-                            WHERE deleted_at IS NULL
-                            DO NOTHING
-                        `;
-
-                        await tx.execute(query);
-                    }
+                    // Use centralized helper for proper conflict handling
+                    const { insertParcels } = await import("@/app/db/insert-parcels");
+                    await insertParcels(tx, parcelsToSave);
                 }
 
                 // Delete parcels that are no longer in the desired schedule

@@ -452,7 +452,9 @@ export const updateHousehold = protectedHouseholdAction(
 
                 // Execute CREATE operations
                 if (operations.toCreate.length > 0) {
-                    await tx.insert(foodParcels).values(operations.toCreate);
+                    // Use centralized helper for proper conflict handling
+                    const { insertParcels } = await import("@/app/db/insert-parcels");
+                    await insertParcels(tx, operations.toCreate);
                 }
 
                 // Execute UPDATE operations (same-day time changes)

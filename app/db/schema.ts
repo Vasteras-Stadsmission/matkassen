@@ -240,14 +240,15 @@ export const foodParcels = pgTable(
         // (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
         // WHERE deleted_at IS NULL
         //
-        // This cannot be expressed in Drizzle's schema DSL, so it's managed via custom SQL migration.
+        // ALL parcel inserts must use the insertParcels() helper from app/db/insert-parcels.ts
+        // which properly handles conflict resolution via onConflictDoNothing with the partial index.
+        //
         // The partial index ensures:
         // 1. Only one ACTIVE parcel per (household, location, time) slot
         // 2. Multiple soft-deleted parcels with same values are allowed (preserves history)
         // 3. Parcels can be recreated after soft-deletion (critical business requirement)
         //
-        // Previous implementation used unique().on() here, but that prevented recreating parcels
-        // after soft-delete because deleted rows still occupied the constraint slot.
+        // Do not insert food parcels directly - always use the helper to maintain idempotency.
     ],
 );
 

@@ -11,7 +11,6 @@ import type { FoodParcels } from "@/app/[locale]/households/enroll/types";
 
 // Track database operations for verification
 let insertedParcels: any[] = [];
-let executeCalled = false;
 let deleteCalled = false;
 
 // Mock the database module
@@ -42,17 +41,8 @@ vi.mock("@/app/db/drizzle", () => {
                 };
             }),
         })),
-        execute: vi.fn(async (query: any) => {
-            // Mock execute for raw SQL queries (used for ON CONFLICT with partial indexes)
-            // Mark that execute was called for INSERT statements
-            if (query && query.queryChunks) {
-                const sqlString = JSON.stringify(query.queryChunks);
-                if (sqlString.includes("INSERT INTO food_parcels")) {
-                    executeCalled = true;
-                    // Note: With raw SQL implementation, we can't easily extract individual parcel data
-                    // Tests should focus on action success/failure outcomes rather than implementation details
-                }
-            }
+        execute: vi.fn(async () => {
+            // Mock execute for any raw SQL queries
             return Promise.resolve();
         }),
     };
@@ -95,10 +85,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     const testLocationId = "test-location-456";
 
     beforeEach(() => {
-        // Reset tracking variables
+        // Reset tracking arrays
         insertedParcels = [];
-        executeCalled = false;
-        deleteCalled = false;
         vi.clearAllMocks();
     });
 
@@ -144,15 +132,11 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             // Verify the result was successful
             expect(result.success).toBe(true);
 
-            // With raw SQL implementation, we verify execute was called instead of inspecting insertedParcels
-            // The action uses SQL template literals for ON CONFLICT with partial indexes
-            expect(executeCalled).toBe(true);
-
-            // Note: insertedParcels tracking doesn't work with raw SQL execute()
-            // These detailed assertions are commented out but logic is still tested via action success
-            // expect(insertedParcels[0].pickup_location_id).toBe(testLocationId);
-            // expect(insertedParcels[0].pickup_date_time_earliest).toEqual(pickupStart);
-            // expect(insertedParcels[0].pickup_date_time_latest).toEqual(pickupEnd);
+            // Verify the parcel was inserted
+            expect(insertedParcels).toHaveLength(1);
+            expect(insertedParcels[0].pickup_location_id).toBe(testLocationId);
+            expect(insertedParcels[0].pickup_date_time_earliest).toEqual(pickupStart);
+            expect(insertedParcels[0].pickup_date_time_latest).toEqual(pickupEnd);
         } finally {
             vi.useRealTimers();
         }
@@ -403,10 +387,16 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
             expect(result.success).toBe(true);
-            // With raw SQL implementation, verify execute was called
-            expect(executeCalled).toBe(true);
-            // Note: detailed assertions about inserted parcel data are not feasible with raw SQL execute()
-            // The important validation is that the action succeeds and SQL is executed
+            // Both parcels should be inserted:
+            // 1. The past parcel (has id, allowed to be updated)
+            // 2. The future parcel (new, in the future)
+            expect(insertedParcels).toHaveLength(2);
+            // Find the future parcel (should be the one with future time)
+            const futureParcel = insertedParcels.find(
+                p => p.pickup_date_time_earliest.getTime() === futureStart.getTime(),
+            );
+            expect(futureParcel).toBeDefined();
+            expect(futureParcel.pickup_date_time_earliest).toEqual(futureStart);
         } finally {
             vi.useRealTimers();
         }
