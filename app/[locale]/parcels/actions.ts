@@ -6,8 +6,10 @@ import { eq, and, desc } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
-import { generateCancellationSmsText } from "@/app/utils/sms/templates";
+import { formatCancellationSms } from "@/app/utils/sms/templates";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
+import { nanoid } from "@/app/db/schema";
 
 interface SoftDeleteParcelResult {
     parcelId: string;
@@ -80,30 +82,33 @@ export async function softDeleteParcelInTransaction(
                 .where(eq(outgoingSms.id, sms.id));
             smsCancelled = true;
         } else if (sms.status === "sent" && !smsSent) {
-            // Case 3: SMS already delivered - too late to cancel
-            // Send cancellation SMS to inform household
-            const cancellationText = generateCancellationSmsText(
-                household.locale,
-                Time.now().toDate(),
-                parcel.pickup_date_time_earliest,
+            // Case 3: SMS already delivered - send cancellation SMS to inform household
+            smsSent = true;
+
+            // Generate cancellation SMS text
+            const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/p/${parcelId}`;
+            const cancellationText = formatCancellationSms(
+                {
+                    pickupDate: parcel.pickup_date_time_earliest,
+                    publicUrl,
+                },
+                household.locale as SupportedLocale,
             );
 
             // Queue cancellation SMS (will be sent by background processor)
-            const { nanoid } = await import("nanoid");
+            // Keep parcel_id reference - parcel still exists (soft-deleted) for audit trail
             await tx.insert(outgoingSms).values({
                 id: nanoid(12),
-                intent: "pickup_reminder",
-                parcel_id: null, // Not associated with any parcel
+                intent: "pickup_cancelled",
+                parcel_id: parcelId, // Keep relationship to soft-deleted parcel
                 household_id: household.id,
                 to_e164: household.phone_number,
                 text: cancellationText,
                 status: "queued",
                 attempt_count: 0,
-                next_attempt_at: Time.now().toDate(), // Send immediately
+                next_attempt_at: Time.now().toDate(),
                 idempotency_key: `cancel-${parcelId}-${Date.now()}`,
             });
-
-            smsSent = true;
         }
         // For "failed" and "cancelled" - no action needed (already in terminal state)
     }

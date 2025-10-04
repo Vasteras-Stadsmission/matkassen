@@ -16,7 +16,11 @@ import { getPickupLocationSchedules } from "@/app/[locale]/schedule/actions";
 // Individual functions handle normalization as needed
 import { nanoid } from "nanoid";
 
-export type SmsIntent = "pickup_reminder" | "consent_enrolment";
+export type SmsIntent =
+    | "pickup_reminder"
+    | "pickup_updated"
+    | "pickup_cancelled"
+    | "consent_enrolment";
 export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
 // Advisory lock key for SMS queue processing

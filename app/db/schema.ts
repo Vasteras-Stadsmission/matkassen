@@ -197,7 +197,12 @@ export const pickupLocationScheduleDays = pgTable(
 );
 
 // Define SMS intent enum
-export const smsIntentEnum = pgEnum("sms_intent", ["pickup_reminder", "consent_enrolment"]);
+export const smsIntentEnum = pgEnum("sms_intent", [
+    "pickup_reminder",
+    "pickup_updated",
+    "pickup_cancelled",
+    "consent_enrolment",
+]);
 
 // Define SMS status enum
 export const smsStatusEnum = pgEnum("sms_status", [
@@ -260,7 +265,7 @@ export const outgoingSms = pgTable(
             .notNull()
             .$defaultFn(() => nanoid(12)),
         intent: smsIntentEnum("intent").notNull(),
-        parcel_id: text("parcel_id").references(() => foodParcels.id, { onDelete: "cascade" }), // Nullable for non-parcel intents
+        parcel_id: text("parcel_id").references(() => foodParcels.id, { onDelete: "set null" }), // Nullable for non-parcel intents, SET NULL on delete for data preservation
         household_id: text("household_id")
             .notNull()
             .references(() => households.id, { onDelete: "cascade" }),

@@ -23,6 +23,7 @@ let selectCallCount = 0;
 // Mock nanoid for predictable IDs
 vi.mock("nanoid", () => ({
     nanoid: vi.fn((length: number) => `test-id-${length}`),
+    customAlphabet: vi.fn(() => () => `test-id-custom`),
 }));
 
 // Mock time provider
@@ -44,17 +45,19 @@ vi.mock("@/app/utils/time-provider", () => ({
 
 // Mock SMS template generator
 vi.mock("@/app/utils/sms/templates", () => ({
-    generateCancellationSmsText: vi.fn((locale: string, now: Date, scheduledTime: Date) => {
-        const formatted = scheduledTime.toISOString();
-        switch (locale) {
-            case "sv":
-                return `Matpaket ${formatted} är inställt.`;
-            case "en":
-                return `Food pickup ${formatted} is cancelled.`;
-            default:
-                return `Pickup ${formatted} cancelled.`;
-        }
-    }),
+    formatCancellationSms: vi.fn(
+        (data: { pickupDate: Date; publicUrl: string }, locale: string) => {
+            const formatted = data.pickupDate.toISOString();
+            switch (locale) {
+                case "sv":
+                    return `Matpaket ${formatted} är inställt.`;
+                case "en":
+                    return `Food pickup ${formatted} is cancelled.`;
+                default:
+                    return `Pickup ${formatted} cancelled.`;
+            }
+        },
+    ),
 }));
 
 // Mock the database module
@@ -301,7 +304,7 @@ describe("softDeleteParcel", () => {
             expect(result.success).toBe(true);
             if (result.success) {
                 expect(result.data.smsCancelled).toBe(false);
-                expect(result.data.smsSent).toBe(true);
+                expect(result.data.smsSent).toBe(true); // Detects that SMS was sent
             }
 
             // Verify original SMS was NOT updated
@@ -309,8 +312,8 @@ describe("softDeleteParcel", () => {
 
             // Verify cancellation SMS was inserted
             expect(insertedSms).toHaveLength(1);
-            expect(insertedSms[0].intent).toBe("pickup_reminder");
-            expect(insertedSms[0].parcel_id).toBe(null);
+            expect(insertedSms[0].intent).toBe("pickup_cancelled");
+            expect(insertedSms[0].parcel_id).toBe("parcel-123"); // Keep parcel reference (soft-deleted)
             expect(insertedSms[0].status).toBe("queued");
             expect(insertedSms[0].text).toContain("är inställt");
         });
@@ -454,7 +457,7 @@ describe("softDeleteParcel", () => {
 
             // Cancellation SMS should be inserted
             expect(insertedSms).toHaveLength(1);
-            expect(insertedSms[0].intent).toBe("pickup_reminder");
+            expect(insertedSms[0].intent).toBe("pickup_cancelled");
             expect(insertedSms[0].status).toBe("queued");
             expect(insertedSms[0].text).toContain("är inställt");
         });

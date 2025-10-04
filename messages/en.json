@@ -1,6 +1,6 @@
 {
     "common": {
-        "matkassen": "matkassen",
+        "matkassen": "Matkassen",
         "welcome": "Welcome to Matkassen",
         "description": "Administration system for food parcel distribution",
         "authStatus": "Authentication status",
@@ -10,6 +10,17 @@
         "languages": {
             "sv": "Swedish"
         }
+    },
+    "navigation": {
+        "matkassen": "Matkassen",
+        "households": "Households",
+        "schedule": "Schedule",
+        "todayHandouts": "Today's Handouts",
+        "locations": "Pickup Locations",
+        "smsDashboard": "SMS Management",
+        "newHousehold": "New Household",
+        "scanQrCode": "Scan QR Code",
+        "navigation": "Navigation"
     },
     "auth": {
         "login": "Log in",
@@ -30,16 +41,6 @@
             "verification": "Verification failed. Please try signing in again.",
             "default": "An error occurred while signing in. Please try again."
         }
-    },
-    "navigation": {
-        "matkassen": "matkassen",
-        "households": "Households",
-        "schedule": "Schedule",
-        "todayHandouts": "Today's Handouts",
-        "locations": "Locations",
-        "newHousehold": "Add Household",
-        "scanQrCode": "Scan QR Code",
-        "navigation": "Navigation"
     },
     "households": {
         "title": "Households",
@@ -863,6 +864,73 @@
                 "deleteParcelFailed": "Failed to delete parcel",
                 "parcelAlreadyPickedUp": "Cannot delete a parcel that has already been picked up",
                 "parcelInPast": "Cannot delete a parcel from the past"
+            },
+            "smsStatus": {
+                "title": "SMS Status"
+            }
+        },
+        "smsDashboard": {
+            "title": "SMS Management",
+            "pendingCount": "{count, plural, =0 {No pending SMS} =1 {1 pending SMS} other {# pending SMS}}",
+            "failureCount": "{count, plural, =0 {No failures} =1 {1 failure} other {# failures}}",
+            "loading": "Loading SMS...",
+            "refreshing": "Refreshing...",
+            "filters": {
+                "location": "Location",
+                "allLocations": "All locations",
+                "status": "Status",
+                "allStatuses": "All statuses",
+                "searchPlaceholder": "Search name...",
+                "clearFilters": "Clear filters",
+                "refresh": "Refresh",
+                "showCancelled": "Show cancelled parcels"
+            },
+            "status": {
+                "queued": "Queued",
+                "sending": "Sending",
+                "sent": "Sent",
+                "retrying": "Retrying",
+                "failed": "Failed",
+                "cancelled": "Cancelled"
+            },
+            "intent": {
+                "pickup_reminder": "Reminder",
+                "pickup_updated": "Update",
+                "pickup_cancelled": "Cancelled",
+                "consent_enrolment": "Consent"
+            },
+            "dateGroups": {
+                "today": "TODAY",
+                "tomorrow": "TOMORROW"
+            },
+            "actions": {
+                "menuLabel": "Actions",
+                "sendNow": "Send Now",
+                "tryAgain": "Try Again",
+                "sendAgain": "Send Again",
+                "viewHousehold": "View Household",
+                "viewParcel": "View Parcel"
+            },
+            "itemInfo": {
+                "scheduledFor": "Scheduled for {time}",
+                "willSendAt": "Sends at {time}",
+                "sentAt": "Sent at {time}",
+                "failedAt": "Failed at {time}",
+                "error": "Error: {message}"
+            },
+            "notifications": {
+                "sendSuccess": "SMS sent",
+                "sendError": "Failed to send SMS",
+                "sendErrorDetail": "Failed to send SMS: {error}"
+            },
+            "emptyStates": {
+                "noPending": "No pending SMS - All caught up! ✨",
+                "noResults": "No SMS found with current filters",
+                "noFailures": "No failed SMS right now"
+            },
+            "errorMessages": {
+                "loadError": "Failed to load SMS data",
+                "tryAgainLater": "Please try again later"
             }
         }
     }
