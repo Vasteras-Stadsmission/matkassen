@@ -8,6 +8,7 @@
  * 2. Query construction with filters (location, status, search, cancelled)
  * 3. Two-view system: active parcels (default) vs cancelled parcels (toggle)
  * 4. INNER JOIN ensures only SMS with valid parcels are returned
+ * 5. Time window logic - parcels visible until pickup window ends (pickup_date_time_latest)
  *
  * Note: These are focused unit tests that verify the API's filtering logic
  * without requiring full database integration. The key behaviors tested are:
@@ -15,11 +16,15 @@
  * - notDeleted() filter for active parcels (default view)
  * - isDeleted() filter for cancelled parcels (when cancelled=true)
  * - Filter parameters are correctly parsed from query string
+ * - Time window logic uses pickup_date_time_latest (not earliest)
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { GET } from "@/app/api/admin/sms/dashboard/route";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { db } from "@/app/db/drizzle";
+import { foodParcels, households, pickupLocations, outgoingSms } from "@/app/db/schema";
+import { eq } from "drizzle-orm";
 
 // Mock the auth function
 vi.mock("@/app/utils/auth/api-auth", () => ({
@@ -146,7 +151,7 @@ describe("GET /api/admin/sms/dashboard", () => {
 /**
  * Integration test documentation for SMS Dashboard
  *
- * The following behaviors are verified through manual/integration testing:
+ * The following behaviors should be verified through integration testing with database fixtures:
  *
  * 1. **Two-view system for parcel filtering**:
  *    - Default view (cancelled=false or omitted): Shows SMS for active parcels only
@@ -166,7 +171,7 @@ describe("GET /api/admin/sms/dashboard", () => {
  *    - Location filter: WHERE pickup_locations.id = ?
  *    - Status filter: WHERE outgoing_sms.status = ?
  *    - Search filter: Applied to household first_name and last_name
- *    - Date filter: WHERE food_parcels.pickup_date_time_earliest >= NOW()
+ *    - Date filter: WHERE food_parcels.pickup_date_time_latest >= NOW()
  *    - Cancelled filter: WHERE is_null(deleted_at) OR is_not_null(deleted_at)
  *
  * 4. **Data integrity**:
@@ -175,6 +180,64 @@ describe("GET /api/admin/sms/dashboard", () => {
  *    - Only upcoming parcels are shown (past parcels excluded by date filter)
  *    - Cancellation SMS become visible when switching to cancelled view
  *
- * These integration tests would require a test database with fixtures.
+ * 5. **Time window behavior** (CRITICAL):
+ *    - Parcels remain visible until their pickup window ENDS (pickup_date_time_latest)
+ *    - NOT when the window BEGINS (pickup_date_time_earliest)
+ *    - Example: Parcel with pickup window 10:00-14:00 remains visible until 14:00
+ *    - Failed SMS during active pickup window stay visible for staff to address
+ *
+ * Integration test scenarios to implement:
+ *
+ * Scenario 1: Time window visibility
+ *   Given: Current time is 11:00
+ *   And: Parcel A has pickup window 09:00-13:00 (started, not ended)
+ *   And: Parcel B has pickup window 14:00-16:00 (not started)
+ *   And: Parcel C has pickup window 08:00-10:00 (ended)
+ *   When: GET /api/admin/sms/dashboard
+ *   Then: Returns SMS for Parcel A and B (not C)
+ *   And: Parcel A is visible even though pickup_date_time_earliest < now
+ *
+ * Scenario 2: Failed SMS during active pickup
+ *   Given: Current time is 11:00
+ *   And: Parcel has pickup window 10:00-14:00
+ *   And: SMS has status "failed"
+ *   When: GET /api/admin/sms/dashboard?status=failed
+ *   Then: Returns the failed SMS (visible during active window)
+ *
+ * Scenario 3: Cancelled parcel view toggle
+ *   Given: Parcel A is active (deleted_at = null)
+ *   And: Parcel B is cancelled (deleted_at = timestamp)
+ *   When: GET /api/admin/sms/dashboard
+ *   Then: Returns SMS for Parcel A only
+ *   When: GET /api/admin/sms/dashboard?cancelled=true
+ *   Then: Returns SMS for Parcel B only
+ *
+ * These integration tests require a test database with fixtures.
  * The unit tests above validate authentication and parameter parsing.
  */
+
+describe("Integration Test TODO", () => {
+    it.todo(
+        "should keep parcels visible until pickup window ends (pickup_date_time_latest), not when it begins",
+    );
+
+    it.todo(
+        "should show failed SMS during active pickup window (between earliest and latest time)",
+    );
+
+    it.todo("should exclude parcels where current time > pickup_date_time_latest");
+
+    it.todo("should filter active parcels with notDeleted() when cancelled=false or omitted");
+
+    it.todo("should filter cancelled parcels with isDeleted() when cancelled=true");
+
+    it.todo("should apply location filter to pickup_locations.id");
+
+    it.todo("should apply status filter to outgoing_sms.status");
+
+    it.todo("should apply search filter to household first_name and last_name");
+
+    it.todo("should combine multiple filters (location + status + search + time)");
+
+    it.todo("should only return SMS with valid parcel_id via INNER JOIN");
+});

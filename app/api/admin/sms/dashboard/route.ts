@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         // - Cancelled (showCancelled=true): Soft-deleted parcels only (audit/cancellation view)
         const conditions = [
             showCancelled ? isDeleted() : notDeleted(),
-            gte(foodParcels.pickup_date_time_earliest, new Date()), // Upcoming only
+            gte(foodParcels.pickup_date_time_latest, new Date()), // Upcoming only - use latest to keep parcels visible until pickup window ends
         ];
 
         // Add location filter if provided

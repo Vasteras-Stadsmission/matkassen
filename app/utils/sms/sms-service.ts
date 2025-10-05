@@ -128,7 +128,7 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
     try {
         await db.insert(outgoingSms).values({
             id,
-            intent: data.intent as "pickup_reminder" | "consent_enrolment",
+            intent: data.intent, // No cast needed - data.intent is already typed as SmsIntent and matches schema enum
             parcel_id: data.parcelId,
             household_id: data.householdId,
             to_e164: data.toE164,

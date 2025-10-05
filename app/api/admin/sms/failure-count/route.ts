@@ -24,7 +24,7 @@ export async function GET() {
             .where(
                 and(
                     notDeleted(), // Only active parcels
-                    gte(foodParcels.pickup_date_time_earliest, new Date()), // Upcoming only
+                    gte(foodParcels.pickup_date_time_latest, new Date()), // Upcoming only - use latest to keep failures visible until pickup window ends
                     eq(outgoingSms.status, "failed"), // Failed status only
                 ),
             );
