@@ -24,7 +24,7 @@ export function toStockholmTime(date: Date): Date {
 
 /**
  * Convert a date to a zoned date in Stockholm timezone
- * (Alias for toStockholmTime for backward compatibility)
+ * (Alias for toStockholmTime for date picker context)
  */
 export function toStockholmDate(date: Date): Date {
     return toStockholmTime(date);

@@ -391,6 +391,3 @@ export function formatCancellationSms(data: SmsTemplateData, locale: SupportedLo
             return `Food pickup ${date} ${time} is cancelled.`;
     }
 }
-
-// Re-export for backward compatibility
-export const generateCancellationSmsText = formatCancellationSms;

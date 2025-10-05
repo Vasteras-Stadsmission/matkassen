@@ -1,6 +1,6 @@
 {
-  "id": "b56be8fb-3809-4c49-95a9-9bec9064722d",
-  "prevId": "1a00fe94-76fc-4702-8e9e-3a8f07735253",
+  "id": "cleanup-legacy-14char-parcel-ids-2025",
+  "prevId": "b56be8fb-3809-4c49-95a9-9bec9064722d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {

@@ -31,15 +31,10 @@ export async function DELETE(
 
         const { parcelId } = await params;
 
-        // Validate parcelId format
-        // Current: nanoid(12) for food parcels
-        // Legacy: Some existing parcels have 14-character IDs from before the fix
-        // Accept both for backwards compatibility
-        const isValid12or14 =
-            (parcelId?.length === 12 || parcelId?.length === 14) &&
-            /^[a-zA-Z0-9_-]+$/.test(parcelId);
+        // Validate parcelId format (nanoid(12) for food parcels)
+        const isValid = parcelId?.length === 12 && /^[a-zA-Z0-9_-]+$/.test(parcelId);
 
-        if (!isValid12or14) {
+        if (!isValid) {
             return NextResponse.json({ error: "Invalid parcel ID format" }, { status: 400 });
         }
 

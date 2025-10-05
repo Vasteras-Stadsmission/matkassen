@@ -11,7 +11,7 @@ export interface FoodParcel {
     pickupEarliestTime: Date;
     pickupLatestTime: Date;
     isPickedUp: boolean;
-    pickup_location_id?: string; // Optional for backward compatibility
+    pickup_location_id?: string; // Database column name (snake_case)
     locationId?: string; // Alternative naming for the location ID
 }
 

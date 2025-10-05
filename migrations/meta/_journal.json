@@ -176,6 +176,20 @@
       "when": 1759612658608,
       "tag": "0024_change_sms_fk_to_set_null",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1759657998743,
+      "tag": "0025_cleanup-legacy-14char-parcel-ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1759695380938,
+      "tag": "0026_abnormal_sunspot",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateCancellationSmsText } from "@/app/utils/sms/templates";
+import { formatCancellationSms } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 
 /**
@@ -12,16 +12,13 @@ import type { SupportedLocale } from "@/app/utils/locale-detection";
  * 4. Date/Time Display - Consistent with pickup reminder format
  */
 
-describe("generateCancellationSmsText - Phase 4", () => {
+describe("formatCancellationSms", () => {
     const scheduledPickup = new Date("2025-10-15T14:30:00+02:00"); // Oct 15, 2:30 PM Stockholm time
     const publicUrl = "https://example.com/p/test123";
 
     describe("Core Functionality", () => {
         it("should generate Swedish cancellation message", () => {
-            const text = generateCancellationSmsText(
-                { pickupDate: scheduledPickup, publicUrl },
-                "sv",
-            );
+            const text = formatCancellationSms({ pickupDate: scheduledPickup, publicUrl }, "sv");
 
             expect(text).toContain("Matpaket");
             expect(text).toContain("är inställt");
@@ -29,37 +26,28 @@ describe("generateCancellationSmsText - Phase 4", () => {
         });
 
         it("should generate English cancellation message", () => {
-            const text = generateCancellationSmsText(
-                { pickupDate: scheduledPickup, publicUrl },
-                "en",
-            );
+            const text = formatCancellationSms({ pickupDate: scheduledPickup, publicUrl }, "en");
 
             expect(text).toContain("Food pickup");
             expect(text).toContain("is cancelled");
         });
 
         it("should generate Arabic cancellation (RTL, Unicode numerals)", () => {
-            const text = generateCancellationSmsText(
-                { pickupDate: scheduledPickup, publicUrl },
-                "ar",
-            );
+            const text = formatCancellationSms({ pickupDate: scheduledPickup, publicUrl }, "ar");
 
             expect(text).toContain("تم إلغاء");
             expect(text).toMatch(/[١٢٣٤٥٦٧٨٩٠]/); // Arabic-Indic numerals
         });
 
         it("should generate German cancellation (Latin with umlauts)", () => {
-            const text = generateCancellationSmsText(
-                { pickupDate: scheduledPickup, publicUrl },
-                "de",
-            );
+            const text = formatCancellationSms({ pickupDate: scheduledPickup, publicUrl }, "de");
 
             expect(text).toContain("Essen");
             expect(text).toContain("abgesagt");
         });
 
         it("should handle fallback for unknown locale", () => {
-            const text = generateCancellationSmsText(
+            const text = formatCancellationSms(
                 { pickupDate: scheduledPickup, publicUrl },
                 "unknown-locale" as any,
             );
@@ -104,7 +92,7 @@ describe("generateCancellationSmsText - Phase 4", () => {
 
         it("should keep all cancellation messages within single SMS limits", () => {
             allLocales.forEach(locale => {
-                const text = generateCancellationSmsText(
+                const text = formatCancellationSms(
                     { pickupDate: scheduledPickup, publicUrl },
                     locale,
                 );
@@ -124,7 +112,7 @@ describe("generateCancellationSmsText - Phase 4", () => {
             console.log("=".repeat(80));
 
             allLocales.forEach(locale => {
-                const text = generateCancellationSmsText(
+                const text = formatCancellationSms(
                     { pickupDate: scheduledPickup, publicUrl },
                     locale,
                 );
@@ -144,10 +132,7 @@ describe("generateCancellationSmsText - Phase 4", () => {
 
     describe("Date/Time Formatting", () => {
         it("should include date and time in message", () => {
-            const text = generateCancellationSmsText(
-                { pickupDate: scheduledPickup, publicUrl },
-                "sv",
-            );
+            const text = formatCancellationSms({ pickupDate: scheduledPickup, publicUrl }, "sv");
 
             expect(text).toMatch(/\d{1,2}/); // Day
             expect(text).toMatch(/\d{2}:\d{2}/); // Time (HH:MM)
@@ -157,7 +142,7 @@ describe("generateCancellationSmsText - Phase 4", () => {
             const locales: SupportedLocale[] = ["sv", "en", "de", "fr", "es"];
 
             locales.forEach(locale => {
-                const text = generateCancellationSmsText(
+                const text = formatCancellationSms(
                     { pickupDate: scheduledPickup, publicUrl },
                     locale,
                 );
@@ -172,9 +157,9 @@ describe("generateCancellationSmsText - Phase 4", () => {
             const afternoon = new Date("2025-10-15T14:30:00+02:00");
             const evening = new Date("2025-10-15T19:00:00+02:00");
 
-            const text1 = generateCancellationSmsText({ pickupDate: morning, publicUrl }, "sv");
-            const text2 = generateCancellationSmsText({ pickupDate: afternoon, publicUrl }, "sv");
-            const text3 = generateCancellationSmsText({ pickupDate: evening, publicUrl }, "sv");
+            const text1 = formatCancellationSms({ pickupDate: morning, publicUrl }, "sv");
+            const text2 = formatCancellationSms({ pickupDate: afternoon, publicUrl }, "sv");
+            const text3 = formatCancellationSms({ pickupDate: evening, publicUrl }, "sv");
 
             // All should be different (different times)
             expect(text1).not.toBe(text2);
@@ -185,17 +170,14 @@ describe("generateCancellationSmsText - Phase 4", () => {
     describe("Edge Cases", () => {
         it("should handle midnight pickup times", () => {
             const midnight = new Date("2025-10-15T00:00:00+02:00");
-            const text = generateCancellationSmsText({ pickupDate: midnight, publicUrl }, "sv");
+            const text = formatCancellationSms({ pickupDate: midnight, publicUrl }, "sv");
 
             expect(text).toContain("00:00");
             expect(text).toContain("är inställt");
         });
 
         it("should not include URL (no action needed)", () => {
-            const text = generateCancellationSmsText(
-                { pickupDate: scheduledPickup, publicUrl },
-                "sv",
-            );
+            const text = formatCancellationSms({ pickupDate: scheduledPickup, publicUrl }, "sv");
 
             // Cancellation is final - no URL needed
             expect(text).not.toContain("matkassen.org");

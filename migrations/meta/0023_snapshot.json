@@ -1155,6 +1155,8 @@
       "schema": "public",
       "values": [
         "pickup_reminder",
+        "pickup_updated",
+        "pickup_cancelled",
         "consent_enrolment"
       ]
     },

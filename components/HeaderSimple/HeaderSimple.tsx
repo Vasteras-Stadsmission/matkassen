@@ -37,7 +37,8 @@ export function HeaderSimple() {
     const [active, setActive] = useState("");
     const [smsFailureCount, setSmsFailureCount] = useState(0);
 
-    // Fetch SMS failure count
+    // Fetch SMS failure count once on mount
+    // Badge updates naturally when users navigate between pages
     useEffect(() => {
         const fetchFailureCount = async () => {
             try {
@@ -52,9 +53,6 @@ export function HeaderSimple() {
         };
 
         fetchFailureCount();
-        // Refresh count every 30 seconds
-        const interval = setInterval(fetchFailureCount, 30000);
-        return () => clearInterval(interval);
     }, []);
 
     // Define navigation links with translated labels using useMemo to avoid dependency changes
