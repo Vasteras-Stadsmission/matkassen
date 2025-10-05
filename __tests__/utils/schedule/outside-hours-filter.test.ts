@@ -18,7 +18,7 @@ vi.mock("@/app/utils/schedule/location-availability", () => ({
 }));
 
 // Don't mock date-utils for DST tests - we want real timezone behavior
-// Mock the date-utils module only for legacy tests
+// Mock the date-utils module for testing
 const mockToStockholmTime = vi.fn((date: Date) => date);
 vi.mock("@/app/utils/date-utils", async () => {
     const actual = await vi.importActual("@/app/utils/date-utils");

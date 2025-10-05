@@ -370,7 +370,7 @@ export const updateFoodParcelSchedule = protectedAction(
                 });
 
                 if (!validationResult.success) {
-                    // Return the first error for backward compatibility, but include all errors
+                    // Return the first error for display
                     const errors = validationResult.errors || [];
                     const primaryError = errors[0];
                     const { formatValidationError } = await import(

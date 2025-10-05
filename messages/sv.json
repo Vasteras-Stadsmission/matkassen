@@ -37,6 +37,7 @@
         "schedule": "Schema",
         "todayHandouts": "Dagens utlämningar",
         "locations": "Utlämningsställen",
+        "smsDashboard": "SMS-hantering",
         "newHousehold": "Nytt hushåll",
         "scanQrCode": "Skanna QR-kod",
         "navigation": "Navigation"
@@ -863,6 +864,73 @@
                 "deleteParcelFailed": "Misslyckades med att ta bort paket",
                 "parcelAlreadyPickedUp": "Kan inte ta bort ett paket som redan är upphämtat",
                 "parcelInPast": "Kan inte ta bort ett paket från det förflutna"
+            },
+            "smsStatus": {
+                "title": "SMS-status"
+            }
+        },
+        "smsDashboard": {
+            "title": "SMS-hantering",
+            "pendingCount": "{count, plural, =0 {Inga väntande SMS} =1 {1 väntande SMS} other {# väntande SMS}}",
+            "failureCount": "{count, plural, =0 {Inga fel} =1 {1 fel} other {# fel}}",
+            "loading": "Laddar SMS...",
+            "refreshing": "Uppdaterar...",
+            "filters": {
+                "location": "Plats",
+                "allLocations": "Alla platser",
+                "status": "Status",
+                "allStatuses": "Alla statusar",
+                "searchPlaceholder": "Sök namn...",
+                "clearFilters": "Rensa filter",
+                "refresh": "Uppdatera",
+                "showCancelled": "Visa inställda paket"
+            },
+            "status": {
+                "queued": "Väntar",
+                "sending": "Skickar",
+                "sent": "Skickad",
+                "retrying": "Försöker igen",
+                "failed": "Misslyckad",
+                "cancelled": "Avbruten"
+            },
+            "intent": {
+                "pickup_reminder": "Påminnelse",
+                "pickup_updated": "Uppdatering",
+                "pickup_cancelled": "Avbruten",
+                "consent_enrolment": "Samtycke"
+            },
+            "dateGroups": {
+                "today": "IDAG",
+                "tomorrow": "IMORGON"
+            },
+            "actions": {
+                "menuLabel": "Åtgärder",
+                "sendNow": "Skicka nu",
+                "tryAgain": "Försök igen",
+                "sendAgain": "Skicka igen",
+                "viewHousehold": "Visa hushåll",
+                "viewParcel": "Visa matpaket"
+            },
+            "itemInfo": {
+                "scheduledFor": "Schemalagd till {time}",
+                "willSendAt": "Skickas {time}",
+                "sentAt": "Skickades {time}",
+                "failedAt": "Misslyckades {time}",
+                "error": "Fel: {message}"
+            },
+            "notifications": {
+                "sendSuccess": "SMS skickades",
+                "sendError": "Kunde inte skicka SMS",
+                "sendErrorDetail": "Kunde inte skicka SMS: {error}"
+            },
+            "emptyStates": {
+                "noPending": "Inga väntande SMS - Allt klart! ✨",
+                "noResults": "Inga SMS hittades med nuvarande filter",
+                "noFailures": "Inga misslyckade SMS just nu"
+            },
+            "errorMessages": {
+                "loadError": "Kunde inte ladda SMS-data",
+                "tryAgainLater": "Försök igen senare"
             }
         }
     }

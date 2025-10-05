@@ -285,18 +285,67 @@ export function formatPickupSms(data: SmsTemplateData, locale: SupportedLocale):
 }
 
 /**
+ * Generate update SMS for when a parcel time/location is changed
+ * Clear message indicating the pickup details have been updated
+ */
+export function formatUpdateSms(data: SmsTemplateData, locale: SupportedLocale): string {
+    const { date, time } = formatDateTimeForSms(data.pickupDate, locale);
+
+    switch (locale) {
+        case "sv":
+            return `Uppdatering! Matpaket ${date} ${time}: ${data.publicUrl}`;
+        case "en":
+            return `Update! Food pickup ${date} ${time}: ${data.publicUrl}`;
+        case "ar":
+            return `تحديث! استلام الطعام ${date} ${time}: ${data.publicUrl}`;
+        case "fa":
+            return `به‌روزرسانی! دریافت غذا ${date} ${time}: ${data.publicUrl}`;
+        case "ku":
+            return `Nûkirin! Xwarin ${date} ${time}: ${data.publicUrl}`;
+        case "es":
+            return `¡Actualización! Comida ${date} ${time}: ${data.publicUrl}`;
+        case "fr":
+            return `Mise à jour! Collecte ${date} ${time}: ${data.publicUrl}`;
+        case "de":
+            return `Update! Essen ${date} ${time}: ${data.publicUrl}`;
+        case "el":
+            return `Ενημέρωση! Φαγητό ${date} ${time}: ${data.publicUrl}`;
+        case "sw":
+            return `Sasisho! Chakula ${date} ${time}: ${data.publicUrl}`;
+        case "so":
+        case "so_so":
+            return `Cusboonaysi! Cunto ${date} ${time}: ${data.publicUrl}`;
+        case "uk":
+            return `Оновлення! Їжа ${date} ${time}: ${data.publicUrl}`;
+        case "ru":
+            return `Обновление! Еда ${date} ${time}: ${data.publicUrl}`;
+        case "ka":
+            return `განახლება! საკვები ${date} ${time}: ${data.publicUrl}`;
+        case "fi":
+            return `Päivitys! Ruoka ${date} ${time}: ${data.publicUrl}`;
+        case "it":
+            return `Aggiornamento! Cibo ${date} ${time}: ${data.publicUrl}`;
+        case "th":
+            return `อัปเดต! อาหาร ${date} ${time}: ${data.publicUrl}`;
+        case "vi":
+            return `Cập nhật! Thức ăn ${date} ${time}: ${data.publicUrl}`;
+        case "pl":
+            return `Aktualizacja! Jedzenie ${date} ${time}: ${data.publicUrl}`;
+        case "hy":
+            return `Թարմացում! Սնունդ ${date} ${time}: ${data.publicUrl}`;
+        default:
+            return `Update! Food pickup ${date} ${time}: ${data.publicUrl}`;
+    }
+}
+
+/**
  * Generate cancellation SMS for when a parcel is deleted
  * Simple, clear message that pickup has been cancelled
  */
-export function generateCancellationSmsText(
-    locale: string,
-    now: Date,
-    scheduledPickupTime: Date,
-): string {
-    const normalizedLocale = (locale as SupportedLocale) || "sv";
-    const { date, time } = formatDateTimeForSms(scheduledPickupTime, normalizedLocale);
+export function formatCancellationSms(data: SmsTemplateData, locale: SupportedLocale): string {
+    const { date, time } = formatDateTimeForSms(data.pickupDate, locale);
 
-    switch (normalizedLocale) {
+    switch (locale) {
         case "sv":
             return `Matpaket ${date} ${time} är inställt.`;
         case "en":

@@ -51,14 +51,6 @@ describe("SMS Message Templates", () => {
 
             expect(message).toContain("Food pickup");
         });
-
-        it("should maintain backward compatibility with legacy functions", () => {
-            const pickupMessage = formatPickupSms(templateData, "sv");
-
-            // All legacy functions have been removed in favor of the single formatPickupSms function
-            expect(pickupMessage).toContain("Matpaket");
-            expect(pickupMessage).toMatch(/matkassen\.org/);
-        });
     });
 
     describe("SMS Length Limits - CRITICAL FOR COST CONTROL", () => {
