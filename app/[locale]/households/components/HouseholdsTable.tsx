@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { DataTable } from "mantine-datatable";
-import { TextInput, ActionIcon, Tooltip, Title, Group, Button } from "@mantine/core";
+import { TextInput, ActionIcon, Tooltip, Group, Button } from "@mantine/core";
 import { IconSearch, IconX, IconPlus, IconEye, IconEdit, IconPackage } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/app/i18n/navigation";

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { AuthProtection } from "@/components/AuthProtection";
 import { getHouseholdDetails } from "../actions";
 import HouseholdDetailsPage from "./components/HouseholdDetailsPage";
+import { HouseholdDetailsPageSkeleton } from "./components/HouseholdDetailsPageSkeleton";
 import { getTranslations } from "next-intl/server";
 
 interface HouseholdPageProps {
@@ -39,7 +41,9 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
 
     return (
         <AuthProtection>
-            <HouseholdDetailsPage householdId={id} initialData={householdDetails} />
+            <Suspense fallback={<HouseholdDetailsPageSkeleton />}>
+                <HouseholdDetailsPage householdId={id} initialData={householdDetails} />
+            </Suspense>
         </AuthProtection>
     );
 }

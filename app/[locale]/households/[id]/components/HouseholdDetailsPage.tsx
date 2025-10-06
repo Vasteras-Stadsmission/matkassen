@@ -15,7 +15,6 @@ import {
     Paper,
     ThemeIcon,
     Badge,
-    Divider,
     LoadingOverlay,
     Collapse,
     ActionIcon,
@@ -25,16 +24,7 @@ import {
     IconArrowLeft,
     IconEdit,
     IconPackage,
-    IconUser,
-    IconPhone,
-    IconMailbox,
-    IconLanguage,
-    IconCalendarEvent,
-    IconClock,
     IconBuilding,
-    IconMars,
-    IconVenus,
-    IconGenderBigender,
     IconChevronDown,
     IconChevronUp,
 } from "@tabler/icons-react";
@@ -42,8 +32,11 @@ import { useTranslations, useLocale } from "next-intl";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import CommentSection from "@/components/CommentSection";
 import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../../actions";
-import { Comment } from "../../enroll/types";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
+import { HouseholdInfoCard } from "./HouseholdInfoCard";
+import { HouseholdMembersCard } from "./HouseholdMembersCard";
+import { ParcelList } from "./ParcelList";
+import type { ParcelCardData } from "./ParcelCard";
 
 interface HouseholdDetailsPageProps {
     householdId: string;
@@ -175,15 +168,6 @@ export default function HouseholdDetailsPage({
         });
     };
 
-    const formatPostalCode = (postalCode: string) => {
-        if (!postalCode) return "";
-        const digits = postalCode.replace(/\D/g, "");
-        if (digits.length === 5) {
-            return `${digits.substring(0, 3)} ${digits.substring(3)}`;
-        }
-        return postalCode;
-    };
-
     const getWeekdayName = (date: Date | string | null | undefined) => {
         if (!date) return "";
         const dayIndex = new Date(date).getDay();
@@ -254,14 +238,14 @@ export default function HouseholdDetailsPage({
                             leftSection={<IconEdit size="1rem" />}
                             onClick={() => router.push(`/households/${householdId}/edit`)}
                         >
-                            {t("editHousehold", {}, { default: "Edit Household" })}
+                            {t("editHousehold")}
                         </Button>
                         <Button
                             variant="light"
                             leftSection={<IconPackage size="1rem" />}
                             onClick={() => router.push(`/households/${householdId}/parcels`)}
                         >
-                            {t("manageParcels", {}, { default: "Manage Parcels" })}
+                            {t("manageParcels")}
                         </Button>
                     </Group>
                 </Group>
@@ -271,96 +255,17 @@ export default function HouseholdDetailsPage({
                 {/* Left Column - Household Info */}
                 <Stack gap="md">
                     {/* Basic Info */}
-                    <Paper withBorder p="lg" radius="md">
-                        <Title order={3} size="h4" mb="md">
-                            {t("basics")}
-                        </Title>
-                        <Stack gap="sm">
-                            <Group gap="sm">
-                                <ThemeIcon size="lg" variant="light" color="blue">
-                                    <IconUser size={20} />
-                                </ThemeIcon>
-                                <Text size="md">
-                                    {householdData.household.first_name}{" "}
-                                    {householdData.household.last_name}
-                                </Text>
-                            </Group>
-                            <Group gap="sm">
-                                <ThemeIcon size="lg" variant="light" color="blue">
-                                    <IconPhone size={20} />
-                                </ThemeIcon>
-                                <Text size="md">{householdData.household.phone_number}</Text>
-                            </Group>
-                            <Group gap="sm">
-                                <ThemeIcon size="lg" variant="light" color="blue">
-                                    <IconMailbox size={20} />
-                                </ThemeIcon>
-                                <Text size="md">
-                                    {formatPostalCode(householdData.household.postal_code)}
-                                </Text>
-                            </Group>
-                            <Group gap="sm">
-                                <ThemeIcon size="lg" variant="light" color="blue">
-                                    <IconLanguage size={20} />
-                                </ThemeIcon>
-                                <Text size="md">
-                                    {getLanguageName(householdData.household.locale)}
-                                </Text>
-                            </Group>
-                        </Stack>
-                    </Paper>
+                    <HouseholdInfoCard
+                        firstName={householdData.household.first_name}
+                        lastName={householdData.household.last_name}
+                        phoneNumber={householdData.household.phone_number}
+                        postalCode={householdData.household.postal_code}
+                        locale={householdData.household.locale}
+                        getLanguageName={getLanguageName}
+                    />
 
                     {/* Household Members */}
-                    <Paper withBorder p="lg" radius="md">
-                        <Title order={3} size="h4" mb="md">
-                            {t("members", { count: String(householdData.members.length) })}
-                        </Title>
-                        {householdData.members.length > 0 ? (
-                            <Group gap="sm">
-                                {householdData.members.map((member, index) => {
-                                    let iconColor = "gray";
-                                    let genderIcon;
-
-                                    if (member.sex === "male") {
-                                        iconColor = "blue";
-                                        genderIcon = <IconMars size={20} />;
-                                    } else if (member.sex === "female") {
-                                        iconColor = "pink";
-                                        genderIcon = <IconVenus size={20} />;
-                                    } else {
-                                        iconColor = "grape";
-                                        genderIcon = <IconGenderBigender size={20} />;
-                                    }
-
-                                    return (
-                                        <Paper
-                                            key={member.id || index}
-                                            radius="md"
-                                            p="sm"
-                                            withBorder
-                                        >
-                                            <Group gap="xs">
-                                                <ThemeIcon
-                                                    size="md"
-                                                    variant="light"
-                                                    color={iconColor}
-                                                >
-                                                    {genderIcon}
-                                                </ThemeIcon>
-                                                <Text size="sm">
-                                                    {member.age} {t("ageUnit")}
-                                                </Text>
-                                            </Group>
-                                        </Paper>
-                                    );
-                                })}
-                            </Group>
-                        ) : (
-                            <Text c="dimmed" size="sm">
-                                {t("noMembers")}
-                            </Text>
-                        )}
-                    </Paper>
+                    <HouseholdMembersCard members={householdData.members} />
 
                     {/* Pets */}
                     {householdData.pets.length > 0 && (
@@ -456,97 +361,21 @@ export default function HouseholdDetailsPage({
                             )}
                         </Group>
 
-                        {activeParcels.length > 0 ? (
-                            <Stack gap="sm">
-                                {activeParcels.map((parcel, index) => {
-                                    const isPast = isDateInPast(parcel.pickupDate);
-                                    const isPickedUp = Boolean(parcel.isPickedUp);
-
-                                    return (
-                                        <Paper
-                                            key={parcel.id || index}
-                                            withBorder
-                                            p="md"
-                                            radius="md"
-                                            style={{
-                                                cursor: "pointer",
-                                                transition: "all 0.2s ease",
-                                            }}
-                                            bg={isPast && !isPickedUp ? "red.0" : "white"}
-                                            onClick={() =>
-                                                parcel.id && handleParcelClick(parcel.id)
-                                            }
-                                            className="hover-card"
-                                        >
-                                            <Group justify="space-between" wrap="nowrap">
-                                                <Stack gap="xs" style={{ flex: 1 }}>
-                                                    <Group gap="xs">
-                                                        <ThemeIcon
-                                                            size="md"
-                                                            variant="light"
-                                                            color={
-                                                                isPast && !isPickedUp
-                                                                    ? "red"
-                                                                    : "indigo"
-                                                            }
-                                                        >
-                                                            <IconCalendarEvent size={16} />
-                                                        </ThemeIcon>
-                                                        <Box>
-                                                            <Text fw={600} size="sm">
-                                                                {getWeekdayName(parcel.pickupDate)}
-                                                            </Text>
-                                                            <Text size="sm" c="dimmed">
-                                                                {formatDate(parcel.pickupDate)}
-                                                            </Text>
-                                                        </Box>
-                                                    </Group>
-                                                    <Group gap="xs">
-                                                        <ThemeIcon
-                                                            size="md"
-                                                            variant="light"
-                                                            color={
-                                                                isPast && !isPickedUp
-                                                                    ? "red"
-                                                                    : "indigo"
-                                                            }
-                                                        >
-                                                            <IconClock size={16} />
-                                                        </ThemeIcon>
-                                                        <Text size="sm" fw={500}>
-                                                            {formatTime(parcel.pickupEarliestTime)}{" "}
-                                                            – {formatTime(parcel.pickupLatestTime)}
-                                                        </Text>
-                                                    </Group>
-                                                </Stack>
-
-                                                <Badge
-                                                    size="lg"
-                                                    variant="light"
-                                                    color={
-                                                        isPickedUp
-                                                            ? "green"
-                                                            : isPast
-                                                              ? "red"
-                                                              : "blue"
-                                                    }
-                                                >
-                                                    {isPickedUp
-                                                        ? t("status.pickedUp")
-                                                        : isPast
-                                                          ? t("status.notPickedUp")
-                                                          : t("status.upcoming")}
-                                                </Badge>
-                                            </Group>
-                                        </Paper>
-                                    );
-                                })}
-                            </Stack>
-                        ) : (
-                            <Text c="dimmed" size="sm">
-                                {t("noFoodParcels")}
-                            </Text>
-                        )}
+                        <ParcelList
+                            parcels={activeParcels as ParcelCardData[]}
+                            onParcelClick={handleParcelClick}
+                            emptyMessage={t("noFoodParcels")}
+                            getWeekdayName={getWeekdayName}
+                            formatDate={formatDate}
+                            formatTime={formatTime}
+                            isDateInPast={isDateInPast}
+                            statusLabels={{
+                                pickedUp: t("status.pickedUp"),
+                                notPickedUp: t("status.notPickedUp"),
+                                upcoming: t("status.upcoming"),
+                                cancelled: t("status.cancelled"),
+                            }}
+                        />
                     </Paper>
 
                     {/* Cancelled Parcels */}
@@ -560,15 +389,7 @@ export default function HouseholdDetailsPage({
                             >
                                 <Group gap="xs">
                                     <Title order={3} size="h4">
-                                        {t(
-                                            "cancelledParcels",
-                                            {
-                                                count: deletedParcels.length,
-                                            },
-                                            {
-                                                default: `Cancelled Parcels (${deletedParcels.length})`,
-                                            },
-                                        )}
+                                        {t("cancelledParcels")}
                                     </Title>
                                     <Badge size="md" variant="light" color="gray">
                                         {deletedParcels.length}
@@ -584,81 +405,22 @@ export default function HouseholdDetailsPage({
                             </Group>
 
                             <Collapse in={cancelledOpened}>
-                                <Stack gap="sm">
-                                    {deletedParcels.map((parcel, index) => (
-                                        <Paper
-                                            key={parcel.id || index}
-                                            withBorder
-                                            p="md"
-                                            radius="md"
-                                            bg="gray.0"
-                                            style={{
-                                                cursor: "pointer",
-                                                transition: "all 0.2s ease",
-                                                opacity: 0.8,
-                                            }}
-                                            onClick={() =>
-                                                parcel.id && handleParcelClick(parcel.id)
-                                            }
-                                            className="hover-card"
-                                        >
-                                            <Group justify="space-between" wrap="nowrap">
-                                                <Stack gap="xs" style={{ flex: 1 }}>
-                                                    <Group gap="xs">
-                                                        <ThemeIcon
-                                                            size="md"
-                                                            variant="light"
-                                                            color="gray"
-                                                        >
-                                                            <IconCalendarEvent size={16} />
-                                                        </ThemeIcon>
-                                                        <Box>
-                                                            <Text fw={600} size="sm" c="dimmed">
-                                                                {getWeekdayName(parcel.pickupDate)}
-                                                            </Text>
-                                                            <Text size="sm" c="dimmed">
-                                                                {formatDate(parcel.pickupDate)}
-                                                            </Text>
-                                                        </Box>
-                                                    </Group>
-                                                    <Group gap="xs">
-                                                        <ThemeIcon
-                                                            size="md"
-                                                            variant="light"
-                                                            color="gray"
-                                                        >
-                                                            <IconClock size={16} />
-                                                        </ThemeIcon>
-                                                        <Text size="sm" c="dimmed">
-                                                            {formatTime(parcel.pickupEarliestTime)}{" "}
-                                                            – {formatTime(parcel.pickupLatestTime)}
-                                                        </Text>
-                                                    </Group>
-                                                    {parcel.deletedAt && (
-                                                        <Text size="xs" c="dimmed" fs="italic">
-                                                            {t(
-                                                                "deletedOn",
-                                                                {},
-                                                                { default: "Cancelled on" },
-                                                            )}{" "}
-                                                            {formatDate(parcel.deletedAt)}
-                                                            {parcel.deletedBy &&
-                                                                ` ${t("by", {}, { default: "by" })} @${parcel.deletedBy}`}
-                                                        </Text>
-                                                    )}
-                                                </Stack>
-
-                                                <Badge size="lg" variant="light" color="gray">
-                                                    {t(
-                                                        "status.cancelled",
-                                                        {},
-                                                        { default: "Cancelled" },
-                                                    )}
-                                                </Badge>
-                                            </Group>
-                                        </Paper>
-                                    ))}
-                                </Stack>
+                                <ParcelList
+                                    parcels={deletedParcels as ParcelCardData[]}
+                                    onParcelClick={handleParcelClick}
+                                    getWeekdayName={getWeekdayName}
+                                    formatDate={formatDate}
+                                    formatTime={formatTime}
+                                    isDateInPast={isDateInPast}
+                                    statusLabels={{
+                                        pickedUp: t("status.pickedUp"),
+                                        notPickedUp: t("status.notPickedUp"),
+                                        upcoming: t("status.upcoming"),
+                                        cancelled: t("status.cancelled"),
+                                    }}
+                                    deletedLabel={t("deletedOn")}
+                                    byLabel={t("by")}
+                                />
                             </Collapse>
                         </Paper>
                     )}

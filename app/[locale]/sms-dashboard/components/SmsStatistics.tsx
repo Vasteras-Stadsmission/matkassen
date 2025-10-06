@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
     Paper,
@@ -46,13 +46,7 @@ export function SmsStatistics({ locationFilter, showCancelled }: SmsStatisticsPr
     }, []);
 
     // Fetch statistics when expanded or location filter changes
-    useEffect(() => {
-        if (opened) {
-            fetchStatistics();
-        }
-    }, [opened, locationFilter]);
-
-    const fetchStatistics = async () => {
+    const fetchStatistics = useCallback(async () => {
         setLoading(true);
         setError(null);
 
@@ -74,7 +68,13 @@ export function SmsStatistics({ locationFilter, showCancelled }: SmsStatisticsPr
         } finally {
             setLoading(false);
         }
-    };
+    }, [locationFilter]);
+
+    useEffect(() => {
+        if (opened) {
+            fetchStatistics();
+        }
+    }, [opened, fetchStatistics]);
 
     const handleToggle = () => {
         const newState = !opened;
@@ -115,8 +115,9 @@ export function SmsStatistics({ locationFilter, showCancelled }: SmsStatisticsPr
     );
 
     // Calculate success rate for last 7 days
+    // Guard against division by zero when all messages are still pending
     const successRate =
-        aggregateStats.last7Days.total > 0
+        aggregateStats.last7Days.sent + aggregateStats.last7Days.failed > 0
             ? Math.round(
                   (aggregateStats.last7Days.sent /
                       (aggregateStats.last7Days.sent + aggregateStats.last7Days.failed)) *

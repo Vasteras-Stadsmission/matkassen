@@ -155,8 +155,9 @@ export async function GET(request: NextRequest) {
                 const lastMonth = aggregateStats(lastMonthStats);
 
                 // Calculate success rate for last 7 days
+                // Guard against division by zero when all messages are still pending
                 const successRate =
-                    last7Days.total > 0
+                    last7Days.sent + last7Days.failed > 0
                         ? Math.round(
                               (last7Days.sent / (last7Days.sent + last7Days.failed)) * 1000,
                           ) / 10
