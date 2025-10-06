@@ -2,24 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { DataTable } from "mantine-datatable";
-import {
-    Modal,
-    TextInput,
-    LoadingOverlay,
-    ActionIcon,
-    Tooltip,
-    Title,
-    Group,
-    Button,
-} from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { TextInput, ActionIcon, Tooltip, Title, Group, Button } from "@mantine/core";
 import { IconSearch, IconX, IconPlus, IconEye, IconEdit, IconPackage } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
-import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../actions";
-import HouseholdDetail from "./HouseholdDetail";
-import { useRouter, usePathname } from "@/app/i18n/navigation";
-import { useSearchParams } from "next/navigation";
-import { Comment } from "../enroll/types";
+import { useRouter } from "@/app/i18n/navigation";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 import { useLocale } from "next-intl";
 
@@ -37,71 +23,12 @@ interface Household {
     created_at?: Date;
 }
 
-interface HouseholdDetail {
-    household: {
-        first_name: string;
-        last_name: string;
-        phone_number: string;
-        locale: string;
-        postal_code: string;
-    };
-    members: {
-        id?: string;
-        age: number;
-        sex: string;
-    }[];
-    dietaryRestrictions: {
-        id: string;
-        name: string;
-    }[];
-    additionalNeeds: {
-        id: string;
-        need: string;
-    }[];
-    pets: {
-        id?: string;
-        species: string;
-        speciesName?: string;
-    }[];
-    foodParcels: {
-        pickupLocationId: string;
-        parcels: {
-            id?: string;
-            pickupDate: Date;
-            pickupEarliestTime: Date;
-            pickupLatestTime: Date;
-            isPickedUp?: boolean;
-        }[];
-    };
-    pickupLocation: {
-        id: string;
-        name: string;
-        address?: string;
-    } | null;
-    comments?: Comment[];
-}
-
-export default function HouseholdsTable({
-    households,
-    targetHouseholdId,
-}: {
-    households: Household[];
-    targetHouseholdId?: string | null;
-}) {
+export default function HouseholdsTable({ households }: { households: Household[] }) {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const pathname = usePathname();
     const t = useTranslations("households");
-    const tNav = useTranslations("navigation");
-    const tComments = useTranslations("comments");
     const currentLocale = useLocale();
     const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
-    const [householdDetail, setHouseholdDetail] = useState<HouseholdDetail | null>(null);
-    const [opened, { open, close }] = useDisclosure(false);
-    const [loading, setLoading] = useState(false);
-    const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
-    const [isClosing, setIsClosing] = useState(false);
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: "last_name",
         direction: "asc" as "asc" | "desc",
@@ -149,98 +76,14 @@ export default function HouseholdsTable({
         return getLanguageNameFromLocale(locale, currentLocale);
     };
 
-    // Handle row click to open detail modal
+    // Handle row click to navigate to household details page
     const handleRowClick = useCallback(
         async (householdId: string) => {
-            // Add household-id to URL
-            const params = new URLSearchParams(searchParams.toString());
-            params.set("household-id", householdId);
-            const newUrl = `${pathname}?${params.toString()}`;
-            router.replace(newUrl, { scroll: false });
-
-            // The modal will be opened by the URL parameter change,
-            // so we don't need to manually open it here
+            // Navigate to the household details page
+            router.push(`/households/${householdId}`);
         },
-        [searchParams, pathname, router],
+        [router],
     );
-
-    // Open modal directly (used by URL parameter system)
-    const openModalForHousehold = useCallback(
-        async (householdId: string) => {
-            setLoading(true);
-            setSelectedHouseholdId(householdId);
-            open();
-
-            try {
-                const details = await getHouseholdDetails(householdId);
-                setHouseholdDetail(details);
-            } catch (error) {
-                console.error("Error fetching household details:", error);
-            } finally {
-                setLoading(false);
-            }
-        },
-        [open],
-    );
-
-    // Auto-open modal if targetHouseholdId is provided
-    useEffect(() => {
-        if (isClosing) {
-            return;
-        }
-
-        if (targetHouseholdId && households.some(h => h.id === targetHouseholdId)) {
-            // Only open if we don't have this household already selected
-            if (selectedHouseholdId !== targetHouseholdId) {
-                openModalForHousehold(targetHouseholdId);
-            }
-        }
-    }, [
-        targetHouseholdId,
-        households,
-        openModalForHousehold,
-        selectedHouseholdId,
-        opened,
-        isClosing,
-    ]);
-
-    // Handle adding a comment
-    const handleAddComment = async (comment: string) => {
-        if (!selectedHouseholdId || !comment.trim()) return;
-
-        try {
-            setLoading(true);
-            const newComment = await addHouseholdComment(selectedHouseholdId, comment);
-
-            // Refresh household details to include the new comment
-            const updatedDetails = await getHouseholdDetails(selectedHouseholdId);
-            setHouseholdDetail(updatedDetails);
-
-            return newComment;
-        } catch (error) {
-            console.error("Error adding comment:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Handle deleting a comment
-    const handleDeleteComment = async (commentId: string): Promise<void> => {
-        try {
-            setLoading(true);
-            const success = await deleteHouseholdComment(commentId);
-
-            if (success && selectedHouseholdId) {
-                // Refresh household details to update comments
-                const updatedDetails = await getHouseholdDetails(selectedHouseholdId);
-                setHouseholdDetail(updatedDetails);
-            }
-        } catch (error) {
-            console.error(tComments("errors.deleteError") + ":", error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // Handle navigation to edit page
     const handleEditClick = (householdId: string, e: React.MouseEvent) => {
@@ -316,28 +159,6 @@ export default function HouseholdsTable({
         setFilteredHouseholds(sorted);
     }, [sortStatus, households]);
 
-    // Close modal and reset selected household
-    const handleCloseModal = () => {
-        // Set closing flag to prevent reopening
-        setIsClosing(true);
-
-        // First close the modal and clear state
-        close();
-        setHouseholdDetail(null);
-        setSelectedHouseholdId(null);
-
-        // Then remove household-id param from URL
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("household-id");
-        const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-        router.replace(newUrl, { scroll: false });
-
-        // Reset closing flag after URL and state have had time to update
-        setTimeout(() => {
-            setIsClosing(false);
-        }, 100);
-    };
-
     return (
         <>
             {/* Header section with search and new household button */}
@@ -364,7 +185,7 @@ export default function HouseholdsTable({
                     variant="filled"
                     color="blue"
                 >
-                    {tNav("newHousehold")}
+                    {t("table.actions.newHousehold")}
                 </Button>
             </Group>
 
@@ -454,33 +275,6 @@ export default function HouseholdsTable({
                 // The below is a workaround to hide the "No records" message when there are filtered results
                 emptyState={filteredHouseholds.length > 0 ? <></> : undefined}
             />
-
-            {/* Household detail modal */}
-            <Modal
-                opened={opened}
-                onClose={handleCloseModal}
-                title={
-                    <Title order={2} fw={700} ta="center" c="blue.8" component="div">
-                        {householdDetail
-                            ? t("modal.title", {
-                                  firstName: householdDetail.household.first_name,
-                                  lastName: householdDetail.household.last_name,
-                              })
-                            : t("modal.loading")}
-                    </Title>
-                }
-                size="80%"
-                centered
-            >
-                <LoadingOverlay visible={loading} />
-                {householdDetail && (
-                    <HouseholdDetail
-                        householdDetail={householdDetail}
-                        onAddComment={handleAddComment}
-                        onDeleteComment={handleDeleteComment}
-                    />
-                )}
-            </Modal>
         </>
     );
 }

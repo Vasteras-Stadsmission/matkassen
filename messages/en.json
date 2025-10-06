@@ -71,7 +71,8 @@
             "actions": {
                 "viewDetails": "View Details",
                 "edit": "Edit Household",
-                "search": "Search households..."
+                "search": "Search households...",
+                "newHousehold": "New Household"
             }
         },
         "errors": {
@@ -455,11 +456,17 @@
         "noAdditionalNeeds": "No additional needs added",
         "foodParcels": "Food Parcels ({count})",
         "noFoodParcels": "No food parcels scheduled",
+        "cancelledParcels": "Cancelled Parcels",
         "ageUnit": "years",
+        "editHousehold": "Edit Household",
+        "manageParcels": "Manage Parcels",
+        "deletedOn": "Cancelled on",
+        "by": "by",
         "status": {
             "pickedUp": "Picked up",
             "notPickedUp": "Not picked up",
-            "upcoming": "Upcoming"
+            "upcoming": "Upcoming",
+            "cancelled": "Cancelled"
         },
         "comments": {
             "title": "Comments ({count})"
@@ -931,6 +938,30 @@
             "errorMessages": {
                 "loadError": "Failed to load SMS data",
                 "tryAgainLater": "Please try again later"
+            },
+            "statistics": {
+                "title": "SMS Statistics & Health",
+                "viewMonthly": "View monthly statistics",
+                "hide": "Hide statistics",
+                "status": {
+                    "healthy": "Healthy",
+                    "attention": "Attention",
+                    "critical": "Critical"
+                },
+                "today": {
+                    "label": "Today"
+                },
+                "last7Days": "Last 7 Days",
+                "currentMonth": "This Month",
+                "monthlyProgress": "Monthly Progress",
+                "byLocation": "By Location",
+                "sent": "sent",
+                "failed": "failed",
+                "pending": "pending",
+                "total": "total",
+                "successRate": "success rate",
+                "vsLastMonth": "vs last month",
+                "ofLastMonth": "of {count} last month"
             }
         }
     }

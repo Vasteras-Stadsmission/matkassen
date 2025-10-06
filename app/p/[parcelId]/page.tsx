@@ -93,7 +93,7 @@ async function loadMessages(locale: SupportedLocale): Promise<PublicMessages> {
 
         return messages as PublicMessages;
     } catch (error) {
-        console.warn(`Failed to load messages for locale ${locale}:`, error);
+        console.warn("Failed to load messages for locale %s:", locale, error);
         // Fallback to English if locale file doesn't exist
         try {
             const fallbackMessages = (await import(`@/messages/public-en.json`)).default;

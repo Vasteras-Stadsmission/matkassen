@@ -25,7 +25,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
                 };
             }
         } catch (error) {
-            console.error(`Error fetching GitHub user data for ${username}:`, error);
+            console.error("Error fetching GitHub user data for %s:", username, error);
         }
         return null;
     };

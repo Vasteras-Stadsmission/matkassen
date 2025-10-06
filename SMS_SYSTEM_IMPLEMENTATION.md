@@ -13,17 +13,14 @@ The SMS system is fully implemented and tested with real SMS delivery via HelloS
 - SMS templates with localization
 - Test mode for development
 - **Balanced retry logic** - reliable without overengineering
-- Smart failure handling with exponential backoff## 🎯 Quick Demo
-
-Visit `/[locale]/admin/sms-demo` to test the SMS functionality with a comprehensive demo interface.
+- Smart failure handling with exponential backoff
 
 ## 🔜 Roadmap & Integration Notes
 
-- **Production Demo (temporary)**: The `/[locale]/admin/sms-demo` route exists so we can exercise the HelloSMS integration safely in production behind admin auth. It should stay while rollout confidence is built, but plan to remove it once a proper admin workflow lands.
 - **Admin Schedule Integration**: `PickupCardWithSms`, `SmsManagementPanel`, and `useSmsManagement` currently ship with the branch but are not rendered by the live schedule. Next step is to swap the plain `PickupCard` in `WeeklyScheduleGrid` for the SMS-aware variant and surface the panel controls in the real admin UI.
 - **Parcel Pickup Endpoint**: `PATCH /api/admin/parcel/[parcelId]/pickup` is implemented and ready for use; the client still needs a "mark as collected" action wired up to it plus optimistic UI/state updates.
-- **Consolidated Admin Page**: Long term we want a first-class admin screen that combines parcel status (including pickup state) and SMS history/actions. When that exists, retire the demo page and keep the underlying APIs (`/api/admin/parcels/upcoming`, `/api/admin/sms/parcel/[parcelId]`, `/api/admin/sms/process-queue`) as the shared backend surface.
-- **Documentation Debt**: Update onboarding/docs when the above integrations are done so contributors know to use the admin schedule, not the demo, for manual interventions.
+- **SMS Dashboard**: A dedicated SMS dashboard at `/[locale]/sms-dashboard` provides comprehensive SMS management with filtering, search, and monitoring capabilities.
+- **Documentation Debt**: Update onboarding/docs when the above integrations are done so contributors know to use the SMS dashboard for SMS management.
 
 ## 📁 File Structure (Implemented)
 
@@ -45,10 +42,12 @@ app/
 │       ├── templates.ts             # Localized SMS message templates
 │       ├── scheduler.ts             # Background SMS processing
 │       └── server-startup.ts        # Server-side scheduler initialization
-├── [locale]/admin/sms-demo/         # Demo interface for testing
-│   ├── page.tsx                     # Demo page wrapper
-│   └── components/
-│       └── SmsManagementDemo.tsx    # Complete demo interface
+├── [locale]/sms-dashboard/          # Production SMS management dashboard
+│   ├── page.tsx                     # SMS dashboard page
+│   └── components/                  # Dashboard components
+│       ├── SmsDashboardClient.tsx   # Main dashboard client
+│       ├── SmsListItem.tsx          # Individual SMS item
+│       └── SmsStatistics.tsx        # SMS statistics display
 ├── components/
 │   ├── QRCode.tsx                   # QR code generation
 │   └── AuthProtection/              # Authentication wrappers
@@ -150,7 +149,7 @@ CREATE TABLE outgoing_sms (
 
 ### Current Implementation
 
-1. **Manual SMS Sending**: Via demo interface at `/[locale]/admin/sms-demo`
+1. **Manual SMS Sending**: Via SMS dashboard at `/[locale]/sms-dashboard`
 2. **Real SMS Delivery**: Successfully tested with HelloSMS API
 3. **Public Parcel Pages**: Mobile-first design at `/p/[parcelId]`
 4. **QR Code Integration**: QR codes link to admin schedule page
@@ -224,19 +223,18 @@ Each food parcel gets a public pickup page at:
 - Responsive design with proper mobile viewport
 - Status badges with appropriate colors
 
-## 🔧 Testing & Demo (Fully Functional)
+## 🔧 Testing & Production Management
 
-### Demo Interface: `/[locale]/admin/sms-demo`
+### SMS Dashboard: `/[locale]/sms-dashboard`
 
-**Complete testing interface includes:**
+**Production SMS management includes:**
 
 - ✅ Real SMS sending to actual phone numbers
-- ✅ Test mode toggle (safe development testing)
-- ✅ Live SMS queue monitoring
-- ✅ Manual queue processing triggers
+- ✅ Live SMS queue monitoring with filtering
 - ✅ SMS history and status tracking
-- ✅ Template preview for all locales
-- ✅ Phone number validation testing
+- ✅ Manual retry for failed messages
+- ✅ Search and filter capabilities
+- ✅ View cancelled parcels separately
 
 ### Environment Modes:
 

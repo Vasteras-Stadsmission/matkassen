@@ -13,8 +13,7 @@ import {
     householdAdditionalNeeds,
     additionalNeeds,
 } from "@/app/db/schema";
-import { notDeleted } from "@/app/db/query-helpers";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { fetchMultipleGithubUserData } from "@/app/[locale]/households/actions";
 
@@ -96,7 +95,7 @@ export async function GET(
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
-            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
+            .where(eq(foodParcels.id, parcelId))
             .limit(1);
 
         if (parcelData.length === 0) {

@@ -18,7 +18,7 @@ import {
 import { asc, eq, and } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
-import { notDeleted } from "@/app/db/query-helpers";
+import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
@@ -48,7 +48,7 @@ export const fetchGithubUserData = cache(
             }
             return null;
         } catch (error) {
-            console.error(`Error fetching GitHub user: ${username}`, error);
+            console.error("Error fetching GitHub user: %s", username, error);
             return null;
         }
     },
@@ -175,7 +175,7 @@ export async function getHouseholdDetails(householdId: string) {
             .innerJoin(petSpecies, eq(pets.pet_species_id, petSpecies.id))
             .where(eq(pets.household_id, householdId));
 
-        // Get food parcels
+        // Get active food parcels
         const foodParcelsResult = await db
             .select({
                 id: foodParcels.id,
@@ -187,6 +187,21 @@ export async function getHouseholdDetails(householdId: string) {
             .from(foodParcels)
             .where(and(eq(foodParcels.household_id, householdId), notDeleted()))
             .orderBy(asc(foodParcels.pickup_date_time_earliest));
+
+        // Get deleted/cancelled food parcels
+        const deletedParcelsResult = await db
+            .select({
+                id: foodParcels.id,
+                pickup_location_id: foodParcels.pickup_location_id,
+                pickup_date_time_earliest: foodParcels.pickup_date_time_earliest,
+                pickup_date_time_latest: foodParcels.pickup_date_time_latest,
+                is_picked_up: foodParcels.is_picked_up,
+                deleted_at: foodParcels.deleted_at,
+                deleted_by_user_id: foodParcels.deleted_by_user_id,
+            })
+            .from(foodParcels)
+            .where(and(eq(foodParcels.household_id, householdId), isDeleted()))
+            .orderBy(asc(foodParcels.deleted_at));
 
         // Get pickup location info
         let pickupLocation = null;
@@ -250,6 +265,15 @@ export async function getHouseholdDetails(householdId: string) {
                     isPickedUp: parcel.is_picked_up,
                 })),
             },
+            deletedParcels: deletedParcelsResult.map(parcel => ({
+                id: parcel.id,
+                pickupDate: parcel.pickup_date_time_earliest,
+                pickupEarliestTime: parcel.pickup_date_time_earliest,
+                pickupLatestTime: parcel.pickup_date_time_latest,
+                isPickedUp: parcel.is_picked_up,
+                deletedAt: parcel.deleted_at,
+                deletedBy: parcel.deleted_by_user_id,
+            })),
             pickupLocation,
             comments,
         };

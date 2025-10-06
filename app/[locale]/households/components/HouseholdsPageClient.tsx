@@ -25,37 +25,18 @@ interface HouseholdsPageClientProps {
     initialHouseholds: Household[];
 }
 
-// This component handles the search params and is wrapped in Suspense
-function SearchParamsHandler() {
-    const searchParams = useSearchParams();
-    const { showSuccessFromParams } = useActionWithNotification();
-    const householdId = searchParams.get("household-id");
-
-    // Show success notifications from URL parameters
-    useEffect(() => {
-        showSuccessFromParams(searchParams);
-    }, [searchParams, showSuccessFromParams]);
-
-    return { householdId };
-}
-
 export default function HouseholdsPageClient({ initialHouseholds }: HouseholdsPageClientProps) {
     const [households] = useState<Household[]>(initialHouseholds);
     const [error] = useState<string | null>(null);
-    const [targetHouseholdId, setTargetHouseholdId] = useState<string | null>(null);
 
-    // Get search params through a component wrapped in Suspense
+    // Show success notifications from URL parameters
     const SearchParamsComponent = () => {
-        const { householdId } = SearchParamsHandler();
+        const searchParams = useSearchParams();
+        const { showSuccessFromParams } = useActionWithNotification();
 
-        // Set target household ID for opening modal (used for direct links to household details)
         useEffect(() => {
-            if (householdId) {
-                setTargetHouseholdId(householdId);
-            } else {
-                setTargetHouseholdId(null);
-            }
-        }, [householdId]);
+            showSuccessFromParams(searchParams);
+        }, [searchParams, showSuccessFromParams]);
 
         return null;
     };
@@ -66,11 +47,7 @@ export default function HouseholdsPageClient({ initialHouseholds }: HouseholdsPa
                 <SearchParamsComponent />
             </Suspense>
 
-            {error ? (
-                <Text c="red">{error}</Text>
-            ) : (
-                <HouseholdsTable households={households} targetHouseholdId={targetHouseholdId} />
-            )}
+            {error ? <Text c="red">{error}</Text> : <HouseholdsTable households={households} />}
         </Box>
     );
 }

@@ -71,7 +71,8 @@
             "actions": {
                 "viewDetails": "Visa detaljer",
                 "edit": "Redigera hushåll",
-                "search": "Sök hushåll..."
+                "search": "Sök hushåll...",
+                "newHousehold": "Nytt hushåll"
             }
         },
         "errors": {
@@ -455,11 +456,17 @@
         "noAdditionalNeeds": "Inga ytterligare behov tillagda",
         "foodParcels": "Matkassar ({count})",
         "noFoodParcels": "Inga matkassar schemalagda",
+        "cancelledParcels": "Avbokade matkassar",
         "ageUnit": "år",
+        "editHousehold": "Redigera hushåll",
+        "manageParcels": "Hantera matkassar",
+        "deletedOn": "Avbokad den",
+        "by": "av",
         "status": {
             "pickedUp": "Uthämtad",
             "notPickedUp": "Ej uthämtad",
-            "upcoming": "Kommande"
+            "upcoming": "Kommande",
+            "cancelled": "Avbokad"
         },
         "comments": {
             "title": "Kommentarer ({count})"
@@ -931,6 +938,30 @@
             "errorMessages": {
                 "loadError": "Kunde inte ladda SMS-data",
                 "tryAgainLater": "Försök igen senare"
+            },
+            "statistics": {
+                "title": "SMS-statistik & hälsa",
+                "viewMonthly": "Visa månadsstatistik",
+                "hide": "Dölj statistik",
+                "status": {
+                    "healthy": "Fungerar bra",
+                    "attention": "Observera",
+                    "critical": "Kritiskt"
+                },
+                "today": {
+                    "label": "Idag"
+                },
+                "last7Days": "Senaste 7 dagarna",
+                "currentMonth": "Denna månad",
+                "monthlyProgress": "Månatlig utveckling",
+                "byLocation": "Per plats",
+                "sent": "skickade",
+                "failed": "misslyckade",
+                "pending": "väntande",
+                "total": "totalt",
+                "successRate": "lyckade",
+                "vsLastMonth": "vs förra månaden",
+                "ofLastMonth": "av {count} förra månaden"
             }
         }
     }

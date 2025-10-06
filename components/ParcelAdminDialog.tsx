@@ -11,7 +11,6 @@ import {
     Card,
     Loader,
     Alert,
-    Anchor,
     Box,
     SimpleGrid,
 } from "@mantine/core";
@@ -27,6 +26,7 @@ import {
     IconSend,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
+import { Link } from "@/app/i18n/navigation";
 import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
 import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
@@ -505,16 +505,19 @@ export function ParcelAdminDialog({
                             <Stack gap="md">
                                 <Group justify="space-between">
                                     <Text fw={500}>{t("admin.parcelDialog.householdDetails")}</Text>
-                                    <Anchor
-                                        href={`/households?household-id=${data.household.id}`}
+                                    <Link
+                                        href={`/households/${data.household.id}`}
                                         target="_blank"
-                                        size="sm"
+                                        style={{
+                                            fontSize: "var(--mantine-font-size-sm)",
+                                            textDecoration: "none",
+                                        }}
                                     >
                                         <Group gap="xs">
                                             <Text>{t("admin.parcelDialog.viewDetails")}</Text>
                                             <IconExternalLink size="0.9rem" />
                                         </Group>
-                                    </Anchor>
+                                    </Link>
                                 </Group>
 
                                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
