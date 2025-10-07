@@ -23,6 +23,7 @@ import {
 import { IconSearch, IconFilter, IconRefresh, IconAlertCircle } from "@tabler/icons-react";
 import type { SmsDashboardRecord } from "@/app/api/admin/sms/dashboard/route";
 import { SmsListItem } from "./SmsListItem";
+import { SmsStatistics } from "./SmsStatistics";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
 export default function SmsDashboardClient() {
@@ -264,6 +265,9 @@ export default function SmsDashboardClient() {
                     </Button>
                 )}
             </Group>
+
+            {/* SMS Statistics - Collapsible */}
+            <SmsStatistics locationFilter={locationFilter} showCancelled={showCancelled} />
 
             {/* Error State */}
             {error && (

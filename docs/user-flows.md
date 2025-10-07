@@ -62,10 +62,6 @@ flowchart LR
         HandoutLocationsPage --> SchedulesTab
         SchedulesTab["Schedules tab<br/>- configure opening hours & slot duration<br/>- week picker + validation helpers"]
 
-        Header --> SmsDemo
-        SmsDemo["SMS management demo<br/>- pick upcoming parcel & load history<br/>- send/resend SMS or simulate failures<br/>- built on SmsManagementPanel/useSmsManagement"]
-        SmsDemo -- SMS reminder link --> P0
-
         Header --> SmsDashboard
         SmsDashboard["SMS Dashboard /sms-dashboard<br/>- two-view system: active vs cancelled<br/>- filters: location, status, search, cancelled toggle<br/>- monitor SMS status & handle failures<br/>- Send Now / Try Again actions"]
         SmsDashboard -- view parcel --> ParcelAdminDialog

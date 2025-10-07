@@ -71,7 +71,8 @@
             "actions": {
                 "viewDetails": "Visa detaljer",
                 "edit": "Redigera hushåll",
-                "search": "Sök hushåll..."
+                "search": "Sök hushåll...",
+                "newHousehold": "Nytt hushåll"
             }
         },
         "errors": {
@@ -455,11 +456,17 @@
         "noAdditionalNeeds": "Inga ytterligare behov tillagda",
         "foodParcels": "Matkassar ({count})",
         "noFoodParcels": "Inga matkassar schemalagda",
+        "cancelledParcels": "Avbokade matkassar",
         "ageUnit": "år",
+        "editHousehold": "Redigera hushåll",
+        "manageParcels": "Hantera matkassar",
+        "deletedOn": "Avbokad den",
+        "by": "av",
         "status": {
             "pickedUp": "Uthämtad",
             "notPickedUp": "Ej uthämtad",
-            "upcoming": "Kommande"
+            "upcoming": "Kommande",
+            "cancelled": "Avbokad"
         },
         "comments": {
             "title": "Kommentarer ({count})"
@@ -820,6 +827,7 @@
             "notPickedUp": "Ej hämtad",
             "status": {
                 "pickedUp": "Upphämtad",
+                "cancelled": "AVBOKAD",
                 "wrongDay": "Fel dag",
                 "checkTime": "Kolla tid",
                 "okToHandOut": "OK att lämna ut"
@@ -841,17 +849,17 @@
             "addComment": "Lägg till kommentar",
             "markPickedUp": "Markera som hämtat",
             "undoPickup": "Ångra hämtning",
-            "deleteParcel": "Ta bort paket",
-            "deleteConfirmTitle": "Bekräfta borttagning",
-            "deleteConfirmMessage": "Är du säker på att du vill ta bort detta paket? {smsWarning}",
+            "cancelParcel": "Avboka paket",
+            "deleteConfirmTitle": "Bekräfta avbokning",
+            "deleteConfirmMessage": "Är du säker på att du vill avboka detta paket? {smsWarning}",
             "smsWarning": "Ett avboknings-SMS kommer att skickas till hushållet.",
             "smsNoWarning": "Inget SMS har skickats ännu.",
-            "confirmDelete": "Ja, ta bort",
+            "confirmDelete": "Ja, avboka",
             "cancelDelete": "Avbryt",
-            "deleting": "Tar bort...",
+            "deleting": "Avbokar...",
             "success": {
-                "parcelDeleted": "Paket borttaget",
-                "parcelDeletedMessage": "Matkassen har tagits bort"
+                "parcelDeleted": "Paket avbokat",
+                "parcelDeletedMessage": "Matkassen har avbokats"
             },
             "errors": {
                 "parcelNotFound": "Paketet hittades inte",
@@ -861,9 +869,9 @@
                 "addCommentFailed": "Misslyckades med att lägga till kommentar",
                 "deleteCommentFailed": "Misslyckades att ta bort kommentar",
                 "deleteCommentError": "Fel vid borttagning av kommentar",
-                "deleteParcelFailed": "Misslyckades med att ta bort paket",
-                "parcelAlreadyPickedUp": "Kan inte ta bort ett paket som redan är upphämtat",
-                "parcelInPast": "Kan inte ta bort ett paket från det förflutna"
+                "deleteParcelFailed": "Misslyckades med att avboka paket",
+                "parcelAlreadyPickedUp": "Kan inte avboka ett paket som redan är upphämtat",
+                "parcelInPast": "Kan inte avboka ett paket från det förflutna"
             },
             "smsStatus": {
                 "title": "SMS-status"
@@ -931,6 +939,30 @@
             "errorMessages": {
                 "loadError": "Kunde inte ladda SMS-data",
                 "tryAgainLater": "Försök igen senare"
+            },
+            "statistics": {
+                "title": "SMS-statistik & hälsa",
+                "viewMonthly": "Visa månadsstatistik",
+                "hide": "Dölj statistik",
+                "status": {
+                    "healthy": "Fungerar bra",
+                    "attention": "Observera",
+                    "critical": "Kritiskt"
+                },
+                "today": {
+                    "label": "Idag"
+                },
+                "last7Days": "Senaste 7 dagarna",
+                "currentMonth": "Denna månad",
+                "monthlyProgress": "Månatlig utveckling",
+                "byLocation": "Per plats",
+                "sent": "skickade",
+                "failed": "misslyckade",
+                "pending": "väntande",
+                "total": "totalt",
+                "successRate": "lyckade",
+                "vsLastMonth": "vs förra månaden",
+                "ofLastMonth": "av {count} förra månaden"
             }
         }
     }

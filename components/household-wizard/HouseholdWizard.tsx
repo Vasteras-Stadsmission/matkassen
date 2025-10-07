@@ -302,7 +302,11 @@ export function HouseholdWizard({
                 });
             }
         } catch (error) {
-            console.error(`Error ${mode === "create" ? "creating" : "updating"} household:`, error);
+            console.error(
+                "Error %s household:",
+                mode === "create" ? "creating" : "updating",
+                error,
+            );
 
             // Show error notification
             notifications.show({

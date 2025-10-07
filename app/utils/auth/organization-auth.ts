@@ -64,7 +64,7 @@ export async function validateOrganizationMembership(
             };
         }
     } catch (error) {
-        console.error(`Error checking organization membership in ${context}:`, error);
+        console.error("Error checking organization membership in %s:", context, error);
         return {
             isValid: false,
             error: "Unable to verify organization membership",
