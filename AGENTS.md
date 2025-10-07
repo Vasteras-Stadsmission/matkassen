@@ -200,36 +200,41 @@ rm -rf .auth && pnpm run test:e2e:auth
 **Current coverage** (stable, non-flaky):
 
 1. **Authentication** (`auth-verification.spec.ts`)
-   - Session loads correctly
-   - User avatar visible
-   - Auth persists across refreshes
+
+    - Session loads correctly
+    - User avatar visible
+    - Auth persists across refreshes
 
 2. **Admin Pages** (`admin.spec.ts`)
-   - Dashboard, households, schedule, handout locations, SMS dashboard load
-   - No crashes (500 errors)
-   - No assumptions about content
+
+    - Dashboard, households, schedule, handout locations, SMS dashboard load
+    - No crashes (500 errors)
+    - No assumptions about content
 
 3. **Navigation** (`navigation.spec.ts`)
-   - Sequential navigation through all sections
-   - Back/forward browser navigation
-   - Direct URL navigation
-   - English locale navigation
+
+    - Sequential navigation through all sections
+    - Back/forward browser navigation
+    - Direct URL navigation
+    - English locale navigation
 
 4. **Public Pages** (`public-parcel.spec.ts`)
-   - `/p/*` routes accessible without auth
-   - Graceful handling of invalid parcel IDs
-   - Multi-language support via query params
-   - Protected routes correctly reject unauthenticated users
+
+    - `/p/*` routes accessible without auth
+    - Graceful handling of invalid parcel IDs
+    - Multi-language support via query params
+    - Protected routes correctly reject unauthenticated users
 
 5. **API Health** (`api-health.spec.ts`)
-   - Admin endpoints return 2xx/4xx (never 500 or 404)
-   - Proper JSON responses
-   - Protected endpoints require auth
-   - Public health endpoint accessible
+
+    - Admin endpoints return 2xx/4xx (never 500 or 404)
+    - Proper JSON responses
+    - Protected endpoints require auth
+    - Public health endpoint accessible
 
 6. **Locale Switching** (`locale-toggle.spec.ts`)
-   - Currently SKIPPED (needs `data-testid` on LanguageSwitcher)
-   - Will test Swedish ↔ English switching once implemented
+    - Currently SKIPPED (needs `data-testid` on LanguageSwitcher)
+    - Will test Swedish ↔ English switching once implemented
 
 ### What E2E Tests DON'T Cover (Intentionally)
 
@@ -258,6 +263,7 @@ e2e/
 ### Writing New E2E Tests
 
 **DO**:
+
 - Use `[data-testid]` selectors when available
 - Test static behavior (navigation, page loads)
 - Expect pages to work with empty OR full databases
@@ -265,6 +271,7 @@ e2e/
 - Write screenshots to `test-results/` directory
 
 **DON'T**:
+
 - Assume specific data exists (households, locations, parcels)
 - Test data mutations without cleanup/seed infrastructure
 - Use text content for selectors (breaks with i18n)
@@ -277,18 +284,18 @@ Import from `e2e/test-helpers.ts`:
 
 ```typescript
 import {
-  navigateToLocale,
-  expectAuthenticated,
-  waitForPageLoad,
-  takeScreenshot,
-  expectVisibleByTestId,
-  clickByTestId,
+    navigateToLocale,
+    expectAuthenticated,
+    waitForPageLoad,
+    takeScreenshot,
+    expectVisibleByTestId,
+    clickByTestId,
 } from "./test-helpers";
 
 test("example test", async ({ page }) => {
-  await navigateToLocale(page, "/households");
-  await expectAuthenticated(page);
-  await takeScreenshot(page, "households-page");
+    await navigateToLocale(page, "/households");
+    await expectAuthenticated(page);
+    await takeScreenshot(page, "households-page");
 });
 ```
 
@@ -331,9 +338,11 @@ All subsequent tests automatically use this saved session. Session expires in ~3
 ### Protected vs Public Routes
 
 **Protected Routes** (require auth in tests):
+
 - `/[locale]/*` - All admin routes (households, schedule, handout-locations)
 
 **Public Routes** (no auth needed):
+
 - `/p/[parcelId]` - Public parcel pages
 - `/auth/*` - Authentication pages
 
@@ -343,13 +352,13 @@ AI agents can control Playwright via MCP. Configuration is in `.github/copilot-m
 
 ```json
 {
-  "mcpServers": {
-    "playwright": {
-      "command": "pnpm",
-      "args": ["exec", "mcp-server-playwright", "--storage-state=.auth/user.json"],
-      "env": { "PLAYWRIGHT_BASE_URL": "http://localhost:3000" }
+    "mcpServers": {
+        "playwright": {
+            "command": "pnpm",
+            "args": ["exec", "mcp-server-playwright", "--storage-state=.auth/user.json"],
+            "env": { "PLAYWRIGHT_BASE_URL": "http://localhost:3000" }
+        }
     }
-  }
 }
 ```
 
@@ -364,6 +373,7 @@ AI agents can control Playwright via MCP. Configuration is in `.github/copilot-m
 5. **Suggest improvements**: Recommend `data-testid` attributes if selectors are fragile
 
 **Common requests**:
+
 - "Take a screenshot of [page]"
 - "Test if [feature] works"
 - "Verify all navigation links work"
@@ -372,6 +382,7 @@ AI agents can control Playwright via MCP. Configuration is in `.github/copilot-m
 ### Debugging Failed Tests
 
 When tests fail:
+
 1. Check screenshot in `test-results/` directory
 2. Check video recording (also in `test-results/`)
 3. Verify authentication (if redirected to `/auth/signin`, session expired)
@@ -385,14 +396,13 @@ The app uses Mantine v8. Common patterns:
 ```typescript
 // Modals/Dialogs
 await expect(page.locator('[role="dialog"]')).toBeVisible();
-await page.locator('[role="dialog"] input[name="name"]').fill('Test');
+await page.locator('[role="dialog"] input[name="name"]').fill("Test");
 
 // Notifications
-await expect(page.locator('[class*="mantine-Notification"]'))
-  .toContainText('Success');
+await expect(page.locator('[class*="mantine-Notification"]')).toContainText("Success");
 
 // Tables (mantine-datatable)
-const row = page.locator('tbody tr', { hasText: 'John Doe' });
+const row = page.locator("tbody tr", { hasText: "John Doe" });
 await row.locator('button[aria-label="Edit"]').click();
 ```
 
@@ -405,6 +415,7 @@ await row.locator('button[aria-label="Edit"]').click();
 5. **Suggest improvements**: Recommend `data-testid` attributes if selectors are fragile
 
 **Common requests**:
+
 - "Take a screenshot of [page]"
 - "Test if [feature] works"
 - "Verify all navigation links work"
@@ -413,6 +424,7 @@ await row.locator('button[aria-label="Edit"]').click();
 ### Debugging Failed Tests
 
 When tests fail:
+
 1. Check screenshot in `test-results/` directory
 2. Check video recording (also in `test-results/`)
 3. Verify authentication (if redirected to `/auth/signin`, session expired)
