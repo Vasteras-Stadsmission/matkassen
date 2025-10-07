@@ -37,10 +37,10 @@ export function HeaderSimple() {
     const t = useTranslations() as TranslationFunction;
     const tCommon = useTranslations() as TranslationFunction;
     const theme = useMantineTheme();
-    const isCompactDesktop = useMediaQuery(`(max-width: ${theme.breakpoints.lg})`, {
+    const isCompactDesktop = useMediaQuery(`(max-width: ${theme.breakpoints.lg})`, false, {
         getInitialValueInEffect: true,
     });
-    const showIconOnlyActions = useMediaQuery(`(max-width: ${theme.breakpoints.md})`, {
+    const showIconOnlyActions = useMediaQuery(`(max-width: ${theme.breakpoints.md})`, false, {
         getInitialValueInEffect: true,
     });
 

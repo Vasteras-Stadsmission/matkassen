@@ -1,0 +1,21 @@
+/**
+ * ParcelCard component styles
+ * Provides hover effects and visual states for parcel cards
+ */
+
+.card {
+    transition: all 0.2s ease;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.cancelled {
+    opacity: 0.8;
+}

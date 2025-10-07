@@ -116,13 +116,16 @@ export function SmsStatistics({ locationFilter, showCancelled }: SmsStatisticsPr
 
     // Calculate success rate for last 7 days
     // Guard against division by zero when all messages are still pending
+    // Multiplier for percentage with one decimal place: multiply by 1000, round, then divide by 10 = XX.X%
+    const PERCENTAGE_PRECISION_MULTIPLIER = 1000;
+    const PERCENTAGE_DIVISOR = 10;
     const successRate =
         aggregateStats.last7Days.sent + aggregateStats.last7Days.failed > 0
             ? Math.round(
                   (aggregateStats.last7Days.sent /
                       (aggregateStats.last7Days.sent + aggregateStats.last7Days.failed)) *
-                      1000,
-              ) / 10
+                      PERCENTAGE_PRECISION_MULTIPLIER,
+              ) / PERCENTAGE_DIVISOR
             : 100;
 
     // Calculate month-over-month change

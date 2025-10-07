@@ -2,6 +2,7 @@
 
 import { Paper, Group, Stack, Box, Text, ThemeIcon, Badge } from "@mantine/core";
 import { IconCalendarEvent, IconClock } from "@tabler/icons-react";
+import classes from "./ParcelCard.module.css";
 
 export interface ParcelCardData {
     id: string;
@@ -63,14 +64,9 @@ export function ParcelCard({
             withBorder
             p="md"
             radius="md"
-            style={{
-                cursor: onClick ? "pointer" : "default",
-                transition: "all 0.2s ease",
-                opacity: isCancelled ? 0.8 : 1,
-            }}
+            className={`${classes.card} ${onClick ? classes.clickable : ""} ${isCancelled ? classes.cancelled : ""}`}
             bg={isCancelled ? "gray.0" : isPast ? "red.0" : "white"}
             onClick={onClick}
-            className={onClick ? "hover-card" : undefined}
         >
             <Group justify="space-between" wrap="nowrap">
                 <Stack gap="xs" style={{ flex: 1 }}>
