@@ -4,13 +4,15 @@
  */
 import { describe, it, expect } from "vitest";
 import type { SmsStatisticsRecord } from "@/app/api/admin/sms/statistics/route";
+import { calculateSuccessRate } from "@/app/utils/sms/statistics";
 
 describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
     /**
-     * This function replicates the client-side success rate calculation
-     * from the SmsStatistics component to test the division-by-zero guard
+     * This function replicates the client-side aggregate success rate calculation
+     * from the SmsStatistics component to test the division-by-zero guard.
+     * It aggregates statistics and then uses the shared utility for the actual calculation.
      */
-    function calculateSuccessRate(statistics: SmsStatisticsRecord[]): number {
+    function calculateAggregateSuccessRate(statistics: SmsStatisticsRecord[]): number {
         // Replicate the aggregate logic from the component
         const aggregateStats = statistics.reduce(
             (acc, stat) => ({
@@ -25,20 +27,8 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
             },
         );
 
-        // Guard against division by zero when all messages are still pending
-        // Multiplier for percentage with one decimal place: multiply by 1000, round, then divide by 10 = XX.X%
-        const PERCENTAGE_PRECISION_MULTIPLIER = 1000;
-        const PERCENTAGE_DIVISOR = 10;
-        const successRate =
-            aggregateStats.last7Days.sent + aggregateStats.last7Days.failed > 0
-                ? Math.round(
-                      (aggregateStats.last7Days.sent /
-                          (aggregateStats.last7Days.sent + aggregateStats.last7Days.failed)) *
-                          PERCENTAGE_PRECISION_MULTIPLIER,
-                  ) / PERCENTAGE_DIVISOR
-                : 100;
-
-        return successRate;
+        // Use shared utility for success rate calculation
+        return calculateSuccessRate(aggregateStats.last7Days.sent, aggregateStats.last7Days.failed);
     }
 
     it("should return 100% success rate when only queued messages exist (no finalized messages)", () => {
@@ -71,7 +61,7 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
             },
         ];
 
-        const successRate = calculateSuccessRate(mockStats);
+        const successRate = calculateAggregateSuccessRate(mockStats);
 
         // Success rate should be 100% (default) not NaN or null
         expect(successRate).toBe(100);
@@ -108,7 +98,7 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
             },
         ];
 
-        const successRate = calculateSuccessRate(mockStats);
+        const successRate = calculateAggregateSuccessRate(mockStats);
 
         // Success rate should be 80% (8 sent / (8 sent + 2 failed) = 0.8)
         expect(successRate).toBe(80);
@@ -144,7 +134,7 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
             },
         ];
 
-        const successRate = calculateSuccessRate(mockStats);
+        const successRate = calculateAggregateSuccessRate(mockStats);
 
         // Success rate should be 100%
         expect(successRate).toBe(100);
@@ -180,7 +170,7 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
             },
         ];
 
-        const successRate = calculateSuccessRate(mockStats);
+        const successRate = calculateAggregateSuccessRate(mockStats);
 
         // Success rate should be 0%
         expect(successRate).toBe(0);
@@ -241,7 +231,7 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
             },
         ];
 
-        const successRate = calculateSuccessRate(mockStats);
+        const successRate = calculateAggregateSuccessRate(mockStats);
 
         // Aggregate should be: 8 sent / (8 sent + 2 failed) = 80%
         // Not affected by the location with 0 finalized messages
@@ -303,7 +293,7 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
             },
         ];
 
-        const successRate = calculateSuccessRate(mockStats);
+        const successRate = calculateAggregateSuccessRate(mockStats);
 
         // Client-side aggregate should also be 100% (no finalized messages across all locations)
         expect(successRate).toBe(100);
@@ -313,7 +303,7 @@ describe("SmsStatistics - Division by Zero Guard (Logic Tests)", () => {
     it("should handle empty statistics array", () => {
         const mockStats: SmsStatisticsRecord[] = [];
 
-        const successRate = calculateSuccessRate(mockStats);
+        const successRate = calculateAggregateSuccessRate(mockStats);
 
         // Should return 100% for empty array (no failures = 100% success)
         expect(successRate).toBe(100);

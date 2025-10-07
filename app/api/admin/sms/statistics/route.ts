@@ -4,6 +4,7 @@ import { foodParcels, outgoingSms, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { calculateSuccessRate } from "@/app/utils/sms/statistics";
 
 export interface SmsStatisticsRecord {
     locationId: string;
@@ -154,14 +155,8 @@ export async function GET(request: NextRequest) {
                 const currentMonth = aggregateStats(currentMonthStats);
                 const lastMonth = aggregateStats(lastMonthStats);
 
-                // Calculate success rate for last 7 days
-                // Guard against division by zero when all messages are still pending
-                const successRate =
-                    last7Days.sent + last7Days.failed > 0
-                        ? Math.round(
-                              (last7Days.sent / (last7Days.sent + last7Days.failed)) * 1000,
-                          ) / 10
-                        : 100;
+                // Calculate success rate for last 7 days using shared utility
+                const successRate = calculateSuccessRate(last7Days.sent, last7Days.failed);
 
                 return {
                     locationId: location.id,
