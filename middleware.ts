@@ -75,8 +75,7 @@ export default async function middleware(request: NextRequest) {
         // Basic cookie check - full validation happens in route handlers
         const authToken =
             request.cookies.get("next-auth.session-token.v2")?.value ||
-            request.cookies.get("next-auth.session-token")?.value ||
-            request.cookies.get("__Secure-next-auth.session-token")?.value;
+            request.cookies.get("__Secure-next-auth.session-token.v2")?.value;
 
         if (!authToken) {
             const response = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -118,8 +117,7 @@ export default async function middleware(request: NextRequest) {
     // Get the session token from cookies
     const authToken =
         request.cookies.get("next-auth.session-token.v2")?.value ||
-        request.cookies.get("next-auth.session-token")?.value ||
-        request.cookies.get("__Secure-next-auth.session-token")?.value;
+        request.cookies.get("__Secure-next-auth.session-token.v2")?.value;
 
     // If no token and trying to access a protected route, redirect to signin
     if (!authToken) {

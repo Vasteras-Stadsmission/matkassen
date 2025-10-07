@@ -14,7 +14,7 @@ import readline from "readline";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authFile = path.join(__dirname, "..", ".auth", "user.json");
 
-console.log("\n� E2E Authentication Setup\n");
+console.log("\n=== E2E Authentication Setup ===\n");
 console.log("Quick and easy - just copy your session cookie:\n");
 console.log("1. Open your browser and go to: http://localhost:3000/sv");
 console.log("2. Log in with GitHub (if not already logged in)");
