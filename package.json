@@ -24,8 +24,6 @@
         "test:e2e:report": "playwright show-report",
         "test:e2e:auth": "node scripts/setup-e2e-auth.mjs",
         "test:e2e:check": "./scripts/check-playwright-setup.sh",
-        "playwright:auth": "./scripts/setup-playwright-auth.sh",
-        "playwright:check": "./scripts/check-playwright-setup.sh",
         "start": "next start",
         "typecheck": "tsc --noEmit",
         "validate": "pnpm run lint && pnpm run typecheck && pnpm run format-check && pnpm run security:check"

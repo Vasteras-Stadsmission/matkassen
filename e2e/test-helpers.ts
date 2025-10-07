@@ -5,10 +5,11 @@ import { Page, expect } from "@playwright/test";
  */
 
 /**
- * Wait for the page to finish loading and all network requests to settle
+ * Wait for the page to finish loading
+ * Note: Avoids networkidle as it's unreliable with Next.js (keeps connections open)
  */
 export async function waitForPageLoad(page: Page) {
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 }
 
 /**

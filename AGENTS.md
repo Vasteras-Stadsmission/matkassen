@@ -78,7 +78,7 @@ pnpm run validate     # Lint, typecheck, format-check, security checks
 
 ```bash
 # First-time setup: Authenticate once for E2E tests
-pnpm run test:e2e:setup
+pnpm run test:e2e:auth
 # Browser opens → Click "Sign in with GitHub" → Complete OAuth → Wait on dashboard
 
 # Run E2E tests
@@ -88,7 +88,7 @@ pnpm run test:e2e:headed   # Watch browser
 pnpm run test:e2e:check    # Check setup status
 
 # Re-authenticate if session expires
-rm -rf .auth && pnpm run test:e2e:setup
+rm -rf .auth && pnpm run test:e2e:auth
 ```
 
 **Important**: E2E tests require GitHub OAuth authentication. The session is saved to `.auth/user.json` (gitignored) and reused by all tests. Valid for ~30 days.
@@ -337,6 +337,24 @@ All subsequent tests automatically use this saved session. Session expires in ~3
 - `/p/[parcelId]` - Public parcel pages
 - `/auth/*` - Authentication pages
 
+### MCP (Model Context Protocol) Integration
+
+AI agents can control Playwright via MCP. Configuration is in `.github/copilot-mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "pnpm",
+      "args": ["exec", "mcp-server-playwright", "--storage-state=.auth/user.json"],
+      "env": { "PLAYWRIGHT_BASE_URL": "http://localhost:3000" }
+    }
+  }
+}
+```
+
+**For users**: This is automatically configured. Just restart VS Code after first auth setup.
+
 ### When AI Agents Are Asked to Test
 
 1. **Check prerequisites**: Verify auth is set up (`pnpm run test:e2e:check`)
@@ -499,5 +517,3 @@ Custom Next.js server (`server.js`) starts SMS scheduler automatically on produc
 - **This file**: `AGENTS.md` (for AI agents)
 - **User manual**: `docs/user-manual.md`
 - **User flows**: `docs/user-flows.md`
-- **Playwright E2E testing**: `docs/playwright-mcp-setup.md`
-- **AI agent testing guide**: `docs/ai-agent-playwright-guide.md`

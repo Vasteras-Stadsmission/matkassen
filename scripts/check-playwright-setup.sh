@@ -50,12 +50,12 @@ if [ -f ".auth/user.json" ]; then
     size=$(wc -c < ".auth/user.json" | tr -d ' ')
     if [ "$size" -lt 100 ]; then
         echo -e "  ${YELLOW}⚠${NC}  Auth file seems invalid (too small)"
-        echo -e "  ${YELLOW}Run:${NC} pnpm run test:e2e:setup"
+        echo -e "  ${YELLOW}Run:${NC} pnpm run test:e2e:auth"
     fi
 else
-    echo -e "${RED}✗${NC} Authentication not configured"
-    echo -e "  ${YELLOW}Run:${NC} pnpm run test:e2e:setup"
+    echo "❌ Auth not set up"
     echo ""
+    echo "Run: pnpm run test:e2e:auth"
     exit 1
 fi
 
