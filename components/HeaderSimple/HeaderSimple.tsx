@@ -12,8 +12,11 @@ import {
     Drawer,
     Badge,
     Indicator,
+    ActionIcon,
+    Tooltip,
+    useMantineTheme,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { NavigationLink } from "../NavigationUtils";
 import { TransitionLink } from "../TransitionLink";
 import { LanguageSwitcher } from "../LanguageSwitcher";
@@ -21,6 +24,7 @@ import { AuthDropdown } from "../AuthDropdown/AuthDropdown";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
+import { IconQrcode } from "@tabler/icons-react";
 
 import classes from "./HeaderSimple.module.css";
 
@@ -32,6 +36,13 @@ export function HeaderSimple() {
     const [opened, { toggle, close }] = useDisclosure(false);
     const t = useTranslations() as TranslationFunction;
     const tCommon = useTranslations() as TranslationFunction;
+    const theme = useMantineTheme();
+    const isCompactDesktop = useMediaQuery(`(max-width: ${theme.breakpoints.lg})`, false, {
+        getInitialValueInEffect: true,
+    });
+    const showIconOnlyActions = useMediaQuery(`(max-width: ${theme.breakpoints.md})`, false, {
+        getInitialValueInEffect: true,
+    });
 
     // State to track active link - initialized as empty string to ensure consistent SSR/client rendering
     const [active, setActive] = useState("");
@@ -91,11 +102,39 @@ export function HeaderSimple() {
     }, [pathname, links]);
 
     // QR Code scanning link component
-    const ScanQRCodeLink = () => (
-        <a href="https://scanapp.org/" target="_blank" rel="noreferrer">
-            <Button variant="outline">{t("navigation.scanQrCode")}</Button>
-        </a>
-    );
+    const scanQrLabel = t("navigation.scanQrCode");
+    const ScanQRCodeLink = () => {
+        if (showIconOnlyActions) {
+            return (
+                <Tooltip label={scanQrLabel} position="bottom" withArrow>
+                    <ActionIcon
+                        component="a"
+                        href="https://scanapp.org/"
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="outline"
+                        aria-label={scanQrLabel}
+                        size="lg"
+                    >
+                        <IconQrcode size={18} stroke={1.8} />
+                    </ActionIcon>
+                </Tooltip>
+            );
+        }
+
+        return (
+            <Button
+                component="a"
+                href="https://scanapp.org/"
+                target="_blank"
+                rel="noreferrer"
+                variant="outline"
+                leftSection={<IconQrcode size={18} stroke={1.8} />}
+            >
+                {scanQrLabel}
+            </Button>
+        );
+    };
 
     const handleNavigation = () => {
         // Close mobile menu if open
@@ -162,7 +201,7 @@ export function HeaderSimple() {
 
     return (
         <>
-            <header className={classes.header}>
+            <header className={classes.header} data-compact={isCompactDesktop || undefined}>
                 <Container size="md" className={classes.inner}>
                     <Box className={classes.logoContainer}>
                         <TransitionLink
@@ -176,15 +215,19 @@ export function HeaderSimple() {
                             </Text>
                         </TransitionLink>
                     </Box>
-                    <Group gap={5} className={classes.navLinksContainer} visibleFrom="xs">
+                    <Group gap={5} className={classes.navLinksContainer} visibleFrom="md">
                         {desktopLinks}
                     </Group>
-                    <Group gap={5} className={classes.actionsContainer} visibleFrom="xs">
+                    <Group
+                        gap={isCompactDesktop ? "xs" : "sm"}
+                        className={classes.actionsContainer}
+                        visibleFrom="md"
+                    >
                         <LanguageSwitcher />
                         <AuthDropdown />
                         <ScanQRCodeLink />
                     </Group>
-                    <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
+                    <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
                 </Container>
             </header>
 
@@ -194,7 +237,7 @@ export function HeaderSimple() {
                 onClose={close}
                 title={t("navigation.navigation")}
                 size="xs"
-                hiddenFrom="xs"
+                hiddenFrom="md"
                 zIndex={1000}
             >
                 <div className={classes.mobileMenu}>

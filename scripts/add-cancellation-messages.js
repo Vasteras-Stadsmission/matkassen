@@ -63,7 +63,7 @@ files.forEach(lang => {
             console.log(`⚠️  Skipped public-${lang}.json (missing publicParcel structure)`);
         }
     } catch (err) {
-        console.error(`❌ Failed to update public-${lang}.json:`, err.message);
+        console.error("❌ Failed to update public-%s.json:", lang, err.message);
     }
 });
 

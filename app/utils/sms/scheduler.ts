@@ -68,7 +68,7 @@ export async function enqueueReminderSms(): Promise<number> {
             enqueuedCount++;
             console.log(`Enqueued reminder SMS for parcel ${parcel.parcelId}`);
         } catch (error) {
-            console.error(`Failed to enqueue SMS for parcel ${parcel.parcelId}:`, error);
+            console.error("Failed to enqueue SMS for parcel %s:", parcel.parcelId, error);
         }
     }
 
