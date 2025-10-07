@@ -43,8 +43,12 @@ fi
 echo "✅ All required environment variables are set."
 
 # Script Vars
-if [[ "$DOMAIN_NAME" == "matkassen.org" ]]; then
+if [[ "$DOMAIN_NAME" == "matcentralen.com" ]]; then
   # For production, include www subdomain
+  DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
+  CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
+elif [[ "$DOMAIN_NAME" == "matkassen.org" ]]; then
+  # Legacy domain support (keep during migration period)
   DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
 else
@@ -194,6 +198,10 @@ echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
 echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"
 echo "HELLO_SMS_PASSWORD=\"$HELLO_SMS_PASSWORD\"" >> "$APP_DIR/.env"
 echo "HELLO_SMS_TEST_MODE=\"$HELLO_SMS_TEST_MODE\"" >> "$APP_DIR/.env"
+# White-label configuration (required in production)
+echo "NEXT_PUBLIC_BRAND_NAME=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
+echo "NEXT_PUBLIC_BASE_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"
+echo "HELLO_SMS_FROM=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y

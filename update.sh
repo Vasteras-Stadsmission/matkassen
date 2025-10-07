@@ -72,6 +72,10 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     printf 'HELLO_SMS_USERNAME="%s"\n' "${HELLO_SMS_USERNAME:-}"
     printf 'HELLO_SMS_PASSWORD="%s"\n' "${HELLO_SMS_PASSWORD:-}"
     printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
+    # White-label configuration (required in production)
+    printf 'NEXT_PUBLIC_BRAND_NAME="%s"\n' "${BRAND_NAME}"
+    printf 'NEXT_PUBLIC_BASE_URL="https://%s"\n' "${DOMAIN_NAME}"
+    printf 'HELLO_SMS_FROM="%s"\n' "${BRAND_NAME}"
 } > "$tmp"
 
 # Add production-only backup configuration

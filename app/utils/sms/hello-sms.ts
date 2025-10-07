@@ -2,6 +2,8 @@
  * HelloSMS integration utility for sending SMS messages
  * Supports test mode for development/testing
  */
+import { SMS_SENDER_NAME } from "@/app/config/branding";
+
 export interface HelloSmsConfig {
     apiUrl: string;
     username: string;
@@ -76,7 +78,7 @@ export function getHelloSmsConfig(): HelloSmsConfig {
         username: process.env.HELLO_SMS_USERNAME || "",
         password: process.env.HELLO_SMS_PASSWORD || "",
         testMode,
-        from: process.env.HELLO_SMS_FROM || "Matkassen",
+        from: SMS_SENDER_NAME,
     };
 
     return cachedConfig;
