@@ -1,3 +1,5 @@
+"use client";
+
 import { Paper, Title, Text, Group, ThemeIcon } from "@mantine/core";
 import { IconMars, IconVenus, IconGenderBigender } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";

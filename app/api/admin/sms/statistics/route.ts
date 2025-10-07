@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { calculateSuccessRate } from "@/app/utils/sms/statistics";
 
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
                             notDeleted(),
                             eq(foodParcels.pickup_location_id, location.id),
                             gte(outgoingSms.created_at, lastMonthStart),
-                            sql`${outgoingSms.created_at} <= ${lastMonthEnd}`,
+                            lte(outgoingSms.created_at, lastMonthEnd),
                         ),
                     )
                     .groupBy(outgoingSms.status);
