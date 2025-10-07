@@ -13,6 +13,13 @@
 # testing
 /coverage
 
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/.auth/
+/screenshots/
+
 # next.js
 /.next/
 /out/
