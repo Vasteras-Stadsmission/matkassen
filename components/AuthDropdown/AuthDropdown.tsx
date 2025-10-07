@@ -36,7 +36,7 @@ export function AuthDropdown() {
     return (
         <Menu shadow="md" width={200} position="bottom-end" withArrow>
             <Menu.Target>
-                <UnstyledButton className={classes.avatarButton}>
+                <UnstyledButton className={classes.avatarButton} data-testid="user-avatar">
                     <Avatar
                         src={user.image ?? undefined}
                         radius="xl"

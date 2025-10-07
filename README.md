@@ -56,6 +56,69 @@ pnpm run preview:production
 - Access: http://localhost:8080
 - **Use this for**: Testing nginx configuration, rate limiting, proxy behavior, or any container-specific issues
 
+## Testing
+
+### Unit Tests
+
+Run unit tests with Vitest:
+
+```bash
+pnpm test              # Run once
+pnpm run test:watch    # Watch mode
+pnpm run test:ui       # Interactive UI
+```
+
+### E2E Tests (Playwright)
+
+End-to-end tests verify critical user flows and catch regressions. They run **locally only** (not in CI) and work with any database state.
+
+**First-time setup (takes 10 seconds):**
+
+```bash
+pnpm run test:e2e:auth
+```
+
+This prompts you to copy your session cookie from DevTools:
+
+1. Open http://localhost:3000/sv in your browser
+2. Log in with GitHub
+3. Open DevTools (F12 or Cmd+Option+I)
+4. Go to Application → Cookies → http://localhost:3000
+5. Copy the value of `next-auth.session-token.v2`
+6. Paste into terminal
+
+**Run E2E tests:**
+
+```bash
+pnpm run test:e2e           # Headless mode
+pnpm run test:e2e:ui        # Interactive UI
+pnpm run test:e2e:headed    # Watch browser
+pnpm run test:e2e:check     # Check auth status
+```
+
+**What E2E tests cover:**
+
+- ✅ Page loads without crashes
+- ✅ Authentication persists
+- ✅ Navigation flows work
+- ✅ API endpoints are reachable
+- ✅ Public routes work without auth
+
+**What E2E tests DON'T cover (intentionally):**
+
+- ❌ Data creation workflows (no seed infrastructure yet)
+- ❌ Complex forms (too brittle without fixtures)
+- ❌ SMS sending (requires test mode mocking)
+
+Auth is valid for ~30 days. If tests fail with "authentication expired", re-run `pnpm run test:e2e:auth`.
+
+### Code Quality
+
+```bash
+pnpm run validate      # Run all checks (lint, typecheck, format, security)
+pnpm run format        # Auto-fix formatting
+```
+
 ## Authentication
 
 Matkassen uses GitHub OAuth for user authentication and a GitHub App for organization membership verification. This approach eliminates the need to handle user credentials, passwords, or email verification—GitHub handles all of that.
