@@ -8,6 +8,11 @@ migrations/**/*.sql
 migrations/meta/**/*.json
 migrations/meta/_journal.json
 
+# Playwright output
+test-results/
+playwright-report/
+playwright/.cache/
+
 # Other common files to ignore
 .DS_Store
 *.log

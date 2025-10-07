@@ -11,7 +11,6 @@ import {
     Card,
     Loader,
     Alert,
-    Anchor,
     Box,
     SimpleGrid,
 } from "@mantine/core";
@@ -27,6 +26,7 @@ import {
     IconSend,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
+import { Link } from "@/app/i18n/navigation";
 import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
 import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
@@ -353,6 +353,11 @@ export function ParcelAdminDialog({
     };
 
     const getPickupStatus = (parcel: ParcelDetails["parcel"]) => {
+        // Check if cancelled first
+        if (parcel.deletedAt) {
+            return { color: "gray", key: "cancelled" };
+        }
+
         const now = Time.now();
         const pickupStart = Time.fromString(parcel.pickupDateTimeEarliest);
         const pickupEnd = Time.fromString(parcel.pickupDateTimeLatest);
@@ -469,6 +474,8 @@ export function ParcelAdminDialog({
                                             switch (status.key) {
                                                 case "pickedUp":
                                                     return t("admin.parcelDialog.status.pickedUp");
+                                                case "cancelled":
+                                                    return t("admin.parcelDialog.status.cancelled");
                                                 case "wrongDay":
                                                     return t("admin.parcelDialog.status.wrongDay");
                                                 case "checkTime":
@@ -496,6 +503,19 @@ export function ParcelAdminDialog({
                                             )}
                                         </Stack>
                                     )}
+                                    {data.parcel.deletedAt && (
+                                        <Stack gap={2} align="flex-end">
+                                            <Text size="xs" c="dimmed">
+                                                {formatDateTime(data.parcel.deletedAt)}
+                                            </Text>
+                                            {data.parcel.deletedBy && (
+                                                <Text size="xs" c="dimmed">
+                                                    {t("admin.parcelDialog.by")}{" "}
+                                                    {data.parcel.deletedBy}
+                                                </Text>
+                                            )}
+                                        </Stack>
+                                    )}
                                 </Stack>
                             </Group>
                         </Card>
@@ -505,16 +525,19 @@ export function ParcelAdminDialog({
                             <Stack gap="md">
                                 <Group justify="space-between">
                                     <Text fw={500}>{t("admin.parcelDialog.householdDetails")}</Text>
-                                    <Anchor
-                                        href={`/households?household-id=${data.household.id}`}
+                                    <Link
+                                        href={`/households/${data.household.id}`}
                                         target="_blank"
-                                        size="sm"
+                                        style={{
+                                            fontSize: "var(--mantine-font-size-sm)",
+                                            textDecoration: "none",
+                                        }}
                                     >
                                         <Group gap="xs">
                                             <Text>{t("admin.parcelDialog.viewDetails")}</Text>
                                             <IconExternalLink size="0.9rem" />
                                         </Group>
-                                    </Anchor>
+                                    </Link>
                                 </Group>
 
                                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
@@ -677,43 +700,45 @@ export function ParcelAdminDialog({
                             </Card>
                         )}
 
-                        {/* Actions */}
-                        <Group justify="space-between">
-                            {/* Delete button - only show if not picked up */}
-                            {!data.parcel.isPickedUp && (
-                                <Button
-                                    color="red"
-                                    variant="subtle"
-                                    leftSection={<IconTrash size="0.9rem" />}
-                                    onClick={handleDeleteParcel}
-                                    loading={submitting}
-                                >
-                                    {t("admin.parcelDialog.deleteParcel")}
-                                </Button>
-                            )}
-
-                            <Group ml="auto">
-                                {data.parcel.isPickedUp ? (
+                        {/* Actions - hide if cancelled */}
+                        {!data.parcel.deletedAt && (
+                            <Group justify="space-between">
+                                {/* Cancel button - only show if not picked up */}
+                                {!data.parcel.isPickedUp && (
                                     <Button
-                                        color="orange"
-                                        leftSection={<IconX size="0.9rem" />}
-                                        onClick={handleUndoPickup}
+                                        color="red"
+                                        variant="subtle"
+                                        leftSection={<IconTrash size="0.9rem" />}
+                                        onClick={handleDeleteParcel}
                                         loading={submitting}
                                     >
-                                        {t("admin.parcelDialog.undoPickup")}
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        color="green"
-                                        leftSection={<IconCheck size="0.9rem" />}
-                                        onClick={handleMarkPickedUp}
-                                        loading={submitting}
-                                    >
-                                        {t("admin.parcelDialog.markPickedUp")}
+                                        {t("admin.parcelDialog.cancelParcel")}
                                     </Button>
                                 )}
+
+                                <Group ml="auto">
+                                    {data.parcel.isPickedUp ? (
+                                        <Button
+                                            color="orange"
+                                            leftSection={<IconX size="0.9rem" />}
+                                            onClick={handleUndoPickup}
+                                            loading={submitting}
+                                        >
+                                            {t("admin.parcelDialog.undoPickup")}
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            color="green"
+                                            leftSection={<IconCheck size="0.9rem" />}
+                                            onClick={handleMarkPickedUp}
+                                            loading={submitting}
+                                        >
+                                            {t("admin.parcelDialog.markPickedUp")}
+                                        </Button>
+                                    )}
+                                </Group>
                             </Group>
-                        </Group>
+                        )}
                     </>
                 )}
             </Stack>

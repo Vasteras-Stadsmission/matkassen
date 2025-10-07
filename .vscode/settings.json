@@ -20,5 +20,7 @@
     "files.associations": {
         "*.test.ts": "typescript",
         "*.test.tsx": "typescriptreact"
-    }
+    },
+    "github.copilot.chat.mcp.enabled": true,
+    "github.copilot.chat.mcp.configFile": "${workspaceFolder}/.github/copilot-mcp.json"
 }

@@ -112,7 +112,7 @@ export const getLocation = protectedAction(
                 schedules: schedulesWithDays,
             });
         } catch (error) {
-            console.error(`Error fetching location with ID ${id}:`, error);
+            console.error("Error fetching location with ID %s:", id, error);
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to fetch location: ${error instanceof Error ? error.message : String(error)}`,
@@ -196,7 +196,7 @@ export const updateLocation = protectedAction(
             revalidatePath(`/${locale}/handout-locations`, "page");
             return success(undefined);
         } catch (error) {
-            console.error(`Error updating location with ID ${id}:`, error);
+            console.error("Error updating location with ID %s:", id, error);
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to update location: ${error instanceof Error ? error.message : String(error)}`,
@@ -221,7 +221,7 @@ export const deleteLocation = protectedAction(
             revalidatePath(`/${locale}/handout-locations`, "page");
             return success(undefined);
         } catch (error) {
-            console.error(`Error deleting location with ID ${id}:`, error);
+            console.error("Error deleting location with ID %s:", id, error);
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to delete location: ${error instanceof Error ? error.message : String(error)}`,
@@ -316,7 +316,7 @@ export const createSchedule = protectedAction(
 
             return success(createdSchedule!);
         } catch (error) {
-            console.error(`Error creating schedule for location ${locationId}:`, error);
+            console.error("Error creating schedule for location %s:", locationId, error);
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to create schedule: ${error instanceof Error ? error.message : String(error)}`,
@@ -432,7 +432,7 @@ export const updateSchedule = protectedAction(
 
             return success(updatedSchedule!);
         } catch (error) {
-            console.error(`Error updating schedule with ID ${scheduleId}:`, error);
+            console.error("Error updating schedule with ID %s:", scheduleId, error);
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to update schedule: ${error instanceof Error ? error.message : String(error)}`,
@@ -479,7 +479,7 @@ export const deleteSchedule = protectedAction(
             }
             return success(undefined);
         } catch (error) {
-            console.error(`Error deleting schedule with ID ${scheduleId}:`, error);
+            console.error("Error deleting schedule with ID %s:", scheduleId, error);
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to delete schedule: ${error instanceof Error ? error.message : String(error)}`,

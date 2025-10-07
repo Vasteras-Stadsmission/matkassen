@@ -13,8 +13,7 @@ import {
     householdAdditionalNeeds,
     additionalNeeds,
 } from "@/app/db/schema";
-import { notDeleted } from "@/app/db/query-helpers";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { fetchMultipleGithubUserData } from "@/app/[locale]/households/actions";
 
@@ -30,6 +29,8 @@ export interface ParcelDetails {
         isPickedUp: boolean;
         pickedUpAt: string | null;
         pickedUpBy: string | null;
+        deletedAt: string | null;
+        deletedBy: string | null;
     };
     household: {
         id: string;
@@ -86,6 +87,8 @@ export async function GET(
                 isPickedUp: foodParcels.is_picked_up,
                 pickedUpAt: foodParcels.picked_up_at,
                 pickedUpBy: foodParcels.picked_up_by_user_id,
+                deletedAt: foodParcels.deleted_at,
+                deletedBy: foodParcels.deleted_by_user_id,
                 householdFirstName: households.first_name,
                 householdLastName: households.last_name,
                 householdPhoneNumber: households.phone_number,
@@ -96,7 +99,7 @@ export async function GET(
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
-            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
+            .where(eq(foodParcels.id, parcelId))
             .limit(1);
 
         if (parcelData.length === 0) {
@@ -188,6 +191,8 @@ export async function GET(
                 isPickedUp: parcel.isPickedUp,
                 pickedUpAt: parcel.pickedUpAt?.toISOString() || null,
                 pickedUpBy: parcel.pickedUpBy,
+                deletedAt: parcel.deletedAt?.toISOString() || null,
+                deletedBy: parcel.deletedBy,
             },
             household: {
                 id: parcel.householdId,

@@ -8,5 +8,13 @@ export default function UserAvatar() {
 
     if (!session?.user) return null;
 
-    return <Avatar src={session.user.image ?? undefined} alt="User Avatar" size="md" radius="xl" />;
+    return (
+        <Avatar
+            src={session.user.image ?? undefined}
+            alt="User Avatar"
+            size="md"
+            radius="xl"
+            data-testid="user-avatar"
+        />
+    );
 }

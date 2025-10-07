@@ -598,7 +598,7 @@ export const clearLocationSchedulesCache = async (locationId: string) => {
         revalidatePath(`/schedule`);
         revalidatePath(`/handout-locations`);
     } catch (error) {
-        console.error(`Error clearing cache for location ${locationId}:`, error);
+        console.error("Error clearing cache for location %s:", locationId, error);
     }
 };
 

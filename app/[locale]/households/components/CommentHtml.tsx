@@ -6,7 +6,7 @@ import {
     Group,
     Paper,
     Text,
-    TypographyStylesProvider,
+    Typography,
     ActionIcon,
     Tooltip,
     Modal,
@@ -66,12 +66,20 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
 
     // Replace common patterns with HTML
     const processCommentText = (text: string) => {
-        // Convert URLs to clickable links
+        // Convert URLs to clickable links (only http/https protocols)
         const urlRegex = /(https?:\/\/[^\s]+)/g;
-        let processedText = text.replace(
-            urlRegex,
-            url => `<a href="${url}" rel="noopener noreferrer" target="_blank">${url}</a>`,
-        );
+        let processedText = text.replace(urlRegex, url => {
+            // Validate URL to prevent javascript: or data: URIs
+            try {
+                const urlObj = new URL(url);
+                if (urlObj.protocol === "http:" || urlObj.protocol === "https:") {
+                    return `<a href="${url}" rel="noopener noreferrer" target="_blank">${url}</a>`;
+                }
+            } catch {
+                // Invalid URL, return as-is
+            }
+            return url;
+        });
 
         // Convert email addresses to clickable mailto links
         const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g;
@@ -139,12 +147,12 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
                         </Tooltip>
                     )}
                 </Group>
-                <TypographyStylesProvider className={classes.body}>
+                <Typography className={classes.body}>
                     <div
                         className={classes.content}
                         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
                     />
-                </TypographyStylesProvider>
+                </Typography>
             </Paper>
 
             {/* Confirmation Modal */}
