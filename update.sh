@@ -36,7 +36,8 @@ DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:54
 # Validate required environment variables in production
 if [ "${ENV_NAME:-}" = "production" ]; then
     echo "Validating production environment variables..."
-    req=(OS_AUTH_TYPE OS_AUTH_URL OS_REGION_NAME OS_INTERFACE OS_IDENTITY_API_VERSION \
+    req=(BRAND_NAME DOMAIN_NAME \
+         OS_AUTH_TYPE OS_AUTH_URL OS_REGION_NAME OS_INTERFACE OS_IDENTITY_API_VERSION \
          OS_APPLICATION_CREDENTIAL_ID OS_APPLICATION_CREDENTIAL_SECRET \
          SWIFT_CONTAINER SWIFT_PREFIX SLACK_BOT_TOKEN SLACK_CHANNEL_ID)
     for k in "${req[@]}"; do
@@ -75,7 +76,10 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     # White-label configuration (required in production)
     printf 'NEXT_PUBLIC_BRAND_NAME="%s"\n' "${BRAND_NAME}"
     printf 'NEXT_PUBLIC_BASE_URL="https://%s"\n' "${DOMAIN_NAME}"
-    printf 'HELLO_SMS_FROM="%s"\n' "${BRAND_NAME}"
+    # SMS sender name (optional - defaults to BRAND_NAME if not set)
+    if [ -n "${SMS_SENDER:-}" ]; then
+        printf 'NEXT_PUBLIC_SMS_SENDER="%s"\n' "${SMS_SENDER}"
+    fi
 } > "$tmp"
 
 # Add production-only backup configuration

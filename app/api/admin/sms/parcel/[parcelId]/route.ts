@@ -11,6 +11,7 @@ import {
 import { formatPickupSms, type SmsTemplateData } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { normalizePhoneToE164, getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
+import { generateUrl } from "@/app/config/branding";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 
@@ -114,15 +115,8 @@ export async function POST(
             );
         }
 
-        // Generate SMS content
-        const baseUrl =
-            process.env.NEXT_PUBLIC_BASE_URL ||
-            (process.env.NODE_ENV === "production"
-                ? "https://matkassen.org"
-                : "http://localhost:3000");
-
-        // Create shorter URL for SMS limits
-        const publicUrl = `${baseUrl}/p/${parcelId}`;
+        // Generate SMS content using centralized config
+        const publicUrl = generateUrl(`/p/${parcelId}`);
 
         // Template data - all fields guaranteed by database schema constraints
         const templateData: SmsTemplateData = {

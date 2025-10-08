@@ -1,137 +1,70 @@
 /**
- * White-label Configuration
+ * White-Label Configuration
  *
- * Single source of truth for brand name, domain, and external identifiers.
- * Change these values to rebrand the entire application.
+ * Single source of truth for brand identity.
+ * Set these via environment variables in production.
  *
- * IMPORTANT: In production, required environment variables MUST be set.
- * The application will fail to start if critical config is missing.
+ * Note: Validation happens at server startup (runtime), not build time,
+ * to allow Docker builds without env vars.
  */
 
-// ============================================================================
-// ENVIRONMENT DETECTION
-// ============================================================================
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const isProduction = process.env.NODE_ENV === "production";
-const isDevelopment = process.env.NODE_ENV === "development";
-const isTest = process.env.NODE_ENV === "test";
+const isServer = typeof window === "undefined";
 
-// ============================================================================
-// BRAND IDENTITY
-// ============================================================================
+// Detect build phase using Next.js official constant
+// CRITICAL: We rely solely on NEXT_PHASE to avoid false positives.
+// If NEXT_PHASE is not set during `next build`, Next.js should set it.
+// We do NOT use missing-env heuristics because those same vars are required at runtime,
+// which would cause misconfigured production deployments to silently skip validation.
+const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 
-/**
- * Application display name (used in UI, SMS, notifications)
- * REQUIRED in production
- */
-export const BRAND_NAME = (() => {
-    const brandName = process.env.NEXT_PUBLIC_BRAND_NAME;
+// Always provide safe defaults for build - validation happens at runtime
+export const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME || "DevApp";
 
-    if (isProduction && !brandName) {
-        throw new Error(
-            "NEXT_PUBLIC_BRAND_NAME environment variable is required in production. " +
-                "Set it to your brand name (e.g., 'Matcentralen').",
-        );
-    }
-
-    // Development/test fallback
-    return brandName || "DevApp";
-})();
-
-/**
- * SMS sender name (11 chars max for most SMS providers)
- * Defaults to BRAND_NAME if not explicitly set
- */
 export const SMS_SENDER_NAME = (() => {
-    const smsSender = process.env.HELLO_SMS_FROM;
-
-    if (smsSender) {
-        return smsSender;
+    // Explicit override (for SMS providers with character limits)
+    const explicitSender = process.env.NEXT_PUBLIC_SMS_SENDER || process.env.HELLO_SMS_FROM;
+    if (explicitSender) {
+        return explicitSender;
     }
 
-    // In production, use BRAND_NAME (already validated above)
-    if (isProduction) {
-        return BRAND_NAME;
+    // In production, we need a shorter SMS sender because HelloSMS has 11-char limit
+    // "Matcentralen" (12 chars) exceeds the limit, so provide a safe production default
+    if (isProduction && !isBuildPhase) {
+        // If BRAND_NAME is set but no explicit SMS sender, truncate to 11 chars
+        const brandName = process.env.NEXT_PUBLIC_BRAND_NAME;
+        if (brandName && brandName.length > 11) {
+            console.warn(
+                `⚠️  BRAND_NAME "${brandName}" (${brandName.length} chars) exceeds HelloSMS 11-char limit.` +
+                    `\n   Using truncated version: "${brandName.slice(0, 11)}"` +
+                    `\n   Set NEXT_PUBLIC_SMS_SENDER or HELLO_SMS_FROM to override.`,
+            );
+            return brandName.slice(0, 11);
+        }
+        return brandName || "AppSMS";
     }
 
     // Development/test fallback
-    return "DevSMS";
+    return BRAND_NAME || "DevSMS";
 })();
 
-/**
- * Organization identifier (used in URLs, file names, logs)
- * Auto-derived from BRAND_NAME if not explicitly set
- */
-export const ORG_SLUG = (() => {
-    const slug = process.env.NEXT_PUBLIC_ORG_SLUG;
-
-    if (slug) {
-        return slug;
-    }
-
-    // Auto-generate slug from brand name
-    return BRAND_NAME.toLowerCase().replace(/\s+/g, "-");
-})();
-
-// ============================================================================
-// DOMAIN CONFIGURATION
-// ============================================================================
-
-/**
- * Base URL for the application (protocol + domain)
- * Used for: OAuth callbacks, QR codes, SMS links, emails
- * REQUIRED in production
- */
 export const BASE_URL = (() => {
-    // 1. Explicit environment variable (highest priority)
     if (process.env.NEXT_PUBLIC_BASE_URL) {
         return process.env.NEXT_PUBLIC_BASE_URL;
     }
 
-    // 2. Auto-detect from Vercel/production environment
     if (process.env.VERCEL_URL) {
         return `https://${process.env.VERCEL_URL}`;
     }
 
-    // 3. Production MUST have explicit BASE_URL
-    if (isProduction) {
-        throw new Error(
-            "NEXT_PUBLIC_BASE_URL environment variable is required in production. " +
-                "Set it to your full domain URL (e.g., 'https://matcentralen.com').",
-        );
-    }
-
-    // 4. Test environment
-    if (isTest) {
-        return process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000";
-    }
-
-    // 5. Development fallback
+    // Development/test fallback
     return "http://localhost:3000";
 })();
 
-// ============================================================================
-// DERIVED CONFIGURATION (auto-computed from above)
-// ============================================================================
-
-/** Production domain name (without protocol) */
-export const DOMAIN_NAME = BASE_URL.replace(/^https?:\/\//, "");
-
-/** WWW variant of domain (for SSL certs and redirects) */
-export const DOMAIN_WITH_WWW = DOMAIN_NAME.startsWith("www.") ? DOMAIN_NAME : `www.${DOMAIN_NAME}`;
-
-/** Check if current domain includes www */
-export const HAS_WWW = DOMAIN_NAME.startsWith("www.");
-
-/** Root domain without www (for cookies and DNS) */
-export const ROOT_DOMAIN = HAS_WWW ? DOMAIN_NAME.replace(/^www\./, "") : DOMAIN_NAME;
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
 /**
- * Generate absolute URL for a given path
+ * Generate absolute URL for a path
  * @example generateUrl("/p/abc123") → "https://matcentralen.com/p/abc123"
  */
 export function generateUrl(path: string): string {
@@ -139,51 +72,29 @@ export function generateUrl(path: string): string {
     return `${BASE_URL}${cleanPath}`;
 }
 
-/**
- * Get brand configuration summary (useful for debugging)
- */
-export function getBrandConfig() {
-    return {
-        brandName: BRAND_NAME,
-        smsSender: SMS_SENDER_NAME,
-        orgSlug: ORG_SLUG,
-        baseUrl: BASE_URL,
-        domain: DOMAIN_NAME,
-        rootDomain: ROOT_DOMAIN,
-        environment: process.env.NODE_ENV,
-        hasWww: HAS_WWW,
-    };
-}
-
-/**
- * Validate that all required branding configuration is present
- * Throws detailed error if anything is missing
- */
-export function validateBrandingConfig(): void {
+// Validate ONLY when server starts in production (not during build)
+// This allows Docker builds to succeed without env vars
+if (isProduction && isServer && !isBuildPhase) {
     const errors: string[] = [];
 
-    if (isProduction) {
-        if (!process.env.NEXT_PUBLIC_BRAND_NAME) {
-            errors.push("NEXT_PUBLIC_BRAND_NAME is required in production");
-        }
+    if (!process.env.NEXT_PUBLIC_BRAND_NAME) {
+        errors.push("NEXT_PUBLIC_BRAND_NAME is required in production");
+    }
 
-        if (!process.env.NEXT_PUBLIC_BASE_URL && !process.env.VERCEL_URL) {
-            errors.push("NEXT_PUBLIC_BASE_URL is required in production");
-        }
+    if (!process.env.NEXT_PUBLIC_BASE_URL && !process.env.VERCEL_URL) {
+        errors.push("NEXT_PUBLIC_BASE_URL is required in production");
+    }
 
-        if (!BASE_URL.startsWith("https://")) {
-            errors.push(`BASE_URL must use HTTPS in production (got: ${BASE_URL})`);
-        }
+    if (BASE_URL && !BASE_URL.startsWith("https://")) {
+        errors.push(`BASE_URL must use HTTPS in production (got: ${BASE_URL})`);
     }
 
     if (errors.length > 0) {
-        throw new Error(
-            `Branding configuration errors:\n${errors.map(e => `  - ${e}`).join("\n")}`,
-        );
+        console.error("\n❌ White-label configuration errors:");
+        errors.forEach(e => console.error(`  - ${e}`));
+        console.error("\nThe application cannot start without proper configuration.\n");
+        process.exit(1); // Kill the server immediately
     }
-}
 
-// Run validation on module load in production
-if (isProduction) {
-    validateBrandingConfig();
+    console.log("✅ White-label configuration validated");
 }

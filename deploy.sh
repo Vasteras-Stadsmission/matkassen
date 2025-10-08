@@ -21,7 +21,7 @@ handle_error() {
 trap 'handle_error ${LINENO} $?' ERR
 
 # Verify that required environment variables are set
-required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME)
+required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME BRAND_NAME)
 missing_vars=()
 
 echo "Checking required environment variables..."
@@ -43,12 +43,9 @@ fi
 echo "✅ All required environment variables are set."
 
 # Script Vars
-if [[ "$DOMAIN_NAME" == "matcentralen.com" ]]; then
-  # For production, include www subdomain
-  DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
-  CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
-elif [[ "$DOMAIN_NAME" == "matkassen.org" ]]; then
-  # Legacy domain support (keep during migration period)
+# Check if this is a production domain (no subdomain prefix like "staging.")
+if [[ "$DOMAIN_NAME" != staging.* ]]; then
+  # For production domains, include www subdomain
   DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
 else
@@ -201,7 +198,10 @@ echo "HELLO_SMS_TEST_MODE=\"$HELLO_SMS_TEST_MODE\"" >> "$APP_DIR/.env"
 # White-label configuration (required in production)
 echo "NEXT_PUBLIC_BRAND_NAME=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
 echo "NEXT_PUBLIC_BASE_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"
-echo "HELLO_SMS_FROM=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
+# SMS sender name (optional - defaults to BRAND_NAME if not set)
+if [ -n "${SMS_SENDER:-}" ]; then
+  echo "NEXT_PUBLIC_SMS_SENDER=\"${SMS_SENDER}\"" >> "$APP_DIR/.env"
+fi
 
 # Install Nginx
 sudo apt install nginx -y

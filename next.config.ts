@@ -37,16 +37,10 @@ const nextConfig: NextConfig = {
         // PPR is only available in canary versions, so removing it
         // ppr: true,
         // Trust proxy headers for Server Actions when behind nginx
+        // Next.js will automatically allow origins based on the request host
         serverActions: {
             allowedOrigins: [
                 "http://localhost:8080", // Local development through nginx
-                "https://staging.matcentralen.com",
-                "https://matcentralen.com",
-                "https://www.matcentralen.com",
-                // Keep old domains during migration period for backward compatibility
-                "https://staging.matkassen.org",
-                "https://matkassen.org",
-                "https://www.matkassen.org",
             ],
         },
     },

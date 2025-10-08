@@ -15,7 +15,8 @@ services:
             - NEXT_PUBLIC_BRAND_NAME=${NEXT_PUBLIC_BRAND_NAME} # Required: Brand name
             - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL} # Required: Full domain URL
             - HELLO_SMS_API_URL=https://api.hellosms.se/api/v1/sms/send # HelloSMS API endpoint
-            - HELLO_SMS_FROM=${HELLO_SMS_FROM:-${NEXT_PUBLIC_BRAND_NAME}} # SMS sender (defaults to brand name)
+            # Note: HELLO_SMS_FROM is intentionally not set here to allow smart truncation in branding.ts
+            # Set NEXT_PUBLIC_SMS_SENDER in .env if you need to override (max 11 chars for HelloSMS)
         env_file:
             - .env
         depends_on:

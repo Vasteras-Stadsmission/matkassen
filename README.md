@@ -3,6 +3,40 @@
 Matkassen is a web application for a food parcel system.
 Matkassen is based on https://github.com/leerob/next-self-host: Next.js, Postgres, Nginx, docker and deploying strategy for a VPS.
 
+## White-Label Configuration
+
+This application is designed to be fo```bash
+
+# Example GitHub Actions workflow (every minute)
+
+name: SMS Queue Processing
+on:
+schedule: - cron: "\* \* \* \* \*"
+jobs:
+process-sms:
+runs-on: ubuntu-latest
+steps: - name: Trigger SMS Processing
+run: curl -X POST https://matcentralen.com/api/admin/sms/process-queue
+
+````brandable. To customize for your organization:
+
+1. **Fork this repository**
+2. **Edit `.github/workflows/continuous_deployment.yml`** and **`.github/workflows/init_deploy.yml`**:
+
+```yaml
+export DOMAIN_NAME="yourdomain.com"         # Your domain
+export BRAND_NAME="Your Organization"       # Shown in UI
+export SMS_SENDER="YourOrg"                 # SMS sender (max 11 chars)
+````
+
+3. **Update GitHub OAuth App** (after deployment):
+    - Homepage URL: `https://yourdomain.com`
+    - Callback URL: `https://yourdomain.com/api/auth/callback/github`
+
+That's it! The entire application will rebrand automatically. No code changes needed.
+
+The app has smart defaults for development (shows "DevApp" locally), so you don't need to configure anything for local development.
+
 ## Repository rules
 
 This repository has a protected `main` branch. To have something pushed to `main` you will have to create a pull request.
@@ -202,7 +236,7 @@ Set these environment variables for SMS functionality:
 
 - `HELLO_SMS_USERNAME` / `HELLO_SMS_PASSWORD` - HelloSMS API credentials
 - `HELLO_SMS_TEST_MODE=true/false` - Enable test mode for development
-- `HELLO_SMS_FROM=Matkassen` - Sender name displayed to recipients
+- `NEXT_PUBLIC_SMS_SENDER=YourSender` - Sender name displayed to recipients (max 11 chars for HelloSMS, defaults to BRAND_NAME with auto-truncation)
 
 ### Operational Triggers
 

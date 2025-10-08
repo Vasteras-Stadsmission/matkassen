@@ -37,7 +37,8 @@ services:
             - NEXT_PUBLIC_BASE_URL=http://localhost:8080 # Public base URL
             - NEXT_PUBLIC_BRAND_NAME=${NEXT_PUBLIC_BRAND_NAME:-DevApp} # Optional: Brand name (defaults to DevApp)
             - HELLO_SMS_API_URL=https://api.hellosms.se/api/v1/sms/send # HelloSMS API endpoint
-            - HELLO_SMS_FROM=${HELLO_SMS_FROM:-DevSMS} # Optional: SMS sender (defaults to DevSMS)
+            # Note: HELLO_SMS_FROM is intentionally not set here to allow smart truncation in branding.ts
+            # In local testing, SMS_SENDER_NAME will default to "DevSMS" (see app/config/branding.ts)
             - HELLO_SMS_TEST_MODE=true # Local mode - test SMS only
         env_file:
             - .env

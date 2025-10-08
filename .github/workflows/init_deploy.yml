@@ -66,6 +66,7 @@ jobs:
                       export ENV_NAME="${{ github.event.inputs.environment }}"
                       export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
                       export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
+                      export SMS_SENDER="Matcentral"
                       export HELLO_SMS_TEST_MODE="true"
 
                       # Set domain name and brand based on environment
