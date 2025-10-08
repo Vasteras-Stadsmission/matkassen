@@ -44,7 +44,7 @@ echo "✅ All required environment variables are set."
 
 # Script Vars
 # Check if this is a production domain (no subdomain prefix like "staging.")
-if [[ "$DOMAIN_NAME" != staging.* ]]; then
+if [[ ! "$DOMAIN_NAME" =~ ^staging\. ]]; then
   # For production domains, include www subdomain
   DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"

@@ -15,7 +15,7 @@ const isServer = typeof window === "undefined";
 
 // Detect build phase using Next.js official constant
 // CRITICAL: We rely solely on NEXT_PHASE to avoid false positives.
-// If NEXT_PHASE is not set during `next build`, Next.js should set it.
+// During `next build`, Next.js sets NEXT_PHASE to the value of PHASE_PRODUCTION_BUILD constant.
 // We do NOT use missing-env heuristics because those same vars are required at runtime,
 // which would cause misconfigured production deployments to silently skip validation.
 const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
@@ -55,10 +55,6 @@ export const BASE_URL = (() => {
         return process.env.NEXT_PUBLIC_BASE_URL;
     }
 
-    if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}`;
-    }
-
     // Development/test fallback
     return "http://localhost:3000";
 })();
@@ -81,7 +77,7 @@ if (isProduction && isServer && !isBuildPhase) {
         errors.push("NEXT_PUBLIC_BRAND_NAME is required in production");
     }
 
-    if (!process.env.NEXT_PUBLIC_BASE_URL && !process.env.VERCEL_URL) {
+    if (!process.env.NEXT_PUBLIC_BASE_URL) {
         errors.push("NEXT_PUBLIC_BASE_URL is required in production");
     }
 
