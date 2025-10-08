@@ -70,8 +70,13 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     printf 'POSTGRES_PASSWORD="%s"\n' "${POSTGRES_PASSWORD}"
     printf 'POSTGRES_USER="%s"\n' "${POSTGRES_USER}"
     printf 'ENV_NAME="%s"\n' "${ENV_NAME:-}"
-    printf 'HELLO_SMS_USERNAME="%s"\n' "${HELLO_SMS_USERNAME:-}"
-    printf 'HELLO_SMS_PASSWORD="%s"\n' "${HELLO_SMS_PASSWORD:-}"
+    # SMS configuration (conditional - only if credentials are provided)
+    if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
+        printf 'HELLO_SMS_USERNAME="%s"\n' "${HELLO_SMS_USERNAME}"
+    fi
+    if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
+        printf 'HELLO_SMS_PASSWORD="%s"\n' "${HELLO_SMS_PASSWORD}"
+    fi
     printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
     # White-label configuration (required in production)
     printf 'NEXT_PUBLIC_BRAND_NAME="%s"\n' "${BRAND_NAME}"

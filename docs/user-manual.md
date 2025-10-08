@@ -279,7 +279,7 @@ Two methods:
 1. **Automatic SMS**: Sent automatically when parcel created
 2. **Manual sharing**: Copy link or show QR code from dialog
 
-Public link format: `https://matkassen.org/p/[parcelId]`
+Public link format: `https://matcentralen.com/p/[parcelId]`
 
 Recipient can open link to see pickup details and QR code (no login required).
 
@@ -603,7 +603,7 @@ All SMS in Swedish (primary language). Link leads to public page with 20+ langua
 
 ### Public Parcel Page
 
-Accessible at: `https://matkassen.org/p/[parcelId]`
+Accessible at: `https://matcentralen.com/p/[parcelId]`
 
 **What recipients see**:
 
@@ -636,7 +636,7 @@ Language auto-detected from phone settings, can be manually changed.
 6. Admin system opens parcel details (requires login)
 7. Admin marks parcel as picked up
 
-QR code contains: `https://matkassen.org/schedule?parcel=[parcelId]`
+QR code contains: `https://matcentralen.com/schedule?parcel=[parcelId]`
 
 Scanning opens admin schedule page with parcel dialog automatically opened.
 
@@ -817,7 +817,7 @@ Useful if primary recipient cannot attend pickup.
 
 **Recipient's link doesn't work**
 
-- Verify complete URL (starts with https://matkassen.org/p/)
+- Verify complete URL (starts with https://matcentralen.com/p/)
 - Check parcel still exists in system
 - Try different browser
 

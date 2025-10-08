@@ -140,21 +140,21 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
         configLogged = true;
     }
 
-    // Validate configuration
+    // Normalize phone number (no logging needed)
+    const normalizedTo = normalizePhoneToE164(request.to);
+
+    // Handle test mode (works without credentials)
+    if (config.testMode) {
+        return getTestModeResponse(request);
+    }
+
+    // Validate configuration (only required for real SMS sending)
     if (!config.username || !config.password) {
-        console.error("❌ HelloSMS credentials not configured");
+        console.error("❌ HelloSMS credentials not configured (required for production SMS)");
         return {
             success: false,
             error: "HelloSMS credentials not configured",
         };
-    }
-
-    // Normalize phone number (no logging needed)
-    const normalizedTo = normalizePhoneToE164(request.to);
-
-    // Handle test mode
-    if (config.testMode) {
-        return getTestModeResponse(request);
     }
 
     try {

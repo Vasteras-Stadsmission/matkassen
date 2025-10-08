@@ -192,9 +192,14 @@ echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
 echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
-echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"
-echo "HELLO_SMS_PASSWORD=\"$HELLO_SMS_PASSWORD\"" >> "$APP_DIR/.env"
-echo "HELLO_SMS_TEST_MODE=\"$HELLO_SMS_TEST_MODE\"" >> "$APP_DIR/.env"
+# SMS configuration (conditional - only if credentials are provided)
+if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
+  echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"
+fi
+if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
+  echo "HELLO_SMS_PASSWORD=\"$HELLO_SMS_PASSWORD\"" >> "$APP_DIR/.env"
+fi
+echo "HELLO_SMS_TEST_MODE=\"${HELLO_SMS_TEST_MODE:-true}\"" >> "$APP_DIR/.env"
 # White-label configuration (required in production)
 echo "NEXT_PUBLIC_BRAND_NAME=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
 echo "NEXT_PUBLIC_BASE_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"

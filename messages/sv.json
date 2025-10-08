@@ -1,7 +1,7 @@
 {
     "common": {
-        "matkassen": "matkassen",
-        "welcome": "Välkommen till Matkassen",
+        "brandName": "Matcentralen",
+        "welcome": "Välkommen till Matcentralen",
         "description": "Administrationssystem för distribution av matkassar",
         "authStatus": "Autentiseringsstatus",
         "loggedInAs": "Du är inloggad som",
@@ -14,8 +14,8 @@
     "auth": {
         "login": "Logga in",
         "logout": "Logga ut",
-        "signInTitle": "Logga in på Matkassen",
-        "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matkassens administrationssystem.",
+        "signInTitle": "Logga in på Matcentralen",
+        "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matcentralens administrationssystem.",
         "signInWithGitHub": "Logga in med GitHub",
         "errorTitle": "Autentiseringsfel",
         "tryAgain": "Försök igen",
@@ -32,7 +32,7 @@
         }
     },
     "navigation": {
-        "matkassen": "Matkassen",
+        "brandName": "Matcentralen",
         "households": "Hushåll",
         "schedule": "Schema",
         "todayHandouts": "Dagens utlämningar",
@@ -859,7 +859,7 @@
             "deleting": "Avbokar...",
             "success": {
                 "parcelDeleted": "Paket avbokat",
-                "parcelDeletedMessage": "Matkassen har avbokats"
+                "parcelDeletedMessage": "Matcentralen har avbokats"
             },
             "errors": {
                 "parcelNotFound": "Paketet hittades inte",

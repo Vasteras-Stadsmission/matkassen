@@ -1,7 +1,7 @@
 {
     "common": {
-        "matkassen": "Matkassen",
-        "welcome": "Welcome to Matkassen",
+        "brandName": "Matcentralen",
+        "welcome": "Welcome to Matcentralen",
         "description": "Administration system for food parcel distribution",
         "authStatus": "Authentication status",
         "loggedInAs": "You are logged in as",
@@ -12,7 +12,7 @@
         }
     },
     "navigation": {
-        "matkassen": "Matkassen",
+        "brandName": "Matcentralen",
         "households": "Households",
         "schedule": "Schedule",
         "todayHandouts": "Today's Handouts",
@@ -25,8 +25,8 @@
     "auth": {
         "login": "Log in",
         "logout": "Log out",
-        "signInTitle": "Sign in to Matkassen",
-        "signInDescription": "Sign in with your GitHub account to access the Matkassen administration system.",
+        "signInTitle": "Sign in to Matcentralen",
+        "signInDescription": "Sign in with your GitHub account to access the Matcentralen administration system.",
         "signInWithGitHub": "Sign in with GitHub",
         "errorTitle": "Authentication Error",
         "tryAgain": "Try Again",

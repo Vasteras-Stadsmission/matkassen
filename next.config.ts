@@ -43,10 +43,6 @@ const nextConfig: NextConfig = {
                 "https://staging.matcentralen.com",
                 "https://matcentralen.com",
                 "https://www.matcentralen.com",
-                // Keep old domains during migration period for backward compatibility
-                "https://staging.matkassen.org",
-                "https://matkassen.org",
-                "https://www.matkassen.org",
             ],
         },
     },
