@@ -78,7 +78,7 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
                       echo "Export GitHub secrets into environment variables"
-                      export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+                      export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_STAGING }}"
                       export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
                       export POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
                       export EMAIL="${{ secrets.EMAIL }}"
@@ -137,7 +137,7 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
                       echo "Export GitHub secrets into environment variables"
-                      export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+                      export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_PRODUCTION }}"
                       export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
                       export POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
                       export EMAIL="${{ secrets.EMAIL }}"
