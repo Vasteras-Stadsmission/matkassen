@@ -43,13 +43,14 @@ fi
 echo "✅ All required environment variables are set."
 
 # Script Vars
-# Check if this is a production domain (no subdomain prefix like "staging.")
-if [[ ! "$DOMAIN_NAME" =~ ^staging\. ]]; then
+# Use ENV_NAME to explicitly determine production vs staging (more robust than domain pattern matching)
+# This aligns with how the rest of the deployment scripts make environment-specific decisions
+if [ "${ENV_NAME:-staging}" = "production" ]; then
   # For production domains, include www subdomain
   DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
 else
-  # For staging, don't include www
+  # For staging/other environments, don't include www
   DOMAIN_NAMES="$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME"
 fi

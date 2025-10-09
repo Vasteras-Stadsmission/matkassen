@@ -36,21 +36,20 @@ export const SMS_SENDER_NAME = (() => {
     // In production, we need a shorter SMS sender because HelloSMS has character limit
     // "Matcentralen" (12 chars) exceeds the limit, so provide a safe production default
     if (isProduction && !isBuildPhase) {
-        // If BRAND_NAME is set but no explicit SMS sender, truncate to allowed length
-        const brandName = process.env.NEXT_PUBLIC_BRAND_NAME;
-        if (brandName && brandName.length > HELLO_SMS_SENDER_MAX_LENGTH) {
+        // If BRAND_NAME exceeds character limit, truncate it
+        if (BRAND_NAME.length > HELLO_SMS_SENDER_MAX_LENGTH) {
             console.warn(
-                `⚠️  BRAND_NAME "${brandName}" (${brandName.length} chars) exceeds HelloSMS ${HELLO_SMS_SENDER_MAX_LENGTH}-char limit.` +
-                    `\n   Using truncated version: "${brandName.slice(0, HELLO_SMS_SENDER_MAX_LENGTH)}"` +
+                `⚠️  BRAND_NAME "${BRAND_NAME}" (${BRAND_NAME.length} chars) exceeds HelloSMS ${HELLO_SMS_SENDER_MAX_LENGTH}-char limit.` +
+                    `\n   Using truncated version: "${BRAND_NAME.slice(0, HELLO_SMS_SENDER_MAX_LENGTH)}"` +
                     `\n   Set NEXT_PUBLIC_SMS_SENDER or HELLO_SMS_FROM to override.`,
             );
-            return brandName.slice(0, HELLO_SMS_SENDER_MAX_LENGTH);
+            return BRAND_NAME.slice(0, HELLO_SMS_SENDER_MAX_LENGTH);
         }
-        return brandName || "AppSMS";
+        return BRAND_NAME;
     }
 
-    // Development/test fallback
-    return BRAND_NAME || "DevSMS";
+    // Development/test fallback - use BRAND_NAME (already has "DevApp" fallback)
+    return BRAND_NAME;
 })();
 
 export const BASE_URL = (() => {
