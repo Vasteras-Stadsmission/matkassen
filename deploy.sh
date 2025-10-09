@@ -327,6 +327,10 @@ sudo systemctl restart nginx
 # Build and run the Docker containers from the app directory
 cd "$APP_DIR"
 
+# Stop and remove existing containers to ensure clean state
+echo "Stopping existing containers (if any)..."
+sudo docker compose down || true
+
 # Check for existing Docker artifacts and handle them
 echo "Checking for existing Docker artifacts..."
 if [[ -d "$APP_DIR/.docker" ]]; then
