@@ -376,6 +376,23 @@ Adding new environment variables requires updates across multiple deployment fil
 - Never hardcode secrets in `docker-compose.yml`
 - Test locally before deploying
 
+## Database Security
+
+### Separate Passwords per Environment
+
+Staging and production databases use separate passwords for security isolation:
+
+- `POSTGRES_PASSWORD_STAGING` - Staging database only
+- `POSTGRES_PASSWORD_PRODUCTION` - Production database only
+
+**Benefits**: Compromised staging credentials don't affect production. Passwords can be rotated independently per environment.
+
+**Important**: When generating passwords, use URL-safe characters only (no `+`, `/`, or `=`):
+
+```bash
+openssl rand -base64 32 | tr -d '+/=' | head -c 32
+```
+
 ## Database Backups
 
 The system includes automated nightly PostgreSQL backups to Elastx Object Store:

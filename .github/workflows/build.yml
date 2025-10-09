@@ -61,10 +61,10 @@ jobs:
 
             - name: Verify migration files
               env:
-                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+                  POSTGRES_PASSWORD: ci-build-only
                   POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
                   POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-                  DATABASE_URL: postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
+                  DATABASE_URL: postgres://${{ secrets.POSTGRES_USER }}:ci-build-only@localhost:5432/${{ secrets.POSTGRES_DB }}
               run: |
                   # Check if there are schema changes that need migration files
                   SCHEMA_CHANGES=$(pnpm drizzle-kit check)
@@ -82,7 +82,7 @@ jobs:
 
             - name: Build
               env:
-                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+                  POSTGRES_PASSWORD: ci-build-only
                   POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
                   POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
                   EMAIL: ${{ secrets.EMAIL }}
