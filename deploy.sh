@@ -183,6 +183,9 @@ DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:54
 # Create the .env file inside the app directory (~/matkassen/.env)
 echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" > "$APP_DIR/.env"
 echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_APP_ID=\"$AUTH_GITHUB_APP_ID\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_APP_PRIVATE_KEY=\"$AUTH_GITHUB_APP_PRIVATE_KEY\"" >> "$APP_DIR/.env"
+echo "AUTH_GITHUB_APP_INSTALLATION_ID=\"$AUTH_GITHUB_APP_INSTALLATION_ID\"" >> "$APP_DIR/.env"
 echo "AUTH_REDIRECT_PROXY_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
 echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
