@@ -28,6 +28,27 @@ The project is designed to be branded for different organizations with minimal c
 
 Once these values are updated, the UI labels, SMS sender, and public pages reflect your organization automatically.
 
+## Authentication Setup
+
+The application requires **two** GitHub integrations for secure authentication:
+
+1. **GitHub OAuth App** - Handles user login
+   - Create at: https://github.com/settings/developers
+   - Set `Homepage URL` to your domain (e.g., `https://yourdomain.com`)
+   - Set `Authorization callback URL` to `https://yourdomain.com/api/auth/callback/github`
+   - Copy `Client ID` → `AUTH_GITHUB_ID`
+   - Generate secret → `AUTH_GITHUB_SECRET`
+
+2. **GitHub App** - Verifies organization membership (supports private members)
+   - Create at: https://github.com/organizations/YOUR_ORG/settings/apps
+   - Permissions: Organization → Members (Read-only)
+   - Install the app to your organization
+   - Copy `App ID` → `AUTH_GITHUB_APP_ID`
+   - Copy `Installation ID` from installation URL → `AUTH_GITHUB_APP_INSTALLATION_ID`
+   - Generate private key → `AUTH_GITHUB_APP_PRIVATE_KEY` (keep newlines: `\n`)
+
+Both are required. The OAuth App authenticates users, while the GitHub App checks if they belong to your organization.
+
 ## Getting Started
 
 ### Prerequisites
