@@ -85,7 +85,11 @@ if (isProduction && isServer && !isBuildPhase) {
     }
 
     if (BASE_URL && !BASE_URL.startsWith("https://")) {
-        errors.push(`BASE_URL must use HTTPS in production (got: ${BASE_URL})`);
+        const isLocalhost =
+            BASE_URL.startsWith("http://localhost") || BASE_URL.startsWith("http://127.0.0.1");
+        if (!isLocalhost) {
+            errors.push(`BASE_URL must use HTTPS in production (got: ${BASE_URL})`);
+        }
     }
 
     if (errors.length > 0) {
