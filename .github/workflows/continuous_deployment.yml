@@ -68,7 +68,7 @@ jobs:
         runs-on: ubuntu-latest
         environment:
             name: staging
-            url: https://staging.matkassen.org
+            url: https://staging.matcentralen.com
         steps:
             - name: Deploy to staging
               uses: appleboy/ssh-action@v1.2.2
@@ -89,11 +89,11 @@ jobs:
                       export AUTH_GITHUB_APP_PRIVATE_KEY="${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}"
                       export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
                       export GITHUB_ORG="vasteras-stadsmission"
-                      export DOMAIN_NAME="staging.matkassen.org"
+                      export DOMAIN_NAME="staging.matcentralen.com"
+                      export BRAND_NAME="Matcentralen"
                       export ENV_NAME="staging"
-                      export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
-                      export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
                       export HELLO_SMS_TEST_MODE="true"
+                      # SMS credentials not needed in staging (test mode only)
                       # Backups disabled on staging by policy (no secrets exported)
                       export SWIFT_PREFIX="backups/${ENV_NAME}"
 
@@ -126,7 +126,7 @@ jobs:
         needs: deploy-to-staging
         environment:
             name: production
-            url: https://matkassen.org
+            url: https://matcentralen.com
         runs-on: ubuntu-latest
         steps:
             - name: Deploy to production
@@ -148,11 +148,13 @@ jobs:
                       export AUTH_GITHUB_APP_PRIVATE_KEY="${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}"
                       export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
                       export GITHUB_ORG="vasteras-stadsmission"
-                      export DOMAIN_NAME="matkassen.org"
+                      export DOMAIN_NAME="matcentralen.com"
+                      export BRAND_NAME="Matcentralen"
+                      export SMS_SENDER="Matcentral"
                       export ENV_NAME="production"
                       export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
                       export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
-                      export HELLO_SMS_TEST_MODE="true"
+                      export HELLO_SMS_TEST_MODE="false"
                       # OpenStack Swift (env_auth) - hardcoded non-sensitive values
                       export OS_AUTH_TYPE=v3applicationcredential
                       export OS_AUTH_URL=https://ops.elastx.cloud:5000/v3

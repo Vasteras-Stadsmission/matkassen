@@ -26,7 +26,7 @@ This creates `nginx/local.conf` which is used by the Docker container.
 The production configuration is automatically generated during deployment by `deploy.sh`:
 
 ```bash
-./nginx/generate-nginx-config.sh production "matkassen.org www.matkassen.org" "matkassen.org"
+./nginx/generate-nginx-config.sh production "matcentralen.com www.matcentralen.com" "matcentralen.com"
 ```
 
 ## Configuration Synchronization
@@ -46,12 +46,12 @@ Both local and production configs are generated from the same template (`nginx.c
 
 ## Environment Variables Used
 
-| Variable              | Local Value  | Production Value                  |
-| --------------------- | ------------ | --------------------------------- |
-| `NGINX_PORT`          | `80`         | `443`                             |
-| `SSL_PARAMS`          | _(empty)_    | ` ssl`                            |
-| `SERVER_NAMES`        | `localhost`  | `matkassen.org www.matkassen.org` |
-| `NEXTJS_UPSTREAM`     | `nextjs`     | `localhost`                       |
-| `HTTP_REDIRECT_BLOCK` | Comment only | HTTP→HTTPS redirect               |
-| `SSL_CONFIG_BLOCK`    | Comment only | SSL certificate paths             |
-| `HSTS_HEADER`         | Comment only | HSTS security header              |
+| Variable              | Local Value  | Production Value                        |
+| --------------------- | ------------ | --------------------------------------- |
+| `NGINX_PORT`          | `80`         | `443`                                   |
+| `SSL_PARAMS`          | _(empty)_    | ` ssl`                                  |
+| `SERVER_NAMES`        | `localhost`  | `matcentralen.com www.matcentralen.com` |
+| `NEXTJS_UPSTREAM`     | `nextjs`     | `localhost`                             |
+| `HTTP_REDIRECT_BLOCK` | Comment only | HTTP→HTTPS redirect                     |
+| `SSL_CONFIG_BLOCK`    | Comment only | SSL certificate paths                   |
+| `HSTS_HEADER`         | Comment only | HSTS security header                    |

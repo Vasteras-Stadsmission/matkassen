@@ -6,6 +6,7 @@ import { db } from "@/app/db/drizzle";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { Time } from "@/app/utils/time-provider";
+import { generateUrl } from "@/app/config/branding";
 
 export interface PublicParcelData {
     id: string;
@@ -126,8 +127,5 @@ export function generateMapsUrls(locationName: string, address: string, postalCo
  * Generate admin URL for QR code
  */
 export function generateAdminUrl(parcelId: string): string {
-    const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        (process.env.NODE_ENV === "production" ? "https://matkassen.org" : "http://localhost:3000");
-    return `${baseUrl}/schedule?parcel=${parcelId}`; // Locale-agnostic, middleware will handle locale detection
+    return generateUrl(`/schedule?parcel=${parcelId}`); // Locale-agnostic, middleware will handle locale detection
 }

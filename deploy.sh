@@ -21,7 +21,7 @@ handle_error() {
 trap 'handle_error ${LINENO} $?' ERR
 
 # Verify that required environment variables are set
-required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME)
+required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME BRAND_NAME)
 missing_vars=()
 
 echo "Checking required environment variables..."
@@ -43,12 +43,14 @@ fi
 echo "✅ All required environment variables are set."
 
 # Script Vars
-if [[ "$DOMAIN_NAME" == "matkassen.org" ]]; then
-  # For production, include www subdomain
+# Use ENV_NAME to explicitly determine production vs staging (more robust than domain pattern matching)
+# This aligns with how the rest of the deployment scripts make environment-specific decisions
+if [ "${ENV_NAME:-staging}" = "production" ]; then
+  # For production domains, include www subdomain
   DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
 else
-  # For staging, don't include www
+  # For staging/other environments, don't include www
   DOMAIN_NAMES="$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME"
 fi
@@ -191,9 +193,21 @@ echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
 echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
-echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"
-echo "HELLO_SMS_PASSWORD=\"$HELLO_SMS_PASSWORD\"" >> "$APP_DIR/.env"
-echo "HELLO_SMS_TEST_MODE=\"$HELLO_SMS_TEST_MODE\"" >> "$APP_DIR/.env"
+# SMS configuration (conditional - only if credentials are provided)
+if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
+  echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"
+fi
+if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
+  echo "HELLO_SMS_PASSWORD=\"$HELLO_SMS_PASSWORD\"" >> "$APP_DIR/.env"
+fi
+echo "HELLO_SMS_TEST_MODE=\"${HELLO_SMS_TEST_MODE:-true}\"" >> "$APP_DIR/.env"
+# White-label configuration (required in production)
+echo "NEXT_PUBLIC_BRAND_NAME=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
+echo "NEXT_PUBLIC_BASE_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"
+# SMS sender name (optional - defaults to BRAND_NAME if not set)
+if [ -n "${SMS_SENDER:-}" ]; then
+  echo "NEXT_PUBLIC_SMS_SENDER=\"${SMS_SENDER}\"" >> "$APP_DIR/.env"
+fi
 
 # Install Nginx
 sudo apt install nginx -y

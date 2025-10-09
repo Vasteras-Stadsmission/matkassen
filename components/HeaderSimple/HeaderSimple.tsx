@@ -211,7 +211,7 @@ export function HeaderSimple() {
                         >
                             <Image src="/favicon.svg" alt="Logo" width={30} height={30} />
                             <Text component="span" fw={500} size="lg" ml={8}>
-                                {tCommon("common.matkassen")}
+                                {tCommon("common.brandName")}
                             </Text>
                         </TransitionLink>
                     </Box>

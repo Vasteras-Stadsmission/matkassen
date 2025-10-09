@@ -2,6 +2,9 @@
  * HelloSMS integration utility for sending SMS messages
  * Supports test mode for development/testing
  */
+import { SMS_SENDER_NAME } from "@/app/config/branding";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
+
 export interface HelloSmsConfig {
     apiUrl: string;
     username: string;
@@ -37,6 +40,10 @@ export interface HelloSmsApiResponse {
 // Cache configuration to prevent duplicate logging
 let cachedConfig: HelloSmsConfig | null = null;
 let hasLoggedConfig = false;
+
+const isProduction = process.env.NODE_ENV === "production";
+const isServer = typeof window === "undefined";
+const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 
 // Environment configuration
 export function getHelloSmsConfig(): HelloSmsConfig {
@@ -76,10 +83,33 @@ export function getHelloSmsConfig(): HelloSmsConfig {
         username: process.env.HELLO_SMS_USERNAME || "",
         password: process.env.HELLO_SMS_PASSWORD || "",
         testMode,
-        from: process.env.HELLO_SMS_FROM || "Matkassen",
+        from: SMS_SENDER_NAME,
     };
 
     return cachedConfig;
+}
+
+// Validate SMS configuration at server startup in production (not during build)
+if (isProduction && isServer && !isBuildPhase) {
+    const config = getHelloSmsConfig();
+
+    if (config.testMode) {
+        // Test mode doesn't require credentials - log warning and continue
+        console.warn("\n⚠️  WARNING: SMS TEST MODE ENABLED IN PRODUCTION");
+        console.warn("   No actual SMS messages will be sent!");
+        console.warn("   All SMS operations will return fake success responses.");
+        console.warn("   Set HELLO_SMS_TEST_MODE=false when ready for live SMS.\n");
+    } else {
+        // Live mode - credentials are mandatory
+        if (!config.username || !config.password) {
+            console.error("\n❌ SMS Configuration Error:");
+            console.error("   HELLO_SMS_USERNAME and HELLO_SMS_PASSWORD must be set for live SMS");
+            console.error("   (Set HELLO_SMS_TEST_MODE=true to use test mode without credentials)");
+            console.error("\nThe application cannot start without proper SMS configuration.\n");
+            process.exit(1); // Kill the server immediately
+        }
+        console.log("✅ SMS configuration validated (live mode)");
+    }
 }
 
 // Phone number validation and normalization to E.164 format
@@ -138,21 +168,22 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
         configLogged = true;
     }
 
-    // Validate configuration
+    // Normalize phone number (no logging needed)
+    const normalizedTo = normalizePhoneToE164(request.to);
+
+    // Handle test mode (returns fake success without calling API)
+    if (config.testMode) {
+        return getTestModeResponse(request);
+    }
+
+    // Validate credentials for live SMS
+    // (Production startup validation already checked this, but double-check for safety)
     if (!config.username || !config.password) {
-        console.error("❌ HelloSMS credentials not configured");
+        console.error("❌ HelloSMS credentials not configured (required for live SMS)");
         return {
             success: false,
             error: "HelloSMS credentials not configured",
         };
-    }
-
-    // Normalize phone number (no logging needed)
-    const normalizedTo = normalizePhoneToE164(request.to);
-
-    // Handle test mode
-    if (config.testMode) {
-        return getTestModeResponse(request);
     }
 
     try {

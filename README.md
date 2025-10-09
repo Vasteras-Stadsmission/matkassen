@@ -1,60 +1,72 @@
-# matkassen
+# Matkassen
 
-Matkassen is a web application for a food parcel system.
-Matkassen is based on https://github.com/leerob/next-self-host: Next.js, Postgres, Nginx, docker and deploying strategy for a VPS.
+Matkassen is an admin portal for coordinating food parcel distribution. It helps organizations manage households, schedule pickups, coordinate pickup locations, and send automated multilingual SMS reminders.
 
-## Repository rules
+## Features
 
-This repository has a protected `main` branch. To have something pushed to `main` you will have to create a pull request.
-To keep the git commit history in `main` clean, we use the **squash and merge** pattern using PR title and body as commit title and body.
+- Secure admin UI for managing households, schedules, and handout locations
+- Automated SMS notifications with reminder logic and SMS-management page
+- Locale-aware interface (Swedish default, English available) powered by `next-intl`
+- GitHub OAuth sign-in with organization membership enforcement
+- Public parcel lookup pages for households without authentication
 
-## Prerequisites
+## Tech Stack
 
-1. Purchase a domain name
-2. Purchase a Linux Ubuntu server (e.g. [droplet](https://www.digitalocean.com/products/droplets))
-3. Create an `A` DNS record pointing to your server IPv4 address
+- Next.js 15 (App Router, TypeScript strict mode)
+- PostgreSQL with Drizzle ORM migrations
+- Mantine UI + Tailwind CSS styling
+- NextAuth v5 with GitHub OAuth and GitHub App membership checks
+- Vitest unit tests and Playwright end-to-end tests
 
-## Continuous integration and deployment
+## White-Label Configuration
 
-This project runs on both a staging and production environment.
+The project is designed to be branded for different organizations with minimal changes.
 
-This repo contains GitHub actions which will automatically deploy your app to the staging environment when you push to the `main` branch (see `.github/workflows/continuous_deployment.yml`). To deploy to the production environment, you need to manually allow the deployment (requires certain GitHub privileges).
+1. Fork the repository and set your deployment secrets.
+2. Update the branded environment variables listed in `.env.example` (such as `BRAND_NAME`, `DOMAIN_NAME`, `SMS_SENDER`).
+3. Configure your GitHub OAuth App using your deployed domain for the homepage and callback URLs.
 
-Note, first-time deployment to a VPS is handled using GitHub action `./.github/workflows/init_deploy.yml`, which is triggered manually in GitHub.
+Once these values are updated, the UI labels, SMS sender, and public pages reflect your organization automatically.
 
-## Local Development Modes
+## Getting Started
 
-First you need to setup your environment:
+### Prerequisites
 
-1. Copy the `.env.example` file to create your own `.env` file:
+- Node.js 20 and [pnpm](https://pnpm.io/)
+- Docker (for PostgreSQL and full-stack preview)
+- GitHub OAuth credentials for local authentication
+
+### Setup
+
+1. Install dependencies:
+    ```bash
+    pnpm install
+    ```
+2. Copy the environment template and fill in the required values:
     ```bash
     cp .env.example .env
     ```
-2. Update the values in the .env file accordingly.
+3. Ensure Docker is running so the bundled PostgreSQL service can start when needed.
 
-Now, you choose between our two development modes:
+## Local Development
 
-### Mode 1: Fast Development
+### Fast Development
 
 ```bash
 pnpm run dev
 ```
 
-- Next.js runs locally (fastest hot reload)
-- PostgreSQL runs in Docker container
-- Access: http://localhost:3000
-- **Use this for**: Daily development, making changes, debugging
+- Runs Next.js locally with Dockerized PostgreSQL
+- Ideal for day-to-day development on http://localhost:3000
 
-### Mode 2: Full Stack Testing
+### Full Stack Preview
 
 ```bash
 pnpm run preview:production
 ```
 
-- Nginx + Next.js + PostgreSQL all run in Docker containers
-- Mirrors production environment (excluding SSL)
-- Access: http://localhost:8080
-- **Use this for**: Testing nginx configuration, rate limiting, proxy behavior, or any container-specific issues
+- Runs Nginx, Next.js, and PostgreSQL in Docker
+- Mirrors the production stack on http://localhost:8080 for integration testing
 
 ## Testing
 
@@ -63,9 +75,7 @@ pnpm run preview:production
 Run unit tests with Vitest:
 
 ```bash
-pnpm test              # Run once
-pnpm run test:watch    # Watch mode
-pnpm run test:ui       # Interactive UI
+pnpm test
 ```
 
 ### E2E Tests (Playwright)
@@ -214,54 +224,6 @@ The SMS system is designed for automatic operation, but includes manual triggers
 - No external cron jobs needed
 - Recommended for production Docker deployments
 
-**Manual Processing Endpoint**:
-
-```bash
-# Manually trigger SMS queue processing
-curl -X POST http://localhost:3000/api/admin/sms/process-queue
-```
-
-**Alternative: External Cron Setup**:
-For serverless deployments or additional reliability, you can set up external cron jobs:
-
-```bash
-# Example systemd timer (every 30 seconds)
-# /etc/systemd/system/sms-queue.timer
-[Unit]
-Description=SMS Queue Processing Timer
-
-[Timer]
-OnCalendar=*:*:00,30
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-
-# /etc/systemd/system/sms-queue.service
-[Unit]
-Description=SMS Queue Processing
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/curl -X POST https://matkassen.org/api/admin/sms/process-queue
-```
-
-```yaml
-# Example GitHub Actions workflow (every minute)
-name: SMS Queue Processing
-on:
-    schedule:
-        - cron: "* * * * *"
-jobs:
-    process-sms:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Trigger SMS Processing
-              run: curl -X POST https://matkassen.org/api/admin/sms/process-queue
-```
-
-**Note**: External cron is optional for the current Docker-based deployment but useful for serverless platforms like Vercel.
-
 ### Production Deployment
 
 **SMS System Reliability**:
@@ -360,7 +322,7 @@ The project uses Drizzle ORM with a migration-based approach:
 4. **Migration in Development**:
 
     - When using `pnpm run dev`, migrations apply automatically before the web service starts
-    - When using `pnpm run dev:nginx`, migrations run automatically when the containers start
+    - When using `pnpm run preview:production`, migrations run automatically when the containers start
 
 5. **Migration in Production**:
     - During deployment (`deploy.sh`) or updates (`update.sh`), migrations are automatically generated and applied
@@ -426,3 +388,13 @@ Note that sudo is needed when executing the commands on the VPS.
 - `sudo docker compose exec db bash -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB"` - enter Postgres db (uses container's environment)
 - `pnpm run db:generate` - generate new migration files from schema changes
 - `pnpm run db:migrate` - apply migrations to the database manually
+
+## Deployment
+
+Continuous deployment is configured for staging with manual promotion to production. GitHub Actions workflows in `.github/workflows/` handle the Docker-based VPS deployments, while `deploy.sh` and `update.sh` control on-server rollout. Update environment variables across these entry points when introducing new configuration.
+
+## Documentation
+
+- `docs/user-manual.md` – operator guide for the admin portal
+- `docs/user-flows.md` – key workflows for volunteers and staff
+- `AGENTS.md` – contribution guidance for AI assistants

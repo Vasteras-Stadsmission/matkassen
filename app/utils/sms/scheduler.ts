@@ -12,6 +12,7 @@ import {
 } from "@/app/utils/sms/sms-service";
 import { formatPickupSms } from "@/app/utils/sms/templates";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
+import { generateUrl } from "@/app/config/branding";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 
 // Import type only when needed
@@ -39,13 +40,8 @@ export async function enqueueReminderSms(): Promise<number> {
 
     for (const parcel of parcels) {
         try {
-            // Generate public URL for the parcel
-            const baseUrl =
-                process.env.NEXT_PUBLIC_BASE_URL ||
-                (process.env.NODE_ENV === "production"
-                    ? "https://matkassen.org"
-                    : "http://localhost:3000");
-            const publicUrl = `${baseUrl}/p/${parcel.parcelId}`;
+            // Generate public URL for the parcel using centralized config
+            const publicUrl = generateUrl(`/p/${parcel.parcelId}`);
 
             // Generate SMS text with Date object (formatting handled inside template function)
             const smsText = formatPickupSms(

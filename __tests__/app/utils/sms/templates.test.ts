@@ -14,14 +14,14 @@ describe("SMS Message Templates", () => {
 
         const templateData: SmsTemplateData = {
             pickupDate: testDate,
-            publicUrl: "matkassen.org/p/123456789012",
+            publicUrl: "matcentralen.com/p/123456789012",
         };
 
         it("should generate Swedish pickup SMS with correct localized format", () => {
             const message = formatPickupSms(templateData, "sv");
 
             expect(message).toContain("Matpaket");
-            expect(message).toMatch(/matkassen\.org/);
+            expect(message).toMatch(/matcentralen\.com/);
             // Don't test exact time due to timezone differences
         });
 
@@ -29,21 +29,21 @@ describe("SMS Message Templates", () => {
             const message = formatPickupSms(templateData, "en");
 
             expect(message).toContain("Food pickup");
-            expect(message).toMatch(/matkassen\.org/);
+            expect(message).toMatch(/matcentralen\.com/);
         });
 
         it("should generate Arabic SMS with proper format", () => {
             const message = formatPickupSms(templateData, "ar");
 
             expect(message).toContain("استلام الطعام");
-            expect(message).toMatch(/matkassen\.org/);
+            expect(message).toMatch(/matcentralen\.com/);
         });
 
         it("should generate German SMS with proper localized date", () => {
             const message = formatPickupSms(templateData, "de");
 
             expect(message).toContain("Essen");
-            expect(message).toMatch(/matkassen\.org/);
+            expect(message).toMatch(/matcentralen\.com/);
         });
 
         it("should use English as fallback for unknown locale", () => {
@@ -67,7 +67,7 @@ describe("SMS Message Templates", () => {
 
         const testData: SmsTemplateData = {
             pickupDate: longerDate,
-            publicUrl: "matkassen.org/p/123456789012", // Realistic URL length
+            publicUrl: "matcentralen.com/p/123456789012", // Realistic URL length
         };
 
         // All supported languages

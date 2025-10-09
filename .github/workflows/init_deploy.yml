@@ -64,13 +64,15 @@ jobs:
                       export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
                       export GITHUB_ORG="vasteras-stadsmission"
                       export ENV_NAME="${{ github.event.inputs.environment }}"
-                      export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
-                      export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
-                      export HELLO_SMS_TEST_MODE="true"
 
-                      # Set domain name based on environment
+                      # Set domain name and brand based on environment
                       if [ "${{ github.event.inputs.environment }}" == "production" ]; then
-                        export DOMAIN_NAME="matkassen.org"
+                        export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
+                        export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
+                        export SMS_SENDER="Matcentral"
+                        export HELLO_SMS_TEST_MODE="false"
+                        export DOMAIN_NAME="matcentralen.com"
+                        export BRAND_NAME="Matcentralen"
                         # OpenStack Swift (env_auth) for backups - hardcoded non-sensitive values
                         export OS_AUTH_TYPE=v3applicationcredential
                         export OS_AUTH_URL=https://ops.elastx.cloud:5000/v3
@@ -81,9 +83,13 @@ jobs:
                         export SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}"
                         export SLACK_CHANNEL_ID="${{ secrets.SLACK_CHANNEL_ID }}"
                       else
-                        export DOMAIN_NAME="staging.matkassen.org"
+                        export DOMAIN_NAME="staging.matcentralen.com"
+                        export BRAND_NAME="Matcentralen"
+                        export HELLO_SMS_TEST_MODE="true"
+                        # SMS credentials not needed in staging (test mode only)
                       fi
                       echo "Setting DOMAIN_NAME to $DOMAIN_NAME"
+                      echo "Setting BRAND_NAME to $BRAND_NAME"
 
                       # Derive Swift prefix from env name
                       export SWIFT_PREFIX="backups/${ENV_NAME}"

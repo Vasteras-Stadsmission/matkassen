@@ -40,9 +40,9 @@ const nextConfig: NextConfig = {
         serverActions: {
             allowedOrigins: [
                 "http://localhost:8080", // Local development through nginx
-                "https://staging.matkassen.org",
-                "https://matkassen.org",
-                "https://www.matkassen.org",
+                "https://staging.matcentralen.com",
+                "https://matcentralen.com",
+                "https://www.matcentralen.com",
             ],
         },
     },

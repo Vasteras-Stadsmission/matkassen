@@ -180,7 +180,7 @@ describe("formatCancellationSms", () => {
             const text = formatCancellationSms({ pickupDate: scheduledPickup, publicUrl }, "sv");
 
             // Cancellation is final - no URL needed
-            expect(text).not.toContain("matkassen.org");
+            expect(text).not.toContain("matcentralen.com");
             expect(text).not.toContain("http");
         });
     });

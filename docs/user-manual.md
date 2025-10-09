@@ -279,7 +279,7 @@ Two methods:
 1. **Automatic SMS**: Sent automatically when parcel created
 2. **Manual sharing**: Copy link or show QR code from dialog
 
-Public link format: `https://matkassen.org/p/[parcelId]`
+Public link format: `https://matcentralen.com/p/[parcelId]`
 
 Recipient can open link to see pickup details and QR code (no login required).
 
@@ -603,7 +603,7 @@ All SMS in Swedish (primary language). Link leads to public page with 20+ langua
 
 ### Public Parcel Page
 
-Accessible at: `https://matkassen.org/p/[parcelId]`
+Accessible at: `https://matcentralen.com/p/[parcelId]`
 
 **What recipients see**:
 
@@ -636,9 +636,20 @@ Language auto-detected from phone settings, can be manually changed.
 6. Admin system opens parcel details (requires login)
 7. Admin marks parcel as picked up
 
-QR code contains: `https://matkassen.org/schedule?parcel=[parcelId]`
+QR code contains: `https://matcentralen.com/schedule?parcel=[parcelId]`
 
 Scanning opens admin schedule page with parcel dialog automatically opened.
+
+**Scanning QR Codes - Best Practices:**
+
+- **On mobile phone**: Use your device's built-in camera app (fastest and most reliable)
+    - Simply open the Camera app and point at the QR code
+    - A notification will appear with the link - tap it to open
+    - No need to take a picture or press any buttons
+- **On laptop/desktop**: Use [scanapp.org](https://scanapp.org) to access your webcam
+    - Laptops typically don't have a quick-access camera app
+    - Web-based scanner works in any browser
+    - Grant camera permission when prompted
 
 ### Privacy and Access
 
@@ -817,7 +828,7 @@ Useful if primary recipient cannot attend pickup.
 
 **Recipient's link doesn't work**
 
-- Verify complete URL (starts with https://matkassen.org/p/)
+- Verify complete URL (starts with https://matcentralen.com/p/)
 - Check parcel still exists in system
 - Try different browser
 
@@ -828,10 +839,14 @@ Useful if primary recipient cannot attend pickup.
 
 **QR code won't scan**
 
-- Increase phone brightness to maximum
-- Clean phone screen
-- Try admin's phone camera
-- Admin can manually type parcel ID from URL
+- **On mobile phone**: Use your native Camera app for best results
+    - Open Camera app → point at QR code → tap the notification that appears
+    - More reliable than web-based scanners
+- **On laptop**: Use [scanapp.org](https://scanapp.org) to access your webcam
+- Increase phone brightness to maximum (for recipient's screen)
+- Clean phone screen (both the scanner's phone and recipient's screen)
+- Try a different angle or distance
+- Admin can manually find parcel instead (search by household name)
 
 **Want to change pickup time via public page**
 
