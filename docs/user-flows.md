@@ -20,9 +20,12 @@ flowchart LR
         SignIn["Sign-in /auth/signin<br/>- GitHub OAuth + org membership check<br/>- redirects to callback"]
         Home["Home /<br/>- AuthProtection ensures session<br/>- shows welcome copy + status"]
         Header["Header + layout<br/>- nav: Schedule / Households / Locations<br/>- LanguageSwitcher + Auth menu + Scan QR link"]
+        ScanQR["Scan QR<br/>- Mobile: Use native Camera app (fastest)<br/>- Laptop: Use scanapp.org<br/>- Opens schedule with parcel dialog"]
         MW -- no session --> SignIn
         MW -- session --> Home
         SignIn --> Home --> Header
+        Header --> ScanQR
+        ScanQR --> ParcelAdminDialog
 
         Header --> ScheduleHub
         ScheduleHub["Schedule Hub /schedule<br/>- location cards with today's counts<br/>- FavoriteStar confirmation modal<br/>- ?parcel deep-link -> redirect to location view"]

@@ -84,18 +84,18 @@
     "parcelManagement": {
         "breadcrumb": {
             "households": "Hushåll",
-            "manageParcels": "Hantera paket för {householdName}"
+            "manageParcels": "Hantera matkassar för {householdName}"
         },
         "success": {
             "title": "Klart",
-            "parcelsUpdated": "Matpaket har uppdaterats!"
+            "parcelsUpdated": "Matkassarna har uppdaterats!"
         },
         "error": {
             "title": "Fel",
             "general": "Ett fel uppstod",
             "unknown": "Okänt fel",
-            "updateFailed": "Det gick inte att uppdatera paket. Försök igen.",
-            "unauthorized": "Du måste vara autentiserad för att hantera paket",
+            "updateFailed": "Det gick inte att uppdatera matkassar. Försök igen.",
+            "unauthorized": "Du måste vara autentiserad för att hantera matkassar",
             "forbidden": "Du har inte behörighet att utföra denna åtgärd",
             "householdNotFound": "Det angivna hushållet finns inte",
             "configurationError": "Serverfel. Kontakta support."
@@ -103,17 +103,17 @@
         "validation": {
             "pickupLocationRequired": "Välj en upphämtningsplats",
             "title": "Kunde inte spara",
-            "description": "Paket kunde inte sparas på grund av valideringsfel",
-            "summaryTitle": "Paket kunde inte sparas",
+            "description": "Matkassar kunde inte sparas på grund av valideringsfel",
+            "summaryTitle": "Matkassar kunde inte sparas",
             "summaryDescription": "Följande problem måste åtgärdas:",
             "jumpToError": "↑ Hoppa till formuläret för att åtgärda"
         },
         "submitting": {
-            "update": "Uppdaterar paket..."
+            "update": "Uppdaterar matkassar..."
         },
         "actions": {
             "back": "Tillbaka till hushåll",
-            "saveParcels": "Spara paket"
+            "saveParcels": "Spara matkassar"
         },
         "backToHouseholds": "Tillbaka till hushåll"
     },
@@ -278,7 +278,7 @@
             "subtitle": "Välj en utlämningsplats för att visa scheman",
             "noLocations": "Inga utlämningsställen hittades",
             "noHandoutsToday": "Inga utlämningar idag",
-            "parcelsToday": "{count} paket idag",
+            "parcelsToday": "{count} matkassar idag",
             "completed": "slutförda",
             "todayHandouts": "Dagens utlämningar",
             "weeklySchedule": "Veckoschema",
@@ -310,7 +310,7 @@
                 "title": "Schema",
                 "selectView": "Välj vy",
                 "todayHandouts": "Dagens utlämningar",
-                "todayDescription": "Visa dagens schemalagda paket",
+                "todayDescription": "Visa dagens schemalagda matkassar",
                 "weeklySchedule": "Veckoschema",
                 "weeklyDescription": "Visa och hantera veckoschema",
                 "goToToday": "Gå till idag",
@@ -323,14 +323,14 @@
             "title": "Dagens utlämningar",
             "pageTitle": "Dagens utlämningar",
             "date": "{weekday}, {date}",
-            "selectLocation": "Välj en plats för att visa paket",
+            "selectLocation": "Välj en plats för att visa matkassar",
             "clearSelection": "Rensa val",
-            "noLocation": "Välj en plats för att visa dagens paket",
-            "noParcels": "Inga paket schemalagda idag på denna plats",
+            "noLocation": "Välj en plats för att visa dagens matkassar",
+            "noParcels": "Inga matkassar schemalagda idag på denna plats",
             "completed": "slutförda",
             "scheduled": "Schemalagd",
             "completedStatus": "Slutförd",
-            "parcels": "paket",
+            "parcels": "matkassar",
             "noTimeSpecified": "Ingen tid angiven",
             "parcel": {
                 "scheduled": "Schemalagd",
@@ -349,9 +349,9 @@
         "unavailableSlot": "Denna tid är utanför öppettiderna",
         "timeGap": "Tidshopp",
         "scheduleChangeWarning": "Varning för schemaändring",
-        "parcelsWillBeAffected": "Matpaket kommer att påverkas",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 matpaketshämtning} other {# matpaketshämtningar}} kommer att hamna utanför de nya öppettiderna.",
-        "parcelsAffectedExplanation": "Dessa paket kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
+        "parcelsWillBeAffected": "Matkassar kommer att påverkas",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
+        "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
         "proceedAnyway": "Fortsätt ändå",
         "outsideHours": {
             "panelTitle": "Utanför öppettider ({count})"
@@ -761,12 +761,12 @@
         "error": "Fel",
         "errorFetchingLocation": "Det uppstod ett fel vid hämtning av utlämningsstället. Försök igen.",
         "scheduleChangeWarning": "Varning för schemaändring",
-        "parcelsWillBeAffected": "Matpaket kommer att påverkas",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 matpaketshämtning} other {# matpaketshämtningar}} kommer att hamna utanför de nya öppettiderna.",
-        "parcelsAffectedExplanation": "Dessa paket kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
+        "parcelsWillBeAffected": "Matkassar kommer att påverkas",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
+        "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
         "proceedAnyway": "Fortsätt ändå",
         "checking": "Kontrollerar...",
-        "checkingAffectedParcels": "Kontrollerar hur många matpaket som skulle påverkas av denna radering..."
+        "checkingAffectedParcels": "Kontrollerar hur många matkassar som skulle påverkas av denna radering..."
     },
     "sms": {
         "title": "SMS-meddelanden",
@@ -790,7 +790,7 @@
         },
         "history": {
             "title": "SMS-historik",
-            "noSms": "Inga SMS-meddelanden skickade för detta paket",
+            "noSms": "Inga SMS-meddelanden skickade för denna matkasse",
             "intent": "Typ",
             "status": "Status",
             "attempts": "Försök",
@@ -806,7 +806,7 @@
             "locale": "Språk"
         },
         "notifications": {
-            "markedPickedUp": "Matpaket markerat som upphämtat",
+            "markedPickedUp": "Matkasse markerad som upphämtad",
             "smsQueued": "SMS köad för sändning",
             "smsResent": "SMS köad för omsändning",
             "deliverySimulated": "Leveransstatus simulerad",
@@ -820,8 +820,8 @@
     },
     "admin": {
         "parcelDialog": {
-            "title": "Paketinformation",
-            "loading": "Laddar paketdetaljer...",
+            "title": "Matkasseinformation",
+            "loading": "Laddar matkassedetaljer...",
             "pickupSchedule": "Hämtschema",
             "pickedUp": "Upphämtad",
             "notPickedUp": "Ej hämtad",
@@ -849,29 +849,29 @@
             "addComment": "Lägg till kommentar",
             "markPickedUp": "Markera som hämtat",
             "undoPickup": "Ångra hämtning",
-            "cancelParcel": "Avboka paket",
+            "cancelParcel": "Avboka matkasse",
             "deleteConfirmTitle": "Bekräfta avbokning",
-            "deleteConfirmMessage": "Är du säker på att du vill avboka detta paket? {smsWarning}",
+            "deleteConfirmMessage": "Är du säker på att du vill avboka denna matkasse? {smsWarning}",
             "smsWarning": "Ett avboknings-SMS kommer att skickas till hushållet.",
             "smsNoWarning": "Inget SMS har skickats ännu.",
             "confirmDelete": "Ja, avboka",
             "cancelDelete": "Avbryt",
             "deleting": "Avbokar...",
             "success": {
-                "parcelDeleted": "Paket avbokat",
-                "parcelDeletedMessage": "Matcentralen har avbokats"
+                "parcelDeleted": "Matkasse avbokad",
+                "parcelDeletedMessage": "Matkassen har avbokats"
             },
             "errors": {
-                "parcelNotFound": "Paketet hittades inte",
-                "loadFailed": "Misslyckades med att ladda paketdetaljer",
+                "parcelNotFound": "Matkassen hittades inte",
+                "loadFailed": "Misslyckades med att ladda matkassedetaljer",
                 "markPickupFailed": "Misslyckades med att markera som hämtat",
                 "undoPickupFailed": "Misslyckades med att ångra hämtning",
                 "addCommentFailed": "Misslyckades med att lägga till kommentar",
                 "deleteCommentFailed": "Misslyckades att ta bort kommentar",
                 "deleteCommentError": "Fel vid borttagning av kommentar",
-                "deleteParcelFailed": "Misslyckades med att avboka paket",
-                "parcelAlreadyPickedUp": "Kan inte avboka ett paket som redan är upphämtat",
-                "parcelInPast": "Kan inte avboka ett paket från det förflutna"
+                "deleteParcelFailed": "Misslyckades med att avboka matkassen",
+                "parcelAlreadyPickedUp": "Kan inte avboka en matkasse som redan är upphämtad",
+                "parcelInPast": "Kan inte avboka en matkasse från det förflutna"
             },
             "smsStatus": {
                 "title": "SMS-status"
@@ -891,7 +891,7 @@
                 "searchPlaceholder": "Sök namn...",
                 "clearFilters": "Rensa filter",
                 "refresh": "Uppdatera",
-                "showCancelled": "Visa inställda paket"
+                "showCancelled": "Visa avbokade matkassar"
             },
             "status": {
                 "queued": "Väntar",
@@ -917,7 +917,7 @@
                 "tryAgain": "Försök igen",
                 "sendAgain": "Skicka igen",
                 "viewHousehold": "Visa hushåll",
-                "viewParcel": "Visa matpaket"
+                "viewParcel": "Visa matkasse"
             },
             "itemInfo": {
                 "scheduledFor": "Schemalagd till {time}",

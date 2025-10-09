@@ -640,6 +640,17 @@ QR code contains: `https://matcentralen.com/schedule?parcel=[parcelId]`
 
 Scanning opens admin schedule page with parcel dialog automatically opened.
 
+**Scanning QR Codes - Best Practices:**
+
+- **On mobile phone**: Use your device's built-in camera app (fastest and most reliable)
+  - Simply open the Camera app and point at the QR code
+  - A notification will appear with the link - tap it to open
+  - No need to take a picture or press any buttons
+- **On laptop/desktop**: Use [scanapp.org](https://scanapp.org) to access your webcam
+  - Laptops typically don't have a quick-access camera app
+  - Web-based scanner works in any browser
+  - Grant camera permission when prompted
+
 ### Privacy and Access
 
 **Recipients CAN see**:
@@ -828,10 +839,14 @@ Useful if primary recipient cannot attend pickup.
 
 **QR code won't scan**
 
-- Increase phone brightness to maximum
-- Clean phone screen
-- Try admin's phone camera
-- Admin can manually type parcel ID from URL
+- **On mobile phone**: Use your native Camera app for best results
+  - Open Camera app → point at QR code → tap the notification that appears
+  - More reliable than web-based scanners
+- **On laptop**: Use [scanapp.org](https://scanapp.org) to access your webcam
+- Increase phone brightness to maximum (for recipient's screen)
+- Clean phone screen (both the scanner's phone and recipient's screen)
+- Try a different angle or distance
+- Admin can manually find parcel instead (search by household name)
 
 **Want to change pickup time via public page**
 
