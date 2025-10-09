@@ -20,6 +20,9 @@ const isServer = typeof window === "undefined";
 // which would cause misconfigured production deployments to silently skip validation.
 const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 
+// HelloSMS sender name character limit
+const HELLO_SMS_SENDER_MAX_LENGTH = 11;
+
 // Always provide safe defaults for build - validation happens at runtime
 export const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME || "DevApp";
 
@@ -30,18 +33,18 @@ export const SMS_SENDER_NAME = (() => {
         return explicitSender;
     }
 
-    // In production, we need a shorter SMS sender because HelloSMS has 11-char limit
+    // In production, we need a shorter SMS sender because HelloSMS has character limit
     // "Matcentralen" (12 chars) exceeds the limit, so provide a safe production default
     if (isProduction && !isBuildPhase) {
-        // If BRAND_NAME is set but no explicit SMS sender, truncate to 11 chars
+        // If BRAND_NAME is set but no explicit SMS sender, truncate to allowed length
         const brandName = process.env.NEXT_PUBLIC_BRAND_NAME;
-        if (brandName && brandName.length > 11) {
+        if (brandName && brandName.length > HELLO_SMS_SENDER_MAX_LENGTH) {
             console.warn(
-                `⚠️  BRAND_NAME "${brandName}" (${brandName.length} chars) exceeds HelloSMS 11-char limit.` +
-                    `\n   Using truncated version: "${brandName.slice(0, 11)}"` +
+                `⚠️  BRAND_NAME "${brandName}" (${brandName.length} chars) exceeds HelloSMS ${HELLO_SMS_SENDER_MAX_LENGTH}-char limit.` +
+                    `\n   Using truncated version: "${brandName.slice(0, HELLO_SMS_SENDER_MAX_LENGTH)}"` +
                     `\n   Set NEXT_PUBLIC_SMS_SENDER or HELLO_SMS_FROM to override.`,
             );
-            return brandName.slice(0, 11);
+            return brandName.slice(0, HELLO_SMS_SENDER_MAX_LENGTH);
         }
         return brandName || "AppSMS";
     }
