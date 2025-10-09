@@ -643,13 +643,13 @@ Scanning opens admin schedule page with parcel dialog automatically opened.
 **Scanning QR Codes - Best Practices:**
 
 - **On mobile phone**: Use your device's built-in camera app (fastest and most reliable)
-  - Simply open the Camera app and point at the QR code
-  - A notification will appear with the link - tap it to open
-  - No need to take a picture or press any buttons
+    - Simply open the Camera app and point at the QR code
+    - A notification will appear with the link - tap it to open
+    - No need to take a picture or press any buttons
 - **On laptop/desktop**: Use [scanapp.org](https://scanapp.org) to access your webcam
-  - Laptops typically don't have a quick-access camera app
-  - Web-based scanner works in any browser
-  - Grant camera permission when prompted
+    - Laptops typically don't have a quick-access camera app
+    - Web-based scanner works in any browser
+    - Grant camera permission when prompted
 
 ### Privacy and Access
 
@@ -840,8 +840,8 @@ Useful if primary recipient cannot attend pickup.
 **QR code won't scan**
 
 - **On mobile phone**: Use your native Camera app for best results
-  - Open Camera app → point at QR code → tap the notification that appears
-  - More reliable than web-based scanners
+    - Open Camera app → point at QR code → tap the notification that appears
+    - More reliable than web-based scanners
 - **On laptop**: Use [scanapp.org](https://scanapp.org) to access your webcam
 - Increase phone brightness to maximum (for recipient's screen)
 - Clean phone screen (both the scanner's phone and recipient's screen)
