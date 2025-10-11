@@ -27,6 +27,7 @@ import {
     IconBuilding,
     IconChevronDown,
     IconChevronUp,
+    IconTrash,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
@@ -36,6 +37,7 @@ import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/la
 import { HouseholdInfoCard } from "./HouseholdInfoCard";
 import { HouseholdMembersCard } from "./HouseholdMembersCard";
 import { ParcelList } from "./ParcelList";
+import { RemoveHouseholdDialog } from "./RemoveHouseholdDialog";
 import type { ParcelCardData } from "./ParcelCard";
 
 interface HouseholdDetailsPageProps {
@@ -61,6 +63,7 @@ export default function HouseholdDetailsPage({
     const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
     const [parcelDialogOpened, parcelDialogHandlers] = useDisclosure(false);
     const [cancelledOpened, cancelledHandlers] = useDisclosure(false);
+    const [removeDialogOpened, removeDialogHandlers] = useDisclosure(false);
 
     const householdName = householdData
         ? `${householdData.household.first_name} ${householdData.household.last_name}`
@@ -119,9 +122,18 @@ export default function HouseholdDetailsPage({
     }, [searchParams, pathname, router]);
 
     // Handle parcel update (pickup, delete, etc)
-    const handleParcelUpdated = useCallback(async () => {
-        await refreshHouseholdData();
-    }, [refreshHouseholdData]);
+    const handleParcelUpdated = useCallback(
+        async (action: "pickup" | "undo" | "delete") => {
+            if (action === "delete") {
+                // For deletions, we need a full refresh to update counts and remove from list
+                await refreshHouseholdData();
+            } else {
+                // For pickup status changes, the dialog shows updated status - no refetch needed
+                // The parent page doesn't display pickup status, so no visual update required
+            }
+        },
+        [refreshHouseholdData],
+    );
 
     // Handle adding a comment
     const handleAddComment = async (comment: string) => {
@@ -246,6 +258,14 @@ export default function HouseholdDetailsPage({
                             onClick={() => router.push(`/households/${householdId}/parcels`)}
                         >
                             {t("manageParcels")}
+                        </Button>
+                        <Button
+                            variant="light"
+                            color="red"
+                            leftSection={<IconTrash size="1rem" />}
+                            onClick={removeDialogHandlers.open}
+                        >
+                            {t("removeHousehold")}
                         </Button>
                     </Group>
                 </Group>
@@ -436,6 +456,14 @@ export default function HouseholdDetailsPage({
                     onParcelUpdated={handleParcelUpdated}
                 />
             )}
+
+            {/* Remove Household Dialog */}
+            <RemoveHouseholdDialog
+                opened={removeDialogOpened}
+                onClose={removeDialogHandlers.close}
+                householdId={householdId}
+                householdLastName={householdData?.household.last_name || ""}
+            />
         </Container>
     );
 }

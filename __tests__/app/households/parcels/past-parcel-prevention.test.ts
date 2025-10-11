@@ -40,7 +40,9 @@ vi.mock("@/app/db/drizzle", () => {
             values: vi.fn((values: any) => {
                 insertedParcels.push(...values);
                 return {
-                    onConflictDoNothing: vi.fn(() => Promise.resolve()),
+                    onConflictDoNothing: vi.fn(() => ({
+                        returning: vi.fn(() => Promise.resolve([])),
+                    })),
                 };
             }),
         })),

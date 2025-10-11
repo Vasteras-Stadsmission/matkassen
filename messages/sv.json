@@ -460,6 +460,7 @@
         "ageUnit": "år",
         "editHousehold": "Redigera hushåll",
         "manageParcels": "Hantera matkassar",
+        "removeHousehold": "Ta bort hushåll",
         "deletedOn": "Avbokad den",
         "by": "av",
         "status": {
@@ -470,6 +471,30 @@
         },
         "comments": {
             "title": "Kommentarer ({count})"
+        },
+        "removal": {
+            "dialogTitle": "Ta bort hushåll",
+            "lastName": "Efternamn",
+            "confirmationPrompt": "Skriv in efternamnet för att bekräfta:",
+            "confirmationHelp": "(Kopiera och klistra in är tillåtet)",
+            "warningCannotUndo": "Denna åtgärd kan inte ångras.",
+            "cancelButton": "Avbryt",
+            "removeButton": "Ta bort hushåll",
+            "removing": "Tar bort...",
+            "success": "Hushållet togs bort",
+            "anonymizedTitle": "Hushåll borttaget",
+            "anonymizedMessage": "Detta hushåll togs bort den {date}.",
+            "anonymizedSubtext": "Personuppgifter har raderats.",
+            "backToList": "Tillbaka till hushåll",
+            "errors": {
+                "notFound": "Hushållet hittades inte",
+                "alreadyRemoved": "Hushållet har redan tagits bort",
+                "lastNameMismatch": "Efternamnet matchar inte",
+                "hasUpcomingParcels": "Kan inte ta bort hushåll",
+                "upcomingParcelsMessage": "Detta hushåll har {count, plural, =1 {1 kommande matkasse} other {# kommande matkassar}}.",
+                "upcomingParcelsAction": "Ta bort dessa matkassar först, sedan kan hushållet tas bort.",
+                "removalFailed": "Misslyckades att ta bort hushåll"
+            }
         }
     },
     "comments": {

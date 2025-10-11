@@ -460,6 +460,7 @@
         "ageUnit": "years",
         "editHousehold": "Edit Household",
         "manageParcels": "Manage Parcels",
+        "removeHousehold": "Remove Household",
         "deletedOn": "Cancelled on",
         "by": "by",
         "status": {
@@ -470,6 +471,30 @@
         },
         "comments": {
             "title": "Comments ({count})"
+        },
+        "removal": {
+            "dialogTitle": "Remove Household",
+            "lastName": "Last name",
+            "confirmationPrompt": "Type the last name to confirm:",
+            "confirmationHelp": "(Copy-paste allowed)",
+            "warningCannotUndo": "This action cannot be undone.",
+            "cancelButton": "Cancel",
+            "removeButton": "Remove Household",
+            "removing": "Removing...",
+            "success": "Household removed successfully",
+            "anonymizedTitle": "Household Removed",
+            "anonymizedMessage": "This household was removed on {date}.",
+            "anonymizedSubtext": "Personal data has been deleted.",
+            "backToList": "Back to Households",
+            "errors": {
+                "notFound": "Household not found",
+                "alreadyRemoved": "Household has already been removed",
+                "lastNameMismatch": "Last name does not match",
+                "hasUpcomingParcels": "Cannot remove household",
+                "upcomingParcelsMessage": "This household has {count, plural, =1 {1 upcoming food parcel} other {# upcoming food parcels}}.",
+                "upcomingParcelsAction": "Delete those parcels first, then remove the household.",
+                "removalFailed": "Failed to remove household"
+            }
         }
     },
     "comments": {

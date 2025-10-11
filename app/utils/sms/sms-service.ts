@@ -86,6 +86,8 @@ export interface CreateSmsData {
     toE164: string;
     text: string;
     idempotencyKey?: string; // Optional - will be generated if not provided
+    nextAttemptAt?: Date; // Optional - defaults to immediate sending
+    tx?: Parameters<Parameters<typeof db.transaction>[0]>[0]; // Optional transaction object
 }
 
 export interface SmsRecord {
@@ -124,9 +126,13 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
     const id = nanoid(16);
     const now = Time.now().toUTC();
     const idempotencyKey = data.idempotencyKey || generateIdempotencyKey(data);
+    const nextAttemptAt = data.nextAttemptAt || now; // Default to immediate if not specified
+
+    // Use provided transaction or global db
+    const dbInstance = data.tx || db;
 
     try {
-        await db.insert(outgoingSms).values({
+        await dbInstance.insert(outgoingSms).values({
             id,
             intent: data.intent, // No cast needed - data.intent is already typed as SmsIntent and matches schema enum
             parcel_id: data.parcelId,
@@ -135,7 +141,7 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
             text: data.text,
             status: "queued",
             attempt_count: 0,
-            next_attempt_at: now, // Ready to send immediately
+            next_attempt_at: nextAttemptAt, // Use provided time or default to now
             idempotency_key: idempotencyKey,
             created_at: now,
         });
@@ -164,7 +170,7 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
             console.log(`🔄 SMS with idempotency key ${idempotencyKey} already exists, skipping`);
 
             // Find and return the existing record ID
-            const existing = await db
+            const existing = await dbInstance
                 .select({ id: outgoingSms.id })
                 .from(outgoingSms)
                 .where(eq(outgoingSms.idempotency_key, idempotencyKey))

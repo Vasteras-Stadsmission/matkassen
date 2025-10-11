@@ -37,7 +37,9 @@ vi.mock("@/app/db/drizzle", () => {
                 insertedParcels.push(...values);
                 // Return an object with onConflictDoNothing method for upsert support
                 return {
-                    onConflictDoNothing: vi.fn(() => Promise.resolve()),
+                    onConflictDoNothing: vi.fn(() => ({
+                        returning: vi.fn(() => Promise.resolve([])),
+                    })),
                 };
             }),
         })),

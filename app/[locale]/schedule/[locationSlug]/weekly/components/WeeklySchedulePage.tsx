@@ -219,10 +219,17 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         setAdminDialogParcelId(null);
     }, []);
 
-    const handleParcelUpdated = useCallback(() => {
-        handleParcelRescheduled();
-        closeAdminDialog();
-    }, [handleParcelRescheduled, closeAdminDialog]);
+    const handleParcelUpdated = useCallback(
+        (action: "pickup" | "undo" | "delete") => {
+            // Only refetch for deletions - pickup status doesn't affect schedule view
+            if (action === "delete") {
+                handleParcelRescheduled();
+            }
+            // For pickup/undo, dialog already shows updated status - no refetch needed
+            closeAdminDialog();
+        },
+        [handleParcelRescheduled, closeAdminDialog],
+    );
 
     // Helper function to get max parcels per day
     const getMaxParcelsPerDay = useCallback(() => {

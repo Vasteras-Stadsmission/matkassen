@@ -15,7 +15,7 @@ import {
     pickupLocations,
     householdComments,
 } from "@/app/db/schema";
-import { asc, eq, and } from "drizzle-orm";
+import { asc, eq, and, isNull } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
@@ -69,8 +69,11 @@ export async function fetchMultipleGithubUserData(usernames: string[]) {
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
-    // Get all households
-    const householdsData = await db.select().from(households);
+    // Get all households (excluding anonymized ones)
+    const householdsData = await db
+        .select()
+        .from(households)
+        .where(isNull(households.anonymized_at)); // Filter out anonymized households
 
     // For each household, get the food parcels
     const householdsWithParcels = await Promise.all(
@@ -119,6 +122,8 @@ export async function getHouseholdDetails(householdId: string) {
                 phone_number: households.phone_number,
                 locale: households.locale,
                 postal_code: households.postal_code,
+                anonymized_at: households.anonymized_at,
+                anonymized_by: households.anonymized_by,
             })
             .from(households)
             .where(eq(households.id, householdId))

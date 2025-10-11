@@ -189,6 +189,7 @@ export async function validateParcelAssignment({
             householdId = providedHouseholdId;
         } else {
             // For existing parcels, look up the parcel in the database
+            console.log("[validateParcelAssignment] Looking up existing parcel:", parcelId);
             const [parcel] = await dbInstance
                 .select({
                     id: foodParcels.id,
@@ -198,6 +199,12 @@ export async function validateParcelAssignment({
                 .from(foodParcels)
                 .where(and(eq(foodParcels.id, parcelId), notDeleted()))
                 .limit(1);
+
+            console.log("[validateParcelAssignment] Parcel lookup result:", {
+                parcelId,
+                found: !!parcel,
+                parcelData: parcel || "NOT FOUND",
+            });
 
             if (!parcel) {
                 errors.push({

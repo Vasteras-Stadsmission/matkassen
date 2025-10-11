@@ -464,6 +464,10 @@ export async function validateParcelAssignments(
 
             console.log("[validateParcelAssignments] Processing parcel:", {
                 parcelId: parcel.id,
+                parcelIdType: typeof parcel.id,
+                parcelIdTruthy: !!parcel.id,
+                isNewParcel,
+                householdId: parcel.householdId,
                 pickupDate: parcel.pickupDate,
                 pickupDateType: typeof parcel.pickupDate,
                 pickupDateConstructor: parcel.pickupDate?.constructor?.name,
@@ -475,6 +479,12 @@ export async function validateParcelAssignments(
 
             const dateString = parcel.pickupDate.toISOString().split("T")[0];
             console.log("[validateParcelAssignments] Converted date string:", dateString);
+            console.log("[validateParcelAssignments] isNewParcel determination:", {
+                parcelId: parcel.id,
+                hasId: !!parcel.id,
+                isNewParcel,
+                willUseHouseholdId: isNewParcel ? parcel.householdId : "N/A (existing parcel)",
+            });
 
             return {
                 parcelId: parcel.id || `temp_${Math.random()}`, // Generate temp ID for new parcels
