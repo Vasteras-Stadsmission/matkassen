@@ -299,12 +299,9 @@ function SchedulePageContent({
     };
 
     const handleParcelUpdated = async (action: "pickup" | "undo" | "delete") => {
-        // Only refetch for deletions - pickup status doesn't affect schedule view
-        if (action === "delete") {
-            if (!selectedLocationId || weekDates.length === 0) return;
-            await loadFoodParcels(selectedLocationId, weekDates, { force: true });
-        }
-        // For pickup/undo, dialog already shows updated status - no refetch needed
+        // Refetch for all actions - PickupCard status dots need fresh data
+        if (!selectedLocationId || weekDates.length === 0) return;
+        await loadFoodParcels(selectedLocationId, weekDates, { force: true });
     };
 
     const closeAdminDialog = () => {

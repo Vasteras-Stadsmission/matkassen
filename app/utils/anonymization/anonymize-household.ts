@@ -9,7 +9,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { households, householdComments, outgoingSms, foodParcels } from "@/app/db/schema";
-import { eq, and, gt, isNull, sql, desc } from "drizzle-orm";
+import { eq, and, gt, gte, isNull, sql, desc } from "drizzle-orm";
 
 /**
  * Result of removal operation
@@ -27,7 +27,12 @@ export async function canRemoveHousehold(householdId: string): Promise<{
     reason?: string;
     upcomingParcelCount?: number;
 }> {
-    const now = new Date();
+    // Use date-only comparison to match UI behavior (see HouseholdDetailsPage.isDateInPast)
+    // Same-day parcels are considered "upcoming" throughout the entire day
+    // This prevents deletion of households with parcels scheduled for today,
+    // even if the pickup window has already passed
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today (00:00:00)
 
     // Count upcoming parcels that are NOT soft-deleted
     const upcomingParcels = await db
@@ -37,7 +42,7 @@ export async function canRemoveHousehold(householdId: string): Promise<{
             and(
                 eq(foodParcels.household_id, householdId),
                 isNull(foodParcels.deleted_at), // Not soft-deleted
-                gt(foodParcels.pickup_date_time_earliest, now), // Future parcel
+                gte(foodParcels.pickup_date_time_earliest, today), // Today or future (date-only comparison)
             ),
         );
 

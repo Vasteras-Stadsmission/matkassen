@@ -67,22 +67,25 @@ describe("anonymize-household utilities", () => {
              *
              * LOGIC:
              * 1. Query food_parcels table for household
-             * 2. Filter: pickup_date_time_earliest >= NOW() AND deleted_at IS NULL
+             * 2. Filter: pickup_date_time_earliest >= START_OF_TODAY AND deleted_at IS NULL
              * 3. Count results
              * 4. If count = 0: return { allowed: true }
              * 5. If count > 0: return { allowed: false, upcomingParcelCount: count, reason: "..." }
              *
              * WHY THIS LOGIC:
-             * - Upcoming parcels = household is still active
+             * - Uses DATE-ONLY comparison (matches UI behavior in HouseholdDetailsPage.isDateInPast)
+             * - Same-day parcels are considered "upcoming" throughout the entire day
+             * - Prevents deletion of households with parcels scheduled for today, even if pickup window passed
              * - Soft-deleted parcels (deleted_at NOT NULL) are ignored
-             * - Historical parcels (past dates) don't block removal
+             * - Historical parcels (previous days) don't block removal
              * - This implements GDPR right to erasure with safeguards
              *
              * EDGE CASES TO TEST MANUALLY:
              * - Household with no parcels ever → allowed
-             * - Household with only past parcels → allowed
+             * - Household with only past parcels (yesterday or earlier) → allowed
              * - Household with only soft-deleted parcels → allowed
-             * - Household with 1 upcoming parcel → blocked (count = 1)
+             * - Household with 1 upcoming parcel (today or future) → blocked (count = 1)
+             * - Household with parcel today at 9am (even if it's now 3pm) → blocked
              * - Household with multiple upcoming parcels → blocked (count = N)
              * - Household with mix of past + upcoming → blocked (only upcoming count)
              * - Database connection failure → should throw error

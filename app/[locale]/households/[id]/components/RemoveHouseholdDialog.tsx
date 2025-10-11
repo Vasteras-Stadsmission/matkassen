@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Modal, Button, TextInput, Stack, Text, Alert } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { notifications } from "@mantine/notifications";
 import { removeHouseholdAction } from "../actions/remove-household";
 import { useRouter } from "@/app/i18n/navigation";
@@ -26,6 +26,7 @@ export function RemoveHouseholdDialog({
     onClose,
 }: RemoveHouseholdDialogProps) {
     const t = useTranslations("householdDetail");
+    const locale = useLocale();
     const [lastNameInput, setLastNameInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -40,6 +41,7 @@ export function RemoveHouseholdDialog({
         const result = await removeHouseholdAction({
             householdId,
             lastNameConfirmation: lastNameInput,
+            locale, // Pass locale for cache revalidation
         });
 
         setLoading(false);

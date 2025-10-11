@@ -11,6 +11,7 @@ import {
     type RemovalResult,
 } from "@/app/utils/anonymization/anonymize-household";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 /**
  * Input for household removal
@@ -18,6 +19,7 @@ import { revalidatePath } from "next/cache";
 interface RemoveHouseholdInput {
     householdId: string;
     lastNameConfirmation: string;
+    locale?: string; // Optional locale for cache revalidation
 }
 
 /**
@@ -30,7 +32,7 @@ interface RemoveHouseholdInput {
 export const removeHouseholdAction = protectedAction(
     async (session, input: RemoveHouseholdInput): Promise<ActionResult<RemovalResult>> => {
         try {
-            const { householdId, lastNameConfirmation } = input;
+            const { householdId, lastNameConfirmation, locale: inputLocale } = input;
 
             // 1. Fetch household to verify it exists and get last name
             const household = await db
@@ -83,9 +85,16 @@ export const removeHouseholdAction = protectedAction(
             const username = session.user?.githubUsername || "unknown";
             const result = await removeHousehold(householdId, username);
 
-            // 6. Revalidate household list and detail pages
-            revalidatePath("/[locale]/households", "page");
-            revalidatePath(`/[locale]/households/${householdId}`, "page");
+            // 6. Revalidate household list and detail pages with actual locale
+            // Try to get locale from: input > headers > default
+            let locale = inputLocale;
+            if (!locale) {
+                const headersList = await headers();
+                locale =
+                    headersList.get("x-next-intl-locale") || headersList.get("x-locale") || "sv";
+            }
+            revalidatePath(`/${locale}/households`, "page");
+            revalidatePath(`/${locale}/households/${householdId}`, "page");
 
             return success(result);
         } catch (error) {

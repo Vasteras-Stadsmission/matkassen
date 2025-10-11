@@ -221,11 +221,8 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
 
     const handleParcelUpdated = useCallback(
         (action: "pickup" | "undo" | "delete") => {
-            // Only refetch for deletions - pickup status doesn't affect schedule view
-            if (action === "delete") {
-                handleParcelRescheduled();
-            }
-            // For pickup/undo, dialog already shows updated status - no refetch needed
+            // Refetch for all actions - PickupCard status dots need fresh data
+            handleParcelRescheduled();
             closeAdminDialog();
         },
         [handleParcelRescheduled, closeAdminDialog],
