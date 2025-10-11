@@ -122,18 +122,10 @@ export default function HouseholdDetailsPage({
     }, [searchParams, pathname, router]);
 
     // Handle parcel update (pickup, delete, etc)
-    const handleParcelUpdated = useCallback(
-        async (action: "pickup" | "undo" | "delete") => {
-            if (action === "delete") {
-                // For deletions, we need a full refresh to update counts and remove from list
-                await refreshHouseholdData();
-            } else {
-                // For pickup status changes, the dialog shows updated status - no refetch needed
-                // The parent page doesn't display pickup status, so no visual update required
-            }
-        },
-        [refreshHouseholdData],
-    );
+    const handleParcelUpdated = useCallback(async () => {
+        // Always refresh - parcel cards display pickup status badges that need to update
+        await refreshHouseholdData();
+    }, [refreshHouseholdData]);
 
     // Handle adding a comment
     const handleAddComment = async (comment: string) => {
@@ -195,6 +187,11 @@ export default function HouseholdDetailsPage({
         return tWeekdays(dayKeys[dayIndex]);
     };
 
+    // Helper: Check if date is in the past
+    // NOTE: This checks DATE only, not time. Same-day parcels always count as "upcoming"
+    // even if the pickup window has passed, because households may arrive at different
+    // times and we don't want to prematurely show "not picked up" while staff are still
+    // processing arrivals throughout the day.
     const isDateInPast = (date: Date | string) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);

@@ -7,7 +7,7 @@
  * - Parcels <48h away: SMS scheduled with 5-minute grace period
  */
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { households } from "@/app/db/schema";
 import { Time } from "@/app/utils/time-provider";
 import { createSmsRecord } from "@/app/utils/sms/sms-service";
@@ -87,7 +87,7 @@ export async function queueSmsForNewParcels(
             // Use IN clause for multiple household IDs
             householdIds.length === 1
                 ? eq(households.id, householdIds[0])
-                : eq(households.id, households.id), // Fallback, will filter below
+                : inArray(households.id, householdIds),
         );
 
     // Create a map for quick lookup

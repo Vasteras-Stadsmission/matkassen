@@ -2,7 +2,7 @@
 
 import { Container, Paper, Stack, Title, Text, Button } from "@mantine/core";
 import { IconArchive } from "@tabler/icons-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/app/i18n/navigation";
 
 interface AnonymizedHouseholdPageProps {
@@ -11,8 +11,9 @@ interface AnonymizedHouseholdPageProps {
 
 export function AnonymizedHouseholdPage({ anonymizedAt }: AnonymizedHouseholdPageProps) {
     const t = useTranslations("householdDetail.removal");
+    const locale = useLocale();
 
-    const formattedDate = new Intl.DateTimeFormat("sv-SE", {
+    const formattedDate = new Intl.DateTimeFormat(locale, {
         year: "numeric",
         month: "long",
         day: "numeric",

@@ -135,7 +135,7 @@ export function ParcelAdminDialog({
 
         try {
             const response = await fetch(`/api/admin/parcel/${parcelId}/pickup`, {
-                method: "POST",
+                method: "PATCH",
             });
 
             if (!response.ok) {

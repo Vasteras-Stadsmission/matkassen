@@ -29,11 +29,13 @@ export function RemoveHouseholdDialog({
     const [lastNameInput, setLastNameInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [errorCode, setErrorCode] = useState<string | null>(null);
     const router = useRouter();
 
     const handleRemove = async () => {
         setLoading(true);
         setError(null);
+        setErrorCode(null);
 
         const result = await removeHouseholdAction({
             householdId,
@@ -57,12 +59,16 @@ export function RemoveHouseholdDialog({
                 // Extract count from message
                 const match = result.error.message.match(/(\d+) upcoming/);
                 const count = match ? parseInt(match[1]) : 0;
+                setErrorCode("HAS_UPCOMING_PARCELS");
                 setError(t("removal.errors.upcomingParcelsMessage" as any, { count } as any));
             } else if (result.error.code === "CONFIRMATION_MISMATCH") {
+                setErrorCode("CONFIRMATION_MISMATCH");
                 setError(t("removal.errors.lastNameMismatch" as any));
             } else if (result.error.code === "ALREADY_ANONYMIZED") {
+                setErrorCode("ALREADY_ANONYMIZED");
                 setError(t("removal.errors.alreadyRemoved" as any));
             } else {
+                setErrorCode("UNKNOWN");
                 setError(t("removal.errors.removalFailed" as any));
             }
         }
@@ -83,14 +89,14 @@ export function RemoveHouseholdDialog({
                     <Alert
                         color="red"
                         title={
-                            error.includes("upcoming")
+                            errorCode === "HAS_UPCOMING_PARCELS"
                                 ? t("removal.errors.hasUpcomingParcels" as any)
                                 : undefined
                         }
                         icon={<IconAlertTriangle size={16} />}
                     >
                         {error}
-                        {error.includes("upcoming") && (
+                        {errorCode === "HAS_UPCOMING_PARCELS" && (
                             <Text size="sm" mt="xs">
                                 {t("removal.errors.upcomingParcelsAction" as any)}
                             </Text>
