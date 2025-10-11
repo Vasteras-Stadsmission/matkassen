@@ -27,6 +27,7 @@ import {
     IconBuilding,
     IconChevronDown,
     IconChevronUp,
+    IconTrash,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
@@ -36,6 +37,7 @@ import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/la
 import { HouseholdInfoCard } from "./HouseholdInfoCard";
 import { HouseholdMembersCard } from "./HouseholdMembersCard";
 import { ParcelList } from "./ParcelList";
+import { RemoveHouseholdDialog } from "./RemoveHouseholdDialog";
 import type { ParcelCardData } from "./ParcelCard";
 
 interface HouseholdDetailsPageProps {
@@ -61,6 +63,7 @@ export default function HouseholdDetailsPage({
     const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
     const [parcelDialogOpened, parcelDialogHandlers] = useDisclosure(false);
     const [cancelledOpened, cancelledHandlers] = useDisclosure(false);
+    const [removeDialogOpened, removeDialogHandlers] = useDisclosure(false);
 
     const householdName = householdData
         ? `${householdData.household.first_name} ${householdData.household.last_name}`
@@ -120,6 +123,7 @@ export default function HouseholdDetailsPage({
 
     // Handle parcel update (pickup, delete, etc)
     const handleParcelUpdated = useCallback(async () => {
+        // Always refresh - parcel cards display pickup status badges that need to update
         await refreshHouseholdData();
     }, [refreshHouseholdData]);
 
@@ -183,6 +187,11 @@ export default function HouseholdDetailsPage({
         return tWeekdays(dayKeys[dayIndex]);
     };
 
+    // Helper: Check if date is in the past
+    // NOTE: This checks DATE only, not time. Same-day parcels always count as "upcoming"
+    // even if the pickup window has passed, because households may arrive at different
+    // times and we don't want to prematurely show "not picked up" while staff are still
+    // processing arrivals throughout the day.
     const isDateInPast = (date: Date | string) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -246,6 +255,14 @@ export default function HouseholdDetailsPage({
                             onClick={() => router.push(`/households/${householdId}/parcels`)}
                         >
                             {t("manageParcels")}
+                        </Button>
+                        <Button
+                            variant="light"
+                            color="red"
+                            leftSection={<IconTrash size="1rem" />}
+                            onClick={removeDialogHandlers.open}
+                        >
+                            {t("removeHousehold")}
                         </Button>
                     </Group>
                 </Group>
@@ -436,6 +453,14 @@ export default function HouseholdDetailsPage({
                     onParcelUpdated={handleParcelUpdated}
                 />
             )}
+
+            {/* Remove Household Dialog */}
+            <RemoveHouseholdDialog
+                opened={removeDialogOpened}
+                onClose={removeDialogHandlers.close}
+                householdId={householdId}
+                householdLastName={householdData?.household.last_name || ""}
+            />
         </Container>
     );
 }

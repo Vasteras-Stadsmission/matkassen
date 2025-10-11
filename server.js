@@ -18,19 +18,17 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-    // Start SMS scheduler for background processing (production only)
-    if (!dev) {
-        // Small delay to ensure app is fully ready before starting background services
-        setTimeout(() => {
-            try {
-                console.log("🚀 Starting SMS background scheduler...");
-                startSmsScheduler();
-                console.log("✅ SMS scheduler started successfully via custom server");
-            } catch (error) {
-                console.error("❌ Failed to start SMS scheduler:", error);
-            }
-        }, 1000); // 1 second delay
-    }
+    // Start SMS scheduler for background processing
+    // Small delay to ensure app is fully ready before starting background services
+    setTimeout(() => {
+        try {
+            console.log("🚀 Starting SMS background scheduler...");
+            startSmsScheduler();
+            console.log("✅ SMS scheduler started successfully");
+        } catch (error) {
+            console.error("❌ Failed to start SMS scheduler:", error);
+        }
+    }, 1000); // 1 second delay
 
     // Create HTTP server
     createServer(async (req, res) => {

@@ -498,6 +498,34 @@ Custom Next.js server (`server.js`) starts SMS scheduler automatically on produc
 - **E2E tests**: Use Playwright, prefer semantic selectors
 - **Add `data-testid`**: When semantic selectors aren't available
 - **Test independence**: Each test should work standalone
+
+## Business Logic & UX Patterns
+
+### Parcel Status Display Logic
+
+**Important:** Parcel status badges use **date-only** comparison, not time-based.
+
+**Intentional behavior:**
+
+- Same-day parcels ALWAYS show as "upcoming" (blue badge), even if pickup window has passed
+- Only parcels from PREVIOUS days show as "not picked up" (red badge)
+
+**Rationale:**
+
+- Households may arrive late throughout the day
+- Staff may be processing multiple arrivals
+- Pickup windows are guidelines, not hard cutoffs
+- We don't want to prematurely mark parcels as "not picked up" while staff are actively processing handouts
+
+**Staff workflow:**
+
+- Staff must MANUALLY mark parcels as picked up via the admin dialog
+- System only auto-shows "not picked up" for parcels from previous days that were never marked
+
+**Test coverage:** See `__tests__/app/households/parcel-status-display.test.ts` for documented test cases.
+
+**Code location:** `app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx` - `isDateInPast()` function
+
 - **Clean up**: Remove test data when possible
 
 ## Special Routes

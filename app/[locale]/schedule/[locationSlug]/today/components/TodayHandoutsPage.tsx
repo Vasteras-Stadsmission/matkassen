@@ -61,7 +61,6 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const [loading, setLoading] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [isFavorite, setIsFavorite] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Pull to refresh state
     const [pullDistance, setPullDistance] = useState(0);
@@ -90,86 +89,70 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     }, [searchParams, selectedParcelId, openDialog, closeDialog]);
 
     // Load data
-    const loadData = useCallback(
-        async (isRefresh = false) => {
-            if (isRefresh) {
-                setIsRefreshing(true);
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        setLocationError(null);
+
+        try {
+            // Load locations first to validate the slug
+            const locationsData = await getPickupLocations();
+
+            // Find the current location by slug
+            const location = findLocationBySlug(locationsData, locationSlug);
+
+            if (!location) {
+                setLocationError(`Location not found: ${locationSlug}`);
+                setLoading(false);
+                return;
+            }
+
+            setCurrentLocation(location);
+
+            // Check if current location is favorite
+            const favoriteResult = await getUserFavoriteLocation();
+
+            if (favoriteResult.success) {
+                setIsFavorite(favoriteResult.data === location.id);
             } else {
-                setLoading(true);
-            }
-            setLocationError(null);
-
-            try {
-                // Load locations first to validate the slug
-                const locationsData = await getPickupLocations();
-
-                // Find the current location by slug
-                const location = findLocationBySlug(locationsData, locationSlug);
-
-                if (!location) {
-                    setLocationError(`Location not found: ${locationSlug}`);
-                    if (isRefresh) {
-                        setIsRefreshing(false);
-                    } else {
-                        setLoading(false);
-                    }
-                    return;
-                }
-
-                setCurrentLocation(location);
-
-                // Check if current location is favorite
-                const favoriteResult = await getUserFavoriteLocation();
-
-                if (favoriteResult.success) {
-                    setIsFavorite(favoriteResult.data === location.id);
-                } else {
-                    console.error(
-                        "Failed to determine favorite location:",
-                        favoriteResult.error.message,
-                    );
-                    setIsFavorite(false);
-                }
-
-                // Load today's parcels
-                const parcelsData = await getTodaysParcels();
-
-                // Check if we need to fetch a specific parcel to get its location (but don't add it to the list)
-                const parcelId = searchParams.get("parcel");
-                if (parcelId && !parcelsData.find(p => p.id === parcelId)) {
-                    await getParcelById(parcelId);
-                }
-
-                // Filter parcels for the current location and enhance them
-                const locationParcels = parcelsData.filter(
-                    p => p.pickup_location_id === location.id,
+                console.error(
+                    "Failed to determine favorite location:",
+                    favoriteResult.error.message,
                 );
-                const enhancedParcels = locationParcels.map((parcel): TodayParcel => {
-                    return {
-                        ...parcel,
-                        locationName: location.name,
-                        timeSlot:
-                            format(parcel.pickupEarliestTime, "HH:mm") +
-                            "-" +
-                            format(parcel.pickupLatestTime, "HH:mm"),
-                        status: parcel.isPickedUp ? "completed" : "scheduled",
-                    };
-                });
-
-                setParcels(enhancedParcels);
-            } catch (error) {
-                console.error("Error loading today's parcels:", error);
-                setLocationError("Failed to load data");
-            } finally {
-                if (isRefresh) {
-                    setIsRefreshing(false);
-                } else {
-                    setLoading(false);
-                }
+                setIsFavorite(false);
             }
-        },
-        [locationSlug, searchParams],
-    );
+
+            // Load today's parcels
+            const parcelsData = await getTodaysParcels();
+
+            // Check if we need to fetch a specific parcel to get its location (but don't add it to the list)
+            const parcelId = searchParams.get("parcel");
+            if (parcelId && !parcelsData.find(p => p.id === parcelId)) {
+                await getParcelById(parcelId);
+            }
+
+            // Filter parcels for the current location and enhance them
+            const locationParcels = parcelsData.filter(p => p.pickup_location_id === location.id);
+            const enhancedParcels = locationParcels.map((parcel): TodayParcel => {
+                return {
+                    ...parcel,
+                    locationName: location.name,
+                    timeSlot:
+                        format(parcel.pickupEarliestTime, "HH:mm") +
+                        "-" +
+                        format(parcel.pickupLatestTime, "HH:mm"),
+                    status: parcel.isPickedUp ? "completed" : "scheduled",
+                };
+            });
+
+            setParcels(enhancedParcels);
+        } catch (error) {
+            console.error("Error loading today's parcels:", error);
+            setLocationError("Failed to load data");
+        } finally {
+            setLoading(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locationSlug]); // searchParams intentionally excluded - only used for deep link, not a refetch trigger
 
     useEffect(() => {
         loadData();
@@ -178,7 +161,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     // Listen for schedule grid refresh events (e.g., when parcels are updated elsewhere)
     useEffect(() => {
         const handleRefreshScheduleGrid = async () => {
-            await loadData(true); // Force refresh
+            await loadData(); // Force refresh
         };
 
         window.addEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
@@ -194,15 +177,10 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
         setIsFavorite(newIsFavorite);
     }, []);
 
-    const handleRefresh = useCallback(async () => {
-        if (!isRefreshing && !loading) {
-            await loadData(true);
-        }
-    }, [isRefreshing, loading, loadData]);
-
     // Handle parcel updates from ParcelAdminDialog
     const handleParcelUpdated = useCallback(async () => {
-        await loadData(true); // Force refresh
+        // For today's handouts, we show pickup status, so refetch on all actions
+        await loadData();
     }, [loadData]);
 
     // Handle dialog close - remove parcel parameter from URL
@@ -224,7 +202,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     const handleTouchMove = useCallback(
         (e: React.TouchEvent) => {
-            if (!canPull || isRefreshing || loading) return;
+            if (!canPull || loading) return;
 
             const currentY = e.touches[0].clientY;
             const diff = currentY - startY;
@@ -235,18 +213,18 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                 setPullDistance(Math.min(diff * 0.5, 80)); // Max 80px with resistance
             }
         },
-        [canPull, isRefreshing, loading, startY],
+        [canPull, loading, startY],
     );
 
     const handleTouchEnd = useCallback(() => {
         if (isPulling && pullDistance > 50) {
             // Trigger refresh if pulled far enough
-            handleRefresh();
+            loadData();
         }
         setIsPulling(false);
         setPullDistance(0);
         setCanPull(false);
-    }, [isPulling, pullDistance, handleRefresh]);
+    }, [isPulling, pullDistance, loadData]);
 
     // Handle parcel click
     const handleParcelClick = useCallback(
@@ -299,7 +277,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             }}
         >
             {/* Pull to refresh indicator */}
-            {(isPulling || isRefreshing) && (
+            {(isPulling || loading) && (
                 <div
                     style={{
                         position: "fixed",
@@ -413,47 +391,35 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                             </div>
 
                             {/* Bottom Row: Controls */}
-                            <Group justify="space-between" align="center">
-                                <Tabs value="today" variant="pills">
-                                    <Tabs.List>
-                                        <Tabs.Tab
-                                            value="today"
-                                            leftSection={<IconCalendarDue size={12} />}
-                                        >
-                                            <Text size="xs" hiddenFrom="sm">
-                                                {t("todayTab")}
-                                            </Text>
-                                            <Text size="sm" visibleFrom="sm">
-                                                {t("todayTab")}
-                                            </Text>
-                                        </Tabs.Tab>
-                                        <Tabs.Tab
-                                            value="weekly"
-                                            leftSection={<IconCalendar size={12} />}
-                                            onClick={() =>
-                                                router.push(`/schedule/${locationSlug}/weekly`)
-                                            }
-                                        >
-                                            <Text size="xs" hiddenFrom="sm">
-                                                {t("weeklyTab")}
-                                            </Text>
-                                            <Text size="sm" visibleFrom="sm">
-                                                {t("weeklyTab")}
-                                            </Text>
-                                        </Tabs.Tab>
-                                    </Tabs.List>
-                                </Tabs>
-
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    onClick={handleRefresh}
-                                    loading={isRefreshing}
-                                    visibleFrom="sm" // Hide on mobile for pull-to-refresh
-                                >
-                                    {t("refresh")}
-                                </Button>
-                            </Group>
+                            <Tabs value="today" variant="pills">
+                                <Tabs.List>
+                                    <Tabs.Tab
+                                        value="today"
+                                        leftSection={<IconCalendarDue size={12} />}
+                                    >
+                                        <Text size="xs" hiddenFrom="sm">
+                                            {t("todayTab")}
+                                        </Text>
+                                        <Text size="sm" visibleFrom="sm">
+                                            {t("todayTab")}
+                                        </Text>
+                                    </Tabs.Tab>
+                                    <Tabs.Tab
+                                        value="weekly"
+                                        leftSection={<IconCalendar size={12} />}
+                                        onClick={() =>
+                                            router.push(`/schedule/${locationSlug}/weekly`)
+                                        }
+                                    >
+                                        <Text size="xs" hiddenFrom="sm">
+                                            {t("weeklyTab")}
+                                        </Text>
+                                        <Text size="sm" visibleFrom="sm">
+                                            {t("weeklyTab")}
+                                        </Text>
+                                    </Tabs.Tab>
+                                </Tabs.List>
+                            </Tabs>
                         </Stack>
                     </Paper>
 

@@ -17,10 +17,9 @@ import {
     Text,
     Badge,
     Divider,
-    ActionIcon,
     Switch,
 } from "@mantine/core";
-import { IconSearch, IconFilter, IconRefresh, IconAlertCircle } from "@tabler/icons-react";
+import { IconSearch, IconFilter, IconAlertCircle } from "@tabler/icons-react";
 import type { SmsDashboardRecord } from "@/app/api/admin/sms/dashboard/route";
 import { SmsListItem } from "./SmsListItem";
 import { SmsStatistics } from "./SmsStatistics";
@@ -35,7 +34,6 @@ export default function SmsDashboardClient() {
     const [smsRecords, setSmsRecords] = useState<SmsDashboardRecord[]>([]);
     const [locations, setLocations] = useState<Array<{ value: string; label: string }>>([]);
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // AbortController to cancel in-flight requests and prevent race conditions
@@ -48,66 +46,58 @@ export default function SmsDashboardClient() {
     const showCancelled = searchParams.get("cancelled") === "true";
 
     // Fetch SMS data
-    const fetchData = useCallback(
-        async (isRefresh = false) => {
-            // Cancel any in-flight request to prevent race conditions
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
+    const fetchData = useCallback(async () => {
+        // Cancel any in-flight request to prevent race conditions
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Build query string
+            const params = new URLSearchParams();
+            if (locationFilter) params.set("location", locationFilter);
+            if (statusFilter) params.set("status", statusFilter);
+            if (searchQuery) params.set("search", searchQuery);
+            if (showCancelled) params.set("cancelled", "true");
+
+            const response = await fetch(`/api/admin/sms/dashboard?${params.toString()}`, {
+                signal: abortControllerRef.current.signal,
+            });
+            if (!response.ok) {
+                throw new Error("Failed to fetch SMS data");
             }
-            abortControllerRef.current = new AbortController();
 
-            if (isRefresh) {
-                setRefreshing(true);
-            } else {
-                setLoading(true);
+            const data = await response.json();
+            setSmsRecords(data);
+
+            // Extract unique locations
+            const uniqueLocations = Array.from(
+                new Set(data.map((record: SmsDashboardRecord) => record.locationId)),
+            )
+                .map(id => {
+                    const record = data.find((r: SmsDashboardRecord) => r.locationId === id);
+                    return {
+                        value: id as string,
+                        label: (record?.locationName || id) as string,
+                    };
+                })
+                .sort((a, b) => a.label.localeCompare(b.label));
+
+            setLocations(uniqueLocations);
+        } catch (err) {
+            // Ignore aborted requests - they're intentional cancellations
+            if (err instanceof Error && err.name === "AbortError") {
+                return;
             }
-            setError(null);
-
-            try {
-                // Build query string
-                const params = new URLSearchParams();
-                if (locationFilter) params.set("location", locationFilter);
-                if (statusFilter) params.set("status", statusFilter);
-                if (searchQuery) params.set("search", searchQuery);
-                if (showCancelled) params.set("cancelled", "true");
-
-                const response = await fetch(`/api/admin/sms/dashboard?${params.toString()}`, {
-                    signal: abortControllerRef.current.signal,
-                });
-                if (!response.ok) {
-                    throw new Error("Failed to fetch SMS data");
-                }
-
-                const data = await response.json();
-                setSmsRecords(data);
-
-                // Extract unique locations
-                const uniqueLocations = Array.from(
-                    new Set(data.map((record: SmsDashboardRecord) => record.locationId)),
-                )
-                    .map(id => {
-                        const record = data.find((r: SmsDashboardRecord) => r.locationId === id);
-                        return {
-                            value: id as string,
-                            label: (record?.locationName || id) as string,
-                        };
-                    })
-                    .sort((a, b) => a.label.localeCompare(b.label));
-
-                setLocations(uniqueLocations);
-            } catch (err) {
-                // Ignore aborted requests - they're intentional cancellations
-                if (err instanceof Error && err.name === "AbortError") {
-                    return;
-                }
-                setError(err instanceof Error ? err.message : "Unknown error");
-            } finally {
-                setLoading(false);
-                setRefreshing(false);
-            }
-        },
-        [locationFilter, statusFilter, searchQuery, showCancelled],
-    );
+            setError(err instanceof Error ? err.message : "Unknown error");
+        } finally {
+            setLoading(false);
+        }
+    }, [locationFilter, statusFilter, searchQuery, showCancelled]);
 
     // Initial fetch
     useEffect(() => {
@@ -189,30 +179,19 @@ export default function SmsDashboardClient() {
     return (
         <Stack gap="lg">
             {/* Header */}
-            <Group justify="space-between" align="flex-start">
-                <Stack gap="xs">
-                    <Title order={1}>{t("admin.smsDashboard.title")}</Title>
-                    <Group gap="md">
-                        <Text size="sm" c="dimmed">
-                            {t("admin.smsDashboard.pendingCount", { count: pendingCount })}
-                        </Text>
-                        {failureCount > 0 && (
-                            <Badge color="red" variant="filled">
-                                {t("admin.smsDashboard.failureCount", { count: failureCount })}
-                            </Badge>
-                        )}
-                    </Group>
-                </Stack>
-                <ActionIcon
-                    variant="light"
-                    size="lg"
-                    onClick={() => fetchData(true)}
-                    loading={refreshing}
-                    title={t("admin.smsDashboard.filters.refresh")}
-                >
-                    <IconRefresh size={18} />
-                </ActionIcon>
-            </Group>
+            <Stack gap="xs">
+                <Title order={1}>{t("admin.smsDashboard.title")}</Title>
+                <Group gap="md">
+                    <Text size="sm" c="dimmed">
+                        {t("admin.smsDashboard.pendingCount", { count: pendingCount })}
+                    </Text>
+                    {failureCount > 0 && (
+                        <Badge color="red" variant="filled">
+                            {t("admin.smsDashboard.failureCount", { count: failureCount })}
+                        </Badge>
+                    )}
+                </Group>
+            </Stack>
 
             {/* Filters */}
             <Group gap="md" wrap="wrap">
@@ -310,7 +289,14 @@ export default function SmsDashboardClient() {
                             labelPosition="left"
                         />
                         {records.map(sms => (
-                            <SmsListItem key={sms.id} sms={sms} onUpdate={() => fetchData(true)} />
+                            <SmsListItem
+                                key={sms.id}
+                                sms={sms}
+                                onUpdate={() => {
+                                    // SMS dashboard shows parcel and household status, so always refetch
+                                    fetchData();
+                                }}
+                            />
                         ))}
                     </Stack>
                 ))}

@@ -138,7 +138,8 @@ export function TodayHandoutsPage() {
         } finally {
             setLoading(false);
         }
-    }, [searchParams, selectedLocation]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedLocation]); // searchParams intentionally excluded - only used for deep link, not a refetch trigger
 
     useEffect(() => {
         loadData();
@@ -210,6 +211,7 @@ export function TodayHandoutsPage() {
 
     // Handle parcel updates from ParcelAdminDialog
     const handleParcelUpdated = useCallback(async () => {
+        // For today's handouts, we show pickup status, so refetch on all actions
         await loadData();
     }, [loadData]);
 

@@ -5,8 +5,8 @@ import { useTranslations } from "next-intl";
 import { Paper, Group, Text, Badge, Stack, Menu, ActionIcon, Box, Alert } from "@mantine/core";
 import { IconDots, IconSend, IconUser, IconPackage, IconAlertCircle } from "@tabler/icons-react";
 import type { SmsDashboardRecord } from "@/app/api/admin/sms/dashboard/route";
-import { SmsActionButton } from "@/components/SmsActionButton";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
+import { useSmsAction } from "@/app/hooks/useSmsAction";
 import { Link } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
@@ -18,6 +18,7 @@ interface SmsListItemProps {
 export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
     const t = useTranslations() as TranslationFunction;
     const [dialogOpen, setDialogOpen] = useState(false);
+    const { sendSms, isLoading } = useSmsAction();
 
     // Combine first and last name
     const householdName = `${sms.householdFirstName} ${sms.householdLastName}`;
@@ -134,27 +135,22 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                                 {sms.status !== "cancelled" && (
                                     <Menu.Item
                                         leftSection={<IconSend size={16} />}
-                                        onClick={e => {
+                                        onClick={async e => {
                                             e.stopPropagation();
-                                        }}
-                                    >
-                                        <SmsActionButton
-                                            parcelId={sms.parcelId}
-                                            smsStatus={
-                                                sms.status as
-                                                    | "queued"
-                                                    | "sending"
-                                                    | "sent"
-                                                    | "retrying"
-                                                    | "failed"
-                                                    | "cancelled"
+                                            try {
+                                                await sendSms(sms.parcelId);
+                                                onUpdate();
+                                            } catch (error) {
+                                                console.error("SMS send error:", error);
                                             }
-                                            onSuccess={onUpdate}
-                                            variant="subtle"
-                                            size="xs"
-                                            fullWidth
-                                            style={{ textAlign: "left", padding: 0 }}
-                                        />
+                                        }}
+                                        disabled={isLoading}
+                                    >
+                                        {sms.status === "failed"
+                                            ? t("admin.smsDashboard.actions.tryAgain")
+                                            : sms.status === "sent"
+                                              ? t("admin.smsDashboard.actions.sendAgain")
+                                              : t("admin.smsDashboard.actions.sendNow")}
                                     </Menu.Item>
                                 )}
 
@@ -191,7 +187,7 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                 parcelId={sms.parcelId}
                 opened={dialogOpen}
                 onClose={() => setDialogOpen(false)}
-                onParcelUpdated={onUpdate}
+                onParcelUpdated={() => onUpdate()}
             />
         </>
     );

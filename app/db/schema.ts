@@ -49,6 +49,8 @@ export const households = pgTable(
         phone_number: varchar("phone_number", { length: 20 }).notNull(),
         locale: varchar("locale", { length: 2 }).notNull(),
         postal_code: varchar("postal_code", { length: 5 }).notNull(),
+        anonymized_at: timestamp({ precision: 1, withTimezone: true }), // Timestamp when household was anonymized (NULL = active)
+        anonymized_by: varchar("anonymized_by", { length: 50 }), // GitHub username of admin who anonymized
     },
     table => [
         check(

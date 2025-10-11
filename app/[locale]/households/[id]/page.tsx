@@ -4,6 +4,7 @@ import { AuthProtection } from "@/components/AuthProtection";
 import { getHouseholdDetails } from "../actions";
 import HouseholdDetailsPage from "./components/HouseholdDetailsPage";
 import { HouseholdDetailsPageSkeleton } from "./components/HouseholdDetailsPageSkeleton";
+import { AnonymizedHouseholdPage } from "./components/AnonymizedHouseholdPage";
 import { getTranslations } from "next-intl/server";
 
 interface HouseholdPageProps {
@@ -24,6 +25,13 @@ export async function generateMetadata({ params }: HouseholdPageProps) {
         };
     }
 
+    // Check if anonymized
+    if (householdDetails.household.anonymized_at) {
+        return {
+            title: `Household Removed - ${t("title")}`,
+        };
+    }
+
     const householdName = `${householdDetails.household.first_name} ${householdDetails.household.last_name}`;
 
     return {
@@ -37,6 +45,15 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
 
     if (!householdDetails) {
         notFound();
+    }
+
+    // If household is anonymized, show special page
+    if (householdDetails.household.anonymized_at) {
+        return (
+            <AuthProtection>
+                <AnonymizedHouseholdPage anonymizedAt={householdDetails.household.anonymized_at} />
+            </AuthProtection>
+        );
     }
 
     return (

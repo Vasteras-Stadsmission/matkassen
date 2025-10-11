@@ -41,7 +41,7 @@ interface ParcelAdminDialogProps {
     parcelId: string | null;
     opened: boolean;
     onClose: () => void;
-    onParcelUpdated?: () => void;
+    onParcelUpdated?: (action: "pickup" | "undo" | "delete") => void;
 }
 
 interface SmsRecord {
@@ -145,7 +145,7 @@ export function ParcelAdminDialog({
 
             // Refresh data and notify parent
             await fetchParcelDetails();
-            onParcelUpdated?.();
+            onParcelUpdated?.("pickup");
         } catch {
             setState(prev => ({
                 ...prev,
@@ -155,7 +155,6 @@ export function ParcelAdminDialog({
             setState(prev => ({ ...prev, submitting: false }));
         }
     };
-
     const handleUndoPickup = async () => {
         if (!parcelId) return;
 
@@ -173,7 +172,7 @@ export function ParcelAdminDialog({
 
             // Refresh data and notify parent
             await fetchParcelDetails();
-            onParcelUpdated?.();
+            onParcelUpdated?.("undo");
         } catch {
             setState(prev => ({
                 ...prev,
@@ -299,7 +298,7 @@ export function ParcelAdminDialog({
                         icon: <IconCheck size="1rem" />,
                     });
 
-                    onParcelUpdated?.();
+                    onParcelUpdated?.("delete");
                     handleClose();
                 } catch (error) {
                     setState(prev => ({

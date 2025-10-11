@@ -220,6 +220,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
     }, []);
 
     const handleParcelUpdated = useCallback(() => {
+        // Refetch for all actions - PickupCard status dots need fresh data
         handleParcelRescheduled();
         closeAdminDialog();
     }, [handleParcelRescheduled, closeAdminDialog]);

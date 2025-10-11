@@ -21,7 +21,6 @@ import {
     Alert,
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
-import { nanoid } from "@/app/db/schema";
 import { toStockholmTime, minutesToHHmm, subtractMinutesFromHHmm } from "@/app/utils/date-utils";
 import {
     IconClock,
@@ -489,6 +488,27 @@ export default function FoodParcelsForm({
             }
         }
 
+        // Check if this is today and all opening hours have passed
+        const now = new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (dateForComparison.getTime() === today.getTime()) {
+            // Get opening hours for today
+            const openingHours = getOpeningHoursForDate(localDate);
+            if (openingHours) {
+                const [closeHour, closeMinute] = openingHours.closingTime
+                    .split(":")
+                    .map(n => parseInt(n, 10));
+                const closingTime = new Date(localDate);
+                closingTime.setHours(closeHour, closeMinute, 0, 0);
+
+                // If current time is past closing time, exclude today
+                if (now >= closingTime) {
+                    return true; // Exclude today - all opening hours have passed
+                }
+            }
+        }
+
         // For unselected dates, perform the capacity check
         const year = localDate.getFullYear();
         const month = String(localDate.getMonth() + 1).padStart(2, "0");
@@ -736,21 +756,14 @@ export default function FoodParcelsForm({
     );
 
     const generateParcels = useCallback((): FoodParcel[] => {
-        // First preserve existing parcels by their ID
-        const existingParcelsById = new Map();
-        formState.parcels.forEach(parcel => {
-            if (parcel.id) {
-                existingParcelsById.set(parcel.id, parcel);
-            }
-        });
-
-        // Track which date strings we've already processed
-        const processedDates = new Set();
+        // Track which date strings we've already processed to avoid duplicates
+        const processedDates = new Set<string>();
 
         return selectedDates.map(date => {
             const dateString = new Date(date).toDateString();
 
             // Find an existing parcel for this exact date if there is one
+            // CRITICAL: Only reuse parcels whose dates are still in selectedDates
             const existingParcel = formState.parcels.find(
                 p =>
                     new Date(p.pickupDate).toDateString() === dateString &&
@@ -778,9 +791,10 @@ export default function FoodParcelsForm({
             const latestTime = new Date(earliestTime);
             latestTime.setMinutes(latestTime.getMinutes() + slotDuration);
 
-            // Always generate a new ID for new parcels
+            // Do NOT pre-generate IDs for new parcels - let the server handle it
+            // The absence of an ID signals to the backend that this is a new parcel
             return {
-                id: nanoid(8),
+                id: undefined,
                 pickupDate: new Date(date),
                 pickupEarliestTime: earliestTime,
                 pickupLatestTime: latestTime,
@@ -922,9 +936,9 @@ export default function FoodParcelsForm({
     }, [data.parcels, formState.parcels]);
 
     useEffect(() => {
-        if (selectedDates.length > 0) {
-            applyChanges();
-        }
+        // CRITICAL: Always apply changes when selectedDates changes, even when empty
+        // This ensures deselecting all dates properly clears the parcels list
+        applyChanges();
     }, [selectedDates, applyChanges]);
 
     const applyBulkTimeUpdate = () => {
@@ -1058,11 +1072,44 @@ export default function FoodParcelsForm({
                                 {t("validationErrors.title", { default: "Validation Errors" })}
                             </Text>
                         </Group>
-                        {validationErrors.map(error => (
-                            <Text key={`${error.field}-${error.code}`} size="sm" c="red" ml="lg">
-                                • {error.message}
-                            </Text>
-                        ))}
+                        {validationErrors.map(error => {
+                            // Map error codes to i18n keys
+                            let errorMessage = error.message;
+
+                            // Try to translate based on error code
+                            const errorCodeMap: Record<
+                                string,
+                                | "validationErrors.pastTimeSlot"
+                                | "validationErrors.capacityReached"
+                                | "validationErrors.slotCapacityReached"
+                                | "validationErrors.doubleBooking"
+                                | "validationErrors.outsideOperatingHours"
+                            > = {
+                                PAST_TIME_SLOT: "validationErrors.pastTimeSlot",
+                                PAST_PICKUP_TIME: "validationErrors.pastTimeSlot",
+                                CAPACITY_REACHED: "validationErrors.capacityReached",
+                                SLOT_CAPACITY_REACHED: "validationErrors.slotCapacityReached",
+                                DOUBLE_BOOKING: "validationErrors.doubleBooking",
+                                OUTSIDE_OPENING_HOURS: "validationErrors.outsideOperatingHours",
+                            };
+
+                            if (error.code && errorCodeMap[error.code]) {
+                                // Type is safe because errorCodeMap values are string literal types
+                                // that match the translation keys
+                                errorMessage = t(errorCodeMap[error.code]);
+                            }
+
+                            return (
+                                <Text
+                                    key={`${error.field}-${error.code}`}
+                                    size="sm"
+                                    c="red"
+                                    ml="lg"
+                                >
+                                    • {errorMessage}
+                                </Text>
+                            );
+                        })}
                     </Stack>
                 </Paper>
             )}
