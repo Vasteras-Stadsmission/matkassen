@@ -1,5 +1,7 @@
 /**
- * Household anonymization utilities
+ * Hoimport { db } from "@/app/db/drizzle";
+import { households, householdComments, outgoingSms, foodParcels } from "@/app/db/schema";
+import { eq, and, isNull, sql, desc } from "drizzle-orm";hold anonymization utilities
  *
  * Implements GDPR-compliant data anonymization:
  * - Replaces personal identifiers with placeholders
@@ -9,7 +11,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { households, householdComments, outgoingSms, foodParcels } from "@/app/db/schema";
-import { eq, and, gt, gte, isNull, sql, desc } from "drizzle-orm";
+import { eq, and, gte, isNull, sql, desc } from "drizzle-orm";
 
 /**
  * Result of removal operation

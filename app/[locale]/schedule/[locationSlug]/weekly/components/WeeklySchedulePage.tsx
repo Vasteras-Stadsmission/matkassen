@@ -219,14 +219,11 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         setAdminDialogParcelId(null);
     }, []);
 
-    const handleParcelUpdated = useCallback(
-        (action: "pickup" | "undo" | "delete") => {
-            // Refetch for all actions - PickupCard status dots need fresh data
-            handleParcelRescheduled();
-            closeAdminDialog();
-        },
-        [handleParcelRescheduled, closeAdminDialog],
-    );
+    const handleParcelUpdated = useCallback(() => {
+        // Refetch for all actions - PickupCard status dots need fresh data
+        handleParcelRescheduled();
+        closeAdminDialog();
+    }, [handleParcelRescheduled, closeAdminDialog]);
 
     // Helper function to get max parcels per day
     const getMaxParcelsPerDay = useCallback(() => {

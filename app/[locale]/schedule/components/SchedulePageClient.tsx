@@ -298,7 +298,7 @@ function SchedulePageContent({
         await loadFoodParcels(selectedLocationId, weekDates, { force: true });
     };
 
-    const handleParcelUpdated = async (action: "pickup" | "undo" | "delete") => {
+    const handleParcelUpdated = async () => {
         // Refetch for all actions - PickupCard status dots need fresh data
         if (!selectedLocationId || weekDates.length === 0) return;
         await loadFoodParcels(selectedLocationId, weekDates, { force: true });
