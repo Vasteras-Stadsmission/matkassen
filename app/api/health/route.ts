@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { client } from "@/app/db/drizzle";
-import { smsHealthCheck } from "@/app/utils/sms/scheduler";
+import { schedulerHealthCheck } from "@/app/utils/scheduler";
 import {
     sendSmsHealthAlert,
     sendDatabaseHealthAlert,
@@ -68,68 +68,67 @@ export async function GET(request: NextRequest) {
             sendDatabaseHealthAlert(dbStatus === "ok", dbError || undefined).catch(console.error);
         }
 
-        // Test SMS service health
-        let smsStatus = "unknown";
-        let smsDetails = null;
+        // Test unified scheduler health (SMS + Anonymization)
+        let schedulerStatus = "unknown";
+        let schedulerDetails = null;
         let willAttemptRecovery = false;
 
         try {
-            const smsHealth = await smsHealthCheck();
-            smsStatus = smsHealth.status;
-            smsDetails = smsHealth.details;
+            const schedulerHealth = await schedulerHealthCheck();
+            schedulerStatus = schedulerHealth.status;
+            schedulerDetails = schedulerHealth.details;
 
-            // Self-healing: If SMS scheduler is not running in production, try to start it
+            // Self-healing: If scheduler is not running in production, try to start it
             if (
                 process.env.NODE_ENV === "production" &&
-                smsHealth.details.schedulerRunning === false
+                schedulerHealth.details.schedulerRunning === false
             ) {
                 willAttemptRecovery = true;
-                console.log("🔄 SMS scheduler not running, attempting to start...");
+                console.log("🔄 Unified scheduler not running, attempting to start...");
 
                 try {
-                    const { startSmsScheduler } = await import("@/app/utils/sms/scheduler");
-                    startSmsScheduler();
-                    console.log("✅ SMS scheduler started via health check auto-recovery");
+                    const { startScheduler } = await import("@/app/utils/scheduler");
+                    startScheduler();
+                    console.log("✅ Unified scheduler started via health check auto-recovery");
 
                     // Update status to healthy since we just started it
-                    smsStatus = "healthy";
-                    smsDetails = {
-                        ...smsDetails,
-                        schedulerRunning: true, // Update to reflect current state
+                    schedulerStatus = "healthy";
+                    schedulerDetails = {
+                        ...schedulerDetails,
+                        schedulerRunning: true,
                         recoveryAttempted: true,
                         autoStarted: true,
                     };
                 } catch (startError) {
-                    console.error("❌ Failed to auto-start SMS scheduler:", startError);
-                    smsDetails = {
-                        ...smsDetails,
+                    console.error("❌ Failed to auto-start unified scheduler:", startError);
+                    schedulerDetails = {
+                        ...schedulerDetails,
                         recoveryAttempted: true,
                         recoveryError:
                             startError instanceof Error ? startError.message : "Unknown error",
                     };
-                    willAttemptRecovery = false; // Recovery failed
+                    willAttemptRecovery = false;
                 }
             }
         } catch (error) {
-            smsStatus = "error";
-            smsDetails = {
-                error: error instanceof Error ? error.message : "SMS health check failed",
+            schedulerStatus = "error";
+            schedulerDetails = {
+                error: error instanceof Error ? error.message : "Scheduler health check failed",
             };
-            console.error("SMS health check failed:", error);
+            console.error("Scheduler health check failed:", error);
         }
 
-        // Send Slack alert for SMS issues (with intelligent state tracking)
+        // Send Slack alert for scheduler issues (with intelligent state tracking)
         if (process.env.NODE_ENV === "production") {
-            const smsIsHealthy = smsStatus === "healthy";
+            const schedulerIsHealthy = schedulerStatus === "healthy";
 
             if (willAttemptRecovery) {
-                // We successfully recovered - don't send unhealthy alert, let scheduler send success
                 console.log(
-                    "🔕 SMS auto-recovery successful - skipping health alert to avoid duplicate notifications",
+                    "🔕 Scheduler auto-recovery successful - skipping health alert to avoid duplicate notifications",
                 );
             } else {
-                // Normal health alerting (no recovery attempt or recovery failed)
-                sendSmsHealthAlert(smsIsHealthy, smsDetails || {}).catch(console.error);
+                // Use SMS health alert for backward compatibility with existing Slack state tracking
+                sendSmsHealthAlert(schedulerIsHealthy, schedulerDetails || {}).catch(console.error);
             }
         }
 
@@ -164,11 +163,13 @@ export async function GET(request: NextRequest) {
 
         // Determine overall health status
         // Database failure = unhealthy (critical)
-        // SMS failure = degraded (non-critical - web still works)
+        // Scheduler failure = degraded (non-critical - web still works)
         // Disk failure = degraded (non-critical but concerning)
         const isCriticallyHealthy = dbStatus === "ok";
         const isDegraded =
-            smsStatus === "unhealthy" || smsStatus === "error" || diskStatus === "error";
+            schedulerStatus === "unhealthy" ||
+            schedulerStatus === "error" ||
+            diskStatus === "error";
 
         const status = !isCriticallyHealthy ? "unhealthy" : isDegraded ? "degraded" : "healthy";
         const httpStatus = !isCriticallyHealthy ? 503 : 200; // Always return 200 if web+DB works
@@ -180,10 +181,10 @@ export async function GET(request: NextRequest) {
             checks: {
                 webServer: "ok",
                 database: dbStatus,
-                smsService: smsStatus,
+                scheduler: schedulerStatus,
                 diskSpace: diskStatus,
                 ...(dbError && { databaseError: dbError }),
-                ...(smsDetails && { smsDetails }),
+                ...(schedulerDetails && { schedulerDetails }),
                 ...(diskDetails && { diskDetails }),
             },
             ...(process.env.NODE_ENV !== "production" && {
@@ -220,7 +221,7 @@ export async function GET(request: NextRequest) {
                 checks: {
                     webServer: "error",
                     database: "unknown",
-                    smsService: "unknown",
+                    scheduler: "unknown",
                     diskSpace: "unknown",
                 },
             },

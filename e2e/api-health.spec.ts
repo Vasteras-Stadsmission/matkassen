@@ -81,6 +81,38 @@ test.describe("Public API Health Checks", () => {
         console.log("✅ /api/health endpoint accessible without auth");
     });
 
+    test("should include scheduler health in response", async ({ page }) => {
+        // Clear auth state
+        await page.context().clearCookies();
+
+        const response = await page.request.get("/api/health");
+        expect(response.ok()).toBe(true);
+
+        const health = await response.json();
+
+        // Should have scheduler check
+        expect(health.checks).toHaveProperty("scheduler");
+
+        // Should include scheduler details
+        if (health.checks.schedulerDetails) {
+            const details = health.checks.schedulerDetails;
+
+            // Verify scheduler status fields exist
+            expect(details).toHaveProperty("schedulerRunning");
+            expect(details).toHaveProperty("smsSchedulerRunning");
+            expect(details).toHaveProperty("anonymizationSchedulerRunning");
+            expect(details).toHaveProperty("lastAnonymizationRun");
+            expect(details).toHaveProperty("timestamp");
+
+            console.log("✅ Scheduler health details present:", {
+                schedulerRunning: details.schedulerRunning,
+                lastAnonymizationRun: details.lastAnonymizationRun,
+            });
+        } else {
+            console.log("ℹ️  Scheduler details not available (may be starting up)");
+        }
+    });
+
     test("should reject unauthenticated requests to admin endpoints", async ({ page }) => {
         // Clear auth state
         await page.context().clearCookies();

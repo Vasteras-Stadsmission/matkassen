@@ -221,7 +221,7 @@ export async function sendSmsHealthAlert(
                   "Service": "SMS Notifications",
                   "Status": "Unhealthy",
                   "Scheduler Running": String(details.schedulerRunning ?? "unknown"),
-                  "Test Mode": String(details.testMode ?? "unknown"),
+                  "Test Mode": String(details.smsTestMode ?? "unknown"),
                   "Error": String(details.error ?? "Database connectivity issue"),
               },
     };
