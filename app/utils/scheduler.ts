@@ -31,8 +31,8 @@ let lastAnonymizationStatus: "success" | "error" | null = null;
 
 // SMS Configuration (from old scheduler)
 const SMS_ENQUEUE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-const SMS_SEND_INTERVAL_MS = 30 * 1000; // 30 seconds
-const HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours (reduced from 5 minutes)
+const SMS_SEND_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const SMS_SEND_BATCH_SIZE = 5;
 
 // Anonymization Configuration (from env vars)
@@ -236,7 +236,7 @@ export function startScheduler(): void {
     // SMS Configuration
     console.log(`[SMS] Test Mode: ${testMode ? "ENABLED (no real SMS)" : "DISABLED (live SMS)"}`);
     console.log(`[SMS] Enqueue Interval: ${SMS_ENQUEUE_INTERVAL_MS / 60000} minutes`);
-    console.log(`[SMS] Send Interval: ${SMS_SEND_INTERVAL_MS / 1000} seconds`);
+    console.log(`[SMS] Send Interval: ${SMS_SEND_INTERVAL_MS / 60000} minutes`);
 
     // Anonymization Configuration
     console.log(`[Anonymization] Schedule: ${ANONYMIZATION_SCHEDULE}`);
