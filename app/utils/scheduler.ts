@@ -126,8 +126,12 @@ async function processSendQueue(): Promise<number> {
 /**
  * Run anonymization schedule
  * Anonymizes households that have been inactive for the configured duration
+ * @returns The result of the anonymization run (anonymized count and errors)
  */
-async function runAnonymizationSchedule(): Promise<void> {
+async function runAnonymizationSchedule(): Promise<{
+    anonymized: number;
+    errors: string[];
+}> {
     console.log(`[Anonymization] 🔄 Starting scheduled anonymization run...`);
     lastAnonymizationRun = new Date();
 
@@ -141,24 +145,35 @@ async function runAnonymizationSchedule(): Promise<void> {
 
         const result = await anonymizeInactiveHouseholds(durationMs);
 
-        console.log(
-            `[Anonymization] ✅ Completed: ${result.anonymized} anonymized, ${result.errors.length} failed`,
-        );
-        lastAnonymizationStatus = "success";
-
-        // Send Slack notification on errors
+        // Set status based on whether any errors occurred
+        // Any failure is critical for GDPR compliance and requires investigation
         if (result.errors.length > 0) {
+            console.log(
+                `[Anonymization] ⚠️  Completed with errors: ${result.anonymized} anonymized, ${result.errors.length} failed`,
+            );
+            lastAnonymizationStatus = "error";
             await notifyAnonymizationError(result);
+        } else {
+            console.log(
+                `[Anonymization] ✅ Completed successfully: ${result.anonymized} anonymized`,
+            );
+            lastAnonymizationStatus = "success";
         }
+
+        return result;
     } catch (error) {
         console.error("[Anonymization] ❌ Failed to run scheduled anonymization:", error);
         lastAnonymizationStatus = "error";
 
-        // Send Slack notification for critical errors
-        await notifyAnonymizationError({
+        const errorResult = {
             anonymized: 0,
             errors: [error instanceof Error ? error.message : "Unknown error"],
-        });
+        };
+
+        // Send Slack notification for critical errors
+        await notifyAnonymizationError(errorResult);
+
+        return errorResult;
     }
 }
 
@@ -254,7 +269,39 @@ export function startScheduler(): void {
         });
         console.log(`[Anonymization] ✅ Cron job scheduled: ${ANONYMIZATION_SCHEDULE}`);
     } catch (error) {
-        console.error("[Anonymization] ❌ Failed to schedule cron job:", error);
+        console.error(
+            `[Anonymization] ❌ Failed to schedule cron job (invalid schedule: "${ANONYMIZATION_SCHEDULE}"):`,
+            error,
+        );
+        console.error(
+            `[Anonymization] ⚠️  Health checks will report UNHEALTHY until cron is fixed!`,
+        );
+
+        // Send Slack alert in production about configuration error
+        if (process.env.NODE_ENV === "production") {
+            import("@/app/utils/notifications/slack")
+                .then(({ sendSlackAlert }) => {
+                    return sendSlackAlert({
+                        title: "🚨 Anonymization Cron Failed to Start",
+                        message:
+                            `Invalid ANONYMIZATION_SCHEDULE: "${ANONYMIZATION_SCHEDULE}"\n` +
+                            `Health checks will report unhealthy until fixed.`,
+                        status: "error",
+                        details: {
+                            "Invalid Schedule": ANONYMIZATION_SCHEDULE,
+                            "Error": error instanceof Error ? error.message : "Unknown error",
+                            "Expected Format": "Cron syntax (e.g., '0 2 * * 0' for Sunday 2 AM)",
+                            "Timestamp": new Date().toISOString(),
+                        },
+                    });
+                })
+                .catch(notifyError => {
+                    console.error(
+                        "[Anonymization] ❌ Failed to send Slack alert about cron error:",
+                        notifyError,
+                    );
+                });
+        }
     }
 
     // Start health check loop
@@ -366,17 +413,27 @@ export async function schedulerHealthCheck(): Promise<{
     try {
         const pendingCount = await getSmsRecordsReadyForSending(5);
 
+        // CRITICAL: If anonymization cron failed to start, treat as unhealthy
+        // This catches invalid ANONYMIZATION_SCHEDULE env var before Slack alerts fail
+        const anonymizationSchedulerRunning = anonymizationTask !== null;
+        const isHealthy = isRunning && anonymizationSchedulerRunning;
+
         return {
-            status: "healthy",
+            status: isHealthy ? "healthy" : "unhealthy",
             details: {
                 schedulerRunning: isRunning,
                 smsSchedulerRunning: smsEnqueueInterval !== null && smsSendInterval !== null,
-                anonymizationSchedulerRunning: anonymizationTask !== null,
+                anonymizationSchedulerRunning,
                 smsTestMode: getHelloSmsConfig().testMode,
                 smsPendingCount: pendingCount.length,
                 lastAnonymizationRun: lastAnonymizationRun?.toISOString() || "Never",
                 lastAnonymizationStatus,
                 timestamp: new Date().toISOString(),
+                ...((!isRunning || !anonymizationSchedulerRunning) && {
+                    healthCheckFailure: !isRunning
+                        ? "Scheduler not running"
+                        : "Anonymization cron not scheduled (check ANONYMIZATION_SCHEDULE env var)",
+                }),
             },
         };
     } catch (error) {
@@ -392,6 +449,15 @@ export async function schedulerHealthCheck(): Promise<{
 
 /**
  * Manual trigger for anonymization (for testing/admin)
+ *
+ * Returns actual counts from the anonymization run, not binary 0/1 values.
+ * Example: 100 eligible → 95 succeed, 5 fail → { success: true, successCount: 95, failureCount: 5 }
+ *
+ * @returns Promise resolving to:
+ *   - success: true if function completed (even with partial failures), false if exception thrown
+ *   - successCount: actual number of households successfully anonymized
+ *   - failureCount: actual number of households that failed to anonymize
+ *   - error: error message if function threw exception
  */
 export async function triggerAnonymization(): Promise<{
     success: boolean;
@@ -400,11 +466,14 @@ export async function triggerAnonymization(): Promise<{
     error?: string;
 }> {
     try {
-        await runAnonymizationSchedule();
+        const result = await runAnonymizationSchedule();
+
+        // Return actual counts from the anonymization run
+        // This provides actionable data for admin UI/API consumers
         return {
             success: true,
-            successCount: lastAnonymizationStatus === "success" ? 1 : 0,
-            failureCount: lastAnonymizationStatus === "error" ? 1 : 0,
+            successCount: result.anonymized,
+            failureCount: result.errors.length,
         };
     } catch (error) {
         return {
