@@ -164,17 +164,19 @@ export async function removeHousehold(
 }
 
 /**
- * Find households eligible for automatic anonymization (12+ months since last parcel)
+ * Find households eligible for automatic anonymization
+ *
+ * @param inactiveDurationMs - Duration in milliseconds since last parcel
+ *                             (default: 12 months = 365.25 days)
  */
 export async function findHouseholdsForAutomaticAnonymization(
-    inactiveMonths: number = 12,
+    inactiveDurationMs: number = 12 * 30 * 24 * 60 * 60 * 1000, // 12 months in ms
 ): Promise<string[]> {
-    const cutoffDate = new Date();
-    cutoffDate.setMonth(cutoffDate.getMonth() - inactiveMonths);
+    const cutoffDate = new Date(Date.now() - inactiveDurationMs);
 
     // Find households that:
     // 1. Are not already anonymized
-    // 2. Have no parcels in the last X months
+    // 2. Have no parcels since the cutoff date
     // 3. Have no upcoming parcels
     const inactiveHouseholds = await db
         .select({
@@ -203,11 +205,15 @@ export async function findHouseholdsForAutomaticAnonymization(
 
 /**
  * Automatically anonymize inactive households (batch operation)
+ *
+ * @param inactiveDurationMs - Duration in milliseconds since last parcel
+ *                             (default: 1 year = 365.25 days = 31557600000ms)
+ * @returns Object with count of anonymized households and any errors
  */
 export async function anonymizeInactiveHouseholds(
-    inactiveMonths: number = 12,
+    inactiveDurationMs: number = 365.25 * 24 * 60 * 60 * 1000, // 1 year in milliseconds
 ): Promise<{ anonymized: number; errors: string[] }> {
-    const eligibleHouseholds = await findHouseholdsForAutomaticAnonymization(inactiveMonths);
+    const eligibleHouseholds = await findHouseholdsForAutomaticAnonymization(inactiveDurationMs);
 
     let anonymized = 0;
     const errors: string[] = [];

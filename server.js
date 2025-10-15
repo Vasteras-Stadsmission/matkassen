@@ -1,13 +1,13 @@
 /**
- * Custom Next.js Server with SMS Scheduler
+ * Custom Next.js Server with Unified Background Scheduler
  *
- * This custom server starts the SMS background scheduler when the application starts,
- * ensuring SMS processing begins immediately without relying on API calls.
+ * This custom server starts the unified background scheduler when the application starts,
+ * handling both SMS processing and household anonymization.
  */
 
 const { createServer } = require("http");
 const next = require("next");
-const { startSmsScheduler } = require("./app/utils/sms/scheduler");
+const { startScheduler } = require("./app/utils/scheduler");
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
@@ -18,15 +18,15 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-    // Start SMS scheduler for background processing
+    // Start unified scheduler for background processing
     // Small delay to ensure app is fully ready before starting background services
     setTimeout(() => {
         try {
-            console.log("🚀 Starting SMS background scheduler...");
-            startSmsScheduler();
-            console.log("✅ SMS scheduler started successfully");
+            console.log("🚀 Starting unified background scheduler...");
+            startScheduler();
+            console.log("✅ Scheduler started successfully");
         } catch (error) {
-            console.error("❌ Failed to start SMS scheduler:", error);
+            console.error("❌ Failed to start scheduler:", error);
         }
     }, 1000); // 1 second delay
 

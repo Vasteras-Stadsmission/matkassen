@@ -172,6 +172,11 @@ export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
             body: JSON.stringify(payload),
         });
 
+        if (!response.ok) {
+            console.error(`❌ Slack API returned ${response.status}: ${response.statusText}`);
+            return false;
+        }
+
         const result = await response.json();
 
         if (result.ok) {
@@ -182,7 +187,10 @@ export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
             return false;
         }
     } catch (error) {
-        console.error("Exception sending Slack alert:", error);
+        console.error(
+            "Exception sending Slack alert:",
+            error instanceof Error ? error.message : String(error),
+        );
         return false;
     }
 }
@@ -221,7 +229,7 @@ export async function sendSmsHealthAlert(
                   "Service": "SMS Notifications",
                   "Status": "Unhealthy",
                   "Scheduler Running": String(details.schedulerRunning ?? "unknown"),
-                  "Test Mode": String(details.testMode ?? "unknown"),
+                  "Test Mode": String(details.smsTestMode ?? "unknown"),
                   "Error": String(details.error ?? "Database connectivity issue"),
               },
     };

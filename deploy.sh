@@ -212,6 +212,9 @@ echo "NEXT_PUBLIC_BASE_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"
 if [ -n "${SMS_SENDER:-}" ]; then
   echo "NEXT_PUBLIC_SMS_SENDER=\"${SMS_SENDER}\"" >> "$APP_DIR/.env"
 fi
+# Anonymization scheduler configuration (always enabled for GDPR compliance)
+echo "ANONYMIZATION_SCHEDULE=\"${ANONYMIZATION_SCHEDULE:-0 2 * * 0}\"" >> "$APP_DIR/.env"
+echo "ANONYMIZATION_INACTIVE_DURATION=\"${ANONYMIZATION_INACTIVE_DURATION:-1 year}\"" >> "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y

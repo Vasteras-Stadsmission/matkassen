@@ -85,6 +85,9 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     if [ -n "${SMS_SENDER:-}" ]; then
         printf 'NEXT_PUBLIC_SMS_SENDER="%s"\n' "${SMS_SENDER}"
     fi
+    # Anonymization scheduler configuration (always enabled for GDPR compliance)
+    printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
+    printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
 } > "$tmp"
 
 # Add production-only backup configuration
