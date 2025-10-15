@@ -71,7 +71,7 @@ describe("Unified Scheduler", () => {
              *
              * 1. SMS PROCESSING (interval-based):
              *    - Enqueue loop: 30 minutes (finds parcels needing reminders)
-             *    - Send loop: 30 seconds (processes SMS send queue)
+             *    - Send loop: 5 minutes (processes SMS send queue)
              *    - Uses advisory lock 12345678 (prevents concurrent sends)
              *
              * 2. ANONYMIZATION (cron-based):
@@ -91,7 +91,7 @@ describe("Unified Scheduler", () => {
              * - Easier to reason about lifecycle
              *
              * WHY SEPARATE LOOPS:
-             * - SMS needs frequent processing (30s)
+             * - SMS send loop runs every 5 minutes (responsive without excessive overhead)
              * - Anonymization needs weekly scheduling (cron)
              * - Different advisory locks prevent interference
              */
@@ -102,26 +102,26 @@ describe("Unified Scheduler", () => {
             /**
              * TIMING CONFIGURATION:
              *
-             * SMS_ENQUEUE_INTERVAL_MS = 30 multiplied by 60 multiplied by 1000  (30 minutes)
+             * SMS_ENQUEUE_INTERVAL_MS = 30 * 60 * 1000  (30 minutes)
              * - Why: Parcels need reminders ~1 day before pickup
              * - Trade-off: More frequent = more DB queries, less frequent = delayed reminders
              * - Optimal: 30 minutes catches new parcels quickly without hammering DB
              *
-             * SMS_SEND_INTERVAL_MS = 30 multiplied by 1000  (30 seconds)
+             * SMS_SEND_INTERVAL_MS = 5 * 60 * 1000  (5 minutes)
              * - Why: Rate limiting to avoid overwhelming SMS provider
-             * - HelloSMS: No documented rate limit, but 30s is safe
-             * - Batch size: 5 SMS per interval (150 SMS/hour max)
+             * - HelloSMS: No documented rate limit, but 5 min is safe
+             * - Batch size: 5 SMS per interval
              *
-             * HEALTH_CHECK_INTERVAL_MS = 12 multiplied by 60 multiplied by 60 multiplied by 1000  (12 hours)
+             * HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000  (12 hours)
              * - Why: Reduced from 5 minutes to minimize log noise
              * - Docker health check: Every 30 seconds (separate mechanism)
              * - Purpose: Heartbeat logging only (not critical monitoring)
              *
-             * ANONYMIZATION_SCHEDULE = "0 2 star star 0"  (Sunday 2:00 AM, where star=asterisk)
+             * ANONYMIZATION_SCHEDULE = `0 2 * * 0`  (Sunday 2:00 AM)
              * - Why: Low-traffic time, weekly frequency sufficient
              * - Cron syntax: minute hour day-of-month month day-of-week
              * - Production: Weekly (households don't become inactive daily)
-             * - Staging: "star-slash-15 star star star star" (every 15 minutes for fast testing)
+             * - Staging: `*​/15 * * * *` (every 15 minutes for fast testing)
              */
             expect(true).toBe(true); // Documentation test
         });
@@ -133,10 +133,10 @@ describe("Unified Scheduler", () => {
              * ENVIRONMENT VARIABLES:
              *
              * 1. ANONYMIZATION_SCHEDULE (cron syntax)
-             *    - Production: "0 2 star star 0" (Sunday 2 AM, where star=asterisk)
-             *    - Staging: "star-slash-15 star star star star" (every 15 minutes)
-             *    - Local: "star-slash-1 star star star star" (every 1 minute - configurable)
-             *    - Default: "0 2 star star 0"
+             *    - Production: `0 2 * * 0` (Sunday 2 AM)
+             *    - Staging: `*​/15 * * * *` (every 15 minutes)
+             *    - Local: `*​/1 * * * *` (every 1 minute - configurable)
+             *    - Default: `0 2 * * 0`
              *
              * 2. ANONYMIZATION_INACTIVE_DURATION (human-readable)
              *    - Production: "1 year" (GDPR recommended)
@@ -199,8 +199,8 @@ describe("Unified Scheduler", () => {
              *    - Checks if already running (prevents double-start)
              *    - Sets isRunning = true
              *    - Starts SMS enqueue interval (30 minutes)
-             *    - Starts SMS send interval (30 seconds)
-             *    - Starts anonymization cron task (if enabled)
+             *    - Starts SMS send interval (5 minutes)
+             *    - Starts anonymization cron task
              *    - Starts health check interval (12 hours)
              *    - Runs SMS tasks immediately (enqueue + send)
              *    - Sends Slack notification on first startup (production only)
@@ -468,22 +468,19 @@ describe("Unified Scheduler", () => {
         it("should document configuration differences", () => {
             /**
              * PRODUCTION CONFIGURATION:
-             * - ANONYMIZATION_ENABLED: true
-             * - ANONYMIZATION_SCHEDULE: "0 2 star star 0" (weekly Sunday 2 AM, star=asterisk)
+             * - ANONYMIZATION_SCHEDULE: `0 2 * * 0` (weekly Sunday 2 AM)
              * - ANONYMIZATION_INACTIVE_DURATION: "1 year"
              * - HELLO_SMS_TEST_MODE: false (live SMS)
              * - Slack notifications: enabled (startup + errors)
              *
              * STAGING CONFIGURATION:
-             * - ANONYMIZATION_ENABLED: true
-             * - ANONYMIZATION_SCHEDULE: "star-slash-15 star star star star" (every 15 minutes)
+             * - ANONYMIZATION_SCHEDULE: `*​/15 * * * *` (every 15 minutes)
              * - ANONYMIZATION_INACTIVE_DURATION: "5 minutes"
              * - HELLO_SMS_TEST_MODE: true (fake SMS)
              * - Slack notifications: disabled
              *
              * LOCAL DEVELOPMENT:
-             * - ANONYMIZATION_ENABLED: true (can be configured)
-             * - ANONYMIZATION_SCHEDULE: "star-slash-1 star star star star" (every 1 minute - configurable)
+             * - ANONYMIZATION_SCHEDULE: `*​/1 * * * *` (every 1 minute - configurable)
              * - ANONYMIZATION_INACTIVE_DURATION: "30 seconds"
              * - HELLO_SMS_TEST_MODE: true
              * - Slack notifications: disabled
