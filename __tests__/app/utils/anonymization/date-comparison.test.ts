@@ -241,20 +241,22 @@ describe("canRemoveHousehold - Date Comparison Logic (Regression Prevention)", (
              */
 
             // Simulate the WRONG logic (timestamp comparison)
-            function buggyLogic(parcelPickupTime: Date): boolean {
-                const now = new Date(); // Current timestamp, not midnight!
-                return parcelPickupTime > now; // Strict greater-than, not >=
+            function buggyLogic(parcelPickupTime: Date, currentTime: Date): boolean {
+                return parcelPickupTime > currentTime; // Strict greater-than, not >=
             }
 
             const todayAt9AM = new Date();
             todayAt9AM.setHours(9, 0, 0, 0);
 
-            // Assume it's now 3 PM
+            const todayAt3PM = new Date();
+            todayAt3PM.setHours(15, 0, 0, 0);
+
+            // When it's 3 PM and parcel was at 9 AM:
             // Buggy logic: 09:00 > 15:00 = false (doesn't block removal) ❌
             // Correct logic: 09:00 >= 00:00 = true (blocks removal) ✅
 
             // This test documents the bug we fixed
-            expect(buggyLogic(todayAt9AM)).toBe(false); // BUG
+            expect(buggyLogic(todayAt9AM, todayAt3PM)).toBe(false); // BUG
             expect(isParcelUpcoming(todayAt9AM)).toBe(true); // CORRECT
         });
 
