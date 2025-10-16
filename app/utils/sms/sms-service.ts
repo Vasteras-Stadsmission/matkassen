@@ -103,6 +103,7 @@ export interface SmsRecord {
     lastErrorMessage?: string;
     idempotencyKey: string;
     providerMessageId?: string;
+    sentAt?: Date;
     createdAt: Date;
 }
 
@@ -245,8 +246,11 @@ export async function updateSmsStatus(
         updateData.last_error_message = options.errorMessage;
     } else if (status === "failed") {
         updateData.last_error_message = options.errorMessage;
-    } else if (status === "sent" && options.providerMessageId) {
-        updateData.provider_message_id = options.providerMessageId;
+    } else if (status === "sent") {
+        updateData.sent_at = new Date();
+        if (options.providerMessageId) {
+            updateData.provider_message_id = options.providerMessageId;
+        }
     }
 
     await db.update(outgoingSms).set(updateData).where(eq(outgoingSms.id, id));
@@ -345,6 +349,7 @@ function mapDbRecordToSmsRecord(dbRecord: DbSmsRecord): SmsRecord {
         lastErrorMessage: dbRecord.last_error_message ?? undefined,
         idempotencyKey: dbRecord.idempotency_key,
         providerMessageId: dbRecord.provider_message_id ?? undefined,
+        sentAt: dbRecord.sent_at ?? undefined,
         createdAt: dbRecord.created_at,
     };
 }

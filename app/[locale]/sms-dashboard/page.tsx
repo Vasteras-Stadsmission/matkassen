@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Container, Loader, Center } from "@mantine/core";
 import SmsDashboardClient from "./components/SmsDashboardClient";
 import { AuthProtection } from "@/components/AuthProtection";
+import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
     const { locale } = await params;
@@ -14,6 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 }
 
 export default async function SmsDashboardPage() {
+    const { testMode } = getHelloSmsConfig();
+
     return (
         <AuthProtection>
             <Container size="xl" py="xl">
@@ -24,7 +27,7 @@ export default async function SmsDashboardPage() {
                         </Center>
                     }
                 >
-                    <SmsDashboardClient />
+                    <SmsDashboardClient testMode={testMode} />
                 </Suspense>
             </Container>
         </AuthProtection>

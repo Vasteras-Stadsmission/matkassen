@@ -188,7 +188,7 @@ export async function findHouseholdsForAutomaticAnonymization(
         .where(isNull(households.anonymized_at)) // Not already anonymized
         .groupBy(households.id)
         .having(
-            sql`MAX(${foodParcels.pickup_date_time_earliest}) < ${cutoffDate} OR MAX(${foodParcels.pickup_date_time_earliest}) IS NULL`,
+            sql`MAX(${foodParcels.pickup_date_time_earliest}) < ${cutoffDate.toISOString()} OR MAX(${foodParcels.pickup_date_time_earliest}) IS NULL`,
         );
 
     // Filter out those with upcoming parcels (safety check)

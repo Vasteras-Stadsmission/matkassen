@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/app/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
     Stack,
     Title,
@@ -19,14 +19,19 @@ import {
     Divider,
     Switch,
 } from "@mantine/core";
-import { IconSearch, IconFilter, IconAlertCircle } from "@tabler/icons-react";
+import { IconSearch, IconFilter, IconAlertCircle, IconAlertTriangle } from "@tabler/icons-react";
 import type { SmsDashboardRecord } from "@/app/api/admin/sms/dashboard/route";
 import { SmsListItem } from "./SmsListItem";
 import { SmsStatistics } from "./SmsStatistics";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
-export default function SmsDashboardClient() {
+interface SmsDashboardClientProps {
+    testMode: boolean;
+}
+
+export default function SmsDashboardClient({ testMode }: SmsDashboardClientProps) {
     const t = useTranslations() as TranslationFunction;
+    const locale = useLocale(); // Get current locale from next-intl
     const searchParams = useSearchParams();
     const router = useRouter();
 
@@ -143,7 +148,8 @@ export default function SmsDashboardClient() {
             } else if (pickupDate.toDateString() === tomorrow.toDateString()) {
                 dateKey = t("admin.smsDashboard.dateGroups.tomorrow");
             } else {
-                dateKey = pickupDate.toLocaleDateString("sv-SE", {
+                // Use user's active locale for date formatting (from next-intl)
+                dateKey = pickupDate.toLocaleDateString(locale, {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
@@ -178,6 +184,16 @@ export default function SmsDashboardClient() {
 
     return (
         <Stack gap="lg">
+            {/* Test Mode Warning Banner */}
+            {testMode && (
+                <Alert color="yellow" icon={<IconAlertTriangle />} title="⚠️ TEST MODE ACTIVE">
+                    <Text size="sm">
+                        No real SMS will be sent. All operations simulate real behavior for testing
+                        purposes.
+                    </Text>
+                </Alert>
+            )}
+
             {/* Header */}
             <Stack gap="xs">
                 <Title order={1}>{t("admin.smsDashboard.title")}</Title>

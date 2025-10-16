@@ -93,6 +93,7 @@ jobs:
                       export BRAND_NAME="Matcentralen"
                       export ENV_NAME="staging"
                       export HELLO_SMS_TEST_MODE="true"
+                      export SMS_SEND_INTERVAL="30 seconds"
                       export ANONYMIZATION_SCHEDULE="*/15 * * * *"
                       export ANONYMIZATION_INACTIVE_DURATION="5 minutes"
                       # SMS credentials not needed in staging (test mode only)
@@ -157,6 +158,7 @@ jobs:
                       export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
                       export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
                       export HELLO_SMS_TEST_MODE="false"
+                      export SMS_SEND_INTERVAL="5 minutes"
                       export ANONYMIZATION_SCHEDULE="0 2 * * 0"
                       export ANONYMIZATION_INACTIVE_DURATION="1 year"
                       # OpenStack Swift (env_auth) - hardcoded non-sensitive values

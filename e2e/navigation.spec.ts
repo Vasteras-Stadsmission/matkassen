@@ -32,8 +32,8 @@ test.describe("Core Navigation Flow", () => {
 
             await page.goto(route.path);
 
-            // Should reach the correct URL
-            await expect(page).toHaveURL(new RegExp(route.path.replace(/\//g, "\\/")));
+            // Should reach the correct URL (forward slashes don't need escaping in RegExp)
+            await expect(page).toHaveURL(new RegExp(route.path));
 
             // Should remain authenticated
             await expectAuthenticated(page);
@@ -118,8 +118,8 @@ test.describe("English Locale Navigation", () => {
         for (const route of englishRoutes) {
             await page.goto(route);
 
-            // Should be on correct English URL
-            await expect(page).toHaveURL(new RegExp(route.replace(/\//g, "\\/")));
+            // Should be on correct English URL (forward slashes don't need escaping in RegExp)
+            await expect(page).toHaveURL(new RegExp(route));
 
             // Should be authenticated
             await expectAuthenticated(page);

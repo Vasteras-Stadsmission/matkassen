@@ -11,6 +11,7 @@ export interface SmsDashboardRecord {
     status: string;
     nextAttemptAt: string | null;
     lastErrorMessage: string | null;
+    sentAt: string | null;
     createdAt: string;
     parcelId: string;
     pickupDateTimeEarliest: string;
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
                 status: outgoingSms.status,
                 nextAttemptAt: outgoingSms.next_attempt_at,
                 lastErrorMessage: outgoingSms.last_error_message,
+                sentAt: outgoingSms.sent_at,
                 createdAt: outgoingSms.created_at,
                 parcelId: foodParcels.id,
                 pickupDateTimeEarliest: foodParcels.pickup_date_time_earliest,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Paper, Group, Text, Badge, Stack, Menu, ActionIcon, Box, Alert } from "@mantine/core";
 import { IconDots, IconSend, IconUser, IconPackage, IconAlertCircle } from "@tabler/icons-react";
 import type { SmsDashboardRecord } from "@/app/api/admin/sms/dashboard/route";
@@ -17,6 +17,7 @@ interface SmsListItemProps {
 
 export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
     const t = useTranslations() as TranslationFunction;
+    const locale = useLocale();
     const [dialogOpen, setDialogOpen] = useState(false);
     const { sendSms, isLoading } = useSmsAction();
 
@@ -105,11 +106,30 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                             </Alert>
                         )}
 
-                        {/* Timing Info */}
+                        {/* Timing Info - Status-specific */}
                         {sms.status === "queued" && sms.nextAttemptAt && (
                             <Text size="xs" c="blue">
-                                {t("admin.smsDashboard.itemInfo.scheduledFor", {
-                                    time: new Date(sms.nextAttemptAt).toLocaleString("sv-SE"),
+                                {t("admin.smsDashboard.itemInfo.willSendAt", {
+                                    time: new Date(sms.nextAttemptAt).toLocaleString(locale, {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    }),
+                                })}
+                            </Text>
+                        )}
+
+                        {/* Show actual send time for sent SMS */}
+                        {(sms.status === "sent" || sms.status === "delivered") && sms.sentAt && (
+                            <Text size="xs" c="green">
+                                {t("admin.smsDashboard.itemInfo.sentAt", {
+                                    time: new Date(sms.sentAt).toLocaleString(locale, {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    }),
                                 })}
                             </Text>
                         )}

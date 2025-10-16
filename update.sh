@@ -78,6 +78,7 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
         printf 'HELLO_SMS_PASSWORD="%s"\n' "${HELLO_SMS_PASSWORD}"
     fi
     printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
+    printf 'SMS_SEND_INTERVAL="%s"\n' "${SMS_SEND_INTERVAL:-5 minutes}"
     # White-label configuration (required in production)
     printf 'NEXT_PUBLIC_BRAND_NAME="%s"\n' "${BRAND_NAME}"
     printf 'NEXT_PUBLIC_BASE_URL="https://%s"\n' "${DOMAIN_NAME}"

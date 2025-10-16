@@ -945,11 +945,8 @@
                 "viewParcel": "View Parcel"
             },
             "itemInfo": {
-                "scheduledFor": "Scheduled for {time}",
-                "willSendAt": "Sends at {time}",
-                "sentAt": "Sent at {time}",
-                "failedAt": "Failed at {time}",
-                "error": "Error: {message}"
+                "willSendAt": "Sends at approximately {time}",
+                "sentAt": "Sent at {time}"
             },
             "notifications": {
                 "sendSuccess": "SMS sent",

@@ -18,6 +18,7 @@ import {
     LoadingOverlay,
     Collapse,
     ActionIcon,
+    Alert,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -28,6 +29,7 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconTrash,
+    IconAlertTriangle,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
@@ -43,11 +45,13 @@ import type { ParcelCardData } from "./ParcelCard";
 interface HouseholdDetailsPageProps {
     householdId: string;
     initialData: Awaited<ReturnType<typeof getHouseholdDetails>>;
+    testMode: boolean;
 }
 
 export default function HouseholdDetailsPage({
     householdId,
     initialData,
+    testMode,
 }: HouseholdDetailsPageProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -267,6 +271,16 @@ export default function HouseholdDetailsPage({
                     </Group>
                 </Group>
             </Stack>
+
+            {/* Test Mode Warning Banner */}
+            {testMode && (
+                <Alert color="yellow" icon={<IconAlertTriangle />} title="⚠️ TEST MODE ACTIVE">
+                    <Text size="sm">
+                        No real SMS will be sent. All operations simulate real behavior for testing
+                        purposes.
+                    </Text>
+                </Alert>
+            )}
 
             <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
                 {/* Left Column - Household Info */}
