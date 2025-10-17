@@ -289,8 +289,10 @@ export const outgoingSms = pgTable(
         index("idx_outgoing_sms_ready_to_send").on(table.status, table.next_attempt_at),
         // Unique constraint for idempotency
         uniqueIndex("idx_outgoing_sms_idempotency_unique").on(table.idempotency_key),
-        // Index for querying sent SMS
-        index("idx_outgoing_sms_sent_at").on(table.sent_at),
+        // Partial index for querying sent SMS (only indexes non-null values for efficiency)
+        index("idx_outgoing_sms_sent_at")
+            .on(table.sent_at)
+            .where(sql`${table.sent_at} IS NOT NULL`),
     ],
 );
 

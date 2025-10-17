@@ -16,6 +16,11 @@
  * - Reality: SMS correctly scheduled for Friday morning, 36 hours later
  *
  * Fix: Show nextAttemptAt with "Sends at 17 okt 09:00" for accurate expectations
+ *
+ * Note: These tests re-implement the formatting logic to verify correctness.
+ * Future improvement: Add component-level tests (React Testing Library) or
+ * E2E tests (Playwright) to verify actual rendered timestamp output in SmsListItem.
+ * This would catch JSX refactors that break display even if formatting logic remains correct.
  */
 
 /**

@@ -10,6 +10,14 @@ import { useSmsAction } from "@/app/hooks/useSmsAction";
 import { Link } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
+// Shared date/time formatting options for SMS timestamps
+const SMS_TIMESTAMP_FORMAT: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+};
+
 interface SmsListItemProps {
     sms: SmsDashboardRecord;
     onUpdate: () => void;
@@ -24,9 +32,9 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
     // Combine first and last name
     const householdName = `${sms.householdFirstName} ${sms.householdLastName}`;
 
-    // Format time range
+    // Format time range using current locale
     const formatTime = (date: string) => {
-        return new Date(date).toLocaleTimeString("sv-SE", {
+        return new Date(date).toLocaleTimeString(locale, {
             hour: "2-digit",
             minute: "2-digit",
         });
@@ -110,12 +118,10 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                         {sms.status === "queued" && sms.nextAttemptAt && (
                             <Text size="xs" c="blue">
                                 {t("admin.smsDashboard.itemInfo.willSendAt", {
-                                    time: new Date(sms.nextAttemptAt).toLocaleString(locale, {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    }),
+                                    time: new Date(sms.nextAttemptAt).toLocaleString(
+                                        locale,
+                                        SMS_TIMESTAMP_FORMAT,
+                                    ),
                                 })}
                             </Text>
                         )}
@@ -124,12 +130,10 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                         {(sms.status === "sent" || sms.status === "delivered") && sms.sentAt && (
                             <Text size="xs" c="green">
                                 {t("admin.smsDashboard.itemInfo.sentAt", {
-                                    time: new Date(sms.sentAt).toLocaleString(locale, {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    }),
+                                    time: new Date(sms.sentAt).toLocaleString(
+                                        locale,
+                                        SMS_TIMESTAMP_FORMAT,
+                                    ),
                                 })}
                             </Text>
                         )}
