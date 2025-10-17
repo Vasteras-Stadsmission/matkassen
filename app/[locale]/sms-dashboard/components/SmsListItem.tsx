@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Paper, Group, Text, Badge, Stack, Menu, ActionIcon, Box, Alert } from "@mantine/core";
 import { IconDots, IconSend, IconUser, IconPackage, IconAlertCircle } from "@tabler/icons-react";
 import type { SmsDashboardRecord } from "@/app/api/admin/sms/dashboard/route";
@@ -10,6 +10,14 @@ import { useSmsAction } from "@/app/hooks/useSmsAction";
 import { Link } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
+// Shared date/time formatting options for SMS timestamps
+const SMS_TIMESTAMP_FORMAT: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+};
+
 interface SmsListItemProps {
     sms: SmsDashboardRecord;
     onUpdate: () => void;
@@ -17,15 +25,16 @@ interface SmsListItemProps {
 
 export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
     const t = useTranslations() as TranslationFunction;
+    const locale = useLocale();
     const [dialogOpen, setDialogOpen] = useState(false);
     const { sendSms, isLoading } = useSmsAction();
 
     // Combine first and last name
     const householdName = `${sms.householdFirstName} ${sms.householdLastName}`;
 
-    // Format time range
+    // Format time range using current locale
     const formatTime = (date: string) => {
-        return new Date(date).toLocaleTimeString("sv-SE", {
+        return new Date(date).toLocaleTimeString(locale, {
             hour: "2-digit",
             minute: "2-digit",
         });
@@ -38,7 +47,6 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
         queued: "blue",
         sending: "cyan",
         sent: "green",
-        delivered: "teal",
         retrying: "yellow",
         failed: "red",
         cancelled: "gray",
@@ -105,11 +113,26 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                             </Alert>
                         )}
 
-                        {/* Timing Info */}
+                        {/* Timing Info - Status-specific */}
                         {sms.status === "queued" && sms.nextAttemptAt && (
                             <Text size="xs" c="blue">
-                                {t("admin.smsDashboard.itemInfo.scheduledFor", {
-                                    time: new Date(sms.nextAttemptAt).toLocaleString("sv-SE"),
+                                {t("admin.smsDashboard.itemInfo.willSendAt", {
+                                    time: new Date(sms.nextAttemptAt).toLocaleString(
+                                        locale,
+                                        SMS_TIMESTAMP_FORMAT,
+                                    ),
+                                })}
+                            </Text>
+                        )}
+
+                        {/* Show actual send time for sent SMS */}
+                        {sms.status === "sent" && sms.sentAt && (
+                            <Text size="xs" c="green">
+                                {t("admin.smsDashboard.itemInfo.sentAt", {
+                                    time: new Date(sms.sentAt).toLocaleString(
+                                        locale,
+                                        SMS_TIMESTAMP_FORMAT,
+                                    ),
                                 })}
                             </Text>
                         )}

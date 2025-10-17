@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/app/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
     Stack,
     Title,
@@ -25,8 +25,13 @@ import { SmsListItem } from "./SmsListItem";
 import { SmsStatistics } from "./SmsStatistics";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
-export default function SmsDashboardClient() {
+interface SmsDashboardClientProps {
+    testMode: boolean;
+}
+
+export default function SmsDashboardClient({ testMode: isTestMode }: SmsDashboardClientProps) {
     const t = useTranslations() as TranslationFunction;
+    const locale = useLocale(); // Get current locale from next-intl
     const searchParams = useSearchParams();
     const router = useRouter();
 
@@ -143,7 +148,8 @@ export default function SmsDashboardClient() {
             } else if (pickupDate.toDateString() === tomorrow.toDateString()) {
                 dateKey = t("admin.smsDashboard.dateGroups.tomorrow");
             } else {
-                dateKey = pickupDate.toLocaleDateString("sv-SE", {
+                // Use user's active locale for date formatting (from next-intl)
+                dateKey = pickupDate.toLocaleDateString(locale, {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
@@ -178,6 +184,13 @@ export default function SmsDashboardClient() {
 
     return (
         <Stack gap="lg">
+            {/* Test Mode Warning Banner */}
+            {isTestMode && (
+                <Alert variant="light" color="yellow">
+                    {t("sms.testModeWarning")}
+                </Alert>
+            )}
+
             {/* Header */}
             <Stack gap="xs">
                 <Title order={1}>{t("admin.smsDashboard.title")}</Title>

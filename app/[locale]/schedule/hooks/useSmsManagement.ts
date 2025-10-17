@@ -147,20 +147,19 @@ export function useSmsManagement() {
                         intent: string;
                         status: string;
                         sentAt?: string;
-                        deliveredAt?: string;
                         lastErrorMessage?: string;
                         attemptCount: number;
                     }) => ({
                         id: sms.id,
                         intent: sms.intent as "pickup_reminder" | "consent_enrolment",
                         status: sms.status as
-                            | "pending"
+                            | "queued"
+                            | "sending"
                             | "sent"
-                            | "delivered"
+                            | "retrying"
                             | "failed"
                             | "cancelled",
                         sentAt: sms.sentAt ? new Date(sms.sentAt) : undefined,
-                        deliveredAt: sms.deliveredAt ? new Date(sms.deliveredAt) : undefined,
                         failureReason: sms.lastErrorMessage,
                         retryCount: sms.attemptCount,
                     }),

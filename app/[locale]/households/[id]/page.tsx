@@ -6,6 +6,7 @@ import HouseholdDetailsPage from "./components/HouseholdDetailsPage";
 import { HouseholdDetailsPageSkeleton } from "./components/HouseholdDetailsPageSkeleton";
 import { AnonymizedHouseholdPage } from "./components/AnonymizedHouseholdPage";
 import { getTranslations } from "next-intl/server";
+import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 
 interface HouseholdPageProps {
     params: Promise<{
@@ -42,6 +43,7 @@ export async function generateMetadata({ params }: HouseholdPageProps) {
 export default async function HouseholdPage({ params }: HouseholdPageProps) {
     const { id } = await params;
     const householdDetails = await getHouseholdDetails(id);
+    const { testMode } = getHelloSmsConfig();
 
     if (!householdDetails) {
         notFound();
@@ -59,7 +61,11 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
     return (
         <AuthProtection>
             <Suspense fallback={<HouseholdDetailsPageSkeleton />}>
-                <HouseholdDetailsPage householdId={id} initialData={householdDetails} />
+                <HouseholdDetailsPage
+                    householdId={id}
+                    initialData={householdDetails}
+                    testMode={testMode}
+                />
             </Suspense>
         </AuthProtection>
     );

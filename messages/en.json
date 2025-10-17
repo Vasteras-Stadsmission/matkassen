@@ -794,8 +794,8 @@
         "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion..."
     },
     "sms": {
-        "title": "SMS Notifications",
-        "testModeWarning": "TEST MODE: SMS messages will be simulated, not actually sent",
+        "title": "SMS Messages",
+        "testModeWarning": "⚠️ TEST MODE: No real SMS will be sent.",
         "status": {
             "queued": "Queued",
             "sending": "Sending",
@@ -945,11 +945,8 @@
                 "viewParcel": "View Parcel"
             },
             "itemInfo": {
-                "scheduledFor": "Scheduled for {time}",
-                "willSendAt": "Sends at {time}",
-                "sentAt": "Sent at {time}",
-                "failedAt": "Failed at {time}",
-                "error": "Error: {message}"
+                "willSendAt": "Sends at approximately {time}",
+                "sentAt": "Sent at {time}"
             },
             "notifications": {
                 "sendSuccess": "SMS sent",

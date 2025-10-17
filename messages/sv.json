@@ -795,7 +795,7 @@
     },
     "sms": {
         "title": "SMS-meddelanden",
-        "testModeWarning": "TESTLÄGE: SMS-meddelanden kommer att simuleras, inte skickas på riktigt",
+        "testModeWarning": "⚠️ TESTLÄGE: Inga riktiga SMS kommer att skickas.",
         "status": {
             "queued": "I kö",
             "sending": "Skickar",
@@ -945,11 +945,8 @@
                 "viewParcel": "Visa matkasse"
             },
             "itemInfo": {
-                "scheduledFor": "Schemalagd till {time}",
-                "willSendAt": "Skickas {time}",
-                "sentAt": "Skickades {time}",
-                "failedAt": "Misslyckades {time}",
-                "error": "Fel: {message}"
+                "willSendAt": "Skickas cirka {time}",
+                "sentAt": "Skickades {time}"
             },
             "notifications": {
                 "sendSuccess": "SMS skickades",

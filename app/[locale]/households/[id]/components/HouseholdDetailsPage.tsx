@@ -18,6 +18,7 @@ import {
     LoadingOverlay,
     Collapse,
     ActionIcon,
+    Alert,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -43,11 +44,13 @@ import type { ParcelCardData } from "./ParcelCard";
 interface HouseholdDetailsPageProps {
     householdId: string;
     initialData: Awaited<ReturnType<typeof getHouseholdDetails>>;
+    testMode: boolean;
 }
 
 export default function HouseholdDetailsPage({
     householdId,
     initialData,
+    testMode: isTestMode,
 }: HouseholdDetailsPageProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -56,6 +59,7 @@ export default function HouseholdDetailsPage({
     const tNav = useTranslations("navigation");
     const tWeekdays = useTranslations("weekdays");
     const tComments = useTranslations("comments");
+    const tSms = useTranslations("sms");
     const currentLocale = useLocale();
 
     const [householdData, setHouseholdData] = useState(initialData);
@@ -267,6 +271,13 @@ export default function HouseholdDetailsPage({
                     </Group>
                 </Group>
             </Stack>
+
+            {/* Test Mode Warning Banner */}
+            {isTestMode && (
+                <Alert variant="light" color="yellow">
+                    {tSms("testModeWarning")}
+                </Alert>
+            )}
 
             <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
                 {/* Left Column - Household Info */}

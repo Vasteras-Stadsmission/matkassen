@@ -16,6 +16,7 @@ import {
     Group,
     Card,
     Button,
+    Alert,
 } from "@mantine/core";
 import { IconMapPin, IconPackage, IconCalendarDue, IconCalendar } from "@tabler/icons-react";
 import { getPickupLocations, getTodaysParcels, getParcelById } from "../actions";
@@ -33,10 +34,15 @@ interface LocationSummary {
     isFavorite: boolean;
 }
 
-export function ScheduleHubPage() {
+interface ScheduleHubPageProps {
+    testMode: boolean;
+}
+
+export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const t = useTranslations("schedule") as TranslationFunction;
+    const tSms = useTranslations("sms");
 
     const [locationSummaries, setLocationSummaries] = useState<LocationSummary[]>([]);
     const [loading, setLoading] = useState(true);
@@ -163,6 +169,13 @@ export function ScheduleHubPage() {
     return (
         <Container size="xl" py="md">
             <Stack gap="md">
+                {/* Test Mode Warning Banner */}
+                {isTestMode && (
+                    <Alert variant="light" color="yellow">
+                        {tSms("testModeWarning")}
+                    </Alert>
+                )}
+
                 {/* Header */}
                 <div>
                     <Title order={1} size="h2">

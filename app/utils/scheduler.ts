@@ -29,9 +29,25 @@ let hasEverStarted = false;
 let lastAnonymizationRun: Date | null = null;
 let lastAnonymizationStatus: "success" | "error" | null = null;
 
-// SMS Configuration (from old scheduler)
+// SMS Configuration
 const SMS_ENQUEUE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-const SMS_SEND_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const SMS_SEND_INTERVAL = process.env.SMS_SEND_INTERVAL || "5 minutes";
+
+// Validate SMS_SEND_INTERVAL with descriptive error
+let SMS_SEND_INTERVAL_MS: number;
+try {
+    SMS_SEND_INTERVAL_MS = parseDuration(SMS_SEND_INTERVAL);
+    console.log(
+        `[Scheduler] SMS send interval configured: ${SMS_SEND_INTERVAL} (${SMS_SEND_INTERVAL_MS}ms)`,
+    );
+} catch (error) {
+    throw new Error(
+        `Invalid SMS_SEND_INTERVAL environment variable: "${SMS_SEND_INTERVAL}". ` +
+            `Expected format: "5 minutes", "30s", "2h", etc. ` +
+            `Error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+}
+
 const HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const SMS_SEND_BATCH_SIZE = 5;
 
@@ -236,7 +252,7 @@ export function startScheduler(): void {
     // SMS Configuration
     console.log(`[SMS] Test Mode: ${testMode ? "ENABLED (no real SMS)" : "DISABLED (live SMS)"}`);
     console.log(`[SMS] Enqueue Interval: ${SMS_ENQUEUE_INTERVAL_MS / 60000} minutes`);
-    console.log(`[SMS] Send Interval: ${SMS_SEND_INTERVAL_MS / 60000} minutes`);
+    console.log(`[SMS] Send Interval: ${SMS_SEND_INTERVAL}`);
 
     // Anonymization Configuration
     console.log(`[Anonymization] Schedule: ${ANONYMIZATION_SCHEDULE}`);
