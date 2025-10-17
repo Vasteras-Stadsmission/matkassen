@@ -47,7 +47,6 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
         queued: "blue",
         sending: "cyan",
         sent: "green",
-        delivered: "teal",
         retrying: "yellow",
         failed: "red",
         cancelled: "gray",
@@ -127,7 +126,7 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                         )}
 
                         {/* Show actual send time for sent SMS */}
-                        {(sms.status === "sent" || sms.status === "delivered") && sms.sentAt && (
+                        {sms.status === "sent" && sms.sentAt && (
                             <Text size="xs" c="green">
                                 {t("admin.smsDashboard.itemInfo.sentAt", {
                                     time: new Date(sms.sentAt).toLocaleString(
