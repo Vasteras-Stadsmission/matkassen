@@ -642,6 +642,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp (1) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp (1) with time zone",
@@ -704,6 +710,21 @@
             }
           ],
           "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "idx_outgoing_sms_sent_at": {
+          "name": "idx_outgoing_sms_sent_at",
+          "columns": [
+            {
+              "expression": "sent_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "with": {},
           "method": "btree",
           "concurrently": false

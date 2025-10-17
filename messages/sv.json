@@ -795,7 +795,7 @@
     },
     "sms": {
         "title": "SMS-meddelanden",
-        "testModeWarning": "TESTLÄGE: SMS-meddelanden kommer att simuleras, inte skickas på riktigt",
+        "testModeWarning": "⚠️ TESTLÄGE: Inga riktiga SMS kommer att skickas.",
         "status": {
             "queued": "I kö",
             "sending": "Skickar",

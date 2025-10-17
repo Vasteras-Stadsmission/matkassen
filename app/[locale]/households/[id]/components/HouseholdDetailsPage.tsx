@@ -29,7 +29,6 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconTrash,
-    IconAlertTriangle,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
@@ -51,7 +50,7 @@ interface HouseholdDetailsPageProps {
 export default function HouseholdDetailsPage({
     householdId,
     initialData,
-    testMode,
+    testMode: isTestMode,
 }: HouseholdDetailsPageProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -60,6 +59,7 @@ export default function HouseholdDetailsPage({
     const tNav = useTranslations("navigation");
     const tWeekdays = useTranslations("weekdays");
     const tComments = useTranslations("comments");
+    const tSms = useTranslations("sms");
     const currentLocale = useLocale();
 
     const [householdData, setHouseholdData] = useState(initialData);
@@ -273,12 +273,9 @@ export default function HouseholdDetailsPage({
             </Stack>
 
             {/* Test Mode Warning Banner */}
-            {testMode && (
-                <Alert color="yellow" icon={<IconAlertTriangle />} title="⚠️ TEST MODE ACTIVE">
-                    <Text size="sm">
-                        No real SMS will be sent. All operations simulate real behavior for testing
-                        purposes.
-                    </Text>
+            {isTestMode && (
+                <Alert variant="light" color="yellow">
+                    {tSms("testModeWarning")}
                 </Alert>
             )}
 

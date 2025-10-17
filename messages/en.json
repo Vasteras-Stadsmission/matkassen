@@ -794,8 +794,8 @@
         "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion..."
     },
     "sms": {
-        "title": "SMS Notifications",
-        "testModeWarning": "TEST MODE: SMS messages will be simulated, not actually sent",
+        "title": "SMS Messages",
+        "testModeWarning": "⚠️ TEST MODE: No real SMS will be sent.",
         "status": {
             "queued": "Queued",
             "sending": "Sending",

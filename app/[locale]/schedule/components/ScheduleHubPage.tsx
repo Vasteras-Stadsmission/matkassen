@@ -18,13 +18,7 @@ import {
     Button,
     Alert,
 } from "@mantine/core";
-import {
-    IconMapPin,
-    IconPackage,
-    IconCalendarDue,
-    IconCalendar,
-    IconAlertTriangle,
-} from "@tabler/icons-react";
+import { IconMapPin, IconPackage, IconCalendarDue, IconCalendar } from "@tabler/icons-react";
 import { getPickupLocations, getTodaysParcels, getParcelById } from "../actions";
 import { createLocationSlug } from "../utils/location-slugs";
 import { getUserFavoriteLocation } from "../utils/user-preferences";
@@ -44,10 +38,11 @@ interface ScheduleHubPageProps {
     testMode: boolean;
 }
 
-export function ScheduleHubPage({ testMode }: ScheduleHubPageProps) {
+export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const t = useTranslations("schedule") as TranslationFunction;
+    const tSms = useTranslations("sms");
 
     const [locationSummaries, setLocationSummaries] = useState<LocationSummary[]>([]);
     const [loading, setLoading] = useState(true);
@@ -175,12 +170,9 @@ export function ScheduleHubPage({ testMode }: ScheduleHubPageProps) {
         <Container size="xl" py="md">
             <Stack gap="md">
                 {/* Test Mode Warning Banner */}
-                {testMode && (
-                    <Alert color="yellow" icon={<IconAlertTriangle />} title="⚠️ TEST MODE ACTIVE">
-                        <Text size="sm">
-                            No real SMS will be sent. All operations simulate real behavior for
-                            testing purposes.
-                        </Text>
+                {isTestMode && (
+                    <Alert variant="light" color="yellow">
+                        {tSms("testModeWarning")}
                     </Alert>
                 )}
 

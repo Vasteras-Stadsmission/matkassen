@@ -19,7 +19,7 @@ import {
     Divider,
     Switch,
 } from "@mantine/core";
-import { IconSearch, IconFilter, IconAlertCircle, IconAlertTriangle } from "@tabler/icons-react";
+import { IconSearch, IconFilter, IconAlertCircle } from "@tabler/icons-react";
 import type { SmsDashboardRecord } from "@/app/api/admin/sms/dashboard/route";
 import { SmsListItem } from "./SmsListItem";
 import { SmsStatistics } from "./SmsStatistics";
@@ -29,7 +29,7 @@ interface SmsDashboardClientProps {
     testMode: boolean;
 }
 
-export default function SmsDashboardClient({ testMode }: SmsDashboardClientProps) {
+export default function SmsDashboardClient({ testMode: isTestMode }: SmsDashboardClientProps) {
     const t = useTranslations() as TranslationFunction;
     const locale = useLocale(); // Get current locale from next-intl
     const searchParams = useSearchParams();
@@ -185,12 +185,9 @@ export default function SmsDashboardClient({ testMode }: SmsDashboardClientProps
     return (
         <Stack gap="lg">
             {/* Test Mode Warning Banner */}
-            {testMode && (
-                <Alert color="yellow" icon={<IconAlertTriangle />} title="⚠️ TEST MODE ACTIVE">
-                    <Text size="sm">
-                        No real SMS will be sent. All operations simulate real behavior for testing
-                        purposes.
-                    </Text>
+            {isTestMode && (
+                <Alert variant="light" color="yellow">
+                    {t("sms.testModeWarning")}
                 </Alert>
             )}
 
