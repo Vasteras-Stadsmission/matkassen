@@ -92,10 +92,12 @@ function getSlackConfig(): SlackConfig | null {
  * Send notification to Slack (production only)
  */
 export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
-    // Only send in production environment
-    if (process.env.NODE_ENV !== "production") {
+    // Only send in production environment (not staging or development)
+    // ENV_NAME is set by deploy scripts to distinguish staging from production
+    const envName = process.env.ENV_NAME || process.env.NODE_ENV;
+    if (envName !== "production") {
         console.log(
-            `[Slack Alert - Dev Mode] ${message.status}: ${message.title} - ${message.message}`,
+            `[Slack Alert - ${envName || "dev"} Mode] ${message.status}: ${message.title} - ${message.message}`,
         );
         return true;
     }

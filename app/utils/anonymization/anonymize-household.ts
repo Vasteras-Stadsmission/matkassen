@@ -188,7 +188,7 @@ export async function findHouseholdsForAutomaticAnonymization(
         .where(isNull(households.anonymized_at)) // Not already anonymized
         .groupBy(households.id)
         .having(
-            sql`MAX(${foodParcels.pickup_date_time_earliest}) < ${cutoffDate} OR MAX(${foodParcels.pickup_date_time_earliest}) IS NULL`,
+            sql`MAX(${foodParcels.pickup_date_time_earliest}) < ${cutoffDate.toISOString()} OR MAX(${foodParcels.pickup_date_time_earliest}) IS NULL`,
         );
 
     // Filter out those with upcoming parcels (safety check)
@@ -213,25 +213,38 @@ export async function findHouseholdsForAutomaticAnonymization(
 export async function anonymizeInactiveHouseholds(
     inactiveDurationMs: number = 365.25 * 24 * 60 * 60 * 1000, // 1 year in milliseconds
 ): Promise<{ anonymized: number; errors: string[] }> {
-    const eligibleHouseholds = await findHouseholdsForAutomaticAnonymization(inactiveDurationMs);
+    try {
+        const eligibleHouseholds =
+            await findHouseholdsForAutomaticAnonymization(inactiveDurationMs);
 
-    let anonymized = 0;
-    const errors: string[] = [];
+        let anonymized = 0;
+        const errors: string[] = [];
 
-    for (const householdId of eligibleHouseholds) {
-        try {
-            await removeHousehold(householdId, "system"); // performedBy = "system" for automatic
-            anonymized++;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Unknown error";
-            errors.push(`${householdId}: ${message}`);
-            console.error(`❌ Failed to anonymize household ${householdId}:`, error);
+        for (const householdId of eligibleHouseholds) {
+            try {
+                await removeHousehold(householdId, "system"); // performedBy = "system" for automatic
+                anonymized++;
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "Unknown error";
+                errors.push(`${householdId}: ${message}`);
+                console.error(`❌ Failed to anonymize household ${householdId}:`, error);
+            }
         }
+
+        console.log(
+            `[Anonymization] Processed ${eligibleHouseholds.length} households: ${anonymized} anonymized, ${errors.length} errors`,
+        );
+
+        return { anonymized, errors };
+    } catch (error) {
+        // Database connection error during initial query
+        // This handles transient connection issues (e.g., DNS resolution, network hiccups)
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error(`❌ Failed to query eligible households for anonymization:`, error);
+
+        return {
+            anonymized: 0,
+            errors: [message],
+        };
     }
-
-    console.log(
-        `[Anonymization] Processed ${eligibleHouseholds.length} households: ${anonymized} anonymized, ${errors.length} errors`,
-    );
-
-    return { anonymized, errors };
 }

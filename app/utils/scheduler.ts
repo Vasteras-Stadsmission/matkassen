@@ -444,6 +444,10 @@ export async function schedulerHealthCheck(): Promise<{
                 smsPendingCount: pendingCount.length,
                 lastAnonymizationRun: lastAnonymizationRun?.toISOString() || "Never",
                 lastAnonymizationStatus,
+                // Configuration visibility for debugging
+                anonymizationSchedule: ANONYMIZATION_SCHEDULE,
+                anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
+                smsSendInterval: SMS_SEND_INTERVAL,
                 timestamp: new Date().toISOString(),
                 ...((!isRunning || !anonymizationSchedulerRunning) && {
                     healthCheckFailure: !isRunning

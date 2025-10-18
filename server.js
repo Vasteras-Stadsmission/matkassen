@@ -17,20 +17,42 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-app.prepare().then(() => {
-    // Start unified scheduler for background processing
-    // Small delay to ensure app is fully ready before starting background services
-    setTimeout(() => {
-        try {
-            console.log("🚀 Starting unified background scheduler...");
-            startScheduler();
-            console.log("✅ Scheduler started successfully");
-        } catch (error) {
-            console.error("❌ Failed to start scheduler:", error);
-        }
-    }, 1000); // 1 second delay
+/**
+ * Wait for database to be ready before starting scheduler
+ * This prevents "ENOTFOUND db" errors during container startup
+ */
+async function waitForDatabase(maxAttempts = 10, delayMs = 2000) {
+    console.log("🔍 Checking database connectivity...");
 
-    // Create HTTP server
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            // Dynamic import to avoid build-time database access
+            const { db } = await import("./app/db/drizzle.ts");
+            const { sql } = await import("drizzle-orm");
+
+            // Simple query to test connection
+            await db.execute(sql`SELECT 1`);
+            console.log(`✅ Database connection successful (attempt ${attempt}/${maxAttempts})`);
+            return true;
+        } catch (error) {
+            console.log(
+                `⏳ Database not ready yet (attempt ${attempt}/${maxAttempts}): ${error.message}`,
+            );
+
+            if (attempt < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+    }
+
+    console.warn(
+        `⚠️  Database not reachable after ${maxAttempts} attempts. Scheduler will start anyway but may experience errors.`,
+    );
+    return false;
+}
+
+app.prepare().then(async () => {
+    // Create HTTP server first (so health checks can pass)
     createServer(async (req, res) => {
         try {
             await handle(req, res);
@@ -42,4 +64,16 @@ app.prepare().then(() => {
     }).listen(port, () => {
         console.log(`🚀 Server ready on http://${hostname}:${port}`);
     });
+
+    // Start unified scheduler for background processing
+    // Wait for database to be ready first to prevent connection errors
+    await waitForDatabase();
+
+    try {
+        console.log("🚀 Starting unified background scheduler...");
+        startScheduler();
+        console.log("✅ Scheduler started successfully");
+    } catch (error) {
+        console.error("❌ Failed to start scheduler:", error);
+    }
 });
