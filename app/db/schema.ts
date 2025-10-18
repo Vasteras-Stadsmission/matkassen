@@ -198,6 +198,39 @@ export const pickupLocationScheduleDays = pgTable(
     ],
 );
 
+// Table for location-specific verification questions shown during household creation
+export const pickupLocationVerificationQuestions = pgTable(
+    "pickup_location_verification_questions",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        pickup_location_id: text("pickup_location_id")
+            .notNull()
+            .references(() => pickupLocations.id, { onDelete: "cascade" }),
+        question_text_sv: text("question_text_sv").notNull(), // Swedish question text
+        question_text_en: text("question_text_en").notNull(), // English question text
+        help_text_sv: text("help_text_sv"), // Optional Swedish help/tooltip text
+        help_text_en: text("help_text_en"), // Optional English help/tooltip text
+        is_required: boolean("is_required").default(true).notNull(), // Must be checked to proceed
+        display_order: integer("display_order").notNull().default(0), // Sort order (lower = first)
+        is_active: boolean("is_active").default(true).notNull(), // Soft delete flag
+        created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        updated_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    },
+    table => [
+        // Index for efficient querying by location
+        index("idx_verification_questions_location").on(table.pickup_location_id),
+        // Index for querying active questions in display order
+        index("idx_verification_questions_active_order").on(
+            table.pickup_location_id,
+            table.is_active,
+            table.display_order,
+        ),
+    ],
+);
+
 // Define SMS intent enum
 export const smsIntentEnum = pgEnum("sms_intent", [
     "pickup_reminder",
