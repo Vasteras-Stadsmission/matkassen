@@ -92,6 +92,7 @@ import MembersForm from "@/app/[locale]/households/enroll/components/MembersForm
 import DietaryRestrictionsForm from "@/app/[locale]/households/enroll/components/DietaryRestrictionsForm";
 import AdditionalNeedsForm from "@/app/[locale]/households/enroll/components/AdditionalNeedsForm";
 import PetsForm from "@/app/[locale]/households/enroll/components/PetsForm";
+import VerificationForm from "@/app/[locale]/households/enroll/components/VerificationForm";
 import ReviewForm from "@/app/[locale]/households/enroll/components/ReviewForm";
 
 // Import types
@@ -160,6 +161,10 @@ export function HouseholdWizard({
     const [showAddParcelsModal, setShowAddParcelsModal] = useState(false);
     const [createdHouseholdId, setCreatedHouseholdId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Verification questions state (only for create mode)
+    const [checkedVerifications, setCheckedVerifications] = useState<Set<string>>(new Set());
+    const [hasVerificationQuestions, setHasVerificationQuestions] = useState(false);
 
     // Use localized default values if not provided
     const defaultTitle = mode === "create" ? t("createHousehold") : t("editHousehold");
@@ -247,8 +252,43 @@ export function HouseholdWizard({
             }
         }
 
+        // Validate verification step (step 5, only in create mode with questions)
+        if (active === 5 && mode === "create" && hasVerificationQuestions) {
+            // Fetch required questions and check if all are checked
+            fetch(
+                `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
+            )
+                .then(res => res.json())
+                .then(questions => {
+                    const requiredQuestions = questions.filter(
+                        (q: { is_required: boolean }) => q.is_required,
+                    );
+                    const allChecked = requiredQuestions.every((q: { id: string }) =>
+                        checkedVerifications.has(q.id),
+                    );
+
+                    if (!allChecked) {
+                        setValidationError({
+                            field: "verification",
+                            message: t("validation.verificationIncomplete"),
+                        });
+                        openError();
+                        return;
+                    }
+
+                    // Validation passed, move to next step
+                    const maxSteps = hasVerificationQuestions ? 6 : 5;
+                    setActive(current => (current < maxSteps ? current + 1 : current));
+                })
+                .catch(err => {
+                    console.error("Error validating verification questions:", err);
+                });
+            return;
+        }
+
         // If all validations pass, move to the next step
-        setActive(current => (current < 5 ? current + 1 : current));
+        const maxSteps = mode === "create" && hasVerificationQuestions ? 6 : 5;
+        setActive(current => (current < maxSteps ? current + 1 : current));
     };
 
     const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
@@ -259,6 +299,44 @@ export function HouseholdWizard({
             [section]: data,
         }));
     };
+
+    // Handle verification checkbox changes
+    const handleVerificationCheck = (questionId: string, checked: boolean) => {
+        setCheckedVerifications(prev => {
+            const newSet = new Set(prev);
+            if (checked) {
+                newSet.add(questionId);
+            } else {
+                newSet.delete(questionId);
+            }
+            return newSet;
+        });
+    };
+
+    // Fetch verification questions when pickup location is selected (only in create mode)
+    useEffect(() => {
+        if (mode !== "create" || !formData.foodParcels.pickupLocationId) {
+            setHasVerificationQuestions(false);
+            return;
+        }
+
+        const fetchQuestions = async () => {
+            try {
+                const response = await fetch(
+                    `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
+                );
+                if (response.ok) {
+                    const questions = await response.json();
+                    setHasVerificationQuestions(questions.length > 0);
+                }
+            } catch (error) {
+                console.error("Error checking verification questions:", error);
+                setHasVerificationQuestions(false);
+            }
+        };
+
+        fetchQuestions();
+    }, [formData.foodParcels.pickupLocationId, mode]);
 
     const handleSubmit = async () => {
         if (!onSubmit || isSubmitting) return;
@@ -441,6 +519,20 @@ export function HouseholdWizard({
                         />
                     </Stepper.Step>
 
+                    {/* Verification step - only shown in create mode with questions */}
+                    {mode === "create" && hasVerificationQuestions && (
+                        <Stepper.Step
+                            label={t("steps.verification.label")}
+                            description={t("steps.verification.description")}
+                        >
+                            <VerificationForm
+                                pickupLocationId={formData.foodParcels.pickupLocationId}
+                                checkedQuestions={checkedVerifications}
+                                onUpdateChecked={handleVerificationCheck}
+                            />
+                        </Stepper.Step>
+                    )}
+
                     <Stepper.Step
                         label={t("steps.review.label")}
                         description={t("steps.review.description")}
@@ -454,43 +546,56 @@ export function HouseholdWizard({
                     </Stepper.Step>
                 </Stepper>
 
-                {active !== 5 && (
-                    <Group justify="center" mt="md">
-                        {active !== 0 && (
-                            <Button
-                                variant="default"
-                                onClick={prevStep}
-                                leftSection={<IconArrowLeft size="1rem" />}
-                            >
-                                {t("navigation.back")}
-                            </Button>
-                        )}
-                        <Button onClick={nextStep} rightSection={<IconArrowRight size="1rem" />}>
-                            {t("navigation.next")}
-                        </Button>
-                    </Group>
-                )}
+                {/* Calculate the final step index dynamically */}
+                {(() => {
+                    const finalStepIndex = mode === "create" && hasVerificationQuestions ? 6 : 5;
+                    const isOnFinalStep = active === finalStepIndex;
 
-                {active === 5 && (
-                    <Group justify="center" mt="md">
-                        <Button
-                            variant="default"
-                            onClick={prevStep}
-                            leftSection={<IconArrowLeft size="1rem" />}
-                        >
-                            {t("navigation.back")}
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            color={submitButtonColor}
-                            rightSection={<IconCheck size="1rem" />}
-                            loading={isSubmitting}
-                            disabled={isSubmitting}
-                        >
-                            {submitButtonText || defaultSubmitButtonText}
-                        </Button>
-                    </Group>
-                )}
+                    return (
+                        <>
+                            {!isOnFinalStep && (
+                                <Group justify="center" mt="md">
+                                    {active !== 0 && (
+                                        <Button
+                                            variant="default"
+                                            onClick={prevStep}
+                                            leftSection={<IconArrowLeft size="1rem" />}
+                                        >
+                                            {t("navigation.back")}
+                                        </Button>
+                                    )}
+                                    <Button
+                                        onClick={nextStep}
+                                        rightSection={<IconArrowRight size="1rem" />}
+                                    >
+                                        {t("navigation.next")}
+                                    </Button>
+                                </Group>
+                            )}
+
+                            {isOnFinalStep && (
+                                <Group justify="center" mt="md">
+                                    <Button
+                                        variant="default"
+                                        onClick={prevStep}
+                                        leftSection={<IconArrowLeft size="1rem" />}
+                                    >
+                                        {t("navigation.back")}
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmit}
+                                        color={submitButtonColor}
+                                        rightSection={<IconCheck size="1rem" />}
+                                        loading={isSubmitting}
+                                        disabled={isSubmitting}
+                                    >
+                                        {submitButtonText || defaultSubmitButtonText}
+                                    </Button>
+                                </Group>
+                            )}
+                        </>
+                    );
+                })()}
             </Card>
 
             {/* Modal for adding parcels to newly created household */}
