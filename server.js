@@ -3,6 +3,12 @@
  *
  * This custom server starts the unified background scheduler when the application starts,
  * handling both SMS processing and household anonymization.
+ *
+ * NOTE: This file uses CommonJS (require) instead of ES modules for compatibility:
+ * - Next.js custom servers officially use CommonJS
+ * - Simplifies synchronous module loading during startup
+ * - Avoids ESM/CJS interop issues with Next.js internals
+ * - Infrastructure code (deployment concern), not application code
  */
 
 const { createServer } = require("http");
@@ -24,7 +30,7 @@ const handle = app.getRequestHandler();
 async function waitForDatabase(maxAttempts = 10, delayMs = 2000) {
     console.log("🔍 Checking database connectivity...");
 
-    // Use CommonJS require for the health check module
+    // CommonJS require is intentional here - matches server.js module system
     const { checkDatabaseHealth } = require("./app/db/health-check");
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {

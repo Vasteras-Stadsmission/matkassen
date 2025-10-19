@@ -2,7 +2,12 @@
  * Database Health Check Module
  *
  * CommonJS module for server.js to verify database connectivity before starting the scheduler.
- * This avoids ESM/TypeScript import issues in the custom server.
+ *
+ * WHY COMMONJS?
+ * - Matches server.js module system (Next.js custom server convention)
+ * - Synchronous loading is simpler and more reliable for startup checks
+ * - Avoids ESM/CJS interop complexity with Next.js internals
+ * - Infrastructure code (not application logic), different conventions are acceptable
  */
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
