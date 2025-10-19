@@ -560,6 +560,10 @@
                 "label": "Additional Needs",
                 "description": "Special Needs"
             },
+            "verification": {
+                "label": "Verification",
+                "description": "Required Checks"
+            },
             "parcels": {
                 "label": "Food Parcels",
                 "description": "Scheduling"
@@ -579,7 +583,19 @@
             "lastNameLength": "Last name must be at least 2 characters",
             "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
             "postalCodeFormat": "Postal code must be 5 digits",
-            "pickupLocation": "Select a pickup location"
+            "pickupLocation": "Select a pickup location",
+            "verificationIncomplete": "All required verifications must be checked before proceeding"
+        },
+        "verification": {
+            "title": "Verification Required",
+            "description": "Please confirm the following before creating this household:",
+            "allComplete": "All verifications complete",
+            "requiredMark": "Required",
+            "optionalMark": "Optional",
+            "progress": "{completed} of {total} verified",
+            "noQuestions": "No verification questions configured for this location",
+            "errorLoading": "Failed to load verification questions",
+            "errorUnknown": "An unknown error occurred"
         },
         "success": {
             "title": "Success!",
@@ -591,7 +607,9 @@
             "general": "An error occurred",
             "unknown": "Unknown error",
             "create": "An error occurred while creating the household",
-            "update": "An error occurred while updating the household"
+            "update": "An error occurred while updating the household",
+            "verificationQuestionsLoadFailed": "Failed to load verification questions. Cannot proceed without completing required checks.",
+            "retry": "Retry"
         },
         "submitting": {
             "create": "Creating new household...",
@@ -791,7 +809,50 @@
         "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
         "proceedAnyway": "Proceed anyway",
         "checking": "Checking...",
-        "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion..."
+        "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion...",
+        "verification": {
+            "title": "Verification Questions",
+            "description": "Manage verification questions that admins must confirm before creating households for this location",
+            "noQuestions": "No verification questions configured yet",
+            "addQuestion": "Add Question",
+            "addFirstQuestion": "Add Your First Verification Question",
+            "editQuestion": "Edit Verification Question",
+            "questionTextSv": "Question Text (Swedish)",
+            "questionTextEn": "Question Text (English)",
+            "questionTextSvPlaceholder": "e.g. Jag har verifierat att hushållet bor i rätt postnummerområde",
+            "questionTextEnPlaceholder": "e.g. I have verified that the household lives in the correct postal code area",
+            "helpTextSv": "Help Text (Swedish, Optional)",
+            "helpTextEn": "Help Text (English, Optional)",
+            "helpTextSvPlaceholder": "Additional guidance or explanation in Swedish",
+            "helpTextEnPlaceholder": "Additional guidance or explanation in English",
+            "isRequired": "Required Verification",
+            "isRequiredDescription": "Admin must check this box before creating household",
+            "displayOrder": "Display Order",
+            "displayOrderDescription": "Lower numbers appear first (0, 1, 2...)",
+            "questionTextSvRequired": "Swedish question text is required",
+            "questionTextEnRequired": "English question text is required",
+            "displayOrderRequired": "Display order is required",
+            "saveQuestion": "Save Question",
+            "cancel": "Cancel",
+            "questionCreated": "Verification question created successfully",
+            "questionUpdated": "Verification question updated successfully",
+            "questionDeleted": "Verification question deleted successfully",
+            "errorCreating": "Error creating verification question",
+            "errorUpdating": "Error updating verification question",
+            "errorDeleting": "Error deleting verification question",
+            "errorLoading": "Error loading verification questions",
+            "confirmDelete": "Are you sure you want to delete this verification question?",
+            "delete": "Delete",
+            "edit": "Edit",
+            "active": "Active",
+            "inactive": "Inactive",
+            "toggleActive": "Toggle active/inactive",
+            "required": "Required",
+            "optional": "Optional",
+            "preview": "Preview",
+            "previewDescription": "This is how admins will see this question in the household creation wizard:",
+            "reorderInstructions": "Drag to reorder questions"
+        }
     },
     "sms": {
         "title": "SMS Messages",

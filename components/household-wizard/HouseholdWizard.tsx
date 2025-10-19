@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     Container,
     Title,
@@ -92,6 +92,7 @@ import MembersForm from "@/app/[locale]/households/enroll/components/MembersForm
 import DietaryRestrictionsForm from "@/app/[locale]/households/enroll/components/DietaryRestrictionsForm";
 import AdditionalNeedsForm from "@/app/[locale]/households/enroll/components/AdditionalNeedsForm";
 import PetsForm from "@/app/[locale]/households/enroll/components/PetsForm";
+import VerificationForm from "@/app/[locale]/households/enroll/components/VerificationForm";
 import ReviewForm from "@/app/[locale]/households/enroll/components/ReviewForm";
 
 // Import types
@@ -160,6 +161,16 @@ export function HouseholdWizard({
     const [showAddParcelsModal, setShowAddParcelsModal] = useState(false);
     const [createdHouseholdId, setCreatedHouseholdId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Verification questions state (only for create mode)
+    const [checkedVerifications, setCheckedVerifications] = useState<Set<string>>(new Set());
+    const [hasVerificationQuestions, setHasVerificationQuestions] = useState(false);
+    const [verificationQuestionsError, setVerificationQuestionsError] = useState<string | null>(
+        null,
+    );
+
+    // AbortController to prevent race conditions when switching locations
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     // Use localized default values if not provided
     const defaultTitle = mode === "create" ? t("createHousehold") : t("editHousehold");
@@ -247,8 +258,43 @@ export function HouseholdWizard({
             }
         }
 
+        // Validate verification step (step 5, only in create mode with questions)
+        if (active === 5 && mode === "create" && hasVerificationQuestions) {
+            // Fetch required questions and check if all are checked
+            fetch(
+                `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
+            )
+                .then(res => res.json())
+                .then(questions => {
+                    const requiredQuestions = questions.filter(
+                        (q: { is_required: boolean }) => q.is_required,
+                    );
+                    const allChecked = requiredQuestions.every((q: { id: string }) =>
+                        checkedVerifications.has(q.id),
+                    );
+
+                    if (!allChecked) {
+                        setValidationError({
+                            field: "verification",
+                            message: t("validation.verificationIncomplete"),
+                        });
+                        openError();
+                        return;
+                    }
+
+                    // Validation passed, move to next step
+                    const maxSteps = hasVerificationQuestions ? 6 : 5;
+                    setActive(current => (current < maxSteps ? current + 1 : current));
+                })
+                .catch(err => {
+                    console.error("Error validating verification questions:", err);
+                });
+            return;
+        }
+
         // If all validations pass, move to the next step
-        setActive(current => (current < 5 ? current + 1 : current));
+        const maxSteps = mode === "create" && hasVerificationQuestions ? 6 : 5;
+        setActive(current => (current < maxSteps ? current + 1 : current));
     };
 
     const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
@@ -260,8 +306,115 @@ export function HouseholdWizard({
         }));
     };
 
+    // Handle verification checkbox changes
+    const handleVerificationCheck = (questionId: string, checked: boolean) => {
+        setCheckedVerifications(prev => {
+            const newSet = new Set(prev);
+            if (checked) {
+                newSet.add(questionId);
+            } else {
+                newSet.delete(questionId);
+            }
+            return newSet;
+        });
+    };
+
+    // Fetch verification questions when pickup location is selected (only in create mode)
+    useEffect(() => {
+        if (mode !== "create" || !formData.foodParcels.pickupLocationId) {
+            setHasVerificationQuestions(false);
+            setVerificationQuestionsError(null);
+            return;
+        }
+
+        // Cancel any in-flight request to prevent race conditions
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        const fetchQuestions = async () => {
+            try {
+                const response = await fetch(
+                    `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
+                    {
+                        signal: abortControllerRef.current!.signal,
+                    },
+                );
+                if (!response.ok) {
+                    // SECURITY: Fail closed - treat API errors as critical
+                    const errorText = await response.text().catch(() => "Unknown error");
+                    console.error(
+                        `Failed to load verification questions (HTTP ${response.status}): ${errorText}`,
+                    );
+                    setVerificationQuestionsError(t("error.verificationQuestionsLoadFailed"));
+                    setHasVerificationQuestions(false);
+                    return;
+                }
+                const questions = await response.json();
+                setHasVerificationQuestions(questions.length > 0);
+                setVerificationQuestionsError(null);
+            } catch (error) {
+                // Ignore aborted requests - they're intentional cancellations
+                if (error instanceof Error && error.name === "AbortError") {
+                    return;
+                }
+                // SECURITY: Fail closed - treat network errors as critical
+                console.error("Network error loading verification questions:", error);
+                setVerificationQuestionsError(t("error.verificationQuestionsLoadFailed"));
+                setHasVerificationQuestions(false);
+            }
+        };
+
+        fetchQuestions();
+    }, [formData.foodParcels.pickupLocationId, mode, t]);
+
+    // Cleanup: abort any pending requests on unmount
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
+
     const handleSubmit = async () => {
         if (!onSubmit || isSubmitting) return;
+
+        // Defense-in-depth: Verify all required verification questions are checked before submit
+        if (mode === "create" && hasVerificationQuestions) {
+            try {
+                const response = await fetch(
+                    `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
+                );
+                const questions = await response.json();
+                const requiredQuestions = questions.filter(
+                    (q: { is_required: boolean }) => q.is_required,
+                );
+                const allChecked = requiredQuestions.every((q: { id: string }) =>
+                    checkedVerifications.has(q.id),
+                );
+
+                if (!allChecked) {
+                    notifications.show({
+                        title: t("error.title"),
+                        message: t("validation.verificationIncomplete"),
+                        color: "red",
+                        icon: React.createElement(IconX, { size: "1.1rem" }),
+                    });
+                    return;
+                }
+            } catch (error) {
+                console.error("Error validating verification questions:", error);
+                notifications.show({
+                    title: t("error.title"),
+                    message: t("error.general"),
+                    color: "red",
+                    icon: React.createElement(IconX, { size: "1.1rem" }),
+                });
+                return;
+            }
+        }
 
         setIsSubmitting(true);
         try {
@@ -355,6 +508,56 @@ export function HouseholdWizard({
         );
     }
 
+    // SECURITY: Block progress if verification questions failed to load in create mode
+    // This ensures we fail closed rather than skipping required validation
+    if (mode === "create" && verificationQuestionsError && formData.foodParcels.pickupLocationId) {
+        return (
+            <Container size="lg" py="md">
+                <Alert
+                    icon={<IconAlertCircle size="1rem" />}
+                    title={t("error.title")}
+                    color="red"
+                    mb="md"
+                >
+                    <Stack gap="sm">
+                        <Text>{t("error.verificationQuestionsLoadFailed")}</Text>
+                        <Text size="sm" c="dimmed">
+                            {verificationQuestionsError}
+                        </Text>
+                    </Stack>
+                </Alert>
+                <Group justify="center" mt="md">
+                    <Button
+                        onClick={() => {
+                            // Reset error and retry
+                            setVerificationQuestionsError(null);
+                            // Trigger re-fetch by clearing and resetting pickup location
+                            const locationId = formData.foodParcels.pickupLocationId;
+                            setFormData(prev => ({
+                                ...prev,
+                                foodParcels: { ...prev.foodParcels, pickupLocationId: "" },
+                            }));
+                            setTimeout(() => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    foodParcels: {
+                                        ...prev.foodParcels,
+                                        pickupLocationId: locationId,
+                                    },
+                                }));
+                            }, 100);
+                        }}
+                    >
+                        {t("error.retry")}
+                    </Button>
+                    <Button variant="outline" onClick={() => router.push("/households")}>
+                        {t("backToHouseholds")}
+                    </Button>
+                </Group>
+            </Container>
+        );
+    }
+
     return (
         <Container size="lg" py="md">
             <Box mb="md">
@@ -376,7 +579,12 @@ export function HouseholdWizard({
             )}
 
             <Card withBorder radius="md" p="md" mb="md">
-                <Stepper active={active} onStepClick={setActive} size="sm">
+                <Stepper
+                    active={active}
+                    onStepClick={setActive}
+                    size="sm"
+                    allowNextStepsSelect={false}
+                >
                     <Stepper.Step
                         label={t("steps.basics.label")}
                         description={t("steps.basics.description")}
@@ -441,6 +649,20 @@ export function HouseholdWizard({
                         />
                     </Stepper.Step>
 
+                    {/* Verification step - only shown in create mode with questions */}
+                    {mode === "create" && hasVerificationQuestions && (
+                        <Stepper.Step
+                            label={t("steps.verification.label")}
+                            description={t("steps.verification.description")}
+                        >
+                            <VerificationForm
+                                pickupLocationId={formData.foodParcels.pickupLocationId}
+                                checkedQuestions={checkedVerifications}
+                                onUpdateChecked={handleVerificationCheck}
+                            />
+                        </Stepper.Step>
+                    )}
+
                     <Stepper.Step
                         label={t("steps.review.label")}
                         description={t("steps.review.description")}
@@ -454,43 +676,56 @@ export function HouseholdWizard({
                     </Stepper.Step>
                 </Stepper>
 
-                {active !== 5 && (
-                    <Group justify="center" mt="md">
-                        {active !== 0 && (
-                            <Button
-                                variant="default"
-                                onClick={prevStep}
-                                leftSection={<IconArrowLeft size="1rem" />}
-                            >
-                                {t("navigation.back")}
-                            </Button>
-                        )}
-                        <Button onClick={nextStep} rightSection={<IconArrowRight size="1rem" />}>
-                            {t("navigation.next")}
-                        </Button>
-                    </Group>
-                )}
+                {/* Calculate the final step index dynamically */}
+                {(() => {
+                    const finalStepIndex = mode === "create" && hasVerificationQuestions ? 6 : 5;
+                    const isOnFinalStep = active === finalStepIndex;
 
-                {active === 5 && (
-                    <Group justify="center" mt="md">
-                        <Button
-                            variant="default"
-                            onClick={prevStep}
-                            leftSection={<IconArrowLeft size="1rem" />}
-                        >
-                            {t("navigation.back")}
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            color={submitButtonColor}
-                            rightSection={<IconCheck size="1rem" />}
-                            loading={isSubmitting}
-                            disabled={isSubmitting}
-                        >
-                            {submitButtonText || defaultSubmitButtonText}
-                        </Button>
-                    </Group>
-                )}
+                    return (
+                        <>
+                            {!isOnFinalStep && (
+                                <Group justify="center" mt="md">
+                                    {active !== 0 && (
+                                        <Button
+                                            variant="default"
+                                            onClick={prevStep}
+                                            leftSection={<IconArrowLeft size="1rem" />}
+                                        >
+                                            {t("navigation.back")}
+                                        </Button>
+                                    )}
+                                    <Button
+                                        onClick={nextStep}
+                                        rightSection={<IconArrowRight size="1rem" />}
+                                    >
+                                        {t("navigation.next")}
+                                    </Button>
+                                </Group>
+                            )}
+
+                            {isOnFinalStep && (
+                                <Group justify="center" mt="md">
+                                    <Button
+                                        variant="default"
+                                        onClick={prevStep}
+                                        leftSection={<IconArrowLeft size="1rem" />}
+                                    >
+                                        {t("navigation.back")}
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmit}
+                                        color={submitButtonColor}
+                                        rightSection={<IconCheck size="1rem" />}
+                                        loading={isSubmitting}
+                                        disabled={isSubmitting}
+                                    >
+                                        {submitButtonText || defaultSubmitButtonText}
+                                    </Button>
+                                </Group>
+                            )}
+                        </>
+                    );
+                })()}
             </Card>
 
             {/* Modal for adding parcels to newly created household */}

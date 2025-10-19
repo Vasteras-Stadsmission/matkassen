@@ -197,6 +197,7 @@ echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
 echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
+echo "ENV_NAME=\"${ENV_NAME:-staging}\"" >> "$APP_DIR/.env" # Environment identifier (production/staging)
 # SMS configuration (conditional - only if credentials are provided)
 if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
   echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"

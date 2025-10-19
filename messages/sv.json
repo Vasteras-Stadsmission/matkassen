@@ -560,6 +560,10 @@
                 "label": "Ytterligare behov",
                 "description": "Särskilda behov"
             },
+            "verification": {
+                "label": "Verifiering",
+                "description": "Obligatoriska kontroller"
+            },
             "parcels": {
                 "label": "Matkassar",
                 "description": "Schemaläggning"
@@ -579,7 +583,19 @@
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
             "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
-            "pickupLocation": "Välj en hämtplats"
+            "pickupLocation": "Välj en hämtplats",
+            "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta"
+        },
+        "verification": {
+            "title": "Verifiering krävs",
+            "description": "Bekräfta följande innan du skapar detta hushåll:",
+            "allComplete": "Alla verifieringar genomförda",
+            "requiredMark": "Obligatorisk",
+            "optionalMark": "Valfri",
+            "progress": "{completed} av {total} verifierade",
+            "noQuestions": "Inga verifieringsfrågor konfigurerade för denna plats",
+            "errorLoading": "Kunde inte ladda verifieringsfrågor",
+            "errorUnknown": "Ett okänt fel uppstod"
         },
         "success": {
             "title": "Klart!",
@@ -591,7 +607,9 @@
             "general": "Ett fel uppstod",
             "unknown": "Okänt fel",
             "create": "Ett fel uppstod vid skapande av hushåll",
-            "update": "Ett fel uppstod vid uppdatering av hushåll"
+            "update": "Ett fel uppstod vid uppdatering av hushåll",
+            "verificationQuestionsLoadFailed": "Kunde inte ladda verifieringsfrågor. Kan inte fortsätta utan att slutföra obligatoriska kontroller.",
+            "retry": "Försök igen"
         },
         "submitting": {
             "create": "Skapar nytt hushåll...",
@@ -791,7 +809,50 @@
         "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
         "proceedAnyway": "Fortsätt ändå",
         "checking": "Kontrollerar...",
-        "checkingAffectedParcels": "Kontrollerar hur många matkassar som skulle påverkas av denna radering..."
+        "checkingAffectedParcels": "Kontrollerar hur många matkassar som skulle påverkas av denna radering...",
+        "verification": {
+            "title": "Verifieringsfrågor",
+            "description": "Hantera verifieringsfrågor som administratörer måste bekräfta innan de skapar hushåll för denna plats",
+            "noQuestions": "Inga verifieringsfrågor konfigurerade än",
+            "addQuestion": "Lägg till fråga",
+            "addFirstQuestion": "Lägg till din första verifieringsfråga",
+            "editQuestion": "Redigera verifieringsfråga",
+            "questionTextSv": "Frågetext (svenska)",
+            "questionTextEn": "Frågetext (engelska)",
+            "questionTextSvPlaceholder": "t.ex. Jag har verifierat att hushållet bor i rätt postnummerområde",
+            "questionTextEnPlaceholder": "t.ex. I have verified that the household lives in the correct postal code area",
+            "helpTextSv": "Hjälptext (svenska, valfri)",
+            "helpTextEn": "Hjälptext (engelska, valfri)",
+            "helpTextSvPlaceholder": "Ytterligare vägledning eller förklaring på svenska",
+            "helpTextEnPlaceholder": "Ytterligare vägledning eller förklaring på engelska",
+            "isRequired": "Obligatorisk verifiering",
+            "isRequiredDescription": "Administratören måste markera denna ruta innan de skapar hushåll",
+            "displayOrder": "Visningsordning",
+            "displayOrderDescription": "Lägre nummer visas först (0, 1, 2...)",
+            "questionTextSvRequired": "Svensk frågetext krävs",
+            "questionTextEnRequired": "Engelsk frågetext krävs",
+            "displayOrderRequired": "Visningsordning krävs",
+            "saveQuestion": "Spara fråga",
+            "cancel": "Avbryt",
+            "questionCreated": "Verifieringsfråga skapad",
+            "questionUpdated": "Verifieringsfråga uppdaterad",
+            "questionDeleted": "Verifieringsfråga raderad",
+            "errorCreating": "Fel vid skapande av verifieringsfråga",
+            "errorUpdating": "Fel vid uppdatering av verifieringsfråga",
+            "errorDeleting": "Fel vid radering av verifieringsfråga",
+            "errorLoading": "Fel vid laddning av verifieringsfrågor",
+            "confirmDelete": "Är du säker på att du vill ta bort denna verifieringsfråga?",
+            "delete": "Ta bort",
+            "edit": "Redigera",
+            "active": "Aktiv",
+            "inactive": "Inaktiv",
+            "toggleActive": "Växla aktiv/inaktiv",
+            "required": "Obligatorisk",
+            "optional": "Valfri",
+            "preview": "Förhandsgranskning",
+            "previewDescription": "Så här ser administratörer denna fråga i guiden för att skapa hushåll:",
+            "reorderInstructions": "Dra för att ändra ordning på frågor"
+        }
     },
     "sms": {
         "title": "SMS-meddelanden",

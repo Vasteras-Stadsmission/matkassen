@@ -1,125 +1,67 @@
-# Matkassen - Food Parcel Distribution System
+# Matkassen - AI Agent Instructions
 
-## ⚠️ AI Agent Checklist - READ BEFORE TAKING ACTION
+## ⚠️ Critical Checklist - READ FIRST
 
-Before making any changes, verify:
+Before making ANY changes:
 
-- [ ] **No new markdown files** - Only edit existing docs unless explicitly requested
-- [ ] **No intermediate files** - Edit originals directly, never create temp files
-- [ ] **Check `.gitignore`** - Never edit generated files (`.next/`, `node_modules/`, etc.)
-- [ ] **Server actions use `protectedAction()`** - MANDATORY security wrapper
+- [ ] **Server actions use `protectedAction()`** - MANDATORY (enforced by `pnpm run validate`)
+- [ ] **Admin API routes use `authenticateAdminRequest()`** - MANDATORY for `/api/admin/*`
 - [ ] **All user-facing text uses i18n** - No hardcoded strings, use message IDs
-- [ ] **Environment variables in 5 places** - `.env.example`, GitHub Secrets, workflows, deploy scripts
-- [ ] **Read file before editing** - User may have made manual changes
-- [ ] **Multi-replace for efficiency** - Use `multi_replace_string_in_file` when possible
+- [ ] **Environment variables in 5 places** - `.env.example`, GitHub Secrets, 2 workflows, 2 deploy scripts
+- [ ] **No intermediate files** - Edit originals directly, never create temp files
+- [ ] **No new docs without permission** - Only edit existing markdown files
+- [ ] **Check `.gitignore`** - Never edit `.next/`, `node_modules/`, etc.
+- [ ] **Read before editing** - User may have made manual changes
 
-If unsure, ask first!
+**If unsure, ask first!**
+
+**If unsure, ask first!**
 
 ---
 
 ## Project Overview
 
-This is a **production-ready, not yet released** Next.js 15 admin tool for managing food parcel distribution, deployed via Docker to VPS. Uses GitHub OAuth for authentication with organization membership verification. Pre-release status means no backwards compatibility concerns.
+**Production-ready, not yet released** Next.js 15 admin tool for food parcel distribution. Deployed via Docker to VPS with GitHub OAuth authentication.
 
-## Core Architecture
+**Tech Stack**: Next.js 15, PostgreSQL, Drizzle ORM, Mantine v8, Tailwind, NextAuth v5, Playwright, Vitest
 
-### Tech Stack
+**Key Features**: Household management, parcel scheduling, SMS notifications, multi-language support (20+ languages), QR codes
 
-- **Framework**: Next.js 15 App Router (TypeScript strict mode, server components by default)
-- **Database**: PostgreSQL with Drizzle ORM + migrations via `drizzle-kit`
-- **Styling**: Mantine v8 + Tailwind CSS (PostCSS, no standalone Tailwind config)
-- **i18n**: `next-intl` with Swedish (sv) default, English (en) support
-- **Auth**: NextAuth v5 with GitHub OAuth + GitHub App for org membership
-- **Deployment**: Docker Compose with Nginx reverse proxy, Certbot SSL
-- **Testing**: Vitest (unit tests) + Playwright (E2E tests)
+---
 
-### Project Structure
-
-```
-app/
-  [locale]/          # Localized admin routes (requires auth)
-    households/      # Household management
-    schedule/        # Food parcel scheduling
-    handout-locations/  # Pickup location management
-  p/                 # PUBLIC parcel pages (no locale, no auth)
-  api/               # API routes (auth checked in middleware)
-  db/                # Drizzle schema & connection
-  utils/auth/        # Auth wrappers & validation
-components/          # Shared React components
-messages/            # i18n JSON files (en.json, sv.json, public-*.json)
-migrations/          # SQL migration files (auto-generated + custom)
-e2e/                 # Playwright E2E tests
-```
-
-## Setup Commands
-
-### Development
+## Quick Commands
 
 ```bash
-# Install dependencies
-pnpm install
+# Development
+pnpm run dev              # Start dev server (never run yourself - assume already running)
+pnpm run validate         # Lint, typecheck, format-check, security checks (run before commit)
 
-# Start dev server (includes PostgreSQL in Docker)
-pnpm run dev
-
-# Database commands
-pnpm run db:generate  # Generate migration from schema changes
-pnpm run db:migrate   # Apply migrations
+# Database
+pnpm run db:generate      # Generate migration after schema changes
+pnpm run db:migrate       # Apply migrations
 
 # Testing
-pnpm test             # Run unit tests (Vitest)
-pnpm run test:e2e     # Run E2E tests (Playwright)
-
-# Validation (run before committing)
-pnpm run validate     # Lint, typecheck, format-check, security checks
+pnpm test                 # Unit tests (Vitest)
+pnpm run test:e2e:auth    # E2E auth setup (one-time, valid 30 days)
+pnpm run test:e2e         # Run E2E tests (Playwright)
 ```
 
-### E2E Testing with Playwright
-
-```bash
-# First-time setup: Authenticate once for E2E tests
-pnpm run test:e2e:auth
-# Browser opens → Click "Sign in with GitHub" → Complete OAuth → Wait on dashboard
-
-# Run E2E tests
-pnpm run test:e2e          # Headless mode
-pnpm run test:e2e:ui       # Interactive UI
-pnpm run test:e2e:headed   # Watch browser
-pnpm run test:e2e:check    # Check setup status
-
-# Re-authenticate if session expires
-rm -rf .auth && pnpm run test:e2e:auth
-```
-
-**Important**: E2E tests require GitHub OAuth authentication. The session is saved to `.auth/user.json` (gitignored) and reused by all tests. Valid for ~30 days.
+---
 
 ## Critical Security Patterns
 
-### Authentication Requirements
-
-**EVERY page must be protected except `/auth/*` and `/p/*` (public parcel pages).**
-
-- **Server components**: Wrap with `<AuthProtection>` (see `components/AuthProtection/index.tsx`)
-- **Client components**: Wrap with `<AuthProtectionClient>` (see `components/AuthProtection/client.tsx`)
-- **API routes**: Auth checked in `middleware.ts` via cookie presence, full validation in route handlers
-- **Server actions**: MANDATORY `protectedAction()` or `protectedHouseholdAction()` wrappers
-
-### Server Action Security Pattern
-
-All server actions return `ActionResult<T>` (discriminated union) and use protection wrappers:
+### Server Actions (MANDATORY)
 
 ```typescript
-// app/[locale]/example/actions.ts
 "use server";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 
 export const myAction = protectedAction(
     async (session, formData: FormData): Promise<ActionResult<string>> => {
-        // session is verified - no manual auth checks needed
+        // session is verified - no manual checks needed
         try {
-            const result = await doSomething();
-            return success(result);
+            return success(await doSomething());
         } catch (error) {
             return failure({ code: "FAILED", message: "Operation failed" });
         }
@@ -127,433 +69,205 @@ export const myAction = protectedAction(
 );
 ```
 
-**Build validation** (`pnpm run validate`) enforces this pattern via `scripts/validate-server-actions.mjs`.
+**Enforcement**: `scripts/validate-server-actions.mjs` (runs in `pnpm run validate`)
 
-## Development Workflows
-
-### Local Development Modes
-
-1. **Fast development** (recommended): `pnpm run dev` - Next.js runs locally, PostgreSQL in Docker
-2. **Full stack testing**: `pnpm run preview:production` - All services in Docker (mirrors production except SSL)
-
-Never run `pnpm dev` yourself - assume it's already running on http://localhost:3000.
-
-### Database Workflow
-
-1. **Schema changes**: Edit `app/db/schema.ts` → run `pnpm run db:generate` (creates SQL migration)
-2. **Apply migrations**: `pnpm run db:migrate` (or automatic in Docker/dev)
-3. **Custom SQL**: Use `pnpm exec drizzle-kit generate --custom --name=description` for seed data/DDL
-
-Schema uses **nanoid(8)** for primary keys (see `app/db/schema.ts` for the custom nanoid export).
-
-### Testing & Validation
-
-- `pnpm run validate` - Runs lint, typecheck, format-check, security validation (CI/CD gate)
-- `pnpm test` - Vitest unit test runner
-- `pnpm run test:e2e` - Playwright E2E tests (LOCAL ONLY, see below)
-- `pnpm run format` - Prettier auto-fix
-
-## E2E Testing Strategy
-
-**Status**: ⚠️ **LOCAL ONLY** - Not CI-ready
-
-E2E tests require GitHub OAuth authentication and run against a local database. They are **intentionally minimal** to avoid flakiness from database state assumptions.
-
-### Philosophy
-
-- ✅ Test that pages load without crashes
-- ✅ Verify authentication state persists
-- ✅ Check navigation flows work
-- ✅ Validate API endpoints are reachable
-- ❌ Do NOT test data mutations (no seed infrastructure yet)
-- ❌ Do NOT make assumptions about DB content
-- ❌ Do NOT test complex multi-step workflows
-
-### Running E2E Tests
-
-```bash
-# ONE-TIME SETUP: Authenticate via copy/paste (valid ~30 days)
-pnpm run test:e2e:auth
-# Prompts you to copy session cookie from DevTools (takes 10 seconds)
-
-# Run all tests
-pnpm run test:e2e
-
-# Run specific test file
-pnpm run test:e2e e2e/navigation.spec.ts
-
-# Interactive mode
-pnpm run test:e2e:ui
-
-# Watch browser (debugging)
-pnpm run test:e2e:headed
-
-# Check auth status
-pnpm run test:e2e:check
-
-# Re-authenticate if session expires
-rm -rf .auth && pnpm run test:e2e:auth
-```
-
-### What E2E Tests Cover
-
-**Current coverage** (stable, non-flaky):
-
-1. **Authentication** (`auth-verification.spec.ts`)
-
-    - Session loads correctly
-    - User avatar visible
-    - Auth persists across refreshes
-
-2. **Admin Pages** (`admin.spec.ts`)
-
-    - Dashboard, households, schedule, handout locations, SMS dashboard load
-    - No crashes (500 errors)
-    - No assumptions about content
-
-3. **Navigation** (`navigation.spec.ts`)
-
-    - Sequential navigation through all sections
-    - Back/forward browser navigation
-    - Direct URL navigation
-    - English locale navigation
-
-4. **Public Pages** (`public-parcel.spec.ts`)
-
-    - `/p/*` routes accessible without auth
-    - Graceful handling of invalid parcel IDs
-    - Multi-language support via query params
-    - Protected routes correctly reject unauthenticated users
-
-5. **API Health** (`api-health.spec.ts`)
-
-    - Admin endpoints return 2xx/4xx (never 500 or 404)
-    - Proper JSON responses
-    - Protected endpoints require auth
-    - Public health endpoint accessible
-
-6. **Locale Switching** (`locale-toggle.spec.ts`)
-    - Currently SKIPPED (needs `data-testid` on LanguageSwitcher)
-    - Will test Swedish ↔ English switching once implemented
-
-### What E2E Tests DON'T Cover (Intentionally)
-
-These require data seeding infrastructure (future work):
-
-- ❌ Household creation workflows
-- ❌ Parcel creation and management
-- ❌ SMS sending functionality
-- ❌ Complex form submissions
-- ❌ Data validation with server responses
-
-### Test File Structure
-
-```
-e2e/
-├── auth.setup.ts                # Authentication setup (required)
-├── test-helpers.ts              # Shared utilities
-├── auth-verification.spec.ts    # Auth smoke tests
-├── admin.spec.ts                # Page load tests
-├── navigation.spec.ts           # Navigation flows
-├── public-parcel.spec.ts        # Public route tests
-├── api-health.spec.ts           # API endpoint checks
-└── locale-toggle.spec.ts        # Language switching (skipped)
-```
-
-### Writing New E2E Tests
-
-**DO**:
-
-- Use `[data-testid]` selectors when available
-- Test static behavior (navigation, page loads)
-- Expect pages to work with empty OR full databases
-- Use `expectAuthenticated(page)` helper
-- Write screenshots to `test-results/` directory
-
-**DON'T**:
-
-- Assume specific data exists (households, locations, parcels)
-- Test data mutations without cleanup/seed infrastructure
-- Use text content for selectors (breaks with i18n)
-- Wait for `networkidle` (use specific element visibility instead)
-- Create data during tests (no cleanup mechanism yet)
-
-### Helper Functions
-
-Import from `e2e/test-helpers.ts`:
+### API Routes (MANDATORY for `/api/admin/*`)
 
 ```typescript
-import {
-    navigateToLocale,
-    expectAuthenticated,
-    waitForPageLoad,
-    takeScreenshot,
-    expectVisibleByTestId,
-    clickByTestId,
-} from "./test-helpers";
+import { NextResponse } from "next/server";
+import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 
-test("example test", async ({ page }) => {
-    await navigateToLocale(page, "/households");
-    await expectAuthenticated(page);
-    await takeScreenshot(page, "households-page");
-});
-```
+export async function GET(request: Request) {
+    const authResult = await authenticateAdminRequest();
+    if (!authResult.success) return authResult.response!;
 
-### Locator Strategies (Priority Order)
-
-1. **Test IDs** (most reliable): `page.locator('[data-testid="user-avatar"]')`
-2. **Accessible Roles**: `page.getByRole('button', { name: 'Sign in' })`
-3. **Labels** (for forms): `page.getByLabel('Name')`
-4. **Text content**: `page.getByText('Households')` (last resort - breaks with i18n)
-5. **CSS selectors**: Avoid unless absolutely necessary
-
-### Future: Data Seeding Infrastructure
-
-When we implement `scripts/e2e-seed.ts`:
-
-1. Pre-seed predictable test data (households, locations, parcels)
-2. Use test-specific schema or cleanup between runs
-3. Make seeding idempotent (safe to run multiple times)
-4. Then enable workflow tests (parcel creation, SMS sending, etc.)
-
-Until then, E2E tests remain minimal smoke tests only.
-
-## Playwright E2E Testing (AI Agent Instructions)
-
-### Overview
-
-The project uses Playwright with MCP (Model Context Protocol) for E2E testing. This allows AI agents to interact with the running application.
-
-### Authentication Context
-
-**Critical**: The application uses GitHub OAuth. Tests require manual authentication once:
-
-1. Run `pnpm run test:e2e:auth` (terminal prompt)
-2. Copy session cookie from browser DevTools
-3. Paste into terminal
-4. Done! Session saved to `.auth/user.json`
-
-All subsequent tests automatically use this saved session. Session expires in ~30 days.
-
-### Protected vs Public Routes
-
-**Protected Routes** (require auth in tests):
-
-- `/[locale]/*` - All admin routes (households, schedule, handout-locations)
-
-**Public Routes** (no auth needed):
-
-- `/p/[parcelId]` - Public parcel pages
-- `/auth/*` - Authentication pages
-
-### MCP (Model Context Protocol) Integration
-
-AI agents can control Playwright via MCP. Configuration is in `.github/copilot-mcp.json`:
-
-```json
-{
-    "mcpServers": {
-        "playwright": {
-            "command": "pnpm",
-            "args": ["exec", "mcp-server-playwright", "--storage-state=.auth/user.json"],
-            "env": { "PLAYWRIGHT_BASE_URL": "http://localhost:3000" }
-        }
-    }
+    // authResult.session is verified
+    return NextResponse.json(await fetchData());
 }
 ```
 
-**For users**: This is automatically configured. Just restart VS Code after first auth setup.
+**Enforcement**: `scripts/validate-api-routes.mjs` (runs in `pnpm run validate`)
 
-### When AI Agents Are Asked to Test
+**Public exceptions**: `/api/auth/*`, `/api/health`, `/api/csp-report`
 
-1. **Check prerequisites**: Verify auth is set up (`pnpm run test:e2e:check`)
-2. **Navigate and interact**: Use Playwright MCP tools to control browser
-3. **Take screenshots**: Capture visual evidence (writes to `test-results/`)
-4. **Report results**: Show errors, screenshots, or success
-5. **Suggest improvements**: Recommend `data-testid` attributes if selectors are fragile
-
-**Common requests**:
-
-- "Take a screenshot of [page]"
-- "Test if [feature] works"
-- "Verify all navigation links work"
-- "Check if form validation works correctly"
-
-### Debugging Failed Tests
-
-When tests fail:
-
-1. Check screenshot in `test-results/` directory
-2. Check video recording (also in `test-results/`)
-3. Verify authentication (if redirected to `/auth/signin`, session expired)
-4. Ensure dev server is running on localhost:3000
-5. Use `await page.pause()` for interactive debugging
-
-### Mantine UI Components
-
-The app uses Mantine v8. Common patterns:
+### Page Protection
 
 ```typescript
-// Modals/Dialogs
-await expect(page.locator('[role="dialog"]')).toBeVisible();
-await page.locator('[role="dialog"] input[name="name"]').fill("Test");
+// Server components
+import { AuthProtection } from "@/components/AuthProtection";
+export default function Page() {
+    return <AuthProtection>{/* content */}</AuthProtection>;
+}
 
-// Notifications
-await expect(page.locator('[class*="mantine-Notification"]')).toContainText("Success");
-
-// Tables (mantine-datatable)
-const row = page.locator("tbody tr", { hasText: "John Doe" });
-await row.locator('button[aria-label="Edit"]').click();
+// Client components
+"use client";
+import { AuthProtectionClient } from "@/components/AuthProtection/client";
 ```
 
-### When AI Agents Are Asked to Test
+**All routes require auth except** `/auth/*` and `/p/*` (public parcel pages).
 
-1. **Check prerequisites**: Verify auth is set up (`pnpm run test:e2e:check`)
-2. **Navigate and interact**: Use Playwright MCP tools to control browser
-3. **Take screenshots**: Capture visual evidence
-4. **Report results**: Show errors, screenshots, or success
-5. **Suggest improvements**: Recommend `data-testid` attributes if selectors are fragile
+---
 
-**Common requests**:
+## Project Structure
 
-- "Take a screenshot of [page]"
-- "Test if [feature] works"
-- "Verify all navigation links work"
-- "Check if form validation works correctly"
+```
+app/
+  [locale]/          # Admin routes (auth required)
+    households/      # Household management
+    schedule/        # Parcel scheduling
+    handout-locations/  # Pickup locations
+  p/                 # PUBLIC parcel pages (no auth, no locale)
+  api/               # API routes
+  db/                # Drizzle schema & connection
+  utils/auth/        # Auth wrappers
+components/          # Shared React components
+messages/            # i18n (en.json, sv.json, public-*.json)
+migrations/          # SQL migrations
+e2e/                 # Playwright E2E tests
+docs/                # Domain-specific guides
+```
 
-### Debugging Failed Tests
-
-When tests fail:
-
-1. Check screenshot in `test-results/` directory
-2. Check video recording (also in `test-results/`)
-3. Verify authentication (if redirected to `/auth/signin`, session expired)
-4. Ensure dev server is running on localhost:3000
-5. Use `await page.pause()` for interactive debugging
-
-## Internationalization (i18n)
-
-### Message Management
-
-- **Admin UI**: `messages/en.json` and `messages/sv.json`
-- **Public pages**: `messages/public-{locale}.json` (20+ languages)
-- **Usage in client components**: `const t = useTranslations("namespace");`
-- **Usage in server components**: `const t = await getTranslations("namespace");`
-
-ALL user-facing strings must use message IDs - no hardcoded text. Default locale is Swedish (sv).
-
-## Deployment Architecture
-
-### Environment Variable Management
-
-Adding new env vars requires updates in **5 places** (or they won't work in production):
-
-1. `.env.example` - Documentation with clear descriptions
-2. GitHub Secrets (if sensitive)
-3. `.github/workflows/init_deploy.yml` - Export in env section
-4. `.github/workflows/continuous_deployment.yml` - Export in env section
-5. Both `deploy.sh` and `update.sh` - Add to .env file creation
-
-**Never hardcode in `docker-compose.yml`** - use .env file pattern.
-
-### Deployment Flow
-
-- **Staging**: Auto-deploys on push to `main` via `.github/workflows/continuous_deployment.yml`
-- **Production**: Manual approval required after staging deployment succeeds
-- **First-time setup**: Manual trigger of `.github/workflows/init_deploy.yml`
-
-### Background Services
-
-Custom Next.js server (`server.js`) starts SMS scheduler automatically on production boot. Uses PostgreSQL advisory locks for queue processing safety across multiple instances.
+---
 
 ## Key Conventions
 
+### React Components
+
+- **Default to server components** - only add `"use client"` when using hooks/browser APIs
+- **Navigation**: Import from `@/app/i18n/navigation` (locale-aware, NOT `next/navigation`)
+- **i18n**: `const t = await getTranslations("namespace")` (server) or `useTranslations()` (client)
+- **ALL user-facing text uses i18n** - no hardcoded strings
+
+### Database
+
+- **IDs**: Use exported `nanoid(8)` from `app/db/schema.ts`
+- **Connection**: Import `db` from `@/app/db/drizzle`
+- **Queries**: Drizzle ORM query builder only
+
 ### File Editing
 
-- **Never create intermediate files** - edit originals directly
-- **Never create additional markdown files** unless explicitly requested
-- **Respect `.gitignore`** - never edit `.next/`, `node_modules/`, etc.
+- **Never create intermediate/temp files** - edit originals directly
+- **No new markdown files** unless explicitly requested
+- **Respect `.gitignore`** - never touch `.next/`, `node_modules/`, etc.
 
-### React Component Patterns
+---
 
-- **Default to server components** - only add `"use client"` when using browser APIs (hooks, event handlers)
-- **Use function components with hooks** - no class components
-- **Navigation**: Import from `@/app/i18n/navigation` (not `next/navigation`) for locale-aware routing
+## Domain-Specific Documentation
 
-### Database Patterns
+**For detailed information, read these guides**:
 
-- **Connection**: Import `db` from `@/app/db/drizzle` (has build-time mocks for tests)
-- **IDs**: Use exported `nanoid(8)` function from `app/db/schema.ts`
-- **Queries**: Use Drizzle ORM query builder, not raw SQL
+- **Authentication & Security**: `docs/auth-guide.md` - Auth patterns, GitHub OAuth, security checklist
+- **Development Workflows**: `docs/dev-guide.md` - Local setup, React patterns, database workflow, troubleshooting
+- **Testing**: `docs/testing-guide.md` - Unit tests, E2E setup, Playwright patterns, MCP integration
+- **Database**: `docs/database-guide.md` - Schema patterns, migrations, query examples, backups
+- **Deployment**: `docs/deployment-guide.md` - Environment variables, Docker, CI/CD, monitoring
+- **Internationalization**: `docs/i18n-guide.md` - Message management, usage patterns, language switching
+- **Business Logic**: `docs/business-logic.md` - Parcel status rules, verification questions, SMS queue
 
-### Styling
+**Human-readable docs**:
 
-- Use Mantine components + Tailwind utility classes
-- PostCSS config in `postcss.config.cjs` handles Mantine preset
-- No standalone Tailwind config file
+- `README.md` - Quick start for humans
+- `docs/user-manual.md` - End-user documentation
+- `docs/user-flows.md` - User workflows
 
-### Testing Conventions
+---
 
-- **Unit tests**: Use Vitest with React Testing Library
-- **E2E tests**: Use Playwright, prefer semantic selectors
-- **Add `data-testid`**: When semantic selectors aren't available
-- **Test independence**: Each test should work standalone
+## Common Workflows
 
-## Business Logic & UX Patterns
+### Adding a Server Action
+
+1. Read `docs/auth-guide.md` for patterns
+2. Create action with `protectedAction()` wrapper
+3. Return `ActionResult<T>` type
+4. Run `pnpm run validate` (enforces pattern)
+
+### Schema Change
+
+1. Edit `app/db/schema.ts`
+2. Run `pnpm run db:generate`
+3. Review generated SQL in `migrations/`
+4. Run `pnpm run db:migrate`
+5. See `docs/database-guide.md` for details
+
+### Adding Environment Variable
+
+**Must update 5 places** (or it won't work in production):
+
+1. `.env.example` - with description
+2. GitHub Secrets (if sensitive)
+3. `.github/workflows/init_deploy.yml`
+4. `.github/workflows/continuous_deployment.yml`
+5. Both `deploy.sh` and `update.sh`
+
+See `docs/deployment-guide.md` for examples.
+
+### Adding i18n Messages
+
+1. Add to `messages/en.json` and `messages/sv.json`
+2. For public pages: add to all `messages/public-*.json` files
+3. Use via `t("namespace.key")`
+4. See `docs/i18n-guide.md` for patterns
+
+### Writing E2E Tests
+
+1. Run `pnpm run test:e2e:auth` (first time only, valid 30 days)
+2. Use `[data-testid]` selectors (preferred)
+3. Test static behavior only (no data mutations without seed infrastructure)
+4. See `docs/testing-guide.md` for philosophy and patterns
+
+---
+
+## Special Notes
 
 ### Parcel Status Display Logic
 
-**Important:** Parcel status badges use **date-only** comparison, not time-based.
+**Date-only comparison** (not time-based):
 
-**Intentional behavior:**
+- Same-day parcels ALWAYS show "upcoming" (blue), even if pickup window passed
+- Only previous-day parcels show "not picked up" (red)
+- Staff MUST manually mark as picked up
 
-- Same-day parcels ALWAYS show as "upcoming" (blue badge), even if pickup window has passed
-- Only parcels from PREVIOUS days show as "not picked up" (red badge)
+**Rationale**: Households may arrive late. Staff processes throughout the day. Don't prematurely mark as "not picked up."
 
-**Rationale:**
+**Code**: `app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx` - `isDateInPast()`
 
-- Households may arrive late throughout the day
-- Staff may be processing multiple arrivals
-- Pickup windows are guidelines, not hard cutoffs
-- We don't want to prematurely mark parcels as "not picked up" while staff are actively processing handouts
+**Tests**: `__tests__/app/households/parcel-status-display.test.ts`
 
-**Staff workflow:**
+See `docs/business-logic.md` for full explanation.
 
-- Staff must MANUALLY mark parcels as picked up via the admin dialog
-- System only auto-shows "not picked up" for parcels from previous days that were never marked
+### Background Services
 
-**Test coverage:** See `__tests__/app/households/parcel-status-display.test.ts` for documented test cases.
+SMS scheduler runs automatically via custom Next.js server (`server.js`). Uses PostgreSQL advisory locks for safety across instances.
 
-**Code location:** `app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx` - `isDateInPast()` function
+**Monitor**: `curl https://your-domain.com/api/health`
 
-- **Clean up**: Remove test data when possible
+---
 
-## Special Routes
+## When You Need More Context
 
-### Public Parcel Pages (`/p/[parcelId]`)
+1. **Check domain guides first** - They have detailed patterns and examples
+2. **Use `semantic_search`** - Search codebase for similar implementations
+3. **Use `grep_search`** - Find exact patterns in code
+4. **Read the actual files** - User may have made manual changes
 
-- **No locale prefix**: Bypass i18n routing entirely
-- **No authentication**: Accessible to households for QR code scanning
-- **Middleware exception**: Listed in `middleware.ts` public patterns
-- **Separate layout**: `app/p/layout.tsx` with minimal metadata
+**Don't make assumptions** - gather context before acting.
 
-### API Routes
+---
 
-- **Authentication**: Basic cookie check in middleware, full validation in handlers
-- **Public exceptions**: `/api/health`, `/api/auth/*`, `/api/csp-report`
-- **Protected**: All other API routes require valid session token
+## Build Validation
 
-## Code Quality
+Always run before committing:
 
-- Annotate non-obvious logic in comments for AI learning
-- TypeScript strict mode enforced
-- Run `pnpm run validate` before committing
-- All server actions must use protection wrappers
-- All user-facing text must use i18n message IDs
+```bash
+pnpm run validate
+```
 
-## Documentation
+This enforces:
 
-- **Quick start**: `README.md` (for humans)
-- **This file**: `AGENTS.md` (for AI agents)
-- **User manual**: `docs/user-manual.md`
-- **User flows**: `docs/user-flows.md`
+- ESLint rules
+- TypeScript strict mode
+- Prettier formatting
+- Server action security patterns (`scripts/validate-server-actions.mjs`)
+- API route security patterns (`scripts/validate-api-routes.mjs`)
+
+**CI/CD gate** - Deployment fails if validation fails.
