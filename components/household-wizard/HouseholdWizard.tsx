@@ -344,9 +344,10 @@ export function HouseholdWizard({
                 if (!response.ok) {
                     // SECURITY: Fail closed - treat API errors as critical
                     const errorText = await response.text().catch(() => "Unknown error");
-                    const errorMessage = `Failed to load verification questions (HTTP ${response.status}): ${errorText}`;
-                    console.error(errorMessage);
-                    setVerificationQuestionsError(errorMessage);
+                    console.error(
+                        `Failed to load verification questions (HTTP ${response.status}): ${errorText}`,
+                    );
+                    setVerificationQuestionsError(t("error.verificationQuestionsLoadFailed"));
                     setHasVerificationQuestions(false);
                     return;
                 }
@@ -359,15 +360,14 @@ export function HouseholdWizard({
                     return;
                 }
                 // SECURITY: Fail closed - treat network errors as critical
-                const errorMessage = `Network error loading verification questions: ${error instanceof Error ? error.message : "Unknown error"}`;
-                console.error(errorMessage, error);
-                setVerificationQuestionsError(errorMessage);
+                console.error("Network error loading verification questions:", error);
+                setVerificationQuestionsError(t("error.verificationQuestionsLoadFailed"));
                 setHasVerificationQuestions(false);
             }
         };
 
         fetchQuestions();
-    }, [formData.foodParcels.pickupLocationId, mode]);
+    }, [formData.foodParcels.pickupLocationId, mode, t]);
 
     // Cleanup: abort any pending requests on unmount
     useEffect(() => {

@@ -74,7 +74,8 @@ export default function VerificationForm({
                     return;
                 }
                 console.error("Error fetching verification questions:", err);
-                setError(err instanceof Error ? err.message : t("errorUnknown"));
+                // Use localized error message instead of raw err.message
+                setError(t("errorLoading"));
             } finally {
                 setIsLoading(false);
             }

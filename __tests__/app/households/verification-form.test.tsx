@@ -144,6 +144,9 @@ describe("VerificationForm", () => {
         await waitFor(() => {
             expect(mockFetch).toHaveBeenCalledWith(
                 "/api/admin/pickup-locations/loc1/verification-questions",
+                expect.objectContaining({
+                    signal: expect.any(AbortSignal),
+                }),
             );
         });
     });
