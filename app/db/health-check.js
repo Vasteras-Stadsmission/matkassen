@@ -5,6 +5,7 @@
  * This avoids ESM/TypeScript import issues in the custom server.
  */
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const postgres = require("postgres");
 
 /**

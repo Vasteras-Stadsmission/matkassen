@@ -3,6 +3,7 @@
 ## Overview
 
 The project uses `next-intl` for internationalization with:
+
 - **Swedish (sv)** as the default locale
 - **English (en)** fully supported for admin UI
 - **20+ languages** for public parcel pages
@@ -147,6 +148,7 @@ Group related messages by feature:
 ```
 
 Usage:
+
 ```typescript
 const t = useTranslations("Households.form");
 <label>{t("name")}</label>
@@ -296,6 +298,7 @@ export default async function ParcelPage({
 ```
 
 URL structure:
+
 - `/p/abc12345` - Default (Swedish)
 - `/p/abc12345?lang=en` - English
 - `/p/abc12345?lang=ar` - Arabic

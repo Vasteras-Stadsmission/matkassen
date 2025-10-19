@@ -27,10 +27,15 @@ import { pgTable, text } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
 // Exported function - use this everywhere
-export const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", 8);
+export const nanoid = customAlphabet(
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+    8,
+);
 
 export const examples = pgTable("examples", {
-    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => nanoid()),
     // ... other fields
 });
 ```
@@ -39,7 +44,9 @@ export const examples = pgTable("examples", {
 
 ```typescript
 export const parcels = pgTable("parcels", {
-    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => nanoid()),
     householdId: text("household_id")
         .notNull()
         .references(() => households.id, { onDelete: "cascade" }),
@@ -77,7 +84,9 @@ Edit `app/db/schema.ts`:
 
 ```typescript
 export const households = pgTable("households", {
-    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => nanoid()),
     name: text("name").notNull(),
     // Add new field
     phoneNumber: text("phone_number"),
@@ -95,6 +104,7 @@ This creates a timestamped SQL file in `migrations/` directory.
 ### 3. Review Migration
 
 Open the generated `.sql` file and verify:
+
 - Column additions/removals
 - Index creation
 - Constraint changes
@@ -198,7 +208,7 @@ await db.delete(households).where(eq(households.id, "abc123"));
 import { db } from "@/app/db/drizzle";
 import { households, parcels } from "@/app/db/schema";
 
-await db.transaction(async (tx) => {
+await db.transaction(async tx => {
     const household = await tx.insert(households).values({ name: "New Family" }).returning();
 
     await tx.insert(parcels).values({
@@ -259,7 +269,7 @@ export const parcels = pgTable(
         householdId: text("household_id").notNull(),
         scheduledDate: timestamp("scheduled_date").notNull(),
     },
-    (table) => ({
+    table => ({
         householdIdx: index("parcels_household_idx").on(table.householdId),
         dateIdx: index("parcels_date_idx").on(table.scheduledDate),
     }),
@@ -291,6 +301,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 ```
 
 Required in:
+
 1. `.env` (local development)
 2. `.env.example` (documentation)
 3. GitHub Secrets (if sensitive)

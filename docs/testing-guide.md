@@ -3,6 +3,7 @@
 ## Overview
 
 The project uses:
+
 - **Vitest** for unit tests
 - **React Testing Library** for component tests
 - **Playwright** for E2E tests
@@ -61,12 +62,14 @@ E2E tests require GitHub OAuth authentication and run against a local database. 
 ### Philosophy
 
 **DO test**:
+
 - ✅ Pages load without crashes
 - ✅ Authentication state persists
 - ✅ Navigation flows work
 - ✅ API endpoints are reachable
 
 **DON'T test** (until we have data seeding):
+
 - ❌ Data mutations
 - ❌ Complex multi-step workflows
 - ❌ Assumptions about DB content
@@ -80,6 +83,7 @@ pnpm run test:e2e:auth
 ```
 
 This opens a browser:
+
 1. Click "Sign in with GitHub"
 2. Complete OAuth flow
 3. Wait on dashboard (session is saved automatically)
@@ -114,32 +118,36 @@ rm -rf .auth && pnpm run test:e2e:auth
 **Current coverage** (stable, non-flaky):
 
 1. **Authentication** (`auth-verification.spec.ts`)
-   - Session loads correctly
-   - User avatar visible
-   - Auth persists across refreshes
+
+    - Session loads correctly
+    - User avatar visible
+    - Auth persists across refreshes
 
 2. **Admin Pages** (`admin.spec.ts`)
-   - Dashboard, households, schedule, handout locations, SMS dashboard load
-   - No crashes (500 errors)
-   - No assumptions about content
+
+    - Dashboard, households, schedule, handout locations, SMS dashboard load
+    - No crashes (500 errors)
+    - No assumptions about content
 
 3. **Navigation** (`navigation.spec.ts`)
-   - Sequential navigation through all sections
-   - Back/forward browser navigation
-   - Direct URL navigation
-   - English locale navigation
+
+    - Sequential navigation through all sections
+    - Back/forward browser navigation
+    - Direct URL navigation
+    - English locale navigation
 
 4. **Public Pages** (`public-parcel.spec.ts`)
-   - `/p/*` routes accessible without auth
-   - Graceful handling of invalid parcel IDs
-   - Multi-language support via query params
-   - Protected routes correctly reject unauthenticated users
+
+    - `/p/*` routes accessible without auth
+    - Graceful handling of invalid parcel IDs
+    - Multi-language support via query params
+    - Protected routes correctly reject unauthenticated users
 
 5. **API Health** (`api-health.spec.ts`)
-   - Admin endpoints return 2xx/4xx (never 500 or 404)
-   - Proper JSON responses
-   - Protected endpoints require auth
-   - Public health endpoint accessible
+    - Admin endpoints return 2xx/4xx (never 500 or 404)
+    - Proper JSON responses
+    - Protected endpoints require auth
+    - Public health endpoint accessible
 
 ### What E2E Tests DON'T Cover (Intentionally)
 
@@ -167,6 +175,7 @@ e2e/
 ### Writing New E2E Tests
 
 **DO**:
+
 - Use `[data-testid]` selectors when available
 - Test static behavior (navigation, page loads)
 - Expect pages to work with empty OR full databases
@@ -174,6 +183,7 @@ e2e/
 - Write screenshots to `test-results/` directory
 
 **DON'T**:
+
 - Assume specific data exists (households, locations, parcels)
 - Test data mutations without cleanup/seed infrastructure
 - Use text content for selectors (breaks with i18n)
@@ -261,6 +271,7 @@ AI agents can control Playwright via MCP. Configuration is in `.github/copilot-m
 5. **Suggest improvements**: Recommend `data-testid` attributes if selectors are fragile
 
 **Common requests**:
+
 - "Take a screenshot of [page]"
 - "Test if [feature] works"
 - "Verify all navigation links work"
@@ -286,6 +297,7 @@ pnpm run validate
 ```
 
 This runs:
+
 - ESLint (linting)
 - TypeScript compiler (type checking)
 - Prettier (format checking)

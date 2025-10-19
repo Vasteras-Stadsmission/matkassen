@@ -15,6 +15,7 @@ Parcel status badges use **date-only** comparison, not time-based logic.
 ### Intentional Behavior
 
 Same-day parcels **ALWAYS** show as "upcoming" (blue), even if:
+
 - The pickup window time has passed (e.g., 14:00-16:00 but it's now 17:00)
 - The location has closed
 - It's late in the evening
@@ -153,6 +154,7 @@ curl https://your-domain.com/api/health
 ```
 
 Response:
+
 ```json
 {
     "schedulerDetails": {

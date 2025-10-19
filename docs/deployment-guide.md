@@ -3,6 +3,7 @@
 ## Overview
 
 Docker Compose deployment to VPS with:
+
 - Nginx reverse proxy
 - Certbot SSL certificates
 - PostgreSQL database
@@ -66,10 +67,10 @@ Workflow: `.github/workflows/continuous_deployment.yml`
 
 ```yaml
 services:
-  app:        # Next.js application
-  db:         # PostgreSQL database
-  nginx:      # Reverse proxy
-  certbot:    # SSL certificate renewal
+    app: # Next.js application
+    db: # PostgreSQL database
+    nginx: # Reverse proxy
+    certbot: # SSL certificate renewal
 ```
 
 ### Production Stack
@@ -96,6 +97,7 @@ Custom Next.js server (`server.js`) starts SMS scheduler automatically on boot.
 **Safety**: Uses PostgreSQL advisory locks for queue processing across multiple instances.
 
 **Monitoring**:
+
 ```bash
 curl https://your-domain.com/api/health
 ```
@@ -177,6 +179,7 @@ server {
 ### `deploy.sh`
 
 First-time deployment:
+
 - Sets up environment
 - Builds Docker images
 - Runs migrations
@@ -185,6 +188,7 @@ First-time deployment:
 ### `update.sh`
 
 Incremental updates:
+
 - Pulls latest code
 - Rebuilds images
 - Graceful restart (zero downtime)
@@ -198,17 +202,18 @@ curl https://your-domain.com/api/health
 ```
 
 Returns:
+
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-10-18T12:00:00Z",
-  "checks": {
-    "database": "connected",
-    "schedulerDetails": {
-      "isRunning": true,
-      "lastCheck": "2025-10-18T12:00:00Z"
+    "status": "ok",
+    "timestamp": "2025-10-18T12:00:00Z",
+    "checks": {
+        "database": "connected",
+        "schedulerDetails": {
+            "isRunning": true,
+            "lastCheck": "2025-10-18T12:00:00Z"
+        }
     }
-  }
 }
 ```
 
@@ -217,10 +222,10 @@ Returns:
 ```yaml
 # docker-compose.yml
 healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
+    test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
 ```
 
 ## Security
@@ -228,6 +233,7 @@ healthcheck:
 ### GitHub OAuth Setup
 
 Required environment variables:
+
 ```bash
 NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=random-string-min-32-chars
@@ -243,12 +249,14 @@ GITHUB_ORG_NAME=your-organization-name
 ### Content Security Policy
 
 Configured in `next.config.ts`:
+
 - Reports violations to `/api/csp-report`
 - Logs for monitoring
 
 ### Rate Limiting
 
 Currently handled at Nginx level. Consider implementing:
+
 - Per-IP rate limits
 - API endpoint throttling
 - Abuse detection
@@ -337,7 +345,7 @@ RUN pnpm run build
 ```yaml
 # docker-compose.yml
 db:
-  command: postgres -c shared_buffers=256MB -c max_connections=100
+    command: postgres -c shared_buffers=256MB -c max_connections=100
 ```
 
 ### Nginx Caching

@@ -82,6 +82,7 @@ export const updateHousehold = protectedHouseholdAction(
 **Enforcement**: `scripts/validate-server-actions.mjs` runs during `pnpm run validate`.
 
 This script ensures:
+
 - All server actions use `protectedAction()` or `protectedHouseholdAction()`
 - No manual session checks (prevents security bypasses)
 - Consistent error handling patterns
@@ -119,6 +120,7 @@ export async function GET(request: Request) {
 **Enforcement**: `scripts/validate-api-routes.mjs` runs during `pnpm run validate`.
 
 This script ensures:
+
 - All `/api/admin/*` routes use `authenticateAdminRequest()`
 - Public routes are explicitly documented (see below)
 - No manual session parsing (prevents CSRF/token replay)
@@ -132,12 +134,14 @@ This script ensures:
 ## GitHub OAuth Configuration
 
 The app uses **NextAuth v5** with:
+
 - **GitHub OAuth** for user authentication
 - **GitHub App** for organization membership verification
 
 ### Required GitHub Permissions
 
 Organization must have the GitHub App installed with:
+
 - `members:read` - Check organization membership
 - `user:email` - Get user email (for admin audit logs)
 
@@ -146,9 +150,9 @@ Organization must have the GitHub App installed with:
 1. User signs in via GitHub OAuth
 2. NextAuth creates session cookie
 3. `authenticateAdminRequest()` validates:
-   - Session is valid and not expired
-   - User is member of configured GitHub organization
-   - Session token matches server-side state
+    - Session is valid and not expired
+    - User is member of configured GitHub organization
+    - Session token matches server-side state
 
 ### Environment Variables
 
@@ -199,7 +203,7 @@ export async function myAction() {
 "use server";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 
-export const myAction = protectedAction(async (session) => {
+export const myAction = protectedAction(async session => {
     // session is guaranteed to exist
 });
 ```

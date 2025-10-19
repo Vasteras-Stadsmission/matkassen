@@ -21,14 +21,15 @@ App runs at http://localhost:3000
 ## Local Development Modes
 
 1. **Fast development** (recommended):
-   - `pnpm run dev`
-   - Next.js runs locally
-   - PostgreSQL in Docker
+
+    - `pnpm run dev`
+    - Next.js runs locally
+    - PostgreSQL in Docker
 
 2. **Full stack testing**:
-   - `pnpm run preview:production`
-   - All services in Docker
-   - Mirrors production (except SSL)
+    - `pnpm run preview:production`
+    - All services in Docker
+    - Mirrors production (except SSL)
 
 ## Tech Stack
 
@@ -89,7 +90,9 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { nanoid } from "./schema"; // Use exported function
 
 export const examples = pgTable("examples", {
-    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => nanoid()),
     name: text("name").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -150,6 +153,7 @@ export function ExampleClient() {
 ```
 
 **Rule**: Default to server components. Only add `"use client"` when using:
+
 - React hooks (`useState`, `useEffect`, etc.)
 - Browser APIs (`window`, `document`, etc.)
 - Event handlers (`onClick`, `onChange`, etc.)
@@ -246,6 +250,7 @@ pnpm run validate
 ```
 
 This enforces:
+
 - ESLint rules
 - TypeScript strict mode
 - Prettier formatting

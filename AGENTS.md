@@ -263,6 +263,7 @@ pnpm run validate
 ```
 
 This enforces:
+
 - ESLint rules
 - TypeScript strict mode
 - Prettier formatting
@@ -270,4 +271,3 @@ This enforces:
 - API route security patterns (`scripts/validate-api-routes.mjs`)
 
 **CI/CD gate** - Deployment fails if validation fails.
-
