@@ -14,6 +14,7 @@
         "lint": "next lint",
         "preview:production": "docker compose -f docker-compose.local.yml up --build",
         "security:check": "node scripts/validate-server-actions.mjs",
+        "security:check-api": "node scripts/validate-api-routes.mjs",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:ui": "vitest --ui",
@@ -26,7 +27,7 @@
         "test:e2e:check": "./scripts/check-playwright-setup.sh",
         "start": "next start",
         "typecheck": "tsc --noEmit",
-        "validate": "pnpm run lint && pnpm run typecheck && pnpm run format-check && pnpm run security:check"
+        "validate": "pnpm run lint && pnpm run typecheck && pnpm run format-check && pnpm run security:check && pnpm run security:check-api"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

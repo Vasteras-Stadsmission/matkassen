@@ -165,6 +165,9 @@ export function HouseholdWizard({
     // Verification questions state (only for create mode)
     const [checkedVerifications, setCheckedVerifications] = useState<Set<string>>(new Set());
     const [hasVerificationQuestions, setHasVerificationQuestions] = useState(false);
+    const [verificationQuestionsError, setVerificationQuestionsError] = useState<string | null>(
+        null,
+    );
 
     // Use localized default values if not provided
     const defaultTitle = mode === "create" ? t("createHousehold") : t("editHousehold");
@@ -317,6 +320,7 @@ export function HouseholdWizard({
     useEffect(() => {
         if (mode !== "create" || !formData.foodParcels.pickupLocationId) {
             setHasVerificationQuestions(false);
+            setVerificationQuestionsError(null);
             return;
         }
 
@@ -325,12 +329,23 @@ export function HouseholdWizard({
                 const response = await fetch(
                     `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
                 );
-                if (response.ok) {
-                    const questions = await response.json();
-                    setHasVerificationQuestions(questions.length > 0);
+                if (!response.ok) {
+                    // SECURITY: Fail closed - treat API errors as critical
+                    const errorText = await response.text().catch(() => "Unknown error");
+                    const errorMessage = `Failed to load verification questions (HTTP ${response.status}): ${errorText}`;
+                    console.error(errorMessage);
+                    setVerificationQuestionsError(errorMessage);
+                    setHasVerificationQuestions(false);
+                    return;
                 }
+                const questions = await response.json();
+                setHasVerificationQuestions(questions.length > 0);
+                setVerificationQuestionsError(null);
             } catch (error) {
-                console.error("Error checking verification questions:", error);
+                // SECURITY: Fail closed - treat network errors as critical
+                const errorMessage = `Network error loading verification questions: ${error instanceof Error ? error.message : "Unknown error"}`;
+                console.error(errorMessage, error);
+                setVerificationQuestionsError(errorMessage);
                 setHasVerificationQuestions(false);
             }
         };
@@ -429,6 +444,56 @@ export function HouseholdWizard({
                     {loadError}
                 </Alert>
                 <Button onClick={() => router.push("/households")}>{t("backToHouseholds")}</Button>
+            </Container>
+        );
+    }
+
+    // SECURITY: Block progress if verification questions failed to load in create mode
+    // This ensures we fail closed rather than skipping required validation
+    if (mode === "create" && verificationQuestionsError && formData.foodParcels.pickupLocationId) {
+        return (
+            <Container size="lg" py="md">
+                <Alert
+                    icon={<IconAlertCircle size="1rem" />}
+                    title={t("error.title")}
+                    color="red"
+                    mb="md"
+                >
+                    <Stack gap="sm">
+                        <Text>{t("error.verificationQuestionsLoadFailed")}</Text>
+                        <Text size="sm" c="dimmed">
+                            {verificationQuestionsError}
+                        </Text>
+                    </Stack>
+                </Alert>
+                <Group justify="center" mt="md">
+                    <Button
+                        onClick={() => {
+                            // Reset error and retry
+                            setVerificationQuestionsError(null);
+                            // Trigger re-fetch by clearing and resetting pickup location
+                            const locationId = formData.foodParcels.pickupLocationId;
+                            setFormData(prev => ({
+                                ...prev,
+                                foodParcels: { ...prev.foodParcels, pickupLocationId: "" },
+                            }));
+                            setTimeout(() => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    foodParcels: {
+                                        ...prev.foodParcels,
+                                        pickupLocationId: locationId,
+                                    },
+                                }));
+                            }, 100);
+                        }}
+                    >
+                        {t("error.retry")}
+                    </Button>
+                    <Button variant="outline" onClick={() => router.push("/households")}>
+                        {t("backToHouseholds")}
+                    </Button>
+                </Group>
             </Container>
         );
     }

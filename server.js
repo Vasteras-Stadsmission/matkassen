@@ -24,14 +24,13 @@ const handle = app.getRequestHandler();
 async function waitForDatabase(maxAttempts = 10, delayMs = 2000) {
     console.log("🔍 Checking database connectivity...");
 
+    // Use CommonJS require for the health check module
+    const { checkDatabaseHealth } = require("./app/db/health-check");
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            // Dynamic import to avoid build-time database access
-            const { db } = await import("./app/db/drizzle.ts");
-            const { sql } = await import("drizzle-orm");
-
-            // Simple query to test connection
-            await db.execute(sql`SELECT 1`);
+            // Use the dedicated health check function
+            await checkDatabaseHealth();
             console.log(`✅ Database connection successful (attempt ${attempt}/${maxAttempts})`);
             return true;
         } catch (error) {

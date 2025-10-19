@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { pickupLocationVerificationQuestions } from "@/app/db/schema";
 import { eq, and } from "drizzle-orm";
-import { auth } from "@/auth";
+import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 
 // PATCH /api/admin/pickup-locations/[id]/verification-questions/[questionId]
 // Update a verification question
@@ -11,9 +11,10 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string; questionId: string }> },
 ) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        // Validate authentication and organization membership
+        const authResult = await authenticateAdminRequest();
+        if (!authResult.success) {
+            return authResult.response!;
         }
 
         const { id, questionId } = await params;
@@ -75,9 +76,10 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string; questionId: string }> },
 ) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        // Validate authentication and organization membership
+        const authResult = await authenticateAdminRequest();
+        if (!authResult.success) {
+            return authResult.response!;
         }
 
         const { id, questionId } = await params;

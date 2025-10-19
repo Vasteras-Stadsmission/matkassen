@@ -56,5 +56,8 @@ COPY drizzle.config.ts ./
 COPY --from=builder /app/migrations ./migrations
 COPY --from=deps-prod /app/node_modules ./node_modules
 
+# Copy database health check module (needed by server.js)
+COPY --from=builder /app/app/db/health-check.js ./app/db/health-check.js
+
 EXPOSE 3000
 CMD ["node", "server.js"]

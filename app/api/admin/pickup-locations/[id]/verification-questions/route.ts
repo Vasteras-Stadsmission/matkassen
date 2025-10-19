@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { pickupLocationVerificationQuestions } from "@/app/db/schema";
 import { eq, and, asc } from "drizzle-orm";
-import { auth } from "@/auth";
+import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 
 // GET /api/admin/pickup-locations/[id]/verification-questions
 // Fetch all verification questions for a pickup location
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        // Validate authentication and organization membership
+        const authResult = await authenticateAdminRequest();
+        if (!authResult.success) {
+            return authResult.response!;
         }
 
         const { id: pickupLocationId } = await params;
@@ -41,9 +42,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // Create a new verification question
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        // Validate authentication and organization membership
+        const authResult = await authenticateAdminRequest();
+        if (!authResult.success) {
+            return authResult.response!;
         }
 
         const { id: pickupLocationId } = await params;

@@ -192,14 +192,14 @@ describe("VerificationForm", () => {
         });
     });
 
-    it("displays verification questions in Swedish", async () => {
+    it("displays verification questions in English", async () => {
         mockFetch.mockResolvedValueOnce({
             ok: true,
             json: async () => mockQuestions,
         });
 
         const { container } = render(
-            <Wrapper locale="sv">
+            <Wrapper locale="en">
                 <VerificationForm
                     pickupLocationId="loc1"
                     checkedQuestions={checkedQuestions}

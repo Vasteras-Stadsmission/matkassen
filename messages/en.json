@@ -607,7 +607,9 @@
             "general": "An error occurred",
             "unknown": "Unknown error",
             "create": "An error occurred while creating the household",
-            "update": "An error occurred while updating the household"
+            "update": "An error occurred while updating the household",
+            "verificationQuestionsLoadFailed": "Failed to load verification questions. Cannot proceed without completing required checks.",
+            "retry": "Retry"
         },
         "submitting": {
             "create": "Creating new household...",

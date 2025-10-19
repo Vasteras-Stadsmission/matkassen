@@ -4,17 +4,21 @@ This project uses the standard **AGENTS.md** format for AI coding agent instruct
 
 **⚠️ CRITICAL: Read AGENTS.md checklist BEFORE making changes!**
 
-**All project documentation for AI agents is now in:** [`/AGENTS.md`](../AGENTS.md)
+**Main documentation:** [`/AGENTS.md`](../AGENTS.md) - Start here for critical rules and quick commands
 
-This includes:
+---
 
-- **⚠️ AI Agent Checklist** (READ FIRST!)
-- Project overview and architecture
-- Setup commands and workflows
-- Security patterns and conventions
-- Testing instructions (unit tests and E2E with Playwright)
-- Code quality guidelines
-- Deployment information
+## Domain-Specific Guides
+
+For detailed information on specific topics:
+
+- **Authentication & Security**: [`docs/auth-guide.md`](../docs/auth-guide.md)
+- **Development Workflows**: [`docs/dev-guide.md`](../docs/dev-guide.md)
+- **Testing**: [`docs/testing-guide.md`](../docs/testing-guide.md)
+- **Database**: [`docs/database-guide.md`](../docs/database-guide.md)
+- **Deployment**: [`docs/deployment-guide.md`](../docs/deployment-guide.md)
+- **Internationalization**: [`docs/i18n-guide.md`](../docs/i18n-guide.md)
+- **Business Logic**: [`docs/business-logic.md`](../docs/business-logic.md)
 
 ---
 

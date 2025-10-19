@@ -607,7 +607,9 @@
             "general": "Ett fel uppstod",
             "unknown": "Okänt fel",
             "create": "Ett fel uppstod vid skapande av hushåll",
-            "update": "Ett fel uppstod vid uppdatering av hushåll"
+            "update": "Ett fel uppstod vid uppdatering av hushåll",
+            "verificationQuestionsLoadFailed": "Kunde inte ladda verifieringsfrågor. Kan inte fortsätta utan att slutföra obligatoriska kontroller.",
+            "retry": "Försök igen"
         },
         "submitting": {
             "create": "Skapar nytt hushåll...",
