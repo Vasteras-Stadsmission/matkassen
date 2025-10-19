@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Stack, Title, Text, Paper, Checkbox, Alert, Loader, Center } from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -33,12 +33,21 @@ export default function VerificationForm({
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // AbortController to prevent race conditions when switching locations
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     useEffect(() => {
         if (!pickupLocationId) {
             setQuestions([]);
             setIsLoading(false);
             return;
         }
+
+        // Cancel any in-flight request to prevent race conditions
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
 
         // Fetch verification questions for this pickup location
         const fetchQuestions = async () => {
@@ -48,6 +57,9 @@ export default function VerificationForm({
             try {
                 const response = await fetch(
                     `/api/admin/pickup-locations/${pickupLocationId}/verification-questions`,
+                    {
+                        signal: abortControllerRef.current!.signal,
+                    },
                 );
 
                 if (!response.ok) {
@@ -57,6 +69,10 @@ export default function VerificationForm({
                 const data = await response.json();
                 setQuestions(data);
             } catch (err) {
+                // Ignore aborted requests - they're intentional cancellations
+                if (err instanceof Error && err.name === "AbortError") {
+                    return;
+                }
                 console.error("Error fetching verification questions:", err);
                 setError(err instanceof Error ? err.message : t("errorUnknown"));
             } finally {
@@ -68,6 +84,15 @@ export default function VerificationForm({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pickupLocationId]);
     // Note: 't' function from useTranslations is stable and doesn't need to be in deps
+
+    // Cleanup: abort any pending requests on unmount
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     // Calculate progress
     const requiredQuestions = questions.filter(q => q.is_required);

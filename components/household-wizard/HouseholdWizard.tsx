@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     Container,
     Title,
@@ -169,6 +169,9 @@ export function HouseholdWizard({
         null,
     );
 
+    // AbortController to prevent race conditions when switching locations
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     // Use localized default values if not provided
     const defaultTitle = mode === "create" ? t("createHousehold") : t("editHousehold");
     const defaultSubmitButtonText = mode === "create" ? t("saveHousehold") : t("updateHousehold");
@@ -324,10 +327,19 @@ export function HouseholdWizard({
             return;
         }
 
+        // Cancel any in-flight request to prevent race conditions
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
         const fetchQuestions = async () => {
             try {
                 const response = await fetch(
                     `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
+                    {
+                        signal: abortControllerRef.current!.signal,
+                    },
                 );
                 if (!response.ok) {
                     // SECURITY: Fail closed - treat API errors as critical
@@ -342,6 +354,10 @@ export function HouseholdWizard({
                 setHasVerificationQuestions(questions.length > 0);
                 setVerificationQuestionsError(null);
             } catch (error) {
+                // Ignore aborted requests - they're intentional cancellations
+                if (error instanceof Error && error.name === "AbortError") {
+                    return;
+                }
                 // SECURITY: Fail closed - treat network errors as critical
                 const errorMessage = `Network error loading verification questions: ${error instanceof Error ? error.message : "Unknown error"}`;
                 console.error(errorMessage, error);
@@ -352,6 +368,15 @@ export function HouseholdWizard({
 
         fetchQuestions();
     }, [formData.foodParcels.pickupLocationId, mode]);
+
+    // Cleanup: abort any pending requests on unmount
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     const handleSubmit = async () => {
         if (!onSubmit || isSubmitting) return;
