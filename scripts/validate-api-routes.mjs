@@ -37,14 +37,24 @@ const violations = [];
 
 // Public API routes that don't require authentication
 const PUBLIC_API_PATHS = [
-    "app/api/auth", // NextAuth routes
+    "app/api/auth/", // NextAuth routes (with trailing slash for exact segment matching)
     "app/api/health", // Health check
     "app/api/csp-report", // CSP violation reporting
 ];
 
 function isPublicRoute(filePath) {
-    const relativePath = relative(rootDir, filePath);
-    return PUBLIC_API_PATHS.some(publicPath => relativePath.startsWith(publicPath));
+    // Normalize path separators to forward slashes for cross-platform compatibility
+    // On Windows, path.relative() returns backslashes, which don't match our forward-slash patterns
+    const relativePath = relative(rootDir, filePath).replace(/\\/g, "/");
+    return PUBLIC_API_PATHS.some(publicPath => {
+        // Use exact prefix matching with proper path segment handling
+        // Paths with trailing slash require exact directory match
+        if (publicPath.endsWith("/")) {
+            return relativePath.startsWith(publicPath);
+        }
+        // Paths without trailing slash match exact path or path with separator
+        return relativePath === publicPath || relativePath.startsWith(publicPath + "/");
+    });
 }
 
 function getAllFiles(dir, fileList = []) {
@@ -77,18 +87,22 @@ function checkFile(filePath) {
     const content = readFileSync(filePath, "utf-8");
     const relativePath = relative(rootDir, filePath);
 
+    // Normalize path separators for cross-platform compatibility
+    // On Windows, relative() returns backslashes which won't match our forward-slash patterns
+    const normalizedPath = relativePath.replace(/\\/g, "/");
+
     // Skip public routes
     if (isPublicRoute(filePath)) {
-        console.log(`${colors.dim}Skipping (public):${colors.reset} ${relativePath}`);
+        console.log(`${colors.dim}Skipping (public):${colors.reset} ${normalizedPath}`);
         return;
     }
 
-    // Only check admin API routes
-    if (!relativePath.includes("app/api/admin/")) {
+    // Only check admin API routes (use normalized path for Windows compatibility)
+    if (!normalizedPath.includes("app/api/admin/")) {
         return;
     }
 
-    console.log(`${colors.blue}Checking:${colors.reset} ${relativePath}`);
+    console.log(`${colors.blue}Checking:${colors.reset} ${normalizedPath}`);
 
     // Check for HTTP method handlers (GET, POST, PUT, PATCH, DELETE)
     const httpMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -112,7 +126,7 @@ function checkFile(filePath) {
 
     if (!hasAuthenticateAdminRequest || !importsAuthenticateAdminRequest) {
         violations.push({
-            file: relativePath,
+            file: normalizedPath,
             type: "MISSING_AUTH",
             message: `Admin API route does not use authenticateAdminRequest(). This bypasses organization membership checks.`,
             severity: "HIGH",
@@ -122,7 +136,7 @@ function checkFile(filePath) {
 
     if (usesAuthDirectly && !hasAuthenticateAdminRequest) {
         violations.push({
-            file: relativePath,
+            file: normalizedPath,
             type: "INSECURE_AUTH",
             message: `Uses auth() directly instead of authenticateAdminRequest(). This allows any GitHub user access without organization membership check.`,
             severity: "CRITICAL",
@@ -140,7 +154,7 @@ function checkFile(filePath) {
 
         if (!hasAnyAuth) {
             violations.push({
-                file: relativePath,
+                file: normalizedPath,
                 type: "NO_AUTH",
                 message: `Admin API route appears to have no authentication at all.`,
                 severity: "CRITICAL",

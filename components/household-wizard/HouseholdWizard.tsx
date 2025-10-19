@@ -356,6 +356,41 @@ export function HouseholdWizard({
     const handleSubmit = async () => {
         if (!onSubmit || isSubmitting) return;
 
+        // Defense-in-depth: Verify all required verification questions are checked before submit
+        if (mode === "create" && hasVerificationQuestions) {
+            try {
+                const response = await fetch(
+                    `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
+                );
+                const questions = await response.json();
+                const requiredQuestions = questions.filter(
+                    (q: { is_required: boolean }) => q.is_required,
+                );
+                const allChecked = requiredQuestions.every((q: { id: string }) =>
+                    checkedVerifications.has(q.id),
+                );
+
+                if (!allChecked) {
+                    notifications.show({
+                        title: t("error.title"),
+                        message: t("validation.verificationIncomplete"),
+                        color: "red",
+                        icon: React.createElement(IconX, { size: "1.1rem" }),
+                    });
+                    return;
+                }
+            } catch (error) {
+                console.error("Error validating verification questions:", error);
+                notifications.show({
+                    title: t("error.title"),
+                    message: t("error.general"),
+                    color: "red",
+                    icon: React.createElement(IconX, { size: "1.1rem" }),
+                });
+                return;
+            }
+        }
+
         setIsSubmitting(true);
         try {
             // Submit data using the provided onSubmit function
@@ -519,7 +554,12 @@ export function HouseholdWizard({
             )}
 
             <Card withBorder radius="md" p="md" mb="md">
-                <Stepper active={active} onStepClick={setActive} size="sm">
+                <Stepper
+                    active={active}
+                    onStepClick={setActive}
+                    size="sm"
+                    allowNextStepsSelect={false}
+                >
                     <Stepper.Step
                         label={t("steps.basics.label")}
                         description={t("steps.basics.description")}
