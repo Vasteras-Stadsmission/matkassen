@@ -13,6 +13,7 @@ import {
     date,
     index,
     uniqueIndex,
+    unique,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -198,17 +199,14 @@ export const pickupLocationScheduleDays = pgTable(
     ],
 );
 
-// Table for location-specific verification questions shown during household creation
-export const pickupLocationVerificationQuestions = pgTable(
-    "pickup_location_verification_questions",
+// Global verification questions for enrollment checklist
+export const verificationQuestions = pgTable(
+    "verification_questions",
     {
         id: text("id")
             .primaryKey()
             .notNull()
             .$defaultFn(() => nanoid(8)),
-        pickup_location_id: text("pickup_location_id")
-            .notNull()
-            .references(() => pickupLocations.id, { onDelete: "cascade" }),
         question_text_sv: text("question_text_sv").notNull(), // Swedish question text
         question_text_en: text("question_text_en").notNull(), // English question text
         help_text_sv: text("help_text_sv"), // Optional Swedish help/tooltip text
@@ -220,14 +218,42 @@ export const pickupLocationVerificationQuestions = pgTable(
         updated_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     },
     table => [
-        // Index for efficient querying by location
-        index("idx_verification_questions_location").on(table.pickup_location_id),
         // Index for querying active questions in display order
-        index("idx_verification_questions_active_order").on(
-            table.pickup_location_id,
+        index("idx_global_verification_questions_active_order").on(
             table.is_active,
             table.display_order,
         ),
+    ],
+);
+
+// Household verification status tracking
+export const householdVerificationStatus = pgTable(
+    "household_verification_status",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        household_id: text("household_id")
+            .notNull()
+            .references(() => households.id, { onDelete: "cascade" }),
+        question_id: text("question_id")
+            .notNull()
+            .references(() => verificationQuestions.id, { onDelete: "cascade" }),
+        is_verified: boolean("is_verified").default(false).notNull(),
+        verified_by_user: text("verified_by_user"), // GitHub username who verified
+        verified_at: timestamp({ precision: 1, withTimezone: true }),
+        notes: text("notes"), // Optional verification notes
+        created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        updated_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    },
+    table => [
+        // Composite unique constraint: one verification per household per question
+        unique("household_question_unique").on(table.household_id, table.question_id),
+        // Index for efficient querying by household
+        index("idx_household_verification_household").on(table.household_id),
+        // Index for querying verification status
+        index("idx_household_verification_status").on(table.household_id, table.is_verified),
     ],
 );
 
