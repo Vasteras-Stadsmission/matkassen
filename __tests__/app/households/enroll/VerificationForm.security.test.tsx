@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { MantineProvider } from "@mantine/core";
 import VerificationForm from "@/app/[locale]/households/enroll/components/VerificationForm";
 import enMessages from "@/messages/en.json";
 
@@ -50,12 +51,14 @@ describe("VerificationForm - Client-Side Defensive Filtering", () => {
         } as Response);
 
         render(
-            <NextIntlClientProvider locale="en" messages={enMessages}>
-                <VerificationForm
-                    checkedQuestions={new Set()}
-                    onUpdateChecked={mockOnUpdateChecked}
-                />
-            </NextIntlClientProvider>,
+            <MantineProvider>
+                <NextIntlClientProvider locale="en" messages={enMessages}>
+                    <VerificationForm
+                        checkedQuestions={new Set()}
+                        onUpdateChecked={mockOnUpdateChecked}
+                    />
+                </NextIntlClientProvider>
+            </MantineProvider>,
         );
 
         // Wait for questions to load
@@ -100,12 +103,14 @@ describe("VerificationForm - Client-Side Defensive Filtering", () => {
         } as Response);
 
         render(
-            <NextIntlClientProvider locale="en" messages={enMessages}>
-                <VerificationForm
-                    checkedQuestions={new Set()}
-                    onUpdateChecked={mockOnUpdateChecked}
-                />
-            </NextIntlClientProvider>,
+            <MantineProvider>
+                <NextIntlClientProvider locale="en" messages={enMessages}>
+                    <VerificationForm
+                        checkedQuestions={new Set()}
+                        onUpdateChecked={mockOnUpdateChecked}
+                    />
+                </NextIntlClientProvider>
+            </MantineProvider>,
         );
 
         // Wait for empty state to appear
@@ -147,12 +152,14 @@ describe("VerificationForm - Client-Side Defensive Filtering", () => {
         } as Response);
 
         render(
-            <NextIntlClientProvider locale="en" messages={enMessages}>
-                <VerificationForm
-                    checkedQuestions={new Set()}
-                    onUpdateChecked={mockOnUpdateChecked}
-                />
-            </NextIntlClientProvider>,
+            <MantineProvider>
+                <NextIntlClientProvider locale="en" messages={enMessages}>
+                    <VerificationForm
+                        checkedQuestions={new Set()}
+                        onUpdateChecked={mockOnUpdateChecked}
+                    />
+                </NextIntlClientProvider>
+            </MantineProvider>,
         );
 
         // Wait for questions to load
