@@ -265,14 +265,12 @@ export function HouseholdWizard({
             fetch(`/api/admin/verification-questions`)
                 .then(res => res.json())
                 .then(questions => {
-                    // Defensive filtering: only check active required questions
-                    const activeQuestions = questions.filter(
-                        (q: { is_active: boolean }) => q.is_active,
+                    // Single-pass filter: get active AND required questions in one iteration
+                    const requiredActiveQuestions = questions.filter(
+                        (q: { is_active: boolean; is_required: boolean }) =>
+                            q.is_active && q.is_required,
                     );
-                    const requiredQuestions = activeQuestions.filter(
-                        (q: { is_required: boolean }) => q.is_required,
-                    );
-                    const allChecked = requiredQuestions.every((q: { id: string }) =>
+                    const allChecked = requiredActiveQuestions.every((q: { id: string }) =>
                         checkedVerifications.has(q.id),
                     );
 
@@ -390,14 +388,12 @@ export function HouseholdWizard({
             try {
                 const response = await fetch(`/api/admin/verification-questions`);
                 const questions = await response.json();
-                // Defensive filtering: only check active required questions
-                const activeQuestions = questions.filter(
-                    (q: { is_active: boolean }) => q.is_active,
+                // Single-pass filter: get active AND required questions in one iteration
+                const requiredActiveQuestions = questions.filter(
+                    (q: { is_active: boolean; is_required: boolean }) =>
+                        q.is_active && q.is_required,
                 );
-                const requiredQuestions = activeQuestions.filter(
-                    (q: { is_required: boolean }) => q.is_required,
-                );
-                const allChecked = requiredQuestions.every((q: { id: string }) =>
+                const allChecked = requiredActiveQuestions.every((q: { id: string }) =>
                     checkedVerifications.has(q.id),
                 );
 

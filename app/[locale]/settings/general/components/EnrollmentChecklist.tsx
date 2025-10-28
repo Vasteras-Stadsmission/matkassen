@@ -214,8 +214,9 @@ export function EnrollmentChecklist() {
             const data = {
                 question_text_sv: formData.question_text_sv,
                 question_text_en: formData.question_text_en,
-                help_text_sv: formData.help_text_sv || undefined,
-                help_text_en: formData.help_text_en || undefined,
+                // Send empty strings explicitly so server can clear help text
+                help_text_sv: formData.help_text_sv,
+                help_text_en: formData.help_text_en,
                 is_required: formData.is_required,
             };
 
