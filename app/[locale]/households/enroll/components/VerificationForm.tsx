@@ -12,62 +12,55 @@ interface VerificationQuestion {
     help_text_sv: string | null;
     help_text_en: string | null;
     is_required: boolean;
+    is_active: boolean;
     display_order: number;
 }
 
 interface VerificationFormProps {
-    pickupLocationId: string;
     checkedQuestions: Set<string>;
     onUpdateChecked: (questionId: string, checked: boolean) => void;
 }
 
 export default function VerificationForm({
-    pickupLocationId,
     checkedQuestions,
     onUpdateChecked,
 }: VerificationFormProps) {
     const locale = useLocale() as "en" | "sv";
     const t = useTranslations("wizard.verification");
+    const tChecklist = useTranslations("settings.enrollmentChecklist");
 
     const [questions, setQuestions] = useState<VerificationQuestion[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // AbortController to prevent race conditions when switching locations
+    // AbortController to prevent race conditions
     const abortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
-        if (!pickupLocationId) {
-            setQuestions([]);
-            setIsLoading(false);
-            return;
-        }
-
         // Cancel any in-flight request to prevent race conditions
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
         abortControllerRef.current = new AbortController();
 
-        // Fetch verification questions for this pickup location
+        // Fetch global verification questions
         const fetchQuestions = async () => {
             setIsLoading(true);
             setError(null);
 
             try {
-                const response = await fetch(
-                    `/api/admin/pickup-locations/${pickupLocationId}/verification-questions`,
-                    {
-                        signal: abortControllerRef.current!.signal,
-                    },
-                );
+                const response = await fetch(`/api/admin/verification-questions`, {
+                    signal: abortControllerRef.current!.signal,
+                });
 
                 if (!response.ok) {
                     throw new Error(t("errorLoading"));
                 }
 
                 const data = await response.json();
-                setQuestions(data);
+                // Defensive filtering: only show active questions
+                const activeQuestions = data.filter((q: VerificationQuestion) => q.is_active);
+                setQuestions(activeQuestions);
             } catch (err) {
                 // Ignore aborted requests - they're intentional cancellations
                 if (err instanceof Error && err.name === "AbortError") {
@@ -83,7 +76,7 @@ export default function VerificationForm({
 
         fetchQuestions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pickupLocationId]);
+    }, []);
     // Note: 't' function from useTranslations is stable and doesn't need to be in deps
 
     // Cleanup: abort any pending requests on unmount
@@ -171,6 +164,13 @@ export default function VerificationForm({
                           })}
                 </Alert>
             )}
+
+            {/* Staff checklist instruction */}
+            <Alert icon={<IconCheck size="1rem" />} color="blue" variant="light">
+                <Text fw={500} mb="xs">
+                    {tChecklist("instructionText")}
+                </Text>
+            </Alert>
 
             <Paper withBorder p="md">
                 <Stack gap="md">

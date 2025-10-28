@@ -587,14 +587,14 @@
             "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta"
         },
         "verification": {
-            "title": "Verifiering krävs",
+            "title": "Personalens verifieringschecklista",
             "description": "Bekräfta följande innan du skapar detta hushåll:",
             "allComplete": "Alla verifieringar genomförda",
             "requiredMark": "Obligatorisk",
             "optionalMark": "Valfri",
             "progress": "{completed} av {total} verifierade",
-            "noQuestions": "Inga verifieringsfrågor konfigurerade för denna plats",
-            "errorLoading": "Kunde inte ladda verifieringsfrågor",
+            "noQuestions": "Ingen verifieringschecklista konfigurerad",
+            "errorLoading": "Kunde inte ladda verifieringschecklista",
             "errorUnknown": "Ett okänt fel uppstod"
         },
         "success": {
@@ -1047,6 +1047,73 @@
                 "vsLastMonth": "vs förra månaden",
                 "ofLastMonth": "av {count} förra månaden"
             }
+        }
+    },
+    "settings": {
+        "settings": "Inställningar",
+        "general": "Allmänna inställningar",
+        "locations": "Utlämningsställen",
+        "aria": {
+            "settingsMenu": "Inställningsmeny"
+        },
+        "enrollmentChecklist": {
+            "title": "Registreringsformulär",
+            "description": "Personalens checklista för alla nya hushåll",
+            "addChecklistItem": "Lägg till kontrollpunkt",
+            "editChecklistItem": "Redigera kontrollpunkt",
+            "deleteConfirm": "Ta bort denna kontrollpunkt?",
+            "reorderHint": "Dra för att ändra ordning",
+            "preview": "Förhandsgranska",
+            "emptyState": "Inga kontrollpunkter än",
+            "instructionText": "Jag har sett till att...",
+            "badges": {
+                "required": "Obligatorisk",
+                "helpAvailable": "Hjälptext tillgänglig"
+            },
+            "buttons": {
+                "cancel": "Avbryt",
+                "save": "Spara",
+                "delete": "Ta bort"
+            },
+            "form": {
+                "checklistTextSv": "Kontrollpunkt (svenska)",
+                "checklistTextEn": "Kontrollpunkt (engelska)",
+                "helpTextSv": "Hjälptext (svenska)",
+                "helpTextEn": "Hjälptext (engelska)",
+                "isRequired": "Obligatorisk",
+                "requiredHint": "Personal måste kryssa i denna ruta",
+                "placeholder": "De har informerats om...",
+                "helpTextPlaceholderSv": "Valfri hjälptext på svenska...",
+                "helpTextPlaceholderEn": "Valfri hjälptext på engelska..."
+            },
+            "examples": {
+                "title": "Exempel på kontrollpunkter:",
+                "item1": "De har informerats om hämtningstider och plats",
+                "item2": "De förstår månadsgränsen för matpaket",
+                "item3": "Jag har verifierat deras identitetshandling",
+                "item4": "De har informerats om alternativ för kostbegränsningar"
+            },
+            "validation": {
+                "bothLanguagesRequired": "Båda språken krävs",
+                "textTooShort": "Kontrollpunkten måste vara minst 10 tecken"
+            },
+            "notifications": {
+                "created": "Kontrollpunkt skapad",
+                "updated": "Kontrollpunkt uppdaterad",
+                "deleted": "Kontrollpunkt borttagen",
+                "reordered": "Kontrollpunkter omordnade",
+                "error": "Fel",
+                "success": "Lyckades",
+                "loadError": "Kunde inte ladda verifieringsfrågor",
+                "saveError": "Kunde inte spara fråga",
+                "deleteError": "Kunde inte ta bort fråga",
+                "reorderError": "Kunde inte omordna frågor"
+            }
+        },
+        "smsTemplates": {
+            "title": "Standard SMS-mallar",
+            "description": "Anpassa textmeddelanden som skickas till hushåll",
+            "comingSoon": "Kommer snart..."
         }
     }
 }

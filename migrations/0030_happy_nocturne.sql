@@ -1,0 +1,1 @@
+DROP TABLE "pickup_location_verification_questions" CASCADE;

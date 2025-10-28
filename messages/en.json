@@ -587,14 +587,14 @@
             "verificationIncomplete": "All required verifications must be checked before proceeding"
         },
         "verification": {
-            "title": "Verification Required",
+            "title": "Staff Verification Checklist",
             "description": "Please confirm the following before creating this household:",
             "allComplete": "All verifications complete",
             "requiredMark": "Required",
             "optionalMark": "Optional",
             "progress": "{completed} of {total} verified",
-            "noQuestions": "No verification questions configured for this location",
-            "errorLoading": "Failed to load verification questions",
+            "noQuestions": "No verification checklist configured",
+            "errorLoading": "Failed to load verification checklist",
             "errorUnknown": "An unknown error occurred"
         },
         "success": {
@@ -1047,6 +1047,73 @@
                 "vsLastMonth": "vs last month",
                 "ofLastMonth": "of {count} last month"
             }
+        }
+    },
+    "settings": {
+        "settings": "Settings",
+        "general": "General Settings",
+        "locations": "Handout Location Settings",
+        "aria": {
+            "settingsMenu": "Settings menu"
+        },
+        "enrollmentChecklist": {
+            "title": "Enrollment Checklist",
+            "description": "Staff checklist for all new households",
+            "addChecklistItem": "Add Checklist Item",
+            "editChecklistItem": "Edit Checklist Item",
+            "deleteConfirm": "Delete this checklist item?",
+            "reorderHint": "Drag to reorder",
+            "preview": "Preview",
+            "emptyState": "No checklist items yet",
+            "instructionText": "I have made sure that...",
+            "badges": {
+                "required": "Required",
+                "helpAvailable": "Help text available"
+            },
+            "buttons": {
+                "cancel": "Cancel",
+                "save": "Save",
+                "delete": "Delete"
+            },
+            "form": {
+                "checklistTextSv": "Checklist Item (Swedish)",
+                "checklistTextEn": "Checklist Item (English)",
+                "helpTextSv": "Help Text (Swedish)",
+                "helpTextEn": "Help Text (English)",
+                "isRequired": "Required",
+                "requiredHint": "Staff must check this box",
+                "placeholder": "They have been told about...",
+                "helpTextPlaceholderSv": "Optional help text in Swedish...",
+                "helpTextPlaceholderEn": "Optional help text in English..."
+            },
+            "examples": {
+                "title": "Example checklist items:",
+                "item1": "They have been told about pickup times and location",
+                "item2": "They understand the monthly parcel limit",
+                "item3": "I have verified their identity document",
+                "item4": "They have been informed about dietary restriction options"
+            },
+            "validation": {
+                "bothLanguagesRequired": "Both languages are required",
+                "textTooShort": "Checklist item must be at least 10 characters"
+            },
+            "notifications": {
+                "created": "Checklist item created",
+                "updated": "Checklist item updated",
+                "deleted": "Checklist item deleted",
+                "reordered": "Checklist items reordered",
+                "error": "Error",
+                "success": "Success",
+                "loadError": "Failed to load verification questions",
+                "saveError": "Failed to save question",
+                "deleteError": "Failed to delete question",
+                "reorderError": "Failed to reorder questions"
+            }
+        },
+        "smsTemplates": {
+            "title": "Default SMS Templates",
+            "description": "Customize the text messages sent to households",
+            "comingSoon": "Coming Soon..."
         }
     }
 }

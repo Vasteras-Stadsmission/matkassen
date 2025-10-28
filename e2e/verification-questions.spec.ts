@@ -2,14 +2,15 @@ import { test, expect } from "@playwright/test";
 import { expectAuthenticated, navigateToLocale } from "./test-helpers";
 
 /**
- * E2E Smoke Test: Verification Questions Feature
+ * E2E Smoke Test: Verification Questions Feature (Global Enrollment Checklist)
  *
- * These tests verify that the verification questions feature is accessible
+ * These tests verify that the global enrollment checklist feature is accessible
  * and renders without crashes. They do NOT test data mutations.
  *
  * Coverage:
- * - Verification step appears in household creation wizard when questions exist
- * - Verification questions load from API
+ * - Verification step appears in household creation wizard when active questions exist
+ * - Verification questions load from global API endpoint
+ * - Only active questions are returned
  * - Checkboxes are interactive
  * - Validation prevents proceeding without required checks
  */
@@ -58,18 +59,23 @@ test.describe("Verification Questions - Smoke Tests", () => {
     });
 
     test("verification questions API endpoint is accessible", async ({ page }) => {
-        // Test that the API endpoint responds (smoke test only)
-        const response = await page.request.get(
-            "/api/admin/pickup-locations/test-location-id/verification-questions",
-        );
+        // Test that the global API endpoint responds (smoke test only)
+        const response = await page.request.get("/api/admin/verification-questions");
 
-        // Expect either 200 (questions exist) or empty array (no questions)
+        // Expect 200 with array of questions (may be empty)
         // Should NOT be 404 or 500
-        expect([200, 404].includes(response.status())).toBeTruthy();
+        expect(response.status()).toBe(200);
 
-        if (response.status() === 200) {
-            const data = await response.json();
-            expect(Array.isArray(data)).toBeTruthy();
+        const data = await response.json();
+        expect(Array.isArray(data)).toBeTruthy();
+
+        // If questions exist, they should only be active questions
+        if (data.length > 0) {
+            data.forEach((question: any) => {
+                expect(question).toHaveProperty("id");
+                expect(question).toHaveProperty("is_active");
+                expect(question.is_active).toBe(true); // API must only return active questions
+            });
         }
     });
 
@@ -104,17 +110,17 @@ test.describe("Verification Questions - Smoke Tests", () => {
 
                 // Check if we're on verification step
                 const verificationTitle = page.getByText(
-                    /Verifiering krävs|Verification Required/i,
+                    /Personalens verifieringschecklista|Staff Verification Checklist/i,
                 );
                 if (await verificationTitle.isVisible({ timeout: 1000 }).catch(() => false)) {
                     // We found the verification step!
                     // Try to proceed without checking boxes
                     await page.getByRole("button", { name: /Nästa steg|Next Step/i }).click();
 
-                    // Should see validation error or stay on same page
+                    // Should see validation error message
                     await expect(
                         page.getByText(
-                            /obligatoriska verifieringar|required verifications must be checked/i,
+                            /alla obligatoriska verifieringar|all required verifications must be checked/i,
                         ),
                     ).toBeVisible({ timeout: 2000 });
 

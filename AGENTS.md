@@ -149,6 +149,7 @@ docs/                # Domain-specific guides
 - **Never create intermediate/temp files** - edit originals directly
 - **No new markdown files** unless explicitly requested
 - **Respect `.gitignore`** - never touch `.next/`, `node_modules/`, etc.
+- **No SEO arguments** - This is internal tooling for ~dozen users, SEO is irrelevant
 
 ---
 

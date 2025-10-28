@@ -21,6 +21,7 @@ import { NavigationLink } from "../NavigationUtils";
 import { TransitionLink } from "../TransitionLink";
 import { LanguageSwitcher } from "../LanguageSwitcher";
 import { AuthDropdown } from "../AuthDropdown/AuthDropdown";
+import { SettingsDropdown } from "../SettingsDropdown";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
@@ -71,7 +72,6 @@ export function HeaderSimple() {
         () => [
             { link: "/households", label: t("navigation.households") },
             { link: "/schedule", label: t("navigation.schedule") },
-            { link: "/handout-locations", label: t("navigation.locations") },
             { link: "/sms-dashboard", label: t("navigation.smsDashboard"), badge: smsFailureCount },
         ],
         [t, smsFailureCount],
@@ -225,6 +225,7 @@ export function HeaderSimple() {
                     >
                         <LanguageSwitcher />
                         <AuthDropdown />
+                        <SettingsDropdown />
                         <ScanQRCodeLink />
                     </Group>
                     <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
@@ -245,6 +246,7 @@ export function HeaderSimple() {
                     <div className={classes.mobileActions}>
                         <LanguageSwitcher />
                         <ScanQRCodeLink />
+                        <SettingsDropdown />
                         <AuthDropdown />
                     </div>
                 </div>

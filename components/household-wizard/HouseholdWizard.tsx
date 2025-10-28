@@ -168,8 +168,9 @@ export function HouseholdWizard({
     const [verificationQuestionsError, setVerificationQuestionsError] = useState<string | null>(
         null,
     );
+    const [retryTrigger, setRetryTrigger] = useState(0);
 
-    // AbortController to prevent race conditions when switching locations
+    // AbortController to prevent race conditions
     const abortControllerRef = useRef<AbortController | null>(null);
 
     // Use localized default values if not provided
@@ -261,12 +262,14 @@ export function HouseholdWizard({
         // Validate verification step (step 5, only in create mode with questions)
         if (active === 5 && mode === "create" && hasVerificationQuestions) {
             // Fetch required questions and check if all are checked
-            fetch(
-                `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
-            )
+            fetch(`/api/admin/verification-questions`)
                 .then(res => res.json())
                 .then(questions => {
-                    const requiredQuestions = questions.filter(
+                    // Defensive filtering: only check active required questions
+                    const activeQuestions = questions.filter(
+                        (q: { is_active: boolean }) => q.is_active,
+                    );
+                    const requiredQuestions = activeQuestions.filter(
                         (q: { is_required: boolean }) => q.is_required,
                     );
                     const allChecked = requiredQuestions.every((q: { id: string }) =>
@@ -319,9 +322,9 @@ export function HouseholdWizard({
         });
     };
 
-    // Fetch verification questions when pickup location is selected (only in create mode)
+    // Fetch global verification questions when in create mode
     useEffect(() => {
-        if (mode !== "create" || !formData.foodParcels.pickupLocationId) {
+        if (mode !== "create") {
             setHasVerificationQuestions(false);
             setVerificationQuestionsError(null);
             return;
@@ -335,12 +338,9 @@ export function HouseholdWizard({
 
         const fetchQuestions = async () => {
             try {
-                const response = await fetch(
-                    `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
-                    {
-                        signal: abortControllerRef.current!.signal,
-                    },
-                );
+                const response = await fetch(`/api/admin/verification-questions`, {
+                    signal: abortControllerRef.current!.signal,
+                });
                 if (!response.ok) {
                     // SECURITY: Fail closed - treat API errors as critical
                     const errorText = await response.text().catch(() => "Unknown error");
@@ -352,7 +352,11 @@ export function HouseholdWizard({
                     return;
                 }
                 const questions = await response.json();
-                setHasVerificationQuestions(questions.length > 0);
+                // Defensive filtering: only count active questions
+                const activeQuestions = questions.filter(
+                    (q: { is_active: boolean }) => q.is_active,
+                );
+                setHasVerificationQuestions(activeQuestions.length > 0);
                 setVerificationQuestionsError(null);
             } catch (error) {
                 // Ignore aborted requests - they're intentional cancellations
@@ -367,7 +371,7 @@ export function HouseholdWizard({
         };
 
         fetchQuestions();
-    }, [formData.foodParcels.pickupLocationId, mode, t]);
+    }, [mode, t, retryTrigger]);
 
     // Cleanup: abort any pending requests on unmount
     useEffect(() => {
@@ -384,11 +388,13 @@ export function HouseholdWizard({
         // Defense-in-depth: Verify all required verification questions are checked before submit
         if (mode === "create" && hasVerificationQuestions) {
             try {
-                const response = await fetch(
-                    `/api/admin/pickup-locations/${formData.foodParcels.pickupLocationId}/verification-questions`,
-                );
+                const response = await fetch(`/api/admin/verification-questions`);
                 const questions = await response.json();
-                const requiredQuestions = questions.filter(
+                // Defensive filtering: only check active required questions
+                const activeQuestions = questions.filter(
+                    (q: { is_active: boolean }) => q.is_active,
+                );
+                const requiredQuestions = activeQuestions.filter(
                     (q: { is_required: boolean }) => q.is_required,
                 );
                 const allChecked = requiredQuestions.every((q: { id: string }) =>
@@ -510,7 +516,7 @@ export function HouseholdWizard({
 
     // SECURITY: Block progress if verification questions failed to load in create mode
     // This ensures we fail closed rather than skipping required validation
-    if (mode === "create" && verificationQuestionsError && formData.foodParcels.pickupLocationId) {
+    if (mode === "create" && verificationQuestionsError) {
         return (
             <Container size="lg" py="md">
                 <Alert
@@ -529,23 +535,9 @@ export function HouseholdWizard({
                 <Group justify="center" mt="md">
                     <Button
                         onClick={() => {
-                            // Reset error and retry
+                            // Reset error and trigger re-fetch by incrementing retryTrigger
                             setVerificationQuestionsError(null);
-                            // Trigger re-fetch by clearing and resetting pickup location
-                            const locationId = formData.foodParcels.pickupLocationId;
-                            setFormData(prev => ({
-                                ...prev,
-                                foodParcels: { ...prev.foodParcels, pickupLocationId: "" },
-                            }));
-                            setTimeout(() => {
-                                setFormData(prev => ({
-                                    ...prev,
-                                    foodParcels: {
-                                        ...prev.foodParcels,
-                                        pickupLocationId: locationId,
-                                    },
-                                }));
-                            }, 100);
+                            setRetryTrigger(prev => prev + 1);
                         }}
                     >
                         {t("error.retry")}
@@ -656,7 +648,6 @@ export function HouseholdWizard({
                             description={t("steps.verification.description")}
                         >
                             <VerificationForm
-                                pickupLocationId={formData.foodParcels.pickupLocationId}
                                 checkedQuestions={checkedVerifications}
                                 onUpdateChecked={handleVerificationCheck}
                             />
