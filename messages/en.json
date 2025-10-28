@@ -1062,6 +1062,7 @@
             "addChecklistItem": "Add Checklist Item",
             "editChecklistItem": "Edit Checklist Item",
             "deleteConfirm": "Delete this checklist item?",
+            "deleteModalTitle": "Delete Checklist Item",
             "reorderHint": "Drag to reorder",
             "preview": "Preview",
             "emptyState": "No checklist items yet",

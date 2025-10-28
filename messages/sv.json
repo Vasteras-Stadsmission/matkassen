@@ -1062,6 +1062,7 @@
             "addChecklistItem": "Lägg till kontrollpunkt",
             "editChecklistItem": "Redigera kontrollpunkt",
             "deleteConfirm": "Ta bort denna kontrollpunkt?",
+            "deleteModalTitle": "Ta bort kontrollpunkt",
             "reorderHint": "Dra för att ändra ordning",
             "preview": "Förhandsgranska",
             "emptyState": "Inga kontrollpunkter än",

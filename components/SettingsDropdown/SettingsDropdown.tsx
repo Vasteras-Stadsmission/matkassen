@@ -25,7 +25,12 @@ export function SettingsDropdown() {
                 <Menu.Label>{t("settings")}</Menu.Label>
 
                 <Menu.Item
-                    leftSection={<IconAdjustments style={{ width: rem(14), height: rem(14) }} />}
+                    leftSection={
+                        <IconAdjustments
+                            style={{ width: rem(14), height: rem(14) }}
+                            aria-hidden="true"
+                        />
+                    }
                     component={Link}
                     href="/settings/general"
                 >
@@ -33,7 +38,12 @@ export function SettingsDropdown() {
                 </Menu.Item>
 
                 <Menu.Item
-                    leftSection={<IconMapPin style={{ width: rem(14), height: rem(14) }} />}
+                    leftSection={
+                        <IconMapPin
+                            style={{ width: rem(14), height: rem(14) }}
+                            aria-hidden="true"
+                        />
+                    }
                     component={Link}
                     href="/settings/locations"
                 >

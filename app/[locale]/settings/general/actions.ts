@@ -4,7 +4,7 @@ import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
 import { verificationQuestions } from "@/app/db/schema";
-import { eq, and, asc, max } from "drizzle-orm";
+import { eq, and, asc, max, sql, inArray } from "drizzle-orm";
 import { nanoid } from "@/app/db/schema";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
@@ -219,22 +219,32 @@ export const deleteVerificationQuestion = protectedAction(
 export const reorderVerificationQuestions = protectedAction(
     async (session, questionIds: string[]): Promise<ActionResult<void>> => {
         try {
-            // Update display order for each question in a transaction
+            if (questionIds.length === 0) {
+                return success(undefined);
+            }
+
+            // Use SQL CASE statement to update all display_order values in a single query
+            // This is much more efficient than N sequential updates, especially for large checklists
             await db.transaction(async tx => {
-                for (let i = 0; i < questionIds.length; i++) {
-                    await tx
-                        .update(verificationQuestions)
-                        .set({
-                            display_order: i,
-                            updated_at: new Date(),
-                        })
-                        .where(
-                            and(
-                                eq(verificationQuestions.id, questionIds[i]),
-                                eq(verificationQuestions.is_active, true),
-                            ),
-                        );
-                }
+                // Build the CASE statement safely using Drizzle's sql template
+                const caseStatements = questionIds.map(
+                    (id, index) => sql`WHEN ${verificationQuestions.id} = ${id} THEN ${index}`,
+                );
+
+                const caseExpression = sql.join(caseStatements, sql.raw(" "));
+
+                await tx
+                    .update(verificationQuestions)
+                    .set({
+                        display_order: sql`CASE ${caseExpression} END`,
+                        updated_at: new Date(),
+                    })
+                    .where(
+                        and(
+                            inArray(verificationQuestions.id, questionIds),
+                            eq(verificationQuestions.is_active, true),
+                        ),
+                    );
             });
 
             revalidateSettingsPage();

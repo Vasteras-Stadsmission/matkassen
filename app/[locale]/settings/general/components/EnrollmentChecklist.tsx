@@ -132,8 +132,12 @@ export function EnrollmentChecklist() {
     const [questions, setQuestions] = useState<VerificationQuestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
+    const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] =
+        useDisclosure(false);
     const [editingQuestion, setEditingQuestion] = useState<VerificationQuestion | null>(null);
+    const [deletingQuestion, setDeletingQuestion] = useState<VerificationQuestion | null>(null);
     const [formData, setFormData] = useState<QuestionFormData>({
         question_text_sv: "",
         question_text_en: "",
@@ -251,18 +255,27 @@ export function EnrollmentChecklist() {
     };
 
     const handleDeleteQuestion = async (questionId: string) => {
-        if (!confirm(t("deleteConfirm"))) {
-            return;
+        const question = questions.find(q => q.id === questionId);
+        if (question) {
+            setDeletingQuestion(question);
+            openDeleteModal();
         }
+    };
 
+    const handleConfirmDelete = async () => {
+        if (!deletingQuestion) return;
+
+        setDeleting(true);
         try {
-            const result = await deleteVerificationQuestion(questionId);
+            const result = await deleteVerificationQuestion(deletingQuestion.id);
             if (result.success) {
                 notifications.show({
                     title: t("notifications.success"),
                     message: t("notifications.deleted"),
                     color: "green",
                 });
+                closeDeleteModal();
+                setDeletingQuestion(null);
                 loadQuestions();
             } else {
                 notifications.show({
@@ -277,6 +290,8 @@ export function EnrollmentChecklist() {
                 message: t("notifications.deleteError"),
                 color: "red",
             });
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -474,6 +489,36 @@ export function EnrollmentChecklist() {
                         </Group>
                     </Stack>
                 </form>
+            </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                opened={deleteModalOpened}
+                onClose={closeDeleteModal}
+                title={t("deleteModalTitle")}
+                size="md"
+            >
+                <Stack gap="md">
+                    <Text>{t("deleteConfirm")}</Text>
+                    {deletingQuestion && (
+                        <Card withBorder padding="sm" bg="gray.0">
+                            <Text fw={500} size="sm">
+                                {deletingQuestion.question_text_sv}
+                            </Text>
+                            <Text size="xs" c="dimmed" mt={4}>
+                                {deletingQuestion.question_text_en}
+                            </Text>
+                        </Card>
+                    )}
+                    <Group justify="flex-end" gap="sm">
+                        <Button variant="subtle" onClick={closeDeleteModal} disabled={deleting}>
+                            {t("buttons.cancel")}
+                        </Button>
+                        <Button color="red" onClick={handleConfirmDelete} loading={deleting}>
+                            {t("buttons.delete")}
+                        </Button>
+                    </Group>
+                </Stack>
             </Modal>
         </Container>
     );
