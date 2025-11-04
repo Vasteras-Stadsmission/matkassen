@@ -103,12 +103,12 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     # Anonymization scheduler configuration (always enabled for GDPR compliance)
     printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
     printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
-    # Database backup encryption (GDPR compliance)
-    printf 'DB_BACKUP_PASSPHRASE="%s"\n' "${DB_BACKUP_PASSPHRASE}"
 } > "$tmp"
 
 # Add production-only backup configuration
 if [ "${ENV_NAME:-}" = "production" ]; then
+    # Database backup encryption (GDPR compliance - production only)
+    printf 'DB_BACKUP_PASSPHRASE="%s"\n' "${DB_BACKUP_PASSPHRASE}" >> "$tmp"
     {
         printf 'OS_AUTH_TYPE="%s"\n' "${OS_AUTH_TYPE}"
         printf 'OS_AUTH_URL="%s"\n' "${OS_AUTH_URL}"

@@ -83,6 +83,10 @@ if [ ! -f "$ENCRYPTED_FILE" ]; then
     exit 1
 fi
 
+# Convert to absolute path to handle relative paths correctly
+# This ensures the path works even after we cd for checksum verification
+ENCRYPTED_FILE="$(cd "$(dirname "$ENCRYPTED_FILE")" && pwd)/$(basename "$ENCRYPTED_FILE")"
+
 # Validate DB_BACKUP_PASSPHRASE
 if [ -z "${DB_BACKUP_PASSPHRASE:-}" ]; then
     log "ERROR: DB_BACKUP_PASSPHRASE environment variable is not set"
@@ -108,10 +112,12 @@ log "Starting encrypted database restore"
 log "Source: $ENCRYPTED_FILE"
 log "Target: $POSTGRES_DB on ${POSTGRES_HOST:-localhost}"
 
-# Verify checksum if available
+# Verify checksum if available (absolute paths work from any directory)
 CHECKSUM_FILE="${ENCRYPTED_FILE}.sha256"
 if [ -f "$CHECKSUM_FILE" ]; then
     log "Verifying SHA256 checksum"
+    # Change to directory for sha256sum -c to work with the filename in the checksum file
+    ORIGINAL_DIR="$(pwd)"
     cd "$(dirname "$ENCRYPTED_FILE")"
     if sha256sum -c "$(basename "$CHECKSUM_FILE")" >/dev/null 2>&1; then
         log "Checksum verification passed"
@@ -120,6 +126,7 @@ if [ -f "$CHECKSUM_FILE" ]; then
         log "The backup file may be corrupted or tampered with"
         exit 1
     fi
+    cd "$ORIGINAL_DIR"
 else
     log "WARNING: No checksum file found ($CHECKSUM_FILE)"
     log "Proceeding without integrity verification"

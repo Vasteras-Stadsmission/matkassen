@@ -1112,6 +1112,8 @@
                 "errors": {
                     "FETCH_FAILED": "Failed to load checklist items",
                     "VALIDATION_ERROR": "Both Swedish and English text are required",
+                    "VALIDATION_ERROR_SV_EMPTY": "Swedish checklist text cannot be empty",
+                    "VALIDATION_ERROR_EN_EMPTY": "English checklist text cannot be empty",
                     "CREATE_FAILED": "Failed to create checklist item",
                     "UPDATE_FAILED": "Failed to update checklist item",
                     "NOT_FOUND": "Checklist item not found",

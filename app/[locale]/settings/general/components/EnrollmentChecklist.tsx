@@ -130,27 +130,26 @@ interface QuestionFormData {
 export function EnrollmentChecklist() {
     const t = useTranslations("settings.enrollmentChecklist");
 
-    // Map error codes to translation keys
+    // Map error codes to translated messages
     const getErrorMessage = useCallback(
-        (errorCode: string): string => {
-            switch (errorCode) {
-                case "FETCH_FAILED":
-                    return t("notifications.errors.FETCH_FAILED");
-                case "VALIDATION_ERROR":
-                    return t("notifications.errors.VALIDATION_ERROR");
-                case "CREATE_FAILED":
-                    return t("notifications.errors.CREATE_FAILED");
-                case "UPDATE_FAILED":
-                    return t("notifications.errors.UPDATE_FAILED");
-                case "NOT_FOUND":
-                    return t("notifications.errors.NOT_FOUND");
-                case "DELETE_FAILED":
-                    return t("notifications.errors.DELETE_FAILED");
-                case "REORDER_FAILED":
-                    return t("notifications.errors.REORDER_FAILED");
-                default:
-                    return t("notifications.errors.UNKNOWN");
+        (error: { code: string; message: string }): string => {
+            // Try to find a translation for the error code
+            const translationKey = `notifications.errors.${error.code}` as any;
+
+            // Check if translation exists, otherwise return UNKNOWN
+            try {
+                const translated = t(translationKey);
+                // If translation key doesn't exist, t() returns the key itself
+                // So check if it's different from the key
+                if (translated !== translationKey) {
+                    return translated;
+                }
+            } catch {
+                // Translation doesn't exist
             }
+
+            // Fallback to generic error
+            return t("notifications.errors.UNKNOWN");
         },
         [t],
     );
@@ -189,7 +188,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: getErrorMessage(result.error.code),
+                    message: getErrorMessage(result.error),
                     color: "red",
                 });
             }
@@ -266,7 +265,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: getErrorMessage(result.error.code),
+                    message: getErrorMessage(result.error),
                     color: "red",
                 });
             }
@@ -307,7 +306,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: getErrorMessage(result.error.code),
+                    message: getErrorMessage(result.error),
                     color: "red",
                 });
             }
@@ -345,7 +344,7 @@ export function EnrollmentChecklist() {
                     setQuestions(questions);
                     notifications.show({
                         title: t("notifications.error"),
-                        message: getErrorMessage(result.error.code),
+                        message: getErrorMessage(result.error),
                         color: "red",
                     });
                 }

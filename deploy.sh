@@ -21,7 +21,7 @@ handle_error() {
 trap 'handle_error ${LINENO} $?' ERR
 
 # Verify that required environment variables are set
-required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME BRAND_NAME DB_BACKUP_PASSPHRASE)
+required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME BRAND_NAME)
 missing_vars=()
 
 echo "Checking required environment variables..."
@@ -46,6 +46,12 @@ echo "✅ All required environment variables are set."
 # Use ENV_NAME to explicitly determine production vs staging (more robust than domain pattern matching)
 # This aligns with how the rest of the deployment scripts make environment-specific decisions
 if [ "${ENV_NAME:-staging}" = "production" ]; then
+  # Verify production-only required variables
+  if [ -z "${DB_BACKUP_PASSPHRASE:-}" ]; then
+    echo "❌ Error: DB_BACKUP_PASSPHRASE is required for production deployments (GDPR compliance)"
+    echo "Please set this variable in GitHub Secrets and try again."
+    exit 1
+  fi
   # For production domains, include www subdomain
   DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
@@ -231,8 +237,10 @@ fi
 # Anonymization scheduler configuration (always enabled for GDPR compliance)
 echo "ANONYMIZATION_SCHEDULE=\"${ANONYMIZATION_SCHEDULE:-0 2 * * 0}\"" >> "$APP_DIR/.env"
 echo "ANONYMIZATION_INACTIVE_DURATION=\"${ANONYMIZATION_INACTIVE_DURATION:-1 year}\"" >> "$APP_DIR/.env"
-# Database backup encryption (GDPR compliance)
-echo "DB_BACKUP_PASSPHRASE=\"${DB_BACKUP_PASSPHRASE}\"" >> "$APP_DIR/.env"
+# Database backup encryption (GDPR compliance - production only)
+if [ "${ENV_NAME:-staging}" = "production" ]; then
+  echo "DB_BACKUP_PASSPHRASE=\"${DB_BACKUP_PASSPHRASE}\"" >> "$APP_DIR/.env"
+fi
 
 # Install Nginx
 sudo apt install nginx -y
