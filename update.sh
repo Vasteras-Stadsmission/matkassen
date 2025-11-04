@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Ensure software-properties-common is installed (needed for add-apt-repository)
+if ! command -v add-apt-repository >/dev/null 2>&1; then
+  echo "Installing software-properties-common..."
+  sudo apt-get update
+  sudo apt-get install -y software-properties-common
+fi
+
+# Ensure GPG is installed for encrypted backups
+if ! command -v gpg >/dev/null 2>&1; then
+  echo "⚠️ GPG not found, installing..."
+  sudo apt-get update
+  sudo apt-get install -y gnupg
+fi
+
 # This script updates the Next.js app, rebuilding the Docker containers and restarting them.
 # It assumes that the app is already set up with Docker and Docker Compose
 # Note: The git repository is already up to date (handled by CI/CD workflow).
@@ -36,7 +50,7 @@ DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:54
 # Validate required environment variables in production
 if [ "${ENV_NAME:-}" = "production" ]; then
     echo "Validating production environment variables..."
-    req=(BRAND_NAME DOMAIN_NAME \
+    req=(BRAND_NAME DOMAIN_NAME DB_BACKUP_PASSPHRASE \
          OS_AUTH_TYPE OS_AUTH_URL OS_REGION_NAME OS_INTERFACE OS_IDENTITY_API_VERSION \
          OS_APPLICATION_CREDENTIAL_ID OS_APPLICATION_CREDENTIAL_SECRET \
          SWIFT_CONTAINER SWIFT_PREFIX SLACK_BOT_TOKEN SLACK_CHANNEL_ID)
@@ -89,6 +103,8 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     # Anonymization scheduler configuration (always enabled for GDPR compliance)
     printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
     printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
+    # Database backup encryption (GDPR compliance)
+    printf 'DB_BACKUP_PASSPHRASE="%s"\n' "${DB_BACKUP_PASSPHRASE}"
 } > "$tmp"
 
 # Add production-only backup configuration

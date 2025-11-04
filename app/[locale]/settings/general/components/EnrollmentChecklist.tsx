@@ -129,6 +129,32 @@ interface QuestionFormData {
 
 export function EnrollmentChecklist() {
     const t = useTranslations("settings.enrollmentChecklist");
+
+    // Map error codes to translation keys
+    const getErrorMessage = useCallback(
+        (errorCode: string): string => {
+            switch (errorCode) {
+                case "FETCH_FAILED":
+                    return t("notifications.errors.FETCH_FAILED");
+                case "VALIDATION_ERROR":
+                    return t("notifications.errors.VALIDATION_ERROR");
+                case "CREATE_FAILED":
+                    return t("notifications.errors.CREATE_FAILED");
+                case "UPDATE_FAILED":
+                    return t("notifications.errors.UPDATE_FAILED");
+                case "NOT_FOUND":
+                    return t("notifications.errors.NOT_FOUND");
+                case "DELETE_FAILED":
+                    return t("notifications.errors.DELETE_FAILED");
+                case "REORDER_FAILED":
+                    return t("notifications.errors.REORDER_FAILED");
+                default:
+                    return t("notifications.errors.UNKNOWN");
+            }
+        },
+        [t],
+    );
+
     const [questions, setQuestions] = useState<VerificationQuestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -163,7 +189,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: result.error.message,
+                    message: getErrorMessage(result.error.code),
                     color: "red",
                 });
             }
@@ -176,7 +202,7 @@ export function EnrollmentChecklist() {
         } finally {
             setLoading(false);
         }
-    }, [t]);
+    }, [t, getErrorMessage]);
 
     useEffect(() => {
         loadQuestions();
@@ -240,7 +266,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: result.error.message,
+                    message: getErrorMessage(result.error.code),
                     color: "red",
                 });
             }
@@ -281,7 +307,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: result.error.message,
+                    message: getErrorMessage(result.error.code),
                     color: "red",
                 });
             }
@@ -319,7 +345,7 @@ export function EnrollmentChecklist() {
                     setQuestions(questions);
                     notifications.show({
                         title: t("notifications.error"),
-                        message: result.error.message,
+                        message: getErrorMessage(result.error.code),
                         color: "red",
                     });
                 }

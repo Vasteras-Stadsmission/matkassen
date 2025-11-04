@@ -1108,7 +1108,17 @@
                 "loadError": "Kunde inte ladda verifieringsfrågor",
                 "saveError": "Kunde inte spara fråga",
                 "deleteError": "Kunde inte ta bort fråga",
-                "reorderError": "Kunde inte omordna frågor"
+                "reorderError": "Kunde inte omordna frågor",
+                "errors": {
+                    "FETCH_FAILED": "Kunde inte ladda kontrollpunkter",
+                    "VALIDATION_ERROR": "Både svensk och engelsk text krävs",
+                    "CREATE_FAILED": "Kunde inte skapa kontrollpunkt",
+                    "UPDATE_FAILED": "Kunde inte uppdatera kontrollpunkt",
+                    "NOT_FOUND": "Kontrollpunkt hittades inte",
+                    "DELETE_FAILED": "Kunde inte ta bort kontrollpunkt",
+                    "REORDER_FAILED": "Kunde inte omordna kontrollpunkter",
+                    "UNKNOWN": "Ett oväntat fel inträffade"
+                }
             }
         },
         "smsTemplates": {
