@@ -142,7 +142,7 @@ const ERROR_TRANSLATIONS = {
 type KnownErrorCode = keyof typeof ERROR_TRANSLATIONS;
 
 const isKnownErrorCode = (code: string): code is KnownErrorCode =>
-    Object.prototype.hasOwnProperty.call(ERROR_TRANSLATIONS, code);
+    code in ERROR_TRANSLATIONS;
 
 export function EnrollmentChecklist() {
     const t = useTranslations("settings.enrollmentChecklist");
