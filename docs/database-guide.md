@@ -425,22 +425,28 @@ docker compose restart web
 #### Troubleshooting
 
 **Wrong passphrase:**
+
 ```
 gpg: decryption failed: Bad session key
 ```
+
 → Double-check `DB_BACKUP_PASSPHRASE` value
 
 **Checksum verification failed:**
+
 ```
 ERROR: Checksum verification failed
 The backup file may be corrupted or tampered with
 ```
+
 → Re-download backup file from backup storage
 
 **Permission denied:**
+
 ```
 ERROR: must be owner of extension plpgsql
 ```
+
 → Use `--no-owner --no-privileges` (already included in script)
 
 #### Creating Manual Backups
