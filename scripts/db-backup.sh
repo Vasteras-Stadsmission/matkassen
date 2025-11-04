@@ -7,7 +7,7 @@
 #
 # Flow:
 #   1. Validate DB_BACKUP_PASSPHRASE is set (fail fast if missing)
-#   2. Run pg_dump with --format=custom --compress=9 (compressed binary format)
+#   2. Run pg_dump with --format=custom (compressed binary format, includes built-in compression)
 #   3. Pipe directly to gpg --symmetric (AES256 encryption)
 #   4. Write encrypted output to: <target_dir>/<timestamp>.sql.gpg
 #   5. Generate SHA256 checksum: <timestamp>.sql.gpg.sha256
@@ -98,13 +98,13 @@ log "Running pg_dump → gpg → $BACKUP_FILENAME"
 
 # gpg: use --passphrase-fd 3 with file descriptor
 # This keeps stdin free for pg_dump pipe and avoids process list exposure
+# Note: --format=custom includes built-in compression (no --compress flag needed)
 pg_dump \
     -h "$POSTGRES_HOST" \
     -U "$POSTGRES_USER" \
     -d "$POSTGRES_DB" \
     --no-password \
     --format=custom \
-    --compress=9 \
     --no-owner \
     --no-privileges \
     | gpg --symmetric --cipher-algo AES256 --armor --batch \

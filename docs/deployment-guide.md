@@ -283,12 +283,13 @@ OLD_PASS="old-passphrase"
 NEW_PASS="new-passphrase"
 
 # Decrypt with old passphrase, re-encrypt with new passphrase
+# Note: Use different file descriptors (3 and 4) since they don't carry through pipes
 gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback old_backup.sql.gpg \
     3<<<"$OLD_PASS" \
     | gpg --symmetric --cipher-algo AES256 --armor --batch \
-        --passphrase-fd 3 --pinentry-mode loopback \
+        --passphrase-fd 4 --pinentry-mode loopback \
         --output old_backup_rekeyed.sql.gpg \
-    3<<<"$NEW_PASS"
+    4<<<"$NEW_PASS"
 
 # Verify and replace
 sha256sum old_backup_rekeyed.sql.gpg > old_backup_rekeyed.sql.gpg.sha256
@@ -361,10 +362,10 @@ docker exec -i matkassen-db psql -U matkassen matkassen < backup-20250101.sql
 export DB_BACKUP_PASSPHRASE="your-passphrase"
 
 # Using gpg with file descriptor (recommended)
-gpg --symmetric --cipher-algo AES256 --armor --batch \
+cat old_backup.sql | gpg --symmetric --cipher-algo AES256 --armor --batch \
     --passphrase-fd 3 --pinentry-mode loopback \
     --output old_backup.sql.gpg \
-    3<<<"$DB_BACKUP_PASSPHRASE" < old_backup.sql
+    3<<<"$DB_BACKUP_PASSPHRASE"
 
 # Generate checksum
 sha256sum old_backup.sql.gpg > old_backup.sql.gpg.sha256
