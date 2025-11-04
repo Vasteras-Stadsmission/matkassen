@@ -97,7 +97,7 @@ jobs:
                       export ANONYMIZATION_SCHEDULE="*/15 * * * *"
                       export ANONYMIZATION_INACTIVE_DURATION="5 minutes"
                       # SMS credentials not needed in staging (test mode only)
-                      # Backups disabled on staging by policy (no secrets exported)
+                      # Backups disabled on staging by policy (no db-backup related secrets exported)
                       export SWIFT_PREFIX="backups/${ENV_NAME}"
 
                       APP_DIR=~/matkassen
@@ -161,6 +161,8 @@ jobs:
                       export SMS_SEND_INTERVAL="5 minutes"
                       export ANONYMIZATION_SCHEDULE="0 2 * * 0"
                       export ANONYMIZATION_INACTIVE_DURATION="1 year"
+                      export DB_BACKUP_PASSPHRASE="${{ secrets.DB_BACKUP_PASSPHRASE }}"
+
                       # OpenStack Swift (env_auth) - hardcoded non-sensitive values
                       export OS_AUTH_TYPE=v3applicationcredential
                       export OS_AUTH_URL=https://ops.elastx.cloud:5000/v3

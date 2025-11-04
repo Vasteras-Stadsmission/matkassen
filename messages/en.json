@@ -1108,7 +1108,17 @@
                 "loadError": "Failed to load verification questions",
                 "saveError": "Failed to save question",
                 "deleteError": "Failed to delete question",
-                "reorderError": "Failed to reorder questions"
+                "reorderError": "Failed to reorder questions",
+                "errors": {
+                    "FETCH_FAILED": "Failed to load checklist items",
+                    "VALIDATION_ERROR": "Both Swedish and English text are required",
+                    "CREATE_FAILED": "Failed to create checklist item",
+                    "UPDATE_FAILED": "Failed to update checklist item",
+                    "NOT_FOUND": "Checklist item not found",
+                    "DELETE_FAILED": "Failed to delete checklist item",
+                    "REORDER_FAILED": "Failed to reorder checklist items",
+                    "UNKNOWN": "An unexpected error occurred"
+                }
             }
         },
         "smsTemplates": {

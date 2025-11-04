@@ -21,7 +21,7 @@ handle_error() {
 trap 'handle_error ${LINENO} $?' ERR
 
 # Verify that required environment variables are set
-required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME BRAND_NAME)
+required_vars=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB EMAIL AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET DOMAIN_NAME BRAND_NAME DB_BACKUP_PASSPHRASE)
 missing_vars=()
 
 echo "Checking required environment variables..."
@@ -67,6 +67,20 @@ SWAP_SIZE="1G"  # Swap size of 1GB
 
 # Update package list and upgrade existing packages
 sudo apt update && sudo apt upgrade -y
+
+# Install essential tools (needed for system operations)
+echo "Installing essential tools..."
+sudo apt-get install -y software-properties-common
+
+# Verify GPG is installed (should be pre-installed on Ubuntu)
+echo "Verifying GPG encryption tool..."
+if command -v gpg >/dev/null 2>&1; then
+  echo "✅ GPG is installed: $(gpg --version | head -n 1)"
+else
+  echo "Installing GPG..."
+  sudo apt-get install -y gnupg
+  echo "✅ GPG installed successfully: $(gpg --version | head -n 1)"
+fi
 
 # Check if swap file already exists
 if [ -f /swapfile ] || grep -q '/swapfile' /proc/swaps; then
@@ -217,6 +231,8 @@ fi
 # Anonymization scheduler configuration (always enabled for GDPR compliance)
 echo "ANONYMIZATION_SCHEDULE=\"${ANONYMIZATION_SCHEDULE:-0 2 * * 0}\"" >> "$APP_DIR/.env"
 echo "ANONYMIZATION_INACTIVE_DURATION=\"${ANONYMIZATION_INACTIVE_DURATION:-1 year}\"" >> "$APP_DIR/.env"
+# Database backup encryption (GDPR compliance)
+echo "DB_BACKUP_PASSPHRASE=\"${DB_BACKUP_PASSPHRASE}\"" >> "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y

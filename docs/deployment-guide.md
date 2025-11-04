@@ -7,8 +7,34 @@ Docker Compose deployment to VPS with:
 - Nginx reverse proxy
 - Certbot SSL certificates
 - PostgreSQL database
-- Automated backups
+- Automated encrypted backups (GPG)
 - GitHub Actions CI/CD
+
+## Prerequisites
+
+### Server Requirements
+
+- **Operating System**: Ubuntu 24.04 LTS (or compatible)
+- **Encryption Tools**: gnupg (GPG) - pre-installed on most Linux systems
+- **Container Runtime**: Docker & Docker Compose v2.13+
+- **Web Server**: Nginx
+- **SSL**: Certbot (Let's Encrypt)
+
+### Verifying GPG Installation
+
+GPG is typically pre-installed on Ubuntu. Verify:
+
+```bash
+# Verify installation
+gpg --version
+# Should output: gpg (GnuPG) 2.x.x
+
+# If not installed (rare)
+sudo apt-get update
+sudo apt-get install gnupg --yes
+```
+
+**Note**: The deployment scripts automatically verify GPG is available. Container images include GPG via Alpine packages (`apk add gnupg`).
 
 ## Environment Variable Management
 
@@ -131,14 +157,220 @@ docker exec -it matkassen-db psql -U matkassen -d matkassen
 
 ### Backups
 
-Automated daily backups via `Dockerfile.db-backup`:
+**All database backups are encrypted for GDPR compliance.**
+
+#### Automated Encrypted Backups
+
+Production backups run automatically via `Dockerfile.db-backup` using `scripts/backup-db.sh` (cloud storage) or the new `scripts/db-backup.sh` for encrypted local/manual backups.
+
+#### Encryption Details
+
+- **Method**: Symmetric encryption using GPG (GnuPG)
+- **Algorithm**: AES256-CFB (industry standard)
+- **Passphrase**: Stored in GitHub Secrets as `DB_BACKUP_PASSPHRASE`
+- **Output**: `.sql.gpg` encrypted files with `.sql.gpg.sha256` checksums
+
+#### Setting Up Encrypted Backups
+
+##### 1. Generate Strong Passphrase
 
 ```bash
-# Manual backup
+# Generate 32-character random passphrase
+openssl rand -base64 32
+
+# Or use a passphrase generator
+pwgen -s 32 1
+```
+
+**CRITICAL**: Store this passphrase securely. Backups cannot be restored without it.
+
+##### 2. Add to GitHub Secrets
+
+1. Go to repository **Settings → Secrets → Actions**
+2. Click **New repository secret**
+3. Name: `DB_BACKUP_PASSPHRASE`
+4. Value: Your generated passphrase
+5. Click **Add secret**
+
+##### 3. Deploy Changes
+
+The passphrase is automatically exported to both staging and production environments via CI/CD workflows.
+
+#### Manual Encrypted Backup
+
+```bash
+# On the server
+export DB_BACKUP_PASSPHRASE="your-passphrase"
+export POSTGRES_HOST=localhost
+export POSTGRES_USER=matkassen
+export POSTGRES_DB=matkassen
+export POSTGRES_PASSWORD="your-db-password"
+
+./scripts/db-backup.sh
+
+# Output:
+# /var/backups/matkassen/matkassen_backup_20250101_120000.sql.gpg
+# /var/backups/matkassen/matkassen_backup_20250101_120000.sql.gpg.sha256
+```
+
+**Note**: The script uses `gpg --passphrase-fd` with file descriptor 3 to avoid TTY prompts and process list exposure.
+
+#### Restoring Encrypted Backups
+
+##### Safety Requirements
+
+- **`--force` flag required** to prevent accidental restores
+- **Checksum verification** (if `.sha256` file exists)
+- **Database will be completely replaced** with backup data
+
+##### Restore Command
+
+```bash
+# Export required environment variables
+export DB_BACKUP_PASSPHRASE="your-passphrase"
+export POSTGRES_HOST=localhost
+export POSTGRES_USER=matkassen
+export POSTGRES_DB=matkassen
+export POSTGRES_PASSWORD="your-db-password"
+
+# Restore from encrypted backup
+./scripts/db-restore.sh /var/backups/matkassen/matkassen_backup_20250101_120000.sql.gpg --force
+```
+
+##### Restore Process
+
+1. Script validates passphrase and credentials are set
+2. Verifies backup file exists
+3. Checks SHA256 checksum (if available)
+4. Verifies GPG encryption format
+5. Decrypts using non-interactive mode (no TTY prompts)
+6. Pipes directly to `pg_restore` (no intermediate plaintext files)
+
+**Note**: The script uses `gpg --passphrase-fd 3` with file descriptor to ensure non-interactive operation.
+
+##### Post-Restore Steps
+
+```bash
+# 1. Verify application functionality
+curl https://your-domain.com/api/health
+
+# 2. Run migrations if schema changed
+cd ~/matkassen
+pnpm run db:migrate
+
+# 3. Restart application
+sudo docker compose restart web
+```
+
+#### Passphrase Rotation
+
+**When to rotate**:
+
+- Suspected compromise
+- Employee departure (if they had access)
+- Every 12 months (best practice)
+
+**Rotation procedure**:
+
+1. Generate new passphrase
+2. Update GitHub Secret `DB_BACKUP_PASSPHRASE`
+3. Deploy to all environments
+4. **Re-encrypt old backups** (critical - they use old passphrase):
+
+```bash
+# For each old backup - streaming approach (no intermediate plaintext file)
+OLD_PASS="old-passphrase"
+NEW_PASS="new-passphrase"
+
+# Decrypt with old passphrase, re-encrypt with new passphrase
+gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback old_backup.sql.gpg \
+    3<<<"$OLD_PASS" \
+    | gpg --symmetric --cipher-algo AES256 --armor --batch \
+        --passphrase-fd 3 --pinentry-mode loopback \
+        --output old_backup_rekeyed.sql.gpg \
+    3<<<"$NEW_PASS"
+
+# Verify and replace
+sha256sum old_backup_rekeyed.sql.gpg > old_backup_rekeyed.sql.gpg.sha256
+mv old_backup_rekeyed.sql.gpg old_backup.sql.gpg
+mv old_backup_rekeyed.sql.gpg.sha256 old_backup.sql.gpg.sha256
+```
+
+5. Document rotation date and update runbook
+
+#### Backup Retention
+
+**Production**: 14 days (managed by cloud storage expiry headers)
+
+**Staging**: Optional (test data only)
+
+**Location**: `/var/backups/matkassen/` (local) or cloud object storage
+
+#### Monitoring
+
+```bash
+# Check backup service status
+sudo docker compose logs db-backup
+
+# List recent backups
+ls -lh /var/backups/matkassen/
+
+# Verify backup encryption
+file /var/backups/matkassen/matkassen_backup_*.sql.gpg
+# Should show: "data" or "PGP message" (encrypted, not readable)
+
+# Test decrypt (without restoring)
+gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback backup.sql.gpg \
+    3<<<"$DB_BACKUP_PASSPHRASE" | head -c 100
+# Should show: PostgreSQL dump header
+```
+
+#### Troubleshooting
+
+**"Cannot determine encryption format"**
+
+- Backup file may be corrupted
+- Verify checksum: `sha256sum -c backup.sql.gpg.sha256`
+
+**"Checksum verification failed"**
+
+- File corrupted during transfer/storage
+- Do not restore - use previous backup
+
+**Restore fails with authentication error**
+
+- Wrong passphrase (check GitHub Secret)
+- Wrong database credentials (check .env)
+
+#### Legacy Unencrypted Backups
+
+**Old backup format** (pre-encryption):
+
+```bash
+# Manual backup (DEPRECATED - unencrypted)
 docker exec matkassen-db pg_dump -U matkassen matkassen > backup-$(date +%Y%m%d).sql
 
-# Restore from backup
+# Restore from backup (DEPRECATED)
 docker exec -i matkassen-db psql -U matkassen matkassen < backup-20250101.sql
+```
+
+**Migrate old backups to encrypted format**:
+
+```bash
+# Encrypt existing plaintext backup
+export DB_BACKUP_PASSPHRASE="your-passphrase"
+
+# Using gpg with file descriptor (recommended)
+gpg --symmetric --cipher-algo AES256 --armor --batch \
+    --passphrase-fd 3 --pinentry-mode loopback \
+    --output old_backup.sql.gpg \
+    3<<<"$DB_BACKUP_PASSPHRASE" < old_backup.sql
+
+# Generate checksum
+sha256sum old_backup.sql.gpg > old_backup.sql.gpg.sha256
+
+# Securely delete plaintext
+shred -u old_backup.sql
 ```
 
 **Backup location**: Configured in deployment scripts (typically `/var/backups/matkassen/`)
