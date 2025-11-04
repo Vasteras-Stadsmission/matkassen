@@ -1112,6 +1112,8 @@
                 "errors": {
                     "FETCH_FAILED": "Kunde inte ladda kontrollpunkter",
                     "VALIDATION_ERROR": "Både svensk och engelsk text krävs",
+                    "VALIDATION_ERROR_SV_EMPTY": "Svensk kontrollpunktstext kan inte vara tom",
+                    "VALIDATION_ERROR_EN_EMPTY": "Engelsk kontrollpunktstext kan inte vara tom",
                     "CREATE_FAILED": "Kunde inte skapa kontrollpunkt",
                     "UPDATE_FAILED": "Kunde inte uppdatera kontrollpunkt",
                     "NOT_FOUND": "Kontrollpunkt hittades inte",

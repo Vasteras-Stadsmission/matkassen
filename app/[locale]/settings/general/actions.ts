@@ -72,10 +72,16 @@ export const createVerificationQuestion = protectedAction(
     async (session, data: CreateQuestionData): Promise<ActionResult<VerificationQuestion>> => {
         try {
             // Validate required fields
-            if (!data.question_text_sv?.trim() || !data.question_text_en?.trim()) {
+            if (!data.question_text_sv?.trim()) {
                 return failure({
-                    code: "VALIDATION_ERROR",
-                    message: "Both Swedish and English question text are required",
+                    code: "VALIDATION_ERROR_SV_EMPTY",
+                    message: "Swedish question text cannot be empty",
+                });
+            }
+            if (!data.question_text_en?.trim()) {
+                return failure({
+                    code: "VALIDATION_ERROR_EN_EMPTY",
+                    message: "English question text cannot be empty",
                 });
             }
 
@@ -127,7 +133,7 @@ export const updateVerificationQuestion = protectedAction(
             if (data.question_text_sv !== undefined) {
                 if (!data.question_text_sv.trim()) {
                     return failure({
-                        code: "VALIDATION_ERROR",
+                        code: "VALIDATION_ERROR_SV_EMPTY",
                         message: "Swedish question text cannot be empty",
                     });
                 }
@@ -137,7 +143,7 @@ export const updateVerificationQuestion = protectedAction(
             if (data.question_text_en !== undefined) {
                 if (!data.question_text_en.trim()) {
                     return failure({
-                        code: "VALIDATION_ERROR",
+                        code: "VALIDATION_ERROR_EN_EMPTY",
                         message: "English question text cannot be empty",
                     });
                 }

@@ -127,30 +127,35 @@ interface QuestionFormData {
     is_required: boolean;
 }
 
+const ERROR_TRANSLATIONS = {
+    FETCH_FAILED: "notifications.errors.FETCH_FAILED",
+    VALIDATION_ERROR: "notifications.errors.VALIDATION_ERROR",
+    VALIDATION_ERROR_SV_EMPTY: "notifications.errors.VALIDATION_ERROR_SV_EMPTY",
+    VALIDATION_ERROR_EN_EMPTY: "notifications.errors.VALIDATION_ERROR_EN_EMPTY",
+    CREATE_FAILED: "notifications.errors.CREATE_FAILED",
+    UPDATE_FAILED: "notifications.errors.UPDATE_FAILED",
+    NOT_FOUND: "notifications.errors.NOT_FOUND",
+    DELETE_FAILED: "notifications.errors.DELETE_FAILED",
+    REORDER_FAILED: "notifications.errors.REORDER_FAILED",
+} as const;
+
+type KnownErrorCode = keyof typeof ERROR_TRANSLATIONS;
+
+const isKnownErrorCode = (code: string): code is KnownErrorCode => code in ERROR_TRANSLATIONS;
+
 export function EnrollmentChecklist() {
     const t = useTranslations("settings.enrollmentChecklist");
 
-    // Map error codes to translation keys
+    // Map error codes to translated messages
+    // Maintains a list of known error codes for type safety
     const getErrorMessage = useCallback(
-        (errorCode: string): string => {
-            switch (errorCode) {
-                case "FETCH_FAILED":
-                    return t("notifications.errors.FETCH_FAILED");
-                case "VALIDATION_ERROR":
-                    return t("notifications.errors.VALIDATION_ERROR");
-                case "CREATE_FAILED":
-                    return t("notifications.errors.CREATE_FAILED");
-                case "UPDATE_FAILED":
-                    return t("notifications.errors.UPDATE_FAILED");
-                case "NOT_FOUND":
-                    return t("notifications.errors.NOT_FOUND");
-                case "DELETE_FAILED":
-                    return t("notifications.errors.DELETE_FAILED");
-                case "REORDER_FAILED":
-                    return t("notifications.errors.REORDER_FAILED");
-                default:
-                    return t("notifications.errors.UNKNOWN");
+        (error: { code: string; message: string }): string => {
+            if (isKnownErrorCode(error.code)) {
+                return t(ERROR_TRANSLATIONS[error.code]);
             }
+
+            // Fallback to generic error for unknown codes
+            return t("notifications.errors.UNKNOWN");
         },
         [t],
     );
@@ -189,7 +194,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: getErrorMessage(result.error.code),
+                    message: getErrorMessage(result.error),
                     color: "red",
                 });
             }
@@ -266,7 +271,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: getErrorMessage(result.error.code),
+                    message: getErrorMessage(result.error),
                     color: "red",
                 });
             }
@@ -307,7 +312,7 @@ export function EnrollmentChecklist() {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: getErrorMessage(result.error.code),
+                    message: getErrorMessage(result.error),
                     color: "red",
                 });
             }
@@ -345,7 +350,7 @@ export function EnrollmentChecklist() {
                     setQuestions(questions);
                     notifications.show({
                         title: t("notifications.error"),
-                        message: getErrorMessage(result.error.code),
+                        message: getErrorMessage(result.error),
                         color: "red",
                     });
                 }
