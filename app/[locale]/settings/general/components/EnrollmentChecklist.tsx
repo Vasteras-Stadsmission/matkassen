@@ -127,28 +127,35 @@ interface QuestionFormData {
     is_required: boolean;
 }
 
+const ERROR_TRANSLATIONS = {
+    FETCH_FAILED: "notifications.errors.FETCH_FAILED",
+    VALIDATION_ERROR: "notifications.errors.VALIDATION_ERROR",
+    VALIDATION_ERROR_SV_EMPTY: "notifications.errors.VALIDATION_ERROR_SV_EMPTY",
+    VALIDATION_ERROR_EN_EMPTY: "notifications.errors.VALIDATION_ERROR_EN_EMPTY",
+    CREATE_FAILED: "notifications.errors.CREATE_FAILED",
+    UPDATE_FAILED: "notifications.errors.UPDATE_FAILED",
+    NOT_FOUND: "notifications.errors.NOT_FOUND",
+    DELETE_FAILED: "notifications.errors.DELETE_FAILED",
+    REORDER_FAILED: "notifications.errors.REORDER_FAILED",
+} as const;
+
+type KnownErrorCode = keyof typeof ERROR_TRANSLATIONS;
+
+const isKnownErrorCode = (code: string): code is KnownErrorCode =>
+    Object.prototype.hasOwnProperty.call(ERROR_TRANSLATIONS, code);
+
 export function EnrollmentChecklist() {
     const t = useTranslations("settings.enrollmentChecklist");
 
     // Map error codes to translated messages
+    // Maintains a list of known error codes for type safety
     const getErrorMessage = useCallback(
         (error: { code: string; message: string }): string => {
-            // Try to find a translation for the error code
-            const translationKey = `notifications.errors.${error.code}` as any;
-
-            // Check if translation exists, otherwise return UNKNOWN
-            try {
-                const translated = t(translationKey);
-                // If translation key doesn't exist, t() returns the key itself
-                // So check if it's different from the key
-                if (translated !== translationKey) {
-                    return translated;
-                }
-            } catch {
-                // Translation doesn't exist
+            if (isKnownErrorCode(error.code)) {
+                return t(ERROR_TRANSLATIONS[error.code]);
             }
 
-            // Fallback to generic error
+            // Fallback to generic error for unknown codes
             return t("notifications.errors.UNKNOWN");
         },
         [t],

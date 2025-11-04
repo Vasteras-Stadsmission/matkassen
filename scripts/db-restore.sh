@@ -118,7 +118,7 @@ if [ -f "$CHECKSUM_FILE" ]; then
     log "Verifying SHA256 checksum"
     # Change to directory for sha256sum -c to work with the filename in the checksum file
     ORIGINAL_DIR="$(pwd)"
-    cd "$(dirname "$ENCRYPTED_FILE")"
+    cd "$(dirname "$ENCRYPTED_FILE")" || { log "ERROR: Failed to change directory to $(dirname "$ENCRYPTED_FILE")"; exit 1; }
     if sha256sum -c "$(basename "$CHECKSUM_FILE")" >/dev/null 2>&1; then
         log "Checksum verification passed"
     else
