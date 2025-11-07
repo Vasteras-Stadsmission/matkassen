@@ -12,9 +12,11 @@ const isDevelopment = process.env.NODE_ENV === "development";
 // Create base logger
 const baseLogger = pino({
     level: process.env.LOG_LEVEL || (isDevelopment ? "debug" : "info"),
+    // Exclude pid and hostname from all logs (not useful in Docker)
+    base: undefined,
     formatters: {
         level: label => {
-            return { level: label };
+            return { level: label.toUpperCase() };
         },
     },
     timestamp: pino.stdTimeFunctions.isoTime,

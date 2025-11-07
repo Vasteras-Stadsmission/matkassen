@@ -53,12 +53,7 @@ async function acquireSmsQueueLock(): Promise<boolean> {
 
         const acquired = result[0]?.acquired as boolean;
 
-        if (acquired) {
-            logger.debug("Acquired SMS queue processing lock");
-        } else {
-            logger.debug("SMS queue processing lock already held by another process");
-        }
-
+        // Only log failures - routine lock operations create too much noise
         return acquired;
     } catch (error) {
         logError("Failed to acquire SMS queue lock", error);
@@ -74,7 +69,7 @@ async function releaseSmsQueueLock(): Promise<void> {
 
     try {
         await db.execute(sql`SELECT pg_advisory_unlock(${lockKey})`);
-        logger.debug("Released SMS queue processing lock");
+        // Only log failures - routine lock operations create too much noise
     } catch (error) {
         logError("Failed to release SMS queue lock", error);
     }
