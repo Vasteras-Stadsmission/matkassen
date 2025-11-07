@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { processSendQueue } from "@/app/utils/sms/scheduler";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
+import { logError } from "@/app/utils/logger";
 
 export async function POST() {
     try {
@@ -23,7 +24,10 @@ export async function POST() {
             processedCount: result,
         });
     } catch (error) {
-        console.error("Error processing SMS queue:", error);
+        logError("Error processing SMS queue", error, {
+            method: "POST",
+            path: "/api/admin/sms/process-queue",
+        });
         return NextResponse.json({ error: "Failed to process SMS queue" }, { status: 500 });
     }
 }

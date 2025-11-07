@@ -227,6 +227,8 @@ if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
 fi
 echo "HELLO_SMS_TEST_MODE=\"${HELLO_SMS_TEST_MODE:-true}\"" >> "$APP_DIR/.env"
 echo "SMS_SEND_INTERVAL=\"${SMS_SEND_INTERVAL:-5 minutes}\"" >> "$APP_DIR/.env"
+# Logging configuration
+echo "LOG_LEVEL=\"${LOG_LEVEL:-info}\"" >> "$APP_DIR/.env"
 # White-label configuration (required in production)
 echo "NEXT_PUBLIC_BRAND_NAME=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
 echo "NEXT_PUBLIC_BASE_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"

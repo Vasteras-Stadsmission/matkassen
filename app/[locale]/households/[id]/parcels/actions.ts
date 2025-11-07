@@ -13,6 +13,7 @@ import {
     type ActionResult,
 } from "@/app/utils/auth/action-result";
 import { notDeleted } from "@/app/db/query-helpers";
+import { logError } from "@/app/utils/logger";
 
 export const updateHouseholdParcels = protectedHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
@@ -173,7 +174,11 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 );
                 await recomputeOutsideHoursCount(locationId);
             } catch (e) {
-                console.error("Failed to recompute outside-hours count after parcel update:", e);
+                logError("Failed to recompute outside-hours count after parcel update", e, {
+                    action: "updateHouseholdParcels",
+                    locationId,
+                    householdId: household.id,
+                });
                 // Non-fatal: The count will be corrected by the next schedule operation
             }
 
@@ -184,7 +189,11 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 return validationFailure(error.message, error.validationErrors);
             }
 
-            console.error("Error updating household parcels:", error);
+            logError("Error updating household parcels", error, {
+                action: "updateHouseholdParcels",
+                householdId: household.id,
+                locationId: parcelsData.pickupLocationId,
+            });
             return failure({
                 code: "INTERNAL_ERROR",
                 message: error instanceof Error ? error.message : "Unknown error occurred",

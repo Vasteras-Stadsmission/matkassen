@@ -5,6 +5,7 @@
 
 import { Time } from "@/app/utils/time-provider";
 import { isTimeAvailable } from "./location-availability";
+import { logError } from "@/app/utils/logger";
 
 export interface ParcelTimeInfo {
     id: string;
@@ -84,7 +85,7 @@ export function isParcelOutsideOpeningHours(
         const isWithinHours = startAvailability.isAvailable && endAvailability.isAvailable;
         return !isWithinHours;
     } catch (error) {
-        console.error("Error checking time availability for parcel %s:", parcel.id, error);
+        logError(`Error checking time availability for parcel ${parcel.id}`, error);
         // If there's an error checking availability, treat as outside hours to be safe
         return true;
     }

@@ -5,6 +5,7 @@ import {
     type HouseholdData,
 } from "./server-action-auth";
 import { type ActionResult } from "./action-result";
+import { logger } from "@/app/utils/logger";
 
 /**
  * Higher-order function that wraps server actions with automatic authentication.
@@ -37,13 +38,15 @@ export function protectedAction<T extends any[], R>(
             return authResult;
         }
 
-        // Audit log for security monitoring
-        console.log("[PROTECTED_ACTION]", {
-            timestamp: new Date().toISOString(),
-            userName: authResult.data.user?.name,
-            userEmail: authResult.data.user?.email,
-            action: action.name || "anonymous",
-        });
+        // Audit log for security monitoring (IDs only, no PII)
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                action: action.name || "anonymous",
+                type: "protected_action",
+            },
+            "Protected action executed",
+        );
 
         return action(authResult.data, ...args);
     };
@@ -90,15 +93,16 @@ export function protectedHouseholdAction<T extends [string, ...any[]], R>(
             return householdResult;
         }
 
-        // Audit log
-        console.log("[PROTECTED_HOUSEHOLD_ACTION]", {
-            timestamp: new Date().toISOString(),
-            userName: authResult.data.user?.name,
-            userEmail: authResult.data.user?.email,
-            householdId: householdResult.data.id,
-            householdName: `${householdResult.data.first_name} ${householdResult.data.last_name}`,
-            action: action.name || "anonymous",
-        });
+        // Audit log (IDs only, no PII)
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                householdId: householdResult.data.id,
+                action: action.name || "anonymous",
+                type: "protected_household_action",
+            },
+            "Protected household action executed",
+        );
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return action(authResult.data, householdResult.data, ...(restArgs as any));

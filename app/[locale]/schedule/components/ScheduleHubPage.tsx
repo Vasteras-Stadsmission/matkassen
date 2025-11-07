@@ -68,8 +68,7 @@ export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) 
                     }
                     // If we can't find the parcel or location, remove the parcel param and continue
                     router.replace("/schedule");
-                } catch (error) {
-                    console.error("Error handling parcel deep link:", error);
+                } catch {
                     // Remove the parcel param and continue with normal hub view
                     router.replace("/schedule");
                 }
@@ -96,11 +95,6 @@ export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) 
 
                 if (favoriteResult.success) {
                     currentFavoriteId = favoriteResult.data;
-                } else {
-                    console.error(
-                        "Failed to load favorite location for schedule hub:",
-                        favoriteResult.error.message,
-                    );
                 }
 
                 // Create summaries for each location
@@ -125,8 +119,8 @@ export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) 
                 );
 
                 setLocationSummaries(summaries);
-            } catch (error) {
-                console.error("Error loading schedule hub data:", error);
+            } catch {
+                // Error loading data - continue with empty state
             } finally {
                 setLoading(false);
             }

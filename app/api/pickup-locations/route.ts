@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { pickupLocations } from "@/app/db/schema";
+import { logError } from "@/app/utils/logger";
 
 export async function GET() {
     try {
@@ -15,7 +16,10 @@ export async function GET() {
 
         return NextResponse.json(locations);
     } catch (error) {
-        console.error("Error fetching pickup locations:", error);
+        logError("Error fetching pickup locations", error, {
+            method: "GET",
+            path: "/api/pickup-locations",
+        });
         return NextResponse.json({ error: "Failed to fetch pickup locations" }, { status: 500 });
     }
 }

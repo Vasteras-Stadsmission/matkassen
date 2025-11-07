@@ -91,17 +91,13 @@ describe("validateOrganizationMembership", () => {
         // Should still work with default context
     });
 
-    it("should log appropriate messages for different contexts", async () => {
-        const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    it("should work with different contexts", async () => {
         mockCheckOrganizationMembership.mockResolvedValue(true);
 
-        await validateOrganizationMembership("testuser", "api");
+        const result = await validateOrganizationMembership("testuser", "api");
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            "Checking membership for user: testuser in org: test-org (api)",
-        );
-        expect(consoleSpy).toHaveBeenCalledWith("✅ Access granted to testuser (api)");
-
-        consoleSpy.mockRestore();
+        // Test focuses on behavior, not logging implementation
+        expect(result).toEqual({ isValid: true });
+        expect(mockCheckOrganizationMembership).toHaveBeenCalledWith("testuser", "test-org");
     });
 });

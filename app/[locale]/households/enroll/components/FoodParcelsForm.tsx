@@ -287,8 +287,8 @@ export default function FoodParcelsForm({
                         })),
                     );
                 }
-            } catch (error) {
-                console.error("Error fetching pickup locations:", error);
+            } catch {
+                // Error fetching pickup locations
                 setPickupLocations([
                     { value: "loc1", label: "Västerås Stadsmission" },
                     { value: "loc2", label: "Klara Kyrka" },
@@ -359,8 +359,8 @@ export default function FoodParcelsForm({
                 );
 
                 setCapacityData(capacity);
-            } catch (error) {
-                console.error("Error fetching capacity data:", error);
+            } catch {
+                // Error fetching capacity data
                 setCapacityData(null);
             } finally {
                 setLoadingCapacityData(false);
@@ -383,8 +383,8 @@ export default function FoodParcelsForm({
                     formState.pickupLocationId,
                 );
                 setLocationSchedules(schedules);
-            } catch (error) {
-                console.error("Error fetching location schedules:", error);
+            } catch {
+                // Error fetching location schedules
                 setLocationSchedules(null);
             }
         }
@@ -399,8 +399,8 @@ export default function FoodParcelsForm({
                 try {
                     const schedules = await getPickupLocationSchedulesAction(data.pickupLocationId);
                     setLocationSchedules(schedules);
-                } catch (error) {
-                    console.error("Error fetching initial location schedules:", error);
+                } catch {
+                    // Error fetching initial location schedules
                 }
             }
         }
@@ -419,8 +419,8 @@ export default function FoodParcelsForm({
             try {
                 const duration = await getLocationSlotDurationAction(formState.pickupLocationId);
                 setSlotDuration(duration);
-            } catch (error) {
-                console.error("Error fetching slot duration:", error);
+            } catch {
+                // Error fetching slot duration
                 setSlotDuration(15); // Default to 15 minutes in case of error
             }
         }

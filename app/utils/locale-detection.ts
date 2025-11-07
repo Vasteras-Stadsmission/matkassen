@@ -87,8 +87,8 @@ export async function detectPublicPageLocale(
                 }
             }
         }
-    } catch (error) {
-        console.warn("Failed to read Accept-Language header:", error);
+    } catch {
+        // Failed to read Accept-Language header - continue with default
     }
 
     // Default to English

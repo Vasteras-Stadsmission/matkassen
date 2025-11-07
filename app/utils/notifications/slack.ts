@@ -3,6 +3,8 @@
  * Based on the backup service implementation with AWS-style state tracking
  */
 
+import { logger, logError } from "@/app/utils/logger";
+
 // AWS-style state tracking: only alert on state transitions
 type HealthState = "OK" | "ALARM";
 const serviceStates = new Map<string, HealthState>();
@@ -70,7 +72,7 @@ function emergencyRateLimit(alertType: string): boolean {
         return true;
     }
 
-    console.warn(`Emergency rate limit hit for ${alertType} - possible bug in state tracking`);
+    logger.warn({ alertType }, "Emergency rate limit hit - possible bug in state tracking");
     return false;
 }
 
@@ -96,17 +98,16 @@ export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
     // ENV_NAME is set by deploy scripts to distinguish staging from production
     const envName = process.env.ENV_NAME || process.env.NODE_ENV;
     if (envName !== "production") {
-        console.log(
-            `[Slack Alert - ${envName || "dev"} Mode] ${message.status}: ${message.title} - ${message.message}`,
+        logger.info(
+            { env: envName || "dev", status: message.status, title: message.title },
+            "Slack alert (non-production mode)",
         );
         return true;
     }
 
     const config = getSlackConfig();
     if (!config) {
-        console.warn(
-            "⚠️ Slack configuration missing (SLACK_BOT_TOKEN or SLACK_CHANNEL_ID) - skipping alert",
-        );
+        logger.warn("Slack configuration missing (SLACK_BOT_TOKEN or SLACK_CHANNEL_ID)");
         return false;
     }
 
@@ -175,24 +176,24 @@ export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
         });
 
         if (!response.ok) {
-            console.error(`❌ Slack API returned ${response.status}: ${response.statusText}`);
+            logError(
+                "Slack API error",
+                new Error(`HTTP ${response.status}: ${response.statusText}`),
+            );
             return false;
         }
 
         const result = await response.json();
 
         if (result.ok) {
-            console.log("✅ Slack alert sent successfully to channel");
+            logger.debug("Slack alert sent successfully");
             return true;
         } else {
-            console.error("❌ Failed to send Slack alert:", result.error);
+            logError("Failed to send Slack alert", new Error(result.error));
             return false;
         }
     } catch (error) {
-        console.error(
-            "Exception sending Slack alert:",
-            error instanceof Error ? error.message : String(error),
-        );
+        logError("Exception sending Slack alert", error);
         return false;
     }
 }

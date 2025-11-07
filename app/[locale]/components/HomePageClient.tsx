@@ -19,12 +19,7 @@ function SearchParamsComponent() {
 
     // Use searchParams if needed
     useEffect(() => {
-        // Example: Check for query parameters
-        const hasParams = searchParams.toString().length > 0;
-        if (hasParams) {
-            // Handle parameters if needed
-            console.log("URL parameters:", Object.fromEntries(searchParams.entries()));
-        }
+        // Example: Check for query parameters - currently no action needed
     }, [searchParams]);
 
     return null;

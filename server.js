@@ -11,9 +11,52 @@
  * - Infrastructure code (deployment concern), not application code
  */
 
+const path = require("path");
+const fs = require("fs");
+const Module = require("module");
 const { createServer } = require("http");
 const next = require("next");
-const { startScheduler } = require("./app/utils/scheduler");
+
+const SERVER_BUILD_DIR = path.join(__dirname, "server-build");
+
+function ensureServerBuildFile(relativePath) {
+    const filePath = path.join(SERVER_BUILD_DIR, relativePath);
+    if (!fs.existsSync(filePath)) {
+        throw new Error(
+            `Missing compiled file "${filePath}". Run "pnpm run build:scheduler" before starting the server.`,
+        );
+    }
+}
+
+let aliasRegistered = false;
+function registerAppAliasResolver() {
+    if (aliasRegistered) {
+        return;
+    }
+
+    const originalResolveFilename = Module._resolveFilename;
+    Module._resolveFilename = function (request, parent, ...rest) {
+        if (request.startsWith("@/")) {
+            request = path.join(SERVER_BUILD_DIR, request.slice(2));
+        }
+
+        return originalResolveFilename.call(this, request, parent, ...rest);
+    };
+
+    aliasRegistered = true;
+}
+
+function loadCompiledModule(request) {
+    registerAppAliasResolver();
+    return require(request);
+}
+
+// Logger is plain JS, require directly
+const { logger, logError } = require("./app/utils/logger");
+
+// Scheduler is compiled TypeScript, load from server-build
+ensureServerBuildFile("app/utils/scheduler.js");
+const { startScheduler } = loadCompiledModule("@/app/utils/scheduler");
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
@@ -28,21 +71,18 @@ const handle = app.getRequestHandler();
  * This prevents "ENOTFOUND db" errors during container startup
  */
 async function waitForDatabase(maxAttempts = 10, delayMs = 2000) {
-    console.log("🔍 Checking database connectivity...");
+    logger.info("Checking database connectivity");
 
     // CommonJS require is intentional here - matches server.js module system
     const { checkDatabaseHealth } = require("./app/db/health-check");
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            // Use the dedicated health check function
             await checkDatabaseHealth();
-            console.log(`✅ Database connection successful (attempt ${attempt}/${maxAttempts})`);
+            logger.info({ attempt, maxAttempts }, "Database connection successful");
             return true;
         } catch (error) {
-            console.log(
-                `⏳ Database not ready yet (attempt ${attempt}/${maxAttempts}): ${error.message}`,
-            );
+            logger.warn({ attempt, maxAttempts, error: error.message }, "Database not ready yet");
 
             if (attempt < maxAttempts) {
                 await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -50,35 +90,33 @@ async function waitForDatabase(maxAttempts = 10, delayMs = 2000) {
         }
     }
 
-    console.warn(
-        `⚠️  Database not reachable after ${maxAttempts} attempts. Scheduler will start anyway but may experience errors.`,
+    logger.warn(
+        { maxAttempts },
+        "Database not reachable after max attempts. Scheduler will start anyway but may experience errors",
     );
     return false;
 }
 
 app.prepare().then(async () => {
-    // Create HTTP server first (so health checks can pass)
     createServer(async (req, res) => {
         try {
             await handle(req, res);
         } catch (err) {
-            console.error("Error occurred handling", req.url, err);
+            logError("Error occurred handling request", err, { url: req.url });
             res.statusCode = 500;
             res.end("internal server error");
         }
     }).listen(port, () => {
-        console.log(`🚀 Server ready on http://${hostname}:${port}`);
+        logger.info({ hostname, port }, "Server ready");
     });
 
-    // Start unified scheduler for background processing
-    // Wait for database to be ready first to prevent connection errors
     await waitForDatabase();
 
     try {
-        console.log("🚀 Starting unified background scheduler...");
+        logger.info("Starting unified background scheduler");
         startScheduler();
-        console.log("✅ Scheduler started successfully");
+        logger.info("Scheduler started successfully");
     } catch (error) {
-        console.error("❌ Failed to start scheduler:", error);
+        logError("Failed to start scheduler", error);
     }
 });

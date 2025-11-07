@@ -30,7 +30,7 @@ export function LocationHeader({ currentLocation, todayStats }: LocationHeaderPr
             if (result.success) {
                 setIsFavorite(result.data === currentLocation.id);
             } else {
-                console.error("Failed to determine favorite location:", result.error.message);
+                // Failed to get favorite - just default to false
                 setIsFavorite(false);
             }
         }

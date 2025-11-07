@@ -139,8 +139,8 @@ export function LocationForm({
                 if (onSaved) {
                     onSaved();
                 }
-            } catch (error) {
-                console.error("Error saving location:", error);
+            } catch {
+                // Error saving location
                 notifications.show({
                     title: errorSavingTitle,
                     message: errorSavingMessage,

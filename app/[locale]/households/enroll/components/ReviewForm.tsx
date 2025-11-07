@@ -121,8 +121,8 @@ export default function ReviewForm({
                                 ` (ID: ${formData.foodParcels.pickupLocationId})`,
                         );
                     }
-                } catch (error) {
-                    console.error("Error fetching pickup location:", error);
+                } catch {
+                    // Error fetching pickup location
                     setPickupLocationName(
                         t("foodParcels.pickupLocation") +
                             ` (ID: ${formData.foodParcels.pickupLocationId})`,

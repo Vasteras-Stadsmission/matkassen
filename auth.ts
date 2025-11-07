@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig } from "next-auth";
 import { validateOrganizationMembership } from "./app/utils/auth/organization-auth";
+import { logger } from "./app/utils/logger";
 
 const authConfig: NextAuthConfig = {
     providers: [
@@ -50,7 +51,7 @@ const authConfig: NextAuthConfig = {
 
                 return true;
             }
-            console.error("Invalid account provider:", account?.provider);
+            logger.error({ provider: account?.provider }, "Invalid account provider");
             return `/auth/error?error=invalid-provider`;
         },
         // JWT callback: Store GitHub login in token during sign-in

@@ -8,6 +8,7 @@ import { eq, and, asc, max, sql, inArray } from "drizzle-orm";
 import { nanoid } from "@/app/db/schema";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
+import { logError } from "@/app/utils/logger";
 
 /**
  * Revalidates the settings/general page for all supported locales.
@@ -59,7 +60,7 @@ export const listVerificationQuestions = protectedAction(
 
             return success(questions);
         } catch (error) {
-            console.error("Error fetching verification questions:", error);
+            logError("Error fetching verification questions", error);
             return failure({
                 code: "FETCH_FAILED",
                 message: "Failed to fetch verification questions",
@@ -110,7 +111,7 @@ export const createVerificationQuestion = protectedAction(
             revalidateSettingsPage();
             return success(newQuestion);
         } catch (error) {
-            console.error("Error creating verification question:", error);
+            logError("Error creating verification question", error);
             return failure({
                 code: "CREATE_FAILED",
                 message: "Failed to create verification question",
@@ -180,7 +181,7 @@ export const updateVerificationQuestion = protectedAction(
             revalidateSettingsPage();
             return success(updatedQuestion);
         } catch (error) {
-            console.error("Error updating verification question:", error);
+            logError("Error updating verification question", error);
             return failure({
                 code: "UPDATE_FAILED",
                 message: "Failed to update verification question",
@@ -213,7 +214,7 @@ export const deleteVerificationQuestion = protectedAction(
             revalidateSettingsPage();
             return success(undefined);
         } catch (error) {
-            console.error("Error deleting verification question:", error);
+            logError("Error deleting verification question", error);
             return failure({
                 code: "DELETE_FAILED",
                 message: "Failed to delete verification question",
@@ -256,7 +257,7 @@ export const reorderVerificationQuestions = protectedAction(
             revalidateSettingsPage();
             return success(undefined);
         } catch (error) {
-            console.error("Error reordering verification questions:", error);
+            logError("Error reordering verification questions", error);
             return failure({
                 code: "REORDER_FAILED",
                 message: "Failed to reorder verification questions",

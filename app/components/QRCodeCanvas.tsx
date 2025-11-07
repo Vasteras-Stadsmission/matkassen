@@ -29,7 +29,9 @@ export function QRCodeCanvas({
                     dark: "#000000",
                     light: "#FFFFFF",
                 },
-            }).catch(console.error);
+            }).catch(() => {
+                // QR code generation failed - component will render empty canvas
+            });
         }
     }, [value, size]);
 

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { foodParcels, nanoid } from "./schema";
 import { db } from "./drizzle";
+import { logger } from "@/app/utils/logger";
 
 /**
  * Centralized helper for inserting food parcels with proper conflict handling.
@@ -35,12 +36,6 @@ export async function insertParcels(
 ): Promise<string[]> {
     if (parcels.length === 0) return [];
 
-    console.log(`📦 insertParcels called with ${parcels.length} parcel(s):`, {
-        households: [...new Set(parcels.map(p => p.household_id))],
-        locations: [...new Set(parcels.map(p => p.pickup_location_id))],
-        pickupTimes: parcels.map(p => p.pickup_date_time_earliest.toISOString()),
-    });
-
     // Generate IDs upfront so we can track which parcels were actually inserted
     const parcelsWithIds = parcels.map(p => ({
         id: nanoid(12), // Food parcels use 12-character IDs
@@ -63,30 +58,24 @@ export async function insertParcels(
 
     // If no parcels were inserted (all were duplicates), return early
     if (insertedParcels.length === 0) {
-        console.log(
-            `⚠️  No parcels inserted (all ${parcels.length} were duplicates). ` +
-                `This means parcels with the same household, location, and time window already exist.`,
-        );
         return [];
     }
-
-    console.log(`✅ Inserted ${insertedParcels.length} parcel(s) successfully:`, {
-        insertedIds: insertedParcels.map(p => p.id),
-        totalAttempted: parcelsWithIds.length,
-    });
 
     // Create SMS records for the successfully inserted parcels
     const insertedIds = new Set(insertedParcels.map(p => p.id));
     const parcelsToQueueSms = parcelsWithIds.filter(p => insertedIds.has(p.id));
 
     if (parcelsToQueueSms.length > 0) {
-        console.log(`📱 Queueing SMS for ${parcelsToQueueSms.length} parcel(s)...`);
         // Import dynamically to avoid circular dependencies
         const { queueSmsForNewParcels } = await import("@/app/utils/sms/parcel-sms");
         await queueSmsForNewParcels(tx, parcelsToQueueSms);
-        console.log(`✓ SMS queueing complete for ${parcelsToQueueSms.length} parcel(s)`);
-    } else {
-        console.log(`⚠️  No SMS queued (no parcels were successfully inserted)`);
+        logger.info(
+            {
+                parcelCount: parcelsToQueueSms.length,
+                parcelIds: insertedParcels.map(p => p.id),
+            },
+            "SMS queued for new parcels",
+        );
     }
 
     return insertedParcels.map(p => p.id);

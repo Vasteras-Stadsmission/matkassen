@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { softDeleteParcel } from "@/app/[locale]/parcels/actions";
+import { logError } from "@/app/utils/logger";
 
 /**
  * DELETE /api/admin/parcel/[parcelId] - Soft delete a parcel
@@ -74,7 +75,11 @@ export async function DELETE(
             { status: 200 },
         );
     } catch (error) {
-        console.error("Error in DELETE /api/admin/parcel/[parcelId]:", error);
+        logError("Error in DELETE /api/admin/parcel/[parcelId]", error, {
+            method: "DELETE",
+            path: "/api/admin/parcel/[parcelId]",
+            parcelId: (await params).parcelId,
+        });
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

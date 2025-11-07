@@ -12,6 +12,7 @@ import {
 } from "@/app/utils/anonymization/anonymize-household";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { logger, logError } from "@/app/utils/logger";
 
 /**
  * Input for household removal
@@ -96,9 +97,22 @@ export const removeHouseholdAction = protectedAction(
             revalidatePath(`/${locale}/households`, "page");
             revalidatePath(`/${locale}/households/${householdId}`, "page");
 
+            // Audit log with IDs only (no PII)
+            logger.info(
+                {
+                    householdId,
+                    reason: "manual_removal",
+                },
+                "Household removed",
+            );
+
             return success(result);
         } catch (error) {
-            console.error("Error removing household:", error);
+            logError("Error removing household", error, {
+                action: "removeHouseholdAction",
+                householdId: input.householdId,
+                username: session.user?.githubUsername,
+            });
             return failure({
                 code: "REMOVAL_FAILED",
                 message: error instanceof Error ? error.message : "Failed to remove household",

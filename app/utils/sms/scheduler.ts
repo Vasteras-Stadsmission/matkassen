@@ -14,6 +14,7 @@ import { formatPickupSms } from "@/app/utils/sms/templates";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { generateUrl } from "@/app/config/branding";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
+import { logger, logError } from "@/app/utils/logger";
 
 // Import type only when needed
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -62,14 +63,13 @@ export async function enqueueReminderSms(): Promise<number> {
             });
 
             enqueuedCount++;
-            console.log(`Enqueued reminder SMS for parcel ${parcel.parcelId}`);
         } catch (error) {
-            console.error("Failed to enqueue SMS for parcel %s:", parcel.parcelId, error);
+            logError(`Failed to enqueue SMS for parcel ${parcel.parcelId}`, error);
         }
     }
 
     if (enqueuedCount > 0) {
-        console.log(`Enqueued ${enqueuedCount} reminder SMS messages`);
+        logger.info({ count: enqueuedCount }, "Enqueued reminder SMS messages");
     }
 
     return enqueuedCount;
@@ -85,7 +85,7 @@ export async function processSendQueue(): Promise<number> {
 
         // Only log processing when there are records to process
         if (records.length > 0) {
-            console.log(`� Processing ${records.length} SMS records ready for sending`);
+            logger.info({ count: records.length }, "Processing SMS records ready for sending");
         }
 
         let sentCount = 0;
@@ -94,32 +94,25 @@ export async function processSendQueue(): Promise<number> {
             try {
                 await sendSmsRecord(record);
                 sentCount++;
-                console.log(
-                    `✅ SMS sent: ${record.intent} to household ${record.householdId} (${record.id})`,
-                );
 
                 // Small delay between sends to be respectful to the API
                 await new Promise(resolve => setTimeout(resolve, 1000));
             } catch (error) {
-                console.error(
-                    `❌ SMS failed: ${record.intent} to household ${record.householdId} (${record.id}):`,
+                logError(
+                    `SMS failed: ${record.intent} to household ${record.householdId} (${record.id})`,
                     error,
                 );
             }
         }
 
         if (sentCount > 0) {
-            console.log(`🎉 Sent ${sentCount} SMS messages`);
+            logger.debug({ count: sentCount }, "Sent SMS messages");
         }
         // Note: Removed "No SMS messages sent" log to reduce noise
         // Only log when we actually send messages
 
         return sentCount;
     });
-
-    if (!result.lockAcquired) {
-        console.log("⏸️  Skipped SMS queue processing - already running elsewhere");
-    }
 
     return result.processed;
 }
@@ -129,7 +122,6 @@ export async function processSendQueue(): Promise<number> {
  */
 export function startSmsScheduler(): void {
     if (isRunning) {
-        console.log("SMS scheduler is already running");
         return;
     }
 
@@ -139,9 +131,9 @@ export function startSmsScheduler(): void {
 
     const testMode = getHelloSmsConfig().testMode;
     if (testMode) {
-        console.log("🚦 HelloSMS is running in TEST MODE (no real SMS will be sent)");
+        logger.info({ mode: "TEST" }, "HelloSMS is running in TEST MODE");
     } else {
-        console.log("✅ HelloSMS is running in LIVE mode (real SMS will be sent)");
+        logger.info({ mode: "LIVE" }, "HelloSMS is running in LIVE mode");
     }
 
     // Start enqueue loop
@@ -149,7 +141,7 @@ export function startSmsScheduler(): void {
         try {
             await enqueueReminderSms();
         } catch (error) {
-            console.error("Error in SMS enqueue loop:", error);
+            logError("Error in SMS enqueue loop", error);
         }
     }, ENQUEUE_INTERVAL_MS);
 
@@ -161,23 +153,28 @@ export function startSmsScheduler(): void {
                 // Only log health every 30 minutes to reduce noise
                 const now = Date.now();
                 if (now - lastHealthLog > 30 * 60 * 1000) {
-                    console.log(`💚 SMS service healthy (${health.details.pendingSms} pending)`);
+                    logger.info({ pendingSms: health.details.pendingSms }, "SMS service healthy");
                     lastHealthLog = now;
                 }
             } else {
-                console.error(`💔 SMS service unhealthy:`, health.details);
+                logger.error({ details: health.details }, "SMS service unhealthy");
             }
         } catch (error) {
-            console.error("❌ SMS health check failed:", error);
+            logError("SMS health check failed", error);
         }
     }, HEALTH_CHECK_INTERVAL_MS);
 
     // Run once immediately
-    enqueueReminderSms().catch(console.error);
-    processSendQueue().catch(console.error);
+    enqueueReminderSms().catch(err => logError("SMS operation error", err));
+    processSendQueue().catch(err => logError("SMS operation error", err));
 
-    console.log(
-        `SMS scheduler started (enqueue: ${ENQUEUE_INTERVAL_MS}ms, send: ${SEND_INTERVAL_MS}ms, health: ${HEALTH_CHECK_INTERVAL_MS}ms)`,
+    logger.info(
+        {
+            enqueueMs: ENQUEUE_INTERVAL_MS,
+            sendMs: SEND_INTERVAL_MS,
+            healthMs: HEALTH_CHECK_INTERVAL_MS,
+        },
+        "SMS scheduler started",
     );
 
     // Send Slack notification for successful startup (always in production mode)
@@ -189,7 +186,7 @@ export function startSmsScheduler(): void {
         // Use dynamic import to avoid module resolution issues during build
         import("../notifications/slack")
             .then(({ sendSlackAlert }) => {
-                console.log("📢 Sending SMS scheduler startup notification to Slack...");
+                logger.info("Sending SMS scheduler startup notification to Slack");
                 return sendSlackAlert({
                     title: isFirstStartup ? "SMS Scheduler Started" : "SMS Scheduler Restarted",
                     message:
@@ -206,13 +203,13 @@ export function startSmsScheduler(): void {
             })
             .then(success => {
                 if (success) {
-                    console.log("✅ SMS scheduler startup notification sent to Slack");
+                    logger.debug("SMS scheduler startup notification sent to Slack");
                 } else {
-                    console.warn("⚠️ Failed to send SMS scheduler startup notification to Slack");
+                    logger.debug("Failed to send SMS scheduler startup notification to Slack");
                 }
             })
             .catch(error => {
-                console.error("❌ Error sending SMS scheduler startup notification:", error);
+                logError("Error sending SMS scheduler startup notification", error);
             });
     }
 }
@@ -222,7 +219,6 @@ export function startSmsScheduler(): void {
  */
 export function stopSmsScheduler(): void {
     if (!isRunning) {
-        console.log("SMS scheduler is not running");
         return;
     }
 
@@ -243,7 +239,7 @@ export function stopSmsScheduler(): void {
         healthCheckInterval = null;
     }
 
-    console.log("SMS scheduler stopped");
+    logger.info("SMS scheduler stopped");
 }
 
 /**

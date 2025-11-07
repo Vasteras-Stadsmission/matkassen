@@ -139,12 +139,7 @@ export function SchedulesList({
         setCurrentSchedule(schedule);
 
         // Debug: Log the days to see what format opening_time and closing_time are in
-        console.log("Opening schedule for editing:", schedule.name);
-        schedule.days.forEach(day => {
-            console.log(
-                `${day.weekday}: is_open=${day.is_open}, opening_time=${day.opening_time}, closing_time=${day.closing_time}, type=${typeof day.opening_time}`,
-            );
-        });
+        // Opening schedule for editing
 
         openEditModal();
     };
@@ -180,8 +175,8 @@ export function SchedulesList({
                 })),
             });
             setAffectedParcelsCount(count);
-        } catch (error) {
-            console.error("Error checking affected parcels:", error);
+        } catch {
+            // Error checking affected parcels
             setAffectedParcelsCount(0);
         } finally {
             setIsCheckingAffectedParcels(false);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { householdComments } from "@/app/db/schema";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { logError } from "@/app/utils/logger";
 
 interface AddCommentRequest {
     comment: string;
@@ -42,6 +43,15 @@ export async function POST(
             });
 
         if (result.length === 0) {
+            logError(
+                "Failed to create comment - insert returned no results",
+                new Error("Insert failed"),
+                {
+                    method: "POST",
+                    path: "/api/admin/household/[householdId]/comments",
+                    householdId,
+                },
+            );
             return NextResponse.json({ error: "Failed to create comment" }, { status: 500 });
         }
 
@@ -57,7 +67,10 @@ export async function POST(
             },
         });
     } catch (error) {
-        console.error("Error adding comment:", error);
+        logError("Error adding comment", error, {
+            method: "POST",
+            path: "/api/admin/household/[householdId]/comments",
+        });
         return NextResponse.json({ error: "Failed to add comment" }, { status: 500 });
     }
 }

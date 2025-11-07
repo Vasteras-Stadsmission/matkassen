@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
 import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
 import { getHouseholdFormData, updateHousehold } from "./actions";
 import { FormData, Comment, GithubUserData } from "../../enroll/types";
 import { addHouseholdComment, deleteHouseholdComment } from "../../actions";
 
 export default function EditHouseholdClient({ id }: { id: string }) {
-    const t = useTranslations("comments");
     const [initialData, setInitialData] = useState<FormData | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -24,8 +22,8 @@ export default function EditHouseholdClient({ id }: { id: string }) {
                     name: userData.name,
                 };
             }
-        } catch (error) {
-            console.error("Error fetching GitHub user data for %s:", username, error);
+        } catch {
+            // Error fetching GitHub user data
         }
         return null;
     };
@@ -63,8 +61,8 @@ export default function EditHouseholdClient({ id }: { id: string }) {
                 }
 
                 setInitialData(data);
-            } catch (error) {
-                console.error("Error loading household data:", error);
+            } catch {
+                // Error loading household data
                 setLoadError("Ett fel uppstod när hushållsdata skulle laddas. Försök igen senare.");
             } finally {
                 setLoading(false);
@@ -134,8 +132,8 @@ export default function EditHouseholdClient({ id }: { id: string }) {
             });
 
             return newComment;
-        } catch (error) {
-            console.error("Error adding comment during edit:", error);
+        } catch {
+            // Error adding comment
             return undefined;
         }
     };
@@ -155,10 +153,10 @@ export default function EditHouseholdClient({ id }: { id: string }) {
                     };
                 });
             } else {
-                console.error(t("errors.deleteFailed"));
+                // Delete failed
             }
-        } catch (error) {
-            console.error(t("errors.deleteError") + " during edit:", error);
+        } catch {
+            // Error deleting comment
         }
     };
 

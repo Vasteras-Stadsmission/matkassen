@@ -21,6 +21,7 @@ import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
+import { logError } from "@/app/utils/logger";
 
 // Cache GitHub user data fetching
 export const fetchGithubUserData = cache(
@@ -48,7 +49,10 @@ export const fetchGithubUserData = cache(
             }
             return null;
         } catch (error) {
-            console.error("Error fetching GitHub user: %s", username, error);
+            logError("Error fetching GitHub user", error, {
+                action: "fetchGithubUserData",
+                username,
+            });
             return null;
         }
     },
@@ -283,7 +287,10 @@ export async function getHouseholdDetails(householdId: string) {
             comments,
         };
     } catch (error) {
-        console.error("Error fetching household details:", error);
+        logError("Error fetching household details", error, {
+            action: "getHouseholdDetails",
+            householdId,
+        });
         return null;
     }
 }
@@ -312,15 +319,18 @@ export async function addHouseholdComment(
         if (githubUsername !== "anonymous") {
             const orgCheck = await validateOrganizationMembership(githubUsername, "server-action");
             if (!orgCheck.isValid) {
-                console.error(
-                    `Unauthorized comment attempt by ${githubUsername}: ${orgCheck.error}`,
+                logError(
+                    "Unauthorized comment attempt",
+                    new Error(orgCheck.error || "Unknown error"),
+                    {
+                        action: "addHouseholdComment",
+                        githubUsername,
+                        householdId,
+                    },
                 );
                 return null;
             }
         }
-
-        // Log the action for audit trail
-        console.log(`[AUDIT] User ${githubUsername} adding comment to household ${householdId}`);
 
         // Insert the comment with the github username
         const [dbComment] = await db
@@ -350,7 +360,10 @@ export async function addHouseholdComment(
 
         return newComment;
     } catch (error) {
-        console.error("Error adding household comment:", error);
+        logError("Error adding household comment", error, {
+            action: "addHouseholdComment",
+            householdId,
+        });
         return null;
     }
 }
@@ -369,7 +382,10 @@ export const deleteHouseholdComment = protectedAction(
             // Return true if a comment was deleted, false otherwise
             return success(result.length > 0);
         } catch (error) {
-            console.error("Error deleting household comment:", error);
+            logError("Error deleting household comment", error, {
+                action: "deleteHouseholdComment",
+                commentId,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: "Failed to delete comment",

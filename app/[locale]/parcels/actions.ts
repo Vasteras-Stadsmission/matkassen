@@ -10,6 +10,7 @@ import { formatCancellationSms } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
 import { nanoid } from "@/app/db/schema";
+import { logError } from "@/app/utils/logger";
 
 interface SoftDeleteParcelResult {
     parcelId: string;
@@ -203,7 +204,11 @@ export const softDeleteParcel = protectedAction(
                 });
             }
 
-            console.error("Error soft deleting parcel:", error);
+            logError("Error soft deleting parcel", error, {
+                action: "softDeleteParcel",
+                parcelId,
+                username: session.user?.githubUsername,
+            });
             return failure({
                 code: "INTERNAL_ERROR",
                 message: error instanceof Error ? error.message : "Unknown error occurred",

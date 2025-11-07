@@ -2,6 +2,7 @@
 
 import { db } from "./drizzle";
 import { cspViolations } from "./schema";
+import { logError } from "@/app/utils/logger";
 
 /**
  * Store a Content Security Policy (CSP) violation report in the database.
@@ -50,7 +51,10 @@ export async function storeCspViolationAction(violationData: {
 
         return { success: true };
     } catch (error) {
-        console.error("Error storing CSP violation:", error);
+        logError("Error storing CSP violation", error, {
+            violatedDirective: violationData.violatedDirective,
+            blockedUri: violationData.blockedUri,
+        });
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error occurred",

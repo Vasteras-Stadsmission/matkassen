@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storeCspViolationAction } from "@/app/db/actions";
+import { logError } from "@/app/utils/logger";
 
 // CORS headers for CSP report endpoint
 const corsHeaders = {
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
             },
         );
     } catch (error) {
-        console.error("Error processing CSP report:", error);
+        logError("Error processing CSP report", error, { method: "POST", path: "/api/csp-report" });
 
         // Return 400 for malformed requests
         return NextResponse.json(

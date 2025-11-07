@@ -17,6 +17,7 @@ import {
     ScheduleInput,
     PickupLocationScheduleWithDays,
 } from "./types";
+import { logError } from "@/app/utils/logger";
 
 // Get all locations with their schedules
 export const getLocations = protectedAction(
@@ -60,7 +61,9 @@ export const getLocations = protectedAction(
 
             return success(locationsWithSchedules);
         } catch (error) {
-            console.error("Error fetching locations:", error);
+            logError("Error fetching locations", error, {
+                action: "getLocations",
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to fetch locations: ${error instanceof Error ? error.message : String(error)}`,
@@ -112,7 +115,10 @@ export const getLocation = protectedAction(
                 schedules: schedulesWithDays,
             });
         } catch (error) {
-            console.error("Error fetching location with ID %s:", id, error);
+            logError("Error fetching location", error, {
+                action: "getLocation",
+                locationId: id,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to fetch location: ${error instanceof Error ? error.message : String(error)}`,
@@ -152,7 +158,10 @@ export const createLocation = protectedAction(
             revalidatePath(`/${locale}/handout-locations`, "page");
             return success(undefined);
         } catch (error) {
-            console.error("Error creating location:", error);
+            logError("Error creating location", error, {
+                action: "createLocation",
+                locationName: locationData.name,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to create location: ${error instanceof Error ? error.message : String(error)}`,
@@ -196,7 +205,10 @@ export const updateLocation = protectedAction(
             revalidatePath(`/${locale}/handout-locations`, "page");
             return success(undefined);
         } catch (error) {
-            console.error("Error updating location with ID %s:", id, error);
+            logError("Error updating location", error, {
+                action: "updateLocation",
+                locationId: id,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to update location: ${error instanceof Error ? error.message : String(error)}`,
@@ -221,7 +233,10 @@ export const deleteLocation = protectedAction(
             revalidatePath(`/${locale}/handout-locations`, "page");
             return success(undefined);
         } catch (error) {
-            console.error("Error deleting location with ID %s:", id, error);
+            logError("Error deleting location", error, {
+                action: "deleteLocation",
+                locationId: id,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to delete location: ${error instanceof Error ? error.message : String(error)}`,
@@ -311,12 +326,18 @@ export const createSchedule = protectedAction(
                 await recomputeOutsideHoursCount(locationId);
                 await clearLocationSchedulesCache(locationId);
             } catch (e) {
-                console.error("Failed to recompute outside-hours count after schedule create:", e);
+                logError("Failed to recompute outside-hours count after schedule create", e, {
+                    action: "createSchedule",
+                    locationId,
+                });
             }
 
             return success(createdSchedule!);
         } catch (error) {
-            console.error("Error creating schedule for location %s:", locationId, error);
+            logError("Error creating schedule for location", error, {
+                action: "createSchedule",
+                locationId,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to create schedule: ${error instanceof Error ? error.message : String(error)}`,
@@ -427,12 +448,19 @@ export const updateSchedule = protectedAction(
                 await recomputeOutsideHoursCount(locationId);
                 await clearLocationSchedulesCache(locationId);
             } catch (e) {
-                console.error("Failed to recompute outside-hours count after schedule update:", e);
+                logError("Failed to recompute outside-hours count after schedule update", e, {
+                    action: "updateSchedule",
+                    scheduleId,
+                    locationId,
+                });
             }
 
             return success(updatedSchedule!);
         } catch (error) {
-            console.error("Error updating schedule with ID %s:", scheduleId, error);
+            logError("Error updating schedule", error, {
+                action: "updateSchedule",
+                scheduleId,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to update schedule: ${error instanceof Error ? error.message : String(error)}`,
@@ -475,11 +503,18 @@ export const deleteSchedule = protectedAction(
                     await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
                 }
             } catch (e) {
-                console.error("Failed to recompute outside-hours count after schedule delete:", e);
+                logError("Failed to recompute outside-hours count after schedule delete", e, {
+                    action: "deleteSchedule",
+                    scheduleId,
+                    locationId: scheduleRow?.pickup_location_id,
+                });
             }
             return success(undefined);
         } catch (error) {
-            console.error("Error deleting schedule with ID %s:", scheduleId, error);
+            logError("Error deleting schedule", error, {
+                action: "deleteSchedule",
+                scheduleId,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to delete schedule: ${error instanceof Error ? error.message : String(error)}`,

@@ -15,8 +15,7 @@ import { type LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 export async function getPickupLocationsAction(): Promise<PickupLocation[]> {
     try {
         return getPickupLocations();
-    } catch (error) {
-        console.error("Error fetching pickup locations:", error);
+    } catch {
         return [];
     }
 }
@@ -29,8 +28,7 @@ export async function getPickupLocationSchedulesAction(
 ): Promise<LocationScheduleInfo> {
     try {
         return getPickupLocationSchedules(locationId);
-    } catch (error) {
-        console.error("Error fetching location schedules:", error);
+    } catch {
         return {
             schedules: [],
         };
@@ -43,8 +41,7 @@ export async function getPickupLocationSchedulesAction(
 export async function getLocationSlotDurationAction(locationId: string): Promise<number> {
     try {
         return getLocationSlotDuration(locationId);
-    } catch (error) {
-        console.error("Error fetching location slot duration:", error);
+    } catch {
         // Default to 15 minutes in case of error
         return 15;
     }
@@ -60,8 +57,7 @@ export async function getPickupLocationCapacityForRangeAction(
 ): Promise<LocationCapacity | null> {
     try {
         return getPickupLocationCapacityForRange(locationId, startDate, endDate);
-    } catch (error) {
-        console.error("Error fetching location capacity:", error);
+    } catch {
         return null;
     }
 }

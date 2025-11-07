@@ -199,8 +199,8 @@ export default function WeeklyScheduleGrid({
                 try {
                     const duration = await getLocationSlotDurationAction(locationId);
                     setSlotDuration(duration);
-                } catch (error) {
-                    console.error("Error fetching slot duration:", error);
+                } catch {
+                    // Use default duration on error
                 }
             }
         }
@@ -405,8 +405,7 @@ export default function WeeklyScheduleGrid({
                     // Set loading to false once everything is loaded
                     setIsLoadingSchedule(false);
                 }
-            } catch (error) {
-                console.error("Error fetching location schedules:", error);
+            } catch {
                 // Set loading to false if there was an error
                 setIsLoadingSchedule(false);
             }
@@ -457,7 +456,6 @@ export default function WeeklyScheduleGrid({
             if (!refreshLocationId) return;
 
             try {
-                console.log(`Refreshing schedule data for location: ${refreshLocationId}`);
                 const scheduleInfo = await getPickupLocationSchedulesAction(refreshLocationId);
                 setLocationSchedules(scheduleInfo);
 
@@ -465,8 +463,8 @@ export default function WeeklyScheduleGrid({
                 const daySlots = generateDaySpecificTimeSlots(scheduleInfo);
                 const combinedTimeSlots = getAllUniqueTimeSlots(daySlots);
                 setFilteredTimeSlots(combinedTimeSlots);
-            } catch (error) {
-                console.error("Error refreshing schedule data:", error);
+            } catch {
+                // Error refreshing schedule data
             }
         };
 
@@ -589,28 +587,24 @@ export default function WeeklyScheduleGrid({
             // Parse the format: day-{dayIndex}-{dateStr}-{timeStr}
             const parts = targetSlotId.split("-");
             if (parts.length < 4) {
-                console.error("Invalid target slot ID format, not enough parts:", targetSlotId);
                 return;
             }
 
             // Extract the day index
             const dayIndex = parseInt(parts[1], 10);
             if (isNaN(dayIndex) || dayIndex < 0 || dayIndex >= weekDates.length) {
-                console.error("Invalid day index:", parts[1]);
                 return;
             }
 
             // Get the date directly from weekDates using the index
             const date = new Date(weekDates[dayIndex]);
             if (isNaN(date.getTime())) {
-                console.error("Invalid date from dayIndex:", dayIndex);
                 return;
             }
 
             // Get the time which is now the last part
             const timeStr = parts[parts.length - 1];
             if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) {
-                console.error("Invalid time format:", timeStr);
                 return;
             }
 
@@ -627,7 +621,6 @@ export default function WeeklyScheduleGrid({
                 minutes < 0 ||
                 minutes > 59
             ) {
-                console.error("Invalid time values:", { hours, minutes });
                 return;
             }
 
@@ -656,13 +649,6 @@ export default function WeeklyScheduleGrid({
 
             // Validate dates before using them
             if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-                console.error("Invalid date/time calculation:", {
-                    date,
-                    hours,
-                    minutes,
-                    startDateTime,
-                    endDateTime,
-                });
                 return;
             }
 
@@ -698,8 +684,8 @@ export default function WeeklyScheduleGrid({
 
             // Open confirmation modal
             open();
-        } catch (error) {
-            console.error("Error parsing target slot:", error, targetSlotId);
+        } catch {
+            // Error parsing target slot - ignore
         }
     };
 
@@ -762,8 +748,7 @@ export default function WeeklyScheduleGrid({
                     color: "red",
                 });
             }
-        } catch (error) {
-            console.error("Error rescheduling pickup:", error);
+        } catch {
             showNotification({
                 title: t("reschedule.error", {}),
                 message: t("reschedule.genericError", {}),

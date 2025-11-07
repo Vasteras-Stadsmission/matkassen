@@ -4,6 +4,7 @@
  */
 
 import { checkOrganizationMembership } from "@/app/utils/github-app";
+import { logger, logError } from "@/app/utils/logger";
 
 export interface OrganizationCheckResult {
     isValid: boolean;
@@ -26,7 +27,13 @@ export async function validateOrganizationMembership(
     // Check required environment variables
     const organization = process.env.GITHUB_ORG;
     if (!organization) {
-        console.error(`Missing GITHUB_ORG environment variable in ${context}`);
+        logger.error(
+            {
+                context,
+                error: "Missing GITHUB_ORG environment variable",
+            },
+            "Organization auth: Missing configuration",
+        );
         return {
             isValid: false,
             error: "Server configuration error",
@@ -35,7 +42,13 @@ export async function validateOrganizationMembership(
     }
 
     if (!username) {
-        console.error(`Missing username in ${context}`);
+        logger.error(
+            {
+                context,
+                error: "Missing username",
+            },
+            "Organization auth: Invalid user data",
+        );
         return {
             isValid: false,
             error: "Invalid user data",
@@ -44,18 +57,34 @@ export async function validateOrganizationMembership(
     }
 
     try {
-        console.log(
-            `Checking membership for user: ${username} in org: ${organization} (${context})`,
+        logger.info(
+            {
+                username,
+                organization,
+                context,
+            },
+            "Checking organization membership",
         );
 
         const isMember = await checkOrganizationMembership(username, organization);
 
         if (isMember) {
-            console.log(`✅ Access granted to ${username} (${context})`);
+            logger.info(
+                {
+                    username,
+                    context,
+                },
+                "Organization auth: Access granted",
+            );
             return { isValid: true };
         } else {
-            console.warn(
-                `❌ Access denied: User ${username} is not a member of organization ${organization} (${context})`,
+            logger.warn(
+                {
+                    username,
+                    organization,
+                    context,
+                },
+                "Organization auth: Access denied - not a member",
             );
             return {
                 isValid: false,
@@ -64,7 +93,11 @@ export async function validateOrganizationMembership(
             };
         }
     } catch (error) {
-        console.error("Error checking organization membership in %s:", context, error);
+        logError("Organization auth: Failed to verify membership", error, {
+            username,
+            organization,
+            context,
+        });
         return {
             isValid: false,
             error: "Unable to verify organization membership",

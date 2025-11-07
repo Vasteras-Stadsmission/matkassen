@@ -133,8 +133,8 @@ export function TodayHandoutsPage() {
             if (locationIdFromParcel && !selectedLocation) {
                 setSelectedLocation(locationIdFromParcel);
             }
-        } catch (error) {
-            console.error("Error loading today's parcels:", error);
+        } catch {
+            // Error boundary will handle display
         } finally {
             setLoading(false);
         }

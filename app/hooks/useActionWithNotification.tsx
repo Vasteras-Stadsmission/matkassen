@@ -67,13 +67,13 @@ export function useActionWithNotification() {
             }
         } catch (error) {
             // Show error notification for unexpected errors
+            console.error("Unexpected error in action:", error);
             notifications.show({
                 title: options.errorTitle || "Error",
                 message: options.errorMessage || "An unexpected error occurred",
                 color: options.errorColor || "red",
                 icon: React.createElement(IconX, { size: "1.1rem" }),
             });
-            console.error("Action failed:", error);
         }
     };
 

@@ -66,7 +66,6 @@ export default function VerificationForm({
                 if (err instanceof Error && err.name === "AbortError") {
                     return;
                 }
-                console.error("Error fetching verification questions:", err);
                 // Use localized error message instead of raw err.message
                 setError(t("errorLoading"));
             } finally {

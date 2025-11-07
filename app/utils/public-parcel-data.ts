@@ -7,6 +7,7 @@ import { foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { Time } from "@/app/utils/time-provider";
 import { generateUrl } from "@/app/config/branding";
+import { logError } from "@/app/utils/logger";
 
 export interface PublicParcelData {
     id: string;
@@ -72,7 +73,7 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
             deletedAt: data.deletedAt || null,
         };
     } catch (error) {
-        console.error("Error fetching public parcel data:", error);
+        logError("Error fetching public parcel data", error);
         return null;
     }
 }

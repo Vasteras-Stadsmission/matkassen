@@ -1,0 +1,31 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": false,
+        "outDir": "server-build",
+        "module": "commonjs",
+        "target": "ES2019",
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["./*"]
+        },
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "rootDir": ".",
+        "typeRoots": ["./node_modules/@types", "./types"]
+    },
+    "include": [
+        "app/utils/scheduler.ts",
+        "app/utils/locale-detection.ts",
+        "app/utils/duration-parser.ts",
+        "app/utils/schedule/**/*.ts",
+        "app/utils/sms/*.ts",
+        "app/utils/anonymization/*.ts",
+        "app/utils/logger.js",
+        "app/config/branding.ts",
+        "app/db/*.ts",
+        "types/**/*.d.ts",
+        "auth.ts"
+    ]
+}

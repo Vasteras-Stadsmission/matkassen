@@ -55,8 +55,8 @@ export function LocationLandingPage({ locationSlug }: LocationLandingPageProps) 
                 }
 
                 setCurrentLocation(location);
-            } catch (error) {
-                console.error("Error loading location:", error);
+            } catch {
+                // Error boundary will handle display
                 setLocationError(t("location.landing.locationError"));
             } finally {
                 setLoading(false);

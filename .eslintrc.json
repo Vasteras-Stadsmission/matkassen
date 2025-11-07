@@ -2,6 +2,8 @@
     "extends": ["next/core-web-vitals", "next/typescript"],
     "rules": {
         "react/no-unescaped-entities": "off",
+        // Prevent console.* usage - use Pino logger instead
+        "no-console": "error",
         // Consistently import navigation APIs from `@/app/i18n/navigation`
         "no-restricted-imports": [
             "error",
@@ -18,6 +20,13 @@
     },
     "overrides": [
         {
+            // Allow CommonJS in logger.js (required by server.js at runtime)
+            "files": ["app/utils/logger.js"],
+            "rules": {
+                "@typescript-eslint/no-require-imports": "off"
+            }
+        },
+        {
             "files": ["**/__tests__/**/*.{js,ts,tsx}", "**/*.{test,spec}.{js,ts,tsx}"],
             "env": { "node": true }
             // put per-test tweaks here, e.g.
@@ -29,6 +38,27 @@
             "files": ["app/p/**/*.{js,ts,tsx}", "app/components/PublicLocaleSwitcher.tsx"],
             "rules": {
                 "no-restricted-imports": "off"
+            }
+        },
+        {
+            // Allow console in config files, scripts, critical i18n, client components, client wrappers, and tests
+            "files": [
+                "app/config/branding.ts",
+                "app/i18n/request.ts",
+                "app/**/client-actions.ts",
+                "app/**/client.tsx",
+                "app/**/page.tsx",
+                "app/hooks/**/*.{js,ts,tsx}",
+                "app/**/components/**/*.{js,ts,tsx}",
+                "components/**/*.{js,ts,tsx}",
+                "scripts/**/*.{js,mjs,ts}",
+                "__tests__/**/*.{js,ts,tsx}",
+                "**/*.test.{js,ts,tsx}",
+                "**/*.spec.{js,ts,tsx}",
+                "*.config.{js,ts,mjs}"
+            ],
+            "rules": {
+                "no-console": "off"
             }
         }
     ]

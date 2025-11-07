@@ -4,6 +4,7 @@
  */
 import { SMS_SENDER_NAME } from "@/app/config/branding";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { logger, logError } from "@/app/utils/logger";
 
 export interface HelloSmsConfig {
     apiUrl: string;
@@ -62,8 +63,9 @@ export function getHelloSmsConfig(): HelloSmsConfig {
         // If explicitly set, use that value (this takes precedence over NODE_ENV)
         testMode = ["true", "1", "yes", "on"].includes(normalizedTestModeValue);
         if (!hasLoggedConfig) {
-            console.log(
-                `🔧 SMS Test Mode explicitly set to: ${testMode} (HELLO_SMS_TEST_MODE="${rawTestModeValue}")`,
+            logger.info(
+                { testMode, rawValue: rawTestModeValue },
+                "SMS Test Mode explicitly configured",
             );
             hasLoggedConfig = true;
         }
@@ -71,8 +73,9 @@ export function getHelloSmsConfig(): HelloSmsConfig {
         // If not set, default based on NODE_ENV (safer default)
         testMode = process.env.NODE_ENV !== "production";
         if (!hasLoggedConfig) {
-            console.log(
-                `🔧 SMS Test Mode defaulted to: ${testMode} (NODE_ENV="${process.env.NODE_ENV}")`,
+            logger.info(
+                { testMode, nodeEnv: process.env.NODE_ENV },
+                "SMS Test Mode defaulted based on NODE_ENV",
             );
             hasLoggedConfig = true;
         }
@@ -95,20 +98,16 @@ if (isProduction && isServer && !isBuildPhase) {
 
     if (config.testMode) {
         // Test mode doesn't require credentials - log warning and continue
-        console.warn("\n⚠️  WARNING: SMS TEST MODE ENABLED IN PRODUCTION");
-        console.warn("   No actual SMS messages will be sent!");
-        console.warn("   All SMS operations will return fake success responses.");
-        console.warn("   Set HELLO_SMS_TEST_MODE=false when ready for live SMS.\n");
+        logger.warn("SMS TEST MODE ENABLED IN PRODUCTION - No actual SMS messages will be sent");
     } else {
         // Live mode - credentials are mandatory
         if (!config.username || !config.password) {
-            console.error("\n❌ SMS Configuration Error:");
-            console.error("   HELLO_SMS_USERNAME and HELLO_SMS_PASSWORD must be set for live SMS");
-            console.error("   (Set HELLO_SMS_TEST_MODE=true to use test mode without credentials)");
-            console.error("\nThe application cannot start without proper SMS configuration.\n");
+            logger.fatal(
+                "SMS Configuration Error: HELLO_SMS_USERNAME and HELLO_SMS_PASSWORD must be set for live SMS",
+            );
             process.exit(1); // Kill the server immediately
         }
-        console.log("✅ SMS configuration validated (live mode)");
+        logger.info("SMS configuration validated (live mode)");
     }
 }
 
@@ -159,12 +158,15 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
 
     // Log config only once at startup, not per SMS
     if (!configLogged) {
-        console.log("🔧 SMS Config:", {
-            apiUrl: config.apiUrl,
-            username: config.username ? "configured" : "missing",
-            testMode: config.testMode,
-            from: config.from,
-        });
+        logger.info(
+            {
+                apiUrl: config.apiUrl,
+                username: config.username ? "configured" : "missing",
+                testMode: config.testMode,
+                from: config.from,
+            },
+            "SMS configuration loaded",
+        );
         configLogged = true;
     }
 
@@ -179,7 +181,7 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
     // Validate credentials for live SMS
     // (Production startup validation already checked this, but double-check for safety)
     if (!config.username || !config.password) {
-        console.error("❌ HelloSMS credentials not configured (required for live SMS)");
+        logError("HelloSMS credentials not configured", new Error("Missing credentials"));
         return {
             success: false,
             error: "HelloSMS credentials not configured",

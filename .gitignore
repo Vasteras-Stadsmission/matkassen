@@ -62,3 +62,9 @@ messages/*.d.json.ts
 
 # Ignore generated nginx config files (production configs are generated on server)
 nginx/local.conf
+
+# Local pnpm store (if configured per-project)
+.pnpm-store/
+
+# Transpiled scheduler for custom server
+server-build/

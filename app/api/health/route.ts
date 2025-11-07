@@ -10,6 +10,7 @@ import {
 } from "@/app/utils/notifications/slack";
 import { promises as fs } from "fs";
 import { join } from "path";
+import { logger, logError } from "@/app/utils/logger";
 
 export async function GET(request: NextRequest) {
     const timestamp = new Date().toISOString();
@@ -60,12 +61,14 @@ export async function GET(request: NextRequest) {
         } catch (error) {
             dbStatus = "error";
             dbError = error instanceof Error ? error.message : "Database connection failed";
-            console.error("Database health check failed:", error);
+            logError("Database health check failed", error);
         }
 
         // Send Slack alert for database issues (with state tracking)
         if (process.env.NODE_ENV === "production") {
-            sendDatabaseHealthAlert(dbStatus === "ok", dbError || undefined).catch(console.error);
+            sendDatabaseHealthAlert(dbStatus === "ok", dbError || undefined).catch(err =>
+                logError("Failed to send database health alert", err),
+            );
         }
 
         // Test unified scheduler health (SMS + Anonymization)
@@ -84,12 +87,12 @@ export async function GET(request: NextRequest) {
                 schedulerHealth.details.schedulerRunning === false
             ) {
                 willAttemptRecovery = true;
-                console.log("🔄 Unified scheduler not running, attempting to start...");
+                logger.warn("Unified scheduler not running, attempting auto-recovery");
 
                 try {
                     const { startScheduler } = await import("@/app/utils/scheduler");
                     startScheduler();
-                    console.log("✅ Unified scheduler started via health check auto-recovery");
+                    logger.info("Unified scheduler started via health check auto-recovery");
 
                     // Update status to healthy since we just started it
                     schedulerStatus = "healthy";
@@ -100,7 +103,7 @@ export async function GET(request: NextRequest) {
                         autoStarted: true,
                     };
                 } catch (startError) {
-                    console.error("❌ Failed to auto-start unified scheduler:", startError);
+                    logError("Failed to auto-start unified scheduler", startError);
                     schedulerDetails = {
                         ...schedulerDetails,
                         recoveryAttempted: true,
@@ -115,20 +118,18 @@ export async function GET(request: NextRequest) {
             schedulerDetails = {
                 error: error instanceof Error ? error.message : "Scheduler health check failed",
             };
-            console.error("Scheduler health check failed:", error);
+            logError("Scheduler health check failed", error);
         }
 
         // Send Slack alert for scheduler issues (with intelligent state tracking)
         if (process.env.NODE_ENV === "production") {
             const schedulerIsHealthy = schedulerStatus === "healthy";
 
-            if (willAttemptRecovery) {
-                console.log(
-                    "🔕 Scheduler auto-recovery successful - skipping health alert to avoid duplicate notifications",
-                );
-            } else {
+            if (!willAttemptRecovery) {
                 // Use SMS health alert for backward compatibility with existing Slack state tracking
-                sendSmsHealthAlert(schedulerIsHealthy, schedulerDetails || {}).catch(console.error);
+                sendSmsHealthAlert(schedulerIsHealthy, schedulerDetails || {}).catch(err =>
+                    logError("Failed to send scheduler health alert", err),
+                );
             }
         }
 
@@ -152,13 +153,15 @@ export async function GET(request: NextRequest) {
                 error: error instanceof Error ? error.message : "Disk space check failed",
                 status: "write_failed",
             };
-            console.error("Disk space check failed:", error);
+            logError("Disk space check failed", error);
         }
 
         // Send Slack alert for disk space issues (with state tracking)
         if (process.env.NODE_ENV === "production") {
             const diskIsHealthy = diskStatus === "ok";
-            sendDiskSpaceHealthAlert(diskIsHealthy).catch(console.error);
+            sendDiskSpaceHealthAlert(diskIsHealthy).catch(err =>
+                logError("Failed to send disk space health alert", err),
+            );
         }
 
         // Determine overall health status
@@ -210,7 +213,7 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        console.error("Health check failed:", error);
+        logError("Health check failed", error);
 
         return NextResponse.json(
             {

@@ -4,6 +4,7 @@ import { foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { eq, gt, and } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { logError } from "@/app/utils/logger";
 
 export async function GET(request: Request) {
     try {
@@ -57,7 +58,10 @@ export async function GET(request: Request) {
 
         return NextResponse.json(transformedParcels);
     } catch (error) {
-        console.error("Error fetching upcoming parcels:", error);
+        logError("Error fetching upcoming parcels", error, {
+            method: "GET",
+            path: "/api/admin/parcels/upcoming",
+        });
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 }

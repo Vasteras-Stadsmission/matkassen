@@ -19,6 +19,8 @@ import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
+import { logError } from "@/app/utils/logger";
+import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
 
 // Import types for use within this server action file
 import type {
@@ -72,7 +74,7 @@ export async function getParcelById(parcelId: string): Promise<FoodParcel | null
             pickup_location_id: parcel.pickupLocationId,
         };
     } catch (error) {
-        console.error("Error fetching parcel by ID:", error);
+        logError("Error fetching parcel by ID", error, { parcelId });
         return null;
     }
 }
@@ -90,7 +92,7 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
 
         return locations;
     } catch (error) {
-        console.error("Error fetching pickup locations:", error);
+        logError("Error fetching pickup locations", error);
         return [];
     }
 }
@@ -151,7 +153,7 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
             };
         });
     } catch (error) {
-        console.error("Error fetching today's parcels:", error);
+        logError("Error fetching today's parcels", error);
         return [];
     }
 }
@@ -214,7 +216,7 @@ export async function getFoodParcelsForWeek(
             };
         });
     } catch (error) {
-        console.error("Error fetching food parcels for week:", error);
+        logError("Error fetching food parcels for week", error, { locationId });
         return [];
     }
 }
@@ -285,7 +287,7 @@ export async function getTimeslotCounts(
 
         return timeslotCounts;
     } catch (error) {
-        console.error("Error fetching timeslot counts:", error);
+        logError("Error fetching timeslot counts", error, { locationId });
         return {};
     }
 }
@@ -409,13 +411,13 @@ export const updateFoodParcelSchedule = protectedAction(
             try {
                 await recomputeOutsideHoursCount(locationId);
             } catch (e) {
-                console.error("Failed to recompute outside-hours count:", e);
+                logError("Failed to recompute outside-hours count", e, { locationId });
                 // Non-fatal: The count will be corrected by the next schedule operation
             }
 
             return success(undefined);
         } catch (error) {
-            console.error("Error updating food parcel schedule:", error);
+            logError("Error updating food parcel schedule", error, { parcelId });
             return failure({
                 code: "INTERNAL_ERROR",
                 message: error instanceof Error ? error.message : "Unknown error occurred",
@@ -462,29 +464,7 @@ export async function validateParcelAssignments(
         const assignments = parcels.map(parcel => {
             const isNewParcel = !parcel.id;
 
-            console.log("[validateParcelAssignments] Processing parcel:", {
-                parcelId: parcel.id,
-                parcelIdType: typeof parcel.id,
-                parcelIdTruthy: !!parcel.id,
-                isNewParcel,
-                householdId: parcel.householdId,
-                pickupDate: parcel.pickupDate,
-                pickupDateType: typeof parcel.pickupDate,
-                pickupDateConstructor: parcel.pickupDate?.constructor?.name,
-                pickupStartTime: parcel.pickupStartTime,
-                pickupStartTimeType: typeof parcel.pickupStartTime,
-                pickupEndTime: parcel.pickupEndTime,
-                pickupEndTimeType: typeof parcel.pickupEndTime,
-            });
-
             const dateString = parcel.pickupDate.toISOString().split("T")[0];
-            console.log("[validateParcelAssignments] Converted date string:", dateString);
-            console.log("[validateParcelAssignments] isNewParcel determination:", {
-                parcelId: parcel.id,
-                hasId: !!parcel.id,
-                isNewParcel,
-                willUseHouseholdId: isNewParcel ? parcel.householdId : "N/A (existing parcel)",
-            });
 
             return {
                 parcelId: parcel.id || `temp_${Math.random()}`, // Generate temp ID for new parcels
@@ -506,7 +486,10 @@ export async function validateParcelAssignments(
             errors: validationResult.errors || [],
         };
     } catch (error) {
-        console.error("Error validating parcel assignments:", error);
+        logError("Error validating parcel assignments", error, {
+            action: "validateParcelAssignments",
+            parcelCount: parcels.length,
+        });
         return {
             success: false,
             errors: [
@@ -528,58 +511,7 @@ export const getPickupLocationSchedules = async (
 ): Promise<LocationScheduleInfo> => {
     // Create a cached function that will fetch the schedules
     const cachedFetchSchedules = unstable_cache(
-        async (): Promise<LocationScheduleInfo> => {
-            try {
-                // Use localized date to align with Stockholm schedule boundaries
-                const currentDateStr = Time.now().toDateString();
-
-                // Get all current and upcoming schedules for this location
-                // (end_date is in the future - this includes both active and upcoming schedules)
-                const schedules = await db
-                    .select({
-                        id: pickupLocationSchedules.id,
-                        name: pickupLocationSchedules.name,
-                        startDate: pickupLocationSchedules.start_date,
-                        endDate: pickupLocationSchedules.end_date,
-                    })
-                    .from(pickupLocationSchedules)
-                    .where(
-                        and(
-                            eq(pickupLocationSchedules.pickup_location_id, locationId),
-                            sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
-                        ),
-                    );
-
-                // For each schedule, get the days it's active
-                const schedulesWithDays = await Promise.all(
-                    schedules.map(async schedule => {
-                        const days = await db
-                            .select({
-                                weekday: pickupLocationScheduleDays.weekday,
-                                isOpen: pickupLocationScheduleDays.is_open,
-                                openingTime: pickupLocationScheduleDays.opening_time,
-                                closingTime: pickupLocationScheduleDays.closing_time,
-                            })
-                            .from(pickupLocationScheduleDays)
-                            .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
-
-                        return {
-                            ...schedule,
-                            days,
-                        };
-                    }),
-                );
-
-                return {
-                    schedules: schedulesWithDays,
-                };
-            } catch (error) {
-                console.error("Error fetching pickup location schedules:", error);
-                return {
-                    schedules: [],
-                };
-            }
-        },
+        () => fetchPickupLocationSchedules(locationId),
         // Use a key that includes the location ID for better caching
         [`pickup-location-schedules-${locationId}`],
         {
@@ -608,7 +540,7 @@ export const clearLocationSchedulesCache = async (locationId: string) => {
         revalidatePath(`/schedule`);
         revalidatePath(`/handout-locations`);
     } catch (error) {
-        console.error("Error clearing cache for location %s:", locationId, error);
+        logError("Error clearing cache for location", error, { locationId });
     }
 };
 
@@ -675,7 +607,7 @@ export async function checkLocationAvailability(
             reason: "This location has no scheduled opening hours for this date",
         };
     } catch (error) {
-        console.error("Error checking location availability:", error);
+        logError("Error checking location availability", error, { locationId, date });
         // Default to available in case of error to prevent blocking users
         return { isAvailable: true };
     }
@@ -731,7 +663,7 @@ export async function getAvailableTimeSlots(
 
         return { available: false, openingTime: null, closingTime: null };
     } catch (error) {
-        console.error("Error getting available time slots:", error);
+        logError("Error getting available time slots", error, { locationId, date });
         return { available: false, openingTime: null, closingTime: null };
     }
 }
@@ -801,7 +733,7 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
             timeslots,
         };
     } catch (error) {
-        console.error("Error generating time slot grid:", error);
+        logError("Error generating time slot grid", error, { locationId });
         throw error;
     }
 }
@@ -831,7 +763,7 @@ export async function getLocationSlotDuration(locationId: string): Promise<numbe
         // Default to 15 minutes if setting is not found
         return locationSettings?.slotDuration ?? 15;
     } catch (error) {
-        console.error("Error fetching location slot duration:", error);
+        logError("Error fetching location slot duration", error, { locationId });
         // Default to 15 minutes in case of error
         return 15;
     }
@@ -1213,7 +1145,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
                 ),
             );
     } catch (error) {
-        console.error(`Error getting outside hours parcels for location:`, error);
+        logError("Error getting outside hours parcels for location", error, { locationId });
         return { outsideParcels: [], totalCount: 0 };
     }
 
@@ -1265,7 +1197,7 @@ export async function getOutsideHoursParcelsForLocation(locationId: string): Pro
         const { outsideParcels } = await identifyOutsideHoursParcels(locationId);
         return outsideParcels;
     } catch (error) {
-        console.error("Error getting outside hours parcels for location:", error);
+        logError("Error getting outside hours parcels for location", error, { locationId });
         return [];
     }
 }
@@ -1281,7 +1213,7 @@ export async function getTotalOutsideHoursCount(): Promise<number> {
 
         return result[0]?.totalCount || 0;
     } catch (error) {
-        console.error("Error getting total outside hours count:", error);
+        logError("Error getting total outside hours count", error);
         return 0;
     }
 }
@@ -1303,7 +1235,7 @@ export async function recomputeOutsideHoursCount(locationId: string): Promise<nu
 
         return totalCount;
     } catch (error) {
-        console.error("Error recomputing outside hours count:", error);
+        logError("Error recomputing outside hours count", error, { locationId });
         return 0;
     }
 }

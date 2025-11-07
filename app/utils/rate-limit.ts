@@ -3,6 +3,8 @@
  * Prevents accidental floods and abuse of SMS services
  */
 
+import { logger } from "@/app/utils/logger";
+
 interface RateLimitEntry {
     count: number;
     resetTime: number;
@@ -30,10 +32,17 @@ export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitR
     const now = Date.now();
 
     // Clean up expired entries
+    const expiredKeys: string[] = [];
     for (const [k, entry] of rateLimitStore.entries()) {
         if (entry.resetTime <= now) {
             rateLimitStore.delete(k);
+            expiredKeys.push(k);
         }
+    }
+
+    // Log rate limit recovery
+    if (expiredKeys.length > 0) {
+        logger.debug({ keys: expiredKeys, count: expiredKeys.length }, "Rate limits reset");
     }
 
     const entry = rateLimitStore.get(key);

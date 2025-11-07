@@ -14,6 +14,7 @@ import {
     isRtlLocale,
     type SupportedLocale,
 } from "@/app/utils/locale-detection";
+import { logger } from "@/app/utils/logger";
 import { QRCodeCanvas } from "@/app/components/QRCodeCanvas";
 import {
     Paper,
@@ -28,6 +29,7 @@ import {
 } from "@mantine/core";
 import { IconMapPin, IconClock, IconExternalLink } from "@tabler/icons-react";
 import { PublicLocaleSwitcher } from "@/app/components/PublicLocaleSwitcher";
+import { logError } from "@/app/utils/logger";
 
 interface PublicParcelPageProps {
     params: Promise<{
@@ -93,8 +95,15 @@ async function loadMessages(locale: SupportedLocale): Promise<PublicMessages> {
 
         return messages as PublicMessages;
     } catch (error) {
-        console.warn("Failed to load messages for locale %s:", locale, error);
         // Fallback to English if locale file doesn't exist
+        logger.warn(
+            {
+                locale,
+                error: error instanceof Error ? error.message : String(error),
+            },
+            "Locale-specific message bundle missing, falling back to English",
+        );
+
         try {
             const fallbackMessages = (await import(`@/messages/public-en.json`)).default;
 
@@ -104,7 +113,7 @@ async function loadMessages(locale: SupportedLocale): Promise<PublicMessages> {
 
             return fallbackMessages as PublicMessages;
         } catch (fallbackError) {
-            console.error("Failed to load fallback messages:", fallbackError);
+            logError("Failed to load fallback messages", fallbackError);
             // Ultimate fallback - return a minimal structure
             return {
                 publicParcel: {

@@ -1,7 +1,5 @@
 /**
- * Hoimport { db } from "@/app/db/drizzle";
-import { households, householdComments, outgoingSms, foodParcels } from "@/app/db/schema";
-import { eq, and, isNull, sql, desc } from "drizzle-orm";hold anonymization utilities
+ * Household anonymization utilities
  *
  * Implements GDPR-compliant data anonymization:
  * - Replaces personal identifiers with placeholders
@@ -12,6 +10,7 @@ import { eq, and, isNull, sql, desc } from "drizzle-orm";hold anonymization util
 import { db } from "@/app/db/drizzle";
 import { households, householdComments, outgoingSms, foodParcels } from "@/app/db/schema";
 import { eq, and, gte, isNull, sql, desc } from "drizzle-orm";
+import { logger, logError } from "@/app/utils/logger";
 
 /**
  * Result of removal operation
@@ -110,7 +109,14 @@ async function anonymizeHousehold(
         await tx.delete(outgoingSms).where(eq(outgoingSms.household_id, householdId));
     });
 
-    console.log(`✅ Household ${householdId} anonymized by ${performedBy} (phone: ${phoneNumber})`);
+    logger.info(
+        {
+            householdId,
+            performedBy,
+            action: "anonymizeHousehold",
+        },
+        "Household anonymized",
+    );
 
     return { method: "anonymized", householdId };
 }
@@ -121,7 +127,13 @@ async function anonymizeHousehold(
 async function hardDeleteHousehold(householdId: string): Promise<RemovalResult> {
     await db.delete(households).where(eq(households.id, householdId));
 
-    console.log(`🗑️ Household ${householdId} hard deleted (no service history)`);
+    logger.info(
+        {
+            householdId,
+            action: "hardDeleteHousehold",
+        },
+        "Household hard deleted (no service history)",
+    );
 
     return { method: "deleted", householdId };
 }
@@ -227,12 +239,21 @@ export async function anonymizeInactiveHouseholds(
             } catch (error) {
                 const message = error instanceof Error ? error.message : "Unknown error";
                 errors.push(`${householdId}: ${message}`);
-                console.error(`❌ Failed to anonymize household ${householdId}:`, error);
+                logError("Failed to anonymize household", error, {
+                    action: "anonymizeInactiveHouseholds",
+                    householdId,
+                });
             }
         }
 
-        console.log(
-            `[Anonymization] Processed ${eligibleHouseholds.length} households: ${anonymized} anonymized, ${errors.length} errors`,
+        logger.info(
+            {
+                eligible: eligibleHouseholds.length,
+                anonymized,
+                errors: errors.length,
+                action: "anonymizeInactiveHouseholds",
+            },
+            "Anonymization batch completed",
         );
 
         return { anonymized, errors };
@@ -240,7 +261,9 @@ export async function anonymizeInactiveHouseholds(
         // Database connection error during initial query
         // This handles transient connection issues (e.g., DNS resolution, network hiccups)
         const message = error instanceof Error ? error.message : "Unknown error";
-        console.error(`❌ Failed to query eligible households for anonymization:`, error);
+        logError("Failed to query eligible households for anonymization", error, {
+            action: "anonymizeInactiveHouseholds",
+        });
 
         return {
             anonymized: 0,
