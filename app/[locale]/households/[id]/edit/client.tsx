@@ -85,7 +85,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
                 success: true,
             };
         } catch (error) {
-            // Error in handleSubmit
+            console.error("Error in handleSubmit:", error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : "Unknown error occurred",
