@@ -15,6 +15,7 @@ import { formatPickupSms } from "@/app/utils/sms/templates";
 import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
 import { generateUrl } from "@/app/config/branding";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
+import { logger, logError } from "@/app/utils/logger";
 
 // Constants
 const GRACE_PERIOD_MINUTES = 5; // Time to allow edits before SMS sends
@@ -71,8 +72,6 @@ export async function queueSmsForNewParcels(
 ): Promise<void> {
     if (parcels.length === 0) return;
 
-    console.log(`📱 queueSmsForNewParcels: Starting SMS queueing for ${parcels.length} parcel(s)`);
-
     // Fetch household info for all parcels (phone number, locale)
     // We need this to create SMS records
     const householdIds = [...new Set(parcels.map(p => p.household_id))];
@@ -93,21 +92,12 @@ export async function queueSmsForNewParcels(
     // Create a map for quick lookup
     const householdMap = new Map(householdsData.map(h => [h.id, h]));
 
-    console.log(`📋 Fetched ${householdsData.length} household(s) info:`, {
-        householdIds,
-        withPhone: householdsData.filter(h => h.phone).length,
-        withoutPhone: householdsData.filter(h => !h.phone).length,
-    });
-
     // Queue SMS for each parcel
     let queuedCount = 0;
     for (const parcel of parcels) {
         try {
             const household = householdMap.get(parcel.household_id);
             if (!household || !household.phone) {
-                console.warn(
-                    `Skipping SMS for parcel ${parcel.id}: household ${parcel.household_id} has no phone number`,
-                );
                 continue;
             }
 
@@ -138,19 +128,13 @@ export async function queueSmsForNewParcels(
             });
 
             queuedCount++;
-
-            const hoursUntilSend =
-                (nextAttemptAt.getTime() - Time.now().toUTC().getTime()) / (1000 * 60 * 60);
-            console.log(
-                `📬 Queued SMS for parcel ${parcel.id} (will send in ${hoursUntilSend.toFixed(1)}h)`,
-            );
         } catch (error) {
-            console.error(`Failed to queue SMS for parcel ${parcel.id}:`, error);
+            logError("Failed to queue SMS for parcel", error, { parcelId: parcel.id });
             // Continue with other parcels even if one fails
         }
     }
 
     if (queuedCount > 0) {
-        console.log(`✅ Queued ${queuedCount} SMS messages for new parcels`);
+        logger.info({ queuedCount }, "Queued SMS messages for new parcels");
     }
 }

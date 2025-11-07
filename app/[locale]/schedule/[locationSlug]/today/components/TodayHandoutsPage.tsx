@@ -114,10 +114,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             if (favoriteResult.success) {
                 setIsFavorite(favoriteResult.data === location.id);
             } else {
-                console.error(
-                    "Failed to determine favorite location:",
-                    favoriteResult.error.message,
-                );
+                // Failed to get favorite - just default to false
                 setIsFavorite(false);
             }
 
@@ -145,8 +142,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             });
 
             setParcels(enhancedParcels);
-        } catch (error) {
-            console.error("Error loading today's parcels:", error);
+        } catch {
+            // Error boundary will handle display
             setLocationError("Failed to load data");
         } finally {
             setLoading(false);

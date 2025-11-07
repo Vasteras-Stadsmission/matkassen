@@ -105,7 +105,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
                 });
             }
         } catch (err) {
-            console.error(`Error in schedule operation:`, err);
+            // Error in schedule operation
             const errorMessage =
                 err instanceof Error
                     ? err.message

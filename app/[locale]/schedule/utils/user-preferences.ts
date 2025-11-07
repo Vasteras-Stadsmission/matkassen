@@ -5,6 +5,7 @@ import { users } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
+import { logError } from "@/app/utils/logger";
 
 /**
  * Get current user's favorite pickup location
@@ -30,7 +31,7 @@ export const getUserFavoriteLocation = protectedAction(
 
             return success(user[0]?.favorite_pickup_location_id || null);
         } catch (error) {
-            console.error("Error getting user favorite location:", error);
+            logError("Error getting user favorite location", error);
             return failure({
                 code: "DATABASE_ERROR",
                 message: "Failed to fetch user favorite location",
@@ -72,7 +73,7 @@ export const setUserFavoriteLocation = protectedAction(
 
             return success(undefined);
         } catch (error) {
-            console.error("Error setting user favorite location:", error);
+            logError("Error setting user favorite location", error, { locationId });
             return failure({
                 code: "DATABASE_ERROR",
                 message: "Failed to update user favorite location",

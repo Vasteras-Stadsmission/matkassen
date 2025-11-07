@@ -241,6 +241,69 @@ Uses PostgreSQL advisory locks for queue processing safety across multiple insta
 
 The custom server waits for database connectivity before starting the scheduler using `app/db/health-check.js` (CommonJS module). This prevents "database not ready" errors during container startup.
 
+## Logging
+
+Server-side code uses [Pino](https://getpino.io/) for structured JSON logging. Client components use `console.*` (runs in browser).
+
+### Usage
+
+```typescript
+import { logger, logError, logCron } from "@/app/utils/logger";
+
+// Server-side only (app/ directory)
+logger.info({ userId: "123" }, "User action");
+logger.warn({ count: 0 }, "No items found");
+logError("Failed to process", error, { context: "data" });
+logCron("anonymization", "completed", { anonymized: 10 });
+
+// Client-side (components/ directory)
+console.error("Browser error", { context });
+```
+
+### Log Levels
+
+- **Development**: `debug` (shows all logs, pretty-printed)
+- **Production**: `info` (JSON output for docker logs)
+- **Override**: Set `LOG_LEVEL` env var (debug, info, warn, error, fatal)
+
+### PII Protection (CRITICAL)
+
+**Never log personally identifiable information.** This is critical for GDPR compliance and user privacy.
+
+**✅ Safe to log (use these):**
+
+- `householdId` - UUID references
+- `parcelId` - UUID references
+- `locationId` - UUID references
+- `userId` - GitHub username (public identifier)
+- Counts, timestamps, status codes
+
+**❌ NEVER log (contains PII):**
+
+- `firstName`, `lastName`, `name` - Real names
+- `phone`, `phoneNumber` - Phone numbers
+- `email` - Email addresses
+- `address`, `postalCode` - Location data
+- `age`, `sex` - Demographics
+- Any raw household/member objects
+
+**Example:**
+
+```typescript
+// ❌ BAD - Logs PII
+logger.info({ household }, "Household enrolled");
+
+// ✅ GOOD - Only IDs
+logger.info({ householdId: household.id }, "Household enrolled");
+```
+
+### ESLint Enforcement
+
+The `no-console` rule prevents accidental console usage in server code. Exemptions:
+
+- Client components (`components/**`) - browser logging
+- Tests, config files, build scripts
+
 ## Code Quality Standards
 
 ### Before Committing

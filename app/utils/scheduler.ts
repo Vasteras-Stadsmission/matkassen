@@ -17,17 +17,45 @@ import { generateUrl } from "@/app/config/branding";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { parseDuration } from "@/app/utils/duration-parser";
 import { anonymizeInactiveHouseholds } from "@/app/utils/anonymization/anonymize-household";
+import { logger, logError, logCron } from "@/app/utils/logger";
 
-// Scheduler state
-let isRunning = false;
-let smsEnqueueInterval: NodeJS.Timeout | null = null;
-let smsSendInterval: NodeJS.Timeout | null = null;
-let anonymizationTask: ScheduledTask | null = null;
-let healthCheckInterval: NodeJS.Timeout | null = null;
-let lastHealthLog = 0;
-let hasEverStarted = false;
-let lastAnonymizationRun: Date | null = null;
-let lastAnonymizationStatus: "success" | "error" | null = null;
+type SchedulerState = {
+    isRunning: boolean;
+    smsEnqueueInterval: NodeJS.Timeout | null;
+    smsSendInterval: NodeJS.Timeout | null;
+    anonymizationTask: ScheduledTask | null;
+    healthCheckInterval: NodeJS.Timeout | null;
+    lastHealthLog: number;
+    hasEverStarted: boolean;
+    lastAnonymizationRun: Date | null;
+    lastAnonymizationStatus: "success" | "error" | null;
+};
+
+const GLOBAL_STATE_KEY = "__matkassenSchedulerState";
+
+function getSchedulerState(): SchedulerState {
+    const globalObj = globalThis as typeof globalThis & {
+        __matkassenSchedulerState?: SchedulerState;
+    };
+
+    if (!globalObj[GLOBAL_STATE_KEY]) {
+        globalObj[GLOBAL_STATE_KEY] = {
+            isRunning: false,
+            smsEnqueueInterval: null,
+            smsSendInterval: null,
+            anonymizationTask: null,
+            healthCheckInterval: null,
+            lastHealthLog: 0,
+            hasEverStarted: false,
+            lastAnonymizationRun: null,
+            lastAnonymizationStatus: null,
+        };
+    }
+
+    return globalObj[GLOBAL_STATE_KEY]!;
+}
+
+const schedulerState = getSchedulerState();
 
 // SMS Configuration
 const SMS_ENQUEUE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
@@ -37,8 +65,9 @@ const SMS_SEND_INTERVAL = process.env.SMS_SEND_INTERVAL || "5 minutes";
 let SMS_SEND_INTERVAL_MS: number;
 try {
     SMS_SEND_INTERVAL_MS = parseDuration(SMS_SEND_INTERVAL);
-    console.log(
-        `[Scheduler] SMS send interval configured: ${SMS_SEND_INTERVAL} (${SMS_SEND_INTERVAL_MS}ms)`,
+    logger.info(
+        { smsSendInterval: SMS_SEND_INTERVAL, intervalMs: SMS_SEND_INTERVAL_MS },
+        "SMS send interval configured",
     );
 } catch (error) {
     throw new Error(
@@ -82,14 +111,13 @@ async function enqueueReminderSms(): Promise<number> {
             });
 
             enqueuedCount++;
-            console.log(`[SMS] Enqueued reminder for parcel ${parcel.parcelId}`);
         } catch (error) {
-            console.error("[SMS] Failed to enqueue for parcel %s:", parcel.parcelId, error);
+            logError("Failed to enqueue SMS for parcel", error, { parcelId: parcel.parcelId });
         }
     }
 
     if (enqueuedCount > 0) {
-        console.log(`[SMS] Enqueued ${enqueuedCount} reminder messages`);
+        logger.info({ count: enqueuedCount }, "Enqueued SMS reminder messages");
     }
 
     return enqueuedCount;
@@ -103,7 +131,7 @@ async function processSendQueue(): Promise<number> {
         const records = await getSmsRecordsReadyForSending(SMS_SEND_BATCH_SIZE);
 
         if (records.length > 0) {
-            console.log(`[SMS] 📤 Processing ${records.length} records ready for sending`);
+            logger.info({ count: records.length }, "Processing SMS records ready for sending");
         }
 
         let sentCount = 0;
@@ -112,29 +140,23 @@ async function processSendQueue(): Promise<number> {
             try {
                 await sendSmsRecord(record);
                 sentCount++;
-                console.log(
-                    `[SMS] ✅ Sent: ${record.intent} to household ${record.householdId} (${record.id})`,
-                );
 
                 await new Promise(resolve => setTimeout(resolve, 1000));
             } catch (error) {
-                console.error(
-                    `[SMS] ❌ Failed: ${record.intent} to household ${record.householdId} (${record.id}):`,
-                    error,
-                );
+                logError("Failed to send SMS", error, {
+                    intent: record.intent,
+                    householdId: record.householdId,
+                    smsId: record.id,
+                });
             }
         }
 
         if (sentCount > 0) {
-            console.log(`[SMS] 🎉 Sent ${sentCount} messages`);
+            logger.debug({ count: sentCount }, "SMS batch sent successfully");
         }
 
         return sentCount;
     });
-
-    if (!result.lockAcquired) {
-        console.log("[SMS] ⏸️  Skipped queue processing - already running elsewhere");
-    }
 
     return result.processed;
 }
@@ -148,38 +170,34 @@ async function runAnonymizationSchedule(): Promise<{
     anonymized: number;
     errors: string[];
 }> {
-    console.log(`[Anonymization] 🔄 Starting scheduled anonymization run...`);
-    lastAnonymizationRun = new Date();
+    logCron("anonymization", "started", { threshold: ANONYMIZATION_INACTIVE_DURATION });
+    schedulerState.lastAnonymizationRun = new Date();
 
     try {
         // Parse duration to milliseconds
         const durationMs = parseDuration(ANONYMIZATION_INACTIVE_DURATION);
-
-        console.log(
-            `[Anonymization] Threshold: ${ANONYMIZATION_INACTIVE_DURATION} (${durationMs}ms)`,
-        );
 
         const result = await anonymizeInactiveHouseholds(durationMs);
 
         // Set status based on whether any errors occurred
         // Any failure is critical for GDPR compliance and requires investigation
         if (result.errors.length > 0) {
-            console.log(
-                `[Anonymization] ⚠️  Completed with errors: ${result.anonymized} anonymized, ${result.errors.length} failed`,
-            );
-            lastAnonymizationStatus = "error";
+            logCron("anonymization", "failed", {
+                anonymized: result.anonymized,
+                failed: result.errors.length,
+                errors: result.errors,
+            });
+            schedulerState.lastAnonymizationStatus = "error";
             await notifyAnonymizationError(result);
         } else {
-            console.log(
-                `[Anonymization] ✅ Completed successfully: ${result.anonymized} anonymized`,
-            );
-            lastAnonymizationStatus = "success";
+            logCron("anonymization", "completed", { anonymized: result.anonymized });
+            schedulerState.lastAnonymizationStatus = "success";
         }
 
         return result;
     } catch (error) {
-        console.error("[Anonymization] ❌ Failed to run scheduled anonymization:", error);
-        lastAnonymizationStatus = "error";
+        logError("Failed to run scheduled anonymization", error);
+        schedulerState.lastAnonymizationStatus = "error";
 
         const errorResult = {
             anonymized: 0,
@@ -201,7 +219,6 @@ async function notifyAnonymizationError(result: {
     errors: string[];
 }): Promise<void> {
     if (process.env.NODE_ENV !== "production") {
-        console.log("[Anonymization] Skipping Slack notification (not in production)");
         return;
     }
 
@@ -224,9 +241,9 @@ async function notifyAnonymizationError(result: {
             },
         });
 
-        console.log("[Anonymization] ✅ Slack notification sent");
+        logger.debug("Anonymization error notification sent to Slack");
     } catch (error) {
-        console.error("[Anonymization] ❌ Failed to send Slack notification:", error);
+        logError("Failed to send anonymization Slack notification", error);
     }
 }
 
@@ -234,63 +251,59 @@ async function notifyAnonymizationError(result: {
  * Start the unified scheduler
  */
 export function startScheduler(): void {
-    if (isRunning) {
-        console.log("[Scheduler] Already running");
+    if (schedulerState.isRunning) {
         return;
     }
 
-    const isFirstStartup = !hasEverStarted;
-    isRunning = true;
-    hasEverStarted = true;
+    const isFirstStartup = !schedulerState.hasEverStarted;
+    schedulerState.isRunning = true;
+    schedulerState.hasEverStarted = true;
 
     const testMode = getHelloSmsConfig().testMode;
 
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("[Scheduler] 🚀 Starting unified background scheduler");
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-    // SMS Configuration
-    console.log(`[SMS] Test Mode: ${testMode ? "ENABLED (no real SMS)" : "DISABLED (live SMS)"}`);
-    console.log(`[SMS] Enqueue Interval: ${SMS_ENQUEUE_INTERVAL_MS / 60000} minutes`);
-    console.log(`[SMS] Send Interval: ${SMS_SEND_INTERVAL}`);
-
-    // Anonymization Configuration
-    console.log(`[Anonymization] Schedule: ${ANONYMIZATION_SCHEDULE}`);
-    console.log(`[Anonymization] Inactive Duration: ${ANONYMIZATION_INACTIVE_DURATION}`);
-
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info(
+        {
+            smsTestMode: testMode,
+            smsEnqueueIntervalMinutes: SMS_ENQUEUE_INTERVAL_MS / 60000,
+            smsSendInterval: SMS_SEND_INTERVAL,
+            anonymizationSchedule: ANONYMIZATION_SCHEDULE,
+            anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
+        },
+        "Starting unified background scheduler",
+    );
 
     // Start SMS enqueue loop
-    smsEnqueueInterval = setInterval(async () => {
+    schedulerState.smsEnqueueInterval = setInterval(async () => {
         try {
             await enqueueReminderSms();
         } catch (error) {
-            console.error("[SMS] Error in enqueue loop:", error);
+            logError("Error in SMS enqueue loop", error);
         }
     }, SMS_ENQUEUE_INTERVAL_MS);
 
     // Start SMS send loop (kept separate for backward compatibility)
-    smsSendInterval = setInterval(async () => {
+    schedulerState.smsSendInterval = setInterval(async () => {
         try {
             await processSendQueue();
         } catch (error) {
-            console.error("[SMS] Error in send loop:", error);
+            logError("Error in SMS send loop", error);
         }
     }, SMS_SEND_INTERVAL_MS);
 
     // Start anonymization cron job
     try {
-        anonymizationTask = cron.schedule(ANONYMIZATION_SCHEDULE, async () => {
+        schedulerState.anonymizationTask = cron.schedule(ANONYMIZATION_SCHEDULE, async () => {
             await runAnonymizationSchedule();
         });
-        console.log(`[Anonymization] ✅ Cron job scheduled: ${ANONYMIZATION_SCHEDULE}`);
+        logger.info({ schedule: ANONYMIZATION_SCHEDULE }, "Anonymization cron job scheduled");
     } catch (error) {
-        console.error(
-            `[Anonymization] ❌ Failed to schedule cron job (invalid schedule: "${ANONYMIZATION_SCHEDULE}"):`,
+        logError(
+            "Failed to schedule anonymization cron job - invalid schedule format. Health checks will report unhealthy until fixed.",
             error,
-        );
-        console.error(
-            `[Anonymization] ⚠️  Health checks will report UNHEALTHY until cron is fixed!`,
+            {
+                invalidSchedule: ANONYMIZATION_SCHEDULE,
+                expectedFormat: "Cron syntax (e.g., '0 2 * * 0')",
+            },
         );
 
         // Send Slack alert in production about configuration error
@@ -312,41 +325,34 @@ export function startScheduler(): void {
                     });
                 })
                 .catch(notifyError => {
-                    console.error(
-                        "[Anonymization] ❌ Failed to send Slack alert about cron error:",
-                        notifyError,
-                    );
+                    logError("Failed to send Slack alert about cron error", notifyError);
                 });
         }
     }
 
     // Start health check loop
-    healthCheckInterval = setInterval(async () => {
+    schedulerState.healthCheckInterval = setInterval(async () => {
         const now = Date.now();
         // Only log every 12 hours to reduce noise
-        if (now - lastHealthLog > HEALTH_CHECK_INTERVAL_MS) {
+        if (now - schedulerState.lastHealthLog > HEALTH_CHECK_INTERVAL_MS) {
             try {
                 const health = await schedulerHealthCheck();
-                if (health.status === "healthy") {
-                    console.log(
-                        `[Scheduler] ❤️  Alive - SMS: ${health.details.smsSchedulerRunning ? "✓" : "✗"}, ` +
-                            `Anonymization: ${health.details.anonymizationSchedulerRunning ? "✓" : "✗"}`,
-                    );
-                } else {
-                    console.error(`[Scheduler] 💔 Unhealthy:`, health.details);
+                // Only log unhealthy status to reduce noise
+                if (health.status !== "healthy") {
+                    logger.error({ details: health.details }, "Scheduler health check failed");
                 }
-                lastHealthLog = now;
+                schedulerState.lastHealthLog = now;
             } catch (error) {
-                console.error("[Scheduler] ❌ Health check failed:", error);
+                logError("Scheduler health check failed", error);
             }
         }
     }, HEALTH_CHECK_INTERVAL_MS);
 
     // Run SMS tasks once immediately
-    enqueueReminderSms().catch(console.error);
-    processSendQueue().catch(console.error);
+    enqueueReminderSms().catch(err => logError("Error in immediate SMS enqueue", err));
+    processSendQueue().catch(err => logError("Error in immediate SMS send", err));
 
-    console.log("[Scheduler] ✅ Started successfully");
+    logger.debug("Scheduler started successfully");
 
     // Send Slack notification on startup (production only, first startup)
     if (process.env.NODE_ENV === "production" && isFirstStartup) {
@@ -367,13 +373,13 @@ export function startScheduler(): void {
             })
             .then(success => {
                 if (success) {
-                    console.log("[Scheduler] ✅ Slack startup notification sent");
+                    logger.debug("Scheduler startup notification sent to Slack");
                 } else {
-                    console.warn("[Scheduler] ⚠️  Failed to send Slack startup notification");
+                    logger.debug("Failed to send Slack startup notification");
                 }
             })
             .catch(error => {
-                console.error("[Scheduler] ❌ Error sending Slack notification:", error);
+                logError("Error sending Slack startup notification", error);
             });
     }
 }
@@ -382,41 +388,40 @@ export function startScheduler(): void {
  * Stop the unified scheduler
  */
 export function stopScheduler(): void {
-    if (!isRunning) {
-        console.log("[Scheduler] Not running");
+    if (!schedulerState.isRunning) {
         return;
     }
 
-    isRunning = false;
+    schedulerState.isRunning = false;
 
-    if (smsEnqueueInterval) {
-        clearInterval(smsEnqueueInterval);
-        smsEnqueueInterval = null;
+    if (schedulerState.smsEnqueueInterval) {
+        clearInterval(schedulerState.smsEnqueueInterval);
+        schedulerState.smsEnqueueInterval = null;
     }
 
-    if (smsSendInterval) {
-        clearInterval(smsSendInterval);
-        smsSendInterval = null;
+    if (schedulerState.smsSendInterval) {
+        clearInterval(schedulerState.smsSendInterval);
+        schedulerState.smsSendInterval = null;
     }
 
-    if (anonymizationTask) {
-        anonymizationTask.stop();
-        anonymizationTask = null;
+    if (schedulerState.anonymizationTask) {
+        schedulerState.anonymizationTask.stop();
+        schedulerState.anonymizationTask = null;
     }
 
-    if (healthCheckInterval) {
-        clearInterval(healthCheckInterval);
-        healthCheckInterval = null;
+    if (schedulerState.healthCheckInterval) {
+        clearInterval(schedulerState.healthCheckInterval);
+        schedulerState.healthCheckInterval = null;
     }
 
-    console.log("[Scheduler] Stopped");
+    logger.debug("Scheduler stopped");
 }
 
 /**
  * Check if scheduler is running
  */
 export function isSchedulerRunning(): boolean {
-    return isRunning;
+    return schedulerState.isRunning;
 }
 
 /**
@@ -431,26 +436,28 @@ export async function schedulerHealthCheck(): Promise<{
 
         // CRITICAL: If anonymization cron failed to start, treat as unhealthy
         // This catches invalid ANONYMIZATION_SCHEDULE env var before Slack alerts fail
-        const anonymizationSchedulerRunning = anonymizationTask !== null;
-        const isHealthy = isRunning && anonymizationSchedulerRunning;
+        const anonymizationSchedulerRunning = schedulerState.anonymizationTask !== null;
+        const isHealthy = schedulerState.isRunning && anonymizationSchedulerRunning;
 
         return {
             status: isHealthy ? "healthy" : "unhealthy",
             details: {
-                schedulerRunning: isRunning,
-                smsSchedulerRunning: smsEnqueueInterval !== null && smsSendInterval !== null,
+                schedulerRunning: schedulerState.isRunning,
+                smsSchedulerRunning:
+                    schedulerState.smsEnqueueInterval !== null &&
+                    schedulerState.smsSendInterval !== null,
                 anonymizationSchedulerRunning,
                 smsTestMode: getHelloSmsConfig().testMode,
                 smsPendingCount: pendingCount.length,
-                lastAnonymizationRun: lastAnonymizationRun?.toISOString() || "Never",
-                lastAnonymizationStatus,
+                lastAnonymizationRun: schedulerState.lastAnonymizationRun?.toISOString() || "Never",
+                lastAnonymizationStatus: schedulerState.lastAnonymizationStatus,
                 // Configuration visibility for debugging
                 anonymizationSchedule: ANONYMIZATION_SCHEDULE,
                 anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
                 smsSendInterval: SMS_SEND_INTERVAL,
                 timestamp: new Date().toISOString(),
-                ...((!isRunning || !anonymizationSchedulerRunning) && {
-                    healthCheckFailure: !isRunning
+                ...((!schedulerState.isRunning || !anonymizationSchedulerRunning) && {
+                    healthCheckFailure: !schedulerState.isRunning
                         ? "Scheduler not running"
                         : "Anonymization cron not scheduled (check ANONYMIZATION_SCHEDULE env var)",
                 }),

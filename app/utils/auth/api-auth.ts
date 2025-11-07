@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { validateOrganizationMembership } from "@/app/utils/auth/organization-auth";
 import { checkRateLimit, getSmsRateLimitKey } from "@/app/utils/rate-limit";
+import { logger, logError } from "@/app/utils/logger";
 
 export interface AuthResult {
     success: boolean;
@@ -64,8 +65,13 @@ export async function authenticateAdminRequest(rateLimitConfig?: {
             const rateLimitResult = checkRateLimit(rateLimitKey, rateLimitConfig.config);
 
             if (!rateLimitResult.allowed) {
-                console.warn(
-                    `🚫 Rate limit exceeded for user ${username} on ${rateLimitConfig.endpoint}`,
+                logger.warn(
+                    {
+                        username,
+                        endpoint: rateLimitConfig.endpoint,
+                        identifier: rateLimitConfig.identifier,
+                    },
+                    "API rate limit exceeded",
                 );
 
                 const response = NextResponse.json(
@@ -99,7 +105,7 @@ export async function authenticateAdminRequest(rateLimitConfig?: {
             session,
         };
     } catch (error) {
-        console.error("Authentication error in API route:", error);
+        logError("API authentication check failed", error);
         return {
             success: false,
             response: NextResponse.json({ error: "Authentication check failed" }, { status: 500 }),

@@ -43,7 +43,6 @@ export function useSmsManagement() {
                     throw new Error(data.error || "Failed to send SMS");
                 }
             } catch (error) {
-                console.error("Error sending SMS:", error);
                 notifications.show({
                     title: t("notifications.sendError"),
                     message:
@@ -92,7 +91,6 @@ export function useSmsManagement() {
                     throw new Error(data.error || "Failed to resend SMS");
                 }
             } catch (error) {
-                console.error("Error resending SMS:", error);
                 notifications.show({
                     title: t("notifications.resendError"),
                     message:
@@ -113,29 +111,11 @@ export function useSmsManagement() {
             const contentType = response.headers.get("content-type") || "";
 
             if (!response.ok) {
-                // Try to parse JSON error safely, otherwise use status text
-                let serverError = `${response.status} ${response.statusText}`;
-                if (contentType.includes("application/json")) {
-                    try {
-                        const err = await response.json();
-                        serverError = err.error || serverError;
-                    } catch {}
-                }
-                console.error("Error fetching SMS history:", serverError);
-
-                // If it's a 401, the user might need to sign in again
-                if (response.status === 401) {
-                    console.warn(
-                        "Authentication required for SMS history. User may need to sign in again.",
-                    );
-                }
-
                 return [];
             }
 
             if (!contentType.includes("application/json")) {
                 // Likely got HTML (e.g., redirect page) -> avoid JSON parse error
-                console.error("Expected JSON but received:", contentType);
                 return [];
             }
 
@@ -166,8 +146,7 @@ export function useSmsManagement() {
                 );
             }
             return [];
-        } catch (error) {
-            console.error("Error fetching SMS history:", error);
+        } catch {
             return [];
         }
     }, []);

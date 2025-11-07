@@ -31,6 +31,7 @@ import {
     validationFailure,
     type ActionResult,
 } from "@/app/utils/auth/action-result";
+import { logger, logError } from "@/app/utils/logger";
 
 import {
     HouseholdCreateData,
@@ -285,10 +286,23 @@ export const enrollHousehold = protectedAction(
                     );
                     await recomputeOutsideHoursCount(locationId);
                 } catch (e) {
-                    console.error("Failed to recompute outside-hours count after enrollment:", e);
+                    logError("Failed to recompute outside-hours count after enrollment", e, {
+                        locationId,
+                        action: "enrollHousehold",
+                    });
                     // Non-fatal: The count will be corrected by the next schedule operation
                 }
             }
+
+            // Audit log with IDs only (no PII)
+            logger.info(
+                {
+                    householdId: result.householdId,
+                    locationId: data.foodParcels?.pickupLocationId,
+                    parcelCount: data.foodParcels?.parcels?.length || 0,
+                },
+                "Household enrolled",
+            );
 
             return success(result);
         } catch (error: unknown) {
@@ -297,7 +311,10 @@ export const enrollHousehold = protectedAction(
                 return validationFailure(error.message, error.validationErrors);
             }
 
-            console.error("Error enrolling household:", error);
+            logError("Error enrolling household", error, {
+                action: "enrollHousehold",
+                hasData: !!data,
+            });
             return failure({
                 code: "INTERNAL_ERROR",
                 message: error instanceof Error ? error.message : "Unknown error occurred",
@@ -311,7 +328,9 @@ export async function getDietaryRestrictions() {
     try {
         return await db.select().from(dietaryRestrictionsTable);
     } catch (error) {
-        console.error("Error fetching dietary restrictions:", error);
+        logError("Error fetching dietary restrictions", error, {
+            action: "getDietaryRestrictions",
+        });
         return [];
     }
 }
@@ -321,7 +340,9 @@ export async function getAdditionalNeeds() {
     try {
         return await db.select().from(additionalNeedsTable);
     } catch (error) {
-        console.error("Error fetching additional needs:", error);
+        logError("Error fetching additional needs", error, {
+            action: "getAdditionalNeeds",
+        });
         return [];
     }
 }
@@ -331,7 +352,9 @@ export async function getPickupLocations() {
     try {
         return await db.select().from(pickupLocationsTable);
     } catch (error) {
-        console.error("Error fetching pickup locations:", error);
+        logError("Error fetching pickup locations", error, {
+            action: "getPickupLocations",
+        });
         return [];
     }
 }
@@ -344,7 +367,9 @@ export async function getPetSpecies() {
     try {
         return await db.select().from(petSpeciesTable);
     } catch (error) {
-        console.error("Error fetching pet species:", error);
+        logError("Error fetching pet species", error, {
+            action: "getPetSpecies",
+        });
         return [];
     }
 }
@@ -422,7 +447,11 @@ export async function checkPickupLocationCapacity(
                 : `Max antal (${location.parcels_max_per_day}) matkassar bokade för detta datum`,
         };
     } catch (error) {
-        console.error("Error checking pickup location capacity:", error);
+        logError("Error checking pickup location capacity", error, {
+            action: "checkPickupLocationCapacity",
+            locationId,
+            date: date?.toISOString(),
+        });
         // Default to available in case of error, with a warning message
         return {
             isAvailable: true,
@@ -503,7 +532,12 @@ export async function getPickupLocationCapacityForRange(
             dateCapacities: dateCountMap,
         };
     } catch (error) {
-        console.error("Error checking pickup location capacity range:", error);
+        logError("Error checking pickup location capacity range", error, {
+            action: "getPickupLocationCapacityForRange",
+            locationId,
+            startDate: startDate?.toISOString(),
+            endDate: endDate?.toISOString(),
+        });
         return {
             hasLimit: false,
             maxPerDay: null,
@@ -564,7 +598,10 @@ export async function getPickupLocationSchedules(locationId: string) {
             schedules: schedulesWithDays,
         };
     } catch (error) {
-        console.error("Error fetching pickup location schedules:", error);
+        logError("Error fetching pickup location schedules", error, {
+            action: "getPickupLocationSchedules",
+            locationId,
+        });
         return {
             schedules: [],
         };

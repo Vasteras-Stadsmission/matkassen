@@ -4,6 +4,7 @@ import { foodParcels, outgoingSms } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { logError } from "@/app/utils/logger";
 
 // GET /api/admin/sms/failure-count - Get count of failed SMS for badge
 export async function GET() {
@@ -33,7 +34,10 @@ export async function GET() {
 
         return NextResponse.json({ count: failureCount });
     } catch (error) {
-        console.error("Error fetching SMS failure count:", error);
+        logError("Error fetching SMS failure count", error, {
+            method: "GET",
+            path: "/api/admin/sms/failure-count",
+        });
         return NextResponse.json({ error: "Failed to fetch failure count" }, { status: 500 });
     }
 }

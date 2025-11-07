@@ -36,8 +36,7 @@ export function SignInClient({
             await signIn("github", {
                 callbackUrl: callbackUrl.startsWith("/") ? callbackUrl : "/",
             });
-        } catch (error) {
-            console.error("SignIn error:", error);
+        } catch {
             setIsLoading(false);
         }
     };

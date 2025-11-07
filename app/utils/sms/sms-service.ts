@@ -11,10 +11,11 @@ import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
-import { getPickupLocationSchedules } from "@/app/[locale]/schedule/actions";
+import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
 // Note: normalizePhoneToE164 available but not used in this service layer
 // Individual functions handle normalization as needed
 import { nanoid } from "nanoid";
+import { logger, logError } from "@/app/utils/logger";
 
 export type SmsIntent =
     | "pickup_reminder"
@@ -53,14 +54,14 @@ async function acquireSmsQueueLock(): Promise<boolean> {
         const acquired = result[0]?.acquired as boolean;
 
         if (acquired) {
-            console.log("🔒 Acquired SMS queue processing lock");
+            logger.debug("Acquired SMS queue processing lock");
         } else {
-            console.log("⏸️  SMS queue processing lock already held by another process");
+            logger.debug("SMS queue processing lock already held by another process");
         }
 
         return acquired;
     } catch (error) {
-        console.error("Failed to acquire SMS queue lock:", error);
+        logError("Failed to acquire SMS queue lock", error);
         return false;
     }
 }
@@ -73,9 +74,9 @@ async function releaseSmsQueueLock(): Promise<void> {
 
     try {
         await db.execute(sql`SELECT pg_advisory_unlock(${lockKey})`);
-        console.log("🔓 Released SMS queue processing lock");
+        logger.debug("Released SMS queue processing lock");
     } catch (error) {
-        console.error("Failed to release SMS queue lock:", error);
+        logError("Failed to release SMS queue lock", error);
     }
 }
 
@@ -147,7 +148,10 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
             created_at: now,
         });
 
-        console.log(`📧 SMS queued: ${data.intent} for household ${data.householdId} (${id})`);
+        logger.debug(
+            { intent: data.intent, householdId: data.householdId, smsId: id },
+            "SMS queued",
+        );
         return id;
     } catch (error: unknown) {
         // Handle unique constraint violation on idempotency key
@@ -168,7 +172,7 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
             dbError?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
             constraintName === SMS_IDEMPOTENCY_CONSTRAINT
         ) {
-            console.log(`🔄 SMS with idempotency key ${idempotencyKey} already exists, skipping`);
+            logger.debug({ idempotencyKey }, "SMS with idempotency key already exists, skipping");
 
             // Find and return the existing record ID
             const existing = await dbInstance
@@ -311,8 +315,15 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
         const backoffMinutes = currentAttempt === 1 ? 5 : 30;
         const nextAttemptAt = Time.now().addMinutes(backoffMinutes).toUTC();
 
-        console.log(
-            `⏳ SMS retry: ${record.intent} to household ${record.householdId} in ${backoffMinutes}min (attempt ${currentAttempt}/${maxAttempts})`,
+        logger.info(
+            {
+                intent: record.intent,
+                householdId: record.householdId,
+                backoffMinutes,
+                attempt: currentAttempt,
+                maxAttempts,
+            },
+            "SMS retry scheduled",
         );
 
         await updateSmsStatus(record.id, "retrying", {
@@ -321,9 +332,11 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
             incrementAttempt: true, // Increment only when we actually retry
         });
     } else {
-        console.log(
-            `❌ SMS failed permanently: ${record.intent} to household ${record.householdId} after ${currentAttempt} attempts: ${result.error}`,
-        );
+        logError("SMS failed permanently", new Error(result.error || "Unknown error"), {
+            intent: record.intent,
+            householdId: record.householdId,
+            attempts: currentAttempt,
+        });
 
         await updateSmsStatus(record.id, "failed", {
             errorMessage: result.error,
@@ -411,7 +424,7 @@ export async function getParcelsNeedingReminder(): Promise<
     for (const parcel of parcels) {
         try {
             // Get location schedules for opening hours validation
-            const locationSchedules = await getPickupLocationSchedules(parcel.locationId);
+            const locationSchedules = await fetchPickupLocationSchedules(parcel.locationId);
 
             if (
                 !locationSchedules ||
@@ -437,23 +450,21 @@ export async function getParcelsNeedingReminder(): Promise<
                 validParcels.push(parcel);
             } else {
                 filteredCount++;
-                console.log(
-                    `🚫 SMS skipped for parcel ${parcel.parcelId}: scheduled outside opening hours`,
-                );
             }
         } catch (error) {
             // If there's an error checking opening hours, include the parcel (fail-safe)
-            console.warn(
-                `Warning: Could not validate opening hours for parcel ${parcel.parcelId}:`,
-                error,
+            logger.warn(
+                { parcelId: parcel.parcelId, error },
+                "Could not validate opening hours for parcel",
             );
             validParcels.push(parcel);
         }
     }
 
     if (filteredCount > 0) {
-        console.log(
-            `📊 SMS filtering: ${validParcels.length} parcels eligible, ${filteredCount} filtered out (outside opening hours)`,
+        logger.info(
+            { eligible: validParcels.length, filtered: filteredCount },
+            "SMS filtering completed",
         );
     }
 

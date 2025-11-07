@@ -3,6 +3,7 @@ import { db } from "@/app/db/drizzle";
 import { foodParcels } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { logError } from "@/app/utils/logger";
 
 // PATCH /api/admin/parcel/[parcelId]/pickup - Mark parcel as picked up
 export async function PATCH(
@@ -41,7 +42,11 @@ export async function PATCH(
             message: "Parcel marked as picked up",
         });
     } catch (error) {
-        console.error("Error marking parcel as picked up:", error);
+        logError("Error marking parcel as picked up", error, {
+            method: "PATCH",
+            path: "/api/admin/parcel/[parcelId]/pickup",
+            parcelId: (await params).parcelId,
+        });
         return NextResponse.json({ error: "Failed to mark parcel as picked up" }, { status: 500 });
     }
 }
@@ -80,7 +85,11 @@ export async function DELETE(
             message: "Parcel pickup status cleared",
         });
     } catch (error) {
-        console.error("Error clearing parcel pickup status:", error);
+        logError("Error clearing parcel pickup status", error, {
+            method: "DELETE",
+            path: "/api/admin/parcel/[parcelId]/pickup",
+            parcelId: (await params).parcelId,
+        });
         return NextResponse.json(
             { error: "Failed to clear parcel pickup status" },
             { status: 500 },

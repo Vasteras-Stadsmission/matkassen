@@ -41,9 +41,8 @@ export function getLanguageName(locale: string, displayLocale: string = "sv"): s
         }
 
         return displayNames.of(locale) || locale;
-    } catch (error) {
+    } catch {
         // Fallback in case Intl.DisplayNames is not supported or throws an error
-        console.warn("Error getting display name for %s in %s:", locale, displayLocale, error);
         return locale;
     }
 }

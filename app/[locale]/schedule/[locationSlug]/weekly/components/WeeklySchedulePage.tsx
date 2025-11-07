@@ -102,8 +102,8 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
             try {
                 const parcels = await getFoodParcelsForWeek(locationId, dates[0], dates[6]);
                 setFoodParcels(parcels);
-            } catch (error) {
-                console.error("Error loading food parcels:", error);
+            } catch {
+                // Error boundary will handle display
                 setFoodParcels([]);
             } finally {
                 setIsLoadingParcels(false);
@@ -155,8 +155,8 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                     // Load parcels for this location and week
                     await loadFoodParcels(location.id, dates);
                 }
-            } catch (error) {
-                console.error("Error initializing weekly schedule:", error);
+            } catch {
+                // Error boundary will handle display
                 if (isMounted) {
                     setLocationError("Failed to load location data");
                 }

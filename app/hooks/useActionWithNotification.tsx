@@ -65,7 +65,7 @@ export function useActionWithNotification() {
                     icon: React.createElement(IconX, { size: "1.1rem" }),
                 });
             }
-        } catch (error) {
+        } catch {
             // Show error notification for unexpected errors
             notifications.show({
                 title: options.errorTitle || "Error",
@@ -73,7 +73,7 @@ export function useActionWithNotification() {
                 color: options.errorColor || "red",
                 icon: React.createElement(IconX, { size: "1.1rem" }),
             });
-            console.error("Action failed:", error);
+            // Action failed
         }
     };
 

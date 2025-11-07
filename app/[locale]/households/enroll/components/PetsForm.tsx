@@ -90,12 +90,10 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                     setPetCounts(counts);
                     setSpeciesNameMap(names);
                 } else {
-                    console.error("No pet species found in the database");
                     setPetTypes([]);
                     setPetCounts({});
                 }
-            } catch (error) {
-                console.error("Error fetching pet species:", error);
+            } catch {
                 setPetTypes([]);
                 setPetCounts({});
             } finally {

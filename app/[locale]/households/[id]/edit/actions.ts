@@ -21,6 +21,7 @@ import { success, failure, type ActionResult } from "@/app/utils/auth/action-res
 import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
+import { logger, logError } from "@/app/utils/logger";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -61,7 +62,10 @@ export const getHouseholdFormData = protectedAction(
                 comments: details.comments,
             });
         } catch (error) {
-            console.error("Error getting household form data:", error);
+            logError("Error getting household form data", error, {
+                action: "getHouseholdFormData",
+                householdId,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: "Failed to load household data",
@@ -503,11 +507,26 @@ export const updateHousehold = protectedHouseholdAction(
                         );
                     }
                 }
+
+                // Audit log with IDs only (no PII)
+                logger.info(
+                    {
+                        householdId: household.id,
+                        locationId: data.foodParcels?.pickupLocationId,
+                        parcelsCreated: operations.toCreate.length,
+                        parcelsUpdated: operations.toUpdate.length,
+                        parcelsDeleted: operations.toDelete.length,
+                    },
+                    "Household updated",
+                );
             });
 
             return success({ householdId: household.id });
         } catch (error: unknown) {
-            console.error("Error updating household:", error);
+            logError("Error updating household", error, {
+                action: "updateHousehold",
+                householdId: household.id,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: error instanceof Error ? error.message : "Unknown error occurred",
@@ -523,7 +542,10 @@ export async function recomputeOutsideHoursForLocation(locationId: string) {
         const { recomputeOutsideHoursCount } = await import("@/app/[locale]/schedule/actions");
         await recomputeOutsideHoursCount(locationId);
     } catch (e) {
-        console.error("Failed to recompute outside-hours count after household update:", e);
+        logError("Failed to recompute outside-hours count after household update", e, {
+            action: "recomputeOutsideHoursForLocation",
+            locationId,
+        });
     }
 }
 
@@ -578,7 +600,11 @@ export const addComment = protectedHouseholdAction(
                 githubUserData,
             });
         } catch (error) {
-            console.error("Error adding comment:", error);
+            logError("Error adding comment", error, {
+                action: "addComment",
+                householdId: household.id,
+                username: session.user?.githubUsername,
+            });
             return failure({
                 code: "DATABASE_ERROR",
                 message: "Failed to add comment",

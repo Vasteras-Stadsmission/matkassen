@@ -297,8 +297,8 @@ export function ScheduleForm({
                 scheduleId, // Exclude current schedule if editing
             );
             return count;
-        } catch (error) {
-            console.error("Error checking affected parcels:", error);
+        } catch {
+            // Error checking affected parcels
             return 0;
         }
     };

@@ -50,6 +50,7 @@ ENV HOSTNAME="0.0.0.0"
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/server-build ./server-build
 
 # The below are needed for drizzle to work (db migrations inside the container)
 COPY drizzle.config.ts ./

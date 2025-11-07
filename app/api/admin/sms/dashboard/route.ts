@@ -4,6 +4,7 @@ import { foodParcels, households, pickupLocations, outgoingSms } from "@/app/db/
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { eq, and, gte } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
+import { logError } from "@/app/utils/logger";
 
 export interface SmsDashboardRecord {
     id: string;
@@ -105,7 +106,10 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(results);
     } catch (error) {
-        console.error("Error fetching SMS dashboard data:", error);
+        logError("Error fetching SMS dashboard data", error, {
+            method: "GET",
+            path: "/api/admin/sms/dashboard",
+        });
         return NextResponse.json({ error: "Failed to fetch SMS dashboard data" }, { status: 500 });
     }
 }

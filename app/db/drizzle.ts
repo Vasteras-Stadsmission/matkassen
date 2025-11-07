@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import { config } from "dotenv";
+import { logger } from "@/app/utils/logger";
 
 config();
 
@@ -81,10 +82,10 @@ const createMockDb = () => {
 if (!process.env.DATABASE_URL) {
     if (isTestEnvironment) {
         // Tests can continue with mocks
-        console.log("Using mock database for tests");
+        logger.info("Using mock database for tests");
     } else if (isBuildTime) {
         // Build time - warn but allow to continue
-        console.log("DATABASE_URL not available during build (expected)");
+        logger.info("DATABASE_URL not available during build (expected)");
     } else {
         // Runtime without DATABASE_URL - this is an error
         throw new Error(

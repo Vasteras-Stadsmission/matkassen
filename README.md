@@ -151,6 +151,10 @@ pnpm run validate      # Run all checks (lint, typecheck, format, security)
 pnpm run format        # Auto-fix formatting
 ```
 
+### Logging
+
+Server-side code uses [Pino](https://getpino.io/) for structured JSON logging. Client components use `console.*` (browser-only). Set `LOG_LEVEL` env var to control verbosity (debug, info, warn, error). See `docs/dev-guide.md` for details.
+
 ## Authentication
 
 Matkassen uses GitHub OAuth for user authentication and a GitHub App for organization membership verification. This approach eliminates the need to handle user credentials, passwords, or email verification—GitHub handles all of that.

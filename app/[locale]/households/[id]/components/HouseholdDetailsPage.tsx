@@ -58,7 +58,6 @@ export default function HouseholdDetailsPage({
     const t = useTranslations("householdDetail");
     const tNav = useTranslations("navigation");
     const tWeekdays = useTranslations("weekdays");
-    const tComments = useTranslations("comments");
     const tSms = useTranslations("sms");
     const currentLocale = useLocale();
 
@@ -100,8 +99,8 @@ export default function HouseholdDetailsPage({
             if (updatedData) {
                 setHouseholdData(updatedData);
             }
-        } catch (error) {
-            console.error("Error refreshing household data:", error);
+        } catch {
+            // Error refreshing household data
         } finally {
             setLoading(false);
         }
@@ -140,8 +139,8 @@ export default function HouseholdDetailsPage({
             const newComment = await addHouseholdComment(householdId, comment);
             await refreshHouseholdData();
             return newComment;
-        } catch (error) {
-            console.error("Error adding comment:", error);
+        } catch {
+            // Error adding comment
             return null;
         } finally {
             setLoading(false);
@@ -154,8 +153,8 @@ export default function HouseholdDetailsPage({
             setLoading(true);
             await deleteHouseholdComment(commentId);
             await refreshHouseholdData();
-        } catch (error) {
-            console.error(tComments("errors.deleteError") + ":", error);
+        } catch {
+            // Error deleting comment
         } finally {
             setLoading(false);
         }

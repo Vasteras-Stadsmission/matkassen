@@ -9,6 +9,7 @@ import { db } from "@/app/db/drizzle";
 import { households } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { type ActionResult, failure } from "./action-result";
+import { logError } from "@/app/utils/logger";
 
 /**
  * Session type for authenticated users
@@ -48,9 +49,10 @@ export type HouseholdAccessResult = ActionResult<HouseholdData>;
  * This is the primary authorization check for all server actions
  */
 export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> {
+    let session: AuthSession | null = null;
     try {
         // Check basic authentication
-        const session = await auth();
+        session = await auth();
 
         if (!session?.user?.githubUsername) {
             return failure({
@@ -80,7 +82,9 @@ export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> 
             data: session,
         };
     } catch (error) {
-        console.error("Error in server action auth check:", error);
+        logError("Server action auth check failed", error, {
+            username: session?.user?.githubUsername,
+        });
         return failure({
             code: "AUTH_CHECK_FAILED",
             message: "Authentication check failed",
@@ -126,7 +130,7 @@ export async function verifyHouseholdAccess(householdId: string): Promise<Househ
             data: household,
         };
     } catch (error) {
-        console.error("Error checking household access:", error);
+        logError("Household access check failed", error, { householdId });
         return failure({
             code: "HOUSEHOLD_CHECK_FAILED",
             message: "Failed to verify household access",

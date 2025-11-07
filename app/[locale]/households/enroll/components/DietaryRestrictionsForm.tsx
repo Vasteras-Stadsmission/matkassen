@@ -62,11 +62,9 @@ export default function DietaryRestrictionsForm({
                 if (dbRestrictions.length > 0) {
                     setAvailableRestrictions(dbRestrictions);
                 } else {
-                    console.error("No dietary restrictions found in the database");
                     setAvailableRestrictions([]);
                 }
-            } catch (error) {
-                console.error("Error fetching dietary restrictions:", error);
+            } catch {
                 setAvailableRestrictions([]);
             } finally {
                 setLoading(false);

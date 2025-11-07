@@ -14,6 +14,7 @@ import { normalizePhoneToE164, getHelloSmsConfig } from "@/app/utils/sms/hello-s
 import { generateUrl } from "@/app/config/branding";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
+import { logger, logError } from "@/app/utils/logger";
 
 // GET /api/admin/sms/parcel/[parcelId] - Get SMS history for a parcel
 export async function GET(
@@ -41,7 +42,11 @@ export async function GET(
             testMode,
         });
     } catch (error) {
-        console.error("Error fetching SMS records:", error);
+        logError("Error fetching SMS records", error, {
+            method: "GET",
+            path: "/api/admin/sms/parcel/[parcelId]",
+            parcelId: (await params).parcelId,
+        });
         return NextResponse.json({ error: "Failed to fetch SMS records" }, { status: 500 });
     }
 }
@@ -138,6 +143,18 @@ export async function POST(
             text: smsText,
         });
 
+        // Audit log with IDs only (no PII)
+        logger.info(
+            {
+                parcelId: parcelData.parcelId,
+                householdId: parcelData.householdId,
+                smsId,
+                action,
+                triggeredBy: authResult.session!.user.githubUsername,
+            },
+            "Manual parcel SMS queued",
+        );
+
         const { testMode } = getHelloSmsConfig();
 
         return NextResponse.json({
@@ -147,7 +164,11 @@ export async function POST(
             testMode,
         });
     } catch (error) {
-        console.error("Error sending SMS:", error);
+        logError("Error sending SMS", error, {
+            method: "POST",
+            path: "/api/admin/sms/parcel/[parcelId]",
+            parcelId: (await params).parcelId,
+        });
         return NextResponse.json({ error: "Failed to send SMS" }, { status: 500 });
     }
 }

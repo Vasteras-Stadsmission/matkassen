@@ -98,8 +98,8 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
             setIsDeleting(true);
             await onDelete(comment.id);
             close();
-        } catch (error) {
-            console.error(t("errors.deleteError") + ":", error);
+        } catch {
+            // Error deleting comment
         } finally {
             setIsDeleting(false);
         }

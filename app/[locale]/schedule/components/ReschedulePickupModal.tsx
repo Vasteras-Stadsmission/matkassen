@@ -56,8 +56,8 @@ export default function ReschedulePickupModal({
                     // Use the client action to call the server action
                     const duration = await getLocationSlotDurationAction(foodParcel.locationId);
                     setSlotDuration(duration);
-                } catch (error) {
-                    console.error("Error fetching slot duration:", error);
+                } catch {
+                    // Use default duration on error
                 }
             }
         }
@@ -166,8 +166,8 @@ export default function ReschedulePickupModal({
             } else {
                 setError(result.error || t("reschedule.genericError"));
             }
-        } catch (error) {
-            console.error("Error rescheduling pickup:", error);
+        } catch {
+            // Error boundary will handle critical errors
             setError(t("reschedule.genericError"));
         } finally {
             setIsSubmitting(false);

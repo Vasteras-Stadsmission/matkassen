@@ -12,8 +12,8 @@ vi.mock("@/app/db/drizzle", () => ({
     },
 }));
 
-vi.mock("@/app/[locale]/schedule/actions", () => ({
-    getPickupLocationSchedules: vi.fn(),
+vi.mock("@/app/utils/schedule/pickup-location-schedules", () => ({
+    fetchPickupLocationSchedules: vi.fn(),
 }));
 
 vi.mock("@/app/utils/schedule/outside-hours-filter", () => ({
@@ -33,11 +33,11 @@ vi.mock("@/app/utils/time-provider", () => ({
 }));
 
 import { getParcelsNeedingReminder } from "@/app/utils/sms/sms-service";
-import { getPickupLocationSchedules } from "@/app/[locale]/schedule/actions";
+import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { db } from "@/app/db/drizzle";
 
-const mockGetPickupLocationSchedules = vi.mocked(getPickupLocationSchedules);
+const mockGetPickupLocationSchedules = vi.mocked(fetchPickupLocationSchedules);
 const mockIsParcelOutsideOpeningHours = vi.mocked(isParcelOutsideOpeningHours);
 const mockDb = vi.mocked(db);
 
@@ -185,17 +185,12 @@ describe("SMS Opening Hours Filtering", () => {
 
             const result = await getParcelsNeedingReminder();
 
-            // All parcels should be included despite the error
+            // All parcels should be included despite the error (fail-safe behavior)
             expect(result).toHaveLength(3);
-
-            // Verify warning was logged
-            expect(console.warn).toHaveBeenCalledWith(
-                expect.stringContaining("Could not validate opening hours for parcel parcel-2"),
-                expect.any(Error),
-            );
+            // Note: Warning is logged via Pino logger, test focuses on behavior
         });
 
-        it("should log filtering statistics when parcels are filtered", async () => {
+        it("should filter parcels correctly based on opening hours", async () => {
             setupDatabaseMock();
 
             mockGetPickupLocationSchedules.mockResolvedValue(mockLocationSchedule);
@@ -204,32 +199,24 @@ describe("SMS Opening Hours Filtering", () => {
                 .mockReturnValueOnce(true) // parcel-2: outside hours
                 .mockReturnValueOnce(true); // parcel-3: outside hours
 
-            await getParcelsNeedingReminder();
+            const result = await getParcelsNeedingReminder();
 
-            // Verify individual parcel filtering logs
-            expect(console.log).toHaveBeenCalledWith(
-                "🚫 SMS skipped for parcel parcel-2: scheduled outside opening hours",
-            );
-            expect(console.log).toHaveBeenCalledWith(
-                "🚫 SMS skipped for parcel parcel-3: scheduled outside opening hours",
-            );
-
-            // Verify summary statistics log
-            expect(console.log).toHaveBeenCalledWith(
-                "📊 SMS filtering: 1 parcels eligible, 2 filtered out (outside opening hours)",
-            );
+            // Only 1 parcel should pass the filter (parcel-1)
+            expect(result).toHaveLength(1);
+            expect(result[0].parcelId).toBe("parcel-1");
+            // Note: Filtering statistics are logged via Pino logger
         });
 
-        it("should not log statistics when no parcels are filtered", async () => {
+        it("should return all parcels when none are filtered", async () => {
             setupDatabaseMock();
 
             mockGetPickupLocationSchedules.mockResolvedValue(mockLocationSchedule);
             mockIsParcelOutsideOpeningHours.mockReturnValue(false); // All within hours
 
-            await getParcelsNeedingReminder();
+            const result = await getParcelsNeedingReminder();
 
-            // No filtering statistics should be logged
-            expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining("SMS filtering:"));
+            // All parcels should be returned (none filtered)
+            expect(result).toHaveLength(3);
         });
 
         it("should handle empty database results gracefully", async () => {

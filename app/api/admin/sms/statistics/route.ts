@@ -5,6 +5,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { calculateSuccessRate } from "@/app/utils/sms/statistics";
+import { logError } from "@/app/utils/logger";
 
 export interface SmsStatisticsRecord {
     locationId: string;
@@ -188,7 +189,10 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(statistics);
     } catch (error) {
-        console.error("Error fetching SMS statistics:", error);
+        logError("Error fetching SMS statistics", error, {
+            method: "GET",
+            path: "/api/admin/sms/statistics",
+        });
         return NextResponse.json({ error: "Failed to fetch SMS statistics" }, { status: 500 });
     }
 }

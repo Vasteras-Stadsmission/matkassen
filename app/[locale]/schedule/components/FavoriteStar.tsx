@@ -135,8 +135,8 @@ export function FavoriteStar({
             }
 
             openConfirmModal();
-        } catch (error) {
-            console.error("Error handling favorite star click:", error);
+        } catch {
+            // User will see error notification
             notifications.show({
                 title: t("hub.notificationErrorTitle"),
                 message: t("hub.favoriteUpdateFailed"),
@@ -153,8 +153,8 @@ export function FavoriteStar({
 
         try {
             await confirmationData.action();
-        } catch (error) {
-            console.error("Error executing favorite action:", error);
+        } catch {
+            // User will see error notification
             notifications.show({
                 title: t("hub.notificationErrorTitle"),
                 message: t("hub.favoriteUpdateFailed"),

@@ -16,6 +16,7 @@ import {
 import { eq, desc } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { fetchMultipleGithubUserData } from "@/app/[locale]/households/actions";
+import { logError } from "@/app/utils/logger";
 
 export interface ParcelDetails {
     parcel: {
@@ -224,7 +225,10 @@ export async function GET(
 
         return NextResponse.json(response);
     } catch (error) {
-        console.error("Error fetching parcel details:", error);
+        logError("Error fetching parcel details", error, {
+            method: "GET",
+            path: "/api/admin/parcel/[parcelId]/details",
+        });
         return NextResponse.json({ error: "Failed to fetch parcel details" }, { status: 500 });
     }
 }

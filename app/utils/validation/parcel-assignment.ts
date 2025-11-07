@@ -23,6 +23,7 @@ import { db } from "@/app/db/drizzle";
 import { foodParcels, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { Time } from "@/app/utils/time-provider";
+import { logError } from "@/app/utils/logger";
 
 // Configuration constants
 /** Maximum number of parcels allowed in a single time slot */
@@ -154,23 +155,6 @@ export async function validateParcelAssignment({
     const dbInstance = tx ?? db;
     const errors: ValidationError[] = [];
 
-    // 🔍 DEBUG: Log all input parameters
-    console.log("[validateParcelAssignment] Input params:", {
-        parcelId,
-        newLocationId,
-        newDate,
-        newDateType: typeof newDate,
-        newDateValue: newDate,
-        newTimeslot: {
-            startTime: newTimeslot.startTime,
-            startTimeType: typeof newTimeslot.startTime,
-            endTime: newTimeslot.endTime,
-            endTimeType: typeof newTimeslot.endTime,
-        },
-        isNewParcel,
-        providedHouseholdId,
-    });
-
     try {
         // 1. Verify parcel exists and get its details (skip for new parcels)
         let householdId: string;
@@ -189,7 +173,6 @@ export async function validateParcelAssignment({
             householdId = providedHouseholdId;
         } else {
             // For existing parcels, look up the parcel in the database
-            console.log("[validateParcelAssignment] Looking up existing parcel:", parcelId);
             const [parcel] = await dbInstance
                 .select({
                     id: foodParcels.id,
@@ -199,12 +182,6 @@ export async function validateParcelAssignment({
                 .from(foodParcels)
                 .where(and(eq(foodParcels.id, parcelId), notDeleted()))
                 .limit(1);
-
-            console.log("[validateParcelAssignment] Parcel lookup result:", {
-                parcelId,
-                found: !!parcel,
-                parcelData: parcel || "NOT FOUND",
-            });
 
             if (!parcel) {
                 errors.push({
@@ -219,7 +196,6 @@ export async function validateParcelAssignment({
         }
 
         // 2. Get location information using the newLocationId
-        console.log("[validateParcelAssignment] About to query location:", newLocationId);
         const [location] = await dbInstance
             .select({
                 id: pickupLocations.id,
@@ -230,7 +206,6 @@ export async function validateParcelAssignment({
             .from(pickupLocations)
             .where(eq(pickupLocations.id, newLocationId))
             .limit(1);
-        console.log("[validateParcelAssignment] Location query succeeded:", location);
 
         if (!location) {
             errors.push({
@@ -246,13 +221,6 @@ export async function validateParcelAssignment({
         // Existing parcels can be updated even if their time has passed
         if (isNewParcel) {
             const now = new Date();
-            console.log("[validateParcelAssignment] Time validation:", {
-                now,
-                newTimeslotStartTime: newTimeslot.startTime,
-                newTimeslotStartTimeType: typeof newTimeslot.startTime,
-                comparison: newTimeslot.startTime <= now,
-                isNewParcel,
-            });
 
             if (newTimeslot.startTime <= now) {
                 errors.push({
@@ -269,39 +237,13 @@ export async function validateParcelAssignment({
 
         // 4. Validate daily capacity if set
         if (location.maxParcelsPerDay !== null) {
-            console.log("[validateParcelAssignment] Daily capacity check - START:", {
-                newDate,
-                newDateType: typeof newDate,
-                maxParcelsPerDay: location.maxParcelsPerDay,
-            });
-
-            console.log(
-                "[validateParcelAssignment] About to call Time.fromDate with:",
-                new Date(newDate),
-            );
             const dateInStockholm = Time.fromDate(new Date(newDate));
-            console.log("[validateParcelAssignment] Time.fromDate succeeded");
-            console.log("[validateParcelAssignment] After Time.fromDate:", {
-                dateInStockholm,
-                dateInStockholmType: typeof dateInStockholm,
-            });
-
             const startTimeStockholm = dateInStockholm.startOfDay();
             const endTimeStockholm = dateInStockholm.endOfDay();
-            console.log("[validateParcelAssignment] Day boundaries:", {
-                startTimeStockholm,
-                endTimeStockholm,
-                startTimeStockholmType: typeof startTimeStockholm,
-            });
 
             // Use toUTC() to get clean Date objects for database queries (DB stores timestamps in UTC)
             const startDate = startTimeStockholm.toUTC();
             const endDate = endTimeStockholm.toUTC();
-            console.log("[validateParcelAssignment] Converted to UTC Date:", {
-                startDate,
-                endDate,
-                startDateType: typeof startDate,
-            });
 
             const [{ count }] = await dbInstance
                 .select({ count: sql<number>`count(*)` })
@@ -342,14 +284,6 @@ export async function validateParcelAssignment({
         const startDate = startTimeStockholm.toUTC();
         const endDate = endTimeStockholm.toUTC();
 
-        console.log("[validateParcelAssignment] Double booking window:", {
-            householdId,
-            startDate,
-            endDate,
-            startDateType: typeof startDate,
-            endDateType: typeof endDate,
-        });
-
         const conflictingParcels = await dbInstance
             .select({
                 id: foodParcels.id,
@@ -388,13 +322,6 @@ export async function validateParcelAssignment({
         // 6. Validate slot-level capacity (parcels in the same time slot)
         const slotStartUTC = new Date(newTimeslot.startTime);
         const slotEndUTC = new Date(newTimeslot.endTime);
-
-        console.log("[validateParcelAssignment] Slot capacity window:", {
-            slotStartUTC,
-            slotEndUTC,
-            slotStartType: typeof slotStartUTC,
-            slotEndType: typeof slotEndUTC,
-        });
 
         const [{ slotCount }] = await dbInstance
             .select({ slotCount: sql<number>`count(*)` })
@@ -436,12 +363,11 @@ export async function validateParcelAssignment({
             ...(errors.length > 0 && { errors }),
         };
     } catch (error) {
-        console.error("Error during parcel assignment validation:", error);
-        console.error("Stack trace:", error instanceof Error ? error.stack : "No stack available");
-        console.error("Error details:", {
-            errorType: typeof error,
-            errorConstructor: error?.constructor?.name,
-            errorCode: error && typeof error === "object" && "code" in error ? error.code : "N/A",
+        logError("Error during parcel assignment validation", error, {
+            parcelId,
+            newLocationId,
+            newDate,
+            isNewParcel,
         });
         errors.push({
             field: "general",

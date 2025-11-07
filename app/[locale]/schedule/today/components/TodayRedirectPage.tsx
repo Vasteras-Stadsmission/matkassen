@@ -44,10 +44,7 @@ export function TodayRedirectPage() {
                 ]);
 
                 if (!favoriteResult.success) {
-                    console.error(
-                        "Failed to determine favorite location for today auto-redirect:",
-                        favoriteResult.error.message,
-                    );
+                    // Failed to get favorite - skip auto-redirect
                     return;
                 }
 
@@ -61,8 +58,8 @@ export function TodayRedirectPage() {
                         return;
                     }
                 }
-            } catch (error) {
-                console.error("Error handling auto-redirect:", error);
+            } catch {
+                // Error boundary will handle display
             }
         }
 
@@ -101,8 +98,8 @@ export function TodayRedirectPage() {
                 );
 
                 setLocationSummaries(summaries);
-            } catch (error) {
-                console.error("Error loading today redirect data:", error);
+            } catch {
+                // Error boundary will handle display
             } finally {
                 setLoading(false);
             }

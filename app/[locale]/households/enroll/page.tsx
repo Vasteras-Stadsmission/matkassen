@@ -48,7 +48,7 @@ export default function EnrollHouseholdPage() {
                 };
             }
         } catch (error) {
-            console.error("Error in enrollment handleSubmit:", error);
+            // Error in enrollment handleSubmit
             return {
                 success: false,
                 error: error instanceof Error ? error.message : "Unknown error occurred",

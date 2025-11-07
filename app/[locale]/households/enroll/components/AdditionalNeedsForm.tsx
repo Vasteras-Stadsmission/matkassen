@@ -51,11 +51,9 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
                 if (dbNeeds.length > 0) {
                     setAvailableNeeds(dbNeeds);
                 } else {
-                    console.error("No additional needs found in the database");
                     setAvailableNeeds([]);
                 }
-            } catch (error) {
-                console.error("Error fetching additional needs:", error);
+            } catch {
                 setAvailableNeeds([]);
             } finally {
                 setLoading(false);

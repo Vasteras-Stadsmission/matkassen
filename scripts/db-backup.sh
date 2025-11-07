@@ -40,6 +40,9 @@ set -o errtrace
 # Disable command echo to prevent passphrase exposure in logs
 set +x
 
+# Allow overriding gpg binary (useful for tests)
+GPG_BINARY="${GPG_BINARY:-gpg}"
+
 # Script configuration
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_TARGET_DIR="${BACKUP_TARGET_DIR:-/var/backups/matkassen}"

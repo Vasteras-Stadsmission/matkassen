@@ -59,8 +59,8 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                         message: locationDeletedMessage,
                         color: "green",
                     });
-                } catch (error) {
-                    console.error("Failed to delete location:", error);
+                } catch {
+                    // Failed to delete location
                     notifications.show({
                         title: errorDeletingTitle,
                         message: errorDeletingMessage,

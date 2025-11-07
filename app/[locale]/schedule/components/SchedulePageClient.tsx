@@ -117,8 +117,7 @@ function SchedulePageContent({
             try {
                 const parcels = await getFoodParcelsForWeek(locationId, weekStart, weekEnd);
                 setFoodParcels(parcels);
-            } catch (error) {
-                console.error("Error loading food parcels:", error);
+            } catch {
                 // Allow retry on the next call if this one failed
                 lastParcelsRequestRef.current = null;
             } finally {
@@ -194,8 +193,8 @@ function SchedulePageContent({
                         await loadFoodParcels(locationToSelect, dates);
                     }
                 }
-            } catch (error) {
-                console.error("Error initializing schedule data:", error);
+            } catch {
+                // Error initializing - continue with default state
             } finally {
                 if (isMounted) setIsLoadingLocations(false);
             }
@@ -264,9 +263,9 @@ function SchedulePageContent({
                 }
                 loadFoodParcels(value, dates);
             }
-            recomputeOutsideHoursCountAction(value).catch(err =>
-                console.error("Recompute outside-hours count failed:", err),
-            );
+            recomputeOutsideHoursCountAction(value).catch(() => {
+                // Recompute failed - not critical
+            });
         } else {
             // Clear parcels if no location selected
             setFoodParcels([]);

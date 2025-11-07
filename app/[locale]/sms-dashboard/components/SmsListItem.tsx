@@ -163,8 +163,8 @@ export function SmsListItem({ sms, onUpdate }: SmsListItemProps) {
                                             try {
                                                 await sendSms(sms.parcelId);
                                                 onUpdate();
-                                            } catch (error) {
-                                                console.error("SMS send error:", error);
+                                            } catch {
+                                                // SMS send error
                                             }
                                         }}
                                         disabled={isLoading}

@@ -1,4 +1,5 @@
 import { createAppAuth } from "@octokit/auth-app";
+import { logError } from "@/app/utils/logger";
 
 /**
  * Get GitHub App installation access token for the organization
@@ -35,7 +36,7 @@ export async function getGitHubAppToken(): Promise<string> {
 
         return token;
     } catch (error) {
-        console.error("Failed to get GitHub App token:", error);
+        logError("Failed to get GitHub App token", error);
         throw new Error("Failed to authenticate with GitHub App");
     }
 }
@@ -96,7 +97,7 @@ export async function checkOrganizationMembership(
         }
 
         // Network/fetch errors
-        console.error("Failed to check organization membership:", error);
+        logError("Failed to check organization membership", error);
         throw new Error("Unable to verify organization membership - please try again");
     }
 }
