@@ -206,9 +206,11 @@ export function LocationForm({
                         <Tabs.Tab value="general" leftSection={<IconBuilding size={16} />}>
                             {t("generalInfo")}
                         </Tabs.Tab>
-                        <Tabs.Tab value="schedules" leftSection={<IconCalendar size={16} />}>
-                            {t("schedules")}
-                        </Tabs.Tab>
+                        {location && (
+                            <Tabs.Tab value="schedules" leftSection={<IconCalendar size={16} />}>
+                                {t("schedules")}
+                            </Tabs.Tab>
+                        )}
                     </Tabs.List>
 
                     {/* General Information Tab */}
