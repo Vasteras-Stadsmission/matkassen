@@ -27,7 +27,7 @@ interface HouseholdDetailProps {
             phone_number: string;
             locale: string;
             postal_code: string;
-            created_by?: string | null;
+            created_by: string;
         };
         members: Array<{
             id?: string;
@@ -201,7 +201,7 @@ export default function InternationalizedHouseholdDetail({
                             </ThemeIcon>
                             <Text>{getLanguageName(householdDetail.household.locale)}</Text>
                         </Group>
-                        {householdDetail.household.created_by && (
+                        {householdDetail.household.created_by !== "unknown" && (
                             <Group gap="xs" mb="xs">
                                 <ThemeIcon size="md" variant="light" color="blue">
                                     <IconUserCheck size={16} />

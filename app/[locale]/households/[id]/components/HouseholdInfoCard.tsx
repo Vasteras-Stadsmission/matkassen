@@ -10,7 +10,7 @@ interface HouseholdInfoCardProps {
     phoneNumber: string;
     postalCode: string;
     locale: string;
-    createdBy?: string | null;
+    createdBy: string;
     getLanguageName: (locale: string) => string;
 }
 
@@ -66,7 +66,7 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
-                {createdBy && (
+                {createdBy !== "unknown" && (
                     <Group gap="sm">
                         <ThemeIcon size="lg" variant="light" color="blue">
                             <IconUserCheck size={20} />
