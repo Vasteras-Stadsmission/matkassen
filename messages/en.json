@@ -65,9 +65,12 @@
             "phoneNumber": "Phone Number",
             "language": "Language",
             "postalCode": "Postal Code",
+            "createdBy": "Created By",
             "firstParcel": "First Food Parcel",
             "lastParcel": "Last Food Parcel",
             "nextParcel": "Next Food Parcel",
+            "columns": "Columns",
+            "visibleColumns": "Visible Columns",
             "actions": {
                 "viewDetails": "View Details",
                 "edit": "Edit Household",

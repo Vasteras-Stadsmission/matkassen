@@ -18,6 +18,7 @@ import CommentSection from "@/components/CommentSection";
 import { Comment } from "@/app/[locale]/households/enroll/types";
 import { useTranslations, useLocale } from "next-intl";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
+import { UNKNOWN_CREATOR } from "@/app/constants/household";
 
 interface HouseholdDetailProps {
     householdDetail: {
@@ -201,7 +202,7 @@ export default function InternationalizedHouseholdDetail({
                             </ThemeIcon>
                             <Text>{getLanguageName(householdDetail.household.locale)}</Text>
                         </Group>
-                        {householdDetail.household.created_by !== "unknown" && (
+                        {householdDetail.household.created_by !== UNKNOWN_CREATOR && (
                             <Group gap="xs" mb="xs">
                                 <ThemeIcon size="md" variant="light" color="blue">
                                     <IconUserCheck size={16} />

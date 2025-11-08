@@ -3,6 +3,7 @@
 import { Paper, Title, Stack, Group, ThemeIcon, Text } from "@mantine/core";
 import { IconUser, IconPhone, IconMailbox, IconLanguage, IconUserCheck } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
+import { UNKNOWN_CREATOR } from "@/app/constants/household";
 
 interface HouseholdInfoCardProps {
     firstName: string;
@@ -66,7 +67,7 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
-                {createdBy !== "unknown" && (
+                {createdBy !== UNKNOWN_CREATOR && (
                     <Group gap="sm">
                         <ThemeIcon size="lg" variant="light" color="blue">
                             <IconUserCheck size={20} />
