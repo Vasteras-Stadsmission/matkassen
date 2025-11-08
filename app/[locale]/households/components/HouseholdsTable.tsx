@@ -110,7 +110,8 @@ export default function HouseholdsTable({ households }: { households: Household[
                 household.first_name.toLowerCase().includes(searchLower) ||
                 household.last_name.toLowerCase().includes(searchLower) ||
                 household.phone_number.toLowerCase().includes(searchLower) ||
-                (household.postal_code && household.postal_code.toLowerCase().includes(searchLower)) ||
+                (household.postal_code &&
+                    household.postal_code.toLowerCase().includes(searchLower)) ||
                 household.locale.toLowerCase().includes(searchLower) ||
                 (household.nextParcelDate &&
                     formatDateTime(household.nextParcelDate).toLowerCase().includes(searchLower)) ||
