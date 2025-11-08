@@ -218,6 +218,13 @@
       "when": 1760955361112,
       "tag": "0030_happy_nocturne",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1762012800000,
+      "tag": "0031_add_max_parcels_per_slot",
+      "breakpoints": true
     }
   ]
 }

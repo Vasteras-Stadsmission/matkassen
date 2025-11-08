@@ -120,6 +120,7 @@ export const pickupLocations = pgTable(
         street_address: text("street_address").notNull(),
         postal_code: varchar("postal_code", { length: 5 }).notNull(),
         parcels_max_per_day: integer("parcels_max_per_day"), // might be null if no max
+        max_parcels_per_slot: integer("max_parcels_per_slot").default(4), // might be null if no max
         contact_name: varchar("contact_name", { length: 50 }),
         contact_email: varchar("contact_email", { length: 255 }),
         contact_phone_number: varchar("contact_phone_number", { length: 20 }),
@@ -142,6 +143,10 @@ export const pickupLocations = pgTable(
             check(
                 "pickup_locations_slot_duration_check",
                 sql`${table.default_slot_duration_minutes} > 0 AND ${table.default_slot_duration_minutes} <= 240 AND ${table.default_slot_duration_minutes} % 15 = 0`,
+            ),
+            check(
+                "pickup_locations_max_parcels_per_slot_check",
+                sql`${table.max_parcels_per_slot} IS NULL OR ${table.max_parcels_per_slot} > 0`,
             ),
         ];
     },

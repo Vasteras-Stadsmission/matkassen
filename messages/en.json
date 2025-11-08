@@ -691,6 +691,8 @@
         "postalCode": "Postal Code",
         "maxParcelsPerDay": "Maximum Food Parcels Per Day",
         "maxParcelsPlaceholder": "e.g. 20",
+        "maxParcelsPerSlot": "Maximum Parcels Per Time Slot",
+        "maxParcelsPerSlotDescription": "Maximum number of parcels that can be booked in the same time slot (leave empty for no limit)",
         "slotDuration": "Slot Duration (minutes)",
         "slotDurationDescription": "Time allocated for each food parcel pickup",
         "contactInfo": "Contact Information",

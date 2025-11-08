@@ -144,6 +144,7 @@ export const createLocation = protectedAction(
                 street_address: locationData.street_address,
                 postal_code: locationData.postal_code,
                 parcels_max_per_day: locationData.parcels_max_per_day,
+                max_parcels_per_slot: locationData.max_parcels_per_slot,
                 contact_name: locationData.contact_name,
                 contact_email: contact_email, // Use processed email value
                 contact_phone_number: locationData.contact_phone_number,
@@ -191,6 +192,7 @@ export const updateLocation = protectedAction(
                 street_address: locationData.street_address,
                 postal_code: locationData.postal_code,
                 parcels_max_per_day: locationData.parcels_max_per_day,
+                max_parcels_per_slot: locationData.max_parcels_per_slot,
                 contact_name: locationData.contact_name,
                 contact_email: contact_email, // Use processed email value
                 contact_phone_number: locationData.contact_phone_number,
