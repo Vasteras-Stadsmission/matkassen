@@ -10,7 +10,7 @@ import {
     getByText,
     renderWithProviders,
 } from "../test-helpers";
-import { MockPaper, MockStack, MockPickupCard, createMockDndHooks } from "../mock-components";
+import { MockPaper, MockStack, MockHandoutCard, createMockDndHooks } from "../mock-components";
 
 // Create mock dnd hooks for testing
 const { mockUseDroppable, setMockIsOver } = createMockDndHooks();
@@ -71,7 +71,7 @@ const TimeSlotCell = ({
             {/* Parcels stack */}
             <MockStack>
                 {parcels.map((parcel: FoodParcel) => (
-                    <MockPickupCard key={parcel.id} foodParcel={parcel} isCompact={true} />
+                    <MockHandoutCard key={parcel.id} foodParcel={parcel} isCompact={true} />
                 ))}
             </MockStack>
         </MockPaper>
@@ -110,7 +110,7 @@ describe("TimeSlotCell Component", () => {
 
         const paperElement = queryByTestId(container, "paper");
         expect(paperElement).toBeTruthy();
-        expect(queryAllByTestId(container, /pickup-card-/).length).toBe(0);
+        expect(queryAllByTestId(container, /handout-card-/).length).toBe(0);
     });
 
     it("renders parcels correctly when provided", () => {
@@ -128,8 +128,8 @@ describe("TimeSlotCell Component", () => {
             />,
         );
 
-        expect(queryByTestId(container, "pickup-card-1")).toBeTruthy();
-        expect(queryByTestId(container, "pickup-card-2")).toBeTruthy();
+        expect(queryByTestId(container, "handout-card-1")).toBeTruthy();
+        expect(queryByTestId(container, "handout-card-2")).toBeTruthy();
         expect(getByText(container, "Household 1")).toBeTruthy();
         expect(getByText(container, "Household 2")).toBeTruthy();
     });

@@ -2,7 +2,7 @@
 
 import {
     updateFoodParcelSchedule,
-    getPickupLocationSchedules,
+    getHandoutLocationSchedules,
     getLocationSlotDuration,
     recomputeOutsideHoursCount,
 } from "./actions";
@@ -41,11 +41,11 @@ export async function updateFoodParcelScheduleAction(
 /**
  * Client wrapper for getting pickup location schedules
  */
-export async function getPickupLocationSchedulesAction(
+export async function getHandoutLocationSchedulesAction(
     locationId: string,
 ): Promise<LocationScheduleInfo> {
     try {
-        return getPickupLocationSchedules(locationId);
+        return getHandoutLocationSchedules(locationId);
     } catch (error) {
         logError("Error fetching location schedules", error, { locationId });
         return {

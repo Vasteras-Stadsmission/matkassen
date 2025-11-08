@@ -28,10 +28,10 @@ export async function insertParcels(
     tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
     parcels: Array<{
         household_id: string;
-        pickup_location_id: string;
-        pickup_date_time_earliest: Date;
-        pickup_date_time_latest: Date;
-        is_picked_up: boolean;
+        handout_location_id: string;
+        handout_date_time_earliest: Date;
+        handout_date_time_latest: Date;
+        is_handed_out: boolean;
     }>,
 ): Promise<string[]> {
     if (parcels.length === 0) return [];
@@ -48,9 +48,9 @@ export async function insertParcels(
         .onConflictDoNothing({
             target: [
                 foodParcels.household_id,
-                foodParcels.pickup_location_id,
-                foodParcels.pickup_date_time_earliest,
-                foodParcels.pickup_date_time_latest,
+                foodParcels.handout_location_id,
+                foodParcels.handout_date_time_earliest,
+                foodParcels.handout_date_time_latest,
             ],
             where: sql`deleted_at IS NULL`, // Targets partial unique index
         })

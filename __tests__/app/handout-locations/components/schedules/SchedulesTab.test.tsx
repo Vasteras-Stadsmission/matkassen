@@ -7,8 +7,8 @@ import {
     deleteSchedule,
 } from "../../../../../app/[locale]/handout-locations/actions";
 import {
-    PickupLocationWithAllData,
-    PickupLocationScheduleWithDays,
+    HandoutLocationWithAllData,
+    HandoutLocationScheduleWithDays,
 } from "../../../../../app/[locale]/handout-locations/types";
 import { TestWrapper } from "../../../../test-utils";
 
@@ -86,7 +86,7 @@ const actionFailure = (message: string) => ({
 });
 
 describe("SchedulesTab", () => {
-    const mockSchedule: PickupLocationScheduleWithDays = {
+    const mockSchedule: HandoutLocationScheduleWithDays = {
         id: "schedule-1",
         pickup_location_id: "location-1",
         name: "Test Schedule",
@@ -95,7 +95,7 @@ describe("SchedulesTab", () => {
         days: [],
     };
 
-    const mockLocation: PickupLocationWithAllData = {
+    const mockLocation: HandoutLocationWithAllData = {
         id: "location-1",
         name: "Test Location",
         street_address: "123 Test St",

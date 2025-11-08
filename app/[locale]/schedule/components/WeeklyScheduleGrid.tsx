@@ -27,12 +27,12 @@ import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
 import { IconArrowBackUp, IconCheck, IconInfoCircle } from "@tabler/icons-react";
 import TimeSlotCell from "./TimeSlotCell";
-import PickupCard from "./PickupCard";
-import ReschedulePickupModal from "./ReschedulePickupModal";
+import HandoutCard from "./HandoutCard";
+import RescheduleHandoutModal from "./RescheduleHandoutModal";
 import { FoodParcel, type LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 import {
     updateFoodParcelScheduleAction,
-    getPickupLocationSchedulesAction,
+    getHandoutLocationSchedulesAction,
     getLocationSlotDurationAction,
 } from "@/app/[locale]/schedule/client-actions";
 import {
@@ -333,7 +333,7 @@ export default function WeeklyScheduleGrid({
                         return;
                     }
 
-                    const scheduleInfo = await getPickupLocationSchedulesAction(fetchLocationId);
+                    const scheduleInfo = await getHandoutLocationSchedulesAction(fetchLocationId);
 
                     // Guard against component unmount
                     if (!isMounted) return;
@@ -456,7 +456,7 @@ export default function WeeklyScheduleGrid({
             if (!refreshLocationId) return;
 
             try {
-                const scheduleInfo = await getPickupLocationSchedulesAction(refreshLocationId);
+                const scheduleInfo = await getHandoutLocationSchedulesAction(refreshLocationId);
                 setLocationSchedules(scheduleInfo);
 
                 // Regenerate time slots based on updated schedule
@@ -955,7 +955,7 @@ export default function WeeklyScheduleGrid({
                                                     key={parcel.id}
                                                     style={{ width: "120px", flexShrink: 0 }}
                                                 >
-                                                    <PickupCard
+                                                    <HandoutCard
                                                         foodParcel={parcel}
                                                         isCompact={true}
                                                         onReschedule={handleRescheduleClick}
@@ -1136,7 +1136,7 @@ export default function WeeklyScheduleGrid({
                                                                         parcel => ({
                                                                             ...parcel,
                                                                             element: (
-                                                                                <PickupCard
+                                                                                <HandoutCard
                                                                                     key={parcel.id}
                                                                                     foodParcel={
                                                                                         parcel
@@ -1205,7 +1205,7 @@ export default function WeeklyScheduleGrid({
                     {/* DragOverlay for visual feedback during dragging */}
                     <DragOverlay>
                         {activeDragParcel && (
-                            <PickupCard foodParcel={activeDragParcel} isCompact={true} />
+                            <HandoutCard foodParcel={activeDragParcel} isCompact={true} />
                         )}
                     </DragOverlay>
                 </DndContext>
@@ -1266,7 +1266,7 @@ export default function WeeklyScheduleGrid({
                 )}
             </Modal>
 
-            <ReschedulePickupModal
+            <RescheduleHandoutModal
                 opened={rescheduleModalOpened}
                 onClose={closeRescheduleModal}
                 foodParcel={selectedParcelForReschedule}

@@ -11,9 +11,9 @@ import {
     householdAdditionalNeeds as householdAdditionalNeedsTable,
     petSpecies as petSpeciesTable,
     pets as petsTable,
-    pickupLocations as pickupLocationsTable,
-    pickupLocationSchedules as pickupLocationSchedulesTable,
-    pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
+    handoutLocations as handoutLocationsTable,
+    pickupLocationSchedules as handoutLocationSchedulesTable,
+    pickupLocationScheduleDays as handoutLocationScheduleDaysTable,
 } from "@/app/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
@@ -46,7 +46,7 @@ export const enrollHousehold = protectedAction(
         try {
             // Auth already verified by protectedAction wrapper
             // Store locationId for recompute after transaction
-            const locationId = data.foodParcels?.pickupLocationId;
+            const locationId = data.foodParcels?.handoutLocationId;
 
             // Use a transaction to ensure all operations succeed or fail together
             const result = await db.transaction(async tx => {
@@ -221,10 +221,10 @@ export const enrollHousehold = protectedAction(
 
                     const parcelsToValidate = data.foodParcels.parcels.map(parcel => ({
                         householdId: household.id,
-                        locationId: data.foodParcels.pickupLocationId,
-                        pickupDate: new Date(parcel.pickupEarliestTime.toDateString()), // Date only
-                        pickupStartTime: parcel.pickupEarliestTime,
-                        pickupEndTime: parcel.pickupLatestTime,
+                        locationId: data.foodParcels.handoutLocationId,
+                        handoutDate: new Date(parcel.handoutEarliestTime.toDateString()), // Date only
+                        pickupStartTime: parcel.handoutEarliestTime,
+                        pickupEndTime: parcel.handoutLatestTime,
                     }));
 
                     const validationResult = await validateParcelAssignments(parcelsToValidate);
@@ -239,7 +239,7 @@ export const enrollHousehold = protectedAction(
 
                     // Use upsert pattern to ensure idempotency under concurrent operations
                     // The partial unique index food_parcels_household_location_time_active_unique
-                    // (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
+                    // (household_id, handout_location_id, handout_date_time_earliest, handout_date_time_latest)
                     // WHERE deleted_at IS NULL guarantees that we won't create duplicates even if
                     // multiple requests run concurrently. Including location ensures that location
                     // changes are properly handled.
@@ -249,10 +249,10 @@ export const enrollHousehold = protectedAction(
                     const parcelsToInsert = data.foodParcels.parcels.map(
                         (parcel: FoodParcelCreateData) => ({
                             household_id: household.id,
-                            pickup_location_id: data.foodParcels.pickupLocationId,
-                            pickup_date_time_earliest: parcel.pickupEarliestTime,
-                            pickup_date_time_latest: parcel.pickupLatestTime,
-                            is_picked_up: false,
+                            handout_location_id: data.foodParcels.handoutLocationId,
+                            handout_date_time_earliest: parcel.handoutEarliestTime,
+                            handout_date_time_latest: parcel.handoutLatestTime,
+                            is_handed_out: false,
                         }),
                     );
 
@@ -298,7 +298,7 @@ export const enrollHousehold = protectedAction(
             logger.info(
                 {
                     householdId: result.householdId,
-                    locationId: data.foodParcels?.pickupLocationId,
+                    locationId: data.foodParcels?.handoutLocationId,
                     parcelCount: data.foodParcels?.parcels?.length || 0,
                 },
                 "Household enrolled",
@@ -348,12 +348,12 @@ export async function getAdditionalNeeds() {
 }
 
 // Helper function to get all pickup locations
-export async function getPickupLocations() {
+export async function getHandoutLocations() {
     try {
-        return await db.select().from(pickupLocationsTable);
+        return await db.select().from(handoutLocationsTable);
     } catch (error) {
         logError("Error fetching pickup locations", error, {
-            action: "getPickupLocations",
+            action: "getHandoutLocations",
         });
         return [];
     }
@@ -381,7 +381,7 @@ export async function getPetSpecies() {
  * @param excludeHouseholdId Optional household ID to exclude from the count
  * @returns Object containing isAvailable and info about capacity
  */
-export async function checkPickupLocationCapacity(
+export async function checkHandoutLocationCapacity(
     locationId: string,
     date: Date,
     excludeHouseholdId?: string,
@@ -390,8 +390,8 @@ export async function checkPickupLocationCapacity(
         // Get the location to check if it has a max parcels per day limit
         const [location] = await db
             .select()
-            .from(pickupLocationsTable)
-            .where(eq(pickupLocationsTable.id, locationId))
+            .from(handoutLocationsTable)
+            .where(eq(handoutLocationsTable.id, locationId))
             .limit(1);
 
         // If location doesn't exist or has no limit, return available
@@ -410,13 +410,13 @@ export async function checkPickupLocationCapacity(
         // Use raw SQL for a more precise date comparison that handles timezone information
         // This extracts year, month, and day from the timestamp to perform the comparison
         // regardless of time part or timezone
-        const whereConditions = [eq(foodParcels.pickup_location_id, locationId)];
+        const whereConditions = [eq(foodParcels.handout_location_id, locationId)];
 
         // Add date comparison conditions
         whereConditions.push(
-            eq(sql`EXTRACT(YEAR FROM ${foodParcels.pickup_date_time_earliest})::int`, year),
-            eq(sql`EXTRACT(MONTH FROM ${foodParcels.pickup_date_time_earliest})::int`, month),
-            eq(sql`EXTRACT(DAY FROM ${foodParcels.pickup_date_time_earliest})::int`, day),
+            eq(sql`EXTRACT(YEAR FROM ${foodParcels.handout_date_time_earliest})::int`, year),
+            eq(sql`EXTRACT(MONTH FROM ${foodParcels.handout_date_time_earliest})::int`, month),
+            eq(sql`EXTRACT(DAY FROM ${foodParcels.handout_date_time_earliest})::int`, day),
         );
 
         // Exclude the current household's parcels if we're editing an existing household
@@ -448,7 +448,7 @@ export async function checkPickupLocationCapacity(
         };
     } catch (error) {
         logError("Error checking pickup location capacity", error, {
-            action: "checkPickupLocationCapacity",
+            action: "checkHandoutLocationCapacity",
             locationId,
             date: date?.toISOString(),
         });
@@ -469,7 +469,7 @@ export async function checkPickupLocationCapacity(
  * @param endDate End date of the range
  * @returns Object containing capacity data for the range
  */
-export async function getPickupLocationCapacityForRange(
+export async function getHandoutLocationCapacityForRange(
     locationId: string,
     startDate: Date,
     endDate: Date,
@@ -478,8 +478,8 @@ export async function getPickupLocationCapacityForRange(
         // Get the location to check if it has a max parcels per day limit
         const [location] = await db
             .select()
-            .from(pickupLocationsTable)
-            .where(eq(pickupLocationsTable.id, locationId))
+            .from(handoutLocationsTable)
+            .where(eq(handoutLocationsTable.id, locationId))
             .limit(1);
 
         // If location doesn't exist or has no limit, return null
@@ -498,14 +498,14 @@ export async function getPickupLocationCapacityForRange(
         // Get all food parcels for this location within the date range
         const parcels = await db
             .select({
-                pickupDateEarliest: foodParcels.pickup_date_time_earliest,
+                handoutDateEarliest: foodParcels.handout_date_time_earliest,
             })
             .from(foodParcels)
             .where(
                 and(
-                    eq(foodParcels.pickup_location_id, locationId),
-                    sql`${foodParcels.pickup_date_time_earliest} >= ${start.toISOString()}`,
-                    sql`${foodParcels.pickup_date_time_earliest} <= ${end.toISOString()}`,
+                    eq(foodParcels.handout_location_id, locationId),
+                    sql`${foodParcels.handout_date_time_earliest} >= ${start.toISOString()}`,
+                    sql`${foodParcels.handout_date_time_earliest} <= ${end.toISOString()}`,
                     notDeleted(),
                 ),
             );
@@ -514,7 +514,7 @@ export async function getPickupLocationCapacityForRange(
         const dateCountMap: Record<string, number> = {};
 
         parcels.forEach(parcel => {
-            const date = new Date(parcel.pickupDateEarliest);
+            const date = new Date(parcel.handoutDateEarliest);
             // Use date-utils for consistent date formatting
             const dateKey = formatDateToISOString(date);
 
@@ -533,7 +533,7 @@ export async function getPickupLocationCapacityForRange(
         };
     } catch (error) {
         logError("Error checking pickup location capacity range", error, {
-            action: "getPickupLocationCapacityForRange",
+            action: "getHandoutLocationCapacityForRange",
             locationId,
             startDate: startDate?.toISOString(),
             endDate: endDate?.toISOString(),
@@ -551,7 +551,7 @@ export async function getPickupLocationCapacityForRange(
  * @param locationId Pickup location ID
  * @returns Array of schedules with their opening days
  */
-export async function getPickupLocationSchedules(locationId: string) {
+export async function getHandoutLocationSchedules(locationId: string) {
     try {
         const currentDate = new Date();
         // Use our date utility for consistent date formatting
@@ -561,16 +561,16 @@ export async function getPickupLocationSchedules(locationId: string) {
         // (end_date is in the future - this includes both active and upcoming schedules)
         const schedules = await db
             .select({
-                id: pickupLocationSchedulesTable.id,
-                name: pickupLocationSchedulesTable.name,
-                startDate: pickupLocationSchedulesTable.start_date,
-                endDate: pickupLocationSchedulesTable.end_date,
+                id: handoutLocationSchedulesTable.id,
+                name: handoutLocationSchedulesTable.name,
+                startDate: handoutLocationSchedulesTable.start_date,
+                endDate: handoutLocationSchedulesTable.end_date,
             })
-            .from(pickupLocationSchedulesTable)
+            .from(handoutLocationSchedulesTable)
             .where(
                 and(
-                    eq(pickupLocationSchedulesTable.pickup_location_id, locationId),
-                    sql`${pickupLocationSchedulesTable.end_date} >= ${currentDateStr}::date`,
+                    eq(handoutLocationSchedulesTable.handout_location_id, locationId),
+                    sql`${handoutLocationSchedulesTable.end_date} >= ${currentDateStr}::date`,
                 ),
             );
 
@@ -579,13 +579,13 @@ export async function getPickupLocationSchedules(locationId: string) {
             schedules.map(async schedule => {
                 const days = await db
                     .select({
-                        weekday: pickupLocationScheduleDaysTable.weekday,
-                        isOpen: pickupLocationScheduleDaysTable.is_open,
-                        openingTime: pickupLocationScheduleDaysTable.opening_time,
-                        closingTime: pickupLocationScheduleDaysTable.closing_time,
+                        weekday: handoutLocationScheduleDaysTable.weekday,
+                        isOpen: handoutLocationScheduleDaysTable.is_open,
+                        openingTime: handoutLocationScheduleDaysTable.opening_time,
+                        closingTime: handoutLocationScheduleDaysTable.closing_time,
                     })
-                    .from(pickupLocationScheduleDaysTable)
-                    .where(eq(pickupLocationScheduleDaysTable.schedule_id, schedule.id));
+                    .from(handoutLocationScheduleDaysTable)
+                    .where(eq(handoutLocationScheduleDaysTable.schedule_id, schedule.id));
 
                 return {
                     ...schedule,
@@ -599,7 +599,7 @@ export async function getPickupLocationSchedules(locationId: string) {
         };
     } catch (error) {
         logError("Error fetching pickup location schedules", error, {
-            action: "getPickupLocationSchedules",
+            action: "getHandoutLocationSchedules",
             locationId,
         });
         return {

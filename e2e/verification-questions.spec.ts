@@ -30,10 +30,10 @@ test.describe("Verification Questions - Smoke Tests", () => {
         await page.getByLabel("Telefonnummer").fill("0701234567");
         await page.getByLabel("Postnummer").fill("12345");
 
-        // Select a pickup location (triggers verification question fetch)
-        const pickupSelect = page.locator('input[name="favorite_pickup_location_id"]').first();
-        if (await pickupSelect.isVisible()) {
-            await pickupSelect.click();
+        // Select a handout location (triggers verification question fetch)
+        const handoutSelect = page.locator('input[name="favorite_handout_location_id"]').first();
+        if (await handoutSelect.isVisible()) {
+            await handoutSelect.click();
             // Select first option if available
             const firstOption = page.locator('[role="option"]').first();
             if (await firstOption.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -91,10 +91,10 @@ test.describe("Verification Questions - Smoke Tests", () => {
         await page.getByLabel("Telefonnummer").fill("0701234567");
         await page.getByLabel("Postnummer").fill("12345");
 
-        // Select pickup location
-        const pickupSelect = page.locator('input[name="favorite_pickup_location_id"]').first();
-        if (await pickupSelect.isVisible()) {
-            await pickupSelect.click();
+        // Select handout location
+        const handoutSelect = page.locator('input[name="favorite_handout_location_id"]').first();
+        if (await handoutSelect.isVisible()) {
+            await handoutSelect.click();
             const firstOption = page.locator('[role="option"]').first();
             if (await firstOption.isVisible({ timeout: 2000 }).catch(() => false)) {
                 await firstOption.click();

@@ -23,7 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GET } from "@/app/api/admin/sms/dashboard/route";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { db } from "@/app/db/drizzle";
-import { foodParcels, households, pickupLocations, outgoingSms } from "@/app/db/schema";
+import { foodParcels, households, handoutLocations, outgoingSms } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
 // Mock the auth function

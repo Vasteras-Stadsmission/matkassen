@@ -60,7 +60,7 @@ vi.mock("../../../../app/[locale]/schedule/actions", () => {
             }
             return 15; // Default
         },
-        getPickupLocationSchedules: async (locationId: string) => {
+        getHandoutLocationSchedules: async (locationId: string) => {
             if (locationId === "location-1") {
                 return {
                     schedules: [mockScheduleData],
@@ -103,7 +103,7 @@ vi.mock("../../../../app/[locale]/schedule/actions", () => {
 // Import the functions AFTER mocking
 import {
     getLocationSlotDuration,
-    getPickupLocationSchedules,
+    getHandoutLocationSchedules,
     checkParcelsAffectedByScheduleDeletion,
     checkParcelsAffectedByScheduleChange,
 } from "../../../../app/[locale]/schedule/actions";
@@ -198,9 +198,9 @@ describe("Schedule Server Actions", () => {
         });
     });
 
-    describe("getPickupLocationSchedules", () => {
+    describe("getHandoutLocationSchedules", () => {
         it("retrieves the correct schedule information for a location", async () => {
-            const scheduleInfo = await getPickupLocationSchedules("location-1");
+            const scheduleInfo = await getHandoutLocationSchedules("location-1");
 
             // Test that the schedule contains the correct information
             expect(scheduleInfo).toBeTruthy();
@@ -234,7 +234,7 @@ describe("Schedule Server Actions", () => {
         });
 
         it("handles locations with no schedules", async () => {
-            const scheduleInfo = await getPickupLocationSchedules("location-no-schedule");
+            const scheduleInfo = await getHandoutLocationSchedules("location-no-schedule");
 
             expect(scheduleInfo).toBeTruthy();
             expect(scheduleInfo.schedules).toEqual([]);

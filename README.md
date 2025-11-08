@@ -1,6 +1,6 @@
 # Matkassen
 
-Matkassen is an admin portal for coordinating food parcel distribution. It helps organizations manage households, schedule pickups, coordinate pickup locations, and send automated multilingual SMS reminders.
+Matkassen is an admin portal for coordinating food parcel distribution. It helps organizations manage households, schedule handouts, coordinate handout locations, and send automated multilingual SMS reminders.
 
 ## Features
 
@@ -179,11 +179,11 @@ For detailed GitHub setup instructions, see:
 
 ## SMS Notifications
 
-Matkassen includes automated SMS notifications to inform households about their food parcel pickups. The system uses HelloSMS as the SMS provider and supports both test and production modes.
+Matkassen includes automated SMS notifications to inform households about their food parcel handouts. The system uses HelloSMS as the SMS provider and supports both test and production modes.
 
 ### Features
 
-- **Automated Notifications**: Initial SMS when parcels are scheduled, reminder SMS closer to pickup time
+- **Automated Notifications**: Initial SMS when parcels are scheduled, reminder SMS closer to handout time
 - **Multi-language Support**: SMS templates in Swedish, English, Arabic, and Somali
 - **Queue Processing**: Background scheduler processes SMS queue every 30 seconds
 - **Rate Limiting**: 5-minute cooldown between SMS to prevent spam
@@ -226,11 +226,11 @@ The SMS system uses a custom Next.js server (`server.js`) that automatically sta
 SMS messages include:
 
 - Household name and personalized greeting
-- Pickup date and time window
-- Pickup location name and address
+- Handout date and time window
+- Handout location name and address
 - Link to public parcel page with QR code for verification
 
-**Note**: SMS notifications are transactional (pickup reminders), not marketing messages. Recipients who no longer want notifications should be removed from the system entirely by an administrator.
+**Note**: SMS notifications are transactional (handout reminders), not marketing messages. Recipients who no longer want notifications should be removed from the system entirely by an administrator.
 
 ### Configuration
 

@@ -11,7 +11,7 @@ This manual provides detailed information about all Matkassen features. For a qu
 - [Household Management](#household-management)
 - [Parcel Scheduling](#parcel-scheduling)
 - [SMS Dashboard](#sms-dashboard)
-- [Pickup Location Management](#pickup-location-management)
+- [Handout Location Management](#handout-location-management)
 - [Recipient Experience](#recipient-experience)
 - [Troubleshooting](#troubleshooting)
 
@@ -32,7 +32,7 @@ The enrollment wizard has 7 steps:
     - First name, last name (required)
     - Phone number in Swedish format: +46XXXXXXXXX or 07XXXXXXXX (required)
     - Street address, postal code, city (optional but recommended)
-    - Pickup location (required - determines where parcels can be scheduled)
+    - Handout location (required - determines where parcels can be scheduled)
 
 2. **Members**
 
@@ -55,7 +55,7 @@ The enrollment wizard has 7 steps:
 
     - Special requirements: Wheelchair access, Interpreter needed, etc.
     - Multiple selections allowed
-    - Helps staff prepare for pickup
+    - Helps staff prepare for handout
 
 6. **Parcels** (optional)
 
@@ -113,7 +113,7 @@ From household details dialog, click "Manage Parcels" to:
 
 - See all upcoming parcels for this household
 - Add multiple parcels at once
-- Change pickup location (affects all future parcels)
+- Change handout location (affects all future parcels)
 - Delete unwanted future parcels
 
 Changes trigger appropriate SMS notifications automatically.
@@ -124,11 +124,11 @@ Changes trigger appropriate SMS notifications automatically.
 
 ### Overview
 
-Parcels represent scheduled food pickups at specific dates/times. The scheduling system has two main views optimized for different tasks.
+Parcels represent scheduled food handouts at specific dates/times. The scheduling system has two main views optimized for different tasks.
 
 ### Schedule Hub
 
-Central dashboard showing all pickup locations:
+Central dashboard showing all handout locations:
 
 - Each location card shows today's count (completed/total)
 - Click location to view its schedule
@@ -147,10 +147,10 @@ Optimized for daily operations:
 
 **Status indicators**:
 
-- 🟢 **Upcoming**: Future parcel, not picked up
-- ✅ **Picked Up**: Collected (shows timestamp and admin who marked it)
+- 🟢 **Upcoming**: Future parcel, not handed out
+- ✅ **Handed Out**: Collected (shows timestamp and admin who marked it)
 
-**Best for**: Daily pickup operations, marking parcels as picked up.
+**Best for**: Daily handout operations, marking parcels as handed out.
 
 ### Weekly View
 
@@ -174,12 +174,12 @@ Parcels can be created from:
 **Required information**:
 
 - Household (must exist first)
-- Pickup location
+- Handout location
 - Date and time window (start → end)
 
 **Validation rules**:
 
-- Pickup time must be in future
+- Handout time must be in future
 - Cannot double-book same household at same time/location
 - Location capacity checked (soft limit - warns but allows)
 - Household must have valid phone number
@@ -187,21 +187,21 @@ Parcels can be created from:
 **Automatic SMS**:
 When parcel created, SMS queues with **5-minute grace period**:
 
-- Sends 5 minutes before pickup start time
+- Sends 5 minutes before handout start time
 - If you edit within grace period, old SMS cancelled, new one queued
 - Prevents sending incorrect information
 
-### Marking Parcels as Picked Up
+### Marking Parcels as Handed Out
 
 1. Open parcel details dialog
-2. Click "Mark as Picked Up"
+2. Click "Mark as Handed Out"
 3. Records: timestamp, admin username
 4. Status changes immediately
 5. Dialog stays open (can add comments)
 
-**To undo**: Click "Undo Pickup" in same dialog. Clears all pickup information.
+**To undo**: Click "Undo Handout" in same dialog. Clears all handout information.
 
-**Why mark pickups**:
+**Why mark handouts**:
 
 - Accurate statistics and reporting
 - Progress tracking in today's view
@@ -230,7 +230,7 @@ When parcel created, SMS queues with **5-minute grace period**:
 
 - Can only reschedule to same location
 - Cannot reschedule past parcels
-- Cannot reschedule already picked-up parcels
+- Cannot reschedule already handed-out parcels
 
 ### Deleting Parcels
 
@@ -248,8 +248,8 @@ Cancellation SMS informs recipient not to come.
 
 **Cannot delete**:
 
-- Already picked-up parcels
-- Past parcels (pickup time passed)
+- Already handed-out parcels
+- Past parcels (handout time passed)
 
 Deleted parcels are soft-deleted (marked deleted_at, remain in database for audit trail).
 
@@ -258,8 +258,8 @@ Deleted parcels are soft-deleted (marked deleted_at, remain in database for audi
 Parcel dialog shows:
 
 - Household information
-- Pickup details (location, date, time)
-- Status and pickup information
+- Handout details (location, date, time)
+- Status and handout information
 - SMS history (all notifications sent)
 - Comments (admin notes)
 - QR code (for public page)
@@ -267,7 +267,7 @@ Parcel dialog shows:
 
 From here you can:
 
-- Mark/unmark as picked up
+- Mark/unmark as handed out
 - Add comments
 - Reschedule or delete
 - Copy public link or QR code
@@ -281,7 +281,7 @@ Two methods:
 
 Public link format: `https://matcentralen.com/p/[parcelId]`
 
-Recipient can open link to see pickup details and QR code (no login required).
+Recipient can open link to see handout details and QR code (no login required).
 
 ### Favorite Locations
 
@@ -299,7 +299,7 @@ Favorite persists across sessions. Change by clicking star on different location
 
 ### Overview
 
-SMS Dashboard monitors all SMS notifications related to food parcel pickups. Has two separate views for different purposes:
+SMS Dashboard monitors all SMS notifications related to food parcel handouts. Has two separate views for different purposes:
 
 1. **Default view** (active parcels): Your operational work queue
 2. **Cancelled view** (toggle ON): Audit trail of cancelled parcels
@@ -321,7 +321,7 @@ The dashboard shows either active or cancelled parcels, never both:
 
 - Shows SMS for parcels that ARE deleted/cancelled
 - Audit trail of cancellations
-- Verify households were notified (`pickup_cancelled` SMS)
+- Verify households were notified (`handout_cancelled` SMS)
 - Historical record of what was cancelled
 
 Switch between views using the **Show cancelled parcels** toggle in the filters section.
@@ -333,7 +333,7 @@ Date-grouped list view:
 - Groups: "TODAY", "TOMORROW", specific dates
 - Each SMS entry shows:
     - Household name
-    - Pickup time and location
+    - Handout time and location
     - SMS status badge
     - Action button (context-aware)
     - Three-dot menu
@@ -352,7 +352,7 @@ Date-grouped list view:
 
 Available filters:
 
-- **Location**: Show SMS for specific pickup location
+- **Location**: Show SMS for specific handout location
 - **Status**: Filter by SMS status
 - **Search**: Find by household name
 - **Show cancelled parcels**: Toggle between active/cancelled views
@@ -374,7 +374,7 @@ To see SMS for cancelled/deleted parcels:
 
 - Verify a household received cancellation notification
 - Audit what parcels were cancelled this week
-- Check if `pickup_cancelled` SMS sent successfully
+- Check if `handout_cancelled` SMS sent successfully
 - Review historical cancellations
 
 **Important**: The two views are mutually exclusive. You see either active parcels OR cancelled parcels, never both together. This keeps the operational view clean and focused.
@@ -411,19 +411,19 @@ SMS Dashboard shows failure count in navigation badge for quick awareness.
 
 **When parcel created**:
 
-- SMS queues with intent: `pickup_reminder`
+- SMS queues with intent: `handout_reminder`
 - 5-minute grace period before sending
 - Edits within grace period cancel old SMS, queue new one
 
 **When parcel edited** (after SMS sent):
 
-- Update SMS queues with intent: `pickup_updated`
+- Update SMS queues with intent: `handout_updated`
 - Informs recipient of changes
 - 5-minute grace period applies
 
 **When parcel deleted** (after SMS sent):
 
-- Cancellation SMS queues with intent: `pickup_cancelled`
+- Cancellation SMS queues with intent: `handout_cancelled`
 - 1-minute grace period (allows quick undo)
 - Informs recipient not to come
 
@@ -462,15 +462,15 @@ If recipient reports not receiving SMS:
 
 ---
 
-## Pickup Location Management
+## Handout Location Management
 
 ### Overview
 
-Pickup locations are physical sites where households collect food parcels. Each location has its own schedule configuration and capacity limits.
+Handout locations are physical sites where households collect food parcels. Each location has its own schedule configuration and capacity limits.
 
 ### Creating Locations
 
-1. Go to Pickup Locations page
+1. Go to Handout Locations page
 2. Click "Add Location"
 3. Fill in form:
     - **Name**: Short, clear identifier (e.g., "Centrum", "Väster")
@@ -528,7 +528,7 @@ Schedule defines when location is open and what time slots are available:
 
 - 30 minutes: High traffic locations
 - 60 minutes: Standard (recommended)
-- 120 minutes: Flexible pickup windows
+- 120 minutes: Flexible handout windows
 
 Schedule affects available time slots for **new parcels only**. Existing parcels unchanged.
 
@@ -538,7 +538,7 @@ Capacity = maximum parcels per time slot.
 
 **How it works**:
 
-- Counts total parcels in slot (upcoming + picked up)
+- Counts total parcels in slot (upcoming + handed out)
 - Warns when limit reached
 - Does NOT prevent scheduling (soft limit)
 
@@ -577,7 +577,7 @@ Recipients interact with Matkassen through SMS and public parcel pages. No login
 
 Recipients receive SMS automatically:
 
-**Pickup reminder** (5 min before pickup):
+**Handout reminder** (5 min before handout):
 
 ```
 Matpaket: [date] [time]
@@ -611,7 +611,7 @@ Accessible at: `https://matcentralen.com/p/[parcelId]`
 - Date and time
 - Location name and address
 - Map buttons (Google Maps, Apple Maps)
-- QR code (if pickup upcoming)
+- QR code (if handout upcoming)
 - Language switcher
 
 **Supported languages** (20+):
@@ -621,10 +621,10 @@ Language auto-detected from phone settings, can be manually changed.
 
 **Status meanings**:
 
-- 🟢 **Upcoming**: Ready for pickup at scheduled time
-- ✅ **Picked Up**: Already collected (shows timestamp)
-- ❌ **Cancelled**: Pickup cancelled, don't come
-- ⏰ **Expired**: Pickup time passed, contact organization
+- 🟢 **Upcoming**: Ready for handout at scheduled time
+- ✅ **Handed Out**: Already collected (shows timestamp)
+- ❌ **Cancelled**: Handout cancelled, don't come
+- ⏰ **Expired**: Handout time passed, contact organization
 
 ### QR Code Workflow
 
@@ -634,7 +634,7 @@ Language auto-detected from phone settings, can be manually changed.
 4. Shows phone screen to admin
 5. Admin scans QR code with phone camera
 6. Admin system opens parcel details (requires login)
-7. Admin marks parcel as picked up
+7. Admin marks parcel as handed out
 
 QR code contains: `https://matcentralen.com/schedule?parcel=[parcelId]`
 
@@ -677,7 +677,7 @@ Recipients can share public link with family members:
 - Anyone with link can view details
 - QR code works regardless of who presents it
 
-Useful if primary recipient cannot attend pickup.
+Useful if primary recipient cannot attend handout.
 
 ### Troubleshooting for Recipients
 
@@ -698,7 +698,7 @@ Useful if primary recipient cannot attend pickup.
 - Clean phone screen
 - Admin can manually find parcel instead
 
-**Want to change pickup time**:
+**Want to change handout time**:
 
 - Contact organization (phone/email)
 - Changes cannot be made through public page
@@ -737,24 +737,24 @@ Useful if primary recipient cannot attend pickup.
 
 **Can't create parcel for yesterday**
 
-- Parcels must have future pickup times
+- Parcels must have future handout times
 - System rejects past dates
 
 **Capacity warning but slot looks empty**
 
-- Counts all parcels including already picked up
+- Counts all parcels including already handed out
 - Check weekly view for complete picture
 
 **Can't delete parcel**
 
-- May be already picked up (cannot delete)
+- May be already handed out (cannot delete)
 - May be in past (cannot delete)
 - Check parcel status
 
 **Drag-and-drop doesn't work**
 
 - Trying to drag to past date (not allowed)
-- Parcel already picked up (cannot move)
+- Parcel already handed out (cannot move)
 - Different location (must delete and recreate)
 - Use "Reschedule" button instead
 
@@ -848,7 +848,7 @@ Useful if primary recipient cannot attend pickup.
 - Try a different angle or distance
 - Admin can manually find parcel instead (search by household name)
 
-**Want to change pickup time via public page**
+**Want to change handout time via public page**
 
 - Not possible through public page
 - Recipient must contact organization
@@ -871,7 +871,7 @@ Useful if primary recipient cannot attend pickup.
 
 **Need to undo action**
 
-- Mark pickup: Use "Undo Pickup" button
+- Mark handout: Use "Undo Handout" button
 - Delete parcel: Cannot undo easily (1-min grace period)
 - Edit household: Make another edit to correct
 

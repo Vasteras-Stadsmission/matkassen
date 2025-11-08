@@ -101,7 +101,7 @@
             "configurationError": "Serverfel. Kontakta support."
         },
         "validation": {
-            "pickupLocationRequired": "Välj en upphämtningsplats",
+            "pickupLocationRequired": "Välj en utlämningsplats",
             "title": "Kunde inte spara",
             "description": "Matkassar kunde inte sparas på grund av valideringsfel",
             "summaryTitle": "Matkassar kunde inte sparas",
@@ -211,13 +211,13 @@
     },
     "foodParcels": {
         "title": "Schemalagda matkassar",
-        "description": "Schemalägg matkassar för hushållet med hämtplats och tider.",
+        "description": "Schemalägg matkassar för hushållet med utlämningsplats och tider.",
         "settings": "Inställningar för schemaläggning",
-        "pickupLocation": "Hämtplats",
-        "selectLocation": "Välj hämtplats",
+        "pickupLocation": "Utlämningsplats",
+        "selectLocation": "Välj utlämningsplats",
         "selectDates": "Välj datum för matkassar",
         "loadingAvailability": "Laddar tillgänglighet...",
-        "selectLocationFirst": "Välj en hämtplats först för att se tillgänglighet",
+        "selectLocationFirst": "Välj en utlämningsplats först för att se tillgänglighet",
         "selectDatesHint": "Välj alla datum när hushållet ska få en matkasse",
         "setBulkTimes": "Sätt alla tider",
         "editingAllTimes": "Redigerar alla tider",
@@ -228,18 +228,18 @@
             "notAvailableMsg": "Valda datum har olika öppettider. Redigera tider per datum.",
             "notAvailableMsgWithSummary": "Valda datum har olika öppettider: {summary}. Redigera tider per datum."
         },
-        "individualTimeHint": "Klicka på tiderna för att ändra upphämtningstid för varje enskild matkasse.",
+        "individualTimeHint": "Klicka på tiderna för att ändra utlämtningstid för varje enskild matkasse.",
         "calendar": {
             "unavailableClosedDay": "Stängt denna dag",
             "fullyBooked": "Fullbokad",
             "selected": "Vald dag"
         },
         "time": {
-            "earliest": "Tidigast hämttid",
-            "latest": "Senast hämttid",
+            "earliest": "Tidigast utlämtningstid",
+            "latest": "Senast utlämtningstid",
             "updateAll": "Uppdatera alla",
             "error": "Tidigast tid måste vara före senast tid",
-            "dateAndPickup": "Datum och hämttid",
+            "dateAndPickup": "Datum och utlämtningstid",
             "noAvailableTimes": "Inga tillgängliga tider",
             "noAvailableTimesForToday": "Alla tider för idag har passerat. Välj ett framtida datum."
         },
@@ -247,12 +247,12 @@
         "for": "för",
         "table": {
             "date": "Datum",
-            "pickupTime": "Hämttid",
+            "pickupTime": "Utlämtningstid",
             "facilityHours": "Anläggningens öppettider"
         },
         "slotDuration": "Slottlängd: {duration} minuter",
         "errors": {
-            "selectLocation": "Välj en hämtplats"
+            "selectLocation": "Välj en utlämningsplats"
         },
         "validationErrors": {
             "title": "Valideringsfel",
@@ -260,7 +260,7 @@
             "slotCapacityReached": "Tidsluckan är fullbokad",
             "doubleBooking": "Hushållet har redan en matkasse schemalagd för detta datum",
             "outsideOperatingHours": "Vald tid är utanför öppettider",
-            "pastTimeSlot": "Kan inte schemalägga upphämtning i det förflutna"
+            "pastTimeSlot": "Kan inte schemalägga utlämning i det förflutna"
         }
     },
     "review": {
@@ -350,7 +350,7 @@
         "timeGap": "Tidshopp",
         "scheduleChangeWarning": "Varning för schemaändring",
         "parcelsWillBeAffected": "Matkassar kommer att påverkas",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 matkasseutlämning} other {# matkasseutlämningar}} kommer att hamna utanför de nya öppettiderna.",
         "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
         "proceedAnyway": "Fortsätt ändå",
         "outsideHours": {
@@ -365,10 +365,10 @@
             "saturday": "Lördag",
             "sunday": "Söndag"
         },
-        "pickupTimeLabel": "Tid",
+        "handoutTimeLabel": "Tid",
         "statusLabel": "Status",
-        "pickedUpStatus": "Uthämtad",
-        "notPickedUpStatus": "Ej uthämtad",
+        "handedOutStatus": "Utlämnad",
+        "notHandedOutStatus": "Ej utlämnad",
         "reschedule": {
             "title": "Schemalägg matstöd för {name}",
             "modalTitle": "Omboka matstöd",
@@ -393,17 +393,17 @@
             "outsideWeek": "Schemalägg utanför vecka",
             "selectDateError": "Du måste välja ett datum",
             "timeError": "Tidigast tid måste vara före senast tid",
-            "earliestTime": "Tidigast hämttid",
-            "latestTime": "Senast hämttid",
-            "currentPickup": "Nuvarande upphämtningsdetaljer",
-            "newPickup": "Nya upphämtningsdetaljer",
+            "earliestTime": "Tidigast utlämtningstid",
+            "latestTime": "Senast utlämtningstid",
+            "currentPickup": "Nuvarande utlämningsdetaljer",
+            "newPickup": "Nya utlämningsdetaljer",
             "date": "Datum",
             "time": "Tid",
             "newDate": "Nytt datum",
             "newTime": "Ny tid",
             "selectDate": "Välj datum",
             "selectTime": "Välj tid",
-            "dateUnavailable": "Detta datum är inte tillgängligt för upphämtning",
+            "dateUnavailable": "Detta datum är inte tillgängligt för utlämning",
             "noTimesAvailable": "Inga tillgängliga tider på detta datum",
             "requiredFields": "Fyll i alla obligatoriska fält"
         },
@@ -418,7 +418,7 @@
                 "cancelled": "Avbrutet"
             },
             "intent": {
-                "pickup_reminder": "Hämtningspåminnelse"
+                "pickup_reminder": "Utlämningspåminnelse"
             },
             "actions": {
                 "sendSms": "Skicka SMS",
@@ -464,8 +464,8 @@
         "deletedOn": "Avbokad den",
         "by": "av",
         "status": {
-            "pickedUp": "Uthämtad",
-            "notPickedUp": "Ej uthämtad",
+            "pickedUp": "Utlämnad",
+            "notPickedUp": "Ej utlämnad",
             "upcoming": "Kommande",
             "cancelled": "Avbokad"
         },
@@ -583,7 +583,7 @@
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
             "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
-            "pickupLocation": "Välj en hämtplats",
+            "pickupLocation": "Välj en utlämningsplats",
             "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta"
         },
         "verification": {
@@ -692,7 +692,7 @@
         "maxParcelsPerDay": "Maximalt antal matkassar per dag",
         "maxParcelsPlaceholder": "t.ex. 20",
         "slotDuration": "Tidsspann (minuter)",
-        "slotDurationDescription": "Tidsspann för varje matkasseuthämtning",
+        "slotDurationDescription": "Tidsspann för varje matkasseutlämning",
         "contactInfo": "Kontaktinformation",
         "contactName": "Kontaktperson",
         "contactNamePlaceholder": "Ange kontaktpersonens namn",
@@ -805,7 +805,7 @@
         "errorFetchingLocation": "Det uppstod ett fel vid hämtning av utlämningsstället. Försök igen.",
         "scheduleChangeWarning": "Varning för schemaändring",
         "parcelsWillBeAffected": "Matkassar kommer att påverkas",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 matkasseutlämning} other {# matkasseutlämningar}} kommer att hamna utanför de nya öppettiderna.",
         "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
         "proceedAnyway": "Fortsätt ändå",
         "checking": "Kontrollerar...",
@@ -867,7 +867,7 @@
             "failed": "Misslyckades"
         },
         "actions": {
-            "markPickedUp": "Markera som upphämtat",
+            "markPickedUp": "Markera som utlämnat",
             "previewSms": "Förhandsgranska SMS",
             "resendSms": "Skicka SMS igen",
             "sendSms": "Skicka SMS",
@@ -908,7 +908,7 @@
         "parcelDialog": {
             "title": "Matkasseinformation",
             "loading": "Laddar matkassedetaljer...",
-            "pickupSchedule": "Hämtschema",
+            "pickupSchedule": "Utlämningsschema",
             "pickedUp": "Upphämtad",
             "notPickedUp": "Ej hämtad",
             "status": {
@@ -933,8 +933,8 @@
             "noComments": "Inga kommentarer än",
             "addCommentPlaceholder": "Lägg till en kommentar om detta hushåll...",
             "addComment": "Lägg till kommentar",
-            "markPickedUp": "Markera som hämtat",
-            "undoPickup": "Ångra hämtning",
+            "markPickedUp": "Markera som utlämnat",
+            "undoPickup": "Ångra utlämning",
             "cancelParcel": "Avboka matkasse",
             "deleteConfirmTitle": "Bekräfta avbokning",
             "deleteConfirmMessage": "Är du säker på att du vill avboka denna matkasse? {smsWarning}",
@@ -950,8 +950,8 @@
             "errors": {
                 "parcelNotFound": "Matkassen hittades inte",
                 "loadFailed": "Misslyckades med att ladda matkassedetaljer",
-                "markPickupFailed": "Misslyckades med att markera som hämtat",
-                "undoPickupFailed": "Misslyckades med att ångra hämtning",
+                "markPickupFailed": "Misslyckades med att markera som utlämnat",
+                "undoPickupFailed": "Misslyckades med att ångra utlämning",
                 "addCommentFailed": "Misslyckades med att lägga till kommentar",
                 "deleteCommentFailed": "Misslyckades att ta bort kommentar",
                 "deleteCommentError": "Fel vid borttagning av kommentar",
@@ -1089,7 +1089,7 @@
             },
             "examples": {
                 "title": "Exempel på kontrollpunkter:",
-                "item1": "De har informerats om hämtningstider och plats",
+                "item1": "De har informerats om utlämtningstider och plats",
                 "item2": "De förstår månadsgränsen för matpaket",
                 "item3": "Jag har verifierat deras identitetshandling",
                 "item4": "De har informerats om alternativ för kostbegränsningar"

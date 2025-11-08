@@ -7,15 +7,15 @@ export interface FoodParcel {
     id: string;
     householdId: string;
     householdName: string;
-    pickupDate: Date;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
-    isPickedUp: boolean;
-    pickup_location_id?: string; // Database column name (snake_case)
+    handoutDate: Date;
+    handoutEarliestTime: Date;
+    handoutLatestTime: Date;
+    isHandedOut: boolean;
+    handout_location_id?: string; // Database column name (snake_case)
     locationId?: string; // Alternative naming for the location ID
 }
 
-export interface PickupLocation {
+export interface HandoutLocation {
     id: string;
     name: string;
     street_address: string;
@@ -24,7 +24,7 @@ export interface PickupLocation {
 }
 
 /**
- * Interface for pickup location schedule information
+ * Interface for handout location schedule information
  */
 export interface LocationScheduleDay {
     weekday: string;

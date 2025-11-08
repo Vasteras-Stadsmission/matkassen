@@ -20,7 +20,7 @@ import { and, eq, sql, between, ne, lt, gt } from "drizzle-orm";
 import { type PgTransaction } from "drizzle-orm/pg-core";
 import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
-import { foodParcels, pickupLocations } from "@/app/db/schema";
+import { foodParcels, handoutLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { Time } from "@/app/utils/time-provider";
 import { logError } from "@/app/utils/logger";
@@ -177,7 +177,7 @@ export async function validateParcelAssignment({
                 .select({
                     id: foodParcels.id,
                     householdId: foodParcels.household_id,
-                    locationId: foodParcels.pickup_location_id,
+                    locationId: foodParcels.handout_location_id,
                 })
                 .from(foodParcels)
                 .where(and(eq(foodParcels.id, parcelId), notDeleted()))
@@ -198,20 +198,20 @@ export async function validateParcelAssignment({
         // 2. Get location information using the newLocationId
         const [location] = await dbInstance
             .select({
-                id: pickupLocations.id,
-                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-                slotDuration: pickupLocations.default_slot_duration_minutes,
-                name: pickupLocations.name,
+                id: handoutLocations.id,
+                maxParcelsPerDay: handoutLocations.parcels_max_per_day,
+                slotDuration: handoutLocations.default_slot_duration_minutes,
+                name: handoutLocations.name,
             })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, newLocationId))
+            .from(handoutLocations)
+            .where(eq(handoutLocations.id, newLocationId))
             .limit(1);
 
         if (!location) {
             errors.push({
                 field: "locationId",
                 code: ValidationErrorCodes.LOCATION_NOT_FOUND,
-                message: "Pickup location not found",
+                message: "Handout location not found",
                 details: { locationId: newLocationId },
             });
             return { success: false, errors };
@@ -250,7 +250,7 @@ export async function validateParcelAssignment({
                 .from(foodParcels)
                 .where(
                     and(
-                        eq(foodParcels.pickup_location_id, newLocationId),
+                        eq(foodParcels.handout_location_id, newLocationId),
                         between(foodParcels.pickup_date_time_earliest, startDate, endDate),
                         ne(foodParcels.id, parcelId), // Exclude current parcel
                         notDeleted(),
@@ -328,7 +328,7 @@ export async function validateParcelAssignment({
             .from(foodParcels)
             .where(
                 and(
-                    eq(foodParcels.pickup_location_id, newLocationId),
+                    eq(foodParcels.handout_location_id, newLocationId),
                     // Check for overlapping time slots using UTC comparisons
                     lt(foodParcels.pickup_date_time_earliest, slotEndUTC),
                     gt(foodParcels.pickup_date_time_latest, slotStartUTC),
@@ -413,7 +413,7 @@ export function formatValidationError(error: ValidationError, locationName?: str
             return scheduleDetails.reason || "The selected time is outside operating hours";
 
         case ValidationErrorCodes.PAST_TIME_SLOT:
-            return "Cannot schedule pickup in the past";
+            return "Cannot schedule handout in the past";
 
         default:
             return error.message;

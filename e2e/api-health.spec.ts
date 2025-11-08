@@ -25,7 +25,7 @@ test.describe("Admin API Health Checks", () => {
 
         const adminEndpoints = [
             "/api/admin/sms/dashboard",
-            "/api/pickup-locations", // Public endpoint but good to test
+            "/api/handout-locations", // Public endpoint but good to test
         ];
 
         for (const endpoint of adminEndpoints) {
@@ -53,7 +53,7 @@ test.describe("Admin API Health Checks", () => {
         // Try some edge cases that might cause crashes
         const edgeCases = [
             "/api/admin/sms/dashboard?date=invalid",
-            "/api/pickup-locations?limit=999999",
+            "/api/handout-locations?limit=999999",
         ];
 
         for (const endpoint of edgeCases) {
@@ -137,7 +137,7 @@ test.describe("API Response Integrity", () => {
     test("should return valid JSON from API endpoints", async ({ page }) => {
         await page.goto("/sv");
 
-        const jsonEndpoints = ["/api/admin/sms/dashboard", "/api/pickup-locations"];
+        const jsonEndpoints = ["/api/admin/sms/dashboard", "/api/handout-locations"];
 
         for (const endpoint of jsonEndpoints) {
             const response = await page.request.get(endpoint);

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/app/db/drizzle";
-import { pickupLocationSchedules } from "@/app/db/schema";
+import { handoutLocationSchedules } from "@/app/db/schema";
 import { ScheduleInput } from "@/app/[locale]/handout-locations/types";
 
 // Define types for the database query results
@@ -30,13 +30,13 @@ export async function validateScheduleOverlap(
     // Get existing schedules for this location to check for overlaps
     const existingSchedules = await db
         .select({
-            id: pickupLocationSchedules.id,
-            start_date: pickupLocationSchedules.start_date,
-            end_date: pickupLocationSchedules.end_date,
-            name: pickupLocationSchedules.name,
+            id: handoutLocationSchedules.id,
+            start_date: handoutLocationSchedules.start_date,
+            end_date: handoutLocationSchedules.end_date,
+            name: handoutLocationSchedules.name,
         })
-        .from(pickupLocationSchedules)
-        .where(eq(pickupLocationSchedules.pickup_location_id, locationId));
+        .from(handoutLocationSchedules)
+        .where(eq(handoutLocationSchedules.pickup_location_id, locationId));
 
     // Convert to the format expected by validation
     const existingDateRanges = existingSchedules.map((schedule: ExistingSchedule) => ({

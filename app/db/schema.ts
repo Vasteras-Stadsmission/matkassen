@@ -109,8 +109,8 @@ export const pets = pgTable("pets", {
         .references(() => petSpecies.id, { onDelete: "restrict" }),
 });
 
-export const pickupLocations = pgTable(
-    "pickup_locations",
+export const handoutLocations = pgTable(
+    "handout_locations",
     {
         id: text("id")
             .primaryKey()
@@ -132,31 +132,31 @@ export const pickupLocations = pgTable(
     table => {
         return [
             check(
-                "pickup_locations_postal_code_check",
+                "handout_locations_postal_code_check",
                 sql`LENGTH(${table.postal_code}) = 5 AND ${table.postal_code} ~ '^[0-9]{5}$'`,
             ),
             check(
-                "pickup_locations_email_format_check",
+                "handout_locations_email_format_check",
                 sql`${table.contact_email} ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'`,
             ),
             check(
-                "pickup_locations_slot_duration_check",
+                "handout_locations_slot_duration_check",
                 sql`${table.default_slot_duration_minutes} > 0 AND ${table.default_slot_duration_minutes} <= 240 AND ${table.default_slot_duration_minutes} % 15 = 0`,
             ),
         ];
     },
 );
 
-export const pickupLocationSchedules = pgTable(
-    "pickup_location_schedules",
+export const handoutLocationSchedules = pgTable(
+    "handout_location_schedules",
     {
         id: text("id")
             .primaryKey()
             .notNull()
             .$defaultFn(() => nanoid(8)),
-        pickup_location_id: text("pickup_location_id")
+        handout_location_id: text("handout_location_id")
             .notNull()
-            .references(() => pickupLocations.id, { onDelete: "cascade" }),
+            .references(() => handoutLocations.id, { onDelete: "cascade" }),
         start_date: date("start_date").notNull(), // First day the schedule is valid
         end_date: date("end_date").notNull(), // Last day the schedule is valid
         name: text("name").notNull(), // Optional name for the schedule (e.g., "Summer schedule")
@@ -165,19 +165,19 @@ export const pickupLocationSchedules = pgTable(
         // Ensure end_date is after or equal to start_date
         check("schedule_date_range_check", sql`${table.start_date} <= ${table.end_date}`),
 
-        // Add index for better performance when querying schedules by pickup location
-        index("idx_pickup_location_schedules_location").on(table.pickup_location_id),
+        // Add index for better performance when querying schedules by handout location
+        index("idx_handout_location_schedules_location").on(table.handout_location_id),
 
-        // Add unique constraint on pickup_location_id and date range to prevent overlaps
+        // Add unique constraint on handout_location_id and date range to prevent overlaps
         // Note: This will require a migration to create an exclusion constraint, which Drizzle
         // doesn't directly support - you'll need to manually modify the generated migration
-        index("idx_pickup_location_schedule_no_overlap").on(table.pickup_location_id),
+        index("idx_handout_location_schedule_no_overlap").on(table.handout_location_id),
     ],
 );
 
 // Table for each specific day's opening hours within a schedule
-export const pickupLocationScheduleDays = pgTable(
-    "pickup_location_schedule_days",
+export const handoutLocationScheduleDays = pgTable(
+    "handout_location_schedule_days",
     {
         id: text("id")
             .primaryKey()
@@ -185,7 +185,7 @@ export const pickupLocationScheduleDays = pgTable(
             .$defaultFn(() => nanoid(8)),
         schedule_id: text("schedule_id")
             .notNull()
-            .references(() => pickupLocationSchedules.id, { onDelete: "cascade" }),
+            .references(() => handoutLocationSchedules.id, { onDelete: "cascade" }),
         weekday: weekdayEnum("weekday").notNull(), // Monday, Tuesday, etc.
         is_open: boolean("is_open").default(true).notNull(), // Whether location is open on this weekday
         opening_time: time("opening_time"), // e.g., 09:00, nullable if is_open is false
@@ -259,9 +259,9 @@ export const householdVerificationStatus = pgTable(
 
 // Define SMS intent enum
 export const smsIntentEnum = pgEnum("sms_intent", [
-    "pickup_reminder",
-    "pickup_updated",
-    "pickup_cancelled",
+    "handout_reminder",
+    "handout_updated",
+    "handout_cancelled",
     "consent_enrolment",
 ]);
 
@@ -285,25 +285,25 @@ export const foodParcels = pgTable(
         household_id: text("household_id")
             .notNull()
             .references(() => households.id, { onDelete: "cascade" }),
-        pickup_location_id: text("pickup_location_id")
+        handout_location_id: text("handout_location_id")
             .notNull()
-            .references(() => pickupLocations.id),
-        pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-        pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-        is_picked_up: boolean("is_picked_up").notNull().default(false),
-        picked_up_at: timestamp({ precision: 1, withTimezone: true }), // New field for pickup timestamp
-        picked_up_by_user_id: varchar("picked_up_by_user_id", { length: 50 }), // GitHub username of admin who marked as picked up
+            .references(() => handoutLocations.id),
+        handout_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
+        handout_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
+        is_handed_out: boolean("is_handed_out").notNull().default(false),
+        handed_out_at: timestamp({ precision: 1, withTimezone: true }), // New field for handout timestamp
+        handed_out_by_user_id: varchar("handed_out_by_user_id", { length: 50 }), // GitHub username of admin who marked as handed out
         deleted_at: timestamp({ precision: 1, withTimezone: true }), // Soft delete timestamp
         deleted_by_user_id: varchar("deleted_by_user_id", { length: 50 }), // GitHub username of admin who deleted the parcel
     },
     table => [
         check(
-            "pickup_time_range_check",
-            sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
+            "handout_time_range_check",
+            sql`${table.handout_date_time_earliest} <= ${table.handout_date_time_latest}`,
         ),
         // NOTE: The unique constraint for preventing duplicate active parcels is implemented as a
         // PARTIAL UNIQUE INDEX in migration 0022_fix-soft-delete-unique-constraint.sql
-        // (household_id, pickup_location_id, pickup_date_time_earliest, pickup_date_time_latest)
+        // (household_id, handout_location_id, handout_date_time_earliest, handout_date_time_latest)
         // WHERE deleted_at IS NULL
         //
         // ALL parcel inserts must use the insertParcels() helper from app/db/insert-parcels.ts
@@ -429,8 +429,8 @@ export const users = pgTable("users", {
         .$defaultFn(() => nanoid(8)),
     created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     github_username: varchar("github_username", { length: 100 }).notNull().unique(),
-    favorite_pickup_location_id: text("favorite_pickup_location_id").references(
-        () => pickupLocations.id,
+    favorite_handout_location_id: text("favorite_handout_location_id").references(
+        () => handoutLocations.id,
         { onDelete: "set null" },
     ),
 });

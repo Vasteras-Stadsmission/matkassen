@@ -9,8 +9,8 @@ flowchart LR
     subgraph Public Visitors
         P0["QR / SMS link<br/>- from staff share or reminder"]
         P1["Locale detection<br/>- chooses sv/en from headers<br/>- fallback to default locale"]
-        P2["Public parcel page /p/ID<br/>- status badge & pickup window<br/>- map buttons + QR canvas<br/>- PublicLocaleSwitcher for language swap"]
-        P3["Directions / show QR at pickup<br/>- uses generated maps links"]
+        P2["Public parcel page /p/ID<br/>- status badge & handout window<br/>- map buttons + QR canvas<br/>- PublicLocaleSwitcher for language swap"]
+        P3["Directions / show QR at handout<br/>- uses generated maps links"]
         P0 --> P1 --> P2 --> P3
         P2 -- switch locale --> P1
     end
@@ -46,7 +46,7 @@ flowchart LR
         RescheduleModal["Reschedule modal<br/>- choose new date & slot within hours<br/>- refresh grid on success"]
         WeeklyView --> ParcelAdminDialog
 
-        ParcelAdminDialog["Parcel admin dialog<br/>- household + parcel details & comments<br/>- mark picked up / undo & add notes<br/>- copy shareable QR/admin links"]
+        ParcelAdminDialog["Parcel admin dialog<br/>- household + parcel details & comments<br/>- mark handed out / undo & add notes<br/>- copy shareable QR/admin links"]
         ParcelAdminDialog -- share URL/QR --> P0
 
         Header --> HouseholdsList

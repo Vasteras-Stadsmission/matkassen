@@ -5,23 +5,23 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FoodParcel } from "@/app/[locale]/schedule/types";
 import { IconCalendarTime, IconInfoCircle } from "@tabler/icons-react";
-import styles from "./PickupCard.module.css"; // Import the CSS module
+import styles from "./HandoutCard.module.css"; // Import the CSS module
 import { useTranslations } from "next-intl";
 import { memo, useMemo } from "react";
 
-interface PickupCardProps {
+interface HandoutCardProps {
     foodParcel: FoodParcel;
     isCompact?: boolean;
     onReschedule?: (foodParcel: FoodParcel) => void;
     onOpenAdminDialog?: (parcelId: string) => void;
 }
 
-function PickupCard({
+function HandoutCard({
     foodParcel,
     isCompact = false,
     onReschedule,
     onOpenAdminDialog,
-}: PickupCardProps) {
+}: HandoutCardProps) {
     const t = useTranslations("schedule");
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: foodParcel.id,
@@ -43,12 +43,12 @@ function PickupCard({
 
     // Memoize color calculation
     const statusColor = useMemo(() => {
-        if (foodParcel.isPickedUp) return "green.6";
+        if (foodParcel.isHandedOut) return "green.6";
 
         const now = new Date();
-        const isInPast = foodParcel.pickupLatestTime < now;
+        const isInPast = foodParcel.handoutLatestTime < now;
         return isInPast ? "red.6" : "primary";
-    }, [foodParcel.isPickedUp, foodParcel.pickupLatestTime]);
+    }, [foodParcel.isHandedOut, foodParcel.handoutLatestTime]);
 
     // Memoize time formatting
     const timeDisplay = useMemo(() => {
@@ -61,10 +61,10 @@ function PickupCard({
         };
 
         return {
-            earliest: formatTime(foodParcel.pickupEarliestTime),
-            latest: formatTime(foodParcel.pickupLatestTime),
+            earliest: formatTime(foodParcel.handoutEarliestTime),
+            latest: formatTime(foodParcel.handoutLatestTime),
         };
-    }, [foodParcel.pickupEarliestTime, foodParcel.pickupLatestTime]);
+    }, [foodParcel.handoutEarliestTime, foodParcel.handoutLatestTime]);
 
     // Handle click to open reschedule modal
     const handleRescheduleClick = (e: React.MouseEvent) => {
@@ -92,11 +92,11 @@ function PickupCard({
         <div>
             <Text fw={600}>{foodParcel.householdName}</Text>
             <Text size="sm">
-                {t("pickupTimeLabel")}: {timeDisplay.earliest} - {timeDisplay.latest}
+                {t("handoutTimeLabel")}: {timeDisplay.earliest} - {timeDisplay.latest}
             </Text>
             <Text size="sm">
                 {t("statusLabel")}:{" "}
-                {foodParcel.isPickedUp ? t("pickedUpStatus") : t("notPickedUpStatus")}
+                {foodParcel.isHandedOut ? t("handedOutStatus") : t("notHandedOutStatus")}
             </Text>
         </div>
     );
@@ -127,7 +127,7 @@ function PickupCard({
                     withBorder
                     bg="gray.0"
                     shadow="xs"
-                    className={styles["pickup-card-compact"]}
+                    className={styles["handout-card-compact"]}
                     data-dragging={isDragging}
                 >
                     <Text size="xs" truncate fw={500}>
@@ -208,7 +208,7 @@ function PickupCard({
                 withBorder
                 bg="white"
                 shadow="xs"
-                className={styles["pickup-card"]}
+                className={styles["handout-card"]}
                 data-dragging={isDragging}
             >
                 <div
@@ -283,4 +283,4 @@ function PickupCard({
 }
 
 // Wrap with memo to prevent unnecessary re-renders during drag operations
-export default memo(PickupCard);
+export default memo(HandoutCard);

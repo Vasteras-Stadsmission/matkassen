@@ -16,7 +16,7 @@
         "households": "Households",
         "schedule": "Schedule",
         "todayHandouts": "Today's Handouts",
-        "locations": "Pickup Locations",
+        "locations": "Handout Locations",
         "smsDashboard": "SMS Management",
         "newHousehold": "New Household",
         "scanQrCode": "Scan QR Code",
@@ -101,7 +101,7 @@
             "configurationError": "Server configuration error. Please contact support."
         },
         "validation": {
-            "pickupLocationRequired": "Please select a pickup location",
+            "pickupLocationRequired": "Please select a handout location",
             "title": "Could not save",
             "description": "Parcels could not be saved due to validation errors",
             "summaryTitle": "Parcels could not be saved",
@@ -211,13 +211,13 @@
     },
     "foodParcels": {
         "title": "Scheduled Food Parcels",
-        "description": "Schedule food parcels for the household with pickup location and times.",
+        "description": "Schedule food parcels for the household with handout location and times.",
         "settings": "Scheduling Settings",
-        "pickupLocation": "Pickup Location",
-        "selectLocation": "Select pickup location",
+        "pickupLocation": "Handout Location",
+        "selectLocation": "Select handout location",
         "selectDates": "Select dates for food parcels",
         "loadingAvailability": "Loading availability...",
-        "selectLocationFirst": "Select a pickup location first to see availability",
+        "selectLocationFirst": "Select a handout location first to see availability",
         "selectDatesHint": "Select all dates when the household should receive a food parcel",
         "setBulkTimes": "Set all times",
         "editingAllTimes": "Editing all times",
@@ -228,18 +228,18 @@
             "notAvailableMsg": "Selected dates have different opening hours. Edit times per date.",
             "notAvailableMsgWithSummary": "Selected dates have different opening hours: {summary}. Edit times per date."
         },
-        "individualTimeHint": "Click on the times to change pickup time for each individual food parcel.",
+        "individualTimeHint": "Click on the times to change handout time for each individual food parcel.",
         "calendar": {
             "unavailableClosedDay": "Closed on this day",
             "fullyBooked": "Fully booked",
             "selected": "Selected day"
         },
         "time": {
-            "earliest": "Earliest pickup time",
-            "latest": "Latest pickup time",
+            "earliest": "Earliest handout time",
+            "latest": "Latest handout time",
             "updateAll": "Update all",
             "error": "Earliest time must be before latest time",
-            "dateAndPickup": "Date and pickup time",
+            "dateAndPickup": "Date and handout time",
             "noAvailableTimes": "No available times",
             "noAvailableTimesForToday": "All times for today have passed. Please select a future date."
         },
@@ -247,12 +247,12 @@
         "for": "for",
         "table": {
             "date": "Date",
-            "pickupTime": "Pickup Time",
+            "pickupTime": "Handout Time",
             "facilityHours": "Facility Hours"
         },
         "slotDuration": "Slot Duration: {duration} minutes",
         "errors": {
-            "selectLocation": "Select a pickup location"
+            "selectLocation": "Select a handout location"
         },
         "validationErrors": {
             "title": "Validation Errors",
@@ -260,7 +260,7 @@
             "slotCapacityReached": "Time slot is fully booked",
             "doubleBooking": "Household already has a parcel scheduled for this date",
             "outsideOperatingHours": "Selected time is outside operating hours",
-            "pastTimeSlot": "Cannot schedule pickup in the past"
+            "pastTimeSlot": "Cannot schedule handout in the past"
         }
     },
     "review": {
@@ -350,7 +350,7 @@
         "timeGap": "Time gap",
         "scheduleChangeWarning": "Schedule Change Warning",
         "parcelsWillBeAffected": "Food parcels will be affected",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel handout} other {# food parcel handouts}} will fall outside the new opening hours.",
         "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
         "proceedAnyway": "Proceed anyway",
         "outsideHours": {
@@ -365,10 +365,10 @@
             "saturday": "Saturday",
             "sunday": "Sunday"
         },
-        "pickupTimeLabel": "Time",
+        "handoutTimeLabel": "Time",
         "statusLabel": "Status",
-        "pickedUpStatus": "Picked up",
-        "notPickedUpStatus": "Not picked up",
+        "handedOutStatus": "Handed out",
+        "notHandedOutStatus": "Not handed out",
         "reschedule": {
             "title": "Schedule food support for {name}",
             "modalTitle": "Reschedule Food Support",
@@ -393,17 +393,17 @@
             "outsideWeek": "Schedule outside of current week",
             "selectDateError": "You must select a date",
             "timeError": "Earliest time must be before latest time",
-            "earliestTime": "Earliest pickup time",
-            "latestTime": "Latest pickup time",
-            "currentPickup": "Current Pickup Details",
-            "newPickup": "New Pickup Details",
+            "earliestTime": "Earliest handout time",
+            "latestTime": "Latest handout time",
+            "currentPickup": "Current Handout Details",
+            "newPickup": "New Handout Details",
             "date": "Date",
             "time": "Time",
             "newDate": "New Date",
             "newTime": "New Time",
             "selectDate": "Select date",
             "selectTime": "Select time",
-            "dateUnavailable": "This date is not available for pickup",
+            "dateUnavailable": "This date is not available for handout",
             "noTimesAvailable": "No available times on this date",
             "requiredFields": "Please fill all required fields"
         },
@@ -418,7 +418,7 @@
                 "cancelled": "Cancelled"
             },
             "intent": {
-                "pickup_reminder": "Pickup reminder"
+                "pickup_reminder": "Handout reminder"
             },
             "actions": {
                 "sendSms": "Send SMS",
@@ -464,8 +464,8 @@
         "deletedOn": "Cancelled on",
         "by": "by",
         "status": {
-            "pickedUp": "Picked up",
-            "notPickedUp": "Not picked up",
+            "pickedUp": "Handed out",
+            "notPickedUp": "Not handed out",
             "upcoming": "Upcoming",
             "cancelled": "Cancelled"
         },
@@ -583,7 +583,7 @@
             "lastNameLength": "Last name must be at least 2 characters",
             "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
             "postalCodeFormat": "Postal code must be 5 digits",
-            "pickupLocation": "Select a pickup location",
+            "pickupLocation": "Select a handout location",
             "verificationIncomplete": "All required verifications must be checked before proceeding"
         },
         "verification": {
@@ -692,7 +692,7 @@
         "maxParcelsPerDay": "Maximum Food Parcels Per Day",
         "maxParcelsPlaceholder": "e.g. 20",
         "slotDuration": "Slot Duration (minutes)",
-        "slotDurationDescription": "Time allocated for each food parcel pickup",
+        "slotDurationDescription": "Time allocated for each food parcel handout",
         "contactInfo": "Contact Information",
         "contactName": "Contact Person",
         "contactNamePlaceholder": "Enter contact person name",
@@ -805,7 +805,7 @@
         "errorFetchingLocation": "An error occurred while fetching the location. Please try again.",
         "scheduleChangeWarning": "Schedule Change Warning",
         "parcelsWillBeAffected": "Food parcels will be affected",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel handout} other {# food parcel handouts}} will fall outside the new opening hours.",
         "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
         "proceedAnyway": "Proceed anyway",
         "checking": "Checking...",
@@ -867,7 +867,7 @@
             "failed": "Failed"
         },
         "actions": {
-            "markPickedUp": "Mark as Picked Up",
+            "markPickedUp": "Mark as Handed Out",
             "previewSms": "Preview SMS",
             "resendSms": "Resend SMS",
             "sendSms": "Send SMS",
@@ -908,7 +908,7 @@
         "parcelDialog": {
             "title": "Parcel Information",
             "loading": "Loading parcel details...",
-            "pickupSchedule": "Pickup Schedule",
+            "pickupSchedule": "Handout Schedule",
             "pickedUp": "Picked Up",
             "notPickedUp": "Not Picked Up",
             "status": {
@@ -933,8 +933,8 @@
             "noComments": "No comments yet",
             "addCommentPlaceholder": "Add a comment about this household...",
             "addComment": "Add Comment",
-            "markPickedUp": "Mark as Picked Up",
-            "undoPickup": "Undo Pickup",
+            "markPickedUp": "Mark as Handed Out",
+            "undoPickup": "Undo Handout",
             "cancelParcel": "Cancel Parcel",
             "deleteConfirmTitle": "Confirm Cancellation",
             "deleteConfirmMessage": "Are you sure you want to cancel this parcel? {smsWarning}",
@@ -950,8 +950,8 @@
             "errors": {
                 "parcelNotFound": "Parcel not found",
                 "loadFailed": "Failed to load parcel details",
-                "markPickupFailed": "Failed to mark as picked up",
-                "undoPickupFailed": "Failed to undo pickup",
+                "markPickupFailed": "Failed to mark as handed out",
+                "undoPickupFailed": "Failed to undo handout",
                 "addCommentFailed": "Failed to add comment",
                 "deleteCommentFailed": "Failed to delete comment",
                 "deleteCommentError": "Error deleting comment",
@@ -1089,7 +1089,7 @@
             },
             "examples": {
                 "title": "Example checklist items:",
-                "item1": "They have been told about pickup times and location",
+                "item1": "They have been told about handout times and location",
                 "item2": "They understand the monthly parcel limit",
                 "item3": "I have verified their identity document",
                 "item4": "They have been informed about dietary restriction options"

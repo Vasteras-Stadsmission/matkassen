@@ -115,7 +115,7 @@ app/
   [locale]/          # Admin routes (auth required)
     households/      # Household management
     schedule/        # Parcel scheduling
-    handout-locations/  # Pickup locations
+    handout-locations/  # Handout locations
   p/                 # PUBLIC parcel pages (no auth, no locale)
   api/               # API routes
   db/                # Drizzle schema & connection
@@ -224,11 +224,11 @@ See `docs/deployment-guide.md` for examples.
 
 **Date-only comparison** (not time-based):
 
-- Same-day parcels ALWAYS show "upcoming" (blue), even if pickup window passed
-- Only previous-day parcels show "not picked up" (red)
-- Staff MUST manually mark as picked up
+- Same-day parcels ALWAYS show "upcoming" (blue), even if handout window passed
+- Only previous-day parcels show "not handed out" (red)
+- Staff MUST manually mark as handed out
 
-**Rationale**: Households may arrive late. Staff processes throughout the day. Don't prematurely mark as "not picked up."
+**Rationale**: Households may arrive late. Staff processes throughout the day. Don't prematurely mark as "not handed out."
 
 **Code**: `app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx` - `isDateInPast()`
 

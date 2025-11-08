@@ -8,9 +8,9 @@ This guide covers the essential tasks to get you productive with Matkassen immed
 
 ## System Overview (1 min)
 
-Matkassen manages food parcel distribution across pickup locations. The workflow:
+Matkassen manages food parcel distribution across handout locations. The workflow:
 
-1. **Register households** → 2. **Schedule parcels** → 3. **SMS sent automatically** → 4. **Recipients view details** → 5. **Mark as picked up**
+1. **Register households** → 2. **Schedule parcels** → 3. **SMS sent automatically** → 4. **Recipients view details** → 5. **Mark as handed out**
 
 ---
 
@@ -21,7 +21,7 @@ Matkassen manages food parcel distribution across pickup locations. The workflow
 1. Click **Households** in navigation
 2. Click **New Household** button
 3. Fill in the wizard (7 steps):
-    - **Basics**: Name, phone, address, pickup location
+    - **Basics**: Name, phone, address, handout location
     - **Members**: Add household members
     - **Diet**: Select dietary restrictions
     - **Pets**: Add pets if relevant
@@ -30,7 +30,7 @@ Matkassen manages food parcel distribution across pickup locations. The workflow
     - **Review**: Confirm and submit
 4. System saves household and queues SMS if parcels were added
 
-**Required fields**: First name, last name, phone number, pickup location.
+**Required fields**: First name, last name, phone number, handout location.
 
 ### View Household Details
 
@@ -59,15 +59,15 @@ Matkassen manages food parcel distribution across pickup locations. The workflow
 
 **Tip**: Set a favorite location (click ⭐) to get quick access via **Today's Handouts** shortcut in navigation.
 
-### Mark Parcel as Picked Up
+### Mark Parcel as Handed Out
 
 1. Find parcel in today's view
 2. Click the parcel row
 3. Dialog opens with parcel details
-4. Click **Mark as Picked Up** button
+4. Click **Mark as Handed Out** button
 5. Status changes immediately
 
-**To undo**: Click **Undo Pickup** button in same dialog.
+**To undo**: Click **Undo Handout** button in same dialog.
 
 ### Create Parcel
 
@@ -100,7 +100,7 @@ SMS queues automatically with 5-minute grace period (allows you to fix mistakes 
 
 ### Switch Between Views
 
-- **Today's View**: Best for daily operations, mark pickups
+- **Today's View**: Best for daily operations, mark handouts
 - **Weekly View**: Best for planning ahead, see capacity, drag-and-drop reschedule
 
 Both views accessible via tabs at the location schedule page.
@@ -147,7 +147,7 @@ Both views accessible via tabs at the location schedule page.
 1. Toggle **Show cancelled parcels** switch ON
 2. Dashboard switches to show SMS for deleted/cancelled parcels only
 3. Verify households were notified about cancellations
-4. Check if `pickup_cancelled` SMS were sent successfully
+4. Check if `handout_cancelled` SMS were sent successfully
 
 **Use when**: Auditing cancellations, verifying recipients were informed, checking historical cancellations.
 
@@ -155,11 +155,11 @@ Both views accessible via tabs at the location schedule page.
 
 ---
 
-## Pickup Location Management
+## Handout Location Management
 
-### Create Pickup Location
+### Create Handout Location
 
-1. Click **Pickup Locations** in navigation
+1. Click **Handout Locations** in navigation
 2. Click **Add Location**
 3. Fill in: Name, street address, postal code, city, capacity (optional)
 4. Click **Create Location**
@@ -168,7 +168,7 @@ Location immediately available for scheduling parcels.
 
 ### Configure Location Schedule
 
-1. Go to **Pickup Locations** → Select location tab
+1. Go to **Handout Locations** → Select location tab
 2. Scroll to **Opening Hours and Schedule** section
 3. For each day: Toggle on/off, set hours, set slot duration
 4. Click **Save Schedule**
@@ -177,7 +177,7 @@ Schedule determines available time slots for new parcels.
 
 ### Edit Location Details
 
-1. Go to **Pickup Locations** → Select location tab
+1. Go to **Handout Locations** → Select location tab
 2. Update any field (name, address, capacity)
 3. Click **Update Location**
 
@@ -189,16 +189,16 @@ Schedule determines available time slots for new parcels.
 
 ### How Recipients Receive Parcels
 
-1. **SMS sent automatically** 5 minutes before parcel pickup time:
+1. **SMS sent automatically** 5 minutes before parcel handout time:
     - Contains date, time, location, and link
 2. **Recipient clicks link** in SMS
 3. **Public page opens** (no login required):
-    - Shows pickup details
+    - Shows handout details
     - Location with map buttons
-    - QR code to present at pickup
+    - QR code to present at handout
 4. **Language auto-detected** from phone (20+ languages supported)
 5. **Recipient arrives** and shows QR code
-6. **Admin scans QR** (or manually finds parcel) and marks as picked up
+6. **Admin scans QR** (or manually finds parcel) and marks as handed out
 
 ### What Recipients Can See
 
@@ -222,10 +222,10 @@ The public page shows only their specific parcel information in their preferred 
 
 Recipients see one of these statuses:
 
-- **Upcoming** (green): Ready for pickup at scheduled time
-- **Picked Up** (gray): Already collected
-- **Cancelled** (red): Pickup cancelled, don't come
-- **Expired** (orange): Pickup time passed, contact organization
+- **Upcoming** (green): Ready for handout at scheduled time
+- **Handed Out** (gray): Already collected
+- **Cancelled** (red): Handout cancelled, don't come
+- **Expired** (orange): Handout time passed, contact organization
 
 ---
 
@@ -245,7 +245,7 @@ Check SMS Dashboard for status. If failed, check phone number and retry. If sent
 
 ### "Can't delete parcel"
 
-Parcel may be already picked up or in the past. These cannot be deleted.
+Parcel may be already handed out or in the past. These cannot be deleted.
 
 ### "Capacity warning when creating parcel"
 
@@ -253,7 +253,7 @@ Soft limit warning - you can still proceed but location may be overcrowded. Cons
 
 ### "Drag-and-drop doesn't work"
 
-You may be trying to drag to a past date, different location, or parcel is already picked up. Use **Reschedule** button instead.
+You may be trying to drag to a past date, different location, or parcel is already handed out. Use **Reschedule** button instead.
 
 ---
 

@@ -56,7 +56,7 @@ export const getHouseholdFormData = protectedAction(
                 additionalNeeds: details.additionalNeeds,
                 pets: details.pets,
                 foodParcels: {
-                    pickupLocationId: details.foodParcels.pickupLocationId,
+                    handoutLocationId: details.foodParcels.handoutLocationId,
                     parcels: details.foodParcels.parcels,
                 },
                 comments: details.comments,
@@ -160,15 +160,15 @@ async function getHouseholdEditData(householdId: string) {
     const foodParcelsData = await db
         .select({
             id: foodParcels.id,
-            pickupLocationId: foodParcels.pickup_location_id,
-            pickupDate: foodParcels.pickup_date_time_earliest,
-            pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-            pickupLatestTime: foodParcels.pickup_date_time_latest,
-            isPickedUp: foodParcels.is_picked_up,
+            handoutLocationId: foodParcels.handout_location_id,
+            handoutDate: foodParcels.handout_date_time_earliest,
+            handoutEarliestTime: foodParcels.handout_date_time_earliest,
+            handoutLatestTime: foodParcels.handout_date_time_latest,
+            isHandedOut: foodParcels.is_handed_out,
         })
         .from(foodParcels)
         .where(and(eq(foodParcels.household_id, householdId), notDeleted()))
-        .orderBy(foodParcels.pickup_date_time_latest);
+        .orderBy(foodParcels.handout_date_time_latest);
 
     // Get comments
     const commentsData = await db
@@ -202,15 +202,15 @@ async function getHouseholdEditData(householdId: string) {
     // Prepare parcels in the format expected by the form
     const parcels = foodParcelsData.map(parcel => ({
         id: parcel.id,
-        pickupDate: new Date(parcel.pickupDate),
-        pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-        pickupLatestTime: new Date(parcel.pickupLatestTime),
-        isPickedUp: parcel.isPickedUp,
+        handoutDate: new Date(parcel.handoutDate),
+        handoutEarliestTime: new Date(parcel.handoutEarliestTime),
+        handoutLatestTime: new Date(parcel.handoutLatestTime),
+        isHandedOut: parcel.isHandedOut,
     }));
 
     // Format food parcels in a way that the form can use
     const foodParcelsFormatted = {
-        pickupLocationId: foodParcelsData.length > 0 ? foodParcelsData[0].pickupLocationId : "",
+        handoutLocationId: foodParcelsData.length > 0 ? foodParcelsData[0].handoutLocationId : "",
         parcels,
     };
 
@@ -409,14 +409,14 @@ export const updateHousehold = protectedHouseholdAction(
                 // Validate that NEW parcels are not in the past
                 if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
                     const pastParcels = data.foodParcels.parcels.filter(
-                        parcel => !parcel.id && new Date(parcel.pickupLatestTime) <= now,
+                        parcel => !parcel.id && new Date(parcel.handoutLatestTime) <= now,
                     );
 
                     if (pastParcels.length > 0) {
                         const { formatStockholmDate } = await import("@/app/utils/date-utils");
                         const dates = pastParcels
                             .map(p =>
-                                formatStockholmDate(new Date(p.pickupEarliestTime), "yyyy-MM-dd"),
+                                formatStockholmDate(new Date(p.handoutEarliestTime), "yyyy-MM-dd"),
                             )
                             .join(", ");
 
@@ -431,16 +431,16 @@ export const updateHousehold = protectedHouseholdAction(
                 const existingFutureParcels = await tx
                     .select({
                         id: foodParcels.id,
-                        locationId: foodParcels.pickup_location_id,
-                        earliest: foodParcels.pickup_date_time_earliest,
-                        latest: foodParcels.pickup_date_time_latest,
+                        locationId: foodParcels.handout_location_id,
+                        earliest: foodParcels.handout_date_time_earliest,
+                        latest: foodParcels.handout_date_time_latest,
                     })
                     .from(foodParcels)
                     .where(
                         and(
                             eq(foodParcels.household_id, household.id),
-                            eq(foodParcels.is_picked_up, false),
-                            gt(foodParcels.pickup_date_time_earliest, now),
+                            eq(foodParcels.is_handed_out, false),
+                            gt(foodParcels.handout_date_time_earliest, now),
                             notDeleted(),
                         ),
                     );
@@ -450,7 +450,7 @@ export const updateHousehold = protectedHouseholdAction(
                 const operations = calculateParcelOperations(
                     existingFutureParcels,
                     desiredParcels,
-                    data.foodParcels.pickupLocationId,
+                    data.foodParcels.handoutLocationId,
                     household.id,
                 );
 
@@ -466,8 +466,8 @@ export const updateHousehold = protectedHouseholdAction(
                     await tx
                         .update(foodParcels)
                         .set({
-                            pickup_date_time_earliest: op.pickup_date_time_earliest,
-                            pickup_date_time_latest: op.pickup_date_time_latest,
+                            handout_date_time_earliest: op.handout_date_time_earliest,
+                            handout_date_time_latest: op.handout_date_time_latest,
                         })
                         .where(eq(foodParcels.id, op.id));
                 }
@@ -512,7 +512,7 @@ export const updateHousehold = protectedHouseholdAction(
                 logger.info(
                     {
                         householdId: household.id,
-                        locationId: data.foodParcels?.pickupLocationId,
+                        locationId: data.foodParcels?.handoutLocationId,
                         parcelsCreated: operations.toCreate.length,
                         parcelsUpdated: operations.toUpdate.length,
                         parcelsDeleted: operations.toDelete.length,

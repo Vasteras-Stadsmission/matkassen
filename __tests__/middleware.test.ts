@@ -51,7 +51,7 @@ describe("Middleware API Authentication", () => {
         const protectedRoutes = [
             "/api/admin/sms/process-queue",
             "/api/admin/sms/parcel/123",
-            "/api/admin/parcel/123/pickup",
+            "/api/admin/parcel/123/handout",
             "/api/admin/parcels/upcoming",
         ];
 
@@ -78,7 +78,7 @@ describe("Middleware API Authentication", () => {
             "/api/auth/providers",
             "/api/auth/signin",
             "/api/csp-report",
-            "/api/pickup-locations",
+            "/api/handout-locations",
         ];
 
         for (const route of publicRoutes) {

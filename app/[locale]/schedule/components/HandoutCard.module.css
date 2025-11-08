@@ -1,0 +1,13 @@
+.handout-card-compact:hover .reschedule-button,
+.handout-card:hover .reschedule-button,
+.handout-card-compact:hover .admin-button,
+.handout-card:hover .admin-button {
+    opacity: 1 !important;
+}
+
+/* Ensure dragged elements are visible */
+.handout-card-compact[data-dragging="true"],
+.handout-card[data-dragging="true"] {
+    z-index: 1000 !important;
+    position: relative;
+}

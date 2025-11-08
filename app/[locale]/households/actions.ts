@@ -12,7 +12,7 @@ import {
     pets,
     petSpecies,
     foodParcels,
-    pickupLocations,
+    handoutLocations,
     householdComments,
 } from "@/app/db/schema";
 import { asc, eq, and, isNull } from "drizzle-orm";
@@ -87,7 +87,7 @@ export async function getHouseholds() {
                 .select()
                 .from(foodParcels)
                 .where(and(eq(foodParcels.household_id, household.id), notDeleted()))
-                .orderBy(foodParcels.pickup_date_time_latest);
+                .orderBy(foodParcels.handout_date_time_latest);
 
             // Get the first and last food parcel dates (if any parcels exist)
             const firstParcel = householdParcels[0] ? householdParcels[0] : null;
@@ -97,16 +97,16 @@ export async function getHouseholds() {
             // Get the next upcoming food parcel (based on latest pickup time)
             const now = new Date();
             const upcomingParcels = householdParcels.filter(
-                parcel => new Date(parcel.pickup_date_time_latest) > now,
+                parcel => new Date(parcel.handout_date_time_latest) > now,
             );
             const nextParcel = upcomingParcels.length > 0 ? upcomingParcels[0] : null;
 
             return {
                 ...household,
-                firstParcelDate: firstParcel ? firstParcel.pickup_date_time_latest : null,
-                lastParcelDate: lastParcel ? lastParcel.pickup_date_time_latest : null,
-                nextParcelDate: nextParcel ? nextParcel.pickup_date_time_latest : null,
-                nextParcelEarliestTime: nextParcel ? nextParcel.pickup_date_time_earliest : null,
+                firstParcelDate: firstParcel ? firstParcel.handout_date_time_latest : null,
+                lastParcelDate: lastParcel ? lastParcel.handout_date_time_latest : null,
+                nextParcelDate: nextParcel ? nextParcel.handout_date_time_latest : null,
+                nextParcelEarliestTime: nextParcel ? nextParcel.handout_date_time_earliest : null,
             };
         }),
     );
@@ -188,23 +188,23 @@ export async function getHouseholdDetails(householdId: string) {
         const foodParcelsResult = await db
             .select({
                 id: foodParcels.id,
-                pickup_location_id: foodParcels.pickup_location_id,
-                pickup_date_time_earliest: foodParcels.pickup_date_time_earliest,
-                pickup_date_time_latest: foodParcels.pickup_date_time_latest,
-                is_picked_up: foodParcels.is_picked_up,
+                handout_location_id: foodParcels.handout_location_id,
+                handout_date_time_earliest: foodParcels.handout_date_time_earliest,
+                handout_date_time_latest: foodParcels.handout_date_time_latest,
+                is_handed_out: foodParcels.is_handed_out,
             })
             .from(foodParcels)
             .where(and(eq(foodParcels.household_id, householdId), notDeleted()))
-            .orderBy(asc(foodParcels.pickup_date_time_earliest));
+            .orderBy(asc(foodParcels.handout_date_time_earliest));
 
         // Get deleted/cancelled food parcels
         const deletedParcelsResult = await db
             .select({
                 id: foodParcels.id,
-                pickup_location_id: foodParcels.pickup_location_id,
-                pickup_date_time_earliest: foodParcels.pickup_date_time_earliest,
-                pickup_date_time_latest: foodParcels.pickup_date_time_latest,
-                is_picked_up: foodParcels.is_picked_up,
+                handout_location_id: foodParcels.handout_location_id,
+                handout_date_time_earliest: foodParcels.handout_date_time_earliest,
+                handout_date_time_latest: foodParcels.handout_date_time_latest,
+                is_handed_out: foodParcels.is_handed_out,
                 deleted_at: foodParcels.deleted_at,
                 deleted_by_user_id: foodParcels.deleted_by_user_id,
             })
@@ -215,15 +215,15 @@ export async function getHouseholdDetails(householdId: string) {
         // Get pickup location info
         let pickupLocation = null;
         if (foodParcelsResult.length > 0) {
-            const locationId = foodParcelsResult[0].pickup_location_id;
+            const locationId = foodParcelsResult[0].handout_location_id;
             [pickupLocation] = await db
                 .select({
-                    id: pickupLocations.id,
-                    name: pickupLocations.name,
-                    address: pickupLocations.street_address,
+                    id: handoutLocations.id,
+                    name: handoutLocations.name,
+                    address: handoutLocations.street_address,
                 })
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, locationId))
+                .from(handoutLocations)
+                .where(eq(handoutLocations.id, locationId))
                 .limit(1);
         }
 
@@ -265,21 +265,21 @@ export async function getHouseholdDetails(householdId: string) {
             additionalNeeds: additionalNeedsResult,
             pets: householdPets,
             foodParcels: {
-                pickupLocationId: pickupLocation?.id || "",
+                handoutLocationId: pickupLocation?.id || "",
                 parcels: foodParcelsResult.map(parcel => ({
                     id: parcel.id,
-                    pickupDate: parcel.pickup_date_time_earliest,
-                    pickupEarliestTime: parcel.pickup_date_time_earliest,
-                    pickupLatestTime: parcel.pickup_date_time_latest,
-                    isPickedUp: parcel.is_picked_up,
+                    handoutDate: parcel.handout_date_time_earliest,
+                    handoutEarliestTime: parcel.handout_date_time_earliest,
+                    handoutLatestTime: parcel.handout_date_time_latest,
+                    isHandedOut: parcel.is_handed_out,
                 })),
             },
             deletedParcels: deletedParcelsResult.map(parcel => ({
                 id: parcel.id,
-                pickupDate: parcel.pickup_date_time_earliest,
-                pickupEarliestTime: parcel.pickup_date_time_earliest,
-                pickupLatestTime: parcel.pickup_date_time_latest,
-                isPickedUp: parcel.is_picked_up,
+                handoutDate: parcel.handout_date_time_earliest,
+                handoutEarliestTime: parcel.handout_date_time_earliest,
+                handoutLatestTime: parcel.handout_date_time_latest,
+                isHandedOut: parcel.is_handed_out,
                 deletedAt: parcel.deleted_at,
                 deletedBy: parcel.deleted_by_user_id,
             })),

@@ -2,7 +2,7 @@
  * Tests for automatic SMS queueing on parcel creation
  *
  * These tests verify that SMS records are created immediately when parcels are created,
- * with appropriate scheduling based on how far away the pickup is.
+ * with appropriate scheduling based on how far away the handout is.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -25,7 +25,7 @@ describe("SMS Scheduling for Parcels", () => {
 
     describe("calculateSmsScheduleTime", () => {
         describe("Parcels more than 48 hours away", () => {
-            it("should schedule SMS for 48 hours before pickup", () => {
+            it("should schedule SMS for 48 hours before handout", () => {
                 // Current time: Oct 10, 2025, 10:00 AM
                 const now = new Date("2025-10-10T10:00:00Z");
                 mockTimeNow.mockReturnValue({
@@ -33,27 +33,27 @@ describe("SMS Scheduling for Parcels", () => {
                     addMinutes: vi.fn(),
                 } as any);
 
-                // Pickup time: Oct 15, 2025, 2:00 PM (5 days 4 hours away = 124 hours)
-                const pickupTime = new Date("2025-10-15T14:00:00Z");
+                // Handout time: Oct 15, 2025, 2:00 PM (5 days 4 hours away = 124 hours)
+                const handoutTime = new Date("2025-10-15T14:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
-                // Expected: 48 hours before pickup = Oct 13, 2025, 2:00 PM
+                // Expected: 48 hours before handout = Oct 13, 2025, 2:00 PM
                 const expected = new Date("2025-10-13T14:00:00Z");
                 expect(smsTime).toEqual(expected);
             });
 
-            it("should schedule SMS for 48 hours before pickup (exactly 72 hours away)", () => {
+            it("should schedule SMS for 48 hours before handout (exactly 72 hours away)", () => {
                 const now = new Date("2025-10-10T10:00:00Z");
                 mockTimeNow.mockReturnValue({
                     toUTC: () => now,
                     addMinutes: vi.fn(),
                 } as any);
 
-                // Pickup time: Oct 13, 2025, 10:00 AM (exactly 72 hours away)
-                const pickupTime = new Date("2025-10-13T10:00:00Z");
+                // Handout time: Oct 13, 2025, 10:00 AM (exactly 72 hours away)
+                const handoutTime = new Date("2025-10-13T10:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Expected: 48 hours before = Oct 11, 2025, 10:00 AM
                 const expected = new Date("2025-10-11T10:00:00Z");
@@ -74,10 +74,10 @@ describe("SMS Scheduling for Parcels", () => {
                     }),
                 } as any);
 
-                // Pickup time: Oct 11, 2025, 10:00 AM (24 hours away)
-                const pickupTime = new Date("2025-10-11T10:00:00Z");
+                // Handout time: Oct 11, 2025, 10:00 AM (24 hours away)
+                const handoutTime = new Date("2025-10-11T10:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Expected: 5 minutes from now
                 expect(smsTime).toEqual(gracePeriodEnd);
@@ -94,10 +94,10 @@ describe("SMS Scheduling for Parcels", () => {
                     }),
                 } as any);
 
-                // Pickup time: Oct 10, 2025, 11:00 AM (1 hour away)
-                const pickupTime = new Date("2025-10-10T11:00:00Z");
+                // Handout time: Oct 10, 2025, 11:00 AM (1 hour away)
+                const handoutTime = new Date("2025-10-10T11:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 expect(smsTime).toEqual(gracePeriodEnd);
             });
@@ -113,10 +113,10 @@ describe("SMS Scheduling for Parcels", () => {
                     }),
                 } as any);
 
-                // Pickup time: Oct 12, 2025, 10:00 AM (exactly 48 hours away)
-                const pickupTime = new Date("2025-10-12T10:00:00Z");
+                // Handout time: Oct 12, 2025, 10:00 AM (exactly 48 hours away)
+                const handoutTime = new Date("2025-10-12T10:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // At exactly 48 hours, should use grace period (not schedule for "0 hours before")
                 expect(smsTime).toEqual(gracePeriodEnd);
@@ -135,10 +135,10 @@ describe("SMS Scheduling for Parcels", () => {
                     }),
                 } as any);
 
-                // Pickup time: Oct 10, 2025, 9:00 AM (1 hour in the past!)
-                const pickupTime = new Date("2025-10-10T09:00:00Z");
+                // Handout time: Oct 10, 2025, 9:00 AM (1 hour in the past!)
+                const handoutTime = new Date("2025-10-10T09:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Should still schedule with grace period (validation should prevent this, but be safe)
                 expect(smsTime).toEqual(gracePeriodEnd);
@@ -151,27 +151,27 @@ describe("SMS Scheduling for Parcels", () => {
                     addMinutes: vi.fn(),
                 } as any);
 
-                // Pickup time: Dec 31, 2025, 2:00 PM (82 days away)
-                const pickupTime = new Date("2025-12-31T14:00:00Z");
+                // Handout time: Dec 31, 2025, 2:00 PM (82 days away)
+                const handoutTime = new Date("2025-12-31T14:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Expected: 48 hours before = Dec 29, 2025, 2:00 PM
                 const expected = new Date("2025-12-29T14:00:00Z");
                 expect(smsTime).toEqual(expected);
             });
 
-            it("should handle pickup time at midnight", () => {
+            it("should handle handout time at midnight", () => {
                 const now = new Date("2025-10-10T10:00:00Z");
                 mockTimeNow.mockReturnValue({
                     toUTC: () => now,
                     addMinutes: vi.fn(),
                 } as any);
 
-                // Pickup time: Oct 15, 2025, midnight (4 days 14 hours away = 110 hours)
-                const pickupTime = new Date("2025-10-15T00:00:00Z");
+                // Handout time: Oct 15, 2025, midnight (4 days 14 hours away = 110 hours)
+                const handoutTime = new Date("2025-10-15T00:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Expected: 48 hours before = Oct 13, 2025, midnight
                 const expected = new Date("2025-10-13T00:00:00Z");
@@ -187,10 +187,10 @@ describe("SMS Scheduling for Parcels", () => {
                     addMinutes: vi.fn(),
                 } as any);
 
-                // Pickup time: 48 hours + 6 minutes away
-                const pickupTime = new Date("2025-10-12T10:06:00Z");
+                // Handout time: 48 hours + 6 minutes away
+                const handoutTime = new Date("2025-10-12T10:06:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Should schedule for 48 hours before (not grace period)
                 const expected = new Date("2025-10-10T10:06:00Z");
@@ -208,10 +208,10 @@ describe("SMS Scheduling for Parcels", () => {
                     }),
                 } as any);
 
-                // Pickup time: 47 hours 54 minutes away
-                const pickupTime = new Date("2025-10-12T09:54:00Z");
+                // Handout time: 47 hours 54 minutes away
+                const handoutTime = new Date("2025-10-12T09:54:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Should use grace period (less than 48 hours)
                 expect(smsTime).toEqual(gracePeriodEnd);
@@ -219,7 +219,7 @@ describe("SMS Scheduling for Parcels", () => {
         });
 
         describe("Real-world scenarios", () => {
-            it("should handle creating parcel for same-day pickup (morning for afternoon)", () => {
+            it("should handle creating parcel for same-day handout (morning for afternoon)", () => {
                 // 8:00 AM, creating parcel for 2:00 PM same day (6 hours away)
                 const now = new Date("2025-10-10T08:00:00Z");
                 const gracePeriodEnd = new Date("2025-10-10T08:05:00Z");
@@ -231,9 +231,9 @@ describe("SMS Scheduling for Parcels", () => {
                     }),
                 } as any);
 
-                const pickupTime = new Date("2025-10-10T14:00:00Z");
+                const handoutTime = new Date("2025-10-10T14:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Should send SMS after 5-minute grace period
                 expect(smsTime).toEqual(gracePeriodEnd);
@@ -247,9 +247,9 @@ describe("SMS Scheduling for Parcels", () => {
                     addMinutes: vi.fn(),
                 } as any);
 
-                const pickupTime = new Date("2025-10-20T10:00:00Z");
+                const handoutTime = new Date("2025-10-20T10:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Should schedule for 48 hours before (Friday 10:00 AM)
                 const expected = new Date("2025-10-18T10:00:00Z");
@@ -268,9 +268,9 @@ describe("SMS Scheduling for Parcels", () => {
                     }),
                 } as any);
 
-                const pickupTime = new Date("2025-10-11T10:00:00Z");
+                const handoutTime = new Date("2025-10-11T10:00:00Z");
 
-                const smsTime = calculateSmsScheduleTime(pickupTime);
+                const smsTime = calculateSmsScheduleTime(handoutTime);
 
                 // Should send SMS after 5-minute grace period
                 expect(smsTime).toEqual(gracePeriodEnd);

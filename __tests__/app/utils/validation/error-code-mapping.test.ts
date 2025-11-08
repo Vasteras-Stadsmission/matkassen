@@ -13,7 +13,7 @@ import { describe, it, expect } from "vitest";
 describe("Validation Error Code Mapping", () => {
     const errorCodeMap: Record<string, string> = {
         PAST_TIME_SLOT: "validationErrors.pastTimeSlot",
-        PAST_PICKUP_TIME: "validationErrors.pastTimeSlot",
+        PAST_HANDOUT_TIME: "validationErrors.pastTimeSlot",
         CAPACITY_REACHED: "validationErrors.capacityReached",
         SLOT_CAPACITY_REACHED: "validationErrors.slotCapacityReached",
         DOUBLE_BOOKING: "validationErrors.doubleBooking",
@@ -28,8 +28,8 @@ describe("Validation Error Code Mapping", () => {
             expect(errorCodeMap[errorCode]).toBe(expectedKey);
         });
 
-        it("should map PAST_PICKUP_TIME to pastTimeSlot i18n key", () => {
-            const errorCode = "PAST_PICKUP_TIME";
+        it("should map PAST_HANDOUT_TIME to pastTimeSlot i18n key", () => {
+            const errorCode = "PAST_HANDOUT_TIME";
             const expectedKey = "validationErrors.pastTimeSlot";
 
             expect(errorCodeMap[errorCode]).toBe(expectedKey);
@@ -82,7 +82,7 @@ describe("Validation Error Code Mapping", () => {
             const error = {
                 field: "timeSlot",
                 code: "PAST_TIME_SLOT",
-                message: "Cannot create new parcel with pickup time in the past",
+                message: "Cannot create new parcel with handout time in the past",
             };
 
             const mappedKey = errorCodeMap[error.code];
@@ -123,7 +123,7 @@ describe("Validation Error Code Mapping", () => {
             const allKeys = Object.values(errorCodeMap);
             const uniqueKeys = new Set(allKeys);
 
-            // We expect PAST_TIME_SLOT and PAST_PICKUP_TIME to map to the same key
+            // We expect PAST_TIME_SLOT and PAST_HANDOUT_TIME to map to the same key
             // So unique keys should be one less than total keys
             expect(uniqueKeys.size).toBe(allKeys.length - 1);
         });
@@ -140,8 +140,8 @@ describe("Validation Error Messages (i18n verification)", () => {
             en: "Validation Errors",
         },
         "foodParcels.validationErrors.pastTimeSlot": {
-            sv: "Kan inte schemalägga upphämtning i det förflutna",
-            en: "Cannot schedule pickup in the past",
+            sv: "Kan inte schemalägga utlämning i det förflutna",
+            en: "Cannot schedule handout in the past",
         },
         "foodParcels.validationErrors.capacityReached": {
             sv: "Platsens kapacitet överskriden för valt datum",

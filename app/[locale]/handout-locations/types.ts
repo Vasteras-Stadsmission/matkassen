@@ -1,34 +1,34 @@
 import {
-    pickupLocations,
-    pickupLocationSchedules,
-    pickupLocationScheduleDays,
+    handoutLocations,
+    handoutLocationSchedules,
+    handoutLocationScheduleDays,
 } from "@/app/db/schema";
 import { weekdayEnum } from "@/app/db/schema";
 import { InferSelectModel } from "drizzle-orm";
 
 // Define base types from the database schema
-export type PickupLocation = InferSelectModel<typeof pickupLocations>;
+export type HandoutLocation = InferSelectModel<typeof handoutLocations>;
 
 // New types for schedule-based opening hours
-export type PickupLocationSchedule = InferSelectModel<typeof pickupLocationSchedules>;
-export type PickupLocationScheduleDay = InferSelectModel<typeof pickupLocationScheduleDays>;
+export type HandoutLocationSchedule = InferSelectModel<typeof handoutLocationSchedules>;
+export type HandoutLocationScheduleDay = InferSelectModel<typeof handoutLocationScheduleDays>;
 
 // Weekday type from enum
 export type Weekday = (typeof weekdayEnum.enumValues)[number];
 
 // Combined type for location with its schedules (new approach)
-export interface PickupLocationWithSchedules extends PickupLocation {
-    schedules: PickupLocationScheduleWithDays[];
+export interface HandoutLocationWithSchedules extends HandoutLocation {
+    schedules: HandoutLocationScheduleWithDays[];
 }
 
 // Combined type for a schedule with its days
-export interface PickupLocationScheduleWithDays extends PickupLocationSchedule {
-    days: PickupLocationScheduleDay[];
+export interface HandoutLocationScheduleWithDays extends HandoutLocationSchedule {
+    days: HandoutLocationScheduleDay[];
 }
 
 // Combined type with location data
-export interface PickupLocationWithAllData extends PickupLocation {
-    schedules: PickupLocationScheduleWithDays[];
+export interface HandoutLocationWithAllData extends HandoutLocation {
+    schedules: HandoutLocationScheduleWithDays[];
 }
 
 // Form input types

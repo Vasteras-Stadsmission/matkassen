@@ -3,7 +3,7 @@
  */
 
 import { db } from "@/app/db/drizzle";
-import { foodParcels, households, pickupLocations } from "@/app/db/schema";
+import { foodParcels, households, handoutLocations } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { Time } from "@/app/utils/time-provider";
 import { generateUrl } from "@/app/config/branding";
@@ -13,10 +13,10 @@ export interface PublicParcelData {
     id: string;
     householdName: string;
     householdLocale: string;
-    pickupDateTimeEarliest: Date;
-    pickupDateTimeLatest: Date;
-    isPickedUp: boolean;
-    pickedUpAt?: Date;
+    handoutDateTimeEarliest: Date;
+    handoutDateTimeLatest: Date;
+    isHandedOut: boolean;
+    handedOutAt?: Date;
     locationName: string;
     locationAddress: string;
     locationPostalCode: string;
@@ -38,18 +38,18 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
                     last: households.last_name,
                 },
                 householdLocale: households.locale,
-                pickupDateTimeEarliest: foodParcels.pickup_date_time_earliest,
-                pickupDateTimeLatest: foodParcels.pickup_date_time_latest,
-                isPickedUp: foodParcels.is_picked_up,
-                pickedUpAt: foodParcels.picked_up_at,
-                locationName: pickupLocations.name,
-                locationAddress: pickupLocations.street_address,
-                locationPostalCode: pickupLocations.postal_code,
+                handoutDateTimeEarliest: foodParcels.handout_date_time_earliest,
+                handoutDateTimeLatest: foodParcels.handout_date_time_latest,
+                isHandedOut: foodParcels.is_handed_out,
+                handedOutAt: foodParcels.handed_out_at,
+                locationName: handoutLocations.name,
+                locationAddress: handoutLocations.street_address,
+                locationPostalCode: handoutLocations.postal_code,
                 deletedAt: foodParcels.deleted_at,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
-            .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
+            .innerJoin(handoutLocations, eq(foodParcels.handout_location_id, handoutLocations.id))
             .where(eq(foodParcels.id, parcelId))
             .limit(1);
 
@@ -63,10 +63,10 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
             id: data.id,
             householdName: `${data.householdName.first} ${data.householdName.last}`,
             householdLocale: data.householdLocale,
-            pickupDateTimeEarliest: data.pickupDateTimeEarliest,
-            pickupDateTimeLatest: data.pickupDateTimeLatest,
-            isPickedUp: data.isPickedUp,
-            pickedUpAt: data.pickedUpAt || undefined,
+            handoutDateTimeEarliest: data.handoutDateTimeEarliest,
+            handoutDateTimeLatest: data.handoutDateTimeLatest,
+            isHandedOut: data.isHandedOut,
+            handedOutAt: data.handedOutAt || undefined,
             locationName: data.locationName,
             locationAddress: data.locationAddress,
             locationPostalCode: data.locationPostalCode,
@@ -79,7 +79,7 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
 }
 
 /**
- * Determine parcel status based on current time and pickup window
+ * Determine parcel status based on current time and handout window
  */
 export function getParcelStatus(parcel: PublicParcelData): ParcelStatus {
     // Check if cancelled (soft deleted)
@@ -87,15 +87,15 @@ export function getParcelStatus(parcel: PublicParcelData): ParcelStatus {
         return "cancelled";
     }
 
-    if (parcel.isPickedUp) {
+    if (parcel.isHandedOut) {
         return "collected";
     }
 
     const now = Time.now().toDate();
-    const earliestTime = new Date(parcel.pickupDateTimeEarliest);
-    const latestTime = new Date(parcel.pickupDateTimeLatest);
+    const earliestTime = new Date(parcel.handoutDateTimeEarliest);
+    const latestTime = new Date(parcel.handoutDateTimeLatest);
 
-    // Check if expired (7 days after latest pickup time)
+    // Check if expired (7 days after latest handout time)
     const expiryTime = new Date(latestTime);
     expiryTime.setDate(expiryTime.getDate() + 7);
 
@@ -103,12 +103,12 @@ export function getParcelStatus(parcel: PublicParcelData): ParcelStatus {
         return "expired";
     }
 
-    // Check if within pickup window
+    // Check if within handout window
     if (now >= earliestTime && now <= latestTime) {
         return "ready";
     }
 
-    // Before pickup window or after but not expired
+    // Before handout window or after but not expired
     return "scheduled";
 }
 

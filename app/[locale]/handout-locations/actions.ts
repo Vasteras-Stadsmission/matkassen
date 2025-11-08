@@ -2,9 +2,9 @@
 
 import { db } from "@/app/db/drizzle";
 import {
-    pickupLocations,
-    pickupLocationSchedules,
-    pickupLocationScheduleDays,
+    handoutLocations,
+    handoutLocationSchedules,
+    handoutLocationScheduleDays,
 } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -13,19 +13,19 @@ import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import {
     LocationFormInput,
-    PickupLocationWithAllData,
+    HandoutLocationWithAllData,
     ScheduleInput,
-    PickupLocationScheduleWithDays,
+    HandoutLocationScheduleWithDays,
 } from "./types";
 import { logError } from "@/app/utils/logger";
 
 // Get all locations with their schedules
 export const getLocations = protectedAction(
-    async (): Promise<ActionResult<PickupLocationWithAllData[]>> => {
+    async (): Promise<ActionResult<HandoutLocationWithAllData[]>> => {
         try {
             // Auth already verified by protectedAction wrapper
             // Fetch all locations
-            const locations = await db.select().from(pickupLocations);
+            const locations = await db.select().from(handoutLocations);
 
             // For each location, fetch the related data
             const locationsWithSchedules = await Promise.all(
@@ -33,16 +33,16 @@ export const getLocations = protectedAction(
                     // Fetch schedules
                     const schedules = await db
                         .select()
-                        .from(pickupLocationSchedules)
-                        .where(eq(pickupLocationSchedules.pickup_location_id, location.id));
+                        .from(handoutLocationSchedules)
+                        .where(eq(handoutLocationSchedules.handout_location_id, location.id));
 
                     // For each schedule, fetch the related days
                     const schedulesWithDays = await Promise.all(
                         schedules.map(async schedule => {
                             const days = await db
                                 .select()
-                                .from(pickupLocationScheduleDays)
-                                .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+                                .from(handoutLocationScheduleDays)
+                                .where(eq(handoutLocationScheduleDays.schedule_id, schedule.id));
 
                             return {
                                 ...schedule,
@@ -74,14 +74,14 @@ export const getLocations = protectedAction(
 
 // Get a single location with schedules by ID
 export const getLocation = protectedAction(
-    async (_: unknown, id: string): Promise<ActionResult<PickupLocationWithAllData | null>> => {
+    async (_: unknown, id: string): Promise<ActionResult<HandoutLocationWithAllData | null>> => {
         try {
             // Auth already verified by protectedAction wrapper
             // Fetch the location
             const location = await db
                 .select()
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, id))
+                .from(handoutLocations)
+                .where(eq(handoutLocations.id, id))
                 .then(res => res[0] || null);
 
             if (!location) {
@@ -91,16 +91,16 @@ export const getLocation = protectedAction(
             // Fetch schedules
             const schedules = await db
                 .select()
-                .from(pickupLocationSchedules)
-                .where(eq(pickupLocationSchedules.pickup_location_id, id));
+                .from(handoutLocationSchedules)
+                .where(eq(handoutLocationSchedules.handout_location_id, id));
 
             // For each schedule, fetch the related days
             const schedulesWithDays = await Promise.all(
                 schedules.map(async schedule => {
                     const days = await db
                         .select()
-                        .from(pickupLocationScheduleDays)
-                        .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+                        .from(handoutLocationScheduleDays)
+                        .where(eq(handoutLocationScheduleDays.schedule_id, schedule.id));
 
                     return {
                         ...schedule,
@@ -149,7 +149,7 @@ export const createLocation = protectedAction(
                 contact_phone_number: locationData.contact_phone_number,
                 default_slot_duration_minutes: locationData.default_slot_duration_minutes,
             };
-            await db.insert(pickupLocations).values(locationValues);
+            await db.insert(handoutLocations).values(locationValues);
 
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
@@ -196,7 +196,7 @@ export const updateLocation = protectedAction(
                 contact_phone_number: locationData.contact_phone_number,
                 default_slot_duration_minutes: locationData.default_slot_duration_minutes,
             };
-            await db.update(pickupLocations).set(locationValues).where(eq(pickupLocations.id, id));
+            await db.update(handoutLocations).set(locationValues).where(eq(handoutLocations.id, id));
 
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
@@ -224,7 +224,7 @@ export const deleteLocation = protectedAction(
 
         try {
             // Delete the location (cascade will delete related records)
-            await db.delete(pickupLocations).where(eq(pickupLocations.id, id));
+            await db.delete(handoutLocations).where(eq(handoutLocations.id, id));
 
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
@@ -251,7 +251,7 @@ export const createSchedule = protectedAction(
         _: unknown,
         locationId: string,
         scheduleData: ScheduleInput,
-    ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
+    ): Promise<ActionResult<HandoutLocationScheduleWithDays>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -261,15 +261,15 @@ export const createSchedule = protectedAction(
             );
             await validateScheduleOverlap(scheduleData, locationId);
 
-            let createdSchedule: PickupLocationScheduleWithDays;
+            let createdSchedule: HandoutLocationScheduleWithDays;
 
             // Begin a transaction
             await db.transaction(async tx => {
                 // Insert the schedule
                 const [schedule] = await tx
-                    .insert(pickupLocationSchedules)
+                    .insert(handoutLocationSchedules)
                     .values({
-                        pickup_location_id: locationId,
+                        handout_location_id: locationId,
                         name: scheduleData.name,
                         // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
                         start_date:
@@ -287,7 +287,7 @@ export const createSchedule = protectedAction(
                 const scheduleDays = await Promise.all(
                     scheduleData.days.map(async day => {
                         const [createdDay] = await tx
-                            .insert(pickupLocationScheduleDays)
+                            .insert(handoutLocationScheduleDays)
                             .values({
                                 schedule_id: schedule.id,
                                 weekday: day.weekday,
@@ -352,15 +352,15 @@ export const updateSchedule = protectedAction(
         _: unknown,
         scheduleId: string,
         scheduleData: ScheduleInput,
-    ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
+    ): Promise<ActionResult<HandoutLocationScheduleWithDays>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
             // Get the current schedule to find the location
             const currentSchedule = await db
-                .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
-                .from(pickupLocationSchedules)
-                .where(eq(pickupLocationSchedules.id, scheduleId))
+                .select({ handout_location_id: handoutLocationSchedules.handout_location_id })
+                .from(handoutLocationSchedules)
+                .where(eq(handoutLocationSchedules.id, scheduleId))
                 .limit(1);
 
             if (currentSchedule.length === 0) {
@@ -370,7 +370,7 @@ export const updateSchedule = protectedAction(
                 });
             }
 
-            const locationId = currentSchedule[0].pickup_location_id;
+            const locationId = currentSchedule[0].handout_location_id;
 
             // Validate schedule overlap using shared utility (excluding current schedule)
             const { validateScheduleOverlap } = await import(
@@ -378,13 +378,13 @@ export const updateSchedule = protectedAction(
             );
             await validateScheduleOverlap(scheduleData, locationId, scheduleId);
 
-            let updatedSchedule: PickupLocationScheduleWithDays;
+            let updatedSchedule: HandoutLocationScheduleWithDays;
 
             // Begin a transaction
             await db.transaction(async tx => {
                 // Update the schedule
                 const [schedule] = await tx
-                    .update(pickupLocationSchedules)
+                    .update(handoutLocationSchedules)
                     .set({
                         name: scheduleData.name,
                         // Persist dates as ISO YYYY-MM-DD derived from UTC to avoid TZ shifts
@@ -397,19 +397,19 @@ export const updateSchedule = protectedAction(
                                 ? scheduleData.end_date.toISOString().split("T")[0]
                                 : scheduleData.end_date,
                     })
-                    .where(eq(pickupLocationSchedules.id, scheduleId))
+                    .where(eq(handoutLocationSchedules.id, scheduleId))
                     .returning();
 
                 // Delete existing weekday schedules
                 await tx
-                    .delete(pickupLocationScheduleDays)
-                    .where(eq(pickupLocationScheduleDays.schedule_id, scheduleId));
+                    .delete(handoutLocationScheduleDays)
+                    .where(eq(handoutLocationScheduleDays.schedule_id, scheduleId));
 
                 // Insert the updated weekday schedules
                 const scheduleDays = await Promise.all(
                     scheduleData.days.map(async day => {
                         const [createdDay] = await tx
-                            .insert(pickupLocationScheduleDays)
+                            .insert(handoutLocationScheduleDays)
                             .values({
                                 schedule_id: scheduleId,
                                 weekday: day.weekday,
@@ -478,15 +478,15 @@ export const deleteSchedule = protectedAction(
         try {
             // Determine location before deletion
             const [scheduleRow] = await db
-                .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
-                .from(pickupLocationSchedules)
-                .where(eq(pickupLocationSchedules.id, scheduleId))
+                .select({ handout_location_id: handoutLocationSchedules.handout_location_id })
+                .from(handoutLocationSchedules)
+                .where(eq(handoutLocationSchedules.id, scheduleId))
                 .limit(1);
 
             // Delete the schedule (cascade will delete related days)
             await db
-                .delete(pickupLocationSchedules)
-                .where(eq(pickupLocationSchedules.id, scheduleId));
+                .delete(handoutLocationSchedules)
+                .where(eq(handoutLocationSchedules.id, scheduleId));
 
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
@@ -496,17 +496,17 @@ export const deleteSchedule = protectedAction(
 
             // Recompute outside-hours count for this location after schedule deletion
             try {
-                if (scheduleRow?.pickup_location_id) {
+                if (scheduleRow?.handout_location_id) {
                     const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
                         await import("@/app/[locale]/schedule/actions");
-                    await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
-                    await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
+                    await recomputeOutsideHoursCount(scheduleRow.handout_location_id);
+                    await clearLocationSchedulesCache(scheduleRow.handout_location_id);
                 }
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule delete", e, {
                     action: "deleteSchedule",
                     scheduleId,
-                    locationId: scheduleRow?.pickup_location_id,
+                    locationId: scheduleRow?.handout_location_id,
                 });
             }
             return success(undefined);
@@ -523,8 +523,8 @@ export const deleteSchedule = protectedAction(
     },
 );
 
-// PickupLocation interface
-export interface PickupLocation {
+// HandoutLocation interface
+export interface HandoutLocation {
     id: string;
     name: string;
     street_address: string;
@@ -556,6 +556,6 @@ export interface LocationSchedules {
 }
 
 // LocationWithSchedule interface
-export interface LocationWithSchedule extends PickupLocation {
+export interface LocationWithSchedule extends HandoutLocation {
     schedules: LocationSchedules;
 }

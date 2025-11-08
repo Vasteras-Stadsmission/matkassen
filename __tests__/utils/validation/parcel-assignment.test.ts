@@ -93,7 +93,7 @@ describe("Validation Error Codes", () => {
         };
 
         const formattedMessage = formatValidationError(pastTimeError);
-        expect(formattedMessage).toBe("Cannot schedule pickup in the past");
+        expect(formattedMessage).toBe("Cannot schedule handout in the past");
     });
 
     test("should handle unknown error codes", () => {

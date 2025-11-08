@@ -3,7 +3,7 @@
  */
 
 import { db } from "@/app/db/drizzle";
-import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
+import { outgoingSms, foodParcels, households, handoutLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, sql, gte } from "drizzle-orm";
@@ -11,16 +11,16 @@ import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
-import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
+import { fetchHandoutLocationSchedules } from "@/app/utils/schedule/handout-location-schedules";
 // Note: normalizePhoneToE164 available but not used in this service layer
 // Individual functions handle normalization as needed
 import { nanoid } from "nanoid";
 import { logger, logError } from "@/app/utils/logger";
 
 export type SmsIntent =
-    | "pickup_reminder"
-    | "pickup_updated"
-    | "pickup_cancelled"
+    | "handout_reminder"
+    | "handout_updated"
+    | "handout_cancelled"
     | "consent_enrolment";
 export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
@@ -370,7 +370,7 @@ export async function getParcelsNeedingReminder(): Promise<
         householdName: string;
         phone: string;
         locale: string;
-        pickupDate: Date;
+        handoutDate: Date;
         locationName: string;
         locationAddress: string;
     }>
@@ -386,26 +386,26 @@ export async function getParcelsNeedingReminder(): Promise<
             householdName: sql<string>`${households.first_name} || ' ' || ${households.last_name}`,
             phone: households.phone_number,
             locale: households.locale,
-            pickupDate: foodParcels.pickup_date_time_earliest,
-            pickupLatestDate: foodParcels.pickup_date_time_latest,
-            locationId: pickupLocations.id,
-            locationName: pickupLocations.name,
-            locationAddress: pickupLocations.street_address,
+            handoutDate: foodParcels.handout_date_time_earliest,
+            handoutLatestDate: foodParcels.handout_date_time_latest,
+            locationId: handoutLocations.id,
+            locationName: handoutLocations.name,
+            locationAddress: handoutLocations.street_address,
         })
         .from(foodParcels)
         .innerJoin(households, eq(foodParcels.household_id, households.id))
-        .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
+        .innerJoin(handoutLocations, eq(foodParcels.handout_location_id, handoutLocations.id))
         .leftJoin(
             outgoingSms,
             and(
                 eq(outgoingSms.parcel_id, foodParcels.id),
-                eq(outgoingSms.intent, "pickup_reminder"),
+                eq(outgoingSms.intent, "handout_reminder"),
             ),
         )
         .where(
             and(
-                gte(foodParcels.pickup_date_time_earliest, start),
-                lte(foodParcels.pickup_date_time_earliest, end),
+                gte(foodParcels.handout_date_time_earliest, start),
+                lte(foodParcels.handout_date_time_earliest, end),
                 eq(foodParcels.is_picked_up, false),
                 sql`${outgoingSms.id} IS NULL`, // No existing SMS
                 notDeleted(),
@@ -419,7 +419,7 @@ export async function getParcelsNeedingReminder(): Promise<
     for (const parcel of parcels) {
         try {
             // Get location schedules for opening hours validation
-            const locationSchedules = await fetchPickupLocationSchedules(parcel.locationId);
+            const locationSchedules = await fetchHandoutLocationSchedules(parcel.locationId);
 
             if (
                 !locationSchedules ||
@@ -434,8 +434,8 @@ export async function getParcelsNeedingReminder(): Promise<
             // Check if parcel is outside opening hours
             const parcelTimeInfo = {
                 id: parcel.parcelId,
-                pickupEarliestTime: parcel.pickupDate,
-                pickupLatestTime: parcel.pickupLatestDate,
+                handoutEarliestTime: parcel.handoutDate,
+                handoutLatestTime: parcel.handoutLatestDate,
                 isPickedUp: false,
             };
 
@@ -469,7 +469,7 @@ export async function getParcelsNeedingReminder(): Promise<
         householdName: p.householdName,
         phone: p.phone,
         locale: p.locale,
-        pickupDate: p.pickupDate,
+        handoutDate: p.handoutDate,
         locationName: p.locationName,
         locationAddress: p.locationAddress,
     }));

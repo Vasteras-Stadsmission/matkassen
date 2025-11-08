@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-    formatPickupSms,
+    formatHandoutSms,
     formatDateTimeForSms,
     type SmsTemplateData,
 } from "../../../../app/utils/sms/templates";
@@ -13,43 +13,43 @@ describe("SMS Message Templates", () => {
         const testDate = new Date("2024-09-16T10:00:00.000Z");
 
         const templateData: SmsTemplateData = {
-            pickupDate: testDate,
+            handoutDate: testDate,
             publicUrl: "matcentralen.com/p/123456789012",
         };
 
-        it("should generate Swedish pickup SMS with correct localized format", () => {
-            const message = formatPickupSms(templateData, "sv");
+        it("should generate Swedish handout SMS with correct localized format", () => {
+            const message = formatHandoutSms(templateData, "sv");
 
             expect(message).toContain("Matpaket");
             expect(message).toMatch(/matcentralen\.com/);
             // Don't test exact time due to timezone differences
         });
 
-        it("should generate English pickup SMS with correct localized format", () => {
-            const message = formatPickupSms(templateData, "en");
+        it("should generate English handout SMS with correct localized format", () => {
+            const message = formatHandoutSms(templateData, "en");
 
-            expect(message).toContain("Food pickup");
+            expect(message).toContain("Food handout");
             expect(message).toMatch(/matcentralen\.com/);
         });
 
         it("should generate Arabic SMS with proper format", () => {
-            const message = formatPickupSms(templateData, "ar");
+            const message = formatHandoutSms(templateData, "ar");
 
             expect(message).toContain("استلام الطعام");
             expect(message).toMatch(/matcentralen\.com/);
         });
 
         it("should generate German SMS with proper localized date", () => {
-            const message = formatPickupSms(templateData, "de");
+            const message = formatHandoutSms(templateData, "de");
 
             expect(message).toContain("Essen");
             expect(message).toMatch(/matcentralen\.com/);
         });
 
         it("should use English as fallback for unknown locale", () => {
-            const message = formatPickupSms(templateData, "xyz" as SupportedLocale);
+            const message = formatHandoutSms(templateData, "xyz" as SupportedLocale);
 
-            expect(message).toContain("Food pickup");
+            expect(message).toContain("Food handout");
         });
     });
 
@@ -66,7 +66,7 @@ describe("SMS Message Templates", () => {
         const longerDate = new Date("2024-09-18T14:30:00Z"); // Wednesday, September 18, 2024 at 14:30
 
         const testData: SmsTemplateData = {
-            pickupDate: longerDate,
+            handoutDate: longerDate,
             publicUrl: "matcentralen.com/p/123456789012", // Realistic URL length
         };
 
@@ -97,7 +97,7 @@ describe("SMS Message Templates", () => {
 
         it("should keep all SMS messages within single SMS limits", () => {
             languages.forEach(locale => {
-                const message = formatPickupSms(testData, locale);
+                const message = formatHandoutSms(testData, locale);
                 const isUnicode = hasUnicodeChars(message);
                 const limit = isUnicode ? 70 : 160;
 
@@ -114,7 +114,7 @@ describe("SMS Message Templates", () => {
             console.log("=".repeat(80));
 
             languages.forEach(locale => {
-                const message = formatPickupSms(testData, locale);
+                const message = formatHandoutSms(testData, locale);
                 const isUnicode = hasUnicodeChars(message);
                 const limit = isUnicode ? 70 : 160;
                 const status = message.length <= limit ? "✅" : "❌";

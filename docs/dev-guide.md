@@ -47,7 +47,7 @@ app/
   [locale]/          # Localized admin routes (requires auth)
     households/      # Household management
     schedule/        # Food parcel scheduling
-    handout-locations/  # Pickup location management
+    handout-locations/  # Handout location management
   p/                 # PUBLIC parcel pages (no locale, no auth)
   api/               # API routes (auth checked in middleware)
   db/                # Drizzle schema & connection
@@ -341,9 +341,9 @@ This enforces:
 **Important**: Status badges use **date-only** comparison, not time-based.
 
 - Same-day parcels ALWAYS show as "upcoming" (blue badge)
-- Only parcels from PREVIOUS days show as "not picked up" (red badge)
+- Only parcels from PREVIOUS days show as "not handed out" (red badge)
 
-**Rationale**: Households may arrive late. Staff processes throughout the day. We don't want to prematurely mark parcels as "not picked up" while staff are actively working.
+**Rationale**: Households may arrive late. Staff processes throughout the day. We don't want to prematurely mark parcels as "not handed out" while staff are actively working.
 
 **Code location**: `app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx` - `isDateInPast()` function
 

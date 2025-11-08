@@ -69,7 +69,7 @@ export const examples = pgTable("examples", {
 ```typescript
 import { pgEnum } from "drizzle-orm/pg-core";
 
-export const parcelStatusEnum = pgEnum("parcel_status", ["pending", "picked_up", "cancelled"]);
+export const parcelStatusEnum = pgEnum("parcel_status", ["pending", "handed_out", "cancelled"]);
 
 export const parcels = pgTable("parcels", {
     status: parcelStatusEnum("status").notNull().default("pending"),

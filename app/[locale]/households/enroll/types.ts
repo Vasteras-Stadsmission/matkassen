@@ -41,17 +41,17 @@ export interface Pet {
 
 export interface FoodParcel {
     id?: string;
-    pickupDate: Date;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
+    handoutDate: Date;
+    handoutEarliestTime: Date;
+    handoutLatestTime: Date;
 }
 
 export interface FoodParcels {
-    pickupLocationId: string;
+    handoutLocationId: string;
     parcels: FoodParcel[];
 }
 
-export interface PickupLocation {
+export interface HandoutLocation {
     id: string;
     name: string;
     street_address: string;
@@ -111,7 +111,7 @@ export interface HouseholdCreateData {
         count?: number;
     }[];
     foodParcels: {
-        pickupLocationId: string;
+        handoutLocationId: string;
         parcels: FoodParcelCreateData[];
     };
 }
@@ -136,6 +136,6 @@ export interface AdditionalNeedData {
 }
 
 export interface FoodParcelCreateData {
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
+    handoutEarliestTime: Date;
+    handoutLatestTime: Date;
 }

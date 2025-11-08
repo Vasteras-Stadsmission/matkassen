@@ -117,35 +117,35 @@ export const MockButton = ({
 );
 
 /**
- * Mock PickupCard component
+ * Mock HandoutCard component
  */
-export interface MockPickupCardProps {
+export interface MockHandoutCardProps {
     foodParcel: FoodParcel;
     isCompact?: boolean;
 }
 
-export const MockPickupCard = ({ foodParcel, isCompact }: MockPickupCardProps) => (
-    <div data-testid={`pickup-card-${foodParcel.id}`} data-compact={isCompact}>
+export const MockHandoutCard = ({ foodParcel, isCompact }: MockHandoutCardProps) => (
+    <div data-testid={`handout-card-${foodParcel.id}`} data-compact={isCompact}>
         {foodParcel.householdName}
     </div>
 );
 
 /**
- * Mock ReschedulePickupModal component
+ * Mock RescheduleHandoutModal component
  */
-export interface MockReschedulePickupModalProps {
+export interface MockRescheduleHandoutModalProps {
     opened: boolean;
     onClose: () => void;
     foodParcel: FoodParcel | null;
     onRescheduled: () => void;
 }
 
-export const MockReschedulePickupModal = ({
+export const MockRescheduleHandoutModal = ({
     opened,
     onClose,
     foodParcel,
     onRescheduled,
-}: MockReschedulePickupModalProps) => {
+}: MockRescheduleHandoutModalProps) => {
     if (!opened) return null;
 
     return (

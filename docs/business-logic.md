@@ -9,24 +9,24 @@ Parcel status badges use **date-only** comparison, not time-based logic.
 ### Status Rules
 
 - **Upcoming** (blue badge): Scheduled for today or future dates
-- **Not Picked Up** (red badge): Scheduled for previous days AND never marked as picked up
-- **Picked Up** (green badge): Manually marked by staff
+- **Not Handed Out** (red badge): Scheduled for previous days AND never marked as handed out
+- **Handed Out** (green badge): Manually marked by staff
 
 ### Intentional Behavior
 
 Same-day parcels **ALWAYS** show as "upcoming" (blue), even if:
 
-- The pickup window time has passed (e.g., 14:00-16:00 but it's now 17:00)
+- The handout window time has passed (e.g., 14:00-16:00 but it's now 17:00)
 - The location has closed
 - It's late in the evening
 
-Only parcels from **previous days** show as "not picked up" (red).
+Only parcels from **previous days** show as "not handed out" (red).
 
 ### Rationale
 
-1. **Households may arrive late** - We don't want to discourage them by showing "not picked up" while they're still coming
+1. **Households may arrive late** - We don't want to discourage them by showing "not handed out" while they're still coming
 2. **Staff processes throughout the day** - May be handling multiple arrivals simultaneously
-3. **Pickup windows are guidelines** - Not hard cutoffs
+3. **Handout windows are guidelines** - Not hard cutoffs
 4. **Avoid premature red badges** - Staff might still be actively processing handouts
 
 ### Staff Workflow
@@ -34,8 +34,8 @@ Only parcels from **previous days** show as "not picked up" (red).
 1. Staff views household details during handout
 2. Sees parcels scheduled for today (blue badges)
 3. Opens parcel management dialog
-4. **Manually marks parcel as picked up** when household receives it
-5. System records pickup timestamp and user
+4. **Manually marks parcel as handed out** when household receives it
+5. System records handout timestamp and user
 
 ### Code Location
 
@@ -61,9 +61,9 @@ const isDateInPast = (date: Date): boolean => {
 See `__tests__/app/households/parcel-status-display.test.ts`:
 
 - Same-day parcels show as upcoming
-- Previous-day parcels show as not picked up
+- Previous-day parcels show as not handed out
 - Future parcels show as upcoming
-- Picked-up parcels show as picked up regardless of date
+- Handed-out parcels show as handed out regardless of date
 
 ## Household Verification Questions
 
@@ -124,8 +124,8 @@ Staff can add location-specific verification questions to ensure correct househo
 
 ### SMS Notifications
 
-- Sent 1 day before scheduled pickup (configurable)
-- Includes location name, address, pickup window
+- Sent 1 day before scheduled handout (configurable)
+- Includes location name, address, handout window
 - Supports 20+ languages via household preference
 - Queue-based delivery with retry logic
 
@@ -139,7 +139,7 @@ Staff can add location-specific verification questions to ensure correct househo
 
 ### SMS Lifecycle
 
-1. **Scheduled** - Created 24h before parcel pickup
+1. **Scheduled** - Created 24h before parcel handout
 2. **Pending** - Ready to send
 3. **Sent** - Successfully delivered
 4. **Failed** - Delivery failed (retries up to 3 times)

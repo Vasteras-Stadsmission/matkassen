@@ -15,7 +15,7 @@ import {
     MockPaper,
     MockBox,
     MockScrollArea,
-    MockReschedulePickupModal,
+    MockRescheduleHandoutModal,
     createMockDndHooks,
     setSharedMockDragEndHandler,
     getSharedMockDragEndHandler,
@@ -125,7 +125,7 @@ const TestableWeeklyScheduleGrid = ({
         // Check if target slot is in the past
         const now = new Date();
         if (startDateTime < now) {
-            console.error("Cannot schedule pickups in the past:", {
+            console.error("Cannot schedule handouts in the past:", {
                 now,
                 startDateTime,
             });
@@ -259,7 +259,7 @@ const TestableWeeklyScheduleGrid = ({
             </div>
 
             {/* Render the modal */}
-            <MockReschedulePickupModal
+            <MockRescheduleHandoutModal
                 opened={modalOpenedState}
                 onClose={() => {
                     setModalOpened(false);
@@ -500,7 +500,7 @@ describe("WeeklyScheduleGrid Component", () => {
         global.Date = realDate;
     });
 
-    describe("ReschedulePickupModal functionality", () => {
+    describe("RescheduleHandoutModal functionality", () => {
         it("prevents rescheduling food parcels from past time slots", async () => {
             // Mock the current date to be April 20, 2025 (after the Monday parcel)
             const realDate = global.Date;
@@ -564,7 +564,7 @@ describe("WeeklyScheduleGrid Component", () => {
                 selectedParcel: null as FoodParcel | null,
             };
 
-            // Create a mock ReschedulePickupModal component for this specific test
+            // Create a mock RescheduleHandoutModal component for this specific test
             const TestModal = (props: {
                 opened: boolean;
                 onClose: () => void;

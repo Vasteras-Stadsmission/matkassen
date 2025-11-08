@@ -19,7 +19,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
         try {
             // Auth and household verification already done by protectedHouseholdAction
-            const locationId = parcelsData.pickupLocationId;
+            const locationId = parcelsData.handoutLocationId;
 
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
@@ -28,13 +28,13 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 // Validate that NEW parcels are not in the past
                 // (Existing parcels can remain even if they become past)
                 const newPastParcels = parcelsData.parcels.filter(
-                    parcel => !parcel.id && parcel.pickupLatestTime <= now,
+                    parcel => !parcel.id && parcel.handoutLatestTime <= now,
                 );
 
                 if (newPastParcels.length > 0) {
                     const { formatStockholmDate } = await import("@/app/utils/date-utils");
                     const dates = newPastParcels
-                        .map(p => formatStockholmDate(new Date(p.pickupDate), "yyyy-MM-dd"))
+                        .map(p => formatStockholmDate(new Date(p.handoutDate), "yyyy-MM-dd"))
                         .join(", ");
 
                     throw new ParcelValidationError(
@@ -58,14 +58,14 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                     );
 
                     const parcelsToValidate = parcelsData.parcels
-                        .filter(parcel => parcel.pickupLatestTime > now || parcel.id) // Future parcels OR existing parcels being updated
+                        .filter(parcel => parcel.handoutLatestTime > now || parcel.id) // Future parcels OR existing parcels being updated
                         .map(parcel => ({
                             id: parcel.id,
                             householdId: household.id,
-                            locationId: parcelsData.pickupLocationId,
-                            pickupDate: new Date(parcel.pickupDate),
-                            pickupStartTime: parcel.pickupEarliestTime,
-                            pickupEndTime: parcel.pickupLatestTime,
+                            locationId: parcelsData.handoutLocationId,
+                            handoutDate: new Date(parcel.handoutDate),
+                            pickupStartTime: parcel.handoutEarliestTime,
+                            pickupEndTime: parcel.handoutLatestTime,
                         }));
 
                     if (parcelsToValidate.length > 0) {
@@ -82,12 +82,12 @@ export const updateHouseholdParcels = protectedHouseholdAction(
 
                     // Filter to only future parcels (but allow existing parcels to be updated even if past)
                     const parcelsToSave = parcelsData.parcels
-                        .filter(parcel => parcel.pickupLatestTime > now || parcel.id)
+                        .filter(parcel => parcel.handoutLatestTime > now || parcel.id)
                         .map(parcel => ({
                             household_id: household.id,
-                            pickup_location_id: parcelsData.pickupLocationId,
-                            pickup_date_time_earliest: parcel.pickupEarliestTime,
-                            pickup_date_time_latest: parcel.pickupLatestTime,
+                            handout_location_id: parcelsData.handoutLocationId,
+                            handout_date_time_earliest: parcel.handoutEarliestTime,
+                            handout_date_time_latest: parcel.handoutLatestTime,
                             is_picked_up: false,
                         }));
 
@@ -102,10 +102,10 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 // Key includes location to properly handle location changes
                 const desiredParcelKeys = new Set(
                     parcelsData.parcels
-                        .filter(p => p.pickupLatestTime > now)
+                        .filter(p => p.handoutLatestTime > now)
                         .map(
                             p =>
-                                `${parcelsData.pickupLocationId}-${p.pickupEarliestTime.toISOString()}-${p.pickupLatestTime.toISOString()}`,
+                                `${parcelsData.handoutLocationId}-${p.handoutEarliestTime.toISOString()}-${p.handoutLatestTime.toISOString()}`,
                         ),
                 );
 
@@ -113,15 +113,15 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 const existingFutureParcels = await tx
                     .select({
                         id: foodParcels.id,
-                        locationId: foodParcels.pickup_location_id,
-                        earliest: foodParcels.pickup_date_time_earliest,
-                        latest: foodParcels.pickup_date_time_latest,
+                        locationId: foodParcels.handout_location_id,
+                        earliest: foodParcels.handout_date_time_earliest,
+                        latest: foodParcels.handout_date_time_latest,
                     })
                     .from(foodParcels)
                     .where(
                         and(
                             eq(foodParcels.household_id, household.id),
-                            gt(foodParcels.pickup_date_time_latest, now),
+                            gt(foodParcels.handout_date_time_latest, now),
                             notDeleted(),
                         ),
                     );
@@ -192,7 +192,7 @@ export const updateHouseholdParcels = protectedHouseholdAction(
             logError("Error updating household parcels", error, {
                 action: "updateHouseholdParcels",
                 householdId: household.id,
-                locationId: parcelsData.pickupLocationId,
+                locationId: parcelsData.handoutLocationId,
             });
             return failure({
                 code: "INTERNAL_ERROR",

@@ -25,7 +25,7 @@ export const createActionMocks = () => {
         return 15;
     };
 
-    // Mock the getPickupLocationSchedules function
+    // Mock the getHandoutLocationSchedules function
     const mockGetPickupLocationSchedules = async (locationId: string) => {
         // Return mock schedule data
         return {
@@ -83,14 +83,14 @@ export const createActionMocks = () => {
     vi.mock("../../../app/schedule/actions", () => ({
         updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
         getLocationSlotDuration: mockGetLocationSlotDuration,
-        getPickupLocationSchedules: mockGetPickupLocationSchedules,
+        getHandoutLocationSchedules: mockGetPickupLocationSchedules,
     }));
 
     // Also mock the locale-specific version for tests that might use it
     vi.mock("../../../app/[locale]/schedule/actions", () => ({
         updateFoodParcelSchedule: mockUpdateFoodParcelSchedule,
         getLocationSlotDuration: mockGetLocationSlotDuration,
-        getPickupLocationSchedules: mockGetPickupLocationSchedules,
+        getHandoutLocationSchedules: mockGetPickupLocationSchedules,
         FoodParcel: {},
     }));
 

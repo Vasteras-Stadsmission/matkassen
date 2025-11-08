@@ -20,7 +20,7 @@ import {
     getAvailableTimeRange,
 } from "@/app/utils/schedule/location-availability";
 
-interface ReschedulePickupModalProps {
+interface RescheduleHandoutModalProps {
     opened: boolean;
     onClose: () => void;
     foodParcel: FoodParcel | null;
@@ -28,13 +28,13 @@ interface ReschedulePickupModalProps {
     locationSchedules: LocationScheduleInfo | null;
 }
 
-export default function ReschedulePickupModal({
+export default function RescheduleHandoutModal({
     opened,
     onClose,
     foodParcel,
     onRescheduled,
     locationSchedules,
-}: ReschedulePickupModalProps) {
+}: RescheduleHandoutModalProps) {
     // Use a proper type for translations to suppress TypeScript errors
     const t = useTranslations("schedule") as TranslationFunction;
 
@@ -175,7 +175,7 @@ export default function ReschedulePickupModal({
     };
 
     // Check if a date is available according to the location schedule
-    const isDateAvailableForPickup = (date: Date): boolean => {
+    const isDateAvailableForHandout = (date: Date): boolean => {
         if (!locationSchedules) return true; // If no schedule info, assume available
         return isDateAvailable(date, locationSchedules).isAvailable;
     };
@@ -192,24 +192,24 @@ export default function ReschedulePickupModal({
                 <Stack>
                     <Paper withBorder p="md" radius="md">
                         <Text fw={600} mb="sm">
-                            {t("reschedule.currentPickup")}
+                            {t("reschedule.currentHandout")}
                         </Text>
                         <Group justify="space-between">
                             <Text>{t("reschedule.date")}:</Text>
-                            <Text>{formatStockholmDate(foodParcel.pickupDate, "PPP")}</Text>
+                            <Text>{formatStockholmDate(foodParcel.handoutDate, "PPP")}</Text>
                         </Group>
                         <Group justify="space-between">
                             <Text>{t("reschedule.time")}:</Text>
                             <Text>
-                                {formatTime(foodParcel.pickupEarliestTime)} -{" "}
-                                {formatTime(foodParcel.pickupLatestTime)}
+                                {formatTime(foodParcel.handoutEarliestTime)} -{" "}
+                                {formatTime(foodParcel.handoutLatestTime)}
                             </Text>
                         </Group>
                     </Paper>
 
                     <Box>
                         <Text fw={600} mb="sm">
-                            {t("reschedule.newPickup")}
+                            {t("reschedule.newHandout")}
                         </Text>
 
                         <Stack gap="md">
@@ -220,7 +220,7 @@ export default function ReschedulePickupModal({
                                 onChange={value => setSelectedDate(value ? new Date(value) : null)}
                                 leftSection={<IconCalendar size="1rem" />}
                                 minDate={toStockholmDate(new Date())}
-                                excludeDate={date => !isDateAvailableForPickup(new Date(date))}
+                                excludeDate={date => !isDateAvailableForHandout(new Date(date))}
                                 required
                             />
 

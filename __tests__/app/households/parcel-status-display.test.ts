@@ -23,19 +23,19 @@ function isDateInPast(date: Date | string): boolean {
  * Helper to determine parcel status (simplified version of ParcelList logic)
  */
 function getParcelStatus(
-    pickupDate: Date,
-    isPickedUp: boolean,
+    handoutDate: Date,
+    isCollected: boolean,
     deletedAt: Date | null,
-): "upcoming" | "pickedUp" | "notPickedUp" | "cancelled" {
+): "upcoming" | "collected" | "notCollected" | "cancelled" {
     if (deletedAt) return "cancelled";
-    if (isPickedUp) return "pickedUp";
-    if (isDateInPast(pickupDate)) return "notPickedUp";
+    if (isCollected) return "collected";
+    if (isDateInPast(handoutDate)) return "notCollected";
     return "upcoming";
 }
 
 describe("Parcel Status Display Logic", () => {
     describe("isDateInPast - Date-only comparison (intentional)", () => {
-        it("returns false for today, even if pickup window has passed", () => {
+        it("returns false for today, even if handout window has passed", () => {
             // Setup: Today at 09:00 (morning)
             const today = new Date();
             today.setHours(9, 0, 0, 0);
@@ -77,7 +77,7 @@ describe("Parcel Status Display Logic", () => {
     });
 
     describe("Parcel Status Display - Real-world scenarios", () => {
-        it("shows same-day parcel as 'upcoming' even after pickup window ends", () => {
+        it("shows same-day parcel as 'upcoming' even after handout window ends", () => {
             // Real scenario: It's Saturday 15:00, but parcel window was 09:00-09:15
             const todayMorning = new Date();
             todayMorning.setHours(9, 0, 0, 0);
@@ -96,7 +96,7 @@ describe("Parcel Status Display Logic", () => {
 
             const status = getParcelStatus(yesterday, false, null);
 
-            expect(status).toBe("notPickedUp");
+            expect(status).toBe("notCollected");
         });
 
         it("shows tomorrow's parcel as 'upcoming'", () => {
@@ -115,8 +115,8 @@ describe("Parcel Status Display Logic", () => {
 
             const today = new Date();
 
-            expect(getParcelStatus(yesterday, true, null)).toBe("pickedUp");
-            expect(getParcelStatus(today, true, null)).toBe("pickedUp");
+            expect(getParcelStatus(yesterday, true, null)).toBe("collected");
+            expect(getParcelStatus(today, true, null)).toBe("collected");
         });
 
         it("shows cancelled parcel as 'cancelled' regardless of other factors", () => {

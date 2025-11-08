@@ -151,8 +151,8 @@ sudo docker logs matkassen-web-1 | grep -i "SMS" -C 5
 **SMS Operations:**
 
 ```json
-{"level":"INFO","time":"...","intent":"pickup_reminder","msg":"SMS sent successfully"}
-{"level":"ERROR","time":"...","intent":"pickup_reminder","msg":"Failed to send SMS"}
+{"level":"INFO","time":"...","intent":"handout_reminder","msg":"SMS sent successfully"}
+{"level":"ERROR","time":"...","intent":"handout_reminder","msg":"Failed to send SMS"}
 ```
 
 **Cron Jobs:**

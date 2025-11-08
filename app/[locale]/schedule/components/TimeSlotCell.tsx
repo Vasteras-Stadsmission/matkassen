@@ -5,7 +5,7 @@ import { ReactNode, memo, useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { FoodParcel } from "@/app/[locale]/schedule/types";
 import { isPastTimeSlot } from "@/app/utils/date-utils";
-import PickupCard from "./PickupCard";
+import HandoutCard from "./HandoutCard";
 
 interface TimeSlotCellProps {
     date: Date;
@@ -89,7 +89,7 @@ function TimeSlotCell({
                     "element" in parcel ? (
                         <div key={parcel.id}>{parcel.element}</div>
                     ) : (
-                        <PickupCard
+                        <HandoutCard
                             key={parcel.id}
                             foodParcel={parcel}
                             isCompact={true}

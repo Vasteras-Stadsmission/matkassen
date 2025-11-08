@@ -16,10 +16,10 @@ export async function GET() {
 
         return NextResponse.json(locations);
     } catch (error) {
-        logError("Error fetching pickup locations", error, {
+        logError("Error fetching handout locations", error, {
             method: "GET",
-            path: "/api/pickup-locations",
+            path: "/api/handout-locations",
         });
-        return NextResponse.json({ error: "Failed to fetch pickup locations" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to fetch handout locations" }, { status: 500 });
     }
 }

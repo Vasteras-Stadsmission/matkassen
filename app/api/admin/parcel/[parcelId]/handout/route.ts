@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 
-// PATCH /api/admin/parcel/[parcelId]/pickup - Mark parcel as picked up
+// PATCH /api/admin/parcel/[parcelId]/handout - Mark parcel as handed out
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ parcelId: string }> },
@@ -37,21 +37,21 @@ export async function PATCH(
 
         return NextResponse.json({
             success: true,
-            pickedUpAt: now.toISOString(),
-            pickedUpBy: authResult.session!.user.githubUsername,
-            message: "Parcel marked as picked up",
+            handedOutAt: now.toISOString(),
+            handedOutBy: authResult.session!.user.githubUsername,
+            message: "Parcel marked as handed out",
         });
     } catch (error) {
-        logError("Error marking parcel as picked up", error, {
+        logError("Error marking parcel as handed out", error, {
             method: "PATCH",
-            path: "/api/admin/parcel/[parcelId]/pickup",
+            path: "/api/admin/parcel/[parcelId]/handout",
             parcelId: (await params).parcelId,
         });
-        return NextResponse.json({ error: "Failed to mark parcel as picked up" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to mark parcel as handed out" }, { status: 500 });
     }
 }
 
-// DELETE /api/admin/parcel/[parcelId]/pickup - Undo pickup marking
+// DELETE /api/admin/parcel/[parcelId]/handout - Undo handout marking
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ parcelId: string }> },
@@ -65,7 +65,7 @@ export async function DELETE(
 
         const { parcelId } = await params;
 
-        // Update the parcel to clear pickup status
+        // Update the parcel to clear handout status
         const result = await db
             .update(foodParcels)
             .set({
@@ -82,16 +82,16 @@ export async function DELETE(
 
         return NextResponse.json({
             success: true,
-            message: "Parcel pickup status cleared",
+            message: "Parcel handout status cleared",
         });
     } catch (error) {
-        logError("Error clearing parcel pickup status", error, {
+        logError("Error clearing parcel handout status", error, {
             method: "DELETE",
-            path: "/api/admin/parcel/[parcelId]/pickup",
+            path: "/api/admin/parcel/[parcelId]/handout",
             parcelId: (await params).parcelId,
         });
         return NextResponse.json(
-            { error: "Failed to clear parcel pickup status" },
+            { error: "Failed to clear parcel handout status" },
             { status: 500 },
         );
     }

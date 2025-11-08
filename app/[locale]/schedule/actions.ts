@@ -5,9 +5,9 @@ import { db } from "@/app/db/drizzle";
 import {
     households,
     foodParcels,
-    pickupLocations,
-    pickupLocationSchedules,
-    pickupLocationScheduleDays,
+    handoutLocations,
+    handoutLocationSchedules,
+    handoutLocationScheduleDays,
 } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { isTimeAvailable, isDateAvailable } from "@/app/utils/schedule/location-availability";
@@ -20,12 +20,12 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
-import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
+import { fetchHandoutLocationSchedules } from "@/app/utils/schedule/handout-location-schedules";
 
 // Import types for use within this server action file
 import type {
     FoodParcel,
-    PickupLocation,
+    HandoutLocation,
     LocationSchedule,
     LocationScheduleInfo,
     DayInfo,
@@ -43,10 +43,10 @@ export async function getParcelById(parcelId: string): Promise<FoodParcel | null
                 householdId: foodParcels.household_id,
                 firstName: households.first_name,
                 lastName: households.last_name,
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-                pickupLatestTime: foodParcels.pickup_date_time_latest,
-                isPickedUp: foodParcels.is_picked_up,
-                pickupLocationId: foodParcels.pickup_location_id,
+                handoutEarliestTime: foodParcels.handout_date_time_earliest,
+                handoutLatestTime: foodParcels.handout_date_time_latest,
+                isHandedOut: foodParcels.is_handed_out,
+                handoutLocationId: foodParcels.handout_location_id,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
@@ -59,40 +59,40 @@ export async function getParcelById(parcelId: string): Promise<FoodParcel | null
 
         const parcel = parcelsData[0];
 
-        // Create Stockholm timezone date for the pickup date
-        const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
-        const pickupDate = pickupTimeStockholm.startOfDay().toDate();
+        // Create Stockholm timezone date for the handout date
+        const handoutTimeStockholm = Time.fromDate(new Date(parcel.handoutEarliestTime));
+        const handoutDate = handoutTimeStockholm.startOfDay().toDate();
 
         return {
             id: parcel.id,
             householdId: parcel.householdId,
             householdName: `${parcel.firstName} ${parcel.lastName}`,
-            pickupDate,
-            pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-            pickupLatestTime: new Date(parcel.pickupLatestTime),
-            isPickedUp: parcel.isPickedUp,
-            pickup_location_id: parcel.pickupLocationId,
+            handoutDate,
+            handoutEarliestTime: new Date(parcel.handoutEarliestTime),
+            handoutLatestTime: new Date(parcel.handoutLatestTime),
+            isHandedOut: parcel.isHandedOut,
+            handout_location_id: parcel.handoutLocationId,
         };
     } catch (error) {
         logError("Error fetching parcel by ID", error, { parcelId });
         return null;
     }
 }
-export async function getPickupLocations(): Promise<PickupLocation[]> {
+export async function getHandoutLocations(): Promise<HandoutLocation[]> {
     try {
         const locations = await db
             .select({
-                id: pickupLocations.id,
-                name: pickupLocations.name,
-                street_address: pickupLocations.street_address,
-                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-                outsideHoursCount: pickupLocations.outside_hours_count,
+                id: handoutLocations.id,
+                name: handoutLocations.name,
+                street_address: handoutLocations.street_address,
+                maxParcelsPerDay: handoutLocations.parcels_max_per_day,
+                outsideHoursCount: handoutLocations.outside_hours_count,
             })
-            .from(pickupLocations);
+            .from(handoutLocations);
 
         return locations;
     } catch (error) {
-        logError("Error fetching pickup locations", error);
+        logError("Error fetching handout locations", error);
         return [];
     }
 }
@@ -119,37 +119,37 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 householdId: foodParcels.household_id,
                 firstName: households.first_name,
                 lastName: households.last_name,
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-                pickupLatestTime: foodParcels.pickup_date_time_latest,
-                isPickedUp: foodParcels.is_picked_up,
-                pickupLocationId: foodParcels.pickup_location_id,
+                handoutEarliestTime: foodParcels.handout_date_time_earliest,
+                handoutLatestTime: foodParcels.handout_date_time_latest,
+                isHandedOut: foodParcels.is_handed_out,
+                handoutLocationId: foodParcels.handout_location_id,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .where(
                 and(
-                    gte(foodParcels.pickup_date_time_earliest, startDate),
-                    lte(foodParcels.pickup_date_time_earliest, endDate),
+                    gte(foodParcels.handout_date_time_earliest, startDate),
+                    lte(foodParcels.handout_date_time_earliest, endDate),
                     notDeleted(),
                 ),
             )
-            .orderBy(foodParcels.pickup_date_time_earliest);
+            .orderBy(foodParcels.handout_date_time_earliest);
 
         // Transform the data to the expected format with proper timezone handling
         return parcelsData.map(parcel => {
-            // Create Stockholm timezone date for the pickup date
-            const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
-            const pickupDate = pickupTimeStockholm.startOfDay().toDate();
+            // Create Stockholm timezone date for the handout date
+            const handoutTimeStockholm = Time.fromDate(new Date(parcel.handoutEarliestTime));
+            const handoutDate = handoutTimeStockholm.startOfDay().toDate();
 
             return {
                 id: parcel.id,
                 householdId: parcel.householdId,
                 householdName: `${parcel.firstName} ${parcel.lastName}`,
-                pickupDate,
-                pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-                pickupLatestTime: new Date(parcel.pickupLatestTime),
-                isPickedUp: parcel.isPickedUp,
-                pickup_location_id: parcel.pickupLocationId,
+                handoutDate,
+                handoutEarliestTime: new Date(parcel.handoutEarliestTime),
+                handoutLatestTime: new Date(parcel.handoutLatestTime),
+                isHandedOut: parcel.isHandedOut,
+                handout_location_id: parcel.handoutLocationId,
             };
         });
     } catch (error) {
@@ -184,35 +184,35 @@ export async function getFoodParcelsForWeek(
                 householdId: foodParcels.household_id,
                 firstName: households.first_name,
                 lastName: households.last_name,
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-                pickupLatestTime: foodParcels.pickup_date_time_latest,
+                handoutEarliestTime: foodParcels.handout_date_time_earliest,
+                handoutLatestTime: foodParcels.handout_date_time_latest,
                 isPickedUp: foodParcels.is_picked_up,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .where(
                 and(
-                    eq(foodParcels.pickup_location_id, locationId),
-                    between(foodParcels.pickup_date_time_earliest, startDate, endDate),
+                    eq(foodParcels.handout_location_id, locationId),
+                    between(foodParcels.handout_date_time_earliest, startDate, endDate),
                     notDeleted(),
                 ),
             )
-            .orderBy(foodParcels.pickup_date_time_earliest);
+            .orderBy(foodParcels.handout_date_time_earliest);
 
         // Transform the data to the expected format with proper timezone handling
         return parcelsData.map(parcel => {
-            // Create Stockholm timezone date for the pickup date
-            const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
-            const pickupDate = pickupTimeStockholm.startOfDay().toDate();
+            // Create Stockholm timezone date for the handout date
+            const handoutTimeStockholm = Time.fromDate(new Date(parcel.handoutEarliestTime));
+            const handoutDate = handoutTimeStockholm.startOfDay().toDate();
 
             return {
                 id: parcel.id,
                 householdId: parcel.householdId,
                 householdName: `${parcel.firstName} ${parcel.lastName}`,
-                pickupDate,
-                pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-                pickupLatestTime: new Date(parcel.pickupLatestTime),
-                isPickedUp: parcel.isPickedUp,
+                handoutDate,
+                handoutEarliestTime: new Date(parcel.handoutEarliestTime),
+                handoutLatestTime: new Date(parcel.handoutLatestTime),
+                isHandedOut: parcel.isHandedOut,
             };
         });
     } catch (error) {
@@ -241,10 +241,10 @@ export async function getTimeslotCounts(
         // Fetch the location settings to get the slot duration
         const [locationSettings] = await db
             .select({
-                slotDuration: pickupLocations.default_slot_duration_minutes,
+                slotDuration: handoutLocations.default_slot_duration_minutes,
             })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, locationId))
+            .from(handoutLocations)
+            .where(eq(handoutLocations.id, locationId))
             .limit(1);
 
         // Default to 30 minutes if setting is not found
@@ -253,13 +253,13 @@ export async function getTimeslotCounts(
         // Query food parcels for this location and date
         const parcels = await db
             .select({
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+                handoutEarliestTime: foodParcels.handout_date_time_earliest,
             })
             .from(foodParcels)
             .where(
                 and(
-                    eq(foodParcels.pickup_location_id, locationId),
-                    between(foodParcels.pickup_date_time_earliest, startDate, endDate),
+                    eq(foodParcels.handout_location_id, locationId),
+                    between(foodParcels.handout_date_time_earliest, startDate, endDate),
                     notDeleted(),
                 ),
             );
@@ -268,7 +268,7 @@ export async function getTimeslotCounts(
         const timeslotCounts: Record<string, number> = {};
 
         parcels.forEach(parcel => {
-            const time = Time.fromDate(new Date(parcel.pickupEarliestTime));
+            const time = Time.fromDate(new Date(parcel.handoutEarliestTime));
             const hour = parseInt(time.format("HH"), 10);
 
             // Round to the nearest slot based on the location's slot duration
@@ -310,7 +310,7 @@ export const updateFoodParcelSchedule = protectedAction(
             // Get the parcel's location ID first (before transaction)
             const [existingParcel] = await db
                 .select({
-                    locationId: foodParcels.pickup_location_id,
+                    locationId: foodParcels.handout_location_id,
                 })
                 .from(foodParcels)
                 .where(and(eq(foodParcels.id, parcelId), notDeleted()))
@@ -332,7 +332,7 @@ export const updateFoodParcelSchedule = protectedAction(
                 // Get parcel information again within transaction (for consistency)
                 const [parcel] = await tx
                     .select({
-                        locationId: foodParcels.pickup_location_id,
+                        locationId: foodParcels.handout_location_id,
                     })
                     .from(foodParcels)
                     .where(and(eq(foodParcels.id, parcelId), notDeleted()))
@@ -345,10 +345,10 @@ export const updateFoodParcelSchedule = protectedAction(
                 // Get the location's slot duration to calculate proper end time
                 const [location] = await tx
                     .select({
-                        slotDuration: pickupLocations.default_slot_duration_minutes,
+                        slotDuration: handoutLocations.default_slot_duration_minutes,
                     })
-                    .from(pickupLocations)
-                    .where(eq(pickupLocations.id, parcel.locationId))
+                    .from(handoutLocations)
+                    .where(eq(handoutLocations.id, parcel.locationId))
                     .limit(1);
 
                 // Calculate the correct end time based on the location's slot duration
@@ -386,8 +386,8 @@ export const updateFoodParcelSchedule = protectedAction(
                 await tx
                     .update(foodParcels)
                     .set({
-                        pickup_date_time_earliest: newTimeslot.startTime,
-                        pickup_date_time_latest: endTime, // Use our calculated end time
+                        handout_date_time_earliest: newTimeslot.startTime,
+                        handout_date_time_latest: endTime, // Use our calculated end time
                     })
                     .where(eq(foodParcels.id, parcelId));
             });
@@ -434,9 +434,9 @@ export async function validateParcelAssignments(
         id?: string; // Optional for new parcels
         householdId: string;
         locationId: string;
-        pickupDate: Date;
-        pickupStartTime: Date;
-        pickupEndTime: Date;
+        handoutDate: Date;
+        handoutStartTime: Date;
+        handoutEndTime: Date;
     }>,
 ): Promise<{
     success: boolean;
@@ -464,14 +464,14 @@ export async function validateParcelAssignments(
         const assignments = parcels.map(parcel => {
             const isNewParcel = !parcel.id;
 
-            const dateString = parcel.pickupDate.toISOString().split("T")[0];
+            const dateString = parcel.handoutDate.toISOString().split("T")[0];
 
             return {
                 parcelId: parcel.id || `temp_${Math.random()}`, // Generate temp ID for new parcels
                 timeslot: {
                     date: dateString,
-                    startTime: parcel.pickupStartTime,
-                    endTime: parcel.pickupEndTime,
+                    startTime: parcel.handoutStartTime,
+                    endTime: parcel.handoutEndTime,
                 },
                 isNewParcel,
                 householdId: isNewParcel ? parcel.householdId : undefined,
@@ -504,16 +504,16 @@ export async function validateParcelAssignments(
 }
 
 /**
- * Get all schedules for a pickup location
+ * Get all schedules for a handout location
  */
-export const getPickupLocationSchedules = async (
+export const getHandoutLocationSchedules = async (
     locationId: string,
 ): Promise<LocationScheduleInfo> => {
     // Create a cached function that will fetch the schedules
     const cachedFetchSchedules = unstable_cache(
-        () => fetchPickupLocationSchedules(locationId),
+        () => fetchHandoutLocationSchedules(locationId),
         // Use a key that includes the location ID for better caching
-        [`pickup-location-schedules-${locationId}`],
+        [`handout-location-schedules-${locationId}`],
         {
             // Cache results for 1 minute (60 seconds) to reduce staleness
             revalidate: 60,
@@ -545,7 +545,7 @@ export const clearLocationSchedulesCache = async (locationId: string) => {
 };
 
 /**
- * Check if a pickup location is open on a specific date and time
+ * Check if a handout location is open on a specific date and time
  */
 export async function checkLocationAvailability(
     locationId: string,
@@ -553,7 +553,7 @@ export async function checkLocationAvailability(
     time: string,
 ): Promise<{ isAvailable: boolean; reason?: string }> {
     try {
-        const scheduleInfo = await getPickupLocationSchedules(locationId);
+        const scheduleInfo = await getHandoutLocationSchedules(locationId);
 
         // Rebase the input date into Stockholm time to align with stored schedules
         const requestDate = Time.fromDate(date);
@@ -626,12 +626,12 @@ export async function getAvailableTimeSlots(
         // Get schedules for this location that include this date
         const schedules = await db
             .select()
-            .from(pickupLocationSchedules)
+            .from(handoutLocationSchedules)
             .where(
                 and(
-                    eq(pickupLocationSchedules.pickup_location_id, locationId),
-                    lte(pickupLocationSchedules.start_date, dateStr),
-                    gte(pickupLocationSchedules.end_date, dateStr),
+                    eq(handoutLocationSchedules.handout_location_id, locationId),
+                    lte(handoutLocationSchedules.start_date, dateStr),
+                    gte(handoutLocationSchedules.end_date, dateStr),
                 ),
             );
 
@@ -643,11 +643,11 @@ export async function getAvailableTimeSlots(
         for (const schedule of schedules) {
             const day = await db
                 .select()
-                .from(pickupLocationScheduleDays)
+                .from(handoutLocationScheduleDays)
                 .where(
                     and(
-                        eq(pickupLocationScheduleDays.schedule_id, schedule.id),
-                        eq(pickupLocationScheduleDays.weekday, weekdayName),
+                        eq(handoutLocationScheduleDays.schedule_id, schedule.id),
+                        eq(handoutLocationScheduleDays.weekday, weekdayName),
                     ),
                 )
                 .then(res => res[0] || null);
@@ -677,10 +677,10 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
         // Also fetch the location settings to get the slot duration
         const [locationSettings] = await db
             .select({
-                slotDuration: pickupLocations.default_slot_duration_minutes,
+                slotDuration: handoutLocations.default_slot_duration_minutes,
             })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, locationId))
+            .from(handoutLocations)
+            .where(eq(handoutLocations.id, locationId))
             .limit(1);
 
         const slotDurationMinutes = locationSettings?.slotDuration;
@@ -742,22 +742,22 @@ export async function getTimeSlotGrid(locationId: string, week: Date[]): Promise
  * Get a location with its schedules
  */
 export async function getLocationWithSchedules(locationId: string): Promise<LocationScheduleInfo> {
-    // This is essentially a wrapper around getPickupLocationSchedules to make the code more explicit
-    return getPickupLocationSchedules(locationId);
+    // This is essentially a wrapper around getHandoutLocationSchedules to make the code more explicit
+    return getHandoutLocationSchedules(locationId);
 }
 
 /**
- * Get the default slot duration for a pickup location
+ * Get the default slot duration for a handout location
  */
 export async function getLocationSlotDuration(locationId: string): Promise<number> {
     try {
         // Fetch location settings to get the slot duration
         const [locationSettings] = await db
             .select({
-                slotDuration: pickupLocations.default_slot_duration_minutes,
+                slotDuration: handoutLocations.default_slot_duration_minutes,
             })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, locationId))
+            .from(handoutLocations)
+            .where(eq(handoutLocations.id, locationId))
             .limit(1);
 
         // Default to 15 minutes if setting is not found
@@ -794,15 +794,15 @@ export async function checkParcelsAffectedByScheduleChange(
     const parcels = await db
         .select({
             id: foodParcels.id,
-            earliest: foodParcels.pickup_date_time_earliest,
-            latest: foodParcels.pickup_date_time_latest,
+            earliest: foodParcels.handout_date_time_earliest,
+            latest: foodParcels.handout_date_time_latest,
         })
         .from(foodParcels)
         .where(
             and(
-                eq(foodParcels.pickup_location_id, locationId),
-                eq(foodParcels.is_picked_up, false),
-                gt(foodParcels.pickup_date_time_earliest, now.toUTC()),
+                eq(foodParcels.handout_location_id, locationId),
+                eq(foodParcels.is_handed_out, false),
+                gt(foodParcels.handout_date_time_earliest, now.toUTC()),
                 notDeleted(),
             ),
         );
@@ -812,16 +812,16 @@ export async function checkParcelsAffectedByScheduleChange(
     // Get current schedules for this location (excluding the one being edited if applicable)
     const currentSchedules = await db
         .select({
-            id: pickupLocationSchedules.id,
-            start_date: pickupLocationSchedules.start_date,
-            end_date: pickupLocationSchedules.end_date,
+            id: handoutLocationSchedules.id,
+            start_date: handoutLocationSchedules.start_date,
+            end_date: handoutLocationSchedules.end_date,
         })
-        .from(pickupLocationSchedules)
+        .from(handoutLocationSchedules)
         .where(
             and(
-                eq(pickupLocationSchedules.pickup_location_id, locationId),
-                excludeScheduleId ? ne(pickupLocationSchedules.id, excludeScheduleId) : undefined,
-                sql`${pickupLocationSchedules.end_date} >= ${now.toDateString()}::date`,
+                eq(handoutLocationSchedules.handout_location_id, locationId),
+                excludeScheduleId ? ne(handoutLocationSchedules.id, excludeScheduleId) : undefined,
+                sql`${handoutLocationSchedules.end_date} >= ${now.toDateString()}::date`,
             ),
         );
 
@@ -830,13 +830,13 @@ export async function checkParcelsAffectedByScheduleChange(
         currentSchedules.map(async schedule => {
             const days = await db
                 .select({
-                    weekday: pickupLocationScheduleDays.weekday,
-                    is_open: pickupLocationScheduleDays.is_open,
-                    opening_time: pickupLocationScheduleDays.opening_time,
-                    closing_time: pickupLocationScheduleDays.closing_time,
+                    weekday: handoutLocationScheduleDays.weekday,
+                    is_open: handoutLocationScheduleDays.is_open,
+                    opening_time: handoutLocationScheduleDays.opening_time,
+                    closing_time: handoutLocationScheduleDays.closing_time,
                 })
-                .from(pickupLocationScheduleDays)
-                .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+                .from(handoutLocationScheduleDays)
+                .where(eq(handoutLocationScheduleDays.schedule_id, schedule.id));
 
             return {
                 id: schedule.id,
@@ -879,24 +879,24 @@ export async function checkParcelsAffectedByScheduleChange(
         // Get the original schedule being edited to include in current state
         const originalScheduleResult = await db
             .select({
-                id: pickupLocationSchedules.id,
-                start_date: pickupLocationSchedules.start_date,
-                end_date: pickupLocationSchedules.end_date,
+                id: handoutLocationSchedules.id,
+                start_date: handoutLocationSchedules.start_date,
+                end_date: handoutLocationSchedules.end_date,
             })
-            .from(pickupLocationSchedules)
-            .where(eq(pickupLocationSchedules.id, excludeScheduleId));
+            .from(handoutLocationSchedules)
+            .where(eq(handoutLocationSchedules.id, excludeScheduleId));
 
         if (originalScheduleResult.length > 0) {
             const originalSchedule = originalScheduleResult[0];
             const originalDays = await db
                 .select({
-                    weekday: pickupLocationScheduleDays.weekday,
-                    is_open: pickupLocationScheduleDays.is_open,
-                    opening_time: pickupLocationScheduleDays.opening_time,
-                    closing_time: pickupLocationScheduleDays.closing_time,
+                    weekday: handoutLocationScheduleDays.weekday,
+                    is_open: handoutLocationScheduleDays.is_open,
+                    opening_time: handoutLocationScheduleDays.opening_time,
+                    closing_time: handoutLocationScheduleDays.closing_time,
                 })
-                .from(pickupLocationScheduleDays)
-                .where(eq(pickupLocationScheduleDays.schedule_id, originalSchedule.id));
+                .from(handoutLocationScheduleDays)
+                .where(eq(handoutLocationScheduleDays.schedule_id, originalSchedule.id));
 
             const originalScheduleForCheck: LocationSchedule = {
                 id: originalSchedule.id,
@@ -1006,15 +1006,15 @@ export async function checkParcelsAffectedByScheduleDeletion(
     const parcels = await db
         .select({
             id: foodParcels.id,
-            earliest: foodParcels.pickup_date_time_earliest,
-            latest: foodParcels.pickup_date_time_latest,
+            earliest: foodParcels.handout_date_time_earliest,
+            latest: foodParcels.handout_date_time_latest,
         })
         .from(foodParcels)
         .where(
             and(
-                eq(foodParcels.pickup_location_id, locationId),
-                eq(foodParcels.is_picked_up, false),
-                gt(foodParcels.pickup_date_time_earliest, now.toUTC()),
+                eq(foodParcels.handout_location_id, locationId),
+                eq(foodParcels.is_handed_out, false),
+                gt(foodParcels.handout_date_time_earliest, now.toUTC()),
                 notDeleted(),
             ),
         );
@@ -1024,16 +1024,16 @@ export async function checkParcelsAffectedByScheduleDeletion(
     // Get all other schedules for this location (excluding the one to be deleted)
     const otherSchedules = await db
         .select({
-            id: pickupLocationSchedules.id,
-            start_date: pickupLocationSchedules.start_date,
-            end_date: pickupLocationSchedules.end_date,
+            id: handoutLocationSchedules.id,
+            start_date: handoutLocationSchedules.start_date,
+            end_date: handoutLocationSchedules.end_date,
         })
-        .from(pickupLocationSchedules)
+        .from(handoutLocationSchedules)
         .where(
             and(
-                eq(pickupLocationSchedules.pickup_location_id, locationId),
-                ne(pickupLocationSchedules.id, scheduleToDelete.id),
-                sql`${pickupLocationSchedules.end_date} >= ${now.toDateString()}::date`,
+                eq(handoutLocationSchedules.handout_location_id, locationId),
+                ne(handoutLocationSchedules.id, scheduleToDelete.id),
+                sql`${handoutLocationSchedules.end_date} >= ${now.toDateString()}::date`,
             ),
         );
 
@@ -1042,13 +1042,13 @@ export async function checkParcelsAffectedByScheduleDeletion(
         otherSchedules.map(async schedule => {
             const days = await db
                 .select({
-                    weekday: pickupLocationScheduleDays.weekday,
-                    is_open: pickupLocationScheduleDays.is_open,
-                    opening_time: pickupLocationScheduleDays.opening_time,
-                    closing_time: pickupLocationScheduleDays.closing_time,
+                    weekday: handoutLocationScheduleDays.weekday,
+                    is_open: handoutLocationScheduleDays.is_open,
+                    opening_time: handoutLocationScheduleDays.opening_time,
+                    closing_time: handoutLocationScheduleDays.closing_time,
                 })
-                .from(pickupLocationScheduleDays)
-                .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+                .from(handoutLocationScheduleDays)
+                .where(eq(handoutLocationScheduleDays.schedule_id, schedule.id));
 
             return {
                 ...schedule,
@@ -1129,18 +1129,18 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
                 id: foodParcels.id,
                 householdId: foodParcels.household_id,
                 householdName: sql<string>`${households.first_name} || ' ' || ${households.last_name}`,
-                pickupDate: foodParcels.pickup_date_time_earliest,
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-                pickupLatestTime: foodParcels.pickup_date_time_latest,
+                handoutDate: foodParcels.handout_date_time_earliest,
+                handoutEarliestTime: foodParcels.handout_date_time_earliest,
+                handoutLatestTime: foodParcels.handout_date_time_latest,
                 isPickedUp: foodParcels.is_picked_up,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .where(
                 and(
-                    eq(foodParcels.pickup_location_id, locationId),
+                    eq(foodParcels.handout_location_id, locationId),
                     eq(foodParcels.is_picked_up, false),
-                    gt(foodParcels.pickup_date_time_earliest, now.toUTC()),
+                    gt(foodParcels.handout_date_time_earliest, now.toUTC()),
                     notDeleted(),
                 ),
             );
@@ -1154,13 +1154,13 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
     }
 
     // Get current schedules for this location
-    const locationSchedules = await getPickupLocationSchedules(locationId);
+    const locationSchedules = await getHandoutLocationSchedules(locationId);
 
     if (!locationSchedules || !locationSchedules.schedules) {
         // Transform to FoodParcel format
         const outsideParcels = parcels.map(parcel => ({
             ...parcel,
-            pickupDate: new Date(parcel.pickupDate),
+            handoutDate: new Date(parcel.handoutDate),
         }));
         return { outsideParcels, totalCount: parcels.length };
     }
@@ -1172,8 +1172,8 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
         // Convert to the format expected by the centralized function
         const parcelTimeInfo = {
             id: parcel.id,
-            pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-            pickupLatestTime: new Date(parcel.pickupLatestTime),
+            handoutEarliestTime: new Date(parcel.handoutEarliestTime),
+            handoutLatestTime: new Date(parcel.handoutLatestTime),
             isPickedUp: parcel.isPickedUp,
         };
 
@@ -1181,7 +1181,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
         if (isParcelOutsideOpeningHours(parcelTimeInfo, locationSchedules)) {
             outsideParcels.push({
                 ...parcel,
-                pickupDate: new Date(parcel.pickupDate),
+                handoutDate: new Date(parcel.handoutDate),
             });
         }
     }
@@ -1208,8 +1208,8 @@ export async function getOutsideHoursParcelsForLocation(locationId: string): Pro
 export async function getTotalOutsideHoursCount(): Promise<number> {
     try {
         const result = await db
-            .select({ totalCount: sql<number>`sum(${pickupLocations.outside_hours_count})` })
-            .from(pickupLocations);
+            .select({ totalCount: sql<number>`sum(${handoutLocations.outside_hours_count})` })
+            .from(handoutLocations);
 
         return result[0]?.totalCount || 0;
     } catch (error) {
@@ -1229,9 +1229,9 @@ export async function recomputeOutsideHoursCount(locationId: string): Promise<nu
 
         // Update the persisted count
         await db
-            .update(pickupLocations)
+            .update(handoutLocations)
             .set({ outside_hours_count: totalCount })
-            .where(eq(pickupLocations.id, locationId));
+            .where(eq(handoutLocations.id, locationId));
 
         return totalCount;
     } catch (error) {
