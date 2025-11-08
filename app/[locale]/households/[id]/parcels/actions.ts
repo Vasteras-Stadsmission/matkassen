@@ -69,7 +69,10 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                         }));
 
                     if (parcelsToValidate.length > 0) {
-                        const validationResult = await validateParcelAssignments(parcelsToValidate);
+                        const validationResult = await validateParcelAssignments(
+                            parcelsToValidate,
+                            tx,
+                        );
 
                         if (!validationResult.success) {
                             // Throw to trigger transaction rollback

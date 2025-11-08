@@ -101,6 +101,7 @@ describe("SchedulesTab", () => {
         street_address: "123 Test St",
         postal_code: "12345",
         parcels_max_per_day: 20,
+        max_parcels_per_slot: 4,
         default_slot_duration_minutes: 15,
         contact_name: null,
         contact_email: null,
