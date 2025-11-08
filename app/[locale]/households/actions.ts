@@ -22,6 +22,7 @@ import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
+import { UNKNOWN_CREATOR } from "@/app/constants/household";
 
 // Cache GitHub user data fetching
 export const fetchGithubUserData = cache(
@@ -259,8 +260,15 @@ export async function getHouseholdDetails(householdId: string) {
             };
         });
 
+        // Fetch GitHub data for household creator (if not "unknown")
+        const creatorGithubData =
+            household.created_by && household.created_by !== UNKNOWN_CREATOR
+                ? await fetchGithubUserData(household.created_by)
+                : null;
+
         return {
             household,
+            creatorGithubData,
             members,
             dietaryRestrictions: dietaryRestrictionsResult,
             additionalNeeds: additionalNeedsResult,
