@@ -200,7 +200,20 @@ fi
 
 # Wait for containers to be fully healthy before starting nginx
 echo "Waiting for Docker containers to be healthy..."
-if ! timeout 60 bash -c 'until sudo docker compose ps | grep -q "healthy"; do echo "Waiting for health checks..."; sleep 2; done'; then
+if ! timeout 60 bash -c '
+  while true; do
+    # Count total containers and healthy containers
+    TOTAL=$(sudo docker compose ps --format json 2>/dev/null | jq -s "length" || echo "0")
+    HEALTHY=$(sudo docker compose ps --format json 2>/dev/null | jq -s "[.[] | select(.Health==\"healthy\")] | length" || echo "0")
+
+    if [[ "$TOTAL" -gt 0 && "$TOTAL" -eq "$HEALTHY" ]]; then
+      echo "All $TOTAL containers are healthy"
+      break
+    fi
+    echo "Waiting for health checks... ($HEALTHY/$TOTAL healthy)"
+    sleep 2
+  done
+'; then
     echo "❌ Health check wait timed out. Docker containers did not become healthy within 60 seconds."
     sudo docker compose ps
     sudo docker compose logs
