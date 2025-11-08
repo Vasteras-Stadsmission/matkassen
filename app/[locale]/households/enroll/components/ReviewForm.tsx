@@ -72,7 +72,7 @@ export default function ReviewForm({
     };
 
     // Format postal code as XXX XX
-    const formatPostalCode = (postalCode: string) => {
+    const formatPostalCode = (postalCode?: string | null) => {
         if (!postalCode) return "";
         // Remove any non-digits
         const digits = postalCode.replace(/\D/g, "");

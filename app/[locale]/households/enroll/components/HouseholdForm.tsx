@@ -56,6 +56,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: value =>
                 !/^\d{8,12}$/.test(value) ? t("validation.phoneNumberFormat") : null,
             postal_code: value => {
+                if (!value || value.trim().length === 0) return null; // Optional field
                 const stripped = value.replace(/\s/g, "");
                 return !/^\d{5}$/.test(stripped) ? t("validation.postalCodeFormat") : null;
             },
@@ -180,7 +181,6 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                         <TextInput
                             label={t("postalCode")}
                             placeholder="123 45"
-                            withAsterisk
                             {...form.getInputProps("postal_code", { withFocus: true })}
                             value={formatPostalCode(form.values.postal_code)}
                             onChange={handlePostalCodeChange}

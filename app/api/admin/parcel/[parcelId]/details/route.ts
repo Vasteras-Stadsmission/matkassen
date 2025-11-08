@@ -39,7 +39,7 @@ export interface ParcelDetails {
         lastName: string;
         phoneNumber: string;
         locale: string;
-        postalCode: string;
+        postalCode: string | null;
         createdAt: string;
         members: Array<{
             id: string;

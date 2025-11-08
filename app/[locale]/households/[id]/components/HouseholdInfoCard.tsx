@@ -8,7 +8,7 @@ interface HouseholdInfoCardProps {
     firstName: string;
     lastName: string;
     phoneNumber: string;
-    postalCode: string;
+    postalCode: string | null;
     locale: string;
     getLanguageName: (locale: string) => string;
 }
@@ -23,7 +23,7 @@ export function HouseholdInfoCard({
 }: HouseholdInfoCardProps) {
     const t = useTranslations("householdDetail");
 
-    const formatPostalCode = (code: string) => {
+    const formatPostalCode = (code: string | null) => {
         if (!code) return "";
         const digits = code.replace(/\D/g, "");
         if (digits.length === 5) {
