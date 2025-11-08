@@ -322,8 +322,7 @@ export async function validateParcelAssignment({
 
         // 6. Validate slot-level capacity (parcels in the same time slot)
         // Only validate if location has a slot limit configured
-        const maxParcelsPerSlot =
-            location.maxParcelsPerSlot ?? DEFAULT_MAX_PARCELS_PER_SLOT;
+        const maxParcelsPerSlot = location.maxParcelsPerSlot ?? DEFAULT_MAX_PARCELS_PER_SLOT;
 
         if (maxParcelsPerSlot !== null) {
             const slotStartUTC = new Date(newTimeslot.startTime);
