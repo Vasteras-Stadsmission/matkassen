@@ -206,7 +206,11 @@ export default function InternationalizedHouseholdDetail({
                                 <ThemeIcon size="md" variant="light" color="blue">
                                     <IconUserCheck size={16} />
                                 </ThemeIcon>
-                                <Text>{t("createdBy", { username: householdDetail.household.created_by })}</Text>
+                                <Text>
+                                    {t("createdBy", {
+                                        username: householdDetail.household.created_by,
+                                    })}
+                                </Text>
                             </Group>
                         )}
                     </Paper>

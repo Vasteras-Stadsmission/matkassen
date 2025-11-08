@@ -399,7 +399,8 @@ export default function HouseholdsTable({ households }: { households: Household[
                                   accessor: "locale",
                                   title: t("table.language"),
                                   sortable: true,
-                                  render: (household: Household) => getLanguageName(household.locale),
+                                  render: (household: Household) =>
+                                      getLanguageName(household.locale),
                               },
                           ]
                         : []),
