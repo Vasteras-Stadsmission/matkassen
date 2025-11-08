@@ -403,6 +403,38 @@ fi
 
 echo "✅ All services are running and healthy (verified by Docker health checks)."
 
+# Ensure nginx is running after Docker containers are up (safety check with retry)
+echo "Verifying nginx is running after Docker startup..."
+if ! sudo systemctl is-active --quiet nginx; then
+  echo "⚠️ Nginx stopped during Docker startup, attempting restart..."
+  NGINX_START_ATTEMPTS=0
+  MAX_NGINX_ATTEMPTS=3
+
+  while [ $NGINX_START_ATTEMPTS -lt $MAX_NGINX_ATTEMPTS ]; do
+    sleep 3  # Give Docker containers time to fully release any ports
+    if sudo systemctl start nginx; then
+      echo "✅ Nginx restarted successfully"
+      break
+    else
+      NGINX_START_ATTEMPTS=$((NGINX_START_ATTEMPTS + 1))
+      echo "⚠️ Nginx failed to start (attempt $NGINX_START_ATTEMPTS/$MAX_NGINX_ATTEMPTS)"
+
+      # Log diagnostic info
+      echo "Checking what's using ports 80/443..."
+      sudo ss -tulpn | grep -E ':80 |:443 ' || echo "No processes found on ports 80/443"
+      echo "Recent nginx logs:"
+      sudo journalctl -u nginx -n 20 --no-pager
+
+      if [ $NGINX_START_ATTEMPTS -ge $MAX_NGINX_ATTEMPTS ]; then
+        echo "❌ Failed to start nginx after $MAX_NGINX_ATTEMPTS attempts"
+        exit 1
+      fi
+    fi
+  done
+else
+  echo "✅ Nginx is running"
+fi
+
 # Run migrations directly (database is already healthy from Docker health checks)
 echo "Running database migrations..."
 cd "$APP_DIR"
