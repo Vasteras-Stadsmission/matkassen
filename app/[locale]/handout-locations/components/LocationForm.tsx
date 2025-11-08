@@ -25,6 +25,7 @@ interface LocationFormProps {
     location?: PickupLocationWithAllData | null;
     onSaved?: () => void;
     onLocationUpdated?: (id: string, updatedLocation: Partial<PickupLocationWithAllData>) => void;
+    onLocationCreated?: (newLocation: PickupLocationWithAllData) => void;
     isModal?: boolean;
 }
 
@@ -32,6 +33,7 @@ export function LocationForm({
     location,
     onSaved,
     onLocationUpdated,
+    onLocationCreated,
     isModal = false,
 }: LocationFormProps) {
     // Specify the correct namespace for translations
@@ -129,6 +131,11 @@ export function LocationForm({
                         color: "green",
                     });
 
+                    // Notify parent of new location
+                    if (onLocationCreated) {
+                        onLocationCreated(result.data);
+                    }
+
                     // Reset form if in modal (for creating new locations)
                     if (isModal) {
                         form.reset();
@@ -158,6 +165,7 @@ export function LocationForm({
             form,
             onSaved,
             onLocationUpdated,
+            onLocationCreated,
             errorSavingTitle,
             errorSavingMessage,
             locationCreatedTitle,

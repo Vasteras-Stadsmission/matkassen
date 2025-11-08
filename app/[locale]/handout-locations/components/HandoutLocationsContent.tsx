@@ -88,6 +88,12 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
         );
     };
 
+    // Handle adding a new location to the list
+    const handleLocationCreated = useCallback((newLocation: PickupLocationWithAllData): void => {
+        setLocations(prev => [...prev, newLocation]);
+        setActiveTab(newLocation.id);
+    }, []);
+
     // Changing the active tab should NOT trigger a reload
     const handleTabChange = (tabValue: string | null) => {
         setActiveTab(tabValue);
@@ -156,6 +162,7 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                     location={selectedLocation}
                     onSaved={() => close()}
                     onLocationUpdated={handleLocationUpdate}
+                    onLocationCreated={handleLocationCreated}
                     isModal
                 />
             </Modal>
