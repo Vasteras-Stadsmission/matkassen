@@ -7,6 +7,7 @@ import {
     recomputeOutsideHoursCount,
 } from "./actions";
 import type { LocationScheduleInfo } from "./types";
+import { logError } from "@/app/utils/logger";
 
 /**
  * Client wrapper for updating a food parcel schedule
@@ -29,7 +30,7 @@ export async function updateFoodParcelScheduleAction(
         }
         return { success: true };
     } catch (error) {
-        console.error("Error calling updateFoodParcelSchedule", error, { parcelId });
+        logError("Error calling updateFoodParcelSchedule", error, { parcelId });
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -46,7 +47,7 @@ export async function getPickupLocationSchedulesAction(
     try {
         return getPickupLocationSchedules(locationId);
     } catch (error) {
-        console.error("Error fetching location schedules", error, { locationId });
+        logError("Error fetching location schedules", error, { locationId });
         return {
             schedules: [],
         };
@@ -60,7 +61,7 @@ export async function getLocationSlotDurationAction(locationId: string): Promise
     try {
         return getLocationSlotDuration(locationId);
     } catch (error) {
-        console.error("Error fetching location slot duration", error, { locationId });
+        logError("Error fetching location slot duration", error, { locationId });
         // Default to 15 minutes in case of error
         return 15;
     }
@@ -73,7 +74,7 @@ export async function recomputeOutsideHoursCountAction(locationId: string): Prom
     try {
         return recomputeOutsideHoursCount(locationId);
     } catch (error) {
-        console.error("Error recomputing outside-hours count", error, { locationId });
+        logError("Error recomputing outside-hours count", error, { locationId });
         return 0;
     }
 }
@@ -99,9 +100,7 @@ export async function checkParcelsAffectedByScheduleDeletionAction(
         const { checkParcelsAffectedByScheduleDeletion } = await import("./actions");
         return checkParcelsAffectedByScheduleDeletion(locationId, scheduleToDelete);
     } catch (error) {
-        console.error("Error checking parcels affected by schedule deletion", error, {
-            locationId,
-        });
+        logError("Error checking parcels affected by schedule deletion", error, { locationId });
         return 0;
     }
 }

@@ -420,12 +420,35 @@ The system includes automated nightly PostgreSQL backups to Elastx Object Store:
 ./scripts/backup-restore.sh <filename>  # Restore from backup
 ```
 
+## Production Logs
+
+Matkassen uses structured JSON logging with Pino. For viewing and analyzing production logs on your VPS:
+
+### Quick Setup
+
+```bash
+# On your VPS, run once to install log viewing shortcuts
+bash scripts/setup-vps-aliases.sh
+```
+
+### Common Commands
+
+```bash
+logs-simple          # Easy to read format
+logs-errors-simple   # Just errors, clean format
+logs-tail            # Live tail
+logs-search "text"   # Find text with context
+logs-1h              # Last hour
+```
+
+See [docs/production-logs.md](./docs/production-logs.md) for complete documentation on log viewing, filtering, and analysis.
+
 ## Helpful Commands
 
 Note that sudo is needed when executing the commands on the VPS.
 
 - `sudo docker compose ps` – check status of Docker containers
-- `sudo docker compose logs web` – view Next.js output logs
+- `sudo docker logs matkassen-web-1` – view Next.js output logs (raw)
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
 - `sudo docker compose exec db bash -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB"` - enter Postgres db (uses container's environment)
