@@ -32,7 +32,6 @@ import {
     type ActionResult,
 } from "@/app/utils/auth/action-result";
 import { logger, logError } from "@/app/utils/logger";
-import { UNKNOWN_CREATOR } from "@/app/constants/household";
 
 import {
     HouseholdCreateData,
@@ -60,7 +59,7 @@ export const enrollHousehold = protectedAction(
                         phone_number: data.headOfHousehold.phoneNumber,
                         locale: data.headOfHousehold.locale || "sv",
                         postal_code: data.headOfHousehold.postalCode,
-                        created_by: session.user?.githubUsername || UNKNOWN_CREATOR,
+                        created_by: session.user?.githubUsername,
                     })
                     .returning();
 
