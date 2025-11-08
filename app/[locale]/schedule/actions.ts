@@ -1,6 +1,8 @@
 "use server";
 
 import { and, eq, gte, lte, sql, between, ne, gt } from "drizzle-orm";
+import { type PgTransaction } from "drizzle-orm/pg-core";
+import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
 import {
     households,
@@ -31,6 +33,10 @@ import type {
     DayInfo,
     TimeSlotGridData,
 } from "./types";
+
+// Type alias for Drizzle database or transaction
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DbOrTransaction = PgTransaction<PostgresJsQueryResultHKT, any, any> | typeof db;
 
 /**
  * Get a specific parcel by ID, regardless of date
@@ -438,6 +444,7 @@ export async function validateParcelAssignments(
         pickupStartTime: Date;
         pickupEndTime: Date;
     }>,
+    tx?: DbOrTransaction,
 ): Promise<{
     success: boolean;
     errors: Array<{
@@ -479,7 +486,7 @@ export async function validateParcelAssignments(
         });
 
         // Use bulk validation for form submissions
-        const validationResult = await validateBulkParcelAssignments(assignments, locationId);
+        const validationResult = await validateBulkParcelAssignments(assignments, locationId, tx);
 
         return {
             success: validationResult.success,

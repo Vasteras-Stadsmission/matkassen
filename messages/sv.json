@@ -722,6 +722,8 @@
         "postalCode": "Postnummer",
         "maxParcelsPerDay": "Maximalt antal matkassar per dag",
         "maxParcelsPlaceholder": "t.ex. 20",
+        "maxParcelsPerSlot": "Maximalt antal matkassar per tidslucka",
+        "maxParcelsPerSlotDescription": "Maximalt antal matkassar som kan bokas i samma tidslucka (lämna tomt för ingen gräns)",
         "slotDuration": "Tidsspann (minuter)",
         "slotDurationDescription": "Tidsspann för varje matkasseuthämtning",
         "contactInfo": "Kontaktinformation",

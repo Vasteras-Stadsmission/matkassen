@@ -37,6 +37,7 @@ export interface LocationFormInput {
     street_address: string;
     postal_code: string;
     parcels_max_per_day: number | null;
+    max_parcels_per_slot: number | null;
     contact_name: string;
     contact_email: string | null;
     contact_phone_number: string;
