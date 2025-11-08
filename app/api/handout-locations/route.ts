@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
-import { pickupLocations } from "@/app/db/schema";
+import { handoutLocations } from "@/app/db/schema";
 import { logError } from "@/app/utils/logger";
 
 export async function GET() {
     try {
         const locations = await db
             .select({
-                id: pickupLocations.id,
-                name: pickupLocations.name,
-                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-                streetAddress: pickupLocations.street_address,
+                id: handoutLocations.id,
+                name: handoutLocations.name,
+                maxParcelsPerDay: handoutLocations.parcels_max_per_day,
+                streetAddress: handoutLocations.street_address,
             })
-            .from(pickupLocations);
+            .from(handoutLocations);
 
         return NextResponse.json(locations);
     } catch (error) {

@@ -34,19 +34,19 @@ interface ParcelWithId {
  * Calculate when SMS should be sent for a parcel
  *
  * Logic:
- * - If parcel is >48 hours away: Schedule SMS for 48 hours before pickup
+ * - If parcel is >48 hours away: Schedule SMS for 48 hours before handout
  * - If parcel is <48 hours away: Schedule SMS with 5-minute grace period
  *
- * @param pickupTime - The earliest pickup time for the parcel
+ * @param handoutTime - The earliest handout time for the parcel
  * @returns Date when SMS should be sent
  */
-export function calculateSmsScheduleTime(pickupTime: Date): Date {
+export function calculateSmsScheduleTime(handoutTime: Date): Date {
     const now = Time.now();
-    const hoursUntilPickup = (pickupTime.getTime() - now.toUTC().getTime()) / (1000 * 60 * 60);
+    const hoursUntilHandout = (handoutTime.getTime() - now.toUTC().getTime()) / (1000 * 60 * 60);
 
-    if (hoursUntilPickup > REMINDER_HOURS_BEFORE_PICKUP) {
-        // Schedule SMS for 48 hours before pickup
-        const reminderTime = new Date(pickupTime);
+    if (hoursUntilHandout > REMINDER_HOURS_BEFORE_PICKUP) {
+        // Schedule SMS for 48 hours before handout
+        const reminderTime = new Date(handoutTime);
         reminderTime.setHours(reminderTime.getHours() - REMINDER_HOURS_BEFORE_PICKUP);
         return reminderTime;
     } else {
@@ -110,7 +110,7 @@ export async function queueSmsForNewParcels(
             // Generate SMS text
             const smsText = formatPickupSms(
                 {
-                    pickupDate: parcel.pickup_date_time_earliest,
+                    handoutDate: parcel.pickup_date_time_earliest,
                     publicUrl,
                 },
                 household.locale as SupportedLocale,

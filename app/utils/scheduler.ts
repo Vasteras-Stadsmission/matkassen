@@ -96,7 +96,7 @@ async function enqueueReminderSms(): Promise<number> {
             const publicUrl = generateUrl(`/p/${parcel.parcelId}`);
             const smsText = formatPickupSms(
                 {
-                    pickupDate: parcel.pickupDate,
+                    handoutDate: parcel.pickupDate,
                     publicUrl,
                 },
                 parcel.locale as SupportedLocale,

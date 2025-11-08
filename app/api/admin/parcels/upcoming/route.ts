@@ -50,10 +50,10 @@ export async function GET(request: Request) {
             id: parcel.id,
             householdId: parcel.householdId,
             householdName: `${parcel.householdName} ${parcel.householdLastName}`,
-            pickupDate: parcel.pickupDateTimeEarliest,
-            pickupEarliestTime: parcel.pickupDateTimeEarliest,
-            pickupLatestTime: parcel.pickupDateTimeLatest,
-            isPickedUp: parcel.isPickedUp,
+            handoutDate: parcel.pickupDateTimeEarliest,
+            handoutEarliestTime: parcel.pickupDateTimeEarliest,
+            handoutLatestTime: parcel.pickupDateTimeLatest,
+            isHandedOut: parcel.isPickedUp,
         }));
 
         return NextResponse.json(transformedParcels);

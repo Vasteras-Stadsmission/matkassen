@@ -90,7 +90,7 @@ export async function softDeleteParcelInTransaction(
             const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/p/${parcelId}`;
             const cancellationText = formatCancellationSms(
                 {
-                    pickupDate: parcel.pickup_date_time_earliest,
+                    handoutDate: parcel.pickup_date_time_earliest,
                     publicUrl,
                 },
                 household.locale as SupportedLocale,

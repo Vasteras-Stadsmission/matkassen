@@ -125,7 +125,7 @@ export async function POST(
 
         // Template data - all fields guaranteed by database schema constraints
         const templateData: SmsTemplateData = {
-            pickupDate: parcelData.pickupDateTimeEarliest,
+            handoutDate: parcelData.pickupDateTimeEarliest,
             publicUrl,
         };
 

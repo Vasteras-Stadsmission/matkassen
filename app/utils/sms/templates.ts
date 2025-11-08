@@ -3,11 +3,11 @@ import type { SupportedLocale } from "../locale-detection";
 /**
  * SMS template data interface
  * All fields are guaranteed to be non-null by database schema constraints:
- * - pickupDate: from foodParcels.pickup_date_time_earliest (NOT NULL)
+ * - handoutDate: from foodParcels.handout_date_time_earliest (NOT NULL)
  * - publicUrl: constructed from environment variables and parcel ID
  */
 export interface SmsTemplateData {
-    pickupDate: Date;
+    handoutDate: Date;
     publicUrl: string;
 }
 
@@ -235,7 +235,7 @@ export function formatDateTimeForSms(
  * Considers RTL languages, word order, and cultural conventions
  */
 export function formatPickupSms(data: SmsTemplateData, locale: SupportedLocale): string {
-    const { date, time } = formatDateTimeForSms(data.pickupDate, locale);
+    const { date, time } = formatDateTimeForSms(data.handoutDate, locale);
 
     switch (locale) {
         case "sv":
@@ -289,7 +289,7 @@ export function formatPickupSms(data: SmsTemplateData, locale: SupportedLocale):
  * Clear message indicating the pickup details have been updated
  */
 export function formatUpdateSms(data: SmsTemplateData, locale: SupportedLocale): string {
-    const { date, time } = formatDateTimeForSms(data.pickupDate, locale);
+    const { date, time } = formatDateTimeForSms(data.handoutDate, locale);
 
     switch (locale) {
         case "sv":
@@ -343,7 +343,7 @@ export function formatUpdateSms(data: SmsTemplateData, locale: SupportedLocale):
  * Simple, clear message that pickup has been cancelled
  */
 export function formatCancellationSms(data: SmsTemplateData, locale: SupportedLocale): string {
-    const { date, time } = formatDateTimeForSms(data.pickupDate, locale);
+    const { date, time } = formatDateTimeForSms(data.handoutDate, locale);
 
     switch (locale) {
         case "sv":
