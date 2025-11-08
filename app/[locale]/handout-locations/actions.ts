@@ -129,7 +129,10 @@ export const getLocation = protectedAction(
 
 // Create a new location
 export const createLocation = protectedAction(
-    async (_: unknown, locationData: LocationFormInput): Promise<ActionResult<void>> => {
+    async (
+        _: unknown,
+        locationData: LocationFormInput,
+    ): Promise<ActionResult<PickupLocationWithAllData>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -149,14 +152,22 @@ export const createLocation = protectedAction(
                 contact_phone_number: locationData.contact_phone_number,
                 default_slot_duration_minutes: locationData.default_slot_duration_minutes,
             };
-            await db.insert(pickupLocations).values(locationValues);
+            const [createdLocation] = await db
+                .insert(pickupLocations)
+                .values(locationValues)
+                .returning();
 
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
-            return success(undefined);
+
+            // Return the created location with empty schedules array
+            return success({
+                ...createdLocation,
+                schedules: [],
+            });
         } catch (error) {
             logError("Error creating location", error, {
                 action: "createLocation",
