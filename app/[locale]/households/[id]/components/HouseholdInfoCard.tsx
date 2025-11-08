@@ -1,7 +1,7 @@
 "use client";
 
 import { Paper, Title, Stack, Group, ThemeIcon, Text } from "@mantine/core";
-import { IconUser, IconPhone, IconMailbox, IconLanguage } from "@tabler/icons-react";
+import { IconUser, IconPhone, IconMailbox, IconLanguage, IconUserCheck } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 
 interface HouseholdInfoCardProps {
@@ -10,6 +10,7 @@ interface HouseholdInfoCardProps {
     phoneNumber: string;
     postalCode: string;
     locale: string;
+    createdBy?: string | null;
     getLanguageName: (locale: string) => string;
 }
 
@@ -19,6 +20,7 @@ export function HouseholdInfoCard({
     phoneNumber,
     postalCode,
     locale,
+    createdBy,
     getLanguageName,
 }: HouseholdInfoCardProps) {
     const t = useTranslations("householdDetail");
@@ -64,6 +66,14 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
+                {createdBy && (
+                    <Group gap="sm">
+                        <ThemeIcon size="lg" variant="light" color="blue">
+                            <IconUserCheck size={20} />
+                        </ThemeIcon>
+                        <Text size="md">{t("createdBy", { username: createdBy })}</Text>
+                    </Group>
+                )}
             </Stack>
         </Paper>
     );

@@ -12,6 +12,7 @@ import {
     IconVenus,
     IconGenderBigender,
     IconLanguage,
+    IconUserCheck,
 } from "@tabler/icons-react";
 import CommentSection from "@/components/CommentSection";
 import { Comment } from "@/app/[locale]/households/enroll/types";
@@ -26,6 +27,7 @@ interface HouseholdDetailProps {
             phone_number: string;
             locale: string;
             postal_code: string;
+            created_by?: string | null;
         };
         members: Array<{
             id?: string;
@@ -199,6 +201,14 @@ export default function InternationalizedHouseholdDetail({
                             </ThemeIcon>
                             <Text>{getLanguageName(householdDetail.household.locale)}</Text>
                         </Group>
+                        {householdDetail.household.created_by && (
+                            <Group gap="xs" mb="xs">
+                                <ThemeIcon size="md" variant="light" color="blue">
+                                    <IconUserCheck size={16} />
+                                </ThemeIcon>
+                                <Text>{t("createdBy", { username: householdDetail.household.created_by })}</Text>
+                            </Group>
+                        )}
                     </Paper>
 
                     {/* Household Members */}

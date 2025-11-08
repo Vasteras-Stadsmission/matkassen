@@ -446,6 +446,7 @@
     },
     "householdDetail": {
         "basics": "Grunduppgifter",
+        "createdBy": "Skapad av {username}",
         "members": "Medlemmar ({count})",
         "noMembers": "Inga medlemmar tillagda",
         "pets": "Husdjur ({count})",

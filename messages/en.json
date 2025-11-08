@@ -446,6 +446,7 @@
     },
     "householdDetail": {
         "basics": "Basic Information",
+        "createdBy": "Created by {username}",
         "members": "Members ({count})",
         "noMembers": "No members added",
         "pets": "Pets ({count})",

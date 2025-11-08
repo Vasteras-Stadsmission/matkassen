@@ -126,6 +126,7 @@ export async function getHouseholdDetails(householdId: string) {
                 phone_number: households.phone_number,
                 locale: households.locale,
                 postal_code: households.postal_code,
+                created_by: households.created_by,
                 anonymized_at: households.anonymized_at,
                 anonymized_by: households.anonymized_by,
             })

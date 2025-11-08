@@ -45,6 +45,7 @@ export const households = pgTable(
             .notNull()
             .$defaultFn(() => nanoid(8)),
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(), // will determine end of lifecycle
+        created_by: varchar("created_by", { length: 50 }).default("unknown"), // GitHub username of user who created household
         first_name: varchar("first_name", { length: 50 }).notNull(),
         last_name: varchar("last_name", { length: 50 }).notNull(),
         phone_number: varchar("phone_number", { length: 20 }).notNull(),
