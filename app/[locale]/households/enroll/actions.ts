@@ -59,7 +59,7 @@ export const enrollHousehold = protectedAction(
                         phone_number: data.headOfHousehold.phoneNumber,
                         locale: data.headOfHousehold.locale || "sv",
                         postal_code: data.headOfHousehold.postalCode,
-                        created_by: session.user?.githubUsername,
+                        created_by: session.user!.githubUsername,
                     })
                     .returning();
 
