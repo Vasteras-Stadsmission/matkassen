@@ -69,11 +69,13 @@ const authConfig: NextAuthConfig = {
             }
             return session;
         },
-        // Redirect to home page after successful authentication
+        // Redirect callback: Handle deep links and callbackUrls after authentication
         async redirect({ url, baseUrl }) {
-            // If url starts with the base url, proceed as normal
-            if (url.startsWith(baseUrl)) return url;
-            // Otherwise, redirect to the home page
+            // Allows relative callback URLs (e.g., "/admin/users")
+            if (url.startsWith("/")) return `${baseUrl}${url}`;
+            // Allows callback URLs on the same origin
+            if (new URL(url).origin === baseUrl) return url;
+            // Otherwise, redirect to the home page for security
             return baseUrl;
         },
     },
