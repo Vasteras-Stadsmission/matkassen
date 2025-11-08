@@ -4,7 +4,7 @@ import { ScheduleHubPage } from "./components/ScheduleHubPage";
 import { AuthProtection } from "@/components/AuthProtection";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 
-export default function SchedulePage() {
+export default async function SchedulePage() {
     const { testMode } = getHelloSmsConfig();
 
     return (
