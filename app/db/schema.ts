@@ -16,7 +16,6 @@ import {
     unique,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
-import { UNKNOWN_CREATOR } from "@/app/constants/household";
 
 // Needed to create a default nanoid value for the primary key
 // Default to 12 for food parcels - other tables explicitly specify nanoid(8)
@@ -46,7 +45,7 @@ export const households = pgTable(
             .notNull()
             .$defaultFn(() => nanoid(8)),
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(), // will determine end of lifecycle
-        created_by: varchar("created_by", { length: 50 }).default(UNKNOWN_CREATOR).notNull(), // GitHub username of user who created household
+        created_by: varchar("created_by", { length: 50 }), // GitHub username of user who created household (NULL = unknown)
         first_name: varchar("first_name", { length: 50 }).notNull(),
         last_name: varchar("last_name", { length: 50 }).notNull(),
         phone_number: varchar("phone_number", { length: 20 }).notNull(),

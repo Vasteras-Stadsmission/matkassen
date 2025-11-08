@@ -3,7 +3,6 @@
 import { Paper, Title, Stack, Group, ThemeIcon, Text, Avatar } from "@mantine/core";
 import { IconUser, IconPhone, IconMailbox, IconLanguage, IconUserCheck } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
-import { UNKNOWN_CREATOR } from "@/app/constants/household";
 import type { GithubUserData } from "@/app/[locale]/households/enroll/types";
 
 interface HouseholdInfoCardProps {
@@ -12,7 +11,7 @@ interface HouseholdInfoCardProps {
     phoneNumber: string;
     postalCode: string;
     locale: string;
-    createdBy: string;
+    createdBy: string | null;
     creatorGithubData?: GithubUserData | null;
     getLanguageName: (locale: string) => string;
 }
@@ -70,7 +69,7 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
-                {createdBy !== UNKNOWN_CREATOR && (
+                {createdBy && (
                     <Group gap="sm">
                         {creatorGithubData ? (
                             <>

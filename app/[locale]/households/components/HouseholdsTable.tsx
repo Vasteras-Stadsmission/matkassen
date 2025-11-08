@@ -25,7 +25,6 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/app/i18n/navigation";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 import { useLocale } from "next-intl";
-import { UNKNOWN_CREATOR } from "@/app/constants/household";
 
 interface Household {
     id: string;
@@ -34,7 +33,7 @@ interface Household {
     phone_number: string;
     locale: string;
     postal_code: string;
-    created_by: string;
+    created_by: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
     nextParcelDate: string | Date | null;
@@ -421,10 +420,7 @@ export default function HouseholdsTable({ households }: { households: Household[
                                   accessor: "created_by",
                                   title: t("table.createdBy"),
                                   sortable: true,
-                                  render: (household: Household) =>
-                                      household.created_by === UNKNOWN_CREATOR
-                                          ? "-"
-                                          : household.created_by,
+                                  render: (household: Household) => household.created_by || "-",
                               },
                           ]
                         : []),
