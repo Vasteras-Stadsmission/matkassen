@@ -206,7 +206,7 @@ describe("Household Creator Tracking", () => {
 
             // Verify GitHub API was called with correct URL format
             expect(githubApiFetches.length).toBeGreaterThan(0);
-            const creatorFetch = githubApiFetches.find((url) =>
+            const creatorFetch = githubApiFetches.find(url =>
                 url.includes("api.github.com/users/testcreator"),
             );
             expect(creatorFetch).toBeDefined();
@@ -247,7 +247,7 @@ describe("Household Creator Tracking", () => {
             const result = await getHouseholdDetails("household-456");
 
             // Verify no GitHub API call was made
-            const creatorFetch = githubApiFetches.find((url) => url.includes("github.com/users/"));
+            const creatorFetch = githubApiFetches.find(url => url.includes("github.com/users/"));
             expect(creatorFetch).toBeUndefined();
 
             // Verify creatorGithubData is null
@@ -266,7 +266,7 @@ describe("Household Creator Tracking", () => {
             await fetchGithubUserData("sameuser");
 
             // Due to React cache, should only make one API call
-            const sameuserFetches = githubApiFetches.filter((url) =>
+            const sameuserFetches = githubApiFetches.filter(url =>
                 url.includes("github.com/users/sameuser"),
             );
 
@@ -351,8 +351,8 @@ describe("Household Creator Tracking", () => {
             expect(Object.keys(result).length).toBeGreaterThan(0);
 
             // Verify API calls were made
-            usernames.forEach((username) => {
-                const fetchForUser = githubApiFetches.find((url) =>
+            usernames.forEach(username => {
+                const fetchForUser = githubApiFetches.find(url =>
                     url.includes(`github.com/users/${username}`),
                 );
                 expect(fetchForUser).toBeDefined();
@@ -371,10 +371,10 @@ describe("Household Creator Tracking", () => {
             await fetchMultipleGithubUserData(usernames);
 
             // Should only fetch each unique username once
-            const aliceFetches = githubApiFetches.filter((url) =>
+            const aliceFetches = githubApiFetches.filter(url =>
                 url.includes("github.com/users/alice"),
             );
-            const bobFetches = githubApiFetches.filter((url) => url.includes("github.com/users/bob"));
+            const bobFetches = githubApiFetches.filter(url => url.includes("github.com/users/bob"));
 
             // Each should be fetched only once (or cached)
             expect(aliceFetches.length).toBeLessThanOrEqual(2); // At most 2 due to batching
@@ -397,7 +397,7 @@ describe("Household Creator Tracking", () => {
 
             // Should not attempt to fetch empty/null
             const invalidFetches = githubApiFetches.filter(
-                (url) =>
+                url =>
                     url.includes("github.com/users/null") ||
                     url.includes("github.com/users/undefined") ||
                     url.endsWith("github.com/users/"),
