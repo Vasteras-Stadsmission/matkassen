@@ -174,7 +174,7 @@ const TestableWeeklyScheduleGrid = ({
     const handleRescheduleClick = (parcel: FoodParcel) => {
         // Check if the source time slot is in the past
         const now = new Date();
-        if (parcel.pickupEarliestTime < now) {
+        if (parcel.handoutEarliestTime < now) {
             mockShowNotification({
                 title: "Schemaläggning misslyckades",
                 message: "Det går inte att boka om matstöd från en tidpunkt i det förflutna.",
@@ -221,7 +221,7 @@ const TestableWeeklyScheduleGrid = ({
                                             {
                                                 foodParcels.filter(
                                                     p =>
-                                                        p.pickupDate.toISOString().split("T")[0] ===
+                                                        p.handoutDate.toISOString().split("T")[0] ===
                                                         date.toISOString().split("T")[0],
                                                 ).length
                                             }
@@ -238,11 +238,11 @@ const TestableWeeklyScheduleGrid = ({
                                 <div
                                     key={parcel.id}
                                     data-testid={`parcel-${parcel.id}`}
-                                    data-timeslot={`${parcel.pickupEarliestTime.getHours().toString().padStart(2, "0")}:${parcel.pickupEarliestTime
+                                    data-timeslot={`${parcel.handoutEarliestTime.getHours().toString().padStart(2, "0")}:${parcel.handoutEarliestTime
                                         .getMinutes()
                                         .toString()
                                         .padStart(2, "0")}`}
-                                    data-date={parcel.pickupDate.toISOString().split("T")[0]}
+                                    data-date={parcel.handoutDate.toISOString().split("T")[0]}
                                 >
                                     {parcel.householdName}
                                     <button
@@ -524,7 +524,7 @@ describe("WeeklyScheduleGrid Component", () => {
             const handleRescheduleClick = (parcel: FoodParcel) => {
                 // Check if the source time slot is in the past
                 const now = new Date();
-                if (parcel.pickupEarliestTime < now) {
+                if (parcel.handoutEarliestTime < now) {
                     mockShowNotification({
                         title: "Schemaläggning misslyckades",
                         message:

@@ -71,23 +71,23 @@ describe("outside-hours-filter", () => {
     });
 
     describe("isFutureParcel", () => {
-        it("should return true for parcels with future earliest pickup time", () => {
+        it("should return true for parcels with future earliest handout time", () => {
             const futureParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T15:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T16:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-19T15:00:00Z"),
+                handoutLatestTime: new Date("2025-08-19T16:00:00Z"),
+                isHandedOut: false,
             };
 
             expect(isFutureParcel(futureParcel, fixedCurrentTime)).toBe(true);
         });
 
-        it("should return false for parcels with past earliest pickup time", () => {
+        it("should return false for parcels with past earliest handout time", () => {
             const pastParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"),
-                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T06:00:00Z"),
+                handoutLatestTime: new Date("2025-08-18T07:00:00Z"),
+                isHandedOut: false,
             };
 
             expect(isFutureParcel(pastParcel, fixedCurrentTime)).toBe(false);
@@ -96,9 +96,9 @@ describe("outside-hours-filter", () => {
         it("should return false for parcels with earliest pickup time exactly at current time", () => {
             const currentParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-18T08:00:00Z"),
-                pickupLatestTime: new Date("2025-08-18T09:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T08:00:00Z"),
+                handoutLatestTime: new Date("2025-08-18T09:00:00Z"),
+                isHandedOut: false,
             };
 
             expect(isFutureParcel(currentParcel, fixedCurrentTime)).toBe(false);
@@ -109,9 +109,9 @@ describe("outside-hours-filter", () => {
         it("should return true for unpicked future parcels", () => {
             const activeParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T15:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T16:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-19T15:00:00Z"),
+                handoutLatestTime: new Date("2025-08-19T16:00:00Z"),
+                isHandedOut: false,
             };
 
             expect(isActiveParcel(activeParcel, fixedCurrentTime)).toBe(true);
@@ -120,20 +120,20 @@ describe("outside-hours-filter", () => {
         it("should return false for picked up parcels", () => {
             const pickedUpParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T15:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T16:00:00Z"),
-                isPickedUp: true,
+                handoutEarliestTime: new Date("2025-08-19T15:00:00Z"),
+                handoutLatestTime: new Date("2025-08-19T16:00:00Z"),
+                isHandedOut: true,
             };
 
-            expect(isActiveParcel(pickedUpParcel, fixedCurrentTime)).toBe(false);
+            expect(isActiveParcel(handedOutParcel, fixedCurrentTime)).toBe(false);
         });
 
         it("should return false for past parcels", () => {
             const pastParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"),
-                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T06:00:00Z"),
+                handoutLatestTime: new Date("2025-08-18T07:00:00Z"),
+                isHandedOut: false,
             };
 
             expect(isActiveParcel(pastParcel, fixedCurrentTime)).toBe(false);
@@ -144,9 +144,9 @@ describe("outside-hours-filter", () => {
         it("should return true when parcel is outside opening hours", () => {
             const outsideParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T18:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T19:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-19T18:00:00Z"),
+                handoutLatestTime: new Date("2025-08-19T19:00:00Z"),
+                isHandedOut: false,
             };
 
             mockIsTimeAvailable
@@ -159,9 +159,9 @@ describe("outside-hours-filter", () => {
         it("should return false when parcel is within opening hours", () => {
             const insideParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T10:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T11:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-19T10:00:00Z"),
+                handoutLatestTime: new Date("2025-08-19T11:00:00Z"),
+                isHandedOut: false,
             };
 
             mockIsTimeAvailable
@@ -174,9 +174,9 @@ describe("outside-hours-filter", () => {
         it("should return true when start time is available but end time is not", () => {
             const partiallyOutsideParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T16:30:00Z"),
-                pickupLatestTime: new Date("2025-08-19T17:30:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-19T16:30:00Z"),
+                handoutLatestTime: new Date("2025-08-19T17:30:00Z"),
+                isHandedOut: false,
             };
 
             mockIsTimeAvailable
@@ -191,9 +191,9 @@ describe("outside-hours-filter", () => {
         it("should return true when availability check throws an error", () => {
             const errorParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-19T10:00:00Z"),
-                pickupLatestTime: new Date("2025-08-19T11:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-19T10:00:00Z"),
+                handoutLatestTime: new Date("2025-08-19T11:00:00Z"),
+                isHandedOut: false,
             };
 
             mockIsTimeAvailable.mockImplementation(() => {
@@ -208,27 +208,27 @@ describe("outside-hours-filter", () => {
         const parcels: ParcelTimeInfo[] = [
             {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-18T15:00:00Z"), // Future
-                pickupLatestTime: new Date("2025-08-18T16:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T15:00:00Z"), // Future
+                handoutLatestTime: new Date("2025-08-18T16:00:00Z"),
+                isHandedOut: false,
             },
             {
                 id: "2",
-                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
-                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
+                handoutLatestTime: new Date("2025-08-18T07:00:00Z"),
+                isHandedOut: false,
             },
             {
                 id: "3",
-                pickupEarliestTime: new Date("2025-08-18T12:00:00Z"), // Future, picked up
-                pickupLatestTime: new Date("2025-08-18T13:00:00Z"),
-                isPickedUp: true,
+                handoutEarliestTime: new Date("2025-08-18T12:00:00Z"), // Future, picked up
+                handoutLatestTime: new Date("2025-08-18T13:00:00Z"),
+                isHandedOut: true,
             },
             {
                 id: "4",
-                pickupEarliestTime: new Date("2025-08-18T18:00:00Z"), // Future, outside hours
-                pickupLatestTime: new Date("2025-08-18T19:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T18:00:00Z"), // Future, outside hours
+                handoutLatestTime: new Date("2025-08-18T19:00:00Z"),
+                isHandedOut: false,
             },
         ];
 
@@ -272,15 +272,15 @@ describe("outside-hours-filter", () => {
             const parcels: ParcelTimeInfo[] = [
                 {
                     id: "1",
-                    pickupEarliestTime: new Date("2025-08-19T15:00:00Z"),
-                    pickupLatestTime: new Date("2025-08-19T16:00:00Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-08-19T15:00:00Z"),
+                    handoutLatestTime: new Date("2025-08-19T16:00:00Z"),
+                    isHandedOut: false,
                 },
                 {
                     id: "2",
-                    pickupEarliestTime: new Date("2025-08-19T18:00:00Z"),
-                    pickupLatestTime: new Date("2025-08-19T19:00:00Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-08-19T18:00:00Z"),
+                    handoutLatestTime: new Date("2025-08-19T19:00:00Z"),
+                    isHandedOut: false,
                 },
             ];
 
@@ -305,21 +305,21 @@ describe("outside-hours-filter", () => {
             const parcels: ParcelTimeInfo[] = [
                 {
                     id: "1",
-                    pickupEarliestTime: new Date("2025-08-18T15:00:00Z"), // Future, not picked up
-                    pickupLatestTime: new Date("2025-08-18T16:00:00Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-08-18T15:00:00Z"), // Future, not picked up
+                    handoutLatestTime: new Date("2025-08-18T16:00:00Z"),
+                    isHandedOut: false,
                 },
                 {
                     id: "2",
-                    pickupEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
-                    pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
+                    handoutLatestTime: new Date("2025-08-18T07:00:00Z"),
+                    isHandedOut: false,
                 },
                 {
                     id: "3",
-                    pickupEarliestTime: new Date("2025-08-18T12:00:00Z"), // Future, picked up
-                    pickupLatestTime: new Date("2025-08-18T13:00:00Z"),
-                    isPickedUp: true,
+                    handoutEarliestTime: new Date("2025-08-18T12:00:00Z"), // Future, picked up
+                    handoutLatestTime: new Date("2025-08-18T13:00:00Z"),
+                    isHandedOut: true,
                 },
             ];
 
@@ -334,9 +334,9 @@ describe("outside-hours-filter", () => {
         it("should return true when parcel becomes outside hours with new schedule", () => {
             const parcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-18T09:30:00Z"), // Within current, outside proposed
-                pickupLatestTime: new Date("2025-08-18T10:30:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T09:30:00Z"), // Within current, outside proposed
+                handoutLatestTime: new Date("2025-08-18T10:30:00Z"),
+                isHandedOut: false,
             };
 
             const currentSchedule: LocationScheduleInfo = {
@@ -399,9 +399,9 @@ describe("outside-hours-filter", () => {
         it("should return false when parcel remains within hours", () => {
             const parcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-18T11:00:00Z"), // Within both schedules
-                pickupLatestTime: new Date("2025-08-18T12:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T11:00:00Z"), // Within both schedules
+                handoutLatestTime: new Date("2025-08-18T12:00:00Z"),
+                isHandedOut: false,
             };
 
             const currentSchedule: LocationScheduleInfo = {
@@ -462,9 +462,9 @@ describe("outside-hours-filter", () => {
         it("should return false for inactive parcels", () => {
             const pastParcel: ParcelTimeInfo = {
                 id: "1",
-                pickupEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
-                pickupLatestTime: new Date("2025-08-18T07:00:00Z"),
-                isPickedUp: false,
+                handoutEarliestTime: new Date("2025-08-18T06:00:00Z"), // Past
+                handoutLatestTime: new Date("2025-08-18T07:00:00Z"),
+                isHandedOut: false,
             };
 
             const currentSchedule: LocationScheduleInfo = {
@@ -524,15 +524,15 @@ describe("outside-hours-filter", () => {
             const parcels: ParcelTimeInfo[] = [
                 {
                     id: "1",
-                    pickupEarliestTime: new Date("2025-08-18T09:30:00Z"), // Will be affected
-                    pickupLatestTime: new Date("2025-08-18T10:30:00Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-08-18T09:30:00Z"), // Will be affected
+                    handoutLatestTime: new Date("2025-08-18T10:30:00Z"),
+                    isHandedOut: false,
                 },
                 {
                     id: "2",
-                    pickupEarliestTime: new Date("2025-08-18T11:00:00Z"), // Won't be affected
-                    pickupLatestTime: new Date("2025-08-18T12:00:00Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-08-18T11:00:00Z"), // Won't be affected
+                    handoutLatestTime: new Date("2025-08-18T12:00:00Z"),
+                    isHandedOut: false,
                 },
             ];
 
@@ -630,25 +630,25 @@ describe("outside-hours-filter", () => {
                 // Parcel during the "missing hour" (02:00-03:00 doesn't exist on this day)
                 const parcelDuringMissingHour: ParcelTimeInfo = {
                     id: "dst-parcel-1",
-                    pickupEarliestTime: new Date("2025-03-30T01:30:00.000Z"), // This gets jumped to 03:30 Stockholm
-                    pickupLatestTime: new Date("2025-03-30T02:30:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-30T01:30:00.000Z"), // This gets jumped to 03:30 Stockholm
+                    handoutLatestTime: new Date("2025-03-30T02:30:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 // Parcel before DST transition
                 const parcelBeforeDST: ParcelTimeInfo = {
                     id: "dst-parcel-2",
-                    pickupEarliestTime: new Date("2025-03-30T00:30:00.000Z"), // 01:30 Stockholm (before jump)
-                    pickupLatestTime: new Date("2025-03-30T01:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-30T00:30:00.000Z"), // 01:30 Stockholm (before jump)
+                    handoutLatestTime: new Date("2025-03-30T01:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 // Parcel after DST transition
                 const parcelAfterDST: ParcelTimeInfo = {
                     id: "dst-parcel-3",
-                    pickupEarliestTime: new Date("2025-03-30T01:30:00.000Z"), // 03:30 Stockholm (after jump)
-                    pickupLatestTime: new Date("2025-03-30T02:00:00.000Z"), // 04:00 Stockholm
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-30T01:30:00.000Z"), // 03:30 Stockholm (after jump)
+                    handoutLatestTime: new Date("2025-03-30T02:00:00.000Z"), // 04:00 Stockholm
+                    isHandedOut: false,
                 };
 
                 // Mock isTimeAvailable to return true for all (location is open)
@@ -677,16 +677,16 @@ describe("outside-hours-filter", () => {
                 // Test transition from Saturday to Sunday (DST day)
                 const saturdayBeforeDST: ParcelTimeInfo = {
                     id: "saturday-parcel",
-                    pickupEarliestTime: new Date("2025-03-29T21:30:00.000Z"), // Saturday 23:30 Stockholm
-                    pickupLatestTime: new Date("2025-03-29T22:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-29T21:30:00.000Z"), // Saturday 23:30 Stockholm
+                    handoutLatestTime: new Date("2025-03-29T22:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const sundayDuringDST: ParcelTimeInfo = {
                     id: "sunday-parcel",
-                    pickupEarliestTime: new Date("2025-03-30T00:30:00.000Z"), // Sunday 01:30 Stockholm (before DST)
-                    pickupLatestTime: new Date("2025-03-30T01:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-30T00:30:00.000Z"), // Sunday 01:30 Stockholm (before DST)
+                    handoutLatestTime: new Date("2025-03-30T01:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const currentTime = new Date("2025-03-29T18:00:00.000Z"); // Saturday evening
@@ -695,8 +695,8 @@ describe("outside-hours-filter", () => {
                 expect(isFutureParcel(sundayDuringDST, currentTime)).toBe(true);
 
                 // Sunday parcel should be later than Saturday parcel despite DST
-                expect(sundayDuringDST.pickupEarliestTime.getTime()).toBeGreaterThan(
-                    saturdayBeforeDST.pickupEarliestTime.getTime(),
+                expect(sundayDuringDST.handoutEarliestTime.getTime()).toBeGreaterThan(
+                    saturdayBeforeDST.handoutEarliestTime.getTime(),
                 );
             });
         });
@@ -726,16 +726,16 @@ describe("outside-hours-filter", () => {
                 // Parcels during the "duplicate hour" period
                 const parcelFirstOccurrence: ParcelTimeInfo = {
                     id: "fall-parcel-1",
-                    pickupEarliestTime: new Date("2025-10-26T00:30:00.000Z"), // 02:30 Stockholm (first occurrence, UTC+2)
-                    pickupLatestTime: new Date("2025-10-26T01:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-10-26T00:30:00.000Z"), // 02:30 Stockholm (first occurrence, UTC+2)
+                    handoutLatestTime: new Date("2025-10-26T01:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const parcelSecondOccurrence: ParcelTimeInfo = {
                     id: "fall-parcel-2",
-                    pickupEarliestTime: new Date("2025-10-26T01:30:00.000Z"), // 02:30 Stockholm (second occurrence, UTC+1)
-                    pickupLatestTime: new Date("2025-10-26T02:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-10-26T01:30:00.000Z"), // 02:30 Stockholm (second occurrence, UTC+1)
+                    handoutLatestTime: new Date("2025-10-26T02:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 // Mock isTimeAvailable to return true
@@ -748,8 +748,8 @@ describe("outside-hours-filter", () => {
                 expect(isFutureParcel(parcelSecondOccurrence, currentTime)).toBe(true);
 
                 // Second occurrence should be later in UTC time
-                expect(parcelSecondOccurrence.pickupEarliestTime.getTime()).toBeGreaterThan(
-                    parcelFirstOccurrence.pickupEarliestTime.getTime(),
+                expect(parcelSecondOccurrence.handoutEarliestTime.getTime()).toBeGreaterThan(
+                    parcelFirstOccurrence.handoutEarliestTime.getTime(),
                 );
 
                 // Neither should be outside hours
@@ -765,16 +765,16 @@ describe("outside-hours-filter", () => {
                 // Test transition from Saturday to Sunday (DST day)
                 const saturdayBeforeDST: ParcelTimeInfo = {
                     id: "saturday-fall-parcel",
-                    pickupEarliestTime: new Date("2025-10-25T21:30:00.000Z"), // Saturday 23:30 Stockholm
-                    pickupLatestTime: new Date("2025-10-25T22:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-10-25T21:30:00.000Z"), // Saturday 23:30 Stockholm
+                    handoutLatestTime: new Date("2025-10-25T22:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const sundayDuringDST: ParcelTimeInfo = {
                     id: "sunday-fall-parcel",
-                    pickupEarliestTime: new Date("2025-10-26T00:30:00.000Z"), // Sunday 01:30 Stockholm
-                    pickupLatestTime: new Date("2025-10-26T01:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-10-26T00:30:00.000Z"), // Sunday 01:30 Stockholm
+                    handoutLatestTime: new Date("2025-10-26T01:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const currentTime = new Date("2025-10-25T18:00:00.000Z"); // Saturday evening
@@ -783,8 +783,8 @@ describe("outside-hours-filter", () => {
                 expect(isFutureParcel(sundayDuringDST, currentTime)).toBe(true);
 
                 // Sunday parcel should be later than Saturday parcel
-                expect(sundayDuringDST.pickupEarliestTime.getTime()).toBeGreaterThan(
-                    saturdayBeforeDST.pickupEarliestTime.getTime(),
+                expect(sundayDuringDST.handoutEarliestTime.getTime()).toBeGreaterThan(
+                    saturdayBeforeDST.handoutEarliestTime.getTime(),
                 );
             });
         });
@@ -793,16 +793,16 @@ describe("outside-hours-filter", () => {
             it("should handle Sunday night to Monday morning transition during spring DST", () => {
                 const sundayNightParcel: ParcelTimeInfo = {
                     id: "sunday-night-spring",
-                    pickupEarliestTime: new Date("2025-03-30T21:30:00.000Z"), // Sunday 23:30 Stockholm
-                    pickupLatestTime: new Date("2025-03-30T22:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-30T21:30:00.000Z"), // Sunday 23:30 Stockholm
+                    handoutLatestTime: new Date("2025-03-30T22:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const mondayMorningParcel: ParcelTimeInfo = {
                     id: "monday-morning-spring",
-                    pickupEarliestTime: new Date("2025-03-31T06:00:00.000Z"), // Monday 08:00 Stockholm
-                    pickupLatestTime: new Date("2025-03-31T07:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-31T06:00:00.000Z"), // Monday 08:00 Stockholm
+                    handoutLatestTime: new Date("2025-03-31T07:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const currentTime = new Date("2025-03-30T18:00:00.000Z"); // Sunday evening
@@ -811,24 +811,24 @@ describe("outside-hours-filter", () => {
                 expect(isFutureParcel(mondayMorningParcel, currentTime)).toBe(true);
 
                 // Monday should be after Sunday despite DST
-                expect(mondayMorningParcel.pickupEarliestTime.getTime()).toBeGreaterThan(
-                    sundayNightParcel.pickupEarliestTime.getTime(),
+                expect(mondayMorningParcel.handoutEarliestTime.getTime()).toBeGreaterThan(
+                    sundayNightParcel.handoutEarliestTime.getTime(),
                 );
             });
 
             it("should handle Sunday night to Monday morning transition during fall DST", () => {
                 const sundayNightParcel: ParcelTimeInfo = {
                     id: "sunday-night-fall",
-                    pickupEarliestTime: new Date("2025-10-26T21:30:00.000Z"), // Sunday 23:30 Stockholm
-                    pickupLatestTime: new Date("2025-10-26T22:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-10-26T21:30:00.000Z"), // Sunday 23:30 Stockholm
+                    handoutLatestTime: new Date("2025-10-26T22:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const mondayMorningParcel: ParcelTimeInfo = {
                     id: "monday-morning-fall",
-                    pickupEarliestTime: new Date("2025-10-27T07:00:00.000Z"), // Monday 08:00 Stockholm
-                    pickupLatestTime: new Date("2025-10-27T08:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-10-27T07:00:00.000Z"), // Monday 08:00 Stockholm
+                    handoutLatestTime: new Date("2025-10-27T08:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 const currentTime = new Date("2025-10-26T18:00:00.000Z"); // Sunday evening
@@ -837,8 +837,8 @@ describe("outside-hours-filter", () => {
                 expect(isFutureParcel(mondayMorningParcel, currentTime)).toBe(true);
 
                 // Monday should be after Sunday
-                expect(mondayMorningParcel.pickupEarliestTime.getTime()).toBeGreaterThan(
-                    sundayNightParcel.pickupEarliestTime.getTime(),
+                expect(mondayMorningParcel.handoutEarliestTime.getTime()).toBeGreaterThan(
+                    sundayNightParcel.handoutEarliestTime.getTime(),
                 );
             });
         });
@@ -885,9 +885,9 @@ describe("outside-hours-filter", () => {
 
                 const affectedParcel: ParcelTimeInfo = {
                     id: "affected-dst-parcel",
-                    pickupEarliestTime: new Date("2025-03-30T09:00:00.000Z"), // 11:00 Stockholm - would be outside new hours
-                    pickupLatestTime: new Date("2025-03-30T10:00:00.000Z"),
-                    isPickedUp: false,
+                    handoutEarliestTime: new Date("2025-03-30T09:00:00.000Z"), // 11:00 Stockholm - would be outside new hours
+                    handoutLatestTime: new Date("2025-03-30T10:00:00.000Z"),
+                    isHandedOut: false,
                 };
 
                 // Mock the availability checks

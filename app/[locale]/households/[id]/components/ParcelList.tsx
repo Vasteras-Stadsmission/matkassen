@@ -44,14 +44,14 @@ export function ParcelList({
     return (
         <Stack gap="sm">
             {parcels.map(parcel => {
-                const isPast = isDateInPast(parcel.pickupDate);
-                const isPickedUp = Boolean(parcel.isPickedUp);
+                const isPast = isDateInPast(parcel.handoutDate);
+                const isHandedOut = Boolean(parcel.isHandedOut);
                 const isCancelled = Boolean(parcel.deletedAt);
 
                 let status: "upcoming" | "pickedUp" | "notPickedUp" | "cancelled";
                 if (isCancelled) {
                     status = "cancelled";
-                } else if (isPickedUp) {
+                } else if (isHandedOut) {
                     status = "pickedUp";
                 } else if (isPast) {
                     status = "notPickedUp";

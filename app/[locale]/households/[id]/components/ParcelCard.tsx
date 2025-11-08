@@ -6,10 +6,10 @@ import classes from "./ParcelCard.module.css";
 
 export interface ParcelCardData {
     id: string;
-    pickupDate: Date | string;
-    pickupEarliestTime: Date | string;
-    pickupLatestTime: Date | string;
-    isPickedUp?: boolean | null;
+    handoutDate: Date | string;
+    handoutEarliestTime: Date | string;
+    handoutLatestTime: Date | string;
+    isHandedOut?: boolean | null;
     deletedAt?: Date | string | null;
     deletedBy?: string | null;
 }
@@ -76,10 +76,10 @@ export function ParcelCard({
                         </ThemeIcon>
                         <Box>
                             <Text fw={600} size="sm" c={isCancelled ? "dimmed" : undefined}>
-                                {getWeekdayName(parcel.pickupDate)}
+                                {getWeekdayName(parcel.handoutDate)}
                             </Text>
                             <Text size="sm" c="dimmed">
-                                {formatDate(parcel.pickupDate)}
+                                {formatDate(parcel.handoutDate)}
                             </Text>
                         </Box>
                     </Group>
@@ -88,8 +88,8 @@ export function ParcelCard({
                             <IconClock size={16} />
                         </ThemeIcon>
                         <Text size="sm" fw={500} c={isCancelled ? "dimmed" : undefined}>
-                            {formatTime(parcel.pickupEarliestTime)} –{" "}
-                            {formatTime(parcel.pickupLatestTime)}
+                            {formatTime(parcel.handoutEarliestTime)} –{" "}
+                            {formatTime(parcel.handoutLatestTime)}
                         </Text>
                     </Group>
                     {isCancelled && parcel.deletedAt && deletedLabel && (

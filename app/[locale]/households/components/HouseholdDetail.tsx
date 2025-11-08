@@ -49,10 +49,10 @@ interface HouseholdDetailProps {
             pickupLocationId: string;
             parcels: Array<{
                 id?: string;
-                pickupDate: Date | string;
-                pickupEarliestTime: Date | string;
-                pickupLatestTime: Date | string;
-                isPickedUp?: boolean;
+                handoutDate: Date | string;
+                handoutEarliestTime: Date | string;
+                handoutLatestTime: Date | string;
+                isHandedOut?: boolean;
             }>;
         };
         pickupLocation: {
@@ -391,8 +391,8 @@ export default function InternationalizedHouseholdDetail({
                         householdDetail.foodParcels.parcels.length > 0 ? (
                             <div>
                                 {householdDetail.foodParcels.parcels.map((parcel, index) => {
-                                    const isPast = isDateInPast(parcel.pickupDate);
-                                    const isPickedUp = Boolean(parcel.isPickedUp);
+                                    const isPast = isDateInPast(parcel.handoutDate);
+                                    const isHandedOut = Boolean(parcel.isHandedOut);
 
                                     return (
                                         <Paper
@@ -419,10 +419,10 @@ export default function InternationalizedHouseholdDetail({
                                                     </ThemeIcon>
                                                     <div>
                                                         <Text fw={500} size="md">
-                                                            {getWeekdayName(parcel.pickupDate)}
+                                                            {getWeekdayName(parcel.handoutDate)}
                                                         </Text>
                                                         <Text fw={500} size="md">
-                                                            {formatDate(parcel.pickupDate)}
+                                                            {formatDate(parcel.handoutDate)}
                                                         </Text>
                                                     </div>
                                                 </Group>
@@ -435,15 +435,15 @@ export default function InternationalizedHouseholdDetail({
                                                         <IconClock size={16} />
                                                     </ThemeIcon>
                                                     <Text fw={500} size="md">
-                                                        {formatTime(parcel.pickupEarliestTime)}–
-                                                        {formatTime(parcel.pickupLatestTime)}
+                                                        {formatTime(parcel.handoutEarliestTime)}–
+                                                        {formatTime(parcel.handoutLatestTime)}
                                                     </Text>
                                                 </Group>
                                             </Group>
 
                                             {/* Status badges */}
                                             <Group mt="xs" gap="xs">
-                                                {isPickedUp ? (
+                                                {isHandedOut ? (
                                                     <Badge color="green" variant="light">
                                                         {t("status.pickedUp")}
                                                     </Badge>

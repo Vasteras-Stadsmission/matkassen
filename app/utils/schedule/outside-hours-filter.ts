@@ -9,9 +9,9 @@ import { logError } from "@/app/utils/logger";
 
 export interface ParcelTimeInfo {
     id: string;
-    pickupEarliestTime: Date;
-    pickupLatestTime: Date;
-    isPickedUp: boolean;
+    handoutEarliestTime: Date;
+    handoutLatestTime: Date;
+    isHandedOut: boolean;
 }
 
 export interface LocationScheduleInfo {
@@ -30,18 +30,18 @@ export interface LocationScheduleInfo {
 }
 
 /**
- * Determines if a parcel is considered "future" based on its earliest pickup time
- * A parcel is future if its earliest pickup time is after the current time
+ * Determines if a parcel is considered "future" based on its earliest handout time
+ * A parcel is future if its earliest handout time is after the current time
  */
 export function isFutureParcel(parcel: ParcelTimeInfo, currentTime: Date = new Date()): boolean {
-    return parcel.pickupEarliestTime > currentTime;
+    return parcel.handoutEarliestTime > currentTime;
 }
 
 /**
- * Determines if a parcel is active (not picked up and in the future)
+ * Determines if a parcel is active (not handed out and in the future)
  */
 export function isActiveParcel(parcel: ParcelTimeInfo, currentTime: Date = new Date()): boolean {
-    return !parcel.isPickedUp && isFutureParcel(parcel, currentTime);
+    return !parcel.isHandedOut && isFutureParcel(parcel, currentTime);
 }
 
 /**
@@ -52,8 +52,8 @@ export function isParcelOutsideOpeningHours(
     parcel: ParcelTimeInfo,
     locationSchedules: LocationScheduleInfo,
 ): boolean {
-    const startLocal = Time.fromDate(parcel.pickupEarliestTime);
-    const endLocal = Time.fromDate(parcel.pickupLatestTime);
+    const startLocal = Time.fromDate(parcel.handoutEarliestTime);
+    const endLocal = Time.fromDate(parcel.handoutLatestTime);
 
     // Format times for checking availability
     const startTime = startLocal.toTimeString();
@@ -123,7 +123,7 @@ function getClosingTimeForDate(localDate: Date, scheduleInfo: LocationScheduleIn
 
 /**
  * Filters a list of parcels to only include those that are:
- * 1. Active (not picked up and in the future)
+ * 1. Active (not handed out and in the future)
  * 2. Outside opening hours according to the location schedule
  */
 export function filterOutsideHoursParcels(
@@ -154,7 +154,7 @@ export function countOutsideHoursParcels(
 }
 
 /**
- * Filters parcels to only include active ones (not picked up and in the future)
+ * Filters parcels to only include active ones (not handed out and in the future)
  */
 export function filterActiveParcels(
     parcels: ParcelTimeInfo[],

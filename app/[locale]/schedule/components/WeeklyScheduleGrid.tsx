@@ -170,19 +170,19 @@ export default function WeeklyScheduleGrid({
         // Build a set of week date keys for quick membership test
         const weekKeys = new Set(weekDates.map(d => formatDateToYMD(d)));
 
-        // Filter to only parcels whose pickup date is within this week
+        // Filter to only parcels whose handout date is within this week
         const weekParcels = foodParcels.filter(p => {
-            const pickupKey = formatDateToYMD(p.pickupDate);
-            return weekKeys.has(pickupKey);
+            const handoutKey = formatDateToYMD(p.handoutDate);
+            return weekKeys.has(handoutKey);
         });
 
         // Use the utility function to filter for outside-hours parcels
         return filterOutsideHoursParcels(
             weekParcels.map(p => ({
                 id: p.id,
-                pickupEarliestTime: p.pickupEarliestTime,
-                pickupLatestTime: p.pickupLatestTime,
-                isPickedUp: p.isPickedUp,
+                handoutEarliestTime: p.handoutEarliestTime,
+                handoutLatestTime: p.handoutLatestTime,
+                isHandedOut: p.isHandedOut,
             })),
             locationSchedules,
             now,
@@ -497,7 +497,7 @@ export default function WeeklyScheduleGrid({
 
         // Place parcels in their respective slots
         foodParcels.forEach(parcel => {
-            const dateKey = formatDateToYMD(parcel.pickupDate);
+            const dateKey = formatDateToYMD(parcel.handoutDate);
 
             // Count parcels by date
             if (!newParcelCountByDate[dateKey]) {
@@ -506,10 +506,10 @@ export default function WeeklyScheduleGrid({
             newParcelCountByDate[dateKey]++;
 
             // Round to the nearest slot based on slot duration
-            const pickupTime = toStockholmTime(parcel.pickupEarliestTime);
+            const handoutTime = toStockholmTime(parcel.handoutEarliestTime);
 
-            const hours = pickupTime.getHours();
-            const minutes = pickupTime.getMinutes();
+            const hours = handoutTime.getHours();
+            const minutes = handoutTime.getMinutes();
 
             // Round down to the nearest slotDuration
             const slotIndex = Math.floor(minutes / slotDuration);
@@ -570,8 +570,8 @@ export default function WeeklyScheduleGrid({
 
         // Check if the source time slot is in the past
         const isPastSource = isPastTimeSlot(
-            parcel.pickupDate,
-            formatTime(parcel.pickupEarliestTime),
+            parcel.handoutDate,
+            formatTime(parcel.handoutEarliestTime),
         );
         if (isPastSource) {
             showNotification({
@@ -663,9 +663,9 @@ export default function WeeklyScheduleGrid({
             }
 
             // Skip if time slot is the same as the current one
-            const parcelDateYMD = formatDateToYMD(parcel.pickupDate);
+            const parcelDateYMD = formatDateToYMD(parcel.handoutDate);
             const targetDateYMD = formatDateToYMD(date);
-            const parcelTimeFormatted = formatTime(parcel.pickupEarliestTime);
+            const parcelTimeFormatted = formatTime(parcel.handoutEarliestTime);
 
             const isSameTimeSlot =
                 parcelDateYMD === targetDateYMD && parcelTimeFormatted === timeStr;
@@ -780,8 +780,8 @@ export default function WeeklyScheduleGrid({
     const handleRescheduleClick = (parcel: FoodParcel) => {
         // Check if the source time slot is in the past
         const isPastSource = isPastTimeSlot(
-            parcel.pickupDate,
-            formatTime(parcel.pickupEarliestTime),
+            parcel.handoutDate,
+            formatTime(parcel.handoutEarliestTime),
         );
         if (isPastSource) {
             showNotification({
@@ -1229,9 +1229,9 @@ export default function WeeklyScheduleGrid({
                             <Group justify="space-between" mb="xs">
                                 <Text fw={500}>{t("reschedule.from")}:</Text>
                                 <Text>
-                                    {formatDate(draggedParcel.pickupDate)},{" "}
-                                    {formatTime(draggedParcel.pickupEarliestTime)} -{" "}
-                                    {formatTime(draggedParcel.pickupLatestTime)}
+                                    {formatDate(draggedParcel.handoutDate)},{" "}
+                                    {formatTime(draggedParcel.handoutEarliestTime)} -{" "}
+                                    {formatTime(draggedParcel.handoutLatestTime)}
                                 </Text>
                             </Group>
 

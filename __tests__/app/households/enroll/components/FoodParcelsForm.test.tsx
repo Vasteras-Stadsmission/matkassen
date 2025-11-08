@@ -334,21 +334,21 @@ describe("FoodParcelsForm Business Logic Tests", () => {
             parcels: [
                 {
                     id: "parcel-1",
-                    pickupDate: new Date("2025-05-29"),
-                    pickupEarliestTime: new Date("2025-05-29T10:00:00"),
-                    pickupLatestTime: new Date("2025-05-29T10:30:00"),
+                    handoutDate: new Date("2025-05-29"),
+                    handoutEarliestTime: new Date("2025-05-29T10:00:00"),
+                    handoutLatestTime: new Date("2025-05-29T10:30:00"),
                 },
                 {
                     id: "parcel-2",
-                    pickupDate: new Date("2025-05-30"),
-                    pickupEarliestTime: new Date("2025-05-30T11:00:00"),
-                    pickupLatestTime: new Date("2025-05-30T11:30:00"),
+                    handoutDate: new Date("2025-05-30"),
+                    handoutEarliestTime: new Date("2025-05-30T11:00:00"),
+                    handoutLatestTime: new Date("2025-05-30T11:30:00"),
                 },
                 {
                     id: "parcel-3",
-                    pickupDate: new Date("2025-06-02"),
-                    pickupEarliestTime: new Date("2025-06-02T14:00:00"),
-                    pickupLatestTime: new Date("2025-06-02T14:30:00"),
+                    handoutDate: new Date("2025-06-02"),
+                    handoutEarliestTime: new Date("2025-06-02T14:00:00"),
+                    handoutLatestTime: new Date("2025-06-02T14:30:00"),
                 },
             ],
         });
@@ -364,7 +364,7 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         // Apply bulk time update logic
         const updatedParcels = formData.parcels.map(parcel => {
             // Set new start time
-            const newStartTime = new Date(parcel.pickupDate);
+            const newStartTime = new Date(parcel.handoutDate);
             newStartTime.setHours(hours, roundedMinutes, 0, 0);
 
             // Calculate new end time
@@ -373,36 +373,36 @@ describe("FoodParcelsForm Business Logic Tests", () => {
 
             return {
                 ...parcel,
-                pickupEarliestTime: newStartTime,
-                pickupLatestTime: newEndTime,
+                handoutEarliestTime: newStartTime,
+                handoutLatestTime: newEndTime,
             };
         });
 
         // Verify all parcels have the same time but different dates
-        expect(updatedParcels[0].pickupEarliestTime.getHours()).toBe(13);
-        expect(updatedParcels[0].pickupEarliestTime.getMinutes()).toBe(15); // Rounded from 13:15
-        expect(updatedParcels[0].pickupLatestTime.getHours()).toBe(13);
-        expect(updatedParcels[0].pickupLatestTime.getMinutes()).toBe(45);
+        expect(updatedParcels[0].handoutEarliestTime.getHours()).toBe(13);
+        expect(updatedParcels[0].handoutEarliestTime.getMinutes()).toBe(15); // Rounded from 13:15
+        expect(updatedParcels[0].handoutLatestTime.getHours()).toBe(13);
+        expect(updatedParcels[0].handoutLatestTime.getMinutes()).toBe(45);
 
-        expect(updatedParcels[1].pickupEarliestTime.getHours()).toBe(13);
-        expect(updatedParcels[1].pickupEarliestTime.getMinutes()).toBe(15);
-        expect(updatedParcels[1].pickupLatestTime.getHours()).toBe(13);
-        expect(updatedParcels[1].pickupLatestTime.getMinutes()).toBe(45);
+        expect(updatedParcels[1].handoutEarliestTime.getHours()).toBe(13);
+        expect(updatedParcels[1].handoutEarliestTime.getMinutes()).toBe(15);
+        expect(updatedParcels[1].handoutLatestTime.getHours()).toBe(13);
+        expect(updatedParcels[1].handoutLatestTime.getMinutes()).toBe(45);
 
-        expect(updatedParcels[2].pickupEarliestTime.getHours()).toBe(13);
-        expect(updatedParcels[2].pickupEarliestTime.getMinutes()).toBe(15);
-        expect(updatedParcels[2].pickupLatestTime.getHours()).toBe(13);
-        expect(updatedParcels[2].pickupLatestTime.getMinutes()).toBe(45);
+        expect(updatedParcels[2].handoutEarliestTime.getHours()).toBe(13);
+        expect(updatedParcels[2].handoutEarliestTime.getMinutes()).toBe(15);
+        expect(updatedParcels[2].handoutLatestTime.getHours()).toBe(13);
+        expect(updatedParcels[2].handoutLatestTime.getMinutes()).toBe(45);
 
         // Verify dates remain unchanged
-        expect(updatedParcels[0].pickupDate.toDateString()).toBe(
-            formData.parcels[0].pickupDate.toDateString(),
+        expect(updatedParcels[0].handoutDate.toDateString()).toBe(
+            formData.parcels[0].handoutDate.toDateString(),
         );
-        expect(updatedParcels[1].pickupDate.toDateString()).toBe(
-            formData.parcels[1].pickupDate.toDateString(),
+        expect(updatedParcels[1].handoutDate.toDateString()).toBe(
+            formData.parcels[1].handoutDate.toDateString(),
         );
-        expect(updatedParcels[2].pickupDate.toDateString()).toBe(
-            formData.parcels[2].pickupDate.toDateString(),
+        expect(updatedParcels[2].handoutDate.toDateString()).toBe(
+            formData.parcels[2].handoutDate.toDateString(),
         );
 
         // Test time validation for bulk edit
@@ -516,9 +516,9 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         const mockParcels = [
             {
                 id: "parcel-1",
-                pickupDate: new Date("2024-01-15"),
-                pickupEarliestTime: new Date("2024-01-15T09:00:00"),
-                pickupLatestTime: new Date("2024-01-15T09:15:00"),
+                handoutDate: new Date("2024-01-15"),
+                handoutEarliestTime: new Date("2024-01-15T09:00:00"),
+                handoutLatestTime: new Date("2024-01-15T09:15:00"),
             },
         ];
 

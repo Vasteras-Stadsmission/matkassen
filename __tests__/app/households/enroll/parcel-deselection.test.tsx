@@ -28,8 +28,8 @@ describe("Parcel Deselection Logic", () => {
         // Simulate generateParcels() logic
         const parcels = selectedDates.map(date => ({
             id: undefined,
-            pickupDate: date,
-            pickupEarliestTime: new Date(date),
+            handoutDate: date,
+            handoutEarliestTime: new Date(date),
             pickupLatestTime: new Date(date),
         }));
 
@@ -43,13 +43,13 @@ describe("Parcel Deselection Logic", () => {
         // Simulate generateParcels() logic
         const parcels = selectedDates.map(date => ({
             id: undefined,
-            pickupDate: date,
-            pickupEarliestTime: new Date(date),
+            handoutDate: date,
+            handoutEarliestTime: new Date(date),
             pickupLatestTime: new Date(date),
         }));
 
         expect(parcels).toHaveLength(1);
-        expect(parcels[0].pickupDate).toEqual(new Date("2025-10-12"));
+        expect(parcels[0].handoutDate).toEqual(new Date("2025-10-12"));
     });
 
     it("should properly detect when to clear parcels (selectedDates.length === 0)", () => {
@@ -74,13 +74,13 @@ describe("Parcel Deselection Logic", () => {
         let selectedDates = [...initialSelectedDates];
         let parcels: Array<{
             id?: string;
-            pickupDate: Date;
-            pickupEarliestTime: Date;
+            handoutDate: Date;
+            handoutEarliestTime: Date;
             pickupLatestTime: Date;
         }> = selectedDates.map(date => ({
             id: "abc123", // Existing parcel with ID
-            pickupDate: date,
-            pickupEarliestTime: new Date(date),
+            handoutDate: date,
+            handoutEarliestTime: new Date(date),
             pickupLatestTime: new Date(date),
         }));
 
@@ -93,8 +93,8 @@ describe("Parcel Deselection Logic", () => {
         // With the fix, applyChanges() always runs and regenerates parcels
         parcels = selectedDates.map(date => ({
             id: undefined,
-            pickupDate: date,
-            pickupEarliestTime: new Date(date),
+            handoutDate: date,
+            handoutEarliestTime: new Date(date),
             pickupLatestTime: new Date(date),
         }));
 
@@ -118,14 +118,14 @@ describe("Parcel Deselection Logic", () => {
 
         const parcels = selectedDates.map(date => ({
             id: undefined,
-            pickupDate: date,
-            pickupEarliestTime: new Date(date),
+            handoutDate: date,
+            handoutEarliestTime: new Date(date),
             pickupLatestTime: new Date(date),
         }));
 
         expect(parcels.length).toBe(2);
-        expect(parcels[0].pickupDate).toEqual(new Date("2025-10-12"));
-        expect(parcels[1].pickupDate).toEqual(new Date("2025-10-14"));
+        expect(parcels[0].handoutDate).toEqual(new Date("2025-10-12"));
+        expect(parcels[1].handoutDate).toEqual(new Date("2025-10-14"));
     });
 
     /**
@@ -135,8 +135,8 @@ describe("Parcel Deselection Logic", () => {
         const parcelsData = {
             pickupLocationId: "loc123",
             parcels: [] as Array<{
-                pickupDate: string;
-                pickupEarliestTime: string;
+                handoutDate: string;
+                handoutEarliestTime: string;
             }>, // Empty array signals "no parcels desired"
         };
 
@@ -144,7 +144,7 @@ describe("Parcel Deselection Logic", () => {
         const desiredParcelKeys = new Set(
             parcelsData.parcels
                 .filter(() => true) // Filter logic (simplified)
-                .map(p => `${p.pickupDate}-${p.pickupEarliestTime}`),
+                .map(p => `${p.handoutDate}-${p.handoutEarliestTime}`),
         );
 
         // When parcels is [], desiredParcelKeys is empty

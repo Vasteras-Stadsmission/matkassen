@@ -85,7 +85,7 @@ export function TodayRedirectPage() {
                         );
 
                         const completedParcels = locationParcels.filter(
-                            (parcel: FoodParcel) => parcel.isPickedUp,
+                            (parcel: FoodParcel) => parcel.isHandedOut,
                         );
 
                         return {

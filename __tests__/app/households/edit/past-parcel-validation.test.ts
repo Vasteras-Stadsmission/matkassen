@@ -8,9 +8,9 @@ import { describe, it, expect } from "vitest";
  * that are in the past, NOT existing historical parcels that the household already has.
  *
  * Context: During the soft-delete feature implementation, the validation was changed from:
- *   parcel => !parcel.id && new Date(parcel.pickupLatestTime) <= now
+ *   parcel => !parcel.id && new Date(parcel.handoutLatestTime) <= now
  * to:
- *   parcel => new Date(parcel.pickupLatestTime) <= now
+ *   parcel => new Date(parcel.handoutLatestTime) <= now
  *
  * This removed the !parcel.id check, causing ALL past parcels to be rejected,
  * which broke the edit flow for households with historical parcels.
@@ -26,17 +26,17 @@ describe("Past Parcel Validation (Regression Tests)", () => {
     function validatePastParcels(
         parcels: Array<{
             id?: string;
-            pickupEarliestTime: Date;
-            pickupLatestTime: Date;
+            handoutEarliestTime: Date;
+            handoutLatestTime: Date;
         }>,
         now: Date = new Date(),
     ): {
         isValid: boolean;
-        pastParcels: Array<{ id?: string; pickupEarliestTime: Date; pickupLatestTime: Date }>;
+        pastParcels: Array<{ id?: string; handoutEarliestTime: Date; handoutLatestTime: Date }>;
     } {
         // This is the CORRECT validation logic (with !parcel.id guard)
         const pastParcels = parcels.filter(
-            parcel => !parcel.id && new Date(parcel.pickupLatestTime) <= now,
+            parcel => !parcel.id && new Date(parcel.handoutLatestTime) <= now,
         );
 
         return {
@@ -52,16 +52,16 @@ describe("Past Parcel Validation (Regression Tests)", () => {
     function validatePastParcelsBuggy(
         parcels: Array<{
             id?: string;
-            pickupEarliestTime: Date;
-            pickupLatestTime: Date;
+            handoutEarliestTime: Date;
+            handoutLatestTime: Date;
         }>,
         now: Date = new Date(),
     ): {
         isValid: boolean;
-        pastParcels: Array<{ id?: string; pickupEarliestTime: Date; pickupLatestTime: Date }>;
+        pastParcels: Array<{ id?: string; handoutEarliestTime: Date; handoutLatestTime: Date }>;
     } {
         // BUGGY: Missing !parcel.id check
-        const pastParcels = parcels.filter(parcel => new Date(parcel.pickupLatestTime) <= now);
+        const pastParcels = parcels.filter(parcel => new Date(parcel.handoutLatestTime) <= now);
 
         return {
             isValid: pastParcels.length === 0,
@@ -75,13 +75,13 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "existing-parcel-1", // HAS ID = existing parcel
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"), // Past
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"), // Past
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"), // Past
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"), // Past
                 },
                 {
                     id: "existing-parcel-2", // HAS ID = existing parcel
-                    pickupEarliestTime: new Date("2025-09-20T10:00:00Z"), // Past
-                    pickupLatestTime: new Date("2025-09-20T12:00:00Z"), // Past
+                    handoutEarliestTime: new Date("2025-09-20T10:00:00Z"), // Past
+                    handoutLatestTime: new Date("2025-09-20T12:00:00Z"), // Past
                 },
             ];
 
@@ -97,8 +97,8 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     // NO ID = new parcel
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"), // Past
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"), // Past
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"), // Past
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"), // Past
                 },
             ];
 
@@ -115,13 +115,13 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "existing-parcel-1", // Existing past parcel - OK
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"),
                 },
                 {
                     // New future parcel - OK
-                    pickupEarliestTime: new Date("2025-10-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-10-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-15T12:00:00Z"),
                 },
             ];
 
@@ -137,13 +137,13 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "existing-parcel-1", // Existing past parcel - OK
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"),
                 },
                 {
                     // NEW PAST parcel - NOT OK
-                    pickupEarliestTime: new Date("2025-09-20T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-20T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-20T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-20T12:00:00Z"),
                 },
             ];
 
@@ -160,8 +160,8 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     // New parcel ending exactly NOW
-                    pickupEarliestTime: new Date("2025-10-03T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-03T12:00:00Z"), // Exactly now
+                    handoutEarliestTime: new Date("2025-10-03T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-03T12:00:00Z"), // Exactly now
                 },
             ];
 
@@ -177,8 +177,8 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     // New parcel with pickup window still open
-                    pickupEarliestTime: new Date("2025-10-03T11:00:00Z"), // 1 hour ago
-                    pickupLatestTime: new Date("2025-10-03T13:00:00Z"), // 1 hour in future
+                    handoutEarliestTime: new Date("2025-10-03T11:00:00Z"), // 1 hour ago
+                    handoutLatestTime: new Date("2025-10-03T13:00:00Z"), // 1 hour in future
                 },
             ];
 
@@ -193,8 +193,8 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const now = new Date("2025-10-03T12:00:00Z");
             const parcels: Array<{
                 id?: string;
-                pickupEarliestTime: Date;
-                pickupLatestTime: Date;
+                handoutEarliestTime: Date;
+                handoutLatestTime: Date;
             }> = [];
 
             const result = validatePastParcels(parcels, now);
@@ -211,8 +211,8 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "existing-parcel-1", // Existing parcel that SHOULD be allowed
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"),
                 },
             ];
 
@@ -237,28 +237,28 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "hist-1",
-                    pickupEarliestTime: new Date("2025-08-01T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-08-01T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-08-01T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-08-01T12:00:00Z"),
                 },
                 {
                     id: "hist-2",
-                    pickupEarliestTime: new Date("2025-09-01T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-01T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-01T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-01T12:00:00Z"),
                 },
                 {
                     id: "hist-3",
-                    pickupEarliestTime: new Date("2025-10-01T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-01T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-10-01T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-01T12:00:00Z"),
                 },
                 {
                     // New future parcel
-                    pickupEarliestTime: new Date("2025-10-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-10-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-15T12:00:00Z"),
                 },
                 {
                     // Another new future parcel
-                    pickupEarliestTime: new Date("2025-10-20T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-20T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-10-20T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-20T12:00:00Z"),
                 },
             ];
 
@@ -283,18 +283,18 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "old-1",
-                    pickupEarliestTime: new Date("2025-09-01T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-01T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-01T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-01T12:00:00Z"),
                 },
                 {
                     id: "old-2",
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"),
                 },
                 {
                     id: "future-1",
-                    pickupEarliestTime: new Date("2025-10-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-10-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-15T12:00:00Z"),
                 },
             ];
 
@@ -311,48 +311,48 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "jan-1",
-                    pickupEarliestTime: new Date("2025-01-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-01-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-01-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-01-15T12:00:00Z"),
                 },
                 {
                     id: "feb-1",
-                    pickupEarliestTime: new Date("2025-02-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-02-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-02-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-02-15T12:00:00Z"),
                 },
                 {
                     id: "mar-1",
-                    pickupEarliestTime: new Date("2025-03-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-03-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-03-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-03-15T12:00:00Z"),
                 },
                 {
                     id: "apr-1",
-                    pickupEarliestTime: new Date("2025-04-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-04-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-04-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-04-15T12:00:00Z"),
                 },
                 {
                     id: "may-1",
-                    pickupEarliestTime: new Date("2025-05-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-05-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-05-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-05-15T12:00:00Z"),
                 },
                 {
                     id: "jun-1",
-                    pickupEarliestTime: new Date("2025-06-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-06-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-06-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-06-15T12:00:00Z"),
                 },
                 {
                     id: "jul-1",
-                    pickupEarliestTime: new Date("2025-07-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-07-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-07-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-07-15T12:00:00Z"),
                 },
                 {
                     id: "aug-1",
-                    pickupEarliestTime: new Date("2025-08-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-08-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-08-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-08-15T12:00:00Z"),
                 },
                 {
                     id: "sep-1",
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"),
                 },
             ];
 
@@ -369,13 +369,13 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const parcels = [
                 {
                     id: "existing-1",
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"),
                 },
                 {
                     // Trying to add yesterday's parcel - should be rejected
-                    pickupEarliestTime: new Date("2025-10-02T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-02T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-10-02T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-02T12:00:00Z"),
                 },
             ];
 
@@ -391,16 +391,16 @@ describe("Past Parcel Validation (Regression Tests)", () => {
 
             const parcels = [
                 {
-                    pickupEarliestTime: new Date("2025-09-15T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-15T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-15T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-15T12:00:00Z"),
                 },
                 {
-                    pickupEarliestTime: new Date("2025-09-20T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-09-20T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-09-20T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-09-20T12:00:00Z"),
                 },
                 {
-                    pickupEarliestTime: new Date("2025-10-01T10:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-01T12:00:00Z"),
+                    handoutEarliestTime: new Date("2025-10-01T10:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-01T12:00:00Z"),
                 },
             ];
 
@@ -417,8 +417,8 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const now = new Date("2025-10-03T12:00:00.000Z");
             const parcels = [
                 {
-                    pickupEarliestTime: new Date("2025-10-03T11:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-03T12:00:00.001Z"), // 1ms in future
+                    handoutEarliestTime: new Date("2025-10-03T11:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-03T12:00:00.001Z"), // 1ms in future
                 },
             ];
 
@@ -431,8 +431,8 @@ describe("Past Parcel Validation (Regression Tests)", () => {
             const now = new Date("2025-10-03T12:00:00.000Z");
             const parcels = [
                 {
-                    pickupEarliestTime: new Date("2025-10-03T11:00:00Z"),
-                    pickupLatestTime: new Date("2025-10-03T11:59:59.999Z"), // 1ms in past
+                    handoutEarliestTime: new Date("2025-10-03T11:00:00Z"),
+                    handoutLatestTime: new Date("2025-10-03T11:59:59.999Z"), // 1ms in past
                 },
             ];
 

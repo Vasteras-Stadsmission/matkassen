@@ -13,11 +13,11 @@ vi.mock("../../../../app/db/drizzle", () => ({
 }));
 
 // This is a local implementation of getTimeslotCounts for testing
-function getTimeslotCountsImpl(parcels: Array<{ pickupEarliestTime: Date }>) {
+function getTimeslotCountsImpl(parcels: Array<{ handoutEarliestTime: Date }>) {
     const timeslotCounts: Record<string, number> = {};
 
     parcels.forEach(parcel => {
-        const time = parcel.pickupEarliestTime;
+        const time = parcel.handoutEarliestTime;
         const hour = time.getHours();
         const minutes = time.getMinutes() < 30 ? 0 : 30;
         const key = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
@@ -96,11 +96,11 @@ describe("Schedule Utilities", () => {
     describe("getTimeslotCounts", () => {
         it("counts parcels correctly by 30-minute time slots", () => {
             const parcels = [
-                { pickupEarliestTime: new Date("2025-04-16T10:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T10:15:00") }, // Should be counted in 10:00 slot
-                { pickupEarliestTime: new Date("2025-04-16T10:30:00") }, // Should be counted in 10:30 slot
-                { pickupEarliestTime: new Date("2025-04-16T10:45:00") }, // Should be counted in 10:30 slot
-                { pickupEarliestTime: new Date("2025-04-16T11:00:00") }, // Should be counted in 11:00 slot
+                { handoutEarliestTime: new Date("2025-04-16T10:00:00") },
+                { handoutEarliestTime: new Date("2025-04-16T10:15:00") }, // Should be counted in 10:00 slot
+                { handoutEarliestTime: new Date("2025-04-16T10:30:00") }, // Should be counted in 10:30 slot
+                { handoutEarliestTime: new Date("2025-04-16T10:45:00") }, // Should be counted in 10:30 slot
+                { handoutEarliestTime: new Date("2025-04-16T11:00:00") }, // Should be counted in 11:00 slot
             ];
 
             const counts = getTimeslotCountsImpl(parcels);
@@ -118,10 +118,10 @@ describe("Schedule Utilities", () => {
 
         it("handles parcels spanning multiple hours", () => {
             const parcels = [
-                { pickupEarliestTime: new Date("2025-04-16T09:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T10:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T11:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T12:00:00") },
+                { handoutEarliestTime: new Date("2025-04-16T09:00:00") },
+                { handoutEarliestTime: new Date("2025-04-16T10:00:00") },
+                { handoutEarliestTime: new Date("2025-04-16T11:00:00") },
+                { handoutEarliestTime: new Date("2025-04-16T12:00:00") },
             ];
 
             const counts = getTimeslotCountsImpl(parcels);

@@ -197,7 +197,7 @@ export default function FoodParcelsForm({
     });
 
     const [selectedDates, setSelectedDates] = useState<Date[]>(
-        data.parcels?.map(parcel => new Date(parcel.pickupDate)) || [],
+        data.parcels?.map(parcel => new Date(parcel.handoutDate)) || [],
     );
 
     // Precompute common opening hours for bulk selection (needs formState)
@@ -205,7 +205,7 @@ export default function FoodParcelsForm({
         if (!locationSchedules || formState.parcels.length === 0) return null;
         // Consider only non-past dates for bulk operations
         const dates = formState.parcels
-            .map(p => new Date(p.pickupDate))
+            .map(p => new Date(p.handoutDate))
             .filter(d => !isPastDate(d));
         if (dates.length === 0) return null;
         return getCommonOpeningHoursForDates(dates);
@@ -225,7 +225,7 @@ export default function FoodParcelsForm({
         let representative: { openingTime: string; closingTime: string } | null = null;
 
         for (const parcel of formState.parcels) {
-            const parcelDate = new Date(parcel.pickupDate);
+            const parcelDate = new Date(parcel.handoutDate);
             // Ignore past dates in bulk edit checks
             if (isPastDate(parcelDate)) {
                 continue;
@@ -766,7 +766,7 @@ export default function FoodParcelsForm({
             // CRITICAL: Only reuse parcels whose dates are still in selectedDates
             const existingParcel = formState.parcels.find(
                 p =>
-                    new Date(p.pickupDate).toDateString() === dateString &&
+                    new Date(p.handoutDate).toDateString() === dateString &&
                     p.id &&
                     !processedDates.has(p.id),
             );
@@ -795,9 +795,9 @@ export default function FoodParcelsForm({
             // The absence of an ID signals to the backend that this is a new parcel
             return {
                 id: undefined,
-                pickupDate: new Date(date),
-                pickupEarliestTime: earliestTime,
-                pickupLatestTime: latestTime,
+                handoutDate: new Date(date),
+                handoutEarliestTime: earliestTime,
+                handoutLatestTime: latestTime,
             };
         });
     }, [
@@ -895,8 +895,8 @@ export default function FoodParcelsForm({
     }, [formState, generateParcels, updateData]);
 
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
-        // Only allow updating the start time (pickupEarliestTime)
-        if (field === "pickupEarliestTime") {
+        // Only allow updating the start time (handoutEarliestTime)
+        if (field === "handoutEarliestTime") {
             const updatedParcels = [...formState.parcels];
             const parcel = updatedParcels[index];
 
@@ -909,14 +909,14 @@ export default function FoodParcelsForm({
 
             // Clear any existing errors
             const newTimeErrors = { ...timeErrors };
-            delete newTimeErrors[`${index}-pickupEarliestTime`];
-            delete newTimeErrors[`${index}-pickupLatestTime`];
+            delete newTimeErrors[`${index}-handoutEarliestTime`];
+            delete newTimeErrors[`${index}-handoutLatestTime`];
 
             // Update the parcel with both new times
             updatedParcels[index] = {
                 ...parcel,
-                pickupEarliestTime: newStartTime,
-                pickupLatestTime: newEndTime,
+                handoutEarliestTime: newStartTime,
+                handoutLatestTime: newEndTime,
             };
 
             const updatedState = { ...formState, parcels: updatedParcels };
@@ -931,7 +931,7 @@ export default function FoodParcelsForm({
             data.parcels?.length > 0 &&
             JSON.stringify(data.parcels) !== JSON.stringify(formState.parcels)
         ) {
-            setSelectedDates(data.parcels.map(parcel => new Date(parcel.pickupDate)));
+            setSelectedDates(data.parcels.map(parcel => new Date(parcel.handoutDate)));
         }
     }, [data.parcels, formState.parcels]);
 
@@ -958,7 +958,7 @@ export default function FoodParcelsForm({
         // Validate against opening hours for each upcoming parcel date
         const invalidDates: string[] = [];
         formState.parcels.forEach(parcel => {
-            const parcelDate = new Date(parcel.pickupDate);
+            const parcelDate = new Date(parcel.handoutDate);
             if (isPastDate(parcelDate)) {
                 return; // skip past dates
             }
@@ -990,7 +990,7 @@ export default function FoodParcelsForm({
         // Calculate end time based on slot duration for each parcel (only upcoming updated)
         const updatedParcels = formState.parcels.map(parcel => {
             // Set the new start time
-            const newStartTime = new Date(parcel.pickupDate);
+            const newStartTime = new Date(parcel.handoutDate);
             if (!isPastDate(newStartTime)) {
                 newStartTime.setHours(hours, roundedMinutes, 0, 0);
             }
@@ -1001,8 +1001,8 @@ export default function FoodParcelsForm({
 
             return {
                 ...parcel,
-                pickupEarliestTime: newStartTime,
-                pickupLatestTime: newEndTime,
+                handoutEarliestTime: newStartTime,
+                handoutLatestTime: newEndTime,
             };
         });
 
@@ -1306,15 +1306,15 @@ export default function FoodParcelsForm({
                                     }
                                     // Initialize bulk start time from first upcoming parcel's current time
                                     const firstUpcoming = formState.parcels.find(
-                                        p => !isPastDate(new Date(p.pickupDate)),
+                                        p => !isPastDate(new Date(p.handoutDate)),
                                     );
                                     if (firstUpcoming) {
-                                        const hh = firstUpcoming.pickupEarliestTime
+                                        const hh = firstUpcoming.handoutEarliestTime
                                             .getHours()
                                             .toString()
                                             .padStart(2, "0");
                                         const minsRaw =
-                                            firstUpcoming.pickupEarliestTime.getMinutes();
+                                            firstUpcoming.handoutEarliestTime.getMinutes();
                                         const mins = Math.floor(minsRaw / 15) * 15;
                                         setBulkStartTime(
                                             `${hh}:${mins.toString().padStart(2, "0")}`,
@@ -1519,7 +1519,7 @@ export default function FoodParcelsForm({
                             >
                                 {formState.parcels.map((parcel, index) => {
                                     // Compute facility opening hours via helper to ensure proper boundaries and format
-                                    const date = new Date(parcel.pickupDate);
+                                    const date = new Date(parcel.handoutDate);
                                     const isParcelPastDate = isPastDate(date);
                                     const range = getOpeningHoursForDate(date);
                                     const openingHours = range
@@ -1567,7 +1567,7 @@ export default function FoodParcelsForm({
                                                         }}
                                                     >
                                                         {new Date(
-                                                            parcel.pickupDate,
+                                                            parcel.handoutDate,
                                                         ).toLocaleDateString("sv-SE", {
                                                             day: "numeric",
                                                             month: "short",
@@ -1597,8 +1597,8 @@ export default function FoodParcelsForm({
                                             <Table.Td p="xs" style={{ verticalAlign: "middle" }}>
                                                 <Tooltip
                                                     label={
-                                                        timeErrors[`${index}-pickupEarliestTime`] ||
-                                                        timeErrors[`${index}-pickupLatestTime`]
+                                                        timeErrors[`${index}-handoutEarliestTime`] ||
+                                                        timeErrors[`${index}-handoutLatestTime`]
                                                     }
                                                     style={{
                                                         color: "white",
@@ -1610,9 +1610,9 @@ export default function FoodParcelsForm({
                                                     opened={
                                                         !!(
                                                             timeErrors[
-                                                                `${index}-pickupEarliestTime`
+                                                                `${index}-handoutEarliestTime`
                                                             ] ||
-                                                            timeErrors[`${index}-pickupLatestTime`]
+                                                            timeErrors[`${index}-handoutLatestTime`]
                                                         )
                                                     }
                                                     withinPortal
@@ -1623,10 +1623,10 @@ export default function FoodParcelsForm({
                                                             style={{
                                                                 border:
                                                                     timeErrors[
-                                                                        `${index}-pickupEarliestTime`
+                                                                        `${index}-handoutEarliestTime`
                                                                     ] ||
                                                                     timeErrors[
-                                                                        `${index}-pickupLatestTime`
+                                                                        `${index}-handoutLatestTime`
                                                                     ]
                                                                         ? "1px solid var(--mantine-color-red-5)"
                                                                         : isParcelPastDate
@@ -1655,10 +1655,10 @@ export default function FoodParcelsForm({
                                                                         marginRight: "6px",
                                                                         color:
                                                                             timeErrors[
-                                                                                `${index}-pickupEarliestTime`
+                                                                                `${index}-handoutEarliestTime`
                                                                             ] ||
                                                                             timeErrors[
-                                                                                `${index}-pickupLatestTime`
+                                                                                `${index}-handoutLatestTime`
                                                                             ]
                                                                                 ? "var(--mantine-color-red-6)"
                                                                                 : isParcelPastDate
@@ -1704,7 +1704,7 @@ export default function FoodParcelsForm({
                                                                     >
                                                                         {(() => {
                                                                             const hours =
-                                                                                parcel.pickupEarliestTime
+                                                                                parcel.handoutEarliestTime
                                                                                     .getHours()
                                                                                     .toString()
                                                                                     .padStart(
@@ -1712,7 +1712,7 @@ export default function FoodParcelsForm({
                                                                                         "0",
                                                                                     );
                                                                             const mins =
-                                                                                parcel.pickupEarliestTime.getMinutes();
+                                                                                parcel.handoutEarliestTime.getMinutes();
                                                                             // Round to nearest 15 min increment
                                                                             const roundedMins =
                                                                                 Math.floor(
@@ -1768,7 +1768,7 @@ export default function FoodParcelsForm({
                                                                     color: "var(--mantine-color-gray-8)",
                                                                 }}
                                                             >
-                                                                {`${parcel.pickupLatestTime.getHours().toString().padStart(2, "0")}:${parcel.pickupLatestTime.getMinutes().toString().padStart(2, "0")}`}
+                                                                {`${parcel.handoutLatestTime.getHours().toString().padStart(2, "0")}:${parcel.handoutLatestTime.getMinutes().toString().padStart(2, "0")}`}
                                                             </Text>
                                                         </Group>
                                                     </Group>
@@ -1817,9 +1817,9 @@ export default function FoodParcelsForm({
                             ? t("setBulkTimes")
                             : selectedParcelIndex !== null
                               ? `${t("table.pickupTime")} ${t("for")} ${
-                                    formState.parcels[selectedParcelIndex]?.pickupDate
+                                    formState.parcels[selectedParcelIndex]?.handoutDate
                                         ? new Date(
-                                              formState.parcels[selectedParcelIndex].pickupDate,
+                                              formState.parcels[selectedParcelIndex].handoutDate,
                                           ).toLocaleDateString()
                                         : ""
                                 }`
@@ -1846,7 +1846,7 @@ export default function FoodParcelsForm({
                         ) {
                             // Individual parcel mode
                             const parcel = formState.parcels[selectedParcelIndex];
-                            const parcelDate = new Date(parcel.pickupDate);
+                            const parcelDate = new Date(parcel.handoutDate);
                             const range = getOpeningHoursForDate(parcelDate);
                             const start = range?.openingTime || "09:00";
                             const rawEnd = range?.closingTime || "17:00";
@@ -1890,11 +1890,11 @@ export default function FoodParcelsForm({
                                           ? (() => {
                                                 const parcel =
                                                     formState.parcels[selectedParcelIndex];
-                                                const hours = parcel.pickupEarliestTime
+                                                const hours = parcel.handoutEarliestTime
                                                     .getHours()
                                                     .toString()
                                                     .padStart(2, "0");
-                                                const mins = parcel.pickupEarliestTime.getMinutes();
+                                                const mins = parcel.handoutEarliestTime.getMinutes();
                                                 const roundedMins = Math.floor(mins / 15) * 15;
                                                 const minutes = roundedMins
                                                     .toString()
@@ -1916,12 +1916,12 @@ export default function FoodParcelsForm({
                                         // Individual parcel mode
                                         const [hours, minutes] = timeString.split(":");
                                         const parcel = formState.parcels[selectedParcelIndex];
-                                        const newDate = new Date(parcel.pickupEarliestTime);
+                                        const newDate = new Date(parcel.handoutEarliestTime);
                                         newDate.setHours(parseInt(hours, 10));
                                         newDate.setMinutes(parseInt(minutes, 10));
                                         updateParcelTime(
                                             selectedParcelIndex,
-                                            "pickupEarliestTime",
+                                            "handoutEarliestTime",
                                             newDate,
                                         );
                                     }

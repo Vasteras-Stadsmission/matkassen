@@ -119,10 +119,10 @@ export function TodayHandoutsPage() {
                     ...parcel,
                     locationName: location?.name,
                     timeSlot:
-                        format(parcel.pickupEarliestTime, "HH:mm") +
+                        format(parcel.handoutEarliestTime, "HH:mm") +
                         "-" +
-                        format(parcel.pickupLatestTime, "HH:mm"),
-                    status: parcel.isPickedUp ? "completed" : "scheduled",
+                        format(parcel.handoutLatestTime, "HH:mm"),
+                    status: parcel.isHandedOut ? "completed" : "scheduled",
                 };
             });
 

@@ -4,9 +4,9 @@ declare module "../../../../app/[locale]/schedule/actions" {
     export interface FoodParcel {
         id: string;
         householdName: string;
-        pickupDate: Date;
-        pickupEarliestTime: Date;
-        pickupLatestTime: Date;
+        handoutDate: Date;
+        handoutEarliestTime: Date;
+        handoutLatestTime: Date;
     }
 
     export interface LocationScheduleInfo {

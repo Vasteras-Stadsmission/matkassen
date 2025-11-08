@@ -379,12 +379,12 @@ export default function ReviewForm({
                                                 </ThemeIcon>
                                                 <div>
                                                     <Text fw={500} size="sm">
-                                                        {getWeekdayName(parcel.pickupDate)}
+                                                        {getWeekdayName(parcel.handoutDate)}
                                                     </Text>
                                                     <Code>
-                                                        {parcel.pickupDate && (
+                                                        {parcel.handoutDate && (
                                                             <LocalizedDate
-                                                                date={new Date(parcel.pickupDate)}
+                                                                date={new Date(parcel.handoutDate)}
                                                             />
                                                         )}
                                                     </Code>
@@ -395,8 +395,8 @@ export default function ReviewForm({
                                                     <IconClock size={16} />
                                                 </ThemeIcon>
                                                 <Code>
-                                                    {formatTime(parcel.pickupEarliestTime)}-
-                                                    {formatTime(parcel.pickupLatestTime)}
+                                                    {formatTime(parcel.handoutEarliestTime)}-
+                                                    {formatTime(parcel.handoutLatestTime)}
                                                 </Code>
                                             </Group>
                                         </Group>
