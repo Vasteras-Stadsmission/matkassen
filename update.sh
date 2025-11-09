@@ -206,15 +206,23 @@ if ! timeout 60 bash -c '
     TOTAL=$(sudo docker compose ps --format json 2>/dev/null | jq -s "length" || echo "0")
     HEALTHY=$(sudo docker compose ps --format json 2>/dev/null | jq -s "[.[] | select(.Health==\"healthy\")] | length" || echo "0")
 
-    if [[ "$TOTAL" -gt 0 && "$TOTAL" -eq "$HEALTHY" ]]; then
-      echo "All $TOTAL containers are healthy"
+    # Fail if no containers found (deployment issue)
+    if [[ "$TOTAL" -eq 0 ]]; then
+      echo "❌ No containers found - docker compose may have failed"
+      exit 1
+    fi
+
+    # Success: all containers are healthy
+    if [[ "$TOTAL" -eq "$HEALTHY" ]]; then
+      echo "✅ All $TOTAL containers are healthy"
       break
     fi
+
     echo "Waiting for health checks... ($HEALTHY/$TOTAL healthy)"
     sleep 2
   done
 '; then
-    echo "❌ Health check wait timed out. Docker containers did not become healthy within 60 seconds."
+    echo "❌ Health check failed or timed out after 60 seconds."
     sudo docker compose ps
     sudo docker compose logs
     exit 1
