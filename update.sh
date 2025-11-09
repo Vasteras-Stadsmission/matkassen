@@ -173,15 +173,22 @@ if [ -n "$PORT_CHECK_LOG" ]; then
 fi
 
 # Clean slate - remove all existing site configurations
+echo "Removing old nginx configurations..."
 sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
 sudo rm -f /etc/nginx/sites-enabled/*
 
 # Apply fresh configuration
+echo "Generating nginx configuration..."
 ./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
+echo "Creating nginx symlink..."
+# Remove existing symlink explicitly (in case wildcard rm failed for any reason)
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+echo "Copying shared nginx config..."
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
 # Test config (but don't start nginx yet - wait for Docker first)
+echo "Validating nginx configuration..."
 sudo nginx -t
 echo "✅ Nginx configuration updated and validated"
 
