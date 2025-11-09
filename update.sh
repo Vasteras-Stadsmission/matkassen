@@ -149,8 +149,8 @@ echo "Setting up clean nginx configuration..."
 sudo systemctl stop nginx || true
 # Wait for systemd to fully stop nginx
 sleep 2
-# Force kill any lingering nginx processes
-sudo pkill -9 -f nginx || true
+# Force kill any lingering nginx processes (use exact match to avoid killing pkill itself)
+sudo pkill -9 -x nginx || true
 # Wait for ports to be fully released
 sleep 2
 # Verify ports 80 and 443 are free (log if not)
