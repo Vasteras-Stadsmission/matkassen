@@ -154,7 +154,7 @@ sudo pkill -9 -x nginx || true
 # Wait for ports to be fully released
 sleep 2
 # Verify ports 80 and 443 are free (log if not)
-PORT_CHECK_LOG="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1)"
+PORT_CHECK_LOG="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1 || true)"
 if [ -n "$PORT_CHECK_LOG" ]; then
     echo "⚠️ Warning: Ports 80/443 still in use after stopping nginx:"
     echo "$PORT_CHECK_LOG"
@@ -162,7 +162,7 @@ if [ -n "$PORT_CHECK_LOG" ]; then
     sleep 5
 
     # Re-check after wait - log if still in use but continue (retry logic will handle)
-    PORT_CHECK_LOG2="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1)"
+    PORT_CHECK_LOG2="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1 || true)"
     if [ -n "$PORT_CHECK_LOG2" ]; then
         echo "⚠️ Warning: Ports STILL in use after 9 seconds total wait:"
         echo "$PORT_CHECK_LOG2"
