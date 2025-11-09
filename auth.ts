@@ -86,7 +86,8 @@ const authConfig: NextAuthConfig = {
             // Allows callback URLs on the same origin (with error handling)
             try {
                 const urlOrigin = new URL(url).origin;
-                if (urlOrigin === baseUrl) {
+                const baseOrigin = new URL(baseUrl).origin;
+                if (urlOrigin === baseOrigin) {
                     return url;
                 }
             } catch (e) {

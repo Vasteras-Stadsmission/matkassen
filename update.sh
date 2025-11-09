@@ -160,6 +160,16 @@ if [ -n "$PORT_CHECK_LOG" ]; then
     echo "$PORT_CHECK_LOG"
     echo "Waiting additional 5 seconds for ports to clear..."
     sleep 5
+
+    # Re-check after wait - log if still in use but continue (retry logic will handle)
+    PORT_CHECK_LOG2="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1)"
+    if [ -n "$PORT_CHECK_LOG2" ]; then
+        echo "⚠️ Warning: Ports STILL in use after 9 seconds total wait:"
+        echo "$PORT_CHECK_LOG2"
+        echo "Continuing deployment - nginx retry logic will handle port conflicts if they persist."
+    else
+        echo "✅ Ports 80/443 are now free"
+    fi
 fi
 
 # Clean slate - remove all existing site configurations
@@ -228,8 +238,8 @@ if ! timeout 60 bash -c '
     exit 1
 fi
 
-# Give containers a moment to release any ports they might be using during startup
-sleep 3
+# Note: No additional sleep needed here - containers only use port 3000, never 80/443
+# Health checks above already ensured containers are fully ready
 
 # Now start nginx after Docker is fully up (with retry logic)
 echo "Starting nginx..."
