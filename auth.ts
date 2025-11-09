@@ -71,15 +71,24 @@ const authConfig: NextAuthConfig = {
         },
         // Redirect callback: Handle deep links and callbackUrls after authentication
         async redirect({ url, baseUrl }) {
+            // SECURITY: Reject protocol-relative URLs (//evil.com) - open redirect vulnerability
+            // Even though baseUrl + "//evil.com" might stay on our domain,
+            // browser/server normalization could create security issues
+            if (url.startsWith("//")) {
+                return baseUrl;
+            }
+
             // Allows relative callback URLs (e.g., "/admin/users")
-            // Note: Protocol-relative URLs (//evil.com) are safe here because
-            // baseUrl + "//evil.com" = "https://domain.com//evil.com" which stays on our domain
-            if (url.startsWith("/")) return `${baseUrl}${url}`;
+            if (url.startsWith("/")) {
+                return `${baseUrl}${url}`;
+            }
 
             // Allows callback URLs on the same origin (with error handling)
             try {
                 const urlOrigin = new URL(url).origin;
-                if (urlOrigin === baseUrl) return url;
+                if (urlOrigin === baseUrl) {
+                    return url;
+                }
             } catch (e) {
                 // Invalid URL format, fallback to home for security
             }
