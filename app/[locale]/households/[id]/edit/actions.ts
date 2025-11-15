@@ -22,6 +22,7 @@ import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
+import { normalizePostalCode } from "@/app/utils/validation/household-validation";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -252,7 +253,7 @@ export const updateHousehold = protectedHouseholdAction(
                         last_name: data.household.last_name,
                         phone_number: data.household.phone_number,
                         locale: data.household.locale,
-                        postal_code: data.household.postal_code,
+                        postal_code: normalizePostalCode(data.household.postal_code),
                     })
                     .where(eq(households.id, household.id));
 

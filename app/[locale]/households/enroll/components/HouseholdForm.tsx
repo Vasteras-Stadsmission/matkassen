@@ -8,6 +8,7 @@ import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
 import { getLanguageSelectOptions } from "@/app/constants/languages";
 import { useTranslations, useLocale } from "next-intl";
+import { validatePostalCode, formatPostalCode } from "@/app/utils/validation/household-validation";
 
 interface ValidationError {
     field: string;
@@ -56,9 +57,8 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: value =>
                 !/^\d{8,12}$/.test(value) ? t("validation.phoneNumberFormat") : null,
             postal_code: value => {
-                if (!value || value.trim().length === 0) return null; // Optional field
-                const stripped = value.replace(/\s/g, "");
-                return !/^\d{5}$/.test(stripped) ? t("validation.postalCodeFormat") : null;
+                const error = validatePostalCode(value);
+                return error ? t(error as any) : null;
             },
         },
         validateInputOnBlur: true,
@@ -123,14 +123,6 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             updateData(debouncedValues);
         }
     }, [debouncedValues, updateData, data]);
-
-    // Format postal code with space after 3 digits
-    const formatPostalCode = (value: string) => {
-        if (!value) return "";
-        const digits = value.replace(/\D/g, "");
-        if (digits.length <= 3) return digits;
-        return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-    };
 
     // Handle postal code special formatting
     const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {

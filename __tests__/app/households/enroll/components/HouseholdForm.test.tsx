@@ -54,6 +54,11 @@ vi.mock("@mantine/core", () => ({
 // Import the component to test
 import HouseholdForm from "../../../../../app/[locale]/households/enroll/components/HouseholdForm";
 import { Household } from "../../../../../app/[locale]/households/enroll/types";
+import {
+    validatePostalCode,
+    formatPostalCode,
+    normalizePostalCode,
+} from "../../../../../app/utils/validation/household-validation";
 
 // Define types for mock updates
 type HouseholdData = {
@@ -252,87 +257,59 @@ describe("HouseholdForm Component", () => {
         expect(wasCalledWithCorrectData).toBe(true);
     });
 
-    // Tests for optional postal code functionality
-    it("allows empty postal code", () => {
-        const mockUpdate = vi.fn();
-        const dataWithoutPostalCode: Household = {
-            first_name: "John",
-            last_name: "Doe",
-            phone_number: "1234567890",
-            postal_code: "",
-            locale: "en",
-        };
+    // Tests for optional postal code functionality using shared validation
+    describe("Postal Code Validation", () => {
+        it("validates that empty postal codes are valid (optional field)", () => {
+            // Empty/null postal codes should pass validation
+            expect(validatePostalCode("")).toBeNull();
+            expect(validatePostalCode(null)).toBeNull();
+            expect(validatePostalCode(undefined)).toBeNull();
+            expect(validatePostalCode("   ")).toBeNull();
+        });
 
-        // Simulate updating with empty postal code
-        mockUpdate(dataWithoutPostalCode);
+        it("validates that correctly formatted postal codes are valid", () => {
+            // Valid postal codes should pass validation
+            expect(validatePostalCode("12345")).toBeNull();
+            expect(validatePostalCode("123 45")).toBeNull(); // With space
+        });
 
-        // Verify update was called with empty postal code
-        expect(mockUpdate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                postal_code: "",
-            }),
-        );
+        it("validates that incorrectly formatted postal codes are invalid", () => {
+            // Invalid postal codes should fail validation
+            expect(validatePostalCode("1234")).toBe("validation.postalCodeFormat"); // Too short
+            expect(validatePostalCode("123456")).toBe("validation.postalCodeFormat"); // Too long
+            expect(validatePostalCode("abcde")).toBe("validation.postalCodeFormat"); // Non-numeric
+            expect(validatePostalCode("12a45")).toBe("validation.postalCodeFormat"); // Mixed
+        });
     });
 
-    it("allows null postal code", () => {
-        const mockUpdate = vi.fn();
-        const dataWithNullPostalCode: Household = {
-            first_name: "John",
-            last_name: "Doe",
-            phone_number: "1234567890",
-            postal_code: null,
-            locale: "en",
-        };
+    describe("Postal Code Formatting", () => {
+        it("formats postal codes with space for display", () => {
+            expect(formatPostalCode("")).toBe("");
+            expect(formatPostalCode("12345")).toBe("123 45");
+            expect(formatPostalCode("123 45")).toBe("123 45");
+            expect(formatPostalCode("123")).toBe("123");
+            expect(formatPostalCode("1234")).toBe("123 4");
+        });
 
-        // Simulate updating with null postal code
-        mockUpdate(dataWithNullPostalCode);
-
-        // Verify update was called with null postal code
-        expect(mockUpdate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                postal_code: null,
-            }),
-        );
+        it("handles null and undefined values", () => {
+            expect(formatPostalCode(null)).toBe("");
+            expect(formatPostalCode(undefined)).toBe("");
+        });
     });
 
-    it("validates postal code format when value is provided", () => {
-        // Test validation logic directly
-        const validatePostalCode = (value: string | null | undefined): string | null => {
-            if (!value || value.trim().length === 0) return null; // Optional field
-            const stripped = value.replace(/\s/g, "");
-            return !/^\d{5}$/.test(stripped) ? "validation.postalCodeFormat" : null;
-        };
+    describe("Postal Code Normalization", () => {
+        it("normalizes empty postal codes to null for database storage", () => {
+            // Empty values should become null
+            expect(normalizePostalCode("")).toBeNull();
+            expect(normalizePostalCode("   ")).toBeNull();
+            expect(normalizePostalCode(null)).toBeNull();
+            expect(normalizePostalCode(undefined)).toBeNull();
+        });
 
-        // Empty/null postal codes should pass validation
-        expect(validatePostalCode("")).toBeNull();
-        expect(validatePostalCode(null)).toBeNull();
-        expect(validatePostalCode(undefined)).toBeNull();
-        expect(validatePostalCode("   ")).toBeNull();
-
-        // Valid postal codes should pass validation
-        expect(validatePostalCode("12345")).toBeNull();
-        expect(validatePostalCode("123 45")).toBeNull(); // With space
-
-        // Invalid postal codes should fail validation
-        expect(validatePostalCode("1234")).toBe("validation.postalCodeFormat"); // Too short
-        expect(validatePostalCode("123456")).toBe("validation.postalCodeFormat"); // Too long
-        expect(validatePostalCode("abcde")).toBe("validation.postalCodeFormat"); // Non-numeric
-        expect(validatePostalCode("12a45")).toBe("validation.postalCodeFormat"); // Mixed
-    });
-
-    it("formats postal code with space when displaying", () => {
-        // Test postal code formatting logic
-        const formatPostalCode = (value: string): string => {
-            if (!value) return "";
-            const digits = value.replace(/\D/g, "");
-            if (digits.length <= 3) return digits;
-            return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-        };
-
-        expect(formatPostalCode("")).toBe("");
-        expect(formatPostalCode("12345")).toBe("123 45");
-        expect(formatPostalCode("123 45")).toBe("123 45");
-        expect(formatPostalCode("123")).toBe("123");
-        expect(formatPostalCode("1234")).toBe("123 4");
+        it("preserves non-empty postal codes", () => {
+            // Non-empty values should be preserved (trimmed)
+            expect(normalizePostalCode("12345")).toBe("12345");
+            expect(normalizePostalCode("  12345  ")).toBe("12345");
+        });
     });
 });
