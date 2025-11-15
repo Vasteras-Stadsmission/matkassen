@@ -8,7 +8,7 @@ import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
 import { getLanguageSelectOptions } from "@/app/constants/languages";
 import { useTranslations, useLocale } from "next-intl";
-import { validatePostalCode, formatPostalCode } from "@/app/utils/validation/household-validation";
+import { formatPostalCode } from "@/app/utils/validation/household-validation";
 
 interface ValidationError {
     field: string;
@@ -57,8 +57,9 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: value =>
                 !/^\d{8,12}$/.test(value) ? t("validation.phoneNumberFormat") : null,
             postal_code: value => {
-                const error = validatePostalCode(value);
-                return error ? t(error as any) : null;
+                if (!value || value.trim().length === 0) return null;
+                const stripped = value.replace(/\s/g, "");
+                return !/^\d{5}$/.test(stripped) ? t("validation.postalCodeFormat") : null;
             },
         },
         validateInputOnBlur: true,
