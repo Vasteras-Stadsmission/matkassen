@@ -20,7 +20,7 @@ const baseLogger = pino({
         },
     },
     timestamp: pino.stdTimeFunctions.isoTime,
-    // In development, use pretty printing
+    // In development, use pretty printing (disabled worker mode for Next.js SSR compatibility)
     ...(isDevelopment
         ? {
               transport: {
@@ -30,6 +30,10 @@ const baseLogger = pino({
                       translateTime: "HH:MM:ss",
                       ignore: "pid,hostname",
                       singleLine: false,
+                  },
+                  worker: {
+                      // Disable worker thread to prevent "worker has exited" errors in Next.js SSR
+                      enabled: false,
                   },
               },
           }

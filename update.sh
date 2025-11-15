@@ -147,23 +147,50 @@ chmod +x nginx/generate-nginx-config.sh
 # Ensure clean nginx state before applying new configuration
 echo "Setting up clean nginx configuration..."
 sudo systemctl stop nginx || true
-sudo pkill -f nginx || true
-sleep 1
+# Wait for systemd to fully stop nginx
+sleep 2
+# Force kill any lingering nginx processes (use exact match to avoid killing pkill itself)
+sudo pkill -9 -x nginx || true
+# Wait for ports to be fully released
+sleep 2
+# Verify ports 80 and 443 are free (log if not)
+PORT_CHECK_LOG="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1 || true)"
+if [ -n "$PORT_CHECK_LOG" ]; then
+    echo "⚠️ Warning: Ports 80/443 still in use after stopping nginx:"
+    echo "$PORT_CHECK_LOG"
+    echo "Waiting additional 5 seconds for ports to clear..."
+    sleep 5
+
+    # Re-check after wait - log if still in use but continue (retry logic will handle)
+    PORT_CHECK_LOG2="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1 || true)"
+    if [ -n "$PORT_CHECK_LOG2" ]; then
+        echo "⚠️ Warning: Ports STILL in use after 9 seconds total wait:"
+        echo "$PORT_CHECK_LOG2"
+        echo "Continuing deployment - nginx retry logic will handle port conflicts if they persist."
+    else
+        echo "✅ Ports 80/443 are now free"
+    fi
+fi
 
 # Clean slate - remove all existing site configurations
+echo "Removing old nginx configurations..."
 sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
 sudo rm -f /etc/nginx/sites-enabled/*
 
 # Apply fresh configuration
+echo "Generating nginx configuration..."
 ./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
+echo "Creating nginx symlink..."
+# Remove existing symlink explicitly (in case wildcard rm failed for any reason)
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+echo "Copying shared nginx config..."
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
 
-# Test config and start fresh
+# Test config (but don't start nginx yet - wait for Docker first)
+echo "Validating nginx configuration..."
 sudo nginx -t
-sudo systemctl start nginx
-sudo systemctl enable nginx  # Ensure it's enabled
-echo "✅ Nginx configuration updated and restarted cleanly"
+echo "✅ Nginx configuration updated and validated"
 
 # Pull and restart the Docker containers
 echo "Pulling latest Docker images from GitHub Container Registry..."
@@ -187,6 +214,71 @@ if ! sudo docker compose ps | grep "Up"; then
   sudo docker compose logs
   exit 1
 fi
+
+# Wait for containers to be fully healthy before starting nginx
+echo "Waiting for Docker containers to be healthy..."
+if ! timeout 60 bash -c '
+  while true; do
+    # Count total containers and healthy containers
+    TOTAL=$(sudo docker compose ps --format json 2>/dev/null | jq -s "length" || echo "0")
+    HEALTHY=$(sudo docker compose ps --format json 2>/dev/null | jq -s "[.[] | select(.Health==\"healthy\")] | length" || echo "0")
+
+    # Fail if no containers found (deployment issue)
+    if [[ "$TOTAL" -eq 0 ]]; then
+      echo "❌ No containers found - docker compose may have failed"
+      exit 1
+    fi
+
+    # Success: all containers are healthy
+    if [[ "$TOTAL" -eq "$HEALTHY" ]]; then
+      echo "✅ All $TOTAL containers are healthy"
+      break
+    fi
+
+    echo "Waiting for health checks... ($HEALTHY/$TOTAL healthy)"
+    sleep 2
+  done
+'; then
+    echo "❌ Health check failed or timed out after 60 seconds."
+    sudo docker compose ps
+    sudo docker compose logs
+    exit 1
+fi
+
+# Note: No additional sleep needed here - containers only use port 3000, never 80/443
+# Health checks above already ensured containers are fully ready
+
+# Now start nginx after Docker is fully up (with retry logic)
+echo "Starting nginx..."
+NGINX_START_ATTEMPTS=0
+MAX_NGINX_ATTEMPTS=3
+
+while [ $NGINX_START_ATTEMPTS -lt $MAX_NGINX_ATTEMPTS ]; do
+    if sudo systemctl start nginx; then
+        echo "✅ Nginx started successfully"
+        sudo systemctl enable nginx  # Ensure it's enabled
+        break
+    else
+        NGINX_START_ATTEMPTS=$((NGINX_START_ATTEMPTS + 1))
+        echo "⚠️ Nginx failed to start (attempt $NGINX_START_ATTEMPTS/$MAX_NGINX_ATTEMPTS)"
+
+        # Log what's using the ports
+        echo "Checking what's using ports 80/443..."
+        sudo ss -tulpn | grep -E ':80 |:443 ' || echo "No processes found on ports 80/443"
+
+        # Log recent nginx errors
+        echo "Recent nginx logs:"
+        sudo journalctl -u nginx -n 20 --no-pager
+
+        if [ $NGINX_START_ATTEMPTS -lt $MAX_NGINX_ATTEMPTS ]; then
+            echo "Waiting 5 seconds before retry..."
+            sleep 5
+        else
+            echo "❌ Failed to start nginx after $MAX_NGINX_ATTEMPTS attempts"
+            exit 1
+        fi
+    fi
+done
 
 # Run migrations directly rather than waiting for the migration container
 echo "Waiting for database to be ready..."

@@ -8,6 +8,7 @@ import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
 import { getLanguageSelectOptions } from "@/app/constants/languages";
 import { useTranslations, useLocale } from "next-intl";
+import { formatPostalCode } from "@/app/utils/validation/household-validation";
 
 interface ValidationError {
     field: string;
@@ -56,6 +57,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: value =>
                 !/^\d{8,12}$/.test(value) ? t("validation.phoneNumberFormat") : null,
             postal_code: value => {
+                if (!value || value.trim().length === 0) return null;
                 const stripped = value.replace(/\s/g, "");
                 return !/^\d{5}$/.test(stripped) ? t("validation.postalCodeFormat") : null;
             },
@@ -123,14 +125,6 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         }
     }, [debouncedValues, updateData, data]);
 
-    // Format postal code with space after 3 digits
-    const formatPostalCode = (value: string) => {
-        if (!value) return "";
-        const digits = value.replace(/\D/g, "");
-        if (digits.length <= 3) return digits;
-        return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-    };
-
     // Handle postal code special formatting
     const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let value = e.target.value.replace(/\D/g, ""); // Extract only digits
@@ -180,7 +174,6 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                         <TextInput
                             label={t("postalCode")}
                             placeholder="123 45"
-                            withAsterisk
                             {...form.getInputProps("postal_code", { withFocus: true })}
                             value={formatPostalCode(form.values.postal_code)}
                             onChange={handlePostalCodeChange}

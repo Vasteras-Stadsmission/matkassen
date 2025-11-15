@@ -32,7 +32,7 @@ interface Household {
     last_name: string;
     phone_number: string;
     locale: string;
-    postal_code: string;
+    postal_code: string | null;
     created_by: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
@@ -126,7 +126,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     );
 
     // Format postal code as XXX XX
-    const formatPostalCode = (postalCode: string) => {
+    const formatPostalCode = (postalCode: string | null) => {
         if (!postalCode) return "";
         // Remove any non-digits
         const digits = postalCode.replace(/\D/g, "");
@@ -176,7 +176,8 @@ export default function HouseholdsTable({ households }: { households: Household[
                 household.first_name.toLowerCase().includes(searchLower) ||
                 household.last_name.toLowerCase().includes(searchLower) ||
                 household.phone_number.toLowerCase().includes(searchLower) ||
-                household.postal_code.toLowerCase().includes(searchLower) ||
+                (household.postal_code &&
+                    household.postal_code.toLowerCase().includes(searchLower)) ||
                 household.locale.toLowerCase().includes(searchLower) ||
                 (household.nextParcelDate &&
                     formatDateTime(household.nextParcelDate).toLowerCase().includes(searchLower)) ||

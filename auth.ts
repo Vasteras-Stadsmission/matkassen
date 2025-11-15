@@ -69,11 +69,32 @@ const authConfig: NextAuthConfig = {
             }
             return session;
         },
-        // Redirect to home page after successful authentication
+        // Redirect callback: Handle deep links and callbackUrls after authentication
         async redirect({ url, baseUrl }) {
-            // If url starts with the base url, proceed as normal
-            if (url.startsWith(baseUrl)) return url;
-            // Otherwise, redirect to the home page
+            // SECURITY: Reject protocol-relative URLs (//evil.com) - open redirect vulnerability
+            // Even though baseUrl + "//evil.com" might stay on our domain,
+            // browser/server normalization could create security issues
+            if (url.startsWith("//")) {
+                return baseUrl;
+            }
+
+            // Allows relative callback URLs (e.g., "/admin/users")
+            if (url.startsWith("/")) {
+                return `${baseUrl}${url}`;
+            }
+
+            // Allows callback URLs on the same origin (with error handling)
+            try {
+                const urlOrigin = new URL(url).origin;
+                const baseOrigin = new URL(baseUrl).origin;
+                if (urlOrigin === baseOrigin) {
+                    return url;
+                }
+            } catch (e) {
+                // Invalid URL format, fallback to home for security
+            }
+
+            // Otherwise, redirect to the home page for security
             return baseUrl;
         },
     },

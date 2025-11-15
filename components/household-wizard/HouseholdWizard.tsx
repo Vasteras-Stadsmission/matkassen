@@ -247,15 +247,17 @@ export function HouseholdWizard({
                 return;
             }
 
-            // Check postal code
-            const cleanPostalCode = postal_code.replace(/\s/g, "");
-            if (!cleanPostalCode || !/^\d{5}$/.test(cleanPostalCode)) {
-                setValidationError({
-                    field: "postal_code",
-                    message: t("validation.postalCodeFormat"),
-                });
-                openError();
-                return;
+            // Check postal code (optional, but validate format if provided)
+            if (postal_code && postal_code.trim().length > 0) {
+                const cleanPostalCode = postal_code.replace(/\s/g, "");
+                if (!/^\d{5}$/.test(cleanPostalCode)) {
+                    setValidationError({
+                        field: "postal_code",
+                        message: t("validation.postalCodeFormat"),
+                    });
+                    openError();
+                    return;
+                }
             }
         }
 

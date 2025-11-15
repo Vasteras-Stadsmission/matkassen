@@ -5,7 +5,7 @@ export interface Household {
     last_name: string;
     phone_number: string;
     locale: string;
-    postal_code: string;
+    postal_code?: string | null;
 }
 
 export interface HouseholdMember {
@@ -99,7 +99,7 @@ export interface HouseholdCreateData {
         firstName: string;
         lastName: string;
         phoneNumber: string;
-        postalCode: string;
+        postalCode?: string | null;
         locale?: string;
     };
     members: HouseholdMemberData[];

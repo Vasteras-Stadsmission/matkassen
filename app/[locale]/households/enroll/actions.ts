@@ -32,6 +32,7 @@ import {
     type ActionResult,
 } from "@/app/utils/auth/action-result";
 import { logger, logError } from "@/app/utils/logger";
+import { normalizePostalCode } from "@/app/utils/validation/household-validation";
 
 import {
     HouseholdCreateData,
@@ -58,7 +59,7 @@ export const enrollHousehold = protectedAction(
                         last_name: data.headOfHousehold.lastName,
                         phone_number: data.headOfHousehold.phoneNumber,
                         locale: data.headOfHousehold.locale || "sv",
-                        postal_code: data.headOfHousehold.postalCode,
+                        postal_code: normalizePostalCode(data.headOfHousehold.postalCode),
                         created_by: session.user!.githubUsername,
                     })
                     .returning();
