@@ -65,9 +65,12 @@
             "phoneNumber": "Telefonnummer",
             "language": "Språk",
             "postalCode": "Postnummer",
+            "createdBy": "Skapad av",
             "firstParcel": "Första matkasse",
             "lastParcel": "Sista matkasse",
             "nextParcel": "Nästa matkasse",
+            "columns": "Kolumner",
+            "visibleColumns": "Synliga kolumner",
             "actions": {
                 "viewDetails": "Visa detaljer",
                 "edit": "Redigera hushåll",
@@ -446,6 +449,7 @@
     },
     "householdDetail": {
         "basics": "Grunduppgifter",
+        "createdBy": "Skapad av {username}",
         "members": "Medlemmar ({count})",
         "noMembers": "Inga medlemmar tillagda",
         "pets": "Husdjur ({count})",

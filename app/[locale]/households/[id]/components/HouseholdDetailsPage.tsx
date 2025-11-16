@@ -288,6 +288,8 @@ export default function HouseholdDetailsPage({
                         phoneNumber={householdData.household.phone_number}
                         postalCode={householdData.household.postal_code}
                         locale={householdData.household.locale}
+                        createdBy={householdData.household.created_by}
+                        creatorGithubData={householdData.creatorGithubData}
                         getLanguageName={getLanguageName}
                     />
 

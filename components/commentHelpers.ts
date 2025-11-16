@@ -7,6 +7,10 @@ export function convertParcelCommentsToComments(
         author: string;
         comment: string;
         createdAt: string;
+        githubUserData: {
+            name: string | null;
+            avatar_url: string | null;
+        } | null;
     }>,
 ): Comment[] {
     return parcelComments.map(comment => ({
@@ -14,8 +18,7 @@ export function convertParcelCommentsToComments(
         created_at: new Date(comment.createdAt),
         author_github_username: comment.author,
         comment: comment.comment,
-        // We don't have GitHub user data in the parcel comments response
-        // but the CommentHtml component can handle missing githubUserData
-        githubUserData: undefined,
+        // GitHub user data now included from database
+        githubUserData: comment.githubUserData || undefined,
     }));
 }

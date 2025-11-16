@@ -1,8 +1,9 @@
 "use client";
 
-import { Paper, Title, Stack, Group, ThemeIcon, Text } from "@mantine/core";
-import { IconUser, IconPhone, IconMailbox, IconLanguage } from "@tabler/icons-react";
+import { Paper, Title, Stack, Group, ThemeIcon, Text, Avatar } from "@mantine/core";
+import { IconUser, IconPhone, IconMailbox, IconLanguage, IconUserCheck } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
+import type { GithubUserData } from "@/app/[locale]/households/enroll/types";
 
 interface HouseholdInfoCardProps {
     firstName: string;
@@ -10,6 +11,8 @@ interface HouseholdInfoCardProps {
     phoneNumber: string;
     postalCode: string | null;
     locale: string;
+    createdBy: string | null;
+    creatorGithubData?: GithubUserData | null;
     getLanguageName: (locale: string) => string;
 }
 
@@ -19,6 +22,8 @@ export function HouseholdInfoCard({
     phoneNumber,
     postalCode,
     locale,
+    createdBy,
+    creatorGithubData,
     getLanguageName,
 }: HouseholdInfoCardProps) {
     const t = useTranslations("householdDetail");
@@ -64,6 +69,32 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
+                {createdBy && (
+                    <Group gap="sm">
+                        {creatorGithubData ? (
+                            <>
+                                <Avatar
+                                    src={creatorGithubData.avatar_url}
+                                    alt={creatorGithubData.name || createdBy}
+                                    size="md"
+                                    radius="xl"
+                                />
+                                <Text size="md">
+                                    {t("createdBy", {
+                                        username: creatorGithubData.name || createdBy,
+                                    })}
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <ThemeIcon size="lg" variant="light" color="blue">
+                                    <IconUserCheck size={20} />
+                                </ThemeIcon>
+                                <Text size="md">{t("createdBy", { username: createdBy })}</Text>
+                            </>
+                        )}
+                    </Group>
+                )}
             </Stack>
         </Paper>
     );

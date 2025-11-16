@@ -12,10 +12,10 @@ import {
     dietaryRestrictions,
     householdAdditionalNeeds,
     additionalNeeds,
+    users,
 } from "@/app/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
-import { fetchMultipleGithubUserData } from "@/app/[locale]/households/actions";
 import { logError } from "@/app/utils/logger";
 
 export interface ParcelDetails {
@@ -58,6 +58,10 @@ export interface ParcelDetails {
         author: string;
         comment: string;
         createdAt: string;
+        githubUserData: {
+            name: string | null;
+            avatar_url: string | null;
+        } | null;
     }>;
 }
 
@@ -153,30 +157,34 @@ export async function GET(
             )
             .where(eq(householdAdditionalNeeds.household_id, parcel.householdId));
 
-        // Fetch comments (most recent first)
+        // Fetch comments with author info from users table (most recent first)
         const commentsResult = await db
             .select({
                 id: householdComments.id,
                 author: householdComments.author_github_username,
                 comment: householdComments.comment,
                 createdAt: householdComments.created_at,
+                author_display_name: users.display_name,
+                author_avatar_url: users.avatar_url,
             })
             .from(householdComments)
+            .leftJoin(users, eq(householdComments.author_github_username, users.github_username))
             .where(eq(householdComments.household_id, parcel.householdId))
             .orderBy(desc(householdComments.created_at));
 
-        // Fetch GitHub user data for all comment authors in one batch
-        const usernames = commentsResult.map(comment => comment.author).filter(Boolean);
-
-        const githubUserDataMap = await fetchMultipleGithubUserData(usernames);
-
-        // Attach GitHub user data to comments
+        // Map comments with user data from DB
         const comments = commentsResult.map(comment => ({
             id: comment.id,
             author: comment.author,
             comment: comment.comment,
             createdAt: comment.createdAt,
-            githubUserData: comment.author ? githubUserDataMap[comment.author] || null : null,
+            githubUserData:
+                comment.author_display_name || comment.author_avatar_url
+                    ? {
+                          name: comment.author_display_name,
+                          avatar_url: comment.author_avatar_url,
+                      }
+                    : null,
         }));
 
         // Build response
@@ -220,6 +228,7 @@ export async function GET(
                 author: comment.author,
                 comment: comment.comment,
                 createdAt: comment.createdAt.toISOString(),
+                githubUserData: comment.githubUserData,
             })),
         };
 

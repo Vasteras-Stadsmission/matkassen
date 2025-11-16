@@ -45,6 +45,7 @@ export const households = pgTable(
             .notNull()
             .$defaultFn(() => nanoid(8)),
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(), // will determine end of lifecycle
+        created_by: varchar("created_by", { length: 50 }), // GitHub username of user who created household (NULL = unknown)
         first_name: varchar("first_name", { length: 50 }).notNull(),
         last_name: varchar("last_name", { length: 50 }).notNull(),
         phone_number: varchar("phone_number", { length: 20 }).notNull(),
@@ -429,6 +430,8 @@ export const users = pgTable("users", {
         .$defaultFn(() => nanoid(8)),
     created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     github_username: varchar("github_username", { length: 100 }).notNull().unique(),
+    display_name: varchar("display_name", { length: 255 }), // Full name from GitHub, updated on login
+    avatar_url: text("avatar_url"), // GitHub avatar URL, updated on login
     favorite_pickup_location_id: text("favorite_pickup_location_id").references(
         () => pickupLocations.id,
         { onDelete: "set null" },

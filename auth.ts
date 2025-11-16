@@ -4,6 +4,14 @@ import type { NextAuthConfig } from "next-auth";
 import { validateOrganizationMembership } from "./app/utils/auth/organization-auth";
 import { logger } from "./app/utils/logger";
 
+// GitHub profile type from OAuth provider
+interface GitHubProfile {
+    login?: string;
+    name?: string | null;
+    avatar_url?: string | null;
+    [key: string]: unknown; // Allow other fields
+}
+
 const authConfig: NextAuthConfig = {
     providers: [
         GitHub({
@@ -20,7 +28,7 @@ const authConfig: NextAuthConfig = {
     },
     cookies: {
         sessionToken: {
-            name: `next-auth.session-token.v2`,
+            name: `next-auth.session-token.v3`,
             options: {
                 httpOnly: true,
                 sameSite: "lax",
@@ -36,7 +44,8 @@ const authConfig: NextAuthConfig = {
         },
         async signIn({ account, profile }) {
             if (account?.provider === "github") {
-                const username = profile?.login as string;
+                const githubProfile = profile as GitHubProfile;
+                const username = githubProfile?.login as string;
 
                 // Use centralized organization membership validation
                 const orgCheck = await validateOrganizationMembership(username, "signin");
@@ -47,6 +56,31 @@ const authConfig: NextAuthConfig = {
                     }
                     // Access denied - return false to trigger AccessDenied error
                     return false;
+                }
+
+                // Update user record with latest GitHub profile data
+                try {
+                    const { db } = await import("./app/db/drizzle");
+                    const { users } = await import("./app/db/schema");
+
+                    // Upsert user: create if doesn't exist, update if exists
+                    await db
+                        .insert(users)
+                        .values({
+                            github_username: username,
+                            display_name: githubProfile.name || null,
+                            avatar_url: githubProfile.avatar_url || null,
+                        })
+                        .onConflictDoUpdate({
+                            target: users.github_username,
+                            set: {
+                                display_name: githubProfile.name || null,
+                                avatar_url: githubProfile.avatar_url || null,
+                            },
+                        });
+                } catch (error) {
+                    logger.error({ error, username }, "Failed to update user profile data");
+                    // Don't block login if profile update fails
                 }
 
                 return true;

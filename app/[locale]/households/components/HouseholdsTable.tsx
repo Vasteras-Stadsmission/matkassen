@@ -2,8 +2,25 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { DataTable } from "mantine-datatable";
-import { TextInput, ActionIcon, Tooltip, Group, Button } from "@mantine/core";
-import { IconSearch, IconX, IconPlus, IconEye, IconEdit, IconPackage } from "@tabler/icons-react";
+import {
+    TextInput,
+    ActionIcon,
+    Tooltip,
+    Group,
+    Button,
+    Menu,
+    Checkbox,
+    Stack,
+} from "@mantine/core";
+import {
+    IconSearch,
+    IconX,
+    IconPlus,
+    IconEye,
+    IconEdit,
+    IconPackage,
+    IconColumns,
+} from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/app/i18n/navigation";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
@@ -16,12 +33,24 @@ interface Household {
     phone_number: string;
     locale: string;
     postal_code: string | null;
+    created_by: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
     nextParcelDate: string | Date | null;
     nextParcelEarliestTime: string | Date | null;
     created_at?: Date;
 }
+
+type ColumnKey =
+    | "first_name"
+    | "last_name"
+    | "phone_number"
+    | "locale"
+    | "postal_code"
+    | "created_by"
+    | "firstParcelDate"
+    | "lastParcelDate"
+    | "nextParcelDate";
 
 export default function HouseholdsTable({ households }: { households: Household[] }) {
     const router = useRouter();
@@ -33,6 +62,60 @@ export default function HouseholdsTable({ households }: { households: Household[
         columnAccessor: "last_name",
         direction: "asc" as "asc" | "desc",
     });
+
+    // Column visibility state with localStorage persistence
+    const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
+        // Default visibility
+        const defaultColumns = {
+            first_name: true,
+            last_name: true,
+            phone_number: true,
+            locale: true,
+            postal_code: true,
+            created_by: false, // Hidden by default
+            firstParcelDate: true,
+            lastParcelDate: true,
+            nextParcelDate: true,
+        };
+
+        if (typeof window !== "undefined") {
+            try {
+                const saved = localStorage.getItem("householdsTableColumns");
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // Validate that parsed value is a plain object (not array, not null)
+                    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+                        return { ...defaultColumns, ...parsed };
+                    }
+                }
+            } catch (error) {
+                // Storage access error (Safari private mode) or invalid JSON
+                console.warn("Failed to load column preferences from localStorage", error);
+            }
+        }
+
+        return defaultColumns;
+    });
+
+    // Save column visibility to localStorage
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            try {
+                localStorage.setItem("householdsTableColumns", JSON.stringify(visibleColumns));
+            } catch (error) {
+                // Storage access error (Safari private mode, QuotaExceededError)
+                console.warn("Failed to save column preferences to localStorage", error);
+            }
+        }
+    }, [visibleColumns]);
+
+    // Toggle column visibility
+    const toggleColumn = (column: ColumnKey) => {
+        setVisibleColumns(prev => ({
+            ...prev,
+            [column]: !prev[column],
+        }));
+    };
 
     // Format date for display
     const formatDate = useCallback((date: string | Date | null | undefined) => {
@@ -180,14 +263,78 @@ export default function HouseholdsTable({ households }: { households: Household[
                     }
                     style={{ flex: 1, maxWidth: "500px" }}
                 />
-                <Button
-                    leftSection={<IconPlus size={16} />}
-                    onClick={() => router.push("/households/enroll")}
-                    variant="filled"
-                    color="blue"
-                >
-                    {t("table.actions.newHousehold")}
-                </Button>
+                <Group gap="sm">
+                    <Menu shadow="md" width={250}>
+                        <Menu.Target>
+                            <Button
+                                leftSection={<IconColumns size={16} />}
+                                variant="light"
+                                color="gray"
+                            >
+                                {t("table.columns")}
+                            </Button>
+                        </Menu.Target>
+
+                        <Menu.Dropdown>
+                            <Menu.Label>{t("table.visibleColumns")}</Menu.Label>
+                            <Stack gap="xs" p="xs">
+                                <Checkbox
+                                    label={t("table.firstName")}
+                                    checked={visibleColumns.first_name}
+                                    onChange={() => toggleColumn("first_name")}
+                                />
+                                <Checkbox
+                                    label={t("table.lastName")}
+                                    checked={visibleColumns.last_name}
+                                    onChange={() => toggleColumn("last_name")}
+                                />
+                                <Checkbox
+                                    label={t("table.phoneNumber")}
+                                    checked={visibleColumns.phone_number}
+                                    onChange={() => toggleColumn("phone_number")}
+                                />
+                                <Checkbox
+                                    label={t("table.language")}
+                                    checked={visibleColumns.locale}
+                                    onChange={() => toggleColumn("locale")}
+                                />
+                                <Checkbox
+                                    label={t("table.postalCode")}
+                                    checked={visibleColumns.postal_code}
+                                    onChange={() => toggleColumn("postal_code")}
+                                />
+                                <Checkbox
+                                    label={t("table.createdBy")}
+                                    checked={visibleColumns.created_by}
+                                    onChange={() => toggleColumn("created_by")}
+                                />
+                                <Checkbox
+                                    label={t("table.firstParcel")}
+                                    checked={visibleColumns.firstParcelDate}
+                                    onChange={() => toggleColumn("firstParcelDate")}
+                                />
+                                <Checkbox
+                                    label={t("table.lastParcel")}
+                                    checked={visibleColumns.lastParcelDate}
+                                    onChange={() => toggleColumn("lastParcelDate")}
+                                />
+                                <Checkbox
+                                    label={t("table.nextParcel")}
+                                    checked={visibleColumns.nextParcelDate}
+                                    onChange={() => toggleColumn("nextParcelDate")}
+                                />
+                            </Stack>
+                        </Menu.Dropdown>
+                    </Menu>
+                    <Button
+                        leftSection={<IconPlus size={16} />}
+                        onClick={() => router.push("/households/enroll")}
+                        variant="filled"
+                        color="blue"
+                    >
+                        {t("table.actions.newHousehold")}
+                    </Button>
+                </Group>
             </Group>
 
             <DataTable
@@ -237,39 +384,98 @@ export default function HouseholdsTable({ households }: { households: Household[
                             </Group>
                         ),
                     },
-                    { accessor: "first_name", title: t("table.firstName"), sortable: true },
-                    { accessor: "last_name", title: t("table.lastName"), sortable: true },
-                    { accessor: "phone_number", title: t("table.phoneNumber"), sortable: true },
-                    {
-                        accessor: "locale",
-                        title: t("table.language"),
-                        sortable: true,
-                        render: household => getLanguageName(household.locale),
-                    },
-                    {
-                        accessor: "postal_code",
-                        title: t("table.postalCode"),
-                        sortable: true,
-                        render: household => formatPostalCode(household.postal_code),
-                    },
-                    {
-                        accessor: "firstParcelDate",
-                        title: t("table.firstParcel"),
-                        sortable: true,
-                        render: household => formatDate(household.firstParcelDate),
-                    },
-                    {
-                        accessor: "lastParcelDate",
-                        title: t("table.lastParcel"),
-                        sortable: true,
-                        render: household => formatDate(household.lastParcelDate),
-                    },
-                    {
-                        accessor: "nextParcelDate",
-                        title: t("table.nextParcel"),
-                        sortable: true,
-                        render: household => formatDateTime(household.nextParcelDate),
-                    },
+                    ...(visibleColumns.first_name
+                        ? [
+                              {
+                                  accessor: "first_name",
+                                  title: t("table.firstName"),
+                                  sortable: true,
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.last_name
+                        ? [
+                              {
+                                  accessor: "last_name",
+                                  title: t("table.lastName"),
+                                  sortable: true,
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.phone_number
+                        ? [
+                              {
+                                  accessor: "phone_number",
+                                  title: t("table.phoneNumber"),
+                                  sortable: true,
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.locale
+                        ? [
+                              {
+                                  accessor: "locale",
+                                  title: t("table.language"),
+                                  sortable: true,
+                                  render: (household: Household) =>
+                                      getLanguageName(household.locale),
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.postal_code
+                        ? [
+                              {
+                                  accessor: "postal_code",
+                                  title: t("table.postalCode"),
+                                  sortable: true,
+                                  render: (household: Household) =>
+                                      formatPostalCode(household.postal_code),
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.created_by
+                        ? [
+                              {
+                                  accessor: "created_by",
+                                  title: t("table.createdBy"),
+                                  sortable: true,
+                                  render: (household: Household) => household.created_by || "-",
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.firstParcelDate
+                        ? [
+                              {
+                                  accessor: "firstParcelDate",
+                                  title: t("table.firstParcel"),
+                                  sortable: true,
+                                  render: (household: Household) =>
+                                      formatDate(household.firstParcelDate),
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.lastParcelDate
+                        ? [
+                              {
+                                  accessor: "lastParcelDate",
+                                  title: t("table.lastParcel"),
+                                  sortable: true,
+                                  render: (household: Household) =>
+                                      formatDate(household.lastParcelDate),
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.nextParcelDate
+                        ? [
+                              {
+                                  accessor: "nextParcelDate",
+                                  title: t("table.nextParcel"),
+                                  sortable: true,
+                                  render: (household: Household) =>
+                                      formatDateTime(household.nextParcelDate),
+                              },
+                          ]
+                        : []),
                 ]}
                 sortStatus={sortStatus}
                 onSortStatusChange={setSortStatus}
