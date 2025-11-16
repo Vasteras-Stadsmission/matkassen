@@ -84,7 +84,7 @@ export default function HouseholdsTable({ households }: { households: Household[
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     // Validate that parsed value is a plain object (not array, not null)
-                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
                         return { ...defaultColumns, ...parsed };
                     }
                 }

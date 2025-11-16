@@ -4,6 +4,14 @@ import type { NextAuthConfig } from "next-auth";
 import { validateOrganizationMembership } from "./app/utils/auth/organization-auth";
 import { logger } from "./app/utils/logger";
 
+// GitHub profile type from OAuth provider
+interface GitHubProfile {
+    login?: string;
+    name?: string | null;
+    avatar_url?: string | null;
+    [key: string]: unknown; // Allow other fields
+}
+
 const authConfig: NextAuthConfig = {
     providers: [
         GitHub({
@@ -36,7 +44,8 @@ const authConfig: NextAuthConfig = {
         },
         async signIn({ account, profile }) {
             if (account?.provider === "github") {
-                const username = profile?.login as string;
+                const githubProfile = profile as GitHubProfile;
+                const username = githubProfile?.login as string;
 
                 // Use centralized organization membership validation
                 const orgCheck = await validateOrganizationMembership(username, "signin");
@@ -59,14 +68,14 @@ const authConfig: NextAuthConfig = {
                         .insert(users)
                         .values({
                             github_username: username,
-                            display_name: (profile as any).name || null,
-                            avatar_url: (profile as any).avatar_url || null,
+                            display_name: githubProfile.name || null,
+                            avatar_url: githubProfile.avatar_url || null,
                         })
                         .onConflictDoUpdate({
                             target: users.github_username,
                             set: {
-                                display_name: (profile as any).name || null,
-                                avatar_url: (profile as any).avatar_url || null,
+                                display_name: githubProfile.name || null,
+                                avatar_url: githubProfile.avatar_url || null,
                             },
                         });
                 } catch (error) {
