@@ -137,6 +137,19 @@
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
             "postalCodeFormat": "Postnummer måste bestå av 5 siffror"
+        },
+        "duplicatePhone": {
+            "title": "Telefonnumret finns redan",
+            "message": "Detta telefonnummer tillhör redan hushåll: {name} (ID: {id}). Telefon: {phone}",
+            "fieldError": "Detta telefonnummer är redan registrerat"
+        },
+        "similarName": {
+            "title": "Liknande hushåll hittades",
+            "message": "Ett hushåll med liknande namn finns redan. Kontrollera att detta är ett nytt hushåll:",
+            "confirmTitle": "Bekräfta nytt hushåll",
+            "confirmMessage": "Liknande hushåll finns redan. Är du säker på att detta är ett annat hushåll?",
+            "confirmButton": "Ja, skapa nytt hushåll",
+            "cancelButton": "Avbryt"
         }
     },
     "members": {
@@ -586,9 +599,17 @@
             "firstNameLength": "Förnamn måste vara minst 2 tecken",
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
+            "phoneDuplicate": "Detta telefonnummer är redan registrerat till ett annat hushåll",
             "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
             "pickupLocation": "Välj en hämtplats",
             "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta"
+        },
+        "similarNameDialog": {
+            "title": "Liknande hushåll hittades",
+            "message": "Ett hushåll med liknande namn finns redan. Är du säker på att detta är ett annat hushåll?",
+            "existingHouseholds": "Befintliga liknande hushåll:",
+            "confirm": "Ja, skapa nytt hushåll",
+            "cancel": "Avbryt"
         },
         "verification": {
             "title": "Personalens verifieringschecklista",

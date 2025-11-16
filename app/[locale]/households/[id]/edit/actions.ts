@@ -23,6 +23,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePostalCode } from "@/app/utils/validation/household-validation";
+import { normalizePhoneToE164 } from "@/app/utils/validation/phone-validation";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -252,7 +253,7 @@ export const updateHousehold = protectedHouseholdAction(
                     .set({
                         first_name: data.household.first_name,
                         last_name: data.household.last_name,
-                        phone_number: data.household.phone_number,
+                        phone_number: normalizePhoneToE164(data.household.phone_number),
                         locale: data.household.locale,
                         postal_code: normalizePostalCode(data.household.postal_code),
                     })
