@@ -279,9 +279,13 @@ describe("User data storage in database", () => {
     describe("Creator data retrieval", () => {
         it("REGRESSION: should handle creator not in database (returns null)", () => {
             // Simulate actions.ts:225-230 when creator is not found
-            const creator = undefined; // DB query returned no rows
+            // DB query returned no rows (empty array destructuring)
+            type Creator = { display_name: string | null; avatar_url: string | null };
+            const results: Creator[] = [];
+            const [creator] = results; // undefined
 
-            let creatorGithubData = null;
+            // This is the logic from actions.ts:225-230
+            let creatorGithubData: { name: string | null; avatar_url: string | null } | null = null;
             if (creator && (creator.display_name || creator.avatar_url)) {
                 creatorGithubData = {
                     name: creator.display_name || null,

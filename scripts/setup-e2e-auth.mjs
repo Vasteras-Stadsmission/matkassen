@@ -20,7 +20,7 @@ console.log("1. Open your browser and go to: http://localhost:3000/sv");
 console.log("2. Log in with GitHub (if not already logged in)");
 console.log("3. Open DevTools (F12 or Cmd+Option+I)");
 console.log("4. Go to Application/Storage → Cookies → http://localhost:3000");
-console.log("5. Find the cookie named: next-auth.session-token.v2");
+console.log("5. Find the cookie named: next-auth.session-token.v3");
 console.log("6. Copy its Value (usually starts with 'ey...')\n");
 
 const rl = readline.createInterface({
@@ -38,7 +38,7 @@ rl.question("Paste the cookie value here: ", sessionToken => {
     const authState = {
         cookies: [
             {
-                name: "next-auth.session-token.v2",
+                name: "next-auth.session-token.v3",
                 value: sessionToken.trim(),
                 domain: "localhost",
                 path: "/",
