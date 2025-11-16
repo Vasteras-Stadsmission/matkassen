@@ -262,15 +262,7 @@ describe("HouseholdsTable localStorage error handling", () => {
 
         it("should not crash the page on any localStorage corruption", () => {
             // Worst case: completely corrupted data
-            const corruptedValues = [
-                "undefined",
-                "NaN",
-                "Infinity",
-                "{{}",
-                "}{",
-                "null",
-                '{"a":}',
-            ];
+            const corruptedValues = ["undefined", "NaN", "Infinity", "{{}", "}{", "null", '{"a":}'];
 
             const defaultColumns = { first_name: true };
 

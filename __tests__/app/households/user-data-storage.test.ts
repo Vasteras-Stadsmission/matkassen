@@ -71,9 +71,7 @@ vi.mock("@/auth", () => ({
 
 // Mock organization auth
 vi.mock("@/app/utils/auth/organization-auth", () => ({
-    validateOrganizationMembership: vi.fn(() =>
-        Promise.resolve({ isValid: true, error: null }),
-    ),
+    validateOrganizationMembership: vi.fn(() => Promise.resolve({ isValid: true, error: null })),
 }));
 
 // Mock logger
@@ -170,9 +168,7 @@ describe("User data storage in database", () => {
         });
 
         it("REGRESSION: addHouseholdComment must use githubUsername for org validation", async () => {
-            const { addHouseholdComment } = await import(
-                "@/app/[locale]/households/actions"
-            );
+            const { addHouseholdComment } = await import("@/app/[locale]/households/actions");
 
             // The function should use githubUsername (login) not name (display name)
             // This is verified by checking the validateOrganizationMembership call
@@ -192,9 +188,7 @@ describe("User data storage in database", () => {
         });
 
         it("REGRESSION: comments should be stored with githubUsername (login)", async () => {
-            const { addHouseholdComment } = await import(
-                "@/app/[locale]/households/actions"
-            );
+            const { addHouseholdComment } = await import("@/app/[locale]/households/actions");
 
             insertedUsers = [];
             await addHouseholdComment("household-123", "Test comment");
@@ -209,9 +203,7 @@ describe("User data storage in database", () => {
     describe("Database joins for user data", () => {
         it("REGRESSION: should use LEFT JOIN users to fetch display data", async () => {
             // This tests that queries join the users table instead of calling GitHub API
-            const { getHouseholdDetails } = await import(
-                "@/app/[locale]/households/actions"
-            );
+            const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
 
             selectQueries = [];
             await getHouseholdDetails("household-123");
@@ -224,9 +216,7 @@ describe("User data storage in database", () => {
         });
 
         it("should return GithubUserData with nullable fields", async () => {
-            const { getHouseholdDetails } = await import(
-                "@/app/[locale]/households/actions"
-            );
+            const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
 
             const result = await getHouseholdDetails("household-123");
 
@@ -235,8 +225,7 @@ describe("User data storage in database", () => {
                 const data = result.creatorGithubData;
 
                 // Both fields can be null
-                const isValidDisplayName =
-                    data.name === null || typeof data.name === "string";
+                const isValidDisplayName = data.name === null || typeof data.name === "string";
                 const isValidAvatar =
                     data.avatar_url === null || typeof data.avatar_url === "string";
 
@@ -283,16 +272,12 @@ describe("User data storage in database", () => {
             }) as any;
 
             try {
-                const { getHouseholdDetails } = await import(
-                    "@/app/[locale]/households/actions"
-                );
+                const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
 
                 await getHouseholdDetails("household-123");
 
                 // Should NOT call api.github.com
-                const githubApiCalls = fetchCalls.filter(url =>
-                    url.includes("api.github.com"),
-                );
+                const githubApiCalls = fetchCalls.filter(url => url.includes("api.github.com"));
                 expect(githubApiCalls.length).toBe(0);
             } finally {
                 global.fetch = originalFetch;
