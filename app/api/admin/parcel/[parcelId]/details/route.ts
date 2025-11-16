@@ -58,6 +58,10 @@ export interface ParcelDetails {
         author: string;
         comment: string;
         createdAt: string;
+        githubUserData: {
+            name: string | null;
+            avatar_url: string | null;
+        } | null;
     }>;
 }
 
@@ -224,6 +228,7 @@ export async function GET(
                 author: comment.author,
                 comment: comment.comment,
                 createdAt: comment.createdAt.toISOString(),
+                githubUserData: comment.githubUserData,
             })),
         };
 
