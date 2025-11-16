@@ -15,10 +15,7 @@ import {
     formatPhoneForDisplay,
     validatePhoneInput,
 } from "@/app/utils/validation/phone-validation";
-import {
-    checkHouseholdDuplicates,
-    type DuplicateCheckResult,
-} from "../../check-duplicates-action";
+import { checkHouseholdDuplicates, type DuplicateCheckResult } from "../../check-duplicates-action";
 
 interface ValidationError {
     field: string;
@@ -61,7 +58,6 @@ export default function HouseholdForm({
     const [duplicateCheckResult, setDuplicateCheckResult] = useState<DuplicateCheckResult | null>(
         null,
     );
-    const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
 
     // Request token to prevent race conditions with out-of-order responses
     const requestTokenRef = useRef(0);
@@ -84,7 +80,8 @@ export default function HouseholdForm({
             phone_number: value => {
                 // Allow flexible input formats, will be normalized to E.164 on save
                 const error = validatePhoneInput(value);
-                return error ? t(error) : null;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                return error ? t(error as any) : null;
             },
             postal_code: value => {
                 if (!value || value.trim().length === 0) return null;
@@ -185,8 +182,6 @@ export default function HouseholdForm({
             // Increment request token for this request
             const currentToken = ++requestTokenRef.current;
 
-            setIsCheckingDuplicates(true);
-
             try {
                 const result = await checkHouseholdDuplicates({
                     phoneNumber: hasPhone ? debouncedValues.phone_number : undefined,
@@ -209,11 +204,6 @@ export default function HouseholdForm({
                 // Only clear results if this is still the latest request
                 if (currentToken === requestTokenRef.current) {
                     setDuplicateCheckResult(null);
-                }
-            } finally {
-                // Only clear loading state if this is still the latest request
-                if (currentToken === requestTokenRef.current) {
-                    setIsCheckingDuplicates(false);
                 }
             }
         };

@@ -260,7 +260,8 @@ export function HouseholdWizard({
             if (phoneError) {
                 setValidationError({
                     field: "phone_number",
-                    message: t(phoneError),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    message: t(phoneError as any),
                 });
                 openError();
                 return;
@@ -782,10 +783,7 @@ export function HouseholdWizard({
                             </Box>
                         )}
                     <Group justify="flex-end">
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowSimilarNameConfirm(false)}
-                        >
+                        <Button variant="outline" onClick={() => setShowSimilarNameConfirm(false)}>
                             {t("similarNameDialog.cancel")}
                         </Button>
                         <Button

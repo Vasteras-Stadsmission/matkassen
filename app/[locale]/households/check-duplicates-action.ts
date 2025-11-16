@@ -107,7 +107,7 @@ export const checkHouseholdDuplicates = protectedAction(
                 `);
 
                 // Type assertion for the raw SQL result
-                const typedResults = similarNamesQuery.rows as Array<{
+                const typedResults = similarNamesQuery as unknown as Array<{
                     id: string;
                     first_name: string;
                     last_name: string;
