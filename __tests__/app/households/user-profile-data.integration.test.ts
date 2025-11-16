@@ -260,7 +260,8 @@ describe("User Profile Data - Integration Tests", () => {
 
             // Apply the mapping logic from actions.ts:204-210
             const githubUserData =
-                mockCommentWithoutUser.author_display_name || mockCommentWithoutUser.author_avatar_url
+                mockCommentWithoutUser.author_display_name ||
+                mockCommentWithoutUser.author_avatar_url
                     ? {
                           name: mockCommentWithoutUser.author_display_name || null,
                           avatar_url: mockCommentWithoutUser.author_avatar_url || null,

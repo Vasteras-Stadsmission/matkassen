@@ -17,3 +17,6 @@ playwright/.cache/
 .DS_Store
 *.log
 pnpm-lock.yaml
+
+# Claude Code settings
+.claude/settings.local.json

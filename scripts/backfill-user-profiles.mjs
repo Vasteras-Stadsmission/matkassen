@@ -76,8 +76,12 @@ async function backfillUserProfiles() {
     }
 
     if (!GITHUB_TOKEN) {
-        console.warn("⚠️  WARNING: No GITHUB_TOKEN found in environment. API rate limits will be low (60/hour).");
-        console.warn("   Set GITHUB_TOKEN or AUTH_GITHUB_ID to increase rate limit to 5000/hour.\n");
+        console.warn(
+            "⚠️  WARNING: No GITHUB_TOKEN found in environment. API rate limits will be low (60/hour).",
+        );
+        console.warn(
+            "   Set GITHUB_TOKEN or AUTH_GITHUB_ID to increase rate limit to 5000/hour.\n",
+        );
     }
 
     // Connect to database
@@ -99,12 +103,7 @@ async function backfillUserProfiles() {
                 avatar_url: users.avatar_url,
             })
             .from(users)
-            .where(
-                or(
-                    isNull(users.display_name),
-                    isNull(users.avatar_url)
-                )
-            );
+            .where(or(isNull(users.display_name), isNull(users.avatar_url)));
 
         console.log(`📊 Found ${usersToUpdate.length} users with missing profile data\n`);
 
@@ -151,7 +150,6 @@ async function backfillUserProfiles() {
                 // Rate limiting: GitHub API allows 5000 requests/hour with token, 60/hour without
                 // Add a small delay to be respectful
                 await new Promise(resolve => setTimeout(resolve, 100));
-
             } catch (error) {
                 console.error(`  ❌ Error: ${error.message}\n`);
                 errorCount++;
@@ -170,7 +168,6 @@ async function backfillUserProfiles() {
         if (isDryRun) {
             console.log("\n💡 Run without --dry-run to apply changes");
         }
-
     } finally {
         await pool.end();
     }
@@ -182,7 +179,7 @@ backfillUserProfiles()
         console.log("\n✅ Backfill complete!");
         process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
         console.error("\n❌ Backfill failed:", error);
         process.exit(1);
     });

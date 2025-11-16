@@ -98,7 +98,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
             mockLocalStorage["householdsTableColumns"] = "{ invalid json ~~";
 
             // This should NOT throw - component should gracefully fall back to defaults
-            const { container } = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+            const { container } = renderWithMantine(
+                <HouseholdsTable households={mockHouseholds} />,
+            );
 
             // Wait for component to stabilize
             await waitFor(() => {
@@ -131,7 +133,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
 
             mockLocalStorage["householdsTableColumns"] = JSON.stringify(savedColumns);
 
-            const { container} = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+            const { container } = renderWithMantine(
+                <HouseholdsTable households={mockHouseholds} />,
+            );
 
             await waitFor(() => {
                 expect(container.querySelector('[data-testid="data-table"]')).toBeTruthy();
@@ -148,7 +152,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
             // localStorage contains a string instead of object
             mockLocalStorage["householdsTableColumns"] = JSON.stringify("not an object");
 
-            const { container} = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+            const { container } = renderWithMantine(
+                <HouseholdsTable households={mockHouseholds} />,
+            );
 
             await waitFor(() => {
                 expect(container.querySelector('[data-testid="data-table"]')).toBeTruthy();
@@ -161,7 +167,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
         it("should handle array instead of object gracefully", async () => {
             mockLocalStorage["householdsTableColumns"] = JSON.stringify([true, false, true]);
 
-            const { container} = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+            const { container } = renderWithMantine(
+                <HouseholdsTable households={mockHouseholds} />,
+            );
 
             await waitFor(() => {
                 expect(container.querySelector('[data-testid="data-table"]')).toBeTruthy();
@@ -174,7 +182,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
         it("should handle null JSON value gracefully", async () => {
             mockLocalStorage["householdsTableColumns"] = JSON.stringify(null);
 
-            const { container} = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+            const { container } = renderWithMantine(
+                <HouseholdsTable households={mockHouseholds} />,
+            );
 
             await waitFor(() => {
                 expect(container.querySelector('[data-testid="data-table"]')).toBeTruthy();
@@ -192,7 +202,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
                 // Clear previous render
                 document.body.innerHTML = "";
 
-                const { container} = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+                const { container } = renderWithMantine(
+                    <HouseholdsTable households={mockHouseholds} />,
+                );
 
                 await waitFor(() => {
                     expect(container.querySelector('[data-testid="data-table"]')).toBeTruthy();
@@ -214,7 +226,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
 
             mockLocalStorage["householdsTableColumns"] = JSON.stringify(oldSaved);
 
-            const { container} = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+            const { container } = renderWithMantine(
+                <HouseholdsTable households={mockHouseholds} />,
+            );
 
             await waitFor(() => {
                 expect(container.querySelector('[data-testid="data-table"]')).toBeTruthy();
@@ -236,7 +250,9 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
 
     describe("Component lifecycle", () => {
         it("should save column visibility changes to localStorage", async () => {
-            const { container} = renderWithMantine(<HouseholdsTable households={mockHouseholds} />);
+            const { container } = renderWithMantine(
+                <HouseholdsTable households={mockHouseholds} />,
+            );
 
             await waitFor(() => {
                 expect(container.querySelector('[data-testid="data-table"]')).toBeTruthy();
