@@ -53,7 +53,6 @@ const authConfig: NextAuthConfig = {
                 try {
                     const { db } = await import("./app/db/drizzle");
                     const { users } = await import("./app/db/schema");
-                    const { eq } = await import("drizzle-orm");
 
                     // Upsert user: create if doesn't exist, update if exists
                     await db

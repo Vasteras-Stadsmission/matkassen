@@ -7,12 +7,16 @@
  * - Forward compatibility with saved preferences
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("HouseholdsTable localStorage error handling", () => {
     let mockLocalStorage: { [key: string]: string };
+    let originalWindow: typeof global.window;
 
     beforeEach(() => {
+        // Save original window
+        originalWindow = global.window;
+
         // Reset mock localStorage
         mockLocalStorage = {};
 
@@ -35,6 +39,11 @@ describe("HouseholdsTable localStorage error handling", () => {
                 length: 0,
             },
         } as any;
+    });
+
+    afterEach(() => {
+        // Restore original window to prevent test pollution
+        global.window = originalWindow;
     });
 
     describe("JSON.parse error handling", () => {

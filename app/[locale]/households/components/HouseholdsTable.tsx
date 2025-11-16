@@ -79,18 +79,18 @@ export default function HouseholdsTable({ households }: { households: Household[
         };
 
         if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("householdsTableColumns");
-            if (saved) {
-                try {
+            try {
+                const saved = localStorage.getItem("householdsTableColumns");
+                if (saved) {
                     const parsed = JSON.parse(saved);
-                    // Validate that parsed value is an object with expected structure
-                    if (parsed && typeof parsed === "object") {
+                    // Validate that parsed value is a plain object (not array, not null)
+                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
                         return { ...defaultColumns, ...parsed };
                     }
-                } catch (error) {
-                    // Invalid JSON, fall through to default
-                    console.warn("Failed to parse householdsTableColumns from localStorage", error);
                 }
+            } catch (error) {
+                // Storage access error (Safari private mode) or invalid JSON
+                console.warn("Failed to load column preferences from localStorage", error);
             }
         }
 
@@ -100,7 +100,12 @@ export default function HouseholdsTable({ households }: { households: Household[
     // Save column visibility to localStorage
     useEffect(() => {
         if (typeof window !== "undefined") {
-            localStorage.setItem("householdsTableColumns", JSON.stringify(visibleColumns));
+            try {
+                localStorage.setItem("householdsTableColumns", JSON.stringify(visibleColumns));
+            } catch (error) {
+                // Storage access error (Safari private mode, QuotaExceededError)
+                console.warn("Failed to save column preferences to localStorage", error);
+            }
         }
     }, [visibleColumns]);
 
