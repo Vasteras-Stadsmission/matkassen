@@ -430,6 +430,8 @@ export const users = pgTable("users", {
         .$defaultFn(() => nanoid(8)),
     created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     github_username: varchar("github_username", { length: 100 }).notNull().unique(),
+    display_name: varchar("display_name", { length: 255 }), // Full name from GitHub, updated on login
+    avatar_url: text("avatar_url"), // GitHub avatar URL, updated on login
     favorite_pickup_location_id: text("favorite_pickup_location_id").references(
         () => pickupLocations.id,
         { onDelete: "set null" },

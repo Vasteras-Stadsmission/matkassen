@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
 import { getHouseholdFormData, updateHousehold } from "./actions";
-import { FormData, Comment, GithubUserData } from "../../enroll/types";
+import { FormData, Comment } from "../../enroll/types";
 import { addHouseholdComment, deleteHouseholdComment } from "../../actions";
 
 export default function EditHouseholdClient({ id }: { id: string }) {
@@ -11,22 +11,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    // Fetch GitHub user data for a comment
-    const fetchGithubUserData = async (username: string): Promise<GithubUserData | null> => {
-        try {
-            const response = await fetch(`https://api.github.com/users/${username}`);
-            if (response.ok) {
-                const userData = await response.json();
-                return {
-                    avatar_url: userData.avatar_url,
-                    name: userData.name,
-                };
-            }
-        } catch {
-            // Error fetching GitHub user data
-        }
-        return null;
-    };
+    // GitHub user data is now fetched server-side and included in the comment response
 
     // Load household data when the component mounts
     useEffect(() => {
@@ -42,24 +27,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
 
                 const data = result.data;
 
-                // If there are comments with GitHub usernames, fetch their data
-                if (data.comments && data.comments.length > 0) {
-                    const updatedComments = await Promise.all(
-                        data.comments.map(async comment => {
-                            if (comment.author_github_username) {
-                                const githubUserData = await fetchGithubUserData(
-                                    comment.author_github_username,
-                                );
-                                if (githubUserData) {
-                                    return { ...comment, githubUserData };
-                                }
-                            }
-                            return comment;
-                        }),
-                    );
-                    data.comments = updatedComments;
-                }
-
+                // GitHub user data is already included in comments from server
                 setInitialData(data);
             } catch {
                 // Error loading household data
@@ -112,16 +80,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
             if (response.created_at) newComment.created_at = response.created_at;
             if (response.githubUserData) newComment.githubUserData = response.githubUserData;
 
-            // If we need to fetch GitHub data
-            if (
-                !newComment.githubUserData &&
-                newComment.author_github_username &&
-                newComment.author_github_username !== "anonymous"
-            ) {
-                const userData = await fetchGithubUserData(newComment.author_github_username);
-                if (userData) newComment.githubUserData = userData;
-            }
-
+            // GitHub data is already included from server action, no need to fetch
             // Update local state
             setInitialData(prev => {
                 if (!prev) return prev;

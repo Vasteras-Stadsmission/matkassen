@@ -12,10 +12,10 @@ import {
     petSpecies,
     foodParcels,
     householdComments,
+    users,
 } from "@/app/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
-import { fetchGithubUserData, fetchMultipleGithubUserData } from "../../actions";
 import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { type AuthSession } from "@/app/utils/auth/server-action-auth";
@@ -178,27 +178,28 @@ async function getHouseholdEditData(householdId: string) {
             comment: householdComments.comment,
             created_at: householdComments.created_at,
             author_github_username: householdComments.author_github_username,
+            author_display_name: users.display_name,
+            author_avatar_url: users.avatar_url,
         })
         .from(householdComments)
+        .leftJoin(users, eq(householdComments.author_github_username, users.github_username))
         .where(eq(householdComments.household_id, householdId))
         .orderBy(householdComments.created_at);
 
-    // Fetch GitHub user data for all comments in one batch
-    const usernames = commentsData.map(comment => comment.author_github_username).filter(Boolean);
-
-    const githubUserDataMap = await fetchMultipleGithubUserData(usernames);
-
-    // Attach GitHub user data to comments
-    const comments = commentsData.map(comment => {
-        const githubUserData = comment.author_github_username
-            ? githubUserDataMap[comment.author_github_username] || null
-            : null;
-
-        return {
-            ...comment,
-            githubUserData,
-        };
-    });
+    // Map comments with user data from DB
+    const comments = commentsData.map(comment => ({
+        id: comment.id,
+        comment: comment.comment,
+        created_at: comment.created_at,
+        author_github_username: comment.author_github_username,
+        githubUserData:
+            comment.author_display_name || comment.author_avatar_url
+                ? {
+                      name: comment.author_display_name,
+                      avatar_url: comment.author_avatar_url,
+                  }
+                : null,
+    }));
 
     // Prepare parcels in the format expected by the form
     const parcels = foodParcelsData.map(parcel => ({
@@ -589,13 +590,27 @@ export const addComment = protectedHouseholdAction(
                 })
                 .returning();
 
-            // Fetch GitHub user data for the comment author
-            let githubUserData = null;
+            // Fetch user data from database for the comment author
+            let githubUserData: GithubUserData | null = null;
             if (username && username !== "anonymous") {
-                githubUserData = await fetchGithubUserData(username);
+                const [user] = await db
+                    .select({
+                        display_name: users.display_name,
+                        avatar_url: users.avatar_url,
+                    })
+                    .from(users)
+                    .where(eq(users.github_username, username))
+                    .limit(1);
+
+                if (user && (user.display_name || user.avatar_url)) {
+                    githubUserData = {
+                        name: user.display_name,
+                        avatar_url: user.avatar_url,
+                    };
+                }
             }
 
-            // Return the comment with GitHub user data
+            // Return the comment with user data
             return success({
                 ...comment,
                 githubUserData,

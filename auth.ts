@@ -49,6 +49,32 @@ const authConfig: NextAuthConfig = {
                     return false;
                 }
 
+                // Update user record with latest GitHub profile data
+                try {
+                    const { db } = await import("./app/db/drizzle");
+                    const { users } = await import("./app/db/schema");
+                    const { eq } = await import("drizzle-orm");
+
+                    // Upsert user: create if doesn't exist, update if exists
+                    await db
+                        .insert(users)
+                        .values({
+                            github_username: username,
+                            display_name: (profile as any).name || null,
+                            avatar_url: (profile as any).avatar_url || null,
+                        })
+                        .onConflictDoUpdate({
+                            target: users.github_username,
+                            set: {
+                                display_name: (profile as any).name || null,
+                                avatar_url: (profile as any).avatar_url || null,
+                            },
+                        });
+                } catch (error) {
+                    logger.error({ error, username }, "Failed to update user profile data");
+                    // Don't block login if profile update fails
+                }
+
                 return true;
             }
             logger.error({ provider: account?.provider }, "Invalid account provider");

@@ -13,6 +13,7 @@ import {
     foodParcels,
     pickupLocations,
     householdComments,
+    users,
 } from "@/app/db/schema";
 import { asc, eq, and, isNull } from "drizzle-orm";
 import { auth } from "@/auth";
@@ -21,56 +22,6 @@ import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
-
-// Fetch GitHub user data with 24-hour cache
-// Note: React cache() memoizes per-request, while Next.js revalidate controls HTTP cache
-export const fetchGithubUserData = async (username: string): Promise<GithubUserData | null> => {
-    if (!username) return null;
-
-    try {
-        const response = await fetch(`https://api.github.com/users/${username}`, {
-            headers: {
-                // Add auth token if available
-                // Without token: 60 requests/hour
-                // With token: 5000 requests/hour
-                ...(process.env.GITHUB_TOKEN
-                    ? { Authorization: `token ${process.env.GITHUB_TOKEN}` }
-                    : {}),
-            },
-            // Cache response for 24 hours at the HTTP layer
-            // This is the primary caching mechanism for GitHub API responses
-            next: { revalidate: 86400 },
-        });
-
-        if (response.ok) {
-            const userData = await response.json();
-            return {
-                avatar_url: userData.avatar_url,
-                name: userData.name,
-            };
-        }
-        return null;
-    } catch (error) {
-        logError("Error fetching GitHub user", error, {
-            action: "fetchGithubUserData",
-            username,
-        });
-        return null;
-    }
-};
-
-// Fetch GitHub user data for multiple usernames at once
-export async function fetchMultipleGithubUserData(usernames: string[]) {
-    if (!usernames || usernames.length === 0) return {};
-
-    const uniqueUsernames = [...new Set(usernames.filter(Boolean))];
-    const userDataEntries = await Promise.all(
-        uniqueUsernames.map(async username => [username, await fetchGithubUserData(username)]),
-    );
-
-    // Build a map of username -> user data
-    return Object.fromEntries(userDataEntries.filter(([, data]) => data !== null));
-}
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
@@ -229,41 +180,55 @@ export async function getHouseholdDetails(householdId: string) {
                 .limit(1);
         }
 
-        // Get comments
+        // Get comments with author info from users table
         const commentsResult = await db
             .select({
                 id: householdComments.id,
                 created_at: householdComments.created_at,
                 author_github_username: householdComments.author_github_username,
                 comment: householdComments.comment,
+                author_display_name: users.display_name,
+                author_avatar_url: users.avatar_url,
             })
             .from(householdComments)
+            .leftJoin(users, eq(householdComments.author_github_username, users.github_username))
             .where(eq(householdComments.household_id, householdId))
             .orderBy(asc(householdComments.created_at));
 
-        // Fetch GitHub user data for all comments in one batch
-        const usernames = commentsResult
-            .map(comment => comment.author_github_username)
-            .filter(Boolean);
+        // Map comments with user data from DB
+        const comments = commentsResult.map(comment => ({
+            id: comment.id,
+            created_at: comment.created_at,
+            author_github_username: comment.author_github_username,
+            comment: comment.comment,
+            githubUserData:
+                comment.author_display_name || comment.author_avatar_url
+                    ? {
+                          name: comment.author_display_name || null,
+                          avatar_url: comment.author_avatar_url || null,
+                      }
+                    : null,
+        }));
 
-        const githubUserDataMap = await fetchMultipleGithubUserData(usernames);
+        // Fetch creator data from users table (if known)
+        let creatorGithubData: GithubUserData | null = null;
+        if (household.created_by) {
+            const [creator] = await db
+                .select({
+                    display_name: users.display_name,
+                    avatar_url: users.avatar_url,
+                })
+                .from(users)
+                .where(eq(users.github_username, household.created_by))
+                .limit(1);
 
-        // Attach GitHub user data to comments
-        const comments = commentsResult.map(comment => {
-            const githubUserData = comment.author_github_username
-                ? githubUserDataMap[comment.author_github_username] || null
-                : null;
-
-            return {
-                ...comment,
-                githubUserData,
-            };
-        });
-
-        // Fetch GitHub data for household creator (if known)
-        const creatorGithubData = household.created_by
-            ? await fetchGithubUserData(household.created_by)
-            : null;
+            if (creator && (creator.display_name || creator.avatar_url)) {
+                creatorGithubData = {
+                    name: creator.display_name || null,
+                    avatar_url: creator.avatar_url || null,
+                };
+            }
+        }
 
         return {
             household,
@@ -358,11 +323,22 @@ export async function addHouseholdComment(
             comment: dbComment.comment,
         };
 
-        // Fetch GitHub user data for the new comment
+        // Fetch user data from database for the new comment
         if (githubUsername && githubUsername !== "anonymous") {
-            const githubUserData = await fetchGithubUserData(githubUsername);
-            if (githubUserData) {
-                newComment.githubUserData = githubUserData;
+            const [user] = await db
+                .select({
+                    display_name: users.display_name,
+                    avatar_url: users.avatar_url,
+                })
+                .from(users)
+                .where(eq(users.github_username, githubUsername))
+                .limit(1);
+
+            if (user && (user.display_name || user.avatar_url)) {
+                newComment.githubUserData = {
+                    name: user.display_name || null,
+                    avatar_url: user.avatar_url || null,
+                };
             }
         }
 
