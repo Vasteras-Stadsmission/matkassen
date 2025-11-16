@@ -266,10 +266,16 @@ describe("User data storage in database", () => {
             const originalFetch = global.fetch;
             const fetchCalls: string[] = [];
 
-            global.fetch = vi.fn((url: string) => {
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url =
+                    typeof input === "string"
+                        ? input
+                        : input instanceof URL
+                          ? input.href
+                          : (input as Request).url;
                 fetchCalls.push(url);
                 return Promise.reject(new Error("Unexpected API call"));
-            }) as any;
+            }) as typeof fetch;
 
             try {
                 const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
