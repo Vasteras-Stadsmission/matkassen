@@ -285,8 +285,8 @@ export async function addHouseholdComment(
 
         // Get the current user from the session
         const session = await auth();
-        // Get the GitHub username from the name field, which contains the GitHub username
-        const githubUsername = session?.user?.name || "anonymous";
+        // Get the GitHub username from the githubUsername field (login, not display name)
+        const githubUsername = session?.user?.githubUsername || "anonymous";
 
         // Check organization membership
         if (githubUsername !== "anonymous") {
