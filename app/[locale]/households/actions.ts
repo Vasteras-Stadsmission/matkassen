@@ -1,6 +1,5 @@
 "use server";
 
-import { cache } from "react";
 import { db } from "@/app/db/drizzle";
 import {
     households,
@@ -23,40 +22,42 @@ import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 
-// Cache GitHub user data fetching
-export const fetchGithubUserData = cache(
-    async (username: string): Promise<GithubUserData | null> => {
-        if (!username) return null;
+// Fetch GitHub user data with 24-hour cache
+// Note: React cache() memoizes per-request, while Next.js revalidate controls HTTP cache
+export const fetchGithubUserData = async (username: string): Promise<GithubUserData | null> => {
+    if (!username) return null;
 
-        try {
-            const response = await fetch(`https://api.github.com/users/${username}`, {
-                headers: {
-                    // Add auth token if available
-                    ...(process.env.GITHUB_TOKEN
-                        ? { Authorization: `token ${process.env.GITHUB_TOKEN}` }
-                        : {}),
-                },
-                // Cache response for 24 hours
-                next: { revalidate: 86400 },
-            });
+    try {
+        const response = await fetch(`https://api.github.com/users/${username}`, {
+            headers: {
+                // Add auth token if available
+                // Without token: 60 requests/hour
+                // With token: 5000 requests/hour
+                ...(process.env.GITHUB_TOKEN
+                    ? { Authorization: `token ${process.env.GITHUB_TOKEN}` }
+                    : {}),
+            },
+            // Cache response for 24 hours at the HTTP layer
+            // This is the primary caching mechanism for GitHub API responses
+            next: { revalidate: 86400 },
+        });
 
-            if (response.ok) {
-                const userData = await response.json();
-                return {
-                    avatar_url: userData.avatar_url,
-                    name: userData.name,
-                };
-            }
-            return null;
-        } catch (error) {
-            logError("Error fetching GitHub user", error, {
-                action: "fetchGithubUserData",
-                username,
-            });
-            return null;
+        if (response.ok) {
+            const userData = await response.json();
+            return {
+                avatar_url: userData.avatar_url,
+                name: userData.name,
+            };
         }
-    },
-);
+        return null;
+    } catch (error) {
+        logError("Error fetching GitHub user", error, {
+            action: "fetchGithubUserData",
+            username,
+        });
+        return null;
+    }
+};
 
 // Fetch GitHub user data for multiple usernames at once
 export async function fetchMultipleGithubUserData(usernames: string[]) {

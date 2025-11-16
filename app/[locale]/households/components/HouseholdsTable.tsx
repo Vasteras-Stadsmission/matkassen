@@ -65,14 +65,8 @@ export default function HouseholdsTable({ households }: { households: Household[
 
     // Column visibility state with localStorage persistence
     const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("householdsTableColumns");
-            if (saved) {
-                return JSON.parse(saved);
-            }
-        }
         // Default visibility
-        return {
+        const defaultColumns = {
             first_name: true,
             last_name: true,
             phone_number: true,
@@ -83,6 +77,24 @@ export default function HouseholdsTable({ households }: { households: Household[
             lastParcelDate: true,
             nextParcelDate: true,
         };
+
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("householdsTableColumns");
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Validate that parsed value is an object with expected structure
+                    if (parsed && typeof parsed === "object") {
+                        return { ...defaultColumns, ...parsed };
+                    }
+                } catch (error) {
+                    // Invalid JSON, fall through to default
+                    console.warn("Failed to parse householdsTableColumns from localStorage", error);
+                }
+            }
+        }
+
+        return defaultColumns;
     });
 
     // Save column visibility to localStorage
