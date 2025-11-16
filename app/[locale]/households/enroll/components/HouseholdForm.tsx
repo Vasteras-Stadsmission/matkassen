@@ -63,6 +63,9 @@ export default function HouseholdForm({
     );
     const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
 
+    // Request token to prevent race conditions with out-of-order responses
+    const requestTokenRef = useRef(0);
+
     // Standardized field container style
     const fieldContainerStyle = { minHeight: "85px" };
 
@@ -179,6 +182,9 @@ export default function HouseholdForm({
                 return;
             }
 
+            // Increment request token for this request
+            const currentToken = ++requestTokenRef.current;
+
             setIsCheckingDuplicates(true);
 
             try {
@@ -189,17 +195,26 @@ export default function HouseholdForm({
                     excludeHouseholdId: householdId,
                 });
 
-                if (result.success && result.data) {
-                    setDuplicateCheckResult(result.data);
-                    onDuplicateCheckResult?.(result.data);
-                } else {
-                    setDuplicateCheckResult(null);
+                // Only update state if this is still the latest request
+                if (currentToken === requestTokenRef.current) {
+                    if (result.success && result.data) {
+                        setDuplicateCheckResult(result.data);
+                        onDuplicateCheckResult?.(result.data);
+                    } else {
+                        setDuplicateCheckResult(null);
+                    }
                 }
             } catch (error) {
                 console.error("Error checking duplicates:", error);
-                setDuplicateCheckResult(null);
+                // Only clear results if this is still the latest request
+                if (currentToken === requestTokenRef.current) {
+                    setDuplicateCheckResult(null);
+                }
             } finally {
-                setIsCheckingDuplicates(false);
+                // Only clear loading state if this is still the latest request
+                if (currentToken === requestTokenRef.current) {
+                    setIsCheckingDuplicates(false);
+                }
             }
         };
 
