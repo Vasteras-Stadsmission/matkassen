@@ -628,7 +628,7 @@ export function HouseholdWizard({
                                     ? validationError
                                     : null
                             }
-                            householdId={editHouseholdId}
+                            householdId={householdId}
                             onDuplicateCheckResult={setDuplicateCheckResult}
                         />
                     </Stepper.Step>
