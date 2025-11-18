@@ -25,45 +25,52 @@ import { logError } from "@/app/utils/logger";
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
-    // Get all households (excluding anonymized ones)
-    const householdsData = await db
-        .select()
-        .from(households)
-        .where(isNull(households.anonymized_at)); // Filter out anonymized households
+    try {
+        // Get all households (excluding anonymized ones)
+        const householdsData = await db
+            .select()
+            .from(households)
+            .where(isNull(households.anonymized_at)); // Filter out anonymized households
 
-    // For each household, get the food parcels
-    const householdsWithParcels = await Promise.all(
-        householdsData.map(async household => {
-            // Get all food parcels for this household sorted by pickup date
-            const householdParcels = await db
-                .select()
-                .from(foodParcels)
-                .where(and(eq(foodParcels.household_id, household.id), notDeleted()))
-                .orderBy(foodParcels.pickup_date_time_latest);
+        // For each household, get the food parcels
+        const householdsWithParcels = await Promise.all(
+            householdsData.map(async household => {
+                // Get all food parcels for this household sorted by pickup date
+                const householdParcels = await db
+                    .select()
+                    .from(foodParcels)
+                    .where(and(eq(foodParcels.household_id, household.id), notDeleted()))
+                    .orderBy(foodParcels.pickup_date_time_latest);
 
-            // Get the first and last food parcel dates (if any parcels exist)
-            const firstParcel = householdParcels[0] ? householdParcels[0] : null;
-            const lastParcel =
-                householdParcels.length > 0 ? householdParcels[householdParcels.length - 1] : null;
+                // Get the first and last food parcel dates (if any parcels exist)
+                const firstParcel = householdParcels[0] ? householdParcels[0] : null;
+                const lastParcel =
+                    householdParcels.length > 0 ? householdParcels[householdParcels.length - 1] : null;
 
-            // Get the next upcoming food parcel (based on latest pickup time)
-            const now = new Date();
-            const upcomingParcels = householdParcels.filter(
-                parcel => new Date(parcel.pickup_date_time_latest) > now,
-            );
-            const nextParcel = upcomingParcels.length > 0 ? upcomingParcels[0] : null;
+                // Get the next upcoming food parcel (based on latest pickup time)
+                const now = new Date();
+                const upcomingParcels = householdParcels.filter(
+                    parcel => new Date(parcel.pickup_date_time_latest) > now,
+                );
+                const nextParcel = upcomingParcels.length > 0 ? upcomingParcels[0] : null;
 
-            return {
-                ...household,
-                firstParcelDate: firstParcel ? firstParcel.pickup_date_time_latest : null,
-                lastParcelDate: lastParcel ? lastParcel.pickup_date_time_latest : null,
-                nextParcelDate: nextParcel ? nextParcel.pickup_date_time_latest : null,
-                nextParcelEarliestTime: nextParcel ? nextParcel.pickup_date_time_earliest : null,
-            };
-        }),
-    );
+                return {
+                    ...household,
+                    firstParcelDate: firstParcel ? firstParcel.pickup_date_time_latest : null,
+                    lastParcelDate: lastParcel ? lastParcel.pickup_date_time_latest : null,
+                    nextParcelDate: nextParcel ? nextParcel.pickup_date_time_latest : null,
+                    nextParcelEarliestTime: nextParcel ? nextParcel.pickup_date_time_earliest : null,
+                };
+            }),
+        );
 
-    return householdsWithParcels;
+        return householdsWithParcels;
+    } catch (error) {
+        logError("Error fetching households", error, {
+            action: "getHouseholds",
+        });
+        throw error;
+    }
 }
 
 // Enhanced function to get household details with GitHub data
