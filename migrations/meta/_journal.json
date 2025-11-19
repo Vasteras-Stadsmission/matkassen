@@ -225,6 +225,20 @@
       "when": 1762616082617,
       "tag": "0031_next_mandrill",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1762616082618,
+      "tag": "0032_add_household_created_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1762616082619,
+      "tag": "0033_add_user_display_fields",
+      "breakpoints": true
     }
   ]
 }
