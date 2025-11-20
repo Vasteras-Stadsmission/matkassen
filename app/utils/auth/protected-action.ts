@@ -4,8 +4,8 @@ import {
     type AuthSession,
     type HouseholdData,
 } from "./server-action-auth";
-import { type ActionResult } from "./action-result";
-import { logger } from "@/app/utils/logger";
+import { type ActionResult, failure } from "./action-result";
+import { logger, logError } from "@/app/utils/logger";
 
 /**
  * Higher-order function that wraps server actions with automatic authentication.
@@ -31,24 +31,38 @@ export function protectedAction<T extends any[], R>(
     action: (session: AuthSession, ...args: T) => Promise<ActionResult<R>>,
 ): (...args: T) => Promise<ActionResult<R>> {
     return async (...args: T): Promise<ActionResult<R>> => {
-        const authResult = await verifyServerActionAuth();
+        try {
+            const authResult = await verifyServerActionAuth();
 
-        if (!authResult.success) {
-            // Return the auth error
-            return authResult;
-        }
+            if (!authResult.success) {
+                // Return the auth error
+                return authResult;
+            }
 
-        // Audit log for security monitoring (IDs only, no PII)
-        logger.info(
-            {
-                githubUsername: authResult.data.user?.githubUsername,
+            // Audit log for security monitoring (IDs only, no PII)
+            logger.info(
+                {
+                    githubUsername: authResult.data.user?.githubUsername,
+                    action: action.name || "anonymous",
+                    type: "protected_action",
+                },
+                "Protected action executed",
+            );
+
+            return await action(authResult.data, ...args);
+        } catch (error) {
+            // Log the error with structured logging
+            logError(`Error in protected action: ${action.name || "anonymous"}`, error, {
                 action: action.name || "anonymous",
                 type: "protected_action",
-            },
-            "Protected action executed",
-        );
+            });
 
-        return action(authResult.data, ...args);
+            // Return a failure result instead of throwing
+            return failure({
+                code: "INTERNAL_ERROR",
+                message: "An unexpected error occurred. Please try again.",
+            });
+        }
     };
 }
 
@@ -79,32 +93,47 @@ export function protectedHouseholdAction<T extends [string, ...any[]], R>(
     ) => Promise<ActionResult<R>>,
 ): (...args: T) => Promise<ActionResult<R>> {
     return async (...args: T): Promise<ActionResult<R>> => {
-        const [householdId, ...restArgs] = args;
+        try {
+            const [householdId, ...restArgs] = args;
 
-        const authResult = await verifyServerActionAuth();
+            const authResult = await verifyServerActionAuth();
 
-        if (!authResult.success) {
-            return authResult;
-        }
+            if (!authResult.success) {
+                return authResult;
+            }
 
-        const householdResult = await verifyHouseholdAccess(householdId as string);
+            const householdResult = await verifyHouseholdAccess(householdId as string);
 
-        if (!householdResult.success) {
-            return householdResult;
-        }
+            if (!householdResult.success) {
+                return householdResult;
+            }
 
-        // Audit log (IDs only, no PII)
-        logger.info(
-            {
-                githubUsername: authResult.data.user?.githubUsername,
-                householdId: householdResult.data.id,
+            // Audit log (IDs only, no PII)
+            logger.info(
+                {
+                    githubUsername: authResult.data.user?.githubUsername,
+                    householdId: householdResult.data.id,
+                    action: action.name || "anonymous",
+                    type: "protected_household_action",
+                },
+                "Protected household action executed",
+            );
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return await action(authResult.data, householdResult.data, ...(restArgs as any));
+        } catch (error) {
+            // Log the error with structured logging
+            logError(`Error in protected household action: ${action.name || "anonymous"}`, error, {
                 action: action.name || "anonymous",
                 type: "protected_household_action",
-            },
-            "Protected household action executed",
-        );
+                householdId: args[0] as string,
+            });
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return action(authResult.data, householdResult.data, ...(restArgs as any));
+            // Return a failure result instead of throwing
+            return failure({
+                code: "INTERNAL_ERROR",
+                message: "An unexpected error occurred. Please try again.",
+            });
+        }
     };
 }
