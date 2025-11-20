@@ -48,7 +48,7 @@ export const households = pgTable(
         created_by: varchar("created_by", { length: 50 }), // GitHub username of user who created household (NULL = unknown)
         first_name: varchar("first_name", { length: 50 }).notNull(),
         last_name: varchar("last_name", { length: 50 }).notNull(),
-        phone_number: varchar("phone_number", { length: 20 }).notNull(),
+        phone_number: varchar("phone_number", { length: 20 }).notNull(), // E.164 format (e.g., +46701234567), unique per active household
         locale: varchar("locale", { length: 2 }).notNull(),
         postal_code: varchar("postal_code", { length: 5 }),
         anonymized_at: timestamp({ precision: 1, withTimezone: true }), // Timestamp when household was anonymized (NULL = active)

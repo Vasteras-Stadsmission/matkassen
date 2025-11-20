@@ -137,6 +137,19 @@
             "lastNameLength": "Last name must be at least 2 characters",
             "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
             "postalCodeFormat": "Postal code must be 5 digits"
+        },
+        "duplicatePhone": {
+            "title": "Phone Number Already Exists",
+            "message": "This phone number already belongs to household: {name} (ID: {id}). Phone: {phone}",
+            "fieldError": "This phone number is already registered"
+        },
+        "similarName": {
+            "title": "Similar Household Found",
+            "message": "A household with a similar name already exists. Please verify this is a new household:",
+            "confirmTitle": "Confirm New Household",
+            "confirmMessage": "Similar households already exist. Are you sure this is a different household?",
+            "confirmButton": "Yes, Create New Household",
+            "cancelButton": "Cancel"
         }
     },
     "members": {
@@ -586,9 +599,17 @@
             "firstNameLength": "First name must be at least 2 characters",
             "lastNameLength": "Last name must be at least 2 characters",
             "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
+            "phoneDuplicate": "This phone number is already registered to another household",
             "postalCodeFormat": "Postal code must be 5 digits",
             "pickupLocation": "Select a pickup location",
             "verificationIncomplete": "All required verifications must be checked before proceeding"
+        },
+        "similarNameDialog": {
+            "title": "Similar Household Found",
+            "message": "A household with a similar name already exists. Are you sure this is a different household?",
+            "existingHouseholds": "Existing similar households:",
+            "confirm": "Yes, Create New Household",
+            "cancel": "Cancel"
         },
         "verification": {
             "title": "Staff Verification Checklist",

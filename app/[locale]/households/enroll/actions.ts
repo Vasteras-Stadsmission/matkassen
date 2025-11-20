@@ -33,6 +33,7 @@ import {
 } from "@/app/utils/auth/action-result";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePostalCode } from "@/app/utils/validation/household-validation";
+import { normalizePhoneToE164 } from "@/app/utils/validation/phone-validation";
 
 import {
     HouseholdCreateData,
@@ -57,7 +58,7 @@ export const enrollHousehold = protectedAction(
                     .values({
                         first_name: data.headOfHousehold.firstName,
                         last_name: data.headOfHousehold.lastName,
-                        phone_number: data.headOfHousehold.phoneNumber,
+                        phone_number: normalizePhoneToE164(data.headOfHousehold.phoneNumber),
                         locale: data.headOfHousehold.locale || "sv",
                         postal_code: normalizePostalCode(data.headOfHousehold.postalCode),
                         created_by: session.user?.githubUsername ?? null,
