@@ -4,6 +4,7 @@ import { ParcelManagementClient } from "./ParcelManagementClient";
 import { getTranslations } from "next-intl/server";
 import { Alert } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
+import { shouldShowParcelWarning } from "@/app/utils/parcel-warnings";
 
 interface ParcelManagementPageProps {
     params: Promise<{
@@ -37,12 +38,16 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
     const householdData = result.data;
     const householdName = `${householdData.household.first_name} ${householdData.household.last_name}`;
 
+    // Check if we should show parcel warning
+    const warningData = await shouldShowParcelWarning(householdId);
+
     return (
         <AuthProtection>
             <ParcelManagementClient
                 householdId={householdId}
                 householdName={householdName}
                 initialData={householdData.foodParcels}
+                warningData={warningData}
             />
         </AuthProtection>
     );

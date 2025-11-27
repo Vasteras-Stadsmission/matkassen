@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import FoodParcelsForm from "@/app/[locale]/households/enroll/components/FoodParcelsForm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
 import { ActionResult } from "@/app/utils/auth/action-result";
+import { ParcelWarningModal } from "./ParcelWarningModal";
 
 interface ParcelManagementFormProps {
     householdName: string;
@@ -16,6 +17,11 @@ interface ParcelManagementFormProps {
     onSubmit?: (data: FoodParcels) => Promise<ActionResult<void>>;
     isLoading?: boolean;
     loadError?: string | null;
+    warningData?: {
+        shouldWarn: boolean;
+        parcelCount: number;
+        threshold: number | null;
+    };
 }
 
 interface ValidationError {
@@ -30,6 +36,7 @@ export function ParcelManagementForm({
     onSubmit,
     isLoading = false,
     loadError = null,
+    warningData,
 }: ParcelManagementFormProps) {
     const t = useTranslations("wizard");
     const tParcel = useTranslations("parcelManagement");
@@ -39,6 +46,8 @@ export function ParcelManagementForm({
         Array<{ field: string; code: string; message: string; details?: Record<string, unknown> }>
     >([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showWarningModal, setShowWarningModal] = useState(false);
+    const [warningAcknowledged, setWarningAcknowledged] = useState(false);
 
     // Initialize form data with defaults
     const [formData, setFormData] = useState<FoodParcels>(
@@ -53,6 +62,12 @@ export function ParcelManagementForm({
         setFormData(data);
         setValidationError(null); // Clear validation errors when data changes
         setValidationErrors([]);
+    }, []);
+
+    // Handle warning modal confirmation
+    const handleWarningConfirm = useCallback(() => {
+        setWarningAcknowledged(true);
+        setShowWarningModal(false);
     }, []);
 
     // Handle form submission
@@ -70,6 +85,12 @@ export function ParcelManagementForm({
                 message: t("validation.pickupLocation"),
                 code: "REQUIRED_FIELD",
             });
+            return;
+        }
+
+        // Check if we need to show warning modal (only if not already acknowledged this session)
+        if (warningData?.shouldWarn && !warningAcknowledged) {
+            setShowWarningModal(true);
             return;
         }
 
@@ -188,6 +209,18 @@ export function ParcelManagementForm({
 
     return (
         <Container size="lg" py="md">
+            {/* Warning Modal */}
+            {warningData?.shouldWarn && warningData.threshold !== null && (
+                <ParcelWarningModal
+                    opened={showWarningModal}
+                    onClose={() => setShowWarningModal(false)}
+                    onConfirm={handleWarningConfirm}
+                    parcelCount={warningData.parcelCount}
+                    threshold={warningData.threshold}
+                    householdName={householdName}
+                />
+            )}
+
             {/* Breadcrumb */}
             <Group gap="xs" mb="md">
                 <Button variant="subtle" size="sm" onClick={() => router.push("/households")}>

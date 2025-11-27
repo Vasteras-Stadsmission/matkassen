@@ -29,6 +29,7 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconTrash,
+    IconAlertCircle,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
@@ -45,12 +46,18 @@ interface HouseholdDetailsPageProps {
     householdId: string;
     initialData: Awaited<ReturnType<typeof getHouseholdDetails>>;
     testMode: boolean;
+    warningData?: {
+        shouldWarn: boolean;
+        parcelCount: number;
+        threshold: number | null;
+    };
 }
 
 export default function HouseholdDetailsPage({
     householdId,
     initialData,
     testMode: isTestMode,
+    warningData,
 }: HouseholdDetailsPageProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -273,8 +280,18 @@ export default function HouseholdDetailsPage({
 
             {/* Test Mode Warning Banner */}
             {isTestMode && (
-                <Alert variant="light" color="yellow">
+                <Alert variant="light" color="yellow" mb="md">
                     {tSms("testModeWarning")}
+                </Alert>
+            )}
+
+            {/* Parcel Count Warning Banner */}
+            {warningData?.shouldWarn && warningData.threshold !== null && (
+                <Alert variant="light" color="orange" icon={<IconAlertCircle />} mb="md">
+                    {t("warnings.parcelCountHigh", {
+                        count: warningData.parcelCount,
+                        threshold: warningData.threshold,
+                    })}
                 </Alert>
             )}
 
