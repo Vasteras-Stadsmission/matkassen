@@ -245,7 +245,7 @@ export function HouseholdWizard({
                 return;
             }
 
-            // Check phone number (handles both raw digits and E.164 format for editing)
+            // Check phone number presence (format validation happens below via validatePhoneInput)
             if (!phone_number) {
                 setValidationError({
                     field: "phone_number",

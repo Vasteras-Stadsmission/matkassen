@@ -160,8 +160,14 @@ export default function HouseholdForm({
     };
 
     // Handle phone number formatting - store as digits only but allow flexible input
+    // Preserve leading "+" if present (for editing existing E.164 formatted numbers)
     const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.replace(/\D/g, ""); // Extract only digits
+        let value = e.target.value;
+        if (value.startsWith("+")) {
+            value = "+" + value.slice(1).replace(/\D/g, "");
+        } else {
+            value = value.replace(/\D/g, "");
+        }
         form.setFieldValue("phone_number", value);
     };
 

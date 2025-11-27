@@ -81,27 +81,27 @@ export const checkHouseholdDuplicates = protectedAction(
             // Check for similar names using pg_trgm similarity
             if (data.firstName && data.lastName) {
                 const fullName = `${data.firstName} ${data.lastName}`;
+                const SIMILARITY_THRESHOLD = 0.8;
 
                 // Use pg_trgm similarity function (0-1 scale, where 1 is identical)
-                // We consider similarity > 0.8 as potentially duplicate
+                // CTE calculates similarity once to avoid duplication in SELECT and WHERE
                 const similarNamesQuery = await db.execute(sql`
-                    SELECT
-                        ${households.id} as id,
-                        ${households.first_name} as first_name,
-                        ${households.last_name} as last_name,
-                        ${households.phone_number} as phone_number,
-                        similarity(
-                            ${households.first_name} || ' ' || ${households.last_name},
-                            ${fullName}
-                        ) as similarity
-                    FROM ${households}
-                    WHERE
-                        ${households.anonymized_at} IS NULL
-                        AND similarity(
-                            ${households.first_name} || ' ' || ${households.last_name},
-                            ${fullName}
-                        ) > 0.8
-                        ${data.excludeHouseholdId ? sql`AND ${households.id} != ${data.excludeHouseholdId}` : sql``}
+                    WITH scored_households AS (
+                        SELECT
+                            ${households.id} as id,
+                            ${households.first_name} as first_name,
+                            ${households.last_name} as last_name,
+                            ${households.phone_number} as phone_number,
+                            similarity(
+                                ${households.first_name} || ' ' || ${households.last_name},
+                                ${fullName}
+                            ) as similarity
+                        FROM ${households}
+                        WHERE ${households.anonymized_at} IS NULL
+                            ${data.excludeHouseholdId ? sql`AND ${households.id} != ${data.excludeHouseholdId}` : sql``}
+                    )
+                    SELECT * FROM scored_households
+                    WHERE similarity > ${SIMILARITY_THRESHOLD}
                     ORDER BY similarity DESC
                     LIMIT 3
                 `);
