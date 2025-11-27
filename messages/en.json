@@ -491,6 +491,9 @@
         "comments": {
             "title": "Comments ({count})"
         },
+        "warnings": {
+            "parcelCountHigh": "This household has received {count} food parcels (threshold: {threshold}). Consider reviewing their situation and providing additional support."
+        },
         "removal": {
             "dialogTitle": "Remove Household",
             "lastName": "Last name",
@@ -1081,6 +1084,7 @@
         "settings": "Settings",
         "general": "General Settings",
         "locations": "Handout Location Settings",
+        "parcels": "Parcel Limits",
         "aria": {
             "settingsMenu": "Settings menu"
         },
@@ -1151,10 +1155,42 @@
                 }
             }
         },
+        "parcelThreshold": {
+            "title": "Parcel Warning Threshold",
+            "description": "Set the number of parcels after which to warn administrators about high household usage",
+            "infoMessage": "When a household exceeds this number of parcels, a warning will appear on the household details page and when adding more parcels. This helps identify households that may need additional support or review.",
+            "thresholdLabel": "Warning Threshold",
+            "thresholdDescription": "Number of parcels before warning appears",
+            "thresholdPlaceholder": "e.g., 10",
+            "warningPreview": "Warnings will appear for households with more than {threshold} parcels",
+            "saveButton": "Save",
+            "clearButton": "Clear (Disable Warnings)",
+            "success": {
+                "savedTitle": "Saved",
+                "savedMessage": "Parcel warning threshold has been updated",
+                "clearedMessage": "Parcel warnings have been disabled"
+            },
+            "errors": {
+                "loadFailedTitle": "Error",
+                "loadFailedMessage": "Failed to load parcel warning threshold",
+                "saveFailedTitle": "Error",
+                "saveFailedMessage": "Failed to save parcel warning threshold"
+            }
+        },
         "smsTemplates": {
             "title": "Default SMS Templates",
             "description": "Customize the text messages sent to households",
             "comingSoon": "Coming Soon..."
+        }
+    },
+    "parcelWarning": {
+        "modal": {
+            "title": "High Parcel Count Warning",
+            "message": "{householdName} has received {count} food parcels (threshold: {threshold}).",
+            "explanation": "This household has exceeded the parcel limit threshold. Please verify that they have received appropriate support and assistance. You can still add more parcels, but this requires acknowledgment.",
+            "acknowledgmentLabel": "I acknowledge this household may need additional review or support",
+            "confirmButton": "Continue Adding Parcels",
+            "cancelButton": "Cancel"
         }
     }
 }

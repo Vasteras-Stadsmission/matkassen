@@ -427,6 +427,18 @@ export const cspViolations = pgTable("csp_violations", {
     script_sample: text("script_sample"), // Sample of the violating script/resource
 });
 
+// Global settings for system-wide configuration (key-value store)
+export const globalSettings = pgTable("global_settings", {
+    id: text("id")
+        .primaryKey()
+        .notNull()
+        .$defaultFn(() => nanoid(8)),
+    key: text("key").notNull().unique(), // e.g., "parcel_warning_threshold"
+    value: text("value"), // Nullable - null means disabled. Store as string, parse as needed
+    updated_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    updated_by: varchar("updated_by", { length: 50 }), // GitHub username who last updated
+});
+
 // Users table for storing user preferences
 export const users = pgTable("users", {
     id: text("id")
