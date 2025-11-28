@@ -69,3 +69,4 @@ nginx/local.conf
 
 # Transpiled scheduler for custom server
 server-build/
+.claude/settings.local.json
