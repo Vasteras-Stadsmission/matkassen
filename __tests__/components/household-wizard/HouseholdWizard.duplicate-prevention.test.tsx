@@ -1,5 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Type for duplicate check results (matches the actual type from check-duplicates-action.ts)
+interface DuplicateCheckResult {
+    phoneExists: boolean;
+    existingHousehold?: {
+        id: string;
+        first_name: string;
+        last_name: string;
+        phone_number: string;
+    };
+    similarHouseholds: Array<{
+        id: string;
+        first_name: string;
+        last_name: string;
+        phone_number: string;
+        similarity: number;
+    }>;
+}
+
 /**
  * DUPLICATE PREVENTION TESTS for HouseholdWizard
  *
@@ -114,8 +132,10 @@ describe("HouseholdWizard Duplicate Prevention - Logic", () => {
         });
 
         it("should not block when duplicateCheckResult is null", () => {
-            const duplicateCheckResult = null;
+            // Simulates the case where no duplicate check has been performed yet
+            const duplicateCheckResult = null as DuplicateCheckResult | null;
 
+            // This is how the component handles null state
             const shouldBlock = duplicateCheckResult?.phoneExists ?? false;
             expect(shouldBlock).toBe(false);
         });
@@ -268,7 +288,7 @@ describe("HouseholdForm Duplicate Check UI - Code Structure", () => {
 
         // Verify + prefix handling exists
         expect(content).toContain('startsWith("+")');
-        expect(content).toContain('value.slice(1)');
+        expect(content).toContain("value.slice(1)");
     });
 
     it("should have debounced duplicate checking", async () => {
