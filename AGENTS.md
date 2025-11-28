@@ -194,7 +194,7 @@ docs/                # Domain-specific guides
 
 **Why?** Drizzle tracks migrations via `migrations/meta/_journal.json`. Manual SQL files are invisible to Drizzle and won't be applied during deploy. The deploy will "succeed" but your migration won't run.
 
-**For non-schema changes** (indexes, extensions, constraints): Still use `db:generate` after modifying schema.ts, or create a custom migration by adding the SQL AND manually registering it in `_journal.json` (not recommended - easy to mess up).
+**For non-schema changes** (indexes, extensions, constraints): Still use `db:generate` after modifying `schema.ts`. Do not create manual SQL migrations or edit `_journal.json` directly—always use Drizzle's migration workflow.
 
 ### Adding Environment Variable
 
