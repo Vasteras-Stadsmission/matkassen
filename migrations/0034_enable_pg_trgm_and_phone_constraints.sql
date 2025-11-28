@@ -5,6 +5,10 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_households_name_trgm
 ON households USING gin ((first_name || ' ' || last_name) gin_trgm_ops);
 
+-- Delete all test households to start clean
+-- This is safe because there is no production data yet
+DELETE FROM households;
+
 -- Add unique constraint on phone_number (only for non-anonymized households)
 -- This prevents duplicate phone numbers while allowing phone reuse after anonymization
 -- Phone numbers will now be stored in E.164 format (+46701234567)
