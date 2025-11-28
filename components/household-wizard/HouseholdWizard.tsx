@@ -277,16 +277,8 @@ export function HouseholdWizard({
                 return;
             }
 
-            // If similar names exist, show confirmation dialog
-            if (
-                duplicateCheckResult?.similarHouseholds &&
-                duplicateCheckResult.similarHouseholds.length > 0
-            ) {
-                setShowSimilarNameConfirm(true);
-                return;
-            }
-
             // Check postal code (optional, but validate format if provided)
+            // Must be before similar name check to ensure validation runs
             if (postal_code && postal_code.trim().length > 0) {
                 const cleanPostalCode = postal_code.replace(/\s/g, "");
                 if (!/^\d{5}$/.test(cleanPostalCode)) {
@@ -297,6 +289,15 @@ export function HouseholdWizard({
                     openError();
                     return;
                 }
+            }
+
+            // If similar names exist, show confirmation dialog (after all validations pass)
+            if (
+                duplicateCheckResult?.similarHouseholds &&
+                duplicateCheckResult.similarHouseholds.length > 0
+            ) {
+                setShowSimilarNameConfirm(true);
+                return;
             }
         }
 
