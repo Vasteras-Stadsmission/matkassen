@@ -33,7 +33,7 @@ import {
 } from "@/app/utils/auth/action-result";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePostalCode } from "@/app/utils/validation/household-validation";
-import { normalizePhoneToE164 } from "@/app/utils/validation/phone-validation";
+import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 
 import {
     HouseholdCreateData,
@@ -47,6 +47,16 @@ export const enrollHousehold = protectedAction(
     async (session, data: HouseholdCreateData): Promise<ActionResult<{ householdId: string }>> => {
         try {
             // Auth already verified by protectedAction wrapper
+
+            // Server-side validation - don't trust client input
+            const phoneError = validatePhoneInput(data.headOfHousehold.phoneNumber);
+            if (phoneError) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Invalid phone number format",
+                });
+            }
+
             // Store locationId for recompute after transaction
             const locationId = data.foodParcels?.pickupLocationId;
 

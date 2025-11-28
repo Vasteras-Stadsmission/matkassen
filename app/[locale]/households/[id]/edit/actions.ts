@@ -23,7 +23,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePostalCode } from "@/app/utils/validation/household-validation";
-import { normalizePhoneToE164 } from "@/app/utils/validation/phone-validation";
+import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -244,6 +244,15 @@ export const updateHousehold = protectedHouseholdAction(
     async (session, household, data: FormData): Promise<ActionResult<{ householdId: string }>> => {
         try {
             // Auth and household access already verified by protectedHouseholdAction wrapper
+
+            // Server-side validation - don't trust client input
+            const phoneError = validatePhoneInput(data.household.phone_number);
+            if (phoneError) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Invalid phone number format",
+                });
+            }
 
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
