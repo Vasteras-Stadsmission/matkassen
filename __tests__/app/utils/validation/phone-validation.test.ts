@@ -4,6 +4,7 @@ import {
     isValidE164,
     formatPhoneForDisplay,
     validatePhoneInput,
+    stripSwedishPrefix,
 } from "../../../../app/utils/validation/phone-validation";
 
 describe("Phone Validation Utilities", () => {
@@ -171,45 +172,87 @@ describe("Phone Validation Utilities", () => {
     });
 
     describe("validatePhoneInput", () => {
-        describe("Valid inputs", () => {
-            it("should accept 8-digit numbers", () => {
+        describe("Valid Swedish local numbers (7-10 digits)", () => {
+            it("should accept 7-digit numbers", () => {
+                expect(validatePhoneInput("1234567")).toBeNull();
+            });
+
+            it("should accept 8-digit numbers (Stockholm landline)", () => {
                 expect(validatePhoneInput("81234567")).toBeNull();
             });
 
-            it("should accept 9-digit numbers", () => {
+            it("should accept 9-digit numbers (mobile without leading 0)", () => {
                 expect(validatePhoneInput("701234567")).toBeNull();
             });
 
-            it("should accept 10-digit numbers (with leading 0)", () => {
+            it("should accept 10-digit numbers (mobile with leading 0)", () => {
                 expect(validatePhoneInput("0701234567")).toBeNull();
             });
 
-            it("should accept 11-digit numbers (with country code)", () => {
-                expect(validatePhoneInput("46701234567")).toBeNull();
-            });
-
-            it("should accept 12-digit numbers (E.164 with +)", () => {
-                // + is stripped, leaving 12 digits: 46701234567 (11) + extra
-                expect(validatePhoneInput("+46701234567")).toBeNull();
-            });
-
-            it("should accept formatted input", () => {
+            it("should accept formatted input with spaces/dashes", () => {
                 expect(validatePhoneInput("070-123 45 67")).toBeNull();
-                expect(validatePhoneInput("+46 70 123 45 67")).toBeNull();
+                expect(validatePhoneInput("70 123 45 67")).toBeNull();
             });
         });
 
-        describe("Invalid inputs", () => {
-            it("should reject numbers with fewer than 8 digits", () => {
-                expect(validatePhoneInput("1234567")).toBe("validation.phoneNumberFormat");
+        describe("Invalid inputs - international prefixes", () => {
+            it("should reject numbers starting with +", () => {
+                expect(validatePhoneInput("+46701234567")).toBe("validation.swedishNumbersOnly");
             });
 
-            it("should reject numbers with more than 12 digits", () => {
-                expect(validatePhoneInput("1234567890123")).toBe("validation.phoneNumberFormat");
+            it("should reject numbers starting with + and spaces", () => {
+                expect(validatePhoneInput("+46 70 123 45 67")).toBe(
+                    "validation.swedishNumbersOnly",
+                );
+            });
+
+            it("should reject numbers starting with 00", () => {
+                expect(validatePhoneInput("0046701234567")).toBe("validation.swedishNumbersOnly");
+            });
+
+            it("should reject other international prefixes", () => {
+                expect(validatePhoneInput("+15551234567")).toBe("validation.swedishNumbersOnly");
+                expect(validatePhoneInput("00491234567890")).toBe("validation.swedishNumbersOnly");
+            });
+        });
+
+        describe("Invalid inputs - wrong length", () => {
+            it("should reject numbers with fewer than 7 digits", () => {
+                expect(validatePhoneInput("123456")).toBe("validation.phoneNumberFormat");
+            });
+
+            it("should reject numbers with more than 10 digits", () => {
+                expect(validatePhoneInput("12345678901")).toBe("validation.phoneNumberFormat");
             });
 
             it("should reject very short numbers", () => {
                 expect(validatePhoneInput("123")).toBe("validation.phoneNumberFormat");
+            });
+        });
+    });
+
+    describe("stripSwedishPrefix", () => {
+        describe("Stripping +46 prefix", () => {
+            it("should strip +46 prefix from E.164 number", () => {
+                expect(stripSwedishPrefix("+46701234567")).toBe("701234567");
+            });
+
+            it("should strip 46 prefix without +", () => {
+                expect(stripSwedishPrefix("46701234567")).toBe("701234567");
+            });
+
+            it("should return local numbers unchanged", () => {
+                expect(stripSwedishPrefix("701234567")).toBe("701234567");
+                expect(stripSwedishPrefix("0701234567")).toBe("0701234567");
+            });
+
+            it("should handle empty string", () => {
+                expect(stripSwedishPrefix("")).toBe("");
+            });
+
+            it("should handle short numbers starting with 46 (not a prefix)", () => {
+                // 461234567 is 9 digits, could be a local number starting with 46
+                expect(stripSwedishPrefix("461234567")).toBe("461234567");
             });
         });
     });

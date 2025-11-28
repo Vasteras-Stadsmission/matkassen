@@ -128,6 +128,7 @@
         "lastName": "Efternamn",
         "enterLastName": "Ange efternamn",
         "phoneNumber": "Telefonnummer",
+        "phoneDescription": "Endast svenska telefonnummer",
         "enterPhoneNumber": "Ange telefonnummer",
         "postalCode": "Postnummer",
         "language": "Språk",
@@ -135,7 +136,8 @@
         "validation": {
             "firstNameLength": "Förnamn måste vara minst 2 tecken",
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
-            "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
+            "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
+            "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
             "postalCodeFormat": "Postnummer måste bestå av 5 siffror"
         },
         "duplicatePhone": {

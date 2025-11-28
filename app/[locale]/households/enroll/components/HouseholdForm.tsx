@@ -11,9 +11,9 @@ import { getLanguageSelectOptions } from "@/app/constants/languages";
 import { useTranslations, useLocale } from "next-intl";
 import { formatPostalCode } from "@/app/utils/validation/household-validation";
 import {
-    normalizePhoneToE164,
     formatPhoneForDisplay,
     validatePhoneInput,
+    stripSwedishPrefix,
 } from "@/app/utils/validation/phone-validation";
 import { checkHouseholdDuplicates, type DuplicateCheckResult } from "../../check-duplicates-action";
 
@@ -66,11 +66,12 @@ export default function HouseholdForm({
     const fieldContainerStyle = { minHeight: "85px" };
 
     // Use Mantine's useForm for proper form handling
+    // Strip +46 prefix from phone for display (it's shown as a fixed prefix in the UI)
     const form = useForm<FormValues>({
         initialValues: {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
-            phone_number: data.phone_number || "",
+            phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
         },
@@ -159,15 +160,9 @@ export default function HouseholdForm({
         form.setFieldValue("postal_code", value);
     };
 
-    // Handle phone number formatting - store as digits only but allow flexible input
-    // Preserve leading "+" if present (for editing existing E.164 formatted numbers)
+    // Handle phone number input - only allow digits (no country code, +46 is shown as prefix)
     const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value;
-        if (value.startsWith("+")) {
-            value = "+" + value.slice(1).replace(/\D/g, "");
-        } else {
-            value = value.replace(/\D/g, "");
-        }
+        const value = e.target.value.replace(/\D/g, "");
         form.setFieldValue("phone_number", value);
     };
 
@@ -295,14 +290,19 @@ export default function HouseholdForm({
                     <Box style={fieldContainerStyle}>
                         <TextInput
                             label={t("phoneNumber")}
-                            placeholder={t("enterPhoneNumber")}
-                            description={
-                                form.values.phone_number.length >= 8
-                                    ? formatPhoneForDisplay(
-                                          normalizePhoneToE164(form.values.phone_number),
-                                      )
-                                    : undefined
+                            placeholder="70 123 45 67"
+                            description={t("phoneDescription")}
+                            leftSection={
+                                <span
+                                    style={{
+                                        fontSize: "14px",
+                                        color: "var(--mantine-color-dimmed)",
+                                    }}
+                                >
+                                    +46
+                                </span>
                             }
+                            leftSectionWidth={45}
                             withAsterisk
                             {...form.getInputProps("phone_number")}
                             onChange={handlePhoneNumberChange}

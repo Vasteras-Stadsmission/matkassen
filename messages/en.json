@@ -128,6 +128,7 @@
         "lastName": "Last Name",
         "enterLastName": "Enter last name",
         "phoneNumber": "Phone Number",
+        "phoneDescription": "Swedish phone numbers only",
         "enterPhoneNumber": "Enter phone number",
         "postalCode": "Postal Code",
         "language": "Language",
@@ -135,7 +136,8 @@
         "validation": {
             "firstNameLength": "First name must be at least 2 characters",
             "lastNameLength": "Last name must be at least 2 characters",
-            "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
+            "phoneNumberFormat": "Enter a valid Swedish phone number (7-10 digits)",
+            "swedishNumbersOnly": "Only Swedish phone numbers (+46) are supported",
             "postalCodeFormat": "Postal code must be 5 digits"
         },
         "duplicatePhone": {

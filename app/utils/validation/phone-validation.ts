@@ -1,39 +1,31 @@
 /**
  * Phone number validation and normalization utilities
+ *
+ * NOTE: This system only supports Swedish phone numbers (+46).
+ * The UI shows a fixed "+46" prefix, and users enter only the local part.
  */
 
 /**
- * Normalize phone number to E.164 format for storage and comparison
- * @param phone - Raw phone number input
- * @param defaultCountryCode - Default country code (default: +46 for Sweden)
+ * Normalize Swedish phone number to E.164 format for storage and comparison
+ * @param phone - Local phone number input (without country code)
  * @returns Normalized E.164 format phone number (e.g., +46701234567)
  */
-export function normalizePhoneToE164(phone: string, defaultCountryCode = "+46"): string {
+export function normalizePhoneToE164(phone: string): string {
     // Remove all non-digit characters
     const digitsOnly = phone.replace(/\D/g, "");
 
-    // Handle Swedish numbers specifically
-    if (defaultCountryCode === "+46") {
-        // If starts with 0, replace with +46
-        if (digitsOnly.startsWith("0")) {
-            return "+46" + digitsOnly.substring(1);
-        }
-        // If starts with 46, add +
-        if (digitsOnly.startsWith("46")) {
-            return "+" + digitsOnly;
-        }
-        // If no country code, assume Swedish
-        if (digitsOnly.length >= 8 && digitsOnly.length <= 10) {
-            return "+46" + digitsOnly;
-        }
+    // If starts with 0, remove it (local Swedish format)
+    if (digitsOnly.startsWith("0")) {
+        return "+46" + digitsOnly.substring(1);
     }
 
-    // For other formats, add default country code if needed
-    if (!digitsOnly.startsWith(defaultCountryCode.replace("+", ""))) {
-        return defaultCountryCode + digitsOnly;
+    // If already has country code (46), add +
+    if (digitsOnly.startsWith("46") && digitsOnly.length >= 11) {
+        return "+" + digitsOnly;
     }
 
-    return "+" + digitsOnly;
+    // Otherwise, prepend +46
+    return "+46" + digitsOnly;
 }
 
 /**
@@ -74,24 +66,48 @@ export function formatPhoneForDisplay(phone: string): string {
 
 /**
  * Validate raw phone input (before normalization)
- * Accepts various formats:
- *   - Raw digits: 0701234567, 701234567
- *   - With country code: +46701234567, 46701234567
- *   - E.164 format: +46701234567 (for editing existing records)
- * @param phone - Raw phone input
+ * Only accepts Swedish local phone numbers.
+ * @param phone - Raw phone input (local number without +46)
  * @returns null if valid, error message if invalid
  */
 export function validatePhoneInput(phone: string): string | null {
+    // Reject international prefixes - only Swedish numbers allowed
+    if (phone.startsWith("+") || phone.startsWith("00")) {
+        return "validation.swedishNumbersOnly";
+    }
+
     const digitsOnly = phone.replace(/\D/g, "");
 
-    // Must have 8-12 digits (covers Swedish mobile and landline with/without country code)
+    // Swedish local numbers are 7-10 digits
     // Examples:
-    //   - 70123456 (8 digits, mobile without leading 0)
+    //   - 701234567 (9 digits, mobile without leading 0)
     //   - 0701234567 (10 digits, mobile with leading 0)
-    //   - +46701234567 (11 digits after stripping +, E.164 format)
-    if (digitsOnly.length < 8 || digitsOnly.length > 12) {
+    //   - 81234567 (8 digits, Stockholm landline without leading 0)
+    //   - 081234567 (9 digits, Stockholm landline with leading 0)
+    if (digitsOnly.length < 7 || digitsOnly.length > 10) {
         return "validation.phoneNumberFormat";
     }
 
     return null;
+}
+
+/**
+ * Strip +46 prefix from E.164 number for display in input field
+ * @param phone - E.164 formatted phone number (e.g., +46701234567)
+ * @returns Local number without country code (e.g., 701234567)
+ */
+export function stripSwedishPrefix(phone: string): string {
+    if (!phone) return "";
+
+    // Remove +46 prefix if present
+    if (phone.startsWith("+46")) {
+        return phone.substring(3);
+    }
+
+    // Remove 46 prefix if present (without +)
+    if (phone.startsWith("46") && phone.length > 10) {
+        return phone.substring(2);
+    }
+
+    return phone;
 }

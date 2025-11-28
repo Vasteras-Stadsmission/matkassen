@@ -276,7 +276,7 @@ describe("HouseholdForm Duplicate Check UI - Code Structure", () => {
         expect(content).toContain('color="yellow"');
     });
 
-    it("should handle phone input with + prefix preservation", async () => {
+    it("should display fixed +46 prefix for Swedish-only phone input", async () => {
         const { readFileSync } = await import("fs");
         const { join } = await import("path");
 
@@ -286,9 +286,12 @@ describe("HouseholdForm Duplicate Check UI - Code Structure", () => {
         );
         const content = readFileSync(componentPath, "utf-8");
 
-        // Verify + prefix handling exists
-        expect(content).toContain('startsWith("+")');
-        expect(content).toContain("value.slice(1)");
+        // Verify Swedish-only phone handling:
+        // - Fixed +46 prefix displayed via leftSection
+        // - stripSwedishPrefix used for edit mode
+        expect(content).toContain("leftSection");
+        expect(content).toContain("+46");
+        expect(content).toContain("stripSwedishPrefix");
     });
 
     it("should have debounced duplicate checking", async () => {
