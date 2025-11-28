@@ -490,9 +490,17 @@ export function HouseholdWizard({
                 router.push(url.pathname + url.search);
             } else {
                 // Show error notification and stay on page
+                // Try to translate the error key, fall back to raw message
+                const errorMessage = result.error
+                    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      t.has(result.error as any)
+                        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          t(result.error as any)
+                        : result.error
+                    : t("error.unknown");
                 notifications.show({
                     title: t("error.title"),
-                    message: `${t("error.general")}: ${result.error || t("error.unknown")}`,
+                    message: `${t("error.general")}: ${errorMessage}`,
                     color: "red",
                     icon: React.createElement(IconX, { size: "1.1rem" }),
                 });
