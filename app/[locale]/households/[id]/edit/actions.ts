@@ -23,6 +23,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePostalCode } from "@/app/utils/validation/household-validation";
+import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -244,6 +245,15 @@ export const updateHousehold = protectedHouseholdAction(
         try {
             // Auth and household access already verified by protectedHouseholdAction wrapper
 
+            // Server-side validation - don't trust client input
+            const phoneError = validatePhoneInput(data.household.phone_number);
+            if (phoneError) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: phoneError, // Translation key e.g. "validation.phoneNumberFormat"
+                });
+            }
+
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
                 // 1. Update the household basic information
@@ -252,7 +262,7 @@ export const updateHousehold = protectedHouseholdAction(
                     .set({
                         first_name: data.household.first_name,
                         last_name: data.household.last_name,
-                        phone_number: data.household.phone_number,
+                        phone_number: normalizePhoneToE164(data.household.phone_number),
                         locale: data.household.locale,
                         postal_code: normalizePostalCode(data.household.postal_code),
                     })

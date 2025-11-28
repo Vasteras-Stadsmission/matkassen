@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
-import { TextInput, SimpleGrid, Title, Text, Card, Box, Select } from "@mantine/core";
+import { useEffect, useRef, useMemo, useState } from "react";
+import { TextInput, SimpleGrid, Title, Text, Card, Box, Select, Alert } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
+import { IconAlertCircle, IconAlertTriangle } from "@tabler/icons-react";
 import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
 import { getLanguageSelectOptions } from "@/app/constants/languages";
 import { useTranslations, useLocale } from "next-intl";
 import { formatPostalCode } from "@/app/utils/validation/household-validation";
+import {
+    formatPhoneForDisplay,
+    validatePhoneInput,
+    stripSwedishPrefix,
+} from "@/app/utils/validation/phone-validation";
+import { checkHouseholdDuplicates, type DuplicateCheckResult } from "../../check-duplicates-action";
 
 interface ValidationError {
     field: string;
@@ -19,6 +26,8 @@ interface HouseholdFormProps {
     data: Household;
     updateData: (data: Household) => void;
     error?: ValidationError | null;
+    householdId?: string; // For edit mode - to exclude current household from duplicate checks
+    onDuplicateCheckResult?: (result: DuplicateCheckResult) => void; // Callback to notify parent of duplicate check results
 }
 
 // Define a type for the form values
@@ -35,27 +44,46 @@ function objectsEqual<T>(a: T, b: T): boolean {
     return deepEqual(a, b);
 }
 
-export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
+export default function HouseholdForm({
+    data,
+    updateData,
+    error,
+    householdId,
+    onDuplicateCheckResult,
+}: HouseholdFormProps) {
     const t = useTranslations("householdForm");
     const currentLocale = useLocale();
+
+    // State for duplicate check results
+    const [duplicateCheckResult, setDuplicateCheckResult] = useState<DuplicateCheckResult | null>(
+        null,
+    );
+
+    // Request token to prevent race conditions with out-of-order responses
+    const requestTokenRef = useRef(0);
 
     // Standardized field container style
     const fieldContainerStyle = { minHeight: "85px" };
 
     // Use Mantine's useForm for proper form handling
+    // Strip +46 prefix from phone for display (it's shown as a fixed prefix in the UI)
     const form = useForm<FormValues>({
         initialValues: {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
-            phone_number: data.phone_number || "",
+            phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
         },
         validate: {
             first_name: value => (value.trim().length < 2 ? t("validation.firstNameLength") : null),
             last_name: value => (value.trim().length < 2 ? t("validation.lastNameLength") : null),
-            phone_number: value =>
-                !/^\d{8,12}$/.test(value) ? t("validation.phoneNumberFormat") : null,
+            phone_number: value => {
+                // Allow flexible input formats, will be normalized to E.164 on save
+                const error = validatePhoneInput(value);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                return error ? t(error as any) : null;
+            },
             postal_code: value => {
                 if (!value || value.trim().length === 0) return null;
                 const stripped = value.replace(/\s/g, "");
@@ -132,6 +160,58 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
         form.setFieldValue("postal_code", value);
     };
 
+    // Handle phone number input - only allow digits (no country code, +46 is shown as prefix)
+    const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/\D/g, "");
+        form.setFieldValue("phone_number", value);
+    };
+
+    // Debounced duplicate check effect
+    useEffect(() => {
+        const checkDuplicates = async () => {
+            // Only check if we have enough data
+            const hasPhone = debouncedValues.phone_number.length >= 8;
+            const hasName =
+                debouncedValues.first_name.trim().length >= 2 &&
+                debouncedValues.last_name.trim().length >= 2;
+
+            if (!hasPhone && !hasName) {
+                setDuplicateCheckResult(null);
+                return;
+            }
+
+            // Increment request token for this request
+            const currentToken = ++requestTokenRef.current;
+
+            try {
+                const result = await checkHouseholdDuplicates({
+                    phoneNumber: hasPhone ? debouncedValues.phone_number : undefined,
+                    firstName: hasName ? debouncedValues.first_name : undefined,
+                    lastName: hasName ? debouncedValues.last_name : undefined,
+                    excludeHouseholdId: householdId,
+                });
+
+                // Only update state if this is still the latest request
+                if (currentToken === requestTokenRef.current) {
+                    if (result.success && result.data) {
+                        setDuplicateCheckResult(result.data);
+                        onDuplicateCheckResult?.(result.data);
+                    } else {
+                        setDuplicateCheckResult(null);
+                    }
+                }
+            } catch (error) {
+                console.error("Error checking duplicates:", error);
+                // Only clear results if this is still the latest request
+                if (currentToken === requestTokenRef.current) {
+                    setDuplicateCheckResult(null);
+                }
+            }
+        };
+
+        checkDuplicates();
+    }, [debouncedValues, householdId, onDuplicateCheckResult]);
+
     return (
         <Card withBorder p="md" radius="md">
             <Title order={3} mb="md">
@@ -140,6 +220,52 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             <Text c="dimmed" size="sm" mb="lg">
                 {t("basicDescription")}
             </Text>
+
+            {/* Phone duplicate error alert (blocking) */}
+            {duplicateCheckResult?.phoneExists && duplicateCheckResult.existingHousehold && (
+                <Alert
+                    variant="filled"
+                    color="red"
+                    title={t("duplicatePhone.title")}
+                    icon={<IconAlertCircle />}
+                    mb="md"
+                >
+                    {t("duplicatePhone.message", {
+                        name: `${duplicateCheckResult.existingHousehold.first_name} ${duplicateCheckResult.existingHousehold.last_name}`,
+                        id: duplicateCheckResult.existingHousehold.id,
+                        phone: formatPhoneForDisplay(
+                            duplicateCheckResult.existingHousehold.phone_number,
+                        ),
+                    })}
+                </Alert>
+            )}
+
+            {/* Similar name warning (non-blocking) */}
+            {!duplicateCheckResult?.phoneExists &&
+                duplicateCheckResult?.similarHouseholds &&
+                duplicateCheckResult.similarHouseholds.length > 0 && (
+                    <Alert
+                        variant="light"
+                        color="yellow"
+                        title={t("similarName.title")}
+                        icon={<IconAlertTriangle />}
+                        mb="md"
+                    >
+                        {t("similarName.message")}
+                        <ul style={{ marginTop: "8px", marginBottom: 0 }}>
+                            {duplicateCheckResult.similarHouseholds.map(household => (
+                                <li key={household.id}>
+                                    {household.first_name} {household.last_name} (
+                                    {formatPhoneForDisplay(household.phone_number).replace(
+                                        /\d(?=\d{4})/g,
+                                        "*",
+                                    )}
+                                    )
+                                </li>
+                            ))}
+                        </ul>
+                    </Alert>
+                )}
 
             <form onSubmit={e => e.preventDefault()}>
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
@@ -164,9 +290,29 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                     <Box style={fieldContainerStyle}>
                         <TextInput
                             label={t("phoneNumber")}
-                            placeholder={t("enterPhoneNumber")}
+                            placeholder="70 123 45 67"
+                            description={t("phoneDescription")}
+                            leftSection={
+                                <span
+                                    style={{
+                                        fontSize: "14px",
+                                        color: "var(--mantine-color-dimmed)",
+                                    }}
+                                >
+                                    +46
+                                </span>
+                            }
+                            leftSectionWidth={45}
                             withAsterisk
                             {...form.getInputProps("phone_number")}
+                            onChange={handlePhoneNumberChange}
+                            inputMode="numeric"
+                            error={
+                                form.errors.phone_number ||
+                                (duplicateCheckResult?.phoneExists
+                                    ? t("duplicatePhone.fieldError")
+                                    : undefined)
+                            }
                         />
                     </Box>
 

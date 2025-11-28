@@ -31,6 +31,8 @@ import { useDisclosure } from "@mantine/hooks";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
 import React from "react";
+import type { DuplicateCheckResult } from "@/app/[locale]/households/check-duplicates-action";
+import { validatePhoneInput } from "@/app/utils/validation/phone-validation";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
@@ -162,6 +164,12 @@ export function HouseholdWizard({
     const [createdHouseholdId, setCreatedHouseholdId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Duplicate check state
+    const [duplicateCheckResult, setDuplicateCheckResult] = useState<DuplicateCheckResult | null>(
+        null,
+    );
+    const [showSimilarNameConfirm, setShowSimilarNameConfirm] = useState(false);
+
     // Verification questions state (only for create mode)
     const [checkedVerifications, setCheckedVerifications] = useState<Set<string>>(new Set());
     const [hasVerificationQuestions, setHasVerificationQuestions] = useState(false);
@@ -237,8 +245,8 @@ export function HouseholdWizard({
                 return;
             }
 
-            // Check phone number
-            if (!phone_number || !/^\d{8,12}$/.test(phone_number)) {
+            // Check phone number presence (format validation happens below via validatePhoneInput)
+            if (!phone_number) {
                 setValidationError({
                     field: "phone_number",
                     message: t("validation.phoneNumberFormat"),
@@ -247,7 +255,30 @@ export function HouseholdWizard({
                 return;
             }
 
+            // Use the phone validator that handles both formats
+            const phoneError = validatePhoneInput(phone_number);
+            if (phoneError) {
+                setValidationError({
+                    field: "phone_number",
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    message: t(phoneError as any),
+                });
+                openError();
+                return;
+            }
+
+            // Block if phone duplicate exists
+            if (duplicateCheckResult?.phoneExists) {
+                setValidationError({
+                    field: "phone_number",
+                    message: t("validation.phoneDuplicate"),
+                });
+                openError();
+                return;
+            }
+
             // Check postal code (optional, but validate format if provided)
+            // Must be before similar name check to ensure validation runs
             if (postal_code && postal_code.trim().length > 0) {
                 const cleanPostalCode = postal_code.replace(/\s/g, "");
                 if (!/^\d{5}$/.test(cleanPostalCode)) {
@@ -258,6 +289,15 @@ export function HouseholdWizard({
                     openError();
                     return;
                 }
+            }
+
+            // If similar names exist, show confirmation dialog (after all validations pass)
+            if (
+                duplicateCheckResult?.similarHouseholds &&
+                duplicateCheckResult.similarHouseholds.length > 0
+            ) {
+                setShowSimilarNameConfirm(true);
+                return;
             }
         }
 
@@ -451,9 +491,17 @@ export function HouseholdWizard({
                 router.push(url.pathname + url.search);
             } else {
                 // Show error notification and stay on page
+                // Try to translate the error key, fall back to raw message
+                const errorMessage = result.error
+                    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      t.has(result.error as any)
+                        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          t(result.error as any)
+                        : result.error
+                    : t("error.unknown");
                 notifications.show({
                     title: t("error.title"),
-                    message: `${t("error.general")}: ${result.error || t("error.unknown")}`,
+                    message: `${t("error.general")}: ${errorMessage}`,
                     color: "red",
                     icon: React.createElement(IconX, { size: "1.1rem" }),
                 });
@@ -590,6 +638,8 @@ export function HouseholdWizard({
                                     ? validationError
                                     : null
                             }
+                            householdId={householdId}
+                            onDuplicateCheckResult={setDuplicateCheckResult}
                         />
                     </Stepper.Step>
 
@@ -716,6 +766,50 @@ export function HouseholdWizard({
                     );
                 })()}
             </Card>
+
+            {/* Modal for confirming similar household name */}
+            <Modal
+                opened={showSimilarNameConfirm}
+                onClose={() => setShowSimilarNameConfirm(false)}
+                title={t("similarNameDialog.title")}
+                centered
+            >
+                <Stack gap="md">
+                    <Text>{t("similarNameDialog.message")}</Text>
+                    {duplicateCheckResult?.similarHouseholds &&
+                        duplicateCheckResult.similarHouseholds.length > 0 && (
+                            <Box>
+                                <Text size="sm" fw={500} mb="xs">
+                                    {t("similarNameDialog.existingHouseholds")}
+                                </Text>
+                                <ul style={{ marginTop: 0 }}>
+                                    {duplicateCheckResult.similarHouseholds.map(household => (
+                                        <li key={household.id}>
+                                            {household.first_name} {household.last_name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Box>
+                        )}
+                    <Group justify="flex-end">
+                        <Button variant="outline" onClick={() => setShowSimilarNameConfirm(false)}>
+                            {t("similarNameDialog.cancel")}
+                        </Button>
+                        <Button
+                            color="yellow"
+                            onClick={() => {
+                                setShowSimilarNameConfirm(false);
+                                // Continue to next step
+                                const maxSteps =
+                                    mode === "create" && hasVerificationQuestions ? 6 : 5;
+                                setActive(current => (current < maxSteps ? current + 1 : current));
+                            }}
+                        >
+                            {t("similarNameDialog.confirm")}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
 
             {/* Modal for adding parcels to newly created household */}
             <Modal

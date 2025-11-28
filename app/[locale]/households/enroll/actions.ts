@@ -33,6 +33,7 @@ import {
 } from "@/app/utils/auth/action-result";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePostalCode } from "@/app/utils/validation/household-validation";
+import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 
 import {
     HouseholdCreateData,
@@ -46,6 +47,16 @@ export const enrollHousehold = protectedAction(
     async (session, data: HouseholdCreateData): Promise<ActionResult<{ householdId: string }>> => {
         try {
             // Auth already verified by protectedAction wrapper
+
+            // Server-side validation - don't trust client input
+            const phoneError = validatePhoneInput(data.headOfHousehold.phoneNumber);
+            if (phoneError) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: phoneError, // Translation key e.g. "validation.phoneNumberFormat"
+                });
+            }
+
             // Store locationId for recompute after transaction
             const locationId = data.foodParcels?.pickupLocationId;
 
@@ -57,7 +68,7 @@ export const enrollHousehold = protectedAction(
                     .values({
                         first_name: data.headOfHousehold.firstName,
                         last_name: data.headOfHousehold.lastName,
-                        phone_number: data.headOfHousehold.phoneNumber,
+                        phone_number: normalizePhoneToE164(data.headOfHousehold.phoneNumber),
                         locale: data.headOfHousehold.locale || "sv",
                         postal_code: normalizePostalCode(data.headOfHousehold.postalCode),
                         created_by: session.user?.githubUsername ?? null,
