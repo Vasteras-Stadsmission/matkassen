@@ -756,25 +756,42 @@ export default function FoodParcelsForm({
     );
 
     const generateParcels = useCallback((): FoodParcel[] => {
-        // Track which date strings we've already processed to avoid duplicates
-        const processedDates = new Set<string>();
+        // Track which parcels we've already matched to avoid duplicates
+        // We track both IDs (for saved parcels) and indices (for unsaved parcels)
+        const processedIds = new Set<string>();
+        const processedIndices = new Set<number>();
 
         return selectedDates.map(date => {
             const dateString = new Date(date).toDateString();
 
             // Find an existing parcel for this exact date if there is one
             // CRITICAL: Only reuse parcels whose dates are still in selectedDates
-            const existingParcel = formState.parcels.find(
+            // First try to match parcels with IDs (saved to database)
+            const existingParcelWithId = formState.parcels.find(
                 p =>
                     new Date(p.pickupDate).toDateString() === dateString &&
                     p.id &&
-                    !processedDates.has(p.id),
+                    !processedIds.has(p.id),
             );
 
-            if (existingParcel && existingParcel.id) {
+            if (existingParcelWithId && existingParcelWithId.id) {
                 // Mark this ID as processed so we don't reuse it
-                processedDates.add(existingParcel.id);
-                return existingParcel;
+                processedIds.add(existingParcelWithId.id);
+                return existingParcelWithId;
+            }
+
+            // If no parcel with ID found, try to match parcels without IDs (unsaved)
+            // This preserves time changes made to new parcels before they're saved
+            const existingParcelIndex = formState.parcels.findIndex(
+                (p, idx) =>
+                    new Date(p.pickupDate).toDateString() === dateString &&
+                    !p.id &&
+                    !processedIndices.has(idx),
+            );
+
+            if (existingParcelIndex !== -1) {
+                processedIndices.add(existingParcelIndex);
+                return formState.parcels[existingParcelIndex];
             }
 
             // Use the first available slot as default time, or noon as fallback
