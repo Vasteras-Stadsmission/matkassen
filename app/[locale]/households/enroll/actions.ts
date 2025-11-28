@@ -53,7 +53,7 @@ export const enrollHousehold = protectedAction(
             if (phoneError) {
                 return failure({
                     code: "VALIDATION_ERROR",
-                    message: "Invalid phone number format",
+                    message: phoneError, // Translation key e.g. "validation.phoneNumberFormat"
                 });
             }
 
