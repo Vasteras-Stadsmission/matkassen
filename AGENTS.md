@@ -182,13 +182,19 @@ docs/                # Domain-specific guides
 3. Return `ActionResult<T>` type
 4. Run `pnpm run validate` (enforces pattern)
 
-### Schema Change
+### Schema Change / Database Migration
+
+**⚠️ NEVER create manual SQL migration files!** Always use Drizzle to generate them:
 
 1. Edit `app/db/schema.ts`
 2. Run `pnpm run db:generate`
 3. Review generated SQL in `migrations/`
 4. Run `pnpm run db:migrate`
 5. See `docs/database-guide.md` for details
+
+**Why?** Drizzle tracks migrations via `migrations/meta/_journal.json`. Manual SQL files are invisible to Drizzle and won't be applied during deploy. The deploy will "succeed" but your migration won't run.
+
+**For non-schema changes** (indexes, extensions, constraints): Still use `db:generate` after modifying `schema.ts`. Do not create manual SQL migrations or edit `_journal.json` directly—always use Drizzle's migration workflow.
 
 ### Adding Environment Variable
 
