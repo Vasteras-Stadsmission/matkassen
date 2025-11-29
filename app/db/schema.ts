@@ -59,6 +59,11 @@ export const households = pgTable(
             "households_postal_code_check",
             sql`${table.postal_code} IS NULL OR (LENGTH(${table.postal_code}) = 5 AND ${table.postal_code} ~ '^[0-9]{5}$')`,
         ),
+        // Unique phone number per active (non-anonymized) household
+        // Allows phone reuse after anonymization
+        uniqueIndex("idx_households_phone_unique")
+            .on(table.phone_number)
+            .where(sql`${table.anonymized_at} IS NULL`),
     ],
 );
 
