@@ -766,14 +766,7 @@ export function HouseholdWizard({
                                     )}
                                     <Button
                                         onClick={nextStep}
-                                        rightSection={
-                                            isCheckingDuplicates ? (
-                                                <Loader size="xs" color="white" />
-                                            ) : (
-                                                <IconArrowRight size="1rem" />
-                                            )
-                                        }
-                                        disabled={isCheckingDuplicates}
+                                        rightSection={<IconArrowRight size="1rem" />}
                                         loading={isCheckingDuplicates}
                                     >
                                         {t("navigation.next")}
