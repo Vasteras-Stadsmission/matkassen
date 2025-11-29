@@ -42,9 +42,9 @@ describe("HouseholdWizard Duplicate Prevention - Code Structure", () => {
         );
         const content = readFileSync(componentPath, "utf-8");
 
-        // Verify phone duplicate check exists
-        expect(content).toContain("duplicateCheckResult?.phoneExists");
-        expect(content).toContain("validation.phoneDuplicate");
+        // Verify phone duplicate check exists in nextStep (immediate check)
+        expect(content).toContain("result.data.phoneExists");
+        expect(content).toContain("validation.phoneDuplicateWithInfo");
     });
 
     it("should have similar name confirmation dialog", async () => {
