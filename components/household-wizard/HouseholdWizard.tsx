@@ -289,11 +289,13 @@ export function HouseholdWizard({
             // This ensures we check current values, not stale debounced values
             setIsCheckingDuplicates(true);
             try {
-                const hasPhone = phone_number.length >= 7;
+                // Strip spaces from formatted phone number for duplicate check
+                const phoneDigitsOnly = phone_number.replace(/\D/g, "");
+                const hasPhone = phoneDigitsOnly.length >= 7;
                 const hasName = first_name.trim().length >= 2 && last_name.trim().length >= 2;
 
                 const result = await checkHouseholdDuplicates({
-                    phoneNumber: hasPhone ? phone_number : undefined,
+                    phoneNumber: hasPhone ? phoneDigitsOnly : undefined,
                     firstName: hasName ? first_name : undefined,
                     lastName: hasName ? last_name : undefined,
                     excludeHouseholdId: mode === "edit" ? householdId : undefined,

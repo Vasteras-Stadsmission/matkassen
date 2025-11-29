@@ -90,6 +90,11 @@ export function validatePhoneInput(phone: string): string | null {
         return "validation.phoneNumberFormat";
     }
 
+    // If 9 digits, must NOT start with 0 (would be invalid mobile format)
+    if (digitsOnly.length === 9 && digitsOnly.startsWith("0")) {
+        return "validation.phoneNumberFormat";
+    }
+
     return null;
 }
 

@@ -227,6 +227,10 @@ describe("Phone Validation Utilities", () => {
             it("should reject 10-digit numbers not starting with 0", () => {
                 expect(validatePhoneInput("7012345678")).toBe("validation.phoneNumberFormat");
             });
+
+            it("should reject 9-digit numbers starting with 0", () => {
+                expect(validatePhoneInput("012345678")).toBe("validation.phoneNumberFormat");
+            });
         });
     });
 
