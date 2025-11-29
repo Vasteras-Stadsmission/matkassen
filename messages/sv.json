@@ -600,9 +600,9 @@
             "title": "Valideringsfel",
             "firstNameLength": "Förnamn måste vara minst 2 tecken",
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
-            "phoneNumberFormat": "Ange ett giltigt telefonnummer (8-12 siffror)",
+            "phoneNumberFormat": "Ange ett giltigt mobilnummer (9-10 siffror)",
             "phoneDuplicate": "Detta telefonnummer är redan registrerat till ett annat hushåll",
-            "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} (ID: {id})",
+            "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} - {phone} (ID: {id})",
             "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
             "pickupLocation": "Välj en hämtplats",
             "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta"

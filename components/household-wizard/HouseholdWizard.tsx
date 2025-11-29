@@ -35,7 +35,7 @@ import {
     checkHouseholdDuplicates,
     type DuplicateCheckResult,
 } from "@/app/[locale]/households/check-duplicates-action";
-import { validatePhoneInput } from "@/app/utils/validation/phone-validation";
+import { validatePhoneInput, formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
@@ -310,6 +310,7 @@ export function HouseholdWizard({
                             field: "phone_number",
                             message: t("validation.phoneDuplicateWithInfo", {
                                 name: `${existing.first_name} ${existing.last_name}`,
+                                phone: formatPhoneForDisplay(existing.phone_number),
                                 id: existing.id,
                             }),
                         });
@@ -668,8 +669,6 @@ export function HouseholdWizard({
                                     ? validationError
                                     : null
                             }
-                            householdId={householdId}
-                            onDuplicateCheckResult={setDuplicateCheckResult}
                         />
                     </Stepper.Step>
 
@@ -823,7 +822,8 @@ export function HouseholdWizard({
                                 <ul style={{ marginTop: 0 }}>
                                     {duplicateCheckResult.similarHouseholds.map(household => (
                                         <li key={household.id}>
-                                            {household.first_name} {household.last_name} (ID:{" "}
+                                            {household.first_name} {household.last_name} -{" "}
+                                            {formatPhoneForDisplay(household.phone_number)} (ID:{" "}
                                             {household.id})
                                         </li>
                                     ))}

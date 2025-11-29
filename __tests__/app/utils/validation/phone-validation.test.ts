@@ -5,6 +5,7 @@ import {
     formatPhoneForDisplay,
     validatePhoneInput,
     stripSwedishPrefix,
+    formatPhoneInputWithSpaces,
 } from "../../../../app/utils/validation/phone-validation";
 
 describe("Phone Validation Utilities", () => {
@@ -172,15 +173,7 @@ describe("Phone Validation Utilities", () => {
     });
 
     describe("validatePhoneInput", () => {
-        describe("Valid Swedish local numbers (7-10 digits)", () => {
-            it("should accept 7-digit numbers", () => {
-                expect(validatePhoneInput("1234567")).toBeNull();
-            });
-
-            it("should accept 8-digit numbers (Stockholm landline)", () => {
-                expect(validatePhoneInput("81234567")).toBeNull();
-            });
-
+        describe("Valid Swedish mobile numbers (9-10 digits)", () => {
             it("should accept 9-digit numbers (mobile without leading 0)", () => {
                 expect(validatePhoneInput("701234567")).toBeNull();
             });
@@ -192,6 +185,8 @@ describe("Phone Validation Utilities", () => {
             it("should accept formatted input with spaces/dashes", () => {
                 expect(validatePhoneInput("070-123 45 67")).toBeNull();
                 expect(validatePhoneInput("70 123 45 67")).toBeNull();
+                expect(validatePhoneInput("0712 34 56 78")).toBeNull();
+                expect(validatePhoneInput("712 34 56 78")).toBeNull();
             });
         });
 
@@ -216,9 +211,9 @@ describe("Phone Validation Utilities", () => {
             });
         });
 
-        describe("Invalid inputs - wrong length", () => {
-            it("should reject numbers with fewer than 7 digits", () => {
-                expect(validatePhoneInput("123456")).toBe("validation.phoneNumberFormat");
+        describe("Invalid inputs - wrong length or format", () => {
+            it("should reject numbers with fewer than 9 digits", () => {
+                expect(validatePhoneInput("12345678")).toBe("validation.phoneNumberFormat");
             });
 
             it("should reject numbers with more than 10 digits", () => {
@@ -227,6 +222,10 @@ describe("Phone Validation Utilities", () => {
 
             it("should reject very short numbers", () => {
                 expect(validatePhoneInput("123")).toBe("validation.phoneNumberFormat");
+            });
+
+            it("should reject 10-digit numbers not starting with 0", () => {
+                expect(validatePhoneInput("7012345678")).toBe("validation.phoneNumberFormat");
             });
         });
     });
@@ -253,6 +252,55 @@ describe("Phone Validation Utilities", () => {
             it("should handle short numbers starting with 46 (not a prefix)", () => {
                 // 461234567 is 9 digits, could be a local number starting with 46
                 expect(stripSwedishPrefix("461234567")).toBe("461234567");
+            });
+        });
+    });
+
+    describe("formatPhoneInputWithSpaces", () => {
+        describe("Numbers with leading 0 (format: 0712 34 56 78)", () => {
+            it("should format partial input progressively", () => {
+                expect(formatPhoneInputWithSpaces("07")).toBe("07");
+                expect(formatPhoneInputWithSpaces("071")).toBe("071");
+                expect(formatPhoneInputWithSpaces("0712")).toBe("0712");
+                expect(formatPhoneInputWithSpaces("07123")).toBe("0712 3");
+                expect(formatPhoneInputWithSpaces("071234")).toBe("0712 34");
+                expect(formatPhoneInputWithSpaces("0712345")).toBe("0712 34 5");
+                expect(formatPhoneInputWithSpaces("07123456")).toBe("0712 34 56");
+                expect(formatPhoneInputWithSpaces("071234567")).toBe("0712 34 56 7");
+                expect(formatPhoneInputWithSpaces("0712345678")).toBe("0712 34 56 78");
+            });
+
+            it("should handle input with existing spaces", () => {
+                expect(formatPhoneInputWithSpaces("0712 34")).toBe("0712 34");
+                expect(formatPhoneInputWithSpaces("0712 34 56 78")).toBe("0712 34 56 78");
+            });
+
+            it("should strip non-digit characters", () => {
+                expect(formatPhoneInputWithSpaces("0712-34-56-78")).toBe("0712 34 56 78");
+            });
+        });
+
+        describe("Numbers without leading 0 (format: 712 34 56 78)", () => {
+            it("should format partial input progressively", () => {
+                expect(formatPhoneInputWithSpaces("7")).toBe("7");
+                expect(formatPhoneInputWithSpaces("71")).toBe("71");
+                expect(formatPhoneInputWithSpaces("712")).toBe("712");
+                expect(formatPhoneInputWithSpaces("7123")).toBe("712 3");
+                expect(formatPhoneInputWithSpaces("71234")).toBe("712 34");
+                expect(formatPhoneInputWithSpaces("712345")).toBe("712 34 5");
+                expect(formatPhoneInputWithSpaces("7123456")).toBe("712 34 56");
+                expect(formatPhoneInputWithSpaces("71234567")).toBe("712 34 56 7");
+                expect(formatPhoneInputWithSpaces("712345678")).toBe("712 34 56 78");
+            });
+        });
+
+        describe("Edge cases", () => {
+            it("should handle empty input", () => {
+                expect(formatPhoneInputWithSpaces("")).toBe("");
+            });
+
+            it("should limit to 10 digits", () => {
+                expect(formatPhoneInputWithSpaces("07123456789999")).toBe("0712 34 56 78");
             });
         });
     });

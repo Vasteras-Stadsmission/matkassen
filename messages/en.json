@@ -600,9 +600,9 @@
             "title": "Validation Error",
             "firstNameLength": "First name must be at least 2 characters",
             "lastNameLength": "Last name must be at least 2 characters",
-            "phoneNumberFormat": "Enter a valid phone number (8-12 digits)",
+            "phoneNumberFormat": "Enter a valid mobile number (9-10 digits)",
             "phoneDuplicate": "This phone number is already registered to another household",
-            "phoneDuplicateWithInfo": "This phone number belongs to: {name} (ID: {id})",
+            "phoneDuplicateWithInfo": "This phone number belongs to: {name} - {phone} (ID: {id})",
             "postalCodeFormat": "Postal code must be 5 digits",
             "pickupLocation": "Select a pickup location",
             "verificationIncomplete": "All required verifications must be checked before proceeding"

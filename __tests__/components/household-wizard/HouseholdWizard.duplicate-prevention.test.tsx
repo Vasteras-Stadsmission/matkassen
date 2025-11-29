@@ -63,7 +63,7 @@ describe("HouseholdWizard Duplicate Prevention - Code Structure", () => {
         expect(content).toContain("similarNameDialog");
     });
 
-    it("should pass householdId to HouseholdForm for edit mode exclusion", async () => {
+    it("should use householdId for edit mode exclusion in duplicate check", async () => {
         const { readFileSync } = await import("fs");
         const { join } = await import("path");
 
@@ -73,9 +73,9 @@ describe("HouseholdWizard Duplicate Prevention - Code Structure", () => {
         );
         const content = readFileSync(componentPath, "utf-8");
 
-        // Verify householdId is passed to form for edit mode exclusion
-        expect(content).toContain("householdId={householdId}");
-        expect(content).toContain("onDuplicateCheckResult");
+        // Verify householdId is used for edit mode exclusion in the nextStep duplicate check
+        expect(content).toContain("excludeHouseholdId");
+        expect(content).toContain("checkHouseholdDuplicates");
     });
 
     it("should have duplicate check state management", async () => {
@@ -241,41 +241,11 @@ describe("HouseholdWizard Duplicate Prevention - Logic", () => {
 });
 
 /**
- * HouseholdForm duplicate check UI tests
+ * HouseholdForm UI tests
+ * Note: Duplicate checking was moved to HouseholdWizard (on Next click)
+ * HouseholdForm now only handles input formatting
  */
-describe("HouseholdForm Duplicate Check UI - Code Structure", () => {
-    it("should have phone duplicate alert component", async () => {
-        const { readFileSync } = await import("fs");
-        const { join } = await import("path");
-
-        const componentPath = join(
-            process.cwd(),
-            "app/[locale]/households/enroll/components/HouseholdForm.tsx",
-        );
-        const content = readFileSync(componentPath, "utf-8");
-
-        // Verify phone duplicate alert exists
-        expect(content).toContain("duplicatePhone.title");
-        expect(content).toContain("duplicatePhone.message");
-        expect(content).toContain('color="red"');
-    });
-
-    it("should have similar name warning component", async () => {
-        const { readFileSync } = await import("fs");
-        const { join } = await import("path");
-
-        const componentPath = join(
-            process.cwd(),
-            "app/[locale]/households/enroll/components/HouseholdForm.tsx",
-        );
-        const content = readFileSync(componentPath, "utf-8");
-
-        // Verify similar name warning exists
-        expect(content).toContain("similarName.title");
-        expect(content).toContain("similarName.message");
-        expect(content).toContain('color="yellow"');
-    });
-
+describe("HouseholdForm UI - Code Structure", () => {
     it("should display fixed +46 prefix for Swedish-only phone input", async () => {
         const { readFileSync } = await import("fs");
         const { join } = await import("path");
@@ -294,7 +264,7 @@ describe("HouseholdForm Duplicate Check UI - Code Structure", () => {
         expect(content).toContain("stripSwedishPrefix");
     });
 
-    it("should have debounced duplicate checking", async () => {
+    it("should have live phone formatting with spaces", async () => {
         const { readFileSync } = await import("fs");
         const { join } = await import("path");
 
@@ -304,23 +274,8 @@ describe("HouseholdForm Duplicate Check UI - Code Structure", () => {
         );
         const content = readFileSync(componentPath, "utf-8");
 
-        // Verify debounced check exists
-        expect(content).toContain("useDebouncedValue");
-        expect(content).toContain("checkHouseholdDuplicates");
-    });
-
-    it("should have race condition prevention", async () => {
-        const { readFileSync } = await import("fs");
-        const { join } = await import("path");
-
-        const componentPath = join(
-            process.cwd(),
-            "app/[locale]/households/enroll/components/HouseholdForm.tsx",
-        );
-        const content = readFileSync(componentPath, "utf-8");
-
-        // Verify race condition handling exists
-        expect(content).toContain("requestTokenRef");
-        expect(content).toContain("currentToken");
+        // Verify phone input formatting exists
+        expect(content).toContain("formatPhoneInputWithSpaces");
+        expect(content).toContain("handlePhoneNumberChange");
     });
 });
