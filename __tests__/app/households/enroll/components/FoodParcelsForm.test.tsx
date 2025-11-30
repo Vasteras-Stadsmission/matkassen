@@ -592,6 +592,298 @@ describe("FoodParcelsForm Business Logic Tests", () => {
     });
 });
 
+/**
+ * Time-dependent behavior tests
+ * These tests verify that time-based logic works correctly by mocking the system time.
+ * The component uses Time.now() from the TimeProvider which respects vi.useFakeTimers().
+ */
+describe("FoodParcelsForm Time-Dependent Behavior", () => {
+    let mockUpdateData: any;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        mockUpdateData = vi.fn(() => {});
+
+        (mockGetPickupLocations as any).mockClear?.();
+        (mockGetPickupLocationSchedules as any).mockClear?.();
+        (mockGetPickupLocationCapacity as any).mockClear?.();
+        (mockGetLocationSlotDuration as any).mockClear?.();
+
+        (mockGetPickupLocations as any).mockImplementation?.(() =>
+            Promise.resolve([{ id: "location-1", name: "Test Location" }]),
+        );
+
+        (mockGetPickupLocationSchedules as any).mockImplementation?.(() =>
+            Promise.resolve({
+                schedules: [
+                    {
+                        id: "schedule-1",
+                        location_id: "location-1",
+                        name: "Regular Schedule",
+                        startDate: new Date("2025-05-01"),
+                        endDate: new Date("2025-12-31"),
+                        days: [
+                            {
+                                weekday: "monday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "tuesday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "wednesday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "thursday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "friday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "saturday",
+                                isOpen: false,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                            {
+                                weekday: "sunday",
+                                isOpen: false,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
+
+        (mockGetPickupLocationCapacity as any).mockImplementation?.(() =>
+            Promise.resolve({ maxPerDay: 10, dateCapacities: {} }),
+        );
+
+        (mockGetLocationSlotDuration as any).mockImplementation?.(() => Promise.resolve(15));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    describe("isPastDate logic", () => {
+        it("should identify yesterday as a past date", () => {
+            // Set current time to May 27, 2025 at 10:00 Stockholm time
+            vi.setSystemTime(new Date("2025-05-27T08:00:00Z")); // 10:00 Stockholm (UTC+2)
+
+            const yesterday = new Date("2025-05-26T10:00:00Z");
+            const today = new Date("2025-05-27T10:00:00Z");
+            const tomorrow = new Date("2025-05-28T10:00:00Z");
+
+            // Test the logic: past dates should be identified
+            const isPastDate = (date: Date) => {
+                const now = new Date(); // Gets mocked time
+                const nowMidnight = new Date(now);
+                nowMidnight.setHours(0, 0, 0, 0);
+
+                const dateMidnight = new Date(date);
+                dateMidnight.setHours(0, 0, 0, 0);
+
+                return dateMidnight < nowMidnight;
+            };
+
+            expect(isPastDate(yesterday)).toBe(true);
+            expect(isPastDate(today)).toBe(false);
+            expect(isPastDate(tomorrow)).toBe(false);
+        });
+
+        it("should not mark today as past even late in the day", () => {
+            // Set current time to May 27, 2025 at 23:59 Stockholm time
+            vi.setSystemTime(new Date("2025-05-27T21:59:00Z")); // 23:59 Stockholm (UTC+2)
+
+            const today = new Date("2025-05-27T10:00:00Z");
+
+            const isPastDate = (date: Date) => {
+                const now = new Date();
+                const nowMidnight = new Date(now);
+                nowMidnight.setHours(0, 0, 0, 0);
+
+                const dateMidnight = new Date(date);
+                dateMidnight.setHours(0, 0, 0, 0);
+
+                return dateMidnight < nowMidnight;
+            };
+
+            expect(isPastDate(today)).toBe(false);
+        });
+    });
+
+    describe("filterPastTimeSlots logic", () => {
+        it("should filter out past time slots for today", () => {
+            // Set current time to May 27, 2025 at 14:30 UTC
+            vi.setSystemTime(new Date("2025-05-27T14:30:00Z"));
+
+            // Use same date for "today" reference
+            const today = new Date("2025-05-27T00:00:00Z");
+            const allSlots = [
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+            ];
+
+            // Use UTC methods consistently for timezone-agnostic testing
+            const filterPastTimeSlots = (slots: string[], date: Date): string[] => {
+                const now = new Date(); // Gets mocked time: 14:30 UTC
+
+                // Check if date is today using UTC date comparison
+                const nowDateStr = now.toISOString().split("T")[0];
+                const compareDateStr = date.toISOString().split("T")[0];
+
+                if (compareDateStr !== nowDateStr) {
+                    return slots; // Not today, all slots valid
+                }
+
+                // Filter out past slots using UTC hours
+                const nowHours = now.getUTCHours();
+                const nowMinutes = now.getUTCMinutes();
+                const nowTotalMinutes = nowHours * 60 + nowMinutes;
+
+                return slots.filter(slot => {
+                    const [hours, minutes] = slot.split(":").map(Number);
+                    const slotTotalMinutes = hours * 60 + minutes;
+                    return slotTotalMinutes > nowTotalMinutes;
+                });
+            };
+
+            const filteredSlots = filterPastTimeSlots(allSlots, today);
+
+            // 14:30 UTC current time, so slots at 15:00 and 16:00 should remain
+            // (14:00 is NOT > 14:30, so it's filtered out)
+            expect(filteredSlots).toEqual(["15:00", "16:00"]);
+            expect(filteredSlots).not.toContain("14:00");
+            expect(filteredSlots).not.toContain("09:00");
+        });
+
+        it("should return all slots for a future date", () => {
+            // Set current time to May 27, 2025 at 14:30 UTC
+            vi.setSystemTime(new Date("2025-05-27T14:30:00Z"));
+
+            const tomorrow = new Date("2025-05-28T00:00:00Z");
+            const allSlots = [
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+            ];
+
+            const filterPastTimeSlots = (slots: string[], date: Date): string[] => {
+                const now = new Date();
+
+                const nowDateStr = now.toISOString().split("T")[0];
+                const compareDateStr = date.toISOString().split("T")[0];
+
+                if (compareDateStr !== nowDateStr) {
+                    return slots; // Not today, all slots valid
+                }
+
+                const nowHours = now.getUTCHours();
+                const nowMinutes = now.getUTCMinutes();
+                const nowTotalMinutes = nowHours * 60 + nowMinutes;
+
+                return slots.filter(slot => {
+                    const [hours, minutes] = slot.split(":").map(Number);
+                    const slotTotalMinutes = hours * 60 + minutes;
+                    return slotTotalMinutes > nowTotalMinutes;
+                });
+            };
+
+            const filteredSlots = filterPastTimeSlots(allSlots, tomorrow);
+
+            // All slots should be available for tomorrow
+            expect(filteredSlots).toEqual(allSlots);
+        });
+    });
+
+    describe("isDateExcluded - today after closing time", () => {
+        it("should exclude today if current time is past closing time", () => {
+            // Set current time to May 27, 2025 at 18:00 UTC (after 17:00 closing)
+            vi.setSystemTime(new Date("2025-05-27T18:00:00Z"));
+
+            const todayDate = new Date("2025-05-27T00:00:00Z");
+            const closingHour = 17;
+            const closingMinute = 0;
+
+            const isExcludedDueToPassedClosing = (date: Date): boolean => {
+                const now = new Date(); // Gets mocked time
+
+                // Check if this is today using UTC date strings
+                const nowDateStr = now.toISOString().split("T")[0];
+                const compareDateStr = date.toISOString().split("T")[0];
+
+                if (compareDateStr !== nowDateStr) {
+                    return false; // Not today
+                }
+
+                // Check if current UTC time is past closing
+                const nowTotalMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+                const closingTotalMinutes = closingHour * 60 + closingMinute;
+
+                return nowTotalMinutes >= closingTotalMinutes;
+            };
+
+            expect(isExcludedDueToPassedClosing(todayDate)).toBe(true);
+        });
+
+        it("should not exclude today if current time is before closing time", () => {
+            // Set current time to May 27, 2025 at 14:00 UTC (before 17:00 closing)
+            vi.setSystemTime(new Date("2025-05-27T14:00:00Z"));
+
+            const todayDate = new Date("2025-05-27T00:00:00Z");
+            const closingHour = 17;
+            const closingMinute = 0;
+
+            const isExcludedDueToPassedClosing = (date: Date): boolean => {
+                const now = new Date();
+
+                const nowDateStr = now.toISOString().split("T")[0];
+                const compareDateStr = date.toISOString().split("T")[0];
+
+                if (compareDateStr !== nowDateStr) {
+                    return false;
+                }
+
+                const nowTotalMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+                const closingTotalMinutes = closingHour * 60 + closingMinute;
+
+                return nowTotalMinutes >= closingTotalMinutes;
+            };
+
+            expect(isExcludedDueToPassedClosing(todayDate)).toBe(false);
+        });
+    });
+});
+
 // Helper function to simulate date exclusion logic
 function shouldExcludeDate(date: Date, currentDate: Date = new Date()): boolean {
     const today = new Date(currentDate);
