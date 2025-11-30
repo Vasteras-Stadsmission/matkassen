@@ -43,6 +43,7 @@ import { FoodParcels, FoodParcel } from "../types";
 import { useTranslations } from "next-intl";
 import { TranslationFunction } from "../../../types";
 import { type LocationScheduleInfo, type LocationScheduleDay } from "@/app/[locale]/schedule/types";
+import { Time } from "@/app/utils/time-provider";
 
 interface ValidationError {
     field: string;
@@ -182,7 +183,7 @@ export default function FoodParcelsForm({
 
     // Check if a date is in the past (entire day) using Stockholm timezone
     const isPastDate = useCallback((date: Date) => {
-        const stockholmToday = toStockholmTime(new Date());
+        const stockholmToday = toStockholmTime(Time.now().toDate());
         stockholmToday.setHours(0, 0, 0, 0);
 
         const stockholmCompareDate = toStockholmTime(date);
@@ -345,7 +346,7 @@ export default function FoodParcelsForm({
 
             try {
                 // Set the date range for capacity check (current month + next month)
-                const today = new Date();
+                const today = Time.now().toDate();
                 const startDate = new Date(today);
                 startDate.setDate(1); // First day of current month
 
@@ -489,8 +490,8 @@ export default function FoodParcelsForm({
         }
 
         // Check if this is today and all opening hours have passed
-        const now = new Date();
-        const today = new Date();
+        const now = Time.now().toDate();
+        const today = new Date(now);
         today.setHours(0, 0, 0, 0);
         if (dateForComparison.getTime() === today.getTime()) {
             // Get opening hours for today
@@ -558,7 +559,7 @@ export default function FoodParcelsForm({
         const dayOfWeek = localDate.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-        const today = new Date();
+        const today = Time.now().toDate();
         today.setHours(0, 0, 0, 0);
         const dateForComparison = new Date(localDate);
         dateForComparison.setHours(0, 0, 0, 0);
@@ -725,7 +726,7 @@ export default function FoodParcelsForm({
     // Filter time slots to exclude past times for today
     const filterPastTimeSlots = useCallback((slots: string[], date: Date): string[] => {
         // If not today, return all slots
-        const today = new Date();
+        const today = Time.now().toDate();
         const todayStockholm = toStockholmTime(today);
         todayStockholm.setHours(0, 0, 0, 0);
 
@@ -737,7 +738,7 @@ export default function FoodParcelsForm({
         }
 
         // For today, filter out past slots
-        const now = new Date();
+        const now = Time.now().toDate();
         return slots.filter(slot => {
             const [hours, minutes] = slot.split(":").map(Number);
             const slotDateTime = new Date(date);
@@ -1163,7 +1164,7 @@ export default function FoodParcelsForm({
                             type="multiple"
                             value={selectedDates.map(date => date.toISOString().split("T")[0])}
                             onChange={handleDatesChange}
-                            minDate={new Date()}
+                            minDate={Time.now().toDate()}
                             numberOfColumns={2}
                             renderDay={dateString => renderDay(new Date(dateString))}
                             excludeDate={dateString => isDateExcluded(new Date(dateString))}
