@@ -66,8 +66,8 @@ export function formatPhoneForDisplay(phone: string): string {
 
 /**
  * Validate raw phone input (before normalization)
- * Only accepts Swedish local phone numbers.
- * @param phone - Raw phone input (local number without +46)
+ * Only accepts Swedish MOBILE phone numbers (9 or 10 digits).
+ * @param phone - Raw phone input (local number without +46, may include spaces)
  * @returns null if valid, error message if invalid
  */
 export function validatePhoneInput(phone: string): string | null {
@@ -78,17 +78,67 @@ export function validatePhoneInput(phone: string): string | null {
 
     const digitsOnly = phone.replace(/\D/g, "");
 
-    // Swedish local numbers are 7-10 digits
-    // Examples:
-    //   - 701234567 (9 digits, mobile without leading 0)
-    //   - 0701234567 (10 digits, mobile with leading 0)
-    //   - 81234567 (8 digits, Stockholm landline without leading 0)
-    //   - 081234567 (9 digits, Stockholm landline with leading 0)
-    if (digitsOnly.length < 7 || digitsOnly.length > 10) {
+    // Swedish mobile numbers are exactly:
+    //   - 9 digits without leading 0 (701234567)
+    //   - 10 digits with leading 0 (0701234567)
+    if (digitsOnly.length < 9 || digitsOnly.length > 10) {
+        return "validation.phoneNumberFormat";
+    }
+
+    // If 10 digits, must start with 0
+    if (digitsOnly.length === 10 && !digitsOnly.startsWith("0")) {
+        return "validation.phoneNumberFormat";
+    }
+
+    // If 9 digits, must NOT start with 0 (would be invalid mobile format)
+    if (digitsOnly.length === 9 && digitsOnly.startsWith("0")) {
         return "validation.phoneNumberFormat";
     }
 
     return null;
+}
+
+/**
+ * Format phone input with spaces for better readability while typing
+ * Format: 0712 34 56 78 (with leading 0) or 712 34 56 78 (without)
+ * @param input - Raw user input (may contain spaces or other characters)
+ * @returns Formatted phone number with spaces
+ */
+export function formatPhoneInputWithSpaces(input: string): string {
+    // Extract only digits
+    const digits = input.replace(/\D/g, "");
+
+    // Limit to 10 digits max
+    const limited = digits.slice(0, 10);
+
+    if (limited.length === 0) {
+        return "";
+    }
+
+    // Format based on whether it starts with 0
+    if (limited.startsWith("0")) {
+        // Format: 0712 34 56 78
+        if (limited.length <= 4) {
+            return limited;
+        } else if (limited.length <= 6) {
+            return `${limited.slice(0, 4)} ${limited.slice(4)}`;
+        } else if (limited.length <= 8) {
+            return `${limited.slice(0, 4)} ${limited.slice(4, 6)} ${limited.slice(6)}`;
+        } else {
+            return `${limited.slice(0, 4)} ${limited.slice(4, 6)} ${limited.slice(6, 8)} ${limited.slice(8)}`;
+        }
+    } else {
+        // Format: 712 34 56 78
+        if (limited.length <= 3) {
+            return limited;
+        } else if (limited.length <= 5) {
+            return `${limited.slice(0, 3)} ${limited.slice(3)}`;
+        } else if (limited.length <= 7) {
+            return `${limited.slice(0, 3)} ${limited.slice(3, 5)} ${limited.slice(5)}`;
+        } else {
+            return `${limited.slice(0, 3)} ${limited.slice(3, 5)} ${limited.slice(5, 7)} ${limited.slice(7)}`;
+        }
+    }
 }
 
 /**

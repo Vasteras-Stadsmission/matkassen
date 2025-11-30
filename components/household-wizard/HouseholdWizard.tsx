@@ -31,8 +31,11 @@ import { useDisclosure } from "@mantine/hooks";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
 import React from "react";
-import type { DuplicateCheckResult } from "@/app/[locale]/households/check-duplicates-action";
-import { validatePhoneInput } from "@/app/utils/validation/phone-validation";
+import {
+    checkHouseholdDuplicates,
+    type DuplicateCheckResult,
+} from "@/app/[locale]/households/check-duplicates-action";
+import { validatePhoneInput, formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
@@ -169,6 +172,7 @@ export function HouseholdWizard({
         null,
     );
     const [showSimilarNameConfirm, setShowSimilarNameConfirm] = useState(false);
+    const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
 
     // Verification questions state (only for create mode)
     const [checkedVerifications, setCheckedVerifications] = useState<Set<string>>(new Set());
@@ -215,7 +219,7 @@ export function HouseholdWizard({
     }, [initialData]);
 
     // Function to handle navigation between steps with appropriate validation
-    const nextStep = () => {
+    const nextStep = async () => {
         // Clear any previous validation errors
         setValidationError(null);
         closeError();
@@ -267,18 +271,8 @@ export function HouseholdWizard({
                 return;
             }
 
-            // Block if phone duplicate exists
-            if (duplicateCheckResult?.phoneExists) {
-                setValidationError({
-                    field: "phone_number",
-                    message: t("validation.phoneDuplicate"),
-                });
-                openError();
-                return;
-            }
-
             // Check postal code (optional, but validate format if provided)
-            // Must be before similar name check to ensure validation runs
+            // Must be before duplicate check to avoid unnecessary API calls
             if (postal_code && postal_code.trim().length > 0) {
                 const cleanPostalCode = postal_code.replace(/\s/g, "");
                 if (!/^\d{5}$/.test(cleanPostalCode)) {
@@ -291,13 +285,52 @@ export function HouseholdWizard({
                 }
             }
 
-            // If similar names exist, show confirmation dialog (after all validations pass)
-            if (
-                duplicateCheckResult?.similarHouseholds &&
-                duplicateCheckResult.similarHouseholds.length > 0
-            ) {
-                setShowSimilarNameConfirm(true);
-                return;
+            // Do an immediate duplicate check (don't rely on debounced result)
+            // This ensures we check current values, not stale debounced values
+            setIsCheckingDuplicates(true);
+            try {
+                // Strip spaces from formatted phone number for duplicate check
+                const phoneDigitsOnly = phone_number.replace(/\D/g, "");
+                const hasPhone = phoneDigitsOnly.length >= 7;
+                const hasName = first_name.trim().length >= 2 && last_name.trim().length >= 2;
+
+                const result = await checkHouseholdDuplicates({
+                    phoneNumber: hasPhone ? phoneDigitsOnly : undefined,
+                    firstName: hasName ? first_name : undefined,
+                    lastName: hasName ? last_name : undefined,
+                    excludeHouseholdId: mode === "edit" ? householdId : undefined,
+                });
+
+                if (result.success && result.data) {
+                    // Update state for UI display
+                    setDuplicateCheckResult(result.data);
+
+                    // Block if phone duplicate exists
+                    if (result.data.phoneExists && result.data.existingHousehold) {
+                        const existing = result.data.existingHousehold;
+                        setValidationError({
+                            field: "phone_number",
+                            message: t("validation.phoneDuplicateWithInfo", {
+                                name: `${existing.first_name} ${existing.last_name}`,
+                                phone: formatPhoneForDisplay(existing.phone_number),
+                                id: existing.id,
+                            }),
+                        });
+                        openError();
+                        return;
+                    }
+
+                    // If similar names exist, show confirmation dialog
+                    if (result.data.similarHouseholds && result.data.similarHouseholds.length > 0) {
+                        setShowSimilarNameConfirm(true);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error("Error checking duplicates:", error);
+                // Continue anyway - the database unique constraint will catch duplicates
+            } finally {
+                setIsCheckingDuplicates(false);
             }
         }
 
@@ -638,8 +671,6 @@ export function HouseholdWizard({
                                     ? validationError
                                     : null
                             }
-                            householdId={householdId}
-                            onDuplicateCheckResult={setDuplicateCheckResult}
                         />
                     </Stepper.Step>
 
@@ -736,6 +767,7 @@ export function HouseholdWizard({
                                     <Button
                                         onClick={nextStep}
                                         rightSection={<IconArrowRight size="1rem" />}
+                                        loading={isCheckingDuplicates}
                                     >
                                         {t("navigation.next")}
                                     </Button>
@@ -785,7 +817,9 @@ export function HouseholdWizard({
                                 <ul style={{ marginTop: 0 }}>
                                     {duplicateCheckResult.similarHouseholds.map(household => (
                                         <li key={household.id}>
-                                            {household.first_name} {household.last_name}
+                                            {household.first_name} {household.last_name} -{" "}
+                                            {formatPhoneForDisplay(household.phone_number)} (ID:{" "}
+                                            {household.id})
                                         </li>
                                     ))}
                                 </ul>
