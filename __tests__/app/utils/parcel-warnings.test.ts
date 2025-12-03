@@ -211,12 +211,17 @@ describe("Parcel Warning Utilities", () => {
             // Mock the chained query
             const mockChain = {
                 from: vi.fn().mockReturnThis(),
-                where: vi.fn().mockResolvedValue([{ key: "parcel_warning_threshold", value: "10" }]),
+                where: vi
+                    .fn()
+                    .mockResolvedValue([{ key: "parcel_warning_threshold", value: "10" }]),
             };
             mockDbSelect.mockReturnValue(mockChain as any);
 
             // Simulate getParcelWarningThreshold logic
-            const [setting] = await db.select().from({} as any).where({} as any);
+            const [setting] = await db
+                .select()
+                .from({} as any)
+                .where({} as any);
 
             expect(setting).toBeDefined();
             expect(setting.value).toBe("10");
@@ -234,7 +239,10 @@ describe("Parcel Warning Utilities", () => {
             };
             mockDbSelect.mockReturnValue(mockChain as any);
 
-            const result = await db.select().from({} as any).where({} as any);
+            const result = await db
+                .select()
+                .from({} as any)
+                .where({} as any);
 
             expect(result).toHaveLength(0);
 
@@ -248,11 +256,16 @@ describe("Parcel Warning Utilities", () => {
 
             const mockChain = {
                 from: vi.fn().mockReturnThis(),
-                where: vi.fn().mockResolvedValue([{ key: "parcel_warning_threshold", value: null }]),
+                where: vi
+                    .fn()
+                    .mockResolvedValue([{ key: "parcel_warning_threshold", value: null }]),
             };
             mockDbSelect.mockReturnValue(mockChain as any);
 
-            const [setting] = await db.select().from({} as any).where({} as any);
+            const [setting] = await db
+                .select()
+                .from({} as any)
+                .where({} as any);
 
             expect(setting.value).toBe(null);
 

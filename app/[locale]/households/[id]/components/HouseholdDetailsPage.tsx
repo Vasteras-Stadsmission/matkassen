@@ -289,8 +289,8 @@ export default function HouseholdDetailsPage({
             {warningData?.shouldWarn && warningData.threshold !== null && (
                 <Alert variant="light" color="orange" icon={<IconAlertCircle />} mb="md">
                     {t("warnings.parcelCountHigh", {
-                        count: warningData.parcelCount,
-                        threshold: warningData.threshold,
+                        count: String(warningData.parcelCount),
+                        threshold: String(warningData.threshold),
                     })}
                 </Alert>
             )}

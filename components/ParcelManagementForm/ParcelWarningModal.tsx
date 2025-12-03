@@ -49,8 +49,8 @@ export function ParcelWarningModal({
                     <Text size="sm">
                         {t("modal.message", {
                             householdName,
-                            count: parcelCount,
-                            threshold,
+                            count: String(parcelCount),
+                            threshold: String(threshold),
                         })}
                     </Text>
                 </Alert>

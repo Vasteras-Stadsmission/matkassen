@@ -64,24 +64,8 @@ export function ParcelThresholdSettings() {
         setSaving(false);
     };
 
-    const handleClear = async () => {
-        setSaving(true);
-        const result = await updateParcelWarningThreshold(null);
-        if (result.success) {
-            setThreshold("");
-            notifications.show({
-                title: t("success.savedTitle"),
-                message: t("success.clearedMessage"),
-                color: "green",
-            });
-        } else {
-            notifications.show({
-                title: t("errors.saveFailedTitle"),
-                message: result.error?.message || t("errors.saveFailedMessage"),
-                color: "red",
-            });
-        }
-        setSaving(false);
+    const handleClear = () => {
+        setThreshold("");
     };
 
     return (
@@ -107,7 +91,7 @@ export function ParcelThresholdSettings() {
                             placeholder={t("thresholdPlaceholder")}
                             value={threshold}
                             onChange={setThreshold}
-                            min={0}
+                            min={1}
                             disabled={loading || saving}
                             allowNegative={false}
                             allowDecimal={false}
@@ -115,7 +99,7 @@ export function ParcelThresholdSettings() {
 
                         {threshold !== "" && (
                             <Alert icon={<IconAlertCircle />} color="orange" variant="light">
-                                {t("warningPreview", { threshold: Number(threshold) })}
+                                {t("warningPreview", { threshold: String(threshold) })}
                             </Alert>
                         )}
 

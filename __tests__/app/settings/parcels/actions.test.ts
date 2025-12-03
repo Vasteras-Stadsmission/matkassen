@@ -18,20 +18,17 @@ vi.mock("@/app/db/drizzle", () => ({
 
 // Mock the auth module
 vi.mock("@/app/utils/auth/protected-action", () => ({
-    protectedAction: vi.fn(
-        (fn: any) =>
-            async (...args: any[]) => {
-                // Create a mock session
-                const mockSession = {
-                    user: {
-                        githubUsername: "testuser",
-                        name: "Test User",
-                    },
-                    expires: new Date(Date.now() + 86400000).toISOString(),
-                };
-                return fn(mockSession, ...args);
+    protectedAction: vi.fn((fn: any) => async (...args: any[]) => {
+        // Create a mock session
+        const mockSession = {
+            user: {
+                githubUsername: "testuser",
+                name: "Test User",
             },
-    ),
+            expires: new Date(Date.now() + 86400000).toISOString(),
+        };
+        return fn(mockSession, ...args);
+    }),
 }));
 
 // Mock next/cache
@@ -57,8 +54,7 @@ describe("Parcel Threshold Settings Actions", () => {
 
                 const setting = mockResult[0];
                 const threshold = setting?.value ? parseInt(setting.value, 10) : null;
-                const validThreshold =
-                    threshold !== null && !isNaN(threshold) ? threshold : null;
+                const validThreshold = threshold !== null && !isNaN(threshold) ? threshold : null;
 
                 expect(validThreshold).toBe(null);
             });
@@ -68,8 +64,7 @@ describe("Parcel Threshold Settings Actions", () => {
 
                 const setting = mockResult[0];
                 const threshold = setting?.value ? parseInt(setting.value, 10) : null;
-                const validThreshold =
-                    threshold !== null && !isNaN(threshold) ? threshold : null;
+                const validThreshold = threshold !== null && !isNaN(threshold) ? threshold : null;
 
                 expect(validThreshold).toBe(10);
             });
@@ -79,8 +74,7 @@ describe("Parcel Threshold Settings Actions", () => {
 
                 const setting = mockResult[0];
                 const threshold = setting?.value ? parseInt(setting.value, 10) : null;
-                const validThreshold =
-                    threshold !== null && !isNaN(threshold) ? threshold : null;
+                const validThreshold = threshold !== null && !isNaN(threshold) ? threshold : null;
 
                 expect(validThreshold).toBe(null);
             });
@@ -90,8 +84,7 @@ describe("Parcel Threshold Settings Actions", () => {
 
                 const setting = mockResult[0];
                 const threshold = setting?.value ? parseInt(setting.value, 10) : null;
-                const validThreshold =
-                    threshold !== null && !isNaN(threshold) ? threshold : null;
+                const validThreshold = threshold !== null && !isNaN(threshold) ? threshold : null;
 
                 expect(validThreshold).toBe(null);
             });
@@ -104,8 +97,8 @@ describe("Parcel Threshold Settings Actions", () => {
                 // Validation logic from the action
                 let validationError = null;
                 if (threshold !== null) {
-                    if (!Number.isInteger(threshold) || threshold < 0) {
-                        validationError = "Threshold must be a non-negative integer";
+                    if (!Number.isInteger(threshold) || threshold < 1) {
+                        validationError = "Threshold must be a positive integer (>= 1)";
                     }
                 }
 
@@ -117,25 +110,25 @@ describe("Parcel Threshold Settings Actions", () => {
 
                 let validationError = null;
                 if (threshold !== null) {
-                    if (!Number.isInteger(threshold) || threshold < 0) {
-                        validationError = "Threshold must be a non-negative integer";
+                    if (!Number.isInteger(threshold) || threshold < 1) {
+                        validationError = "Threshold must be a positive integer (>= 1)";
                     }
                 }
 
                 expect(validationError).toBe(null);
             });
 
-            it("should accept zero threshold", () => {
+            it("should reject zero threshold", () => {
                 const threshold = 0;
 
                 let validationError = null;
                 if (threshold !== null) {
-                    if (!Number.isInteger(threshold) || threshold < 0) {
-                        validationError = "Threshold must be a non-negative integer";
+                    if (!Number.isInteger(threshold) || threshold < 1) {
+                        validationError = "Threshold must be a positive integer (>= 1)";
                     }
                 }
 
-                expect(validationError).toBe(null);
+                expect(validationError).toBe("Threshold must be a positive integer (>= 1)");
             });
 
             it("should reject negative threshold", () => {
@@ -143,12 +136,12 @@ describe("Parcel Threshold Settings Actions", () => {
 
                 let validationError = null;
                 if (threshold !== null) {
-                    if (!Number.isInteger(threshold) || threshold < 0) {
-                        validationError = "Threshold must be a non-negative integer";
+                    if (!Number.isInteger(threshold) || threshold < 1) {
+                        validationError = "Threshold must be a positive integer (>= 1)";
                     }
                 }
 
-                expect(validationError).toBe("Threshold must be a non-negative integer");
+                expect(validationError).toBe("Threshold must be a positive integer (>= 1)");
             });
 
             it("should reject non-integer threshold", () => {
@@ -156,12 +149,12 @@ describe("Parcel Threshold Settings Actions", () => {
 
                 let validationError = null;
                 if (threshold !== null) {
-                    if (!Number.isInteger(threshold) || threshold < 0) {
-                        validationError = "Threshold must be a non-negative integer";
+                    if (!Number.isInteger(threshold) || threshold < 1) {
+                        validationError = "Threshold must be a positive integer (>= 1)";
                     }
                 }
 
-                expect(validationError).toBe("Threshold must be a non-negative integer");
+                expect(validationError).toBe("Threshold must be a positive integer (>= 1)");
             });
         });
 
@@ -226,13 +219,13 @@ describe("Parcel Threshold Settings Actions", () => {
         it("should return failure result with error", () => {
             const result = failure({
                 code: "VALIDATION_ERROR",
-                message: "Threshold must be a non-negative integer",
+                message: "Threshold must be a positive integer (>= 1)",
             });
 
             expect(result.success).toBe(false);
             expect(result.error).toEqual({
                 code: "VALIDATION_ERROR",
-                message: "Threshold must be a non-negative integer",
+                message: "Threshold must be a positive integer (>= 1)",
             });
         });
     });

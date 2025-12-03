@@ -1,9 +1,11 @@
 # Household Parcel Count Warning System - Implementation Plan
 
 ## Overview
+
 Implement a warning system that alerts administrators when a household exceeds a configurable threshold of food parcels. The warning is **non-blocking** but requires acknowledgment when adding more parcels.
 
 ## Core Requirement
+
 - **Threshold Logic**: If threshold is set to `10`, warnings appear when parcel count is `11` or higher (strictly greater than threshold)
 - **Scope**: Counts ALL parcels (past and future), excluding soft-deleted ones
 - **Global Setting**: Single threshold applies to all locations (not per-location)
@@ -367,11 +369,13 @@ export default async function ParcelSettingsPage() {
 **File**: `components/SettingsDropdown/SettingsDropdown.tsx`
 
 1. Add `IconPackage` to imports (line 4):
+
 ```typescript
 import { IconSettings, IconAdjustments, IconMapPin, IconPackage } from "@tabler/icons-react";
 ```
 
 2. Add new menu item after "Locations" (after line 51):
+
 ```typescript
 <Menu.Item
     leftSection={
@@ -396,6 +400,7 @@ import { IconSettings, IconAdjustments, IconMapPin, IconPackage } from "@tabler/
 **File**: `app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx`
 
 1. Add `IconAlertCircle` to imports (line 32):
+
 ```typescript
 import {
     // ... existing icons
@@ -404,6 +409,7 @@ import {
 ```
 
 2. Update interface to accept warning data (around line 45):
+
 ```typescript
 interface HouseholdDetailsPageProps {
     householdId: string;
@@ -425,6 +431,7 @@ export default function HouseholdDetailsPage({
 ```
 
 3. Add warning banner after test mode warning (after line 279):
+
 ```typescript
 {/* Test Mode Warning Banner */}
 {isTestMode && (
@@ -449,11 +456,13 @@ export default function HouseholdDetailsPage({
 **File**: `app/[locale]/households/[id]/page.tsx`
 
 1. Add import (line 10):
+
 ```typescript
 import { shouldShowParcelWarning } from "@/app/utils/parcel-warnings";
 ```
 
 2. Fetch warning data before return (around line 62):
+
 ```typescript
 // Check if we should show parcel warning
 const warningData = await shouldShowParcelWarning(id);
@@ -567,11 +576,13 @@ export function ParcelWarningModal({
 **File**: `components/ParcelManagementForm/ParcelManagementForm.tsx`
 
 1. Add import (line 12):
+
 ```typescript
 import { ParcelWarningModal } from "./ParcelWarningModal";
 ```
 
 2. Update interface (around line 14):
+
 ```typescript
 interface ParcelManagementFormProps {
     householdName: string;
@@ -599,6 +610,7 @@ export function ParcelManagementForm({
 ```
 
 3. Add state for modal (after line 41):
+
 ```typescript
 const [isSubmitting, setIsSubmitting] = useState(false);
 const [showWarningModal, setShowWarningModal] = useState(false);
@@ -606,6 +618,7 @@ const [warningAcknowledged, setWarningAcknowledged] = useState(false);
 ```
 
 4. Add warning confirmation handler (after updateFormData, around line 67):
+
 ```typescript
 // Handle warning modal confirmation
 const handleWarningConfirm = () => {
@@ -617,6 +630,7 @@ const handleWarningConfirm = () => {
 ```
 
 5. Update handleSubmit to check for warnings (around line 78):
+
 ```typescript
 // Handle form submission
 const handleSubmit = async () => {
@@ -648,6 +662,7 @@ const handleSubmit = async () => {
 ```
 
 6. Add modal to render (in return statement, before breadcrumb around line 215):
+
 ```typescript
 return (
     <Container size="lg" py="md">
@@ -712,11 +727,13 @@ export function ParcelManagementClient({
 **File**: `app/[locale]/households/[id]/parcels/page.tsx`
 
 1. Add import (line 7):
+
 ```typescript
 import { shouldShowParcelWarning } from "@/app/utils/parcel-warnings";
 ```
 
 2. Fetch and pass warning data (around line 40):
+
 ```typescript
 const householdData = result.data;
 const householdName = `${householdData.household.first_name} ${householdData.household.last_name}`;
@@ -745,11 +762,13 @@ return (
 **File**: `messages/en.json`
 
 Add to `"settings"` object (around line 1060):
+
 ```json
 "parcels": "Parcel Limits",
 ```
 
 Add new section before `"smsTemplates"` (around line 1131):
+
 ```json
 "parcelThreshold": {
     "title": "Parcel Warning Threshold",
@@ -775,6 +794,7 @@ Add new section before `"smsTemplates"` (around line 1131):
 ```
 
 Add new top-level sections (at end, before closing brace):
+
 ```json
 "parcelWarning": {
     "modal": {
@@ -798,11 +818,13 @@ Add new top-level sections (at end, before closing brace):
 **File**: `messages/sv.json`
 
 Add to `"settings"` object (around line 1060):
+
 ```json
 "parcels": "Paketgränser",
 ```
 
 Add new section before `"smsTemplates"` (around line 1131):
+
 ```json
 "parcelThreshold": {
     "title": "Varningsgräns för matpaket",
@@ -828,6 +850,7 @@ Add new section before `"smsTemplates"` (around line 1131):
 ```
 
 Add new top-level sections (at end, before closing brace):
+
 ```json
 "parcelWarning": {
     "modal": {
@@ -853,45 +876,51 @@ Add new top-level sections (at end, before closing brace):
 ### Manual Testing Steps
 
 1. **Database Migration**
-   ```bash
-   pnpm dev  # Will auto-run migrations
-   ```
-   - Verify `global_settings` table exists in database
-   - Check migration was applied successfully
+
+    ```bash
+    pnpm dev  # Will auto-run migrations
+    ```
+
+    - Verify `global_settings` table exists in database
+    - Check migration was applied successfully
 
 2. **Settings Page**
-   - Navigate to ⚙️ Settings → Parcel Limits
-   - Set threshold to 10
-   - Save and verify success notification
-   - Clear threshold and verify warnings are disabled
-   - Refresh page and verify value persists
+
+    - Navigate to ⚙️ Settings → Parcel Limits
+    - Set threshold to 10
+    - Save and verify success notification
+    - Clear threshold and verify warnings are disabled
+    - Refresh page and verify value persists
 
 3. **Household Details Warning**
-   - Find or create a household with 11+ parcels
-   - Navigate to household details page
-   - Verify orange warning banner appears
-   - Verify banner shows correct count and threshold
-   - Check a household with ≤10 parcels has no warning
+
+    - Find or create a household with 11+ parcels
+    - Navigate to household details page
+    - Verify orange warning banner appears
+    - Verify banner shows correct count and threshold
+    - Check a household with ≤10 parcels has no warning
 
 4. **Parcel Management Modal**
-   - Go to household with 11+ parcels
-   - Click "Manage Parcels"
-   - Try to add a new parcel
-   - Verify modal appears before submission
-   - Try to submit without checking acknowledgment (should be disabled)
-   - Check acknowledgment checkbox
-   - Click "Continue Adding Parcels"
-   - Verify form submits successfully
+
+    - Go to household with 11+ parcels
+    - Click "Manage Parcels"
+    - Try to add a new parcel
+    - Verify modal appears before submission
+    - Try to submit without checking acknowledgment (should be disabled)
+    - Check acknowledgment checkbox
+    - Click "Continue Adding Parcels"
+    - Verify form submits successfully
 
 5. **Edge Cases**
-   - Test with threshold = 0 (should warn at 1+)
-   - Test with threshold = null (no warnings)
-   - Test with exactly threshold parcels (should NOT warn)
-   - Test with threshold + 1 parcels (SHOULD warn)
+    - Test with threshold = 0 (should warn at 1+)
+    - Test with threshold = null (no warnings)
+    - Test with exactly threshold parcels (should NOT warn)
+    - Test with threshold + 1 parcels (SHOULD warn)
 
 ### TypeScript Check
 
 After dev server starts (which generates translation types):
+
 ```bash
 pnpm typecheck
 ```
@@ -903,22 +932,27 @@ Should pass with no errors.
 ## Important Notes
 
 ### Warning Threshold Logic
+
 ⚠️ **CRITICAL**: Warnings trigger when `parcelCount > threshold` (strictly greater than)
+
 - Threshold = 10 → Warns at 11 or more
 - Threshold = 5 → Warns at 6 or more
 - This is intentional and by design
 
 ### Parcel Counting
+
 - Counts ALL parcels (past and future dates)
 - EXCLUDES soft-deleted parcels (`deleted_at IS NULL`)
 - No distinction between picked up vs not picked up
 
 ### Translation Types
+
 - Translation types are auto-generated when dev server starts
 - TypeScript errors about translation keys are expected until after first `pnpm dev`
 - Don't worry about these during implementation
 
 ### Session User Field
+
 - Use `session.user?.githubUsername` (NOT `session.user.username`)
 - The optional chaining is important for type safety
 
@@ -927,6 +961,7 @@ Should pass with no errors.
 ## Files Summary
 
 ### New Files (8)
+
 1. `app/utils/parcel-warnings.ts`
 2. `app/[locale]/settings/parcels/actions.ts`
 3. `app/[locale]/settings/parcels/components/ParcelThresholdSettings.tsx`
@@ -935,6 +970,7 @@ Should pass with no errors.
 6. Migration file (auto-generated)
 
 ### Modified Files (8)
+
 1. `app/db/schema.ts` - Add globalSettings table
 2. `components/SettingsDropdown/SettingsDropdown.tsx` - Add menu item
 3. `app/[locale]/households/[id]/page.tsx` - Fetch warning data
@@ -949,6 +985,7 @@ Should pass with no errors.
 ## Implementation Order
 
 Follow phases in order:
+
 1. Phase 1 (Database) - Must be first
 2. Phase 2 (Utilities) - Needed by all other phases
 3. Phase 3 (Settings) - Can test threshold configuration

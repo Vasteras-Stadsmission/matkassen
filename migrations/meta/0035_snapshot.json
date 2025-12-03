@@ -1,6 +1,6 @@
 {
-  "id": "b8d3e15a-97dc-4439-8d8b-ed17930728c1",
-  "prevId": "a733e15a-97dc-4439-8d8b-ed17930728c0",
+  "id": "374dd814-0ad4-40df-9a65-74ca9623660d",
+  "prevId": "8b8c4b32-669c-4178-ad8d-299545d6c658",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -250,6 +250,58 @@
           "value": "\"food_parcels\".\"pickup_date_time_earliest\" <= \"food_parcels\".\"pickup_date_time_latest\""
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.global_settings": {
+      "name": "global_settings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (1) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "global_settings_key_unique": {
+          "name": "global_settings_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.household_additional_needs": {
@@ -649,6 +701,12 @@
           "notNull": true,
           "default": "now()"
         },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "first_name": {
           "name": "first_name",
           "type": "varchar(50)",
@@ -690,15 +748,26 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_households_phone_unique": {
+          "name": "idx_households_phone_unique",
+          "columns": [
+            {
+              "expression": "phone_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"households\".\"anonymized_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -1285,6 +1354,18 @@
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "favorite_pickup_location_id": {
           "name": "favorite_pickup_location_id",

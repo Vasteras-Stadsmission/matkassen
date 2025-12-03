@@ -35,10 +35,11 @@ export const getParcelWarningThreshold = protectedAction(
                 .from(globalSettings)
                 .where(eq(globalSettings.key, PARCEL_WARNING_THRESHOLD_KEY));
 
+            // Note: parseInt returns NaN for null/undefined, so we check isNaN
             const threshold = setting?.value ? parseInt(setting.value, 10) : null;
-            const validThreshold = threshold !== null && !isNaN(threshold) ? threshold : null;
-
-            return success({ threshold: validThreshold });
+            return success({
+                threshold: threshold !== null && isNaN(threshold) ? null : threshold,
+            });
         } catch (error) {
             logError("Error fetching parcel warning threshold", error);
             return failure({
@@ -56,12 +57,12 @@ export const getParcelWarningThreshold = protectedAction(
 export const updateParcelWarningThreshold = protectedAction(
     async (session, threshold: number | null): Promise<ActionResult<ParcelThresholdSetting>> => {
         try {
-            // Validate threshold if provided
+            // Validate threshold if provided (must be >= 1)
             if (threshold !== null) {
-                if (!Number.isInteger(threshold) || threshold < 0) {
+                if (!Number.isInteger(threshold) || threshold < 1) {
                     return failure({
                         code: "VALIDATION_ERROR",
-                        message: "Threshold must be a non-negative integer",
+                        message: "Threshold must be a positive integer (>= 1)",
                     });
                 }
             }
