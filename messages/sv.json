@@ -491,6 +491,9 @@
         "comments": {
             "title": "Kommentarer ({count})"
         },
+        "warnings": {
+            "parcelCountHigh": "Detta hushåll har mottagit {count} matkassar (gräns: {threshold}). Överväg att granska deras situation och erbjuda ytterligare stöd."
+        },
         "removal": {
             "dialogTitle": "Ta bort hushåll",
             "lastName": "Efternamn",
@@ -1081,6 +1084,7 @@
         "settings": "Inställningar",
         "general": "Allmänna inställningar",
         "locations": "Utlämningsställen",
+        "parcels": "Matkassegränser",
         "aria": {
             "settingsMenu": "Inställningsmeny"
         },
@@ -1151,10 +1155,42 @@
                 }
             }
         },
+        "parcelThreshold": {
+            "title": "Varningsgräns för matkassar",
+            "description": "Ange antalet matkassar varefter systemet ska varna administratörer om hög användning",
+            "infoMessage": "När ett hushåll överskrider detta antal matkassar visas en varning på hushållets detaljsida och när fler kassar läggs till. Detta hjälper till att identifiera hushåll som kan behöva ytterligare stöd eller genomgång.",
+            "thresholdLabel": "Varningsgräns",
+            "thresholdDescription": "Antal matkassar innan varning visas",
+            "thresholdPlaceholder": "t.ex. 10",
+            "warningPreview": "Varningar visas för hushåll med fler än {threshold} matkassar",
+            "saveButton": "Spara",
+            "clearButton": "Rensa (inaktivera varningar)",
+            "success": {
+                "savedTitle": "Sparat",
+                "savedMessage": "Varningsgränsen för matkassar har uppdaterats",
+                "clearedMessage": "Matkassevarningar har inaktiverats"
+            },
+            "errors": {
+                "loadFailedTitle": "Fel",
+                "loadFailedMessage": "Kunde inte ladda varningsgräns för matkassar",
+                "saveFailedTitle": "Fel",
+                "saveFailedMessage": "Kunde inte spara varningsgräns för matkassar"
+            }
+        },
         "smsTemplates": {
             "title": "Standard SMS-mallar",
             "description": "Anpassa textmeddelanden som skickas till hushåll",
             "comingSoon": "Kommer snart..."
+        }
+    },
+    "parcelWarning": {
+        "modal": {
+            "title": "Varning för högt antal matkassar",
+            "message": "{householdName} har mottagit {count} matkassar (gräns: {threshold}).",
+            "explanation": "Detta hushåll har överskridit varningsgränsen för matkassar. Vänligen verifiera att de har fått lämpligt stöd och hjälp. Du kan fortfarande lägga till fler kassar, men detta kräver bekräftelse.",
+            "acknowledgmentLabel": "Jag bekräftar att detta hushåll kan behöva ytterligare genomgång eller stöd",
+            "confirmButton": "Fortsätt lägga till matkassar",
+            "cancelButton": "Avbryt"
         }
     }
 }

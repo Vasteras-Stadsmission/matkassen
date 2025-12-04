@@ -7,6 +7,7 @@ import { HouseholdDetailsPageSkeleton } from "./components/HouseholdDetailsPageS
 import { AnonymizedHouseholdPage } from "./components/AnonymizedHouseholdPage";
 import { getTranslations } from "next-intl/server";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
+import { shouldShowParcelWarning } from "@/app/utils/parcel-warnings";
 
 interface HouseholdPageProps {
     params: Promise<{
@@ -58,6 +59,9 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
         );
     }
 
+    // Check if we should show parcel warning
+    const warningData = await shouldShowParcelWarning(id);
+
     return (
         <AuthProtection>
             <Suspense fallback={<HouseholdDetailsPageSkeleton />}>
@@ -65,6 +69,7 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
                     householdId={id}
                     initialData={householdDetails}
                     testMode={testMode}
+                    warningData={warningData}
                 />
             </Suspense>
         </AuthProtection>
