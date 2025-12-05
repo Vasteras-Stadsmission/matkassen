@@ -65,8 +65,8 @@
         "pino-pretty": "^13.1.2",
         "postgres": "^3.4.7",
         "qrcode": "^1.5.4",
-        "react": "^19.1.0",
-        "react-dom": "^19.1.0"
+        "react": "^19.1.2",
+        "react-dom": "^19.1.2"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.1",
