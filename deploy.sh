@@ -239,6 +239,13 @@ fi
 # Anonymization scheduler configuration (always enabled for GDPR compliance)
 echo "ANONYMIZATION_SCHEDULE=\"${ANONYMIZATION_SCHEDULE:-0 2 * * 0}\"" >> "$APP_DIR/.env"
 echo "ANONYMIZATION_INACTIVE_DURATION=\"${ANONYMIZATION_INACTIVE_DURATION:-1 year}\"" >> "$APP_DIR/.env"
+# Slack notifications (optional - alerts only sent when ENV_NAME=production)
+if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
+  echo "SLACK_BOT_TOKEN=\"${SLACK_BOT_TOKEN}\"" >> "$APP_DIR/.env"
+fi
+if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
+  echo "SLACK_CHANNEL_ID=\"${SLACK_CHANNEL_ID}\"" >> "$APP_DIR/.env"
+fi
 # Database backup encryption (GDPR compliance - production only)
 if [ "${ENV_NAME:-staging}" = "production" ]; then
   echo "DB_BACKUP_PASSPHRASE=\"${DB_BACKUP_PASSPHRASE}\"" >> "$APP_DIR/.env"
