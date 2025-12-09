@@ -267,35 +267,33 @@ export function LocationForm({
                                 />
                             </SimpleGrid>
 
-                            <SimpleGrid cols={{ base: 1, sm: 1 }}>
-                                <Select
-                                    label={t("slotDuration")}
-                                    description={t("slotDurationDescription")}
-                                    placeholder="15"
-                                    required
-                                    data={[
-                                        { value: "15", label: "15 min" },
-                                        { value: "30", label: "30 min" },
-                                        { value: "45", label: "45 min" },
-                                        { value: "60", label: "1 h" },
-                                        { value: "75", label: "1 h 15 min" },
-                                        { value: "90", label: "1 h 30 min" },
-                                        { value: "105", label: "1 h 45 min" },
-                                        { value: "120", label: "2 h" },
-                                        { value: "150", label: "2 h 30 min" },
-                                        { value: "180", label: "3 h" },
-                                        { value: "210", label: "3 h 30 min" },
-                                        { value: "240", label: "4 h" },
-                                    ]}
-                                    value={form.values.default_slot_duration_minutes?.toString()}
-                                    onChange={value =>
-                                        form.setFieldValue(
-                                            "default_slot_duration_minutes",
-                                            value ? parseInt(value) : 15,
-                                        )
-                                    }
-                                />
-                            </SimpleGrid>
+                            <Select
+                                label={t("slotDuration")}
+                                description={t("slotDurationDescription")}
+                                placeholder="15"
+                                required
+                                data={[
+                                    { value: "15", label: "15 min" },
+                                    { value: "30", label: "30 min" },
+                                    { value: "45", label: "45 min" },
+                                    { value: "60", label: "1 h" },
+                                    { value: "75", label: "1 h 15 min" },
+                                    { value: "90", label: "1 h 30 min" },
+                                    { value: "105", label: "1 h 45 min" },
+                                    { value: "120", label: "2 h" },
+                                    { value: "150", label: "2 h 30 min" },
+                                    { value: "180", label: "3 h" },
+                                    { value: "210", label: "3 h 30 min" },
+                                    { value: "240", label: "4 h" },
+                                ]}
+                                value={form.values.default_slot_duration_minutes?.toString()}
+                                onChange={value =>
+                                    form.setFieldValue(
+                                        "default_slot_duration_minutes",
+                                        value ? parseInt(value) : 15,
+                                    )
+                                }
+                            />
 
                             <Text fw={600} mt="md">
                                 {t("contactInfo")}
