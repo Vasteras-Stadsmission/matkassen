@@ -105,6 +105,13 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     # Anonymization scheduler configuration (always enabled for GDPR compliance)
     printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
     printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
+    # Slack notifications (optional - alerts only sent when ENV_NAME=production)
+    if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
+        printf 'SLACK_BOT_TOKEN="%s"\n' "${SLACK_BOT_TOKEN}"
+    fi
+    if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
+        printf 'SLACK_CHANNEL_ID="%s"\n' "${SLACK_CHANNEL_ID}"
+    fi
 } > "$tmp"
 
 # Add production-only backup configuration
@@ -121,8 +128,6 @@ if [ "${ENV_NAME:-}" = "production" ]; then
         printf 'OS_APPLICATION_CREDENTIAL_SECRET="%s"\n' "${OS_APPLICATION_CREDENTIAL_SECRET}"
         printf 'SWIFT_CONTAINER="%s"\n' "${SWIFT_CONTAINER}"
         printf 'SWIFT_PREFIX="%s"\n' "${SWIFT_PREFIX}"
-        printf 'SLACK_BOT_TOKEN="%s"\n' "${SLACK_BOT_TOKEN}"
-        printf 'SLACK_CHANNEL_ID="%s"\n' "${SLACK_CHANNEL_ID}"
     } >> "$tmp"
 fi
 
