@@ -253,6 +253,13 @@
       "when": 1764864530346,
       "tag": "0035_wooden_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1765311236233,
+      "tag": "0036_curved_butterfly",
+      "breakpoints": true
     }
   ]
 }
