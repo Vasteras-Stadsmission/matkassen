@@ -57,6 +57,7 @@ export function LocationForm({
             street_address: location?.street_address || "",
             postal_code: location?.postal_code || "",
             parcels_max_per_day: location?.parcels_max_per_day ?? null,
+            max_parcels_per_slot: location?.max_parcels_per_slot ?? null,
             contact_name: location?.contact_name || "",
             contact_email: location?.contact_email || "",
             contact_phone_number: location?.contact_phone_number || "",
@@ -82,11 +83,18 @@ export function LocationForm({
                 if (numValue % 15 !== 0) return "Slot duration must be in 15-minute increments";
                 return null;
             },
+            max_parcels_per_slot: value => {
+                if (value === null || value === undefined) return null;
+                const numValue = Number(value);
+                if (numValue <= 0) return "Max parcels per slot must be positive";
+                return null;
+            },
         },
         transformValues: (values): LocationFormInput => ({
             ...values,
             contact_email: values.contact_email?.trim() || "",
             parcels_max_per_day: values.parcels_max_per_day || null,
+            max_parcels_per_slot: values.max_parcels_per_slot || null,
         }),
     });
 
@@ -191,6 +199,7 @@ export function LocationForm({
                 street_address: location.street_address || "",
                 postal_code: location.postal_code || "",
                 parcels_max_per_day: location.parcels_max_per_day ?? null,
+                max_parcels_per_slot: location.max_parcels_per_slot ?? null,
                 contact_name: location.contact_name || "",
                 contact_email: location.contact_email || "",
                 contact_phone_number: location.contact_phone_number || "",
@@ -255,6 +264,18 @@ export function LocationForm({
                                     allowNegative={false}
                                     {...form.getInputProps("parcels_max_per_day")}
                                 />
+                                <NumberInput
+                                    label={t("maxParcelsPerSlot")}
+                                    placeholder="4"
+                                    description={t("maxParcelsPerSlotDescription")}
+                                    min={1}
+                                    allowDecimal={false}
+                                    allowNegative={false}
+                                    {...form.getInputProps("max_parcels_per_slot")}
+                                />
+                            </SimpleGrid>
+
+                            <SimpleGrid cols={{ base: 1, sm: 1 }}>
                                 <Select
                                     label={t("slotDuration")}
                                     description={t("slotDurationDescription")}
