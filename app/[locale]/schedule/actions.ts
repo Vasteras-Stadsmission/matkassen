@@ -22,6 +22,7 @@ import { success, failure, type ActionResult } from "@/app/utils/auth/action-res
 import { logError } from "@/app/utils/logger";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
 
+import { type DbOrTransaction } from "@/app/db/types";
 // Import types for use within this server action file
 import type {
     FoodParcel,
@@ -86,6 +87,7 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
                 name: pickupLocations.name,
                 street_address: pickupLocations.street_address,
                 maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 outsideHoursCount: pickupLocations.outside_hours_count,
             })
             .from(pickupLocations);
@@ -438,6 +440,7 @@ export async function validateParcelAssignments(
         pickupStartTime: Date;
         pickupEndTime: Date;
     }>,
+    tx?: DbOrTransaction,
 ): Promise<{
     success: boolean;
     errors: Array<{
@@ -479,7 +482,7 @@ export async function validateParcelAssignments(
         });
 
         // Use bulk validation for form submissions
-        const validationResult = await validateBulkParcelAssignments(assignments, locationId);
+        const validationResult = await validateBulkParcelAssignments(assignments, locationId, tx);
 
         return {
             success: validationResult.success,

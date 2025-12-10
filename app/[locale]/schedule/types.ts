@@ -20,6 +20,7 @@ export interface PickupLocation {
     name: string;
     street_address: string;
     maxParcelsPerDay: number | null;
+    maxParcelsPerSlot: number | null;
     outsideHoursCount: number;
 }
 

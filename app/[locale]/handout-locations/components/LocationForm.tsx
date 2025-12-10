@@ -57,6 +57,7 @@ export function LocationForm({
             street_address: location?.street_address || "",
             postal_code: location?.postal_code || "",
             parcels_max_per_day: location?.parcels_max_per_day ?? null,
+            max_parcels_per_slot: location?.max_parcels_per_slot ?? null,
             contact_name: location?.contact_name || "",
             contact_email: location?.contact_email || "",
             contact_phone_number: location?.contact_phone_number || "",
@@ -77,9 +78,15 @@ export function LocationForm({
             },
             default_slot_duration_minutes: value => {
                 const numValue = Number(value);
-                if (numValue <= 0) return "Slot duration must be positive";
-                if (numValue > 240) return "Slot duration cannot exceed 4 hours (240 minutes)";
-                if (numValue % 15 !== 0) return "Slot duration must be in 15-minute increments";
+                if (numValue <= 0) return t("slotDurationPositive");
+                if (numValue > 240) return t("slotDurationMaxExceeded");
+                if (numValue % 15 !== 0) return t("slotDurationIncrement");
+                return null;
+            },
+            max_parcels_per_slot: value => {
+                if (value === null || value === undefined) return null;
+                const numValue = Number(value);
+                if (numValue <= 0) return t("maxParcelsPerSlotPositive");
                 return null;
             },
         },
@@ -87,6 +94,7 @@ export function LocationForm({
             ...values,
             contact_email: values.contact_email?.trim() || "",
             parcels_max_per_day: values.parcels_max_per_day || null,
+            max_parcels_per_slot: values.max_parcels_per_slot || null,
         }),
     });
 
@@ -191,6 +199,7 @@ export function LocationForm({
                 street_address: location.street_address || "",
                 postal_code: location.postal_code || "",
                 parcels_max_per_day: location.parcels_max_per_day ?? null,
+                max_parcels_per_slot: location.max_parcels_per_slot ?? null,
                 contact_name: location.contact_name || "",
                 contact_email: location.contact_email || "",
                 contact_phone_number: location.contact_phone_number || "",
@@ -255,6 +264,18 @@ export function LocationForm({
                                     allowNegative={false}
                                     {...form.getInputProps("parcels_max_per_day")}
                                 />
+                                <NumberInput
+                                    label={t("maxParcelsPerSlot")}
+                                    placeholder="4"
+                                    description={t("maxParcelsPerSlotDescription")}
+                                    min={1}
+                                    allowDecimal={false}
+                                    allowNegative={false}
+                                    {...form.getInputProps("max_parcels_per_slot")}
+                                />
+                            </SimpleGrid>
+
+                            <SimpleGrid cols={{ base: 1, sm: 1 }}>
                                 <Select
                                     label={t("slotDuration")}
                                     description={t("slotDurationDescription")}

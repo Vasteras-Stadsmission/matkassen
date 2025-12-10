@@ -1,0 +1,2 @@
+ALTER TABLE "pickup_locations" ADD COLUMN "max_parcels_per_slot" integer DEFAULT 4;--> statement-breakpoint
+ALTER TABLE "pickup_locations" ADD CONSTRAINT "pickup_locations_max_parcels_per_slot_check" CHECK ("pickup_locations"."max_parcels_per_slot" IS NULL OR "pickup_locations"."max_parcels_per_slot" > 0);

@@ -36,8 +36,6 @@ import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { LocationHeader } from "../../../components/LocationHeader";
 import type { FoodParcel, PickupLocation } from "../../../types";
 
-const DEFAULT_MAX_PARCELS_PER_SLOT = 4;
-
 interface WeeklySchedulePageProps {
     locationSlug: string;
 }
@@ -230,6 +228,14 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         return currentLocation?.maxParcelsPerDay || 50;
     }, [currentLocation]);
 
+    // Helper function to get max parcels per slot
+    // Returns null for "no limit", undefined when no location loaded
+    const getMaxParcelsPerSlot = useCallback((): number | null | undefined => {
+        // Return undefined if location not loaded, otherwise return the location's value
+        // (which may be null for "no limit" or a number for an explicit limit)
+        return currentLocation?.maxParcelsPerSlot;
+    }, [currentLocation]);
+
     if (isLoadingLocation) {
         return (
             <Container size="xl" py="md">
@@ -364,7 +370,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                             weekDates={weekDates}
                             foodParcels={foodParcels}
                             maxParcelsPerDay={getMaxParcelsPerDay()}
-                            maxParcelsPerSlot={DEFAULT_MAX_PARCELS_PER_SLOT}
+                            maxParcelsPerSlot={getMaxParcelsPerSlot()}
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={currentLocation.id}
                         />

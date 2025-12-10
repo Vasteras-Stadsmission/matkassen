@@ -8,7 +8,7 @@
  * Key validations:
  * - Location and parcel existence
  * - Daily capacity limits (location-specific)
- * - Time slot capacity limits (MAX_PARCELS_PER_SLOT concurrent parcels)
+ * - Time slot capacity limits (configurable per location, defaults to 4)
  * - Double booking prevention (one parcel per household per day)
  * - Operating hours validation
  * - Past date prevention
@@ -17,17 +17,16 @@
  */
 
 import { and, eq, sql, between, ne, lt, gt } from "drizzle-orm";
-import { type PgTransaction } from "drizzle-orm/pg-core";
-import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
+import { type DbOrTransaction } from "@/app/db/types";
 import { Time } from "@/app/utils/time-provider";
 import { logError } from "@/app/utils/logger";
 
 // Configuration constants
-/** Maximum number of parcels allowed in a single time slot */
-const MAX_PARCELS_PER_SLOT = 4;
+/** Default maximum number of parcels allowed in a single time slot (used when location has no limit set) */
+const DEFAULT_MAX_PARCELS_PER_SLOT = 4;
 
 // Structured error types for validation
 export interface ValidationError {
@@ -78,14 +77,6 @@ export const ValidationErrorCodes = {
 } as const;
 
 export type ValidationErrorCode = (typeof ValidationErrorCodes)[keyof typeof ValidationErrorCodes];
-
-/**
- * Type alias for Drizzle database or transaction
- * Uses a generic type that's compatible with both the main db instance and transaction objects.
- * The 'any' types here are intentional to allow flexibility while still maintaining the core interface.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DbOrTransaction = PgTransaction<PostgresJsQueryResultHKT, any, any> | typeof db;
 
 interface ParcelAssignmentParams {
     parcelId: string;
@@ -200,6 +191,7 @@ export async function validateParcelAssignment({
             .select({
                 id: pickupLocations.id,
                 maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 slotDuration: pickupLocations.default_slot_duration_minutes,
                 name: pickupLocations.name,
             })
@@ -320,42 +312,51 @@ export async function validateParcelAssignment({
         }
 
         // 6. Validate slot-level capacity (parcels in the same time slot)
-        const slotStartUTC = new Date(newTimeslot.startTime);
-        const slotEndUTC = new Date(newTimeslot.endTime);
+        // Only validate if location has a slot limit configured (null = no limit)
+        // Use default only when undefined (shouldn't happen with schema default, but safe fallback)
+        const maxParcelsPerSlot =
+            location.maxParcelsPerSlot === undefined
+                ? DEFAULT_MAX_PARCELS_PER_SLOT
+                : location.maxParcelsPerSlot;
 
-        const [{ slotCount }] = await dbInstance
-            .select({ slotCount: sql<number>`count(*)` })
-            .from(foodParcels)
-            .where(
-                and(
-                    eq(foodParcels.pickup_location_id, newLocationId),
-                    // Check for overlapping time slots using UTC comparisons
-                    lt(foodParcels.pickup_date_time_earliest, slotEndUTC),
-                    gt(foodParcels.pickup_date_time_latest, slotStartUTC),
-                    ne(foodParcels.id, parcelId), // Exclude current parcel
-                    notDeleted(),
-                ),
-            )
-            .execute();
+        if (maxParcelsPerSlot !== null) {
+            const slotStartUTC = new Date(newTimeslot.startTime);
+            const slotEndUTC = new Date(newTimeslot.endTime);
 
-        // Allow up to MAX_PARCELS_PER_SLOT parcels per time slot
-        if (slotCount >= MAX_PARCELS_PER_SLOT) {
-            const startTimeStr = Time.fromDate(newTimeslot.startTime).toTimeString();
-            errors.push({
-                field: "timeSlot",
-                code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
-                message: `Maximum capacity (${MAX_PARCELS_PER_SLOT}) reached for this time slot`,
-                details: {
-                    current: slotCount,
-                    maximum: MAX_PARCELS_PER_SLOT,
-                    date:
-                        typeof newDate === "string"
-                            ? newDate
-                            : new Date(newDate).toISOString().split("T")[0],
-                    locationId: newLocationId,
-                    timeSlot: startTimeStr,
-                } as CapacityValidationDetails,
-            });
+            const [{ slotCount }] = await dbInstance
+                .select({ slotCount: sql<number>`count(*)` })
+                .from(foodParcels)
+                .where(
+                    and(
+                        eq(foodParcels.pickup_location_id, newLocationId),
+                        // Check for overlapping time slots using UTC comparisons
+                        lt(foodParcels.pickup_date_time_earliest, slotEndUTC),
+                        gt(foodParcels.pickup_date_time_latest, slotStartUTC),
+                        ne(foodParcels.id, parcelId), // Exclude current parcel
+                        notDeleted(),
+                    ),
+                )
+                .execute();
+
+            // Allow up to maxParcelsPerSlot parcels per time slot
+            if (slotCount >= maxParcelsPerSlot) {
+                const startTimeStr = Time.fromDate(newTimeslot.startTime).toTimeString();
+                errors.push({
+                    field: "timeSlot",
+                    code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
+                    message: `Maximum capacity (${maxParcelsPerSlot}) reached for this time slot`,
+                    details: {
+                        current: slotCount,
+                        maximum: maxParcelsPerSlot,
+                        date:
+                            typeof newDate === "string"
+                                ? newDate
+                                : new Date(newDate).toISOString().split("T")[0],
+                        locationId: newLocationId,
+                        timeSlot: startTimeStr,
+                    } as CapacityValidationDetails,
+                });
+            }
         }
 
         return {

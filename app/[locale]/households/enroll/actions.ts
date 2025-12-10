@@ -240,7 +240,7 @@ export const enrollHousehold = protectedAction(
                         pickupEndTime: parcel.pickupLatestTime,
                     }));
 
-                    const validationResult = await validateParcelAssignments(parcelsToValidate);
+                    const validationResult = await validateParcelAssignments(parcelsToValidate, tx);
 
                     if (!validationResult.success) {
                         // Throw to trigger transaction rollback
