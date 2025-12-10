@@ -96,7 +96,8 @@ interface WeeklyScheduleGridProps {
     weekDates: Date[];
     foodParcels: FoodParcel[];
     maxParcelsPerDay: number;
-    maxParcelsPerSlot?: number;
+    /** Maximum parcels per slot. null = no limit, undefined = use default (3) */
+    maxParcelsPerSlot?: number | null;
     onParcelRescheduled: () => void;
     locationId?: string | null;
     onOpenAdminDialog?: (parcelId: string) => void;
@@ -106,11 +107,13 @@ export default function WeeklyScheduleGrid({
     weekDates,
     foodParcels,
     maxParcelsPerDay,
-    maxParcelsPerSlot = 3,
+    maxParcelsPerSlot,
     onParcelRescheduled,
     locationId,
     onOpenAdminDialog,
 }: WeeklyScheduleGridProps) {
+    // null = no limit (from database), undefined = use default of 3
+    const effectiveMaxParcelsPerSlot = maxParcelsPerSlot === null ? null : (maxParcelsPerSlot ?? 3);
     const t = useTranslations("schedule") as TranslationFunction;
 
     // State to store the location's slot duration
@@ -1094,10 +1097,11 @@ export default function WeeklyScheduleGrid({
                                                         const parcelsInSlot =
                                                             parcelsBySlot[dateKey]?.[timeSlot] ||
                                                             [];
+                                                        // null = no limit, so never over capacity
                                                         const isOverCapacity =
-                                                            maxParcelsPerSlot !== undefined &&
+                                                            effectiveMaxParcelsPerSlot !== null &&
                                                             parcelsInSlot.length >
-                                                                maxParcelsPerSlot;
+                                                                effectiveMaxParcelsPerSlot;
 
                                                         // Check if this specific time slot is unavailable
                                                         const isSlotUnavailable =
@@ -1153,7 +1157,7 @@ export default function WeeklyScheduleGrid({
                                                                         }),
                                                                     )}
                                                                     maxParcelsPerSlot={
-                                                                        maxParcelsPerSlot || 3
+                                                                        effectiveMaxParcelsPerSlot
                                                                     }
                                                                     isOverCapacity={isOverCapacity}
                                                                     dayIndex={dayIndex}

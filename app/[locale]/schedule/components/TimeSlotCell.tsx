@@ -18,7 +18,8 @@ interface TimeSlotCellProps {
               [key: string]: unknown;
           }
     )[];
-    maxParcelsPerSlot: number;
+    /** Maximum parcels per slot. null = no limit */
+    maxParcelsPerSlot: number | null;
     isOverCapacity?: boolean;
     dayIndex?: number;
     isUnavailable?: boolean;
@@ -56,7 +57,8 @@ function TimeSlotCell({
         if (isPast || isUnavailable) return "gray.2";
         if (isOver) return "blue.1"; // Slightly more noticeable drop zone
         if (isOverCapacity) return "red.0";
-        if (parcels.length >= maxParcelsPerSlot * 0.75) return "yellow.0";
+        // null = no limit, so never show approaching-capacity warning
+        if (maxParcelsPerSlot !== null && parcels.length >= maxParcelsPerSlot * 0.75) return "yellow.0";
         return "white";
     }, [isPast, isUnavailable, isOver, isOverCapacity, parcels.length, maxParcelsPerSlot]);
 

@@ -229,9 +229,10 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
     }, [currentLocation]);
 
     // Helper function to get max parcels per slot
-    const getMaxParcelsPerSlot = useCallback(() => {
-        // Return the location's configured value, or undefined if not set (no limit)
-        return currentLocation?.maxParcelsPerSlot ?? undefined;
+    // Returns null for "no limit" (distinguishes from "use default")
+    const getMaxParcelsPerSlot = useCallback((): number | null => {
+        // Return null explicitly when no limit is set (database has null)
+        return currentLocation?.maxParcelsPerSlot ?? null;
     }, [currentLocation]);
 
     if (isLoadingLocation) {

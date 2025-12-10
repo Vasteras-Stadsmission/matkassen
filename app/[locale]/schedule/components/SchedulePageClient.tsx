@@ -341,12 +341,14 @@ function SchedulePageContent({
     };
 
     // Get max parcels per slot for the selected location
-    const getMaxParcelsPerSlot = (): number | undefined => {
+    // Returns null for "no limit", undefined when no location selected
+    const getMaxParcelsPerSlot = (): number | null | undefined => {
         if (!selectedLocationId) return undefined;
 
         const location = locations.find(loc => loc.id === selectedLocationId);
-        // Return the location's configured value, or undefined if not set (no limit)
-        return location?.maxParcelsPerSlot ?? undefined;
+        // Return null explicitly when no limit is set (database has null)
+        // This distinguishes "no limit" from "use default"
+        return location?.maxParcelsPerSlot ?? null;
     };
 
     return (

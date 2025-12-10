@@ -23,7 +23,8 @@ interface TimeSlotCellProps {
     date: Date;
     time: string;
     parcels: FoodParcel[];
-    maxParcelsPerSlot: number;
+    /** Maximum parcels per slot. null = no limit */
+    maxParcelsPerSlot: number | null;
     isOverCapacity?: boolean;
     dayIndex?: number;
 }
@@ -51,7 +52,8 @@ const TimeSlotCell = ({
         if (isPast) return "gray.2"; // Grey out past time slots
         if (isOver) return "blue.0";
         if (isOverCapacity) return "red.0";
-        if (parcels.length >= maxParcelsPerSlot * 0.75) return "yellow.0";
+        // null = no limit, so never show approaching-capacity warning
+        if (maxParcelsPerSlot !== null && parcels.length >= maxParcelsPerSlot * 0.75) return "yellow.0";
         return "white";
     };
 
@@ -208,5 +210,48 @@ describe("TimeSlotCell Component", () => {
         const style = paper?.style;
         expect(style?.opacity).toBe("0.7");
         expect(style?.cursor).toBe("not-allowed");
+    });
+
+    it("does not show capacity warning when maxParcelsPerSlot is null (no limit)", () => {
+        // Create many parcels that would normally exceed any limit
+        const mockParcels = Array(10)
+            .fill(0)
+            .map((_, i) => createMockParcel(`${i}`, new Date(mockDateStr), mockTime));
+
+        const { container } = renderWithProviders(
+            <TimeSlotCell
+                date={new Date(mockDateStr)}
+                time={mockTime}
+                parcels={mockParcels}
+                maxParcelsPerSlot={null} // null = no limit
+            />,
+        );
+
+        const paper = queryByTestId(container, "paper");
+        expect(paper).toBeTruthy();
+        // Should be white (no warning) even with 10 parcels, because null means no limit
+        expect(paper?.getAttribute("data-bg")).toBe("white");
+    });
+
+    it("shows over capacity warning with explicit limit even with many parcels", () => {
+        // Contrast test: with a limit set, 10 parcels should show over capacity
+        const mockParcels = Array(10)
+            .fill(0)
+            .map((_, i) => createMockParcel(`${i}`, new Date(mockDateStr), mockTime));
+
+        const { container } = renderWithProviders(
+            <TimeSlotCell
+                date={new Date(mockDateStr)}
+                time={mockTime}
+                parcels={mockParcels}
+                maxParcelsPerSlot={4} // explicit limit of 4
+                isOverCapacity={true} // would be set by parent when over capacity
+            />,
+        );
+
+        const paper = queryByTestId(container, "paper");
+        expect(paper).toBeTruthy();
+        // Should be red because isOverCapacity is true
+        expect(paper?.getAttribute("data-bg")).toBe("red.0");
     });
 });
