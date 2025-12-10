@@ -53,7 +53,8 @@ const TimeSlotCell = ({
         if (isOver) return "blue.0";
         if (isOverCapacity) return "red.0";
         // null = no limit, so never show approaching-capacity warning
-        if (maxParcelsPerSlot !== null && parcels.length >= maxParcelsPerSlot * 0.75) return "yellow.0";
+        if (maxParcelsPerSlot !== null && parcels.length >= maxParcelsPerSlot * 0.75)
+            return "yellow.0";
         return "white";
     };
 
