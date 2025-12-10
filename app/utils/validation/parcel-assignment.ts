@@ -17,11 +17,10 @@
  */
 
 import { and, eq, sql, between, ne, lt, gt } from "drizzle-orm";
-import { type PgTransaction } from "drizzle-orm/pg-core";
-import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
+import { type DbOrTransaction } from "@/app/db/types";
 import { Time } from "@/app/utils/time-provider";
 import { logError } from "@/app/utils/logger";
 
@@ -78,14 +77,6 @@ export const ValidationErrorCodes = {
 } as const;
 
 export type ValidationErrorCode = (typeof ValidationErrorCodes)[keyof typeof ValidationErrorCodes];
-
-/**
- * Type alias for Drizzle database or transaction
- * Uses a generic type that's compatible with both the main db instance and transaction objects.
- * The 'any' types here are intentional to allow flexibility while still maintaining the core interface.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DbOrTransaction = PgTransaction<PostgresJsQueryResultHKT, any, any> | typeof db;
 
 interface ParcelAssignmentParams {
     parcelId: string;

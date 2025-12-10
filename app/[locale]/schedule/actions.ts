@@ -1,8 +1,6 @@
 "use server";
 
 import { and, eq, gte, lte, sql, between, ne, gt } from "drizzle-orm";
-import { type PgTransaction } from "drizzle-orm/pg-core";
-import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "@/app/db/drizzle";
 import {
     households,
@@ -24,6 +22,7 @@ import { success, failure, type ActionResult } from "@/app/utils/auth/action-res
 import { logError } from "@/app/utils/logger";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
 
+import { type DbOrTransaction } from "@/app/db/types";
 // Import types for use within this server action file
 import type {
     FoodParcel,
@@ -33,10 +32,6 @@ import type {
     DayInfo,
     TimeSlotGridData,
 } from "./types";
-
-// Type alias for Drizzle database or transaction
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DbOrTransaction = PgTransaction<PostgresJsQueryResultHKT, any, any> | typeof db;
 
 /**
  * Get a specific parcel by ID, regardless of date
