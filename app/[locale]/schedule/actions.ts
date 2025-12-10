@@ -92,6 +92,7 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
                 name: pickupLocations.name,
                 street_address: pickupLocations.street_address,
                 maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 outsideHoursCount: pickupLocations.outside_hours_count,
             })
             .from(pickupLocations);

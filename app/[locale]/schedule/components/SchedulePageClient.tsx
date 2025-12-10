@@ -35,8 +35,6 @@ import { getISOWeekNumber, getWeekDates } from "../../../utils/date-utils";
 import { useTranslations } from "next-intl";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 
-const DEFAULT_MAX_PARCELS_PER_SLOT = 4;
-
 // This component safely accesses search params inside a Suspense boundary
 function SearchParamsHandler() {
     const searchParams = useSearchParams();
@@ -342,6 +340,15 @@ function SchedulePageContent({
         return location?.maxParcelsPerDay || Infinity;
     };
 
+    // Get max parcels per slot for the selected location
+    const getMaxParcelsPerSlot = (): number | undefined => {
+        if (!selectedLocationId) return undefined;
+
+        const location = locations.find(loc => loc.id === selectedLocationId);
+        // Return the location's configured value, or undefined if not set (no limit)
+        return location?.maxParcelsPerSlot ?? undefined;
+    };
+
     return (
         <Container fluid p="md">
             <Stack gap="sm">
@@ -484,7 +491,7 @@ function SchedulePageContent({
                             weekDates={weekDates}
                             foodParcels={foodParcels}
                             maxParcelsPerDay={getMaxParcelsPerDay()}
-                            maxParcelsPerSlot={DEFAULT_MAX_PARCELS_PER_SLOT}
+                            maxParcelsPerSlot={getMaxParcelsPerSlot()}
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={selectedLocationId}
                         />

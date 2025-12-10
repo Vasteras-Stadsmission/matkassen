@@ -78,15 +78,15 @@ export function LocationForm({
             },
             default_slot_duration_minutes: value => {
                 const numValue = Number(value);
-                if (numValue <= 0) return "Slot duration must be positive";
-                if (numValue > 240) return "Slot duration cannot exceed 4 hours (240 minutes)";
-                if (numValue % 15 !== 0) return "Slot duration must be in 15-minute increments";
+                if (numValue <= 0) return t("slotDurationPositive");
+                if (numValue > 240) return t("slotDurationMaxExceeded");
+                if (numValue % 15 !== 0) return t("slotDurationIncrement");
                 return null;
             },
             max_parcels_per_slot: value => {
                 if (value === null || value === undefined) return null;
                 const numValue = Number(value);
-                if (numValue <= 0) return "Max parcels per slot must be positive";
+                if (numValue <= 0) return t("maxParcelsPerSlotPositive");
                 return null;
             },
         },
