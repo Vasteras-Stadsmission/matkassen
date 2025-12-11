@@ -87,14 +87,14 @@ importers:
         specifier: ^5.1.5
         version: 5.1.5
       next:
-        specifier: 15.4.8
-        version: 15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2)
+        specifier: 15.4.9
+        version: 15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2)
       next-auth:
         specifier: 5.0.0-beta.29
-        version: 5.0.0-beta.29(next@15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2)
+        version: 5.0.0-beta.29(next@15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2)
       next-intl:
         specifier: ^4.3.1
-        version: 4.3.1(next@15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2)(typescript@5.8.3)
+        version: 4.3.1(next@15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2)(typescript@5.8.3)
       node-cron:
         specifier: ^4.2.1
         version: 4.2.1
@@ -1173,8 +1173,8 @@ packages:
   '@napi-rs/wasm-runtime@0.2.11':
     resolution: {integrity: sha512-9DPkXtvHydrcOsopiYpUgPHpmj0HWZKMUnL2dZqpvC42lsratuBG06V5ipyno0fUek5VlFsNQ+AcFATSrJXgMA==}
 
-  '@next/env@15.4.8':
-    resolution: {integrity: sha512-LydLa2MDI1NMrOFSkO54mTc8iIHSttj6R6dthITky9ylXV2gCGi0bHQjVCtLGRshdRPjyh2kXbxJukDtBWQZtQ==}
+  '@next/env@15.4.9':
+    resolution: {integrity: sha512-OYR0RulK5phnbxxzcLE4/ECgfx1PL3EHrDbjyelJ7jauaO+/Qvj5gG8JPMltB51CygC2KrZ0aAfYLjPYjYY17A==}
 
   '@next/eslint-plugin-next@15.1.5':
     resolution: {integrity: sha512-3cCrXBybsqe94UxD6DBQCYCCiP9YohBMgZ5IzzPYHmPzj8oqNlhBii5b6o1HDDaRHdz2pVnSsAROCtrczy8O0g==}
@@ -2982,8 +2982,8 @@ packages:
       typescript:
         optional: true
 
-  next@15.4.8:
-    resolution: {integrity: sha512-jwOXTz/bo0Pvlf20FSb6VXVeWRssA2vbvq9SdrOPEg9x8E1B27C2rQtvriAn600o9hH61kjrVRexEffv3JybuA==}
+  next@15.4.9:
+    resolution: {integrity: sha512-/NedNmbiH4Umt/7SohT9VKxEdBt02Lj33xHrukE7d8Li6juT+75sEq4a4U06jggrvdbklKgr78OZEyWZ8XRrtw==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
     hasBin: true
     peerDependencies:
@@ -4840,7 +4840,7 @@ snapshots:
       '@tybys/wasm-util': 0.9.0
     optional: true
 
-  '@next/env@15.4.8': {}
+  '@next/env@15.4.9': {}
 
   '@next/eslint-plugin-next@15.1.5':
     dependencies:
@@ -6298,7 +6298,7 @@ snapshots:
       '@petamoriken/float16': 3.9.2
       debug: 4.4.1
       env-paths: 3.0.0
-      semver: 7.7.2
+      semver: 7.7.3
       shell-quote: 1.8.3
       which: 4.0.0
     transitivePeerDependencies:
@@ -6764,25 +6764,25 @@ snapshots:
 
   negotiator@1.0.0: {}
 
-  next-auth@5.0.0-beta.29(next@15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2):
+  next-auth@5.0.0-beta.29(next@15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2):
     dependencies:
       '@auth/core': 0.40.0
-      next: 15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2)
+      next: 15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2)
       react: 19.1.2
 
-  next-intl@4.3.1(next@15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2)(typescript@5.8.3):
+  next-intl@4.3.1(next@15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(react@19.1.2)(typescript@5.8.3):
     dependencies:
       '@formatjs/intl-localematcher': 0.5.10
       negotiator: 1.0.0
-      next: 15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2)
+      next: 15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2)
       react: 19.1.2
       use-intl: 4.3.1(react@19.1.2)
     optionalDependencies:
       typescript: 5.8.3
 
-  next@15.4.8(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2):
+  next@15.4.9(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.56.0)(react-dom@19.1.2(react@19.1.2))(react@19.1.2):
     dependencies:
-      '@next/env': 15.4.8
+      '@next/env': 15.4.9
       '@swc/helpers': 0.5.15
       caniuse-lite: 1.0.30001759
       postcss: 8.4.31
