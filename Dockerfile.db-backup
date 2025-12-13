@@ -4,6 +4,11 @@ LABEL org.opencontainers.image.source=https://github.com/Vasteras-Stadsmission/m
 
 ENV TZ=Europe/Stockholm
 
+# Install supercronic for non-root cron jobs
+# supercronic is specifically designed for containers and doesn't require root
+ARG SUPERCRONIC_VERSION=v0.2.33
+ARG SUPERCRONIC_SHA256=71b0d58cc53f6bd72f4f9c2e3e6159a8ad42454b59b9e1e87f022e62162fa97f
+
 RUN apk add --no-cache \
       postgresql17-client \
       rclone \
@@ -20,13 +25,26 @@ RUN apk add --no-cache \
       gnupg \
   && update-ca-certificates \
   && pip3 install --no-cache-dir --break-system-packages python-swiftclient python-keystoneclient \
-  && apk del gcc python3-dev musl-dev linux-headers
+  && apk del gcc python3-dev musl-dev linux-headers \
+  && curl -fsSLO "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64" \
+  && echo "${SUPERCRONIC_SHA256}  supercronic-linux-amd64" | sha256sum -c - \
+  && chmod +x supercronic-linux-amd64 \
+  && mv supercronic-linux-amd64 /usr/local/bin/supercronic
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 backup && \
+    adduser --system --uid 1001 --ingroup backup backupuser
 
 # Copy backup scripts
 COPY scripts/backup-db.sh /usr/local/bin/backup-db.sh
 
-RUN chmod +x /usr/local/bin/backup-db.sh \
-  && echo '0 2 * * * /usr/local/bin/backup-db.sh' > /etc/crontabs/root \
-  && chmod 600 /etc/crontabs/root
+# Create crontab file for supercronic
+RUN chmod +x /usr/local/bin/backup-db.sh && \
+    mkdir -p /etc/supercronic && \
+    echo '0 2 * * * /usr/local/bin/backup-db.sh' > /etc/supercronic/crontab && \
+    chown -R backupuser:backup /etc/supercronic
 
-CMD ["/bin/sh", "-lc", "/usr/sbin/crond -f -l 8 -L /dev/stdout"]
+# Switch to non-root user
+USER backupuser
+
+CMD ["supercronic", "/etc/supercronic/crontab"]

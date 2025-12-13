@@ -36,14 +36,16 @@ services:
                 condition: service_healthy
         networks:
             - my_network
-        command:
-            [
-                "/bin/sh",
-                "-lc",
-                "chmod 600 /etc/crontabs/root && /usr/sbin/crond -f -l 8 -L /dev/stdout",
-            ]
+        # Security hardening
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
+        read_only: true
+        tmpfs:
+            - /tmp:noexec,nosuid,size=100m
         healthcheck:
-            test: ["CMD", "pgrep", "crond"]
+            test: ["CMD", "pgrep", "supercronic"]
             interval: 60s
             timeout: 10s
             retries: 3

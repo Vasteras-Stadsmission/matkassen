@@ -139,7 +139,8 @@ export async function GET(request: NextRequest) {
 
         try {
             // Simple disk space check: try to write a small temp file
-            const tempFile = join(process.cwd(), "temp_health_check.txt");
+            // Use /tmp which is mounted as tmpfs (writable even with read-only root filesystem)
+            const tempFile = join("/tmp", "health_check_" + Date.now() + ".txt");
             const testData = "health_check_" + Date.now();
 
             await fs.writeFile(tempFile, testData);
