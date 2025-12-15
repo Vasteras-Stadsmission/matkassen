@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -37,7 +37,7 @@ describe("Encrypted Database Backup Scripts", () => {
     // Check if gpg is available
     const hasGpg = (() => {
         try {
-            execSync("which gpg", { stdio: "ignore" });
+            execFileSync("which", ["gpg"], { stdio: "ignore" });
             return true;
         } catch {
             return false;
@@ -82,7 +82,7 @@ describe("Encrypted Database Backup Scripts", () => {
         delete (env as any).DB_BACKUP_PASSPHRASE;
 
         expect(() => {
-            execSync(backupScript, {
+            execFileSync(backupScript, [], {
                 env,
                 stdio: "pipe",
                 encoding: "utf-8",
@@ -113,7 +113,7 @@ describe("Encrypted Database Backup Scripts", () => {
         };
 
         try {
-            execSync(backupScript, {
+            execFileSync(backupScript, [], {
                 env,
                 stdio: "pipe",
                 encoding: "utf-8",
@@ -176,7 +176,7 @@ describe("Encrypted Database Backup Scripts", () => {
         };
 
         try {
-            execSync(`${restoreScript} ${backupFile} --force`, {
+            execFileSync(restoreScript, [backupFile, "--force"], {
                 env,
                 stdio: "pipe",
                 encoding: "utf-8",
@@ -215,7 +215,7 @@ describe("Encrypted Database Backup Scripts", () => {
         };
 
         expect(() => {
-            execSync(`${restoreScript} ${backupFile}`, {
+            execFileSync(restoreScript, [backupFile], {
                 env,
                 stdio: "pipe",
                 encoding: "utf-8",
@@ -251,7 +251,7 @@ describe("Encrypted Database Backup Scripts", () => {
 
         // Restore should fail due to checksum mismatch
         expect(() => {
-            execSync(`${restoreScript} ${backupFile} --force`, {
+            execFileSync(restoreScript, [backupFile, "--force"], {
                 env,
                 stdio: "pipe",
                 encoding: "utf-8",
