@@ -24,6 +24,14 @@ services:
                 condition: service_healthy
         networks:
             - my_network
+        # Security hardening - mitigates container escape vulnerabilities
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
+        read_only: true
+        tmpfs:
+            - /tmp:noexec,nosuid,size=100m
         healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
             interval: 30s
