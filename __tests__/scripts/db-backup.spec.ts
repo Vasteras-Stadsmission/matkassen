@@ -37,7 +37,7 @@ describe("Encrypted Database Backup Scripts", () => {
     // Check if gpg is available
     const hasGpg = (() => {
         try {
-            execSync("which gpg", { stdio: "ignore" });
+            execFileSync("which", ["gpg"], { stdio: "ignore" });
             return true;
         } catch {
             return false;
