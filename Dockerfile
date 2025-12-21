@@ -45,7 +45,9 @@ RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 # Create non-root user for security
 # Running as non-root mitigates container escape vulnerabilities (CVE-2025-55183, CVE-2025-55184)
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 --ingroup nodejs nextjs
+    adduser --system --uid 1001 --ingroup nodejs nextjs && \
+    mkdir -p /home/nextjs/.cache/node/corepack && \
+    chown -R nextjs:nodejs /home/nextjs
 
 # Auth.js requirements
 ENV PORT=3000
