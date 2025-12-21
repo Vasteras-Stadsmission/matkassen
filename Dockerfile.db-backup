@@ -6,8 +6,8 @@ ENV TZ=Europe/Stockholm
 
 # Install supercronic for non-root cron jobs
 # supercronic is specifically designed for containers and doesn't require root
-ARG SUPERCRONIC_VERSION=v0.2.33
-ARG SUPERCRONIC_SHA256=71b0d58cc53f6bd72f4f9c2e3e6159a8ad42454b59b9e1e87f022e62162fa97f
+ARG SUPERCRONIC_VERSION=v0.2.41
+ARG SUPERCRONIC_SHA256=798d0f6cf11cb74109b6408c50b1222cdd7678e8e70895dcfa9c2701b4bd03d5
 
 RUN apk add --no-cache \
       postgresql17-client \
