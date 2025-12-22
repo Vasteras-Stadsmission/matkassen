@@ -260,6 +260,20 @@
       "when": 1765317579866,
       "tag": "0036_add_max_parcels_per_slot",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1766400000000,
+      "tag": "0037_add_privacy_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1766400000001,
+      "tag": "0038_seed_privacy_policy",
+      "breakpoints": true
     }
   ]
 }

@@ -81,6 +81,7 @@ interface PublicMessages {
         pickupWindowFormat: string;
         dateFormat: Intl.DateTimeFormatOptions;
         timeFormat: Intl.DateTimeFormatOptions;
+        privacyPolicy?: string;
     };
 }
 
@@ -429,6 +430,19 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
                                 </Stack>
                             </Paper>
                         )}
+
+                        {/* Privacy Policy Link */}
+                        <Group justify="flex-end">
+                            <Text
+                                component="a"
+                                href={`/privacy?lang=${locale}`}
+                                size="sm"
+                                c="dimmed"
+                                td="underline"
+                            >
+                                {messages.publicParcel.privacyPolicy ?? "Privacy Policy"}
+                            </Text>
+                        </Group>
                     </Stack>
                 </Stack>
             </div>

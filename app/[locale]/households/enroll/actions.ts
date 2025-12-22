@@ -34,6 +34,9 @@ import {
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePostalCode } from "@/app/utils/validation/household-validation";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
+import { createSmsRecord } from "@/app/utils/sms/sms-service";
+import { formatEnrolmentSms } from "@/app/utils/sms/templates";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
 
 import {
     HouseholdCreateData,
@@ -307,12 +310,40 @@ export const enrollHousehold = protectedAction(
                 }
             }
 
+            // Send enrollment SMS if consent was given
+            if (data.smsConsent && data.headOfHousehold.phoneNumber) {
+                try {
+                    const locale = (data.headOfHousehold.locale || "sv") as SupportedLocale;
+                    const smsText = formatEnrolmentSms(locale);
+                    const phoneE164 = normalizePhoneToE164(data.headOfHousehold.phoneNumber);
+
+                    await createSmsRecord({
+                        intent: "enrolment",
+                        householdId: result.householdId,
+                        toE164: phoneE164,
+                        text: smsText,
+                    });
+
+                    logger.debug(
+                        { householdId: result.householdId },
+                        "Enrollment SMS queued",
+                    );
+                } catch (e) {
+                    logError("Failed to queue enrollment SMS", e, {
+                        householdId: result.householdId,
+                        action: "enrollHousehold",
+                    });
+                    // Non-fatal: Household was created successfully, SMS is best-effort
+                }
+            }
+
             // Audit log with IDs only (no PII)
             logger.info(
                 {
                     householdId: result.householdId,
                     locationId: data.foodParcels?.pickupLocationId,
                     parcelCount: data.foodParcels?.parcels?.length || 0,
+                    smsQueued: data.smsConsent,
                 },
                 "Household enrolled",
             );

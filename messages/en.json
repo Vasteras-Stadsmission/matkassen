@@ -130,6 +130,8 @@
         "phoneNumber": "Phone Number",
         "phoneDescription": "Swedish phone numbers only",
         "enterPhoneNumber": "Enter phone number",
+        "smsConsent": "Household consents to SMS contact",
+        "smsConsentDescription": "Required to send pickup reminders and updates",
         "postalCode": "Postal Code",
         "language": "Language",
         "selectLanguage": "Select language",
@@ -608,7 +610,8 @@
             "phoneDuplicateWithInfo": "This phone number belongs to: {name} - {phone} (ID: {id})",
             "postalCodeFormat": "Postal code must be 5 digits",
             "pickupLocation": "Select a pickup location",
-            "verificationIncomplete": "All required verifications must be checked before proceeding"
+            "verificationIncomplete": "All required verifications must be checked before proceeding",
+            "smsConsentRequired": "SMS consent is required to proceed"
         },
         "similarNameDialog": {
             "title": "Similar Household Found",
@@ -651,6 +654,14 @@
             "message": "This household has no upcoming food parcels. Would you like to add some now?",
             "addNow": "Add Parcels Now",
             "later": "Add Later"
+        },
+        "privacyConfirm": {
+            "title": "Privacy Policy Confirmation",
+            "message": "Before completing the enrollment, please confirm that you have informed the household about how their personal data will be processed.",
+            "checkbox": "I have informed the household about the privacy policy",
+            "viewPolicy": "View privacy policy",
+            "cancel": "Cancel",
+            "confirm": "Complete Enrollment"
         }
     },
     "buttons": {
@@ -1028,7 +1039,8 @@
                 "pickup_reminder": "Reminder",
                 "pickup_updated": "Update",
                 "pickup_cancelled": "Cancelled",
-                "consent_enrolment": "Consent"
+                "consent_enrolment": "Consent",
+                "enrolment": "Enrolment"
             },
             "dateGroups": {
                 "today": "TODAY",
@@ -1159,6 +1171,30 @@
                     "REORDER_FAILED": "Failed to reorder checklist items",
                     "UNKNOWN": "An unexpected error occurred"
                 }
+            }
+        },
+        "privacyPolicy": {
+            "title": "Privacy Policy",
+            "description": "Edit the privacy policy shown to households. The policy is available at /privacy",
+            "viewPublicPage": "View Public Page",
+            "markdownHint": "Use Markdown formatting for headers, lists, and emphasis.",
+            "markdownExamples": "Examples: # Header, ## Subheader, - List item, **bold**, *italic*",
+            "placeholder": "Enter the privacy policy content here...",
+            "preview": "Preview",
+            "lastUpdated": "updated {date}",
+            "lastUpdatedFull": "Last updated: {date}",
+            "buttons": {
+                "edit": "Edit",
+                "preview": "Preview",
+                "save": "Save"
+            },
+            "notifications": {
+                "success": "Success",
+                "error": "Error",
+                "saved": "Privacy policy saved",
+                "loadError": "Failed to load privacy policy",
+                "saveError": "Failed to save privacy policy",
+                "emptyContent": "Privacy policy content cannot be empty"
             }
         },
         "parcelThreshold": {

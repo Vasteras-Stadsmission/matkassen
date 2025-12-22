@@ -3,8 +3,8 @@
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
-import { verificationQuestions } from "@/app/db/schema";
-import { eq, and, asc, max, sql, inArray } from "drizzle-orm";
+import { verificationQuestions, privacyPolicies } from "@/app/db/schema";
+import { eq, and, asc, max, sql, inArray, desc } from "drizzle-orm";
 import { nanoid } from "@/app/db/schema";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
@@ -261,6 +261,114 @@ export const reorderVerificationQuestions = protectedAction(
             return failure({
                 code: "REORDER_FAILED",
                 message: "Failed to reorder verification questions",
+            });
+        }
+    },
+);
+
+// ============================================================================
+// Privacy Policy Actions
+// ============================================================================
+
+export interface PrivacyPolicy {
+    language: string;
+    content: string;
+    created_at: Date;
+    created_by: string | null;
+}
+
+/**
+ * Get the latest privacy policy for a specific language
+ */
+export const getPrivacyPolicy = protectedAction(
+    async (session, language: string): Promise<ActionResult<PrivacyPolicy | null>> => {
+        try {
+            const [policy] = await db
+                .select()
+                .from(privacyPolicies)
+                .where(eq(privacyPolicies.language, language))
+                .orderBy(desc(privacyPolicies.created_at))
+                .limit(1);
+
+            return success(policy || null);
+        } catch (error) {
+            logError("Error fetching privacy policy", error);
+            return failure({
+                code: "FETCH_FAILED",
+                message: "Failed to fetch privacy policy",
+            });
+        }
+    },
+);
+
+/**
+ * Get the latest privacy policies for all languages
+ */
+export const getAllPrivacyPolicies = protectedAction(
+    async (): Promise<ActionResult<PrivacyPolicy[]>> => {
+        try {
+            // Get the latest policy for each language using a subquery
+            const policies = await db.execute(sql`
+                SELECT DISTINCT ON (language) language, content, created_at, created_by
+                FROM privacy_policies
+                ORDER BY language, created_at DESC
+            `);
+
+            return success(policies as unknown as PrivacyPolicy[]);
+        } catch (error) {
+            logError("Error fetching all privacy policies", error);
+            return failure({
+                code: "FETCH_FAILED",
+                message: "Failed to fetch privacy policies",
+            });
+        }
+    },
+);
+
+export interface SavePrivacyPolicyData {
+    language: string;
+    content: string;
+}
+
+/**
+ * Save a privacy policy (creates a new version)
+ */
+export const savePrivacyPolicy = protectedAction(
+    async (session, data: SavePrivacyPolicyData): Promise<ActionResult<PrivacyPolicy>> => {
+        try {
+            if (!data.language?.trim()) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Language is required",
+                });
+            }
+
+            if (!data.content?.trim()) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Content is required",
+                });
+            }
+
+            const [newPolicy] = await db
+                .insert(privacyPolicies)
+                .values({
+                    language: data.language.trim(),
+                    content: data.content.trim(),
+                    created_by: session.user.username,
+                })
+                .returning();
+
+            // Revalidate the public privacy page
+            revalidatePath("/privacy", "page");
+            revalidateSettingsPage();
+
+            return success(newPolicy);
+        } catch (error) {
+            logError("Error saving privacy policy", error);
+            return failure({
+                code: "SAVE_FAILED",
+                message: "Failed to save privacy policy",
             });
         }
     },

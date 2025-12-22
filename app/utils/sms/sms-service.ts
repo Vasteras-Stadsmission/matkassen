@@ -21,7 +21,8 @@ export type SmsIntent =
     | "pickup_reminder"
     | "pickup_updated"
     | "pickup_cancelled"
-    | "consent_enrolment";
+    | "consent_enrolment" // Deprecated: use 'enrolment' instead
+    | "enrolment";
 export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
 // Advisory lock key for SMS queue processing

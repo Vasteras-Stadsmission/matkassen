@@ -20,6 +20,7 @@ export default function EnrollHouseholdPage() {
                     postalCode: formData.household.postal_code,
                     locale: formData.household.locale,
                 },
+                smsConsent: formData.household.sms_consent,
                 members: formData.members.map(member => ({
                     firstName: member.age.toString(), // Placeholder, real data would have firstName
                     lastName: "", // Placeholder, real data would have lastName

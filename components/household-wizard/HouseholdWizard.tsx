@@ -16,6 +16,7 @@ import {
     Box,
     Modal,
     Stack,
+    Checkbox,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -182,6 +183,10 @@ export function HouseholdWizard({
     );
     const [retryTrigger, setRetryTrigger] = useState(0);
 
+    // Privacy policy confirmation state (only for create mode)
+    const [showPrivacyConfirm, setShowPrivacyConfirm] = useState(false);
+    const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
+
     // AbortController to prevent race conditions
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -198,6 +203,7 @@ export function HouseholdWizard({
                 phone_number: "",
                 locale: locale,
                 postal_code: "",
+                sms_consent: false,
             },
             members: [],
             dietaryRestrictions: [],
@@ -227,7 +233,7 @@ export function HouseholdWizard({
         // Check if we need to validate the current step
         if (active === 0) {
             // Validate household step
-            const { first_name, last_name, phone_number, postal_code } = formData.household;
+            const { first_name, last_name, phone_number, postal_code, sms_consent } = formData.household;
 
             // Check first name
             if (!first_name || first_name.trim().length < 2) {
@@ -283,6 +289,16 @@ export function HouseholdWizard({
                     openError();
                     return;
                 }
+            }
+
+            // Check SMS consent
+            if (!sms_consent) {
+                setValidationError({
+                    field: "sms_consent",
+                    message: t("validation.smsConsentRequired"),
+                });
+                openError();
+                return;
             }
 
             // Do an immediate duplicate check (don't rely on debounced result)
@@ -457,6 +473,12 @@ export function HouseholdWizard({
 
     const handleSubmit = async () => {
         if (!onSubmit || isSubmitting) return;
+
+        // Show privacy policy confirmation dialog before final submit (only in create mode)
+        if (mode === "create" && !privacyConfirmed) {
+            setShowPrivacyConfirm(true);
+            return;
+        }
 
         // Defense-in-depth: Verify all required verification questions are checked before submit
         if (mode === "create" && hasVerificationQuestions) {
@@ -906,6 +928,55 @@ export function HouseholdWizard({
                             }}
                         >
                             {t("addParcels.addNow")}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            {/* Modal for privacy policy confirmation before final submit */}
+            <Modal
+                opened={showPrivacyConfirm}
+                onClose={() => setShowPrivacyConfirm(false)}
+                title={t("privacyConfirm.title")}
+                centered
+            >
+                <Stack gap="md">
+                    <Text>{t("privacyConfirm.message")}</Text>
+                    <Checkbox
+                        label={t("privacyConfirm.checkbox")}
+                        checked={privacyConfirmed}
+                        onChange={e => setPrivacyConfirmed(e.currentTarget.checked)}
+                    />
+                    <Text size="sm" c="dimmed">
+                        <a
+                            href="/privacy"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "var(--mantine-color-blue-6)" }}
+                        >
+                            {t("privacyConfirm.viewPolicy")}
+                        </a>
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowPrivacyConfirm(false);
+                                setPrivacyConfirmed(false);
+                            }}
+                        >
+                            {t("privacyConfirm.cancel")}
+                        </Button>
+                        <Button
+                            color="green"
+                            disabled={!privacyConfirmed}
+                            onClick={() => {
+                                setShowPrivacyConfirm(false);
+                                // Now continue with submit
+                                handleSubmit();
+                            }}
+                        >
+                            {t("privacyConfirm.confirm")}
                         </Button>
                     </Group>
                 </Stack>

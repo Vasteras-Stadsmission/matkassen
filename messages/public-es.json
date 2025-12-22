@@ -34,7 +34,8 @@
             "hour": "2-digit",
             "minute": "2-digit",
             "hour12": false
-        }
+        },
+        "privacyPolicy": "Privacy Policy"
     },
     "qr": {
         "scanQrCode": "Escanear código QR"
