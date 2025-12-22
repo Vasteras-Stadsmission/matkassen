@@ -67,8 +67,12 @@ COPY --from=deps-prod --chown=nextjs:nodejs /app/node_modules ./node_modules
 # Copy database health check module (needed by server.js)
 COPY --from=builder --chown=nextjs:nodejs /app/app/db/health-check.js ./app/db/health-check.js
 
+# Copy entrypoint script that runs migrations on startup
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+
 # Switch to non-root user
 USER nextjs
 
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["./docker-entrypoint.sh"]
