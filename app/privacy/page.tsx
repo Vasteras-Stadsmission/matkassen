@@ -19,6 +19,7 @@ interface PrivacyPageProps {
 }
 
 // UI strings for privacy page - keyed by language code
+// All 21 supported languages with proper translations
 const UI_STRINGS: Record<
     string,
     { title: string; lastUpdated: string; noPolicy: string; fallbackNotice: string }
@@ -56,6 +57,117 @@ const UI_STRINGS: Record<
         noPolicy: `Hîn siyaseta nepenîtiyê nehatiye danîn. Ji bo bêtir agahdarî bi ${BRAND_NAME} re têkilî daynin.`,
         fallbackNotice:
             "Ev siyaset bi Swêdî tê xuyang kirin ji ber ku bi zimanê we yê bijartî tune ye.",
+    },
+    es: {
+        title: "Política de Privacidad",
+        lastUpdated: "Última actualización",
+        noPolicy: `Aún no se ha configurado una política de privacidad. Contacta con ${BRAND_NAME} para más información.`,
+        fallbackNotice:
+            "Esta política se muestra en sueco porque no está disponible en tu idioma seleccionado.",
+    },
+    fr: {
+        title: "Politique de Confidentialité",
+        lastUpdated: "Dernière mise à jour",
+        noPolicy: `Aucune politique de confidentialité n'a encore été configurée. Contactez ${BRAND_NAME} pour plus d'informations.`,
+        fallbackNotice:
+            "Cette politique est affichée en suédois car elle n'est pas disponible dans votre langue.",
+    },
+    de: {
+        title: "Datenschutzerklärung",
+        lastUpdated: "Zuletzt aktualisiert",
+        noPolicy: `Es wurde noch keine Datenschutzerklärung konfiguriert. Kontaktieren Sie ${BRAND_NAME} für weitere Informationen.`,
+        fallbackNotice:
+            "Diese Richtlinie wird auf Schwedisch angezeigt, da sie in Ihrer Sprache nicht verfügbar ist.",
+    },
+    el: {
+        title: "Πολιτική Απορρήτου",
+        lastUpdated: "Τελευταία ενημέρωση",
+        noPolicy: `Δεν έχει διαμορφωθεί ακόμη πολιτική απορρήτου. Επικοινωνήστε με ${BRAND_NAME} για περισσότερες πληροφορίες.`,
+        fallbackNotice:
+            "Αυτή η πολιτική εμφανίζεται στα σουηδικά επειδή δεν είναι διαθέσιμη στη γλώσσα σας.",
+    },
+    sw: {
+        title: "Sera ya Faragha",
+        lastUpdated: "Imesasishwa mwisho",
+        noPolicy: `Sera ya faragha bado haijawekwa. Wasiliana na ${BRAND_NAME} kwa maelezo zaidi.`,
+        fallbackNotice: "Sera hii inaonyeshwa kwa Kiswidi kwa sababu haipatikani kwa lugha yako.",
+    },
+    so: {
+        title: "Siyaasadda Arrimaha Gaarka ah",
+        lastUpdated: "Markii ugu dambeysay la cusboonaysiiyay",
+        noPolicy: `Siyaasadda arrimaha gaarka ah weli lama habeynin. La xiriir ${BRAND_NAME} si aad u hesho macluumaad dheeraad ah.`,
+        fallbackNotice:
+            "Siyaasaddani waxay ku muuqataa Iswiidhish maxaa yeelay laguma heli karo luqaddaada.",
+    },
+    so_so: {
+        title: "Siyaasadda Arrimaha Gaarka ah",
+        lastUpdated: "Markii ugu dambeysay la cusboonaysiiyay",
+        noPolicy: `Siyaasadda arrimaha gaarka ah weli lama habeynin. La xiriir ${BRAND_NAME} si aad u hesho macluumaad dheeraad ah.`,
+        fallbackNotice:
+            "Siyaasaddani waxay ku muuqataa Iswiidhish maxaa yeelay laguma heli karo luqaddaada.",
+    },
+    uk: {
+        title: "Політика конфіденційності",
+        lastUpdated: "Останнє оновлення",
+        noPolicy: `Політику конфіденційності ще не налаштовано. Зверніться до ${BRAND_NAME} для отримання додаткової інформації.`,
+        fallbackNotice:
+            "Ця політика відображається шведською мовою, оскільки вона недоступна вашою мовою.",
+    },
+    ru: {
+        title: "Политика конфиденциальности",
+        lastUpdated: "Последнее обновление",
+        noPolicy: `Политика конфиденциальности еще не настроена. Свяжитесь с ${BRAND_NAME} для получения дополнительной информации.`,
+        fallbackNotice:
+            "Эта политика отображается на шведском языке, так как она недоступна на вашем языке.",
+    },
+    ka: {
+        title: "კონფიდენციალურობის პოლიტიკა",
+        lastUpdated: "ბოლო განახლება",
+        noPolicy: `კონფიდენციალურობის პოლიტიკა ჯერ არ არის კონფიგურირებული. დაუკავშირდით ${BRAND_NAME}-ს მეტი ინფორმაციისთვის.`,
+        fallbackNotice:
+            "ეს პოლიტიკა ნაჩვენებია შვედურად, რადგან თქვენს ენაზე არ არის ხელმისაწვდომი.",
+    },
+    fi: {
+        title: "Tietosuojakäytäntö",
+        lastUpdated: "Viimeksi päivitetty",
+        noPolicy: `Tietosuojakäytäntöä ei ole vielä määritetty. Ota yhteyttä ${BRAND_NAME} saadaksesi lisätietoja.`,
+        fallbackNotice:
+            "Tämä käytäntö näytetään ruotsiksi, koska sitä ei ole saatavilla valitsemallasi kielellä.",
+    },
+    it: {
+        title: "Informativa sulla Privacy",
+        lastUpdated: "Ultimo aggiornamento",
+        noPolicy: `Nessuna informativa sulla privacy è stata ancora configurata. Contatta ${BRAND_NAME} per maggiori informazioni.`,
+        fallbackNotice:
+            "Questa informativa è mostrata in svedese perché non è disponibile nella tua lingua.",
+    },
+    th: {
+        title: "นโยบายความเป็นส่วนตัว",
+        lastUpdated: "อัปเดตล่าสุด",
+        noPolicy: `ยังไม่ได้กำหนดนโยบายความเป็นส่วนตัว ติดต่อ ${BRAND_NAME} สำหรับข้อมูลเพิ่มเติม`,
+        fallbackNotice: "นโยบายนี้แสดงเป็นภาษาสวีเดนเนื่องจากไม่มีในภาษาของคุณ",
+    },
+    vi: {
+        title: "Chính sách Bảo mật",
+        lastUpdated: "Cập nhật lần cuối",
+        noPolicy: `Chính sách bảo mật chưa được cấu hình. Liên hệ ${BRAND_NAME} để biết thêm thông tin.`,
+        fallbackNotice:
+            "Chính sách này được hiển thị bằng tiếng Thụy Điển vì không có sẵn bằng ngôn ngữ của bạn.",
+    },
+    pl: {
+        title: "Polityka Prywatności",
+        lastUpdated: "Ostatnia aktualizacja",
+        noPolicy: `Polityka prywatności nie została jeszcze skonfigurowana. Skontaktuj się z ${BRAND_NAME} po więcej informacji.`,
+        fallbackNotice:
+            "Ta polityka jest wyświetlana po szwedzku, ponieważ nie jest dostępna w Twoim języku.",
+    },
+    // Armenian uses English fallback (consistent with SMS templates)
+    hy: {
+        title: "Privacy Policy",
+        lastUpdated: "Last updated",
+        noPolicy: `No privacy policy has been configured yet. Contact ${BRAND_NAME} for more information.`,
+        fallbackNotice:
+            "This policy is shown in Swedish as it is not available in your selected language.",
     },
 };
 
