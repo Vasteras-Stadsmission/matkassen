@@ -39,9 +39,6 @@ WORKDIR /app
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-# Ensure pnpm is available in the final stage
-RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
-
 # Create non-root user for security
 # Running as non-root mitigates container escape vulnerabilities (CVE-2025-55183, CVE-2025-55184)
 RUN addgroup --system --gid 1001 nodejs && \
@@ -73,6 +70,11 @@ RUN chmod +x docker-entrypoint.sh
 
 # Switch to non-root user
 USER nextjs
+
+# Prepare pnpm cache as nextjs user (must be after USER nextjs)
+# Running as root would cache in root's home, inaccessible at runtime
+# Note: corepack enable already done in base image, only prepare needed here
+RUN corepack prepare pnpm@10.12.1 --activate
 
 EXPOSE 3000
 CMD ["./docker-entrypoint.sh"]
