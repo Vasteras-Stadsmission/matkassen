@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Container,
     Title,
@@ -21,41 +21,21 @@ import {
 } from "@mantine/core";
 import { IconExternalLink, IconInfoCircle, IconPlus, IconX } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getAllPrivacyPolicies, savePrivacyPolicy, type PrivacyPolicy } from "../actions";
 import { markdownToHtml } from "@/app/utils/markdown-to-html";
-
-interface LanguageOption {
-    value: string;
-    label: string;
-}
-
-// All public languages supported by the system (from public-*.json files)
-const ALL_LANGUAGES: LanguageOption[] = [
-    { value: "ar", label: "العربية (Arabic)" },
-    { value: "de", label: "Deutsch (German)" },
-    { value: "el", label: "Ελληνικά (Greek)" },
-    { value: "en", label: "English" },
-    { value: "es", label: "Español (Spanish)" },
-    { value: "fa", label: "فارسی (Persian)" },
-    { value: "fi", label: "Suomi (Finnish)" },
-    { value: "fr", label: "Français (French)" },
-    { value: "hy", label: "Armenian" },
-    { value: "it", label: "Italiano (Italian)" },
-    { value: "ka", label: "ქართული (Georgian)" },
-    { value: "ku", label: "Kurdî (Kurdish)" },
-    { value: "pl", label: "Polski (Polish)" },
-    { value: "ru", label: "Русский (Russian)" },
-    { value: "so", label: "Soomaali (Somali)" },
-    { value: "sv", label: "Svenska (Swedish)" },
-    { value: "sw", label: "Kiswahili (Swahili)" },
-    { value: "th", label: "ไทย (Thai)" },
-    { value: "uk", label: "Українська (Ukrainian)" },
-    { value: "vi", label: "Tiếng Việt (Vietnamese)" },
-];
+import { getLanguageSelectOptions, type LanguageMapping } from "@/app/constants/languages";
 
 export function PrivacyPolicyEditor() {
     const t = useTranslations("settings.privacyPolicy");
+    const locale = useLocale();
+
+    // Get all supported languages from centralized constants
+    // This ensures consistency with the rest of the app (includes so_so, etc.)
+    const allLanguages: LanguageMapping[] = useMemo(
+        () => getLanguageSelectOptions(locale),
+        [locale],
+    );
 
     const [activeLanguages, setActiveLanguages] = useState<string[]>(["sv"]);
     const [activeTab, setActiveTab] = useState<string>("sv");
@@ -142,10 +122,10 @@ export function PrivacyPolicyEditor() {
         }
     };
 
-    const availableLanguages = ALL_LANGUAGES.filter(lang => !activeLanguages.includes(lang.value));
+    const availableLanguages = allLanguages.filter(lang => !activeLanguages.includes(lang.value));
 
     const getLanguageLabel = (code: string) => {
-        const lang = ALL_LANGUAGES.find(l => l.value === code);
+        const lang = allLanguages.find(l => l.value === code);
         return lang?.label || code.toUpperCase();
     };
 
