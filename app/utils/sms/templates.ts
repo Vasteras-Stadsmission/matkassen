@@ -441,7 +441,7 @@ export function formatEnrolmentSms(locale: SupportedLocale): string {
         case "pl":
             return `Witamy w ${BRAND_NAME}! Info: ${privacyUrl}`;
         case "hy":
-            return `Welcome ${BRAND_NAME}! Info: ${privacyUrl}`;
+            return `Welcome to ${BRAND_NAME}! Info: ${privacyUrl}`;
         default:
             return `Welcome to ${BRAND_NAME}! Info: ${privacyUrl}`;
     }
