@@ -61,7 +61,7 @@ describe("markdownToHtml XSS Protection", () => {
     });
 
     it("should escape HTML in bold text", () => {
-        const maliciousInput = '**<img src=x onerror=alert(1)>**';
+        const maliciousInput = "**<img src=x onerror=alert(1)>**";
         const result = markdownToHtml(maliciousInput);
 
         expect(result).not.toContain("<img");
@@ -80,7 +80,7 @@ describe("markdownToHtml XSS Protection", () => {
         // The markdown link regex has trouble with parentheses inside URLs
         // This is a known limitation but not a security issue since the link
         // is still escaped and browsers block javascript: URLs by default
-        const maliciousInput = '[Click me](javascript:alert(1))';
+        const maliciousInput = "[Click me](javascript:alert(1))";
         const result = markdownToHtml(maliciousInput);
 
         // The regex splits on the first ) so the URL is malformed
