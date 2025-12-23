@@ -355,7 +355,7 @@ export const savePrivacyPolicy = protectedAction(
                 .values({
                     language: data.language.trim(),
                     content: data.content.trim(),
-                    created_by: session.user.username,
+                    created_by: session.user?.githubUsername ?? null,
                 })
                 .returning();
 

@@ -225,6 +225,7 @@ async function getHouseholdEditData(householdId: string) {
             phone_number: household.phone_number,
             locale: household.locale,
             postal_code: household.postal_code,
+            sms_consent: household.sms_consent,
         },
         members: members.map(member => ({
             id: member.id,

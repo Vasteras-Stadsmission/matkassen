@@ -1183,6 +1183,8 @@
             "preview": "Preview",
             "lastUpdated": "updated {date}",
             "lastUpdatedFull": "Last updated: {date}",
+            "saved": "Saved",
+            "addLanguage": "Add language...",
             "buttons": {
                 "edit": "Edit",
                 "preview": "Preview",
@@ -1194,7 +1196,8 @@
                 "saved": "Privacy policy saved",
                 "loadError": "Failed to load privacy policy",
                 "saveError": "Failed to save privacy policy",
-                "emptyContent": "Privacy policy content cannot be empty"
+                "emptyContent": "Privacy policy content cannot be empty",
+                "cannotRemoveSaved": "Cannot remove a language with saved content"
             }
         },
         "parcelThreshold": {

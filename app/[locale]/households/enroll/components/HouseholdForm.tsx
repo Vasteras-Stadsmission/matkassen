@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";
-import { TextInput, SimpleGrid, Title, Text, Card, Box, Select, Checkbox, Stack } from "@mantine/core";
+import {
+    TextInput,
+    SimpleGrid,
+    Title,
+    Text,
+    Card,
+    Box,
+    Select,
+    Checkbox,
+    Stack,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
 import { Household } from "../types";

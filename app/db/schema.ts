@@ -51,6 +51,7 @@ export const households = pgTable(
         phone_number: varchar("phone_number", { length: 20 }).notNull(), // E.164 format (e.g., +46701234567), unique per active household
         locale: varchar("locale", { length: 2 }).notNull(),
         postal_code: varchar("postal_code", { length: 5 }),
+        sms_consent: boolean("sms_consent").default(false).notNull(), // Whether household consented to receive SMS notifications
         anonymized_at: timestamp({ precision: 1, withTimezone: true }), // Timestamp when household was anonymized (NULL = active)
         anonymized_by: varchar("anonymized_by", { length: 50 }), // GitHub username of admin who anonymized
     },

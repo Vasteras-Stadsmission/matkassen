@@ -324,10 +324,7 @@ export const enrollHousehold = protectedAction(
                         text: smsText,
                     });
 
-                    logger.debug(
-                        { householdId: result.householdId },
-                        "Enrollment SMS queued",
-                    );
+                    logger.debug({ householdId: result.householdId }, "Enrollment SMS queued");
                 } catch (e) {
                     logError("Failed to queue enrollment SMS", e, {
                         householdId: result.householdId,

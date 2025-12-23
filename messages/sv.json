@@ -1183,6 +1183,8 @@
             "preview": "Förhandsgranskning",
             "lastUpdated": "uppdaterad {date}",
             "lastUpdatedFull": "Senast uppdaterad: {date}",
+            "saved": "Sparad",
+            "addLanguage": "Lägg till språk...",
             "buttons": {
                 "edit": "Redigera",
                 "preview": "Förhandsgranska",
@@ -1194,7 +1196,8 @@
                 "saved": "Integritetspolicyn har sparats",
                 "loadError": "Kunde inte ladda integritetspolicyn",
                 "saveError": "Kunde inte spara integritetspolicyn",
-                "emptyContent": "Integritetspolicyn kan inte vara tom"
+                "emptyContent": "Integritetspolicyn kan inte vara tom",
+                "cannotRemoveSaved": "Kan inte ta bort ett språk med sparat innehåll"
             }
         },
         "parcelThreshold": {
