@@ -29,6 +29,7 @@ services:
             - "3000:3000" # Expose to host like production
         environment:
             - NODE_ENV=production # Production mode
+            - RUN_MIGRATIONS_ON_STARTUP=true # Auto-run migrations for local dev
             - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
             - HOSTNAME=0.0.0.0
             - PORT=3000
