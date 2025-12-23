@@ -1,4 +1,5 @@
 import { getPublicPrivacyPolicy } from "@/app/utils/public-privacy-policy";
+import { markdownToHtml } from "@/app/utils/markdown-to-html";
 import { BRAND_NAME } from "@/app/config/branding";
 import {
     Paper,
@@ -12,48 +13,6 @@ import {
 
 interface PrivacyPageProps {
     searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}
-
-// Simple markdown to HTML converter
-// Supports: headers, bold, italic, lists, links, paragraphs
-function markdownToHtml(markdown: string): string {
-    if (!markdown) return "";
-
-    let html = markdown
-        // Escape HTML
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        // Headers
-        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-        // Bold and italic
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g, "<em>$1</em>")
-        // Links
-        .replace(
-            /\[(.+?)\]\((.+?)\)/g,
-            '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
-        )
-        // Unordered lists
-        .replace(/^- (.+)$/gm, "<li>$1</li>")
-        // Paragraphs (double newlines)
-        .replace(/\n\n/g, "</p><p>")
-        // Single newlines within paragraphs
-        .replace(/\n/g, "<br>");
-
-    // Wrap list items in ul
-    html = html.replace(/(<li>[\s\S]*?<\/li>)+/g, "<ul>$&</ul>");
-    // Clean up multiple ul tags
-    html = html.replace(/<\/ul><ul>/g, "");
-
-    // Wrap in paragraph if not already wrapped
-    if (!html.startsWith("<h") && !html.startsWith("<ul")) {
-        html = `<p>${html}</p>`;
-    }
-
-    return html;
 }
 
 export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
