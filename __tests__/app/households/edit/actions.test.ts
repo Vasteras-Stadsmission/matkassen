@@ -37,7 +37,6 @@ describe("Household Edit Actions", () => {
             phone_number: "0701234567",
             locale: "sv",
             postal_code: "12345",
-            sms_consent: true,
         },
         members: [],
         dietaryRestrictions: [],

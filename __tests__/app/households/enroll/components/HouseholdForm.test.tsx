@@ -195,7 +195,6 @@ describe("HouseholdForm Component", () => {
             phone_number: "0701234567",
             postal_code: "12345",
             locale: "sv",
-            sms_consent: true,
         };
 
         // Create a local formValues variable to track changes
@@ -237,7 +236,6 @@ describe("HouseholdForm Component", () => {
             phone_number: "0701234567",
             postal_code: "12345",
             locale: "sv",
-            sms_consent: true,
         };
 
         // Create a local formValues variable to track changes

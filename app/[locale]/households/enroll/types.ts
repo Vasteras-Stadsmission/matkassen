@@ -6,7 +6,7 @@ export interface Household {
     phone_number: string;
     locale: string;
     postal_code?: string | null;
-    sms_consent: boolean;
+    sms_consent?: boolean; // UI-only field for form validation, not stored in database
 }
 
 export interface HouseholdMember {

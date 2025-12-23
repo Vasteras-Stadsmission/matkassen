@@ -267,13 +267,6 @@
       "when": 1766484866771,
       "tag": "0037_real_naoko",
       "breakpoints": true
-    },
-    {
-      "idx": 38,
-      "version": "7",
-      "when": 1766501405902,
-      "tag": "0038_giant_mephisto",
-      "breakpoints": true
     }
   ]
 }

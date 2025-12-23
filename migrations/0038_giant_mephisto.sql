@@ -1,1 +1,0 @@
-ALTER TABLE "households" ADD COLUMN "sms_consent" boolean DEFAULT false NOT NULL;
