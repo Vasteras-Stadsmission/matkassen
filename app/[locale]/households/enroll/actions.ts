@@ -83,8 +83,6 @@ export const enrollHousehold = protectedAction(
                     await tx.insert(householdMembers).values(
                         data.members.map((member: HouseholdMemberData) => ({
                             household_id: household.id,
-                            first_name: member.firstName,
-                            last_name: member.lastName,
                             age: member.age,
                             sex: member.sex as "male" | "female" | "other",
                         })),

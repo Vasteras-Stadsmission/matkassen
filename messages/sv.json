@@ -140,7 +140,8 @@
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
             "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
-            "postalCodeFormat": "Postnummer måste bestå av 5 siffror"
+            "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
+            "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll"
         },
         "duplicatePhone": {
             "title": "Telefonnumret finns redan",

@@ -102,12 +102,17 @@ async function enqueueReminderSms(): Promise<number> {
                 parcel.locale as SupportedLocale,
             );
 
+            // Schedule SMS to be sent 48h before pickup
+            // If pickup is sooner than 48h, SMS will be sent on next scheduler run
+            const scheduledSendTime = new Date(parcel.pickupDate.getTime() - 48 * 60 * 60 * 1000);
+
             await createSmsRecord({
                 intent: "pickup_reminder",
                 parcelId: parcel.parcelId,
                 householdId: parcel.householdId,
                 toE164: parcel.phone,
                 text: smsText,
+                nextAttemptAt: scheduledSendTime,
             });
 
             enqueuedCount++;
@@ -280,6 +285,18 @@ export function startScheduler(): void {
             logError("Error in SMS enqueue loop", error);
         }
     }, SMS_ENQUEUE_INTERVAL_MS);
+
+    // Run enqueue immediately on first startup (don't wait 30 min for first interval)
+    if (isFirstStartup) {
+        setImmediate(async () => {
+            try {
+                logger.info("Running initial SMS enqueue on startup");
+                await enqueueReminderSms();
+            } catch (error) {
+                logError("Error in initial SMS enqueue", error);
+            }
+        });
+    }
 
     // Start SMS send loop (kept separate for backward compatibility)
     schedulerState.smsSendInterval = setInterval(async () => {
@@ -521,6 +538,50 @@ export async function triggerSmsEnqueue(): Promise<{
     try {
         const count = await enqueueReminderSms();
         return { success: true, count };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+        };
+    }
+}
+
+/**
+ * Manual trigger for SMS queue processing (for testing/admin)
+ * Processes pending SMS messages in the queue
+ */
+export async function triggerSmsProcessQueue(): Promise<{
+    success: boolean;
+    processedCount?: number;
+    lockAcquired?: boolean;
+    error?: string;
+}> {
+    try {
+        const result = await processSendQueueWithLock(async () => {
+            const records = await getSmsRecordsReadyForSending(SMS_SEND_BATCH_SIZE);
+
+            let sentCount = 0;
+            for (const record of records) {
+                try {
+                    await sendSmsRecord(record);
+                    sentCount++;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (error) {
+                    logError("Failed to send SMS", error, {
+                        intent: record.intent,
+                        householdId: record.householdId,
+                        smsId: record.id,
+                    });
+                }
+            }
+            return sentCount;
+        });
+
+        return {
+            success: true,
+            processedCount: result.processed,
+            lockAcquired: result.lockAcquired,
+        };
     } catch (error) {
         return {
             success: false,

@@ -1,4 +1,7 @@
-import { getPublicPrivacyPolicy } from "@/app/utils/public-privacy-policy";
+import {
+    getPublicPrivacyPolicy,
+    getAvailablePrivacyPolicyLanguages,
+} from "@/app/utils/public-privacy-policy";
 import { markdownToHtml } from "@/app/utils/markdown-to-html";
 import { isRtlLocale, type SupportedLocale } from "@/app/utils/locale-detection";
 import { BRAND_NAME } from "@/app/config/branding";
@@ -11,8 +14,11 @@ import {
     TypographyStylesProvider,
     Container,
     Alert,
+    Group,
 } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
+import { PublicLocaleSwitcher } from "@/app/components/PublicLocaleSwitcher";
+import type { Metadata } from "next";
 
 interface PrivacyPageProps {
     searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -176,6 +182,21 @@ function getUIStrings(language: string) {
     return UI_STRINGS[language] || UI_STRINGS["en"] || UI_STRINGS["sv"];
 }
 
+// Dynamic metadata based on language
+export async function generateMetadata({ searchParams }: PrivacyPageProps): Promise<Metadata> {
+    const resolvedSearchParams = (await searchParams) ?? {};
+    const rawLang = resolvedSearchParams.lang;
+    const lang = Array.isArray(rawLang) ? rawLang[0] : rawLang;
+    const requestedLanguage = lang || "sv";
+    const ui = getUIStrings(requestedLanguage);
+
+    return {
+        title: `${BRAND_NAME} - ${ui.title}`,
+        description: "Privacy policy and data protection information",
+        robots: "noindex, nofollow",
+    };
+}
+
 export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
     const resolvedSearchParams = (await searchParams) ?? {};
     const rawLang = resolvedSearchParams.lang;
@@ -215,6 +236,14 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
         });
     };
 
+    // Language switcher options - only show languages that have a privacy policy
+    const availableLanguages = await getAvailablePrivacyPolicyLanguages();
+    const languageOptions = availableLanguages.map(value => ({
+        value,
+        label: value,
+    }));
+    const languageAriaLabel = "Choose language";
+
     return (
         <MantineProvider defaultColorScheme="light">
             <div
@@ -230,7 +259,18 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
                     <Stack gap="lg">
                         <Paper p="xl" radius="md" shadow="sm">
                             <Stack gap="lg">
-                                <Title order={1}>{ui.title}</Title>
+                                <Group justify="space-between" align="center" wrap="nowrap">
+                                    <Title order={1}>
+                                        {BRAND_NAME} - {ui.title}
+                                    </Title>
+                                    {languageOptions.length > 1 && (
+                                        <PublicLocaleSwitcher
+                                            ariaLabel={languageAriaLabel}
+                                            currentValue={requestedLanguage}
+                                            options={languageOptions}
+                                        />
+                                    )}
+                                </Group>
 
                                 {showingFallback && (
                                     <Alert

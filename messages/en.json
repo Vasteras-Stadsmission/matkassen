@@ -140,7 +140,8 @@
             "lastNameLength": "Last name must be at least 2 characters",
             "phoneNumberFormat": "Enter a valid Swedish phone number (7-10 digits)",
             "swedishNumbersOnly": "Only Swedish phone numbers (+46) are supported",
-            "postalCodeFormat": "Postal code must be 5 digits"
+            "postalCodeFormat": "Postal code must be 5 digits",
+            "phoneNumberInUse": "This phone number is already registered with another household"
         },
         "duplicatePhone": {
             "title": "Phone Number Already Exists",

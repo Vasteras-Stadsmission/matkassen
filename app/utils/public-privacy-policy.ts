@@ -14,6 +14,18 @@ export interface PublicPrivacyPolicy {
 }
 
 /**
+ * Get all languages that have a privacy policy configured
+ * Returns unique language codes
+ */
+export async function getAvailablePrivacyPolicyLanguages(): Promise<string[]> {
+    const policies = await db
+        .selectDistinct({ language: privacyPolicies.language })
+        .from(privacyPolicies);
+
+    return policies.map(p => p.language);
+}
+
+/**
  * Get the latest privacy policy for a specific language
  * Falls back to Swedish if the requested language is not found
  */

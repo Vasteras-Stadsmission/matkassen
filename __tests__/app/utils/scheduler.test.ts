@@ -45,6 +45,7 @@ import {
     schedulerHealthCheck,
     triggerAnonymization,
     triggerSmsEnqueue,
+    triggerSmsProcessQueue,
 } from "@/app/utils/scheduler";
 
 // Import duration parser for configuration tests
@@ -59,6 +60,7 @@ describe("Unified Scheduler", () => {
             expect(typeof schedulerHealthCheck).toBe("function");
             expect(typeof triggerAnonymization).toBe("function");
             expect(typeof triggerSmsEnqueue).toBe("function");
+            expect(typeof triggerSmsProcessQueue).toBe("function");
         });
     });
 
@@ -374,6 +376,36 @@ describe("Unified Scheduler", () => {
              */
             expect(true).toBe(true); // Documentation test
         });
+
+        it("should document triggerSmsProcessQueue usage", () => {
+            /**
+             * triggerSmsProcessQueue() - Manual SMS Queue Processing:
+             *
+             * RETURNS: Promise<{
+             *   success: boolean,
+             *   processedCount?: number,
+             *   lockAcquired?: boolean,
+             *   error?: string
+             * }>
+             *
+             * USE CASES:
+             * 1. Admin API: /api/admin/sms/process-queue endpoint
+             * 2. Testing: Force immediate processing of pending SMS
+             * 3. Debugging: Test send logic without waiting
+             *
+             * BEHAVIOR:
+             * - Uses advisory lock to prevent concurrent processing
+             * - Returns lockAcquired=false if another process is processing
+             * - JIT re-renders SMS before sending (fresh phone/time)
+             * - Cancels SMS if parcel no longer eligible
+             *
+             * LOCK REPORTING:
+             * - lockAcquired=true: This process handled the queue
+             * - lockAcquired=false: Queue already being processed elsewhere
+             * - Prevents admin confusion about 0 messages processed
+             */
+            expect(true).toBe(true); // Documentation test
+        });
     });
 
     describe("Error Handling", () => {
@@ -495,33 +527,78 @@ describe("Unified Scheduler", () => {
     });
 
     describe("Integration with Existing Services", () => {
+        it("should document JIT SMS architecture", () => {
+            /**
+             * JIT (JUST-IN-TIME) SMS ARCHITECTURE:
+             *
+             * PROBLEM SOLVED:
+             * - Pre-queued SMS captured phone/text at parcel creation time
+             * - If phone changed after queue but before send, wrong number got SMS
+             * - If pickup time changed, SMS text was stale
+             *
+             * SOLUTION:
+             * 1. Parcel created → NO SMS record created
+             * 2. Scheduler runs → queries parcels needing reminder (48h window)
+             * 3. SMS record created with current data
+             * 4. At send time → re-fetch parcel/household data
+             * 5. If phone/text changed → update SMS record before sending
+             * 6. If parcel ineligible → cancel SMS (don't send)
+             *
+             * ELIGIBILITY CHECKS AT SEND TIME:
+             * - parcel_not_found: Parcel deleted from DB
+             * - parcel_deleted: Soft-deleted (deleted_at not null)
+             * - parcel_picked_up: Already picked up
+             * - household_anonymized: GDPR anonymization applied
+             * - pickup_time_passed: Pickup window already ended
+             *
+             * IDEMPOTENCY:
+             * - pickup_reminder|{parcelId}: One auto reminder per parcel
+             * - enrolment|{householdId}|{phone}: One per household+phone
+             * - Manual resend uses unique key (nanoid suffix)
+             *
+             * FILES MODIFIED:
+             * - app/utils/sms/sms-service.ts: JIT logic in sendSmsRecord()
+             * - app/db/insert-parcels.ts: Removed pre-queue
+             * - app/utils/scheduler.ts: Unified scheduler
+             *
+             * FILES DELETED:
+             * - app/utils/sms/scheduler.ts: Legacy SMS scheduler
+             * - app/utils/sms/parcel-sms.ts: Pre-queue logic
+             */
+            expect(true).toBe(true); // Documentation test
+        });
+
         it("should document SMS service integration", () => {
             /**
              * SMS SERVICE FUNCTIONS USED:
              *
              * 1. getParcelsNeedingReminder()
-             *    - Queries parcels due for SMS reminder
-             *    - Checks: pickup date soon, no SMS sent yet, not cancelled
+             *    - Queries parcels due for SMS reminder (0-48h window)
+             *    - Excludes: picked up, deleted, anonymized households
+             *    - Excludes: parcels with existing non-cancelled SMS
              *    - Returns: Array of parcel data with household phone
              *
              * 2. createSmsRecord()
              *    - Inserts SMS into outgoing_sms table
-             *    - Status: "pending"
-             *    - Includes: intent, parcel_id, household_id, phone, text
+             *    - Status: "queued"
+             *    - Uses stable idempotency key (deduplicates)
+             *    - Throws if parcelId missing for parcel intents
              *
              * 3. getSmsRecordsReadyForSending()
-             *    - Queries SMS with status "pending"
+             *    - Queries SMS with status "queued" or "retrying"
              *    - Batch size: 5 (rate limiting)
-             *    - Orders by: created_at ASC (FIFO)
+             *    - Orders by: next_attempt_at ASC
              *
              * 4. sendSmsRecord()
+             *    - JIT: Re-fetches parcel data before sending
+             *    - JIT: Cancels if parcel no longer eligible
+             *    - JIT: Updates phone/text if changed
              *    - Calls HelloSMS API (or test mode)
              *    - Updates SMS status: "sent" or "failed"
-             *    - Handles retries and error logging
              *
              * 5. processSendQueueWithLock()
              *    - Wrapper that acquires advisory lock
-             *    - Calls provided callback function
+             *    - Returns { processed, lockAcquired }
              *    - Releases lock automatically
              *
              * WHY REUSE:

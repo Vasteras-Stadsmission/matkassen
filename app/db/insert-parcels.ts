@@ -1,7 +1,11 @@
-import { sql } from "drizzle-orm";
-import { foodParcels, nanoid } from "./schema";
+import { sql, eq } from "drizzle-orm";
+import { foodParcels, nanoid, households } from "./schema";
 import { db } from "./drizzle";
-import { logger } from "@/app/utils/logger";
+import { createSmsRecord } from "@/app/utils/sms/sms-service";
+import { formatPickupSms } from "@/app/utils/sms/templates";
+import { generateUrl } from "@/app/config/branding";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
+import { logger, logError } from "@/app/utils/logger";
 
 /**
  * Centralized helper for inserting food parcels with proper conflict handling.
@@ -11,10 +15,9 @@ import { logger } from "@/app/utils/logger";
  * - Soft-deleted parcels don't block the slot
  * - Concurrent inserts are idempotent (duplicates are silently skipped)
  *
- * Additionally, this function automatically creates SMS records for each new parcel:
- * - If parcel is >48 hours away: SMS scheduled for 48 hours before pickup
- * - If parcel is <48 hours away: SMS scheduled with 5-minute grace period
- * - SMS records are created even if the parcel insert is skipped due to conflict
+ * SMS records ARE created here for immediate dashboard visibility. The SMS content
+ * will be re-rendered at send time (JIT) to ensure phone numbers and pickup times
+ * are fresh. This combines immediate feedback with data accuracy.
  *
  * The onConflictDoNothing with WHERE clause properly targets the partial unique index
  * defined in migration 0022_fix-soft-delete-unique-constraint.sql:
@@ -61,22 +64,55 @@ export async function insertParcels(
         return [];
     }
 
-    // Create SMS records for the successfully inserted parcels
+    // Queue SMS for newly inserted parcels (for immediate dashboard visibility)
+    // The SMS text will be re-rendered at send time (JIT) for fresh data
     const insertedIds = new Set(insertedParcels.map(p => p.id));
-    const parcelsToQueueSms = parcelsWithIds.filter(p => insertedIds.has(p.id));
+    const parcelsToQueue = parcelsWithIds.filter(p => insertedIds.has(p.id));
 
-    if (parcelsToQueueSms.length > 0) {
-        // Import dynamically to avoid circular dependencies
-        const { queueSmsForNewParcels } = await import("@/app/utils/sms/parcel-sms");
-        await queueSmsForNewParcels(tx, parcelsToQueueSms);
-        logger.info(
-            {
-                parcelCount: parcelsToQueueSms.length,
-                parcelIds: insertedParcels.map(p => p.id),
-            },
-            "SMS queued for new parcels",
-        );
+    for (const parcel of parcelsToQueue) {
+        try {
+            // Fetch household data for SMS
+            const [household] = await tx
+                .select({
+                    phoneNumber: households.phone_number,
+                    locale: households.locale,
+                })
+                .from(households)
+                .where(eq(households.id, parcel.household_id))
+                .limit(1);
+
+            if (!household) continue;
+
+            const publicUrl = generateUrl(`/p/${parcel.id}`);
+            const smsText = formatPickupSms(
+                { pickupDate: parcel.pickup_date_time_earliest, publicUrl },
+                household.locale as SupportedLocale,
+            );
+
+            // Schedule SMS to be sent 48h before pickup
+            // If pickup is sooner than 48h, SMS will be sent on next scheduler run
+            const scheduledSendTime = new Date(
+                parcel.pickup_date_time_earliest.getTime() - 48 * 60 * 60 * 1000,
+            );
+
+            await createSmsRecord({
+                intent: "pickup_reminder",
+                parcelId: parcel.id,
+                householdId: parcel.household_id,
+                toE164: household.phoneNumber,
+                text: smsText,
+                nextAttemptAt: scheduledSendTime,
+            });
+        } catch (error) {
+            // Non-fatal: log but continue with other parcels
+            logError("Failed to queue SMS for parcel", error, { parcelId: parcel.id });
+        }
     }
+
+    logger.info(
+        { parcelCount: insertedParcels.length, parcelIds: insertedParcels.map(p => p.id) },
+        "Parcels inserted with SMS queued",
+    );
 
     return insertedParcels.map(p => p.id);
 }

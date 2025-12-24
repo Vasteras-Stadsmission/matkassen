@@ -6,14 +6,15 @@ import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
-import { eq, and, lte, sql, gte } from "drizzle-orm";
+import { eq, and, lte, sql, gt } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
+import { formatPickupSms } from "./templates";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
-// Note: normalizePhoneToE164 available but not used in this service layer
-// Individual functions handle normalization as needed
+import { generateUrl } from "@/app/config/branding";
 import { nanoid } from "nanoid";
 import { logger, logError } from "@/app/utils/logger";
 
@@ -109,12 +110,41 @@ type DbSmsRecord = InferSelectModel<typeof outgoingSms>;
 
 /**
  * Generate idempotency key for SMS deduplication
- * Based on parcelId, intent, and scheduled time (rounded to hour)
+ *
+ * Stable keys ensure:
+ * - One automatic reminder per parcel (deduplicates within scheduling window)
+ * - One enrollment SMS per household + phone combination
+ * - One cancellation SMS per parcel
+ *
+ * For manual resends, callers should provide a unique idempotencyKey.
+ *
+ * IMPORTANT: Cancelled SMS behavior
+ * If an SMS is cancelled (e.g., JIT found pickup passed), the stable key remains
+ * in the database. If the same parcel becomes eligible again, createSmsRecord()
+ * will return the existing cancelled record ID (won't create a new one).
+ * This is intentional - cancelled reminders should stay cancelled.
+ * For manual re-sending after cancellation, use action="resend" which generates
+ * a unique key.
  */
 function generateIdempotencyKey(data: CreateSmsData): string {
-    const scheduledHour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
-    const parts = [data.parcelId || "no-parcel", data.intent, data.householdId, scheduledHour];
-    return parts.join("|");
+    switch (data.intent) {
+        case "pickup_reminder":
+        case "pickup_cancelled":
+        case "pickup_updated":
+            // These intents require a parcelId
+            if (!data.parcelId) {
+                throw new Error(`${data.intent} SMS requires parcelId`);
+            }
+            return `${data.intent}|${data.parcelId}`;
+        case "enrolment":
+        case "consent_enrolment":
+            // One enrollment SMS per household + phone number
+            // This allows a new SMS when phone number changes
+            return `enrolment|${data.householdId}|${data.toE164}`;
+        default:
+            // Fallback for any future intents
+            return `${data.intent}|${data.householdId}|${data.parcelId || "no-parcel"}`;
+    }
 }
 
 // Create a new SMS record. Returns the ID of the queued SMS. If an SMS with the
@@ -267,8 +297,126 @@ export async function smsExistsForParcel(parcelId: string, intent: SmsIntent): P
     return existing.length > 0;
 }
 
-// Send SMS and update record (with smart retry logic)
+/**
+ * Fetch fresh parcel and household data for JIT SMS rendering
+ * Returns null if parcel doesn't exist or is no longer eligible for SMS
+ */
+async function getFreshParcelData(parcelId: string): Promise<{
+    phoneNumber: string;
+    locale: SupportedLocale;
+    pickupEarliest: Date;
+    pickupLatest: Date;
+    isDeleted: boolean;
+    isPickedUp: boolean;
+    householdAnonymized: boolean;
+} | null> {
+    const result = await db
+        .select({
+            phoneNumber: households.phone_number,
+            locale: households.locale,
+            pickupEarliest: foodParcels.pickup_date_time_earliest,
+            pickupLatest: foodParcels.pickup_date_time_latest,
+            deletedAt: foodParcels.deleted_at,
+            isPickedUp: foodParcels.is_picked_up,
+            anonymizedAt: households.anonymized_at,
+        })
+        .from(foodParcels)
+        .innerJoin(households, eq(foodParcels.household_id, households.id))
+        .where(eq(foodParcels.id, parcelId))
+        .limit(1);
+
+    if (result.length === 0) {
+        return null;
+    }
+
+    const row = result[0];
+    if (!row) {
+        return null;
+    }
+
+    return {
+        phoneNumber: row.phoneNumber,
+        locale: row.locale as SupportedLocale,
+        pickupEarliest: row.pickupEarliest,
+        pickupLatest: row.pickupLatest,
+        isDeleted: row.deletedAt !== null,
+        isPickedUp: row.isPickedUp,
+        householdAnonymized: row.anonymizedAt !== null,
+    };
+}
+
+/**
+ * Send SMS and update record (with JIT re-rendering for pickup reminders)
+ *
+ * For pickup_reminder SMS, this function re-fetches current data at send time
+ * to ensure phone numbers and pickup times are always fresh. If the parcel is
+ * no longer eligible (deleted, picked up, or household anonymized), the SMS
+ * is cancelled instead of sent.
+ */
 export async function sendSmsRecord(record: SmsRecord): Promise<void> {
+    // For pickup reminders, re-fetch and re-render at send time (JIT approach)
+    if (record.intent === "pickup_reminder" && record.parcelId) {
+        const freshData = await getFreshParcelData(record.parcelId);
+
+        // Check if parcel is no longer eligible for SMS
+        const now = Time.now().toUTC();
+        const pickupHasPassed = freshData && freshData.pickupLatest < now;
+
+        if (
+            !freshData ||
+            freshData.isDeleted ||
+            freshData.isPickedUp ||
+            freshData.householdAnonymized ||
+            pickupHasPassed
+        ) {
+            logger.info(
+                {
+                    smsId: record.id,
+                    parcelId: record.parcelId,
+                    reason: !freshData
+                        ? "parcel_not_found"
+                        : freshData.isDeleted
+                          ? "parcel_deleted"
+                          : freshData.isPickedUp
+                            ? "parcel_picked_up"
+                            : freshData.householdAnonymized
+                              ? "household_anonymized"
+                              : "pickup_time_passed",
+                },
+                "SMS cancelled - parcel no longer eligible",
+            );
+            await updateSmsStatus(record.id, "cancelled");
+            return;
+        }
+
+        // Re-render SMS with current data
+        const publicUrl = generateUrl(`/p/${record.parcelId}`);
+        const smsText = formatPickupSms(
+            { pickupDate: freshData.pickupEarliest, publicUrl },
+            freshData.locale,
+        );
+
+        // Update record with fresh data (phone number and text may have changed)
+        if (freshData.phoneNumber !== record.toE164 || smsText !== record.text) {
+            await db
+                .update(outgoingSms)
+                .set({
+                    to_e164: freshData.phoneNumber,
+                    text: smsText,
+                })
+                .where(eq(outgoingSms.id, record.id));
+
+            // Update the in-memory record for sending
+            record.toE164 = freshData.phoneNumber;
+            record.text = smsText;
+
+            logger.debug(
+                { smsId: record.id, parcelId: record.parcelId },
+                "SMS updated with fresh data at send time",
+            );
+        }
+    }
+
     // Mark as sending (attempt count will be incremented only on failure)
     await updateSmsStatus(record.id, "sending");
 
@@ -363,7 +511,23 @@ function mapDbRecordToSmsRecord(dbRecord: DbSmsRecord): SmsRecord {
     };
 }
 
-// Get parcels that need reminder SMS (48h window) - excludes parcels outside opening hours
+/**
+ * Get parcels eligible for automatic reminder SMS (backup for scheduler)
+ *
+ * Note: SMS records are primarily created at parcel insertion time (insert-parcels.ts)
+ * for immediate dashboard visibility. This function serves as a backup to catch any
+ * parcels that were missed (e.g., system was down during insertion).
+ *
+ * Criteria:
+ * - Pickup earliest time within 48h from now
+ * - Pickup latest time not yet passed (still within pickup window)
+ * - Not deleted, not picked up
+ * - Household not anonymized
+ * - No existing reminder SMS (any status blocks auto-enqueue; use manual resend)
+ *
+ * The SMS text is re-rendered at send time (JIT) to ensure phone numbers and
+ * pickup times are always fresh, regardless of when the record was created.
+ */
 export async function getParcelsNeedingReminder(): Promise<
     Array<{
         parcelId: string;
@@ -372,13 +536,15 @@ export async function getParcelsNeedingReminder(): Promise<
         phone: string;
         locale: string;
         pickupDate: Date;
+        pickupLatestDate: Date;
+        locationId: string;
         locationName: string;
         locationAddress: string;
     }>
 > {
     const now = Time.now();
-    const start = now.addMinutes(47 * 60).toUTC(); // 47 hours from now
-    const end = now.addMinutes(49 * 60).toUTC(); // 49 hours from now
+    const nowUtc = now.toUTC();
+    const reminderWindow = now.addMinutes(48 * 60).toUTC(); // 48 hours from now
 
     const parcels = await db
         .select({
@@ -401,26 +567,40 @@ export async function getParcelsNeedingReminder(): Promise<
             and(
                 eq(outgoingSms.parcel_id, foodParcels.id),
                 eq(outgoingSms.intent, "pickup_reminder"),
+                // Match ANY existing pickup_reminder (including cancelled/failed)
+                // Cancelled reminders stay cancelled; use manual resend to override
             ),
         )
         .where(
             and(
-                gte(foodParcels.pickup_date_time_earliest, start),
-                lte(foodParcels.pickup_date_time_earliest, end),
+                // Pickup earliest must be within 48h window
+                lte(foodParcels.pickup_date_time_earliest, reminderWindow),
+                // Pickup latest must not have passed (still within pickup window)
+                gt(foodParcels.pickup_date_time_latest, nowUtc),
                 eq(foodParcels.is_picked_up, false),
-                sql`${outgoingSms.id} IS NULL`, // No existing SMS
+                sql`${outgoingSms.id} IS NULL`, // No existing SMS for this parcel
+                sql`${households.anonymized_at} IS NULL`, // Household not anonymized
                 notDeleted(),
             ),
         );
 
     // Filter out parcels that are outside opening hours
+    // Cache schedules by locationId to avoid N+1 queries
+    const scheduleCache = new Map<
+        string,
+        Awaited<ReturnType<typeof fetchPickupLocationSchedules>>
+    >();
     const validParcels = [];
     let filteredCount = 0;
 
     for (const parcel of parcels) {
         try {
-            // Get location schedules for opening hours validation
-            const locationSchedules = await fetchPickupLocationSchedules(parcel.locationId);
+            // Get location schedules (cached to avoid N+1)
+            let locationSchedules = scheduleCache.get(parcel.locationId);
+            if (!locationSchedules) {
+                locationSchedules = await fetchPickupLocationSchedules(parcel.locationId);
+                scheduleCache.set(parcel.locationId, locationSchedules);
+            }
 
             if (
                 !locationSchedules ||
@@ -471,6 +651,8 @@ export async function getParcelsNeedingReminder(): Promise<
         phone: p.phone,
         locale: p.locale,
         pickupDate: p.pickupDate,
+        pickupLatestDate: p.pickupLatestDate,
+        locationId: p.locationId,
         locationName: p.locationName,
         locationAddress: p.locationAddress,
     }));

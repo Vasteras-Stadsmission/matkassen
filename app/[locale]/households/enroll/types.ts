@@ -119,8 +119,6 @@ export interface HouseholdCreateData {
 }
 
 export interface HouseholdMemberData {
-    firstName: string;
-    lastName: string;
     age: number;
     sex: string;
 }
