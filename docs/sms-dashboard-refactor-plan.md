@@ -159,11 +159,15 @@ app/[locale]/sms-failures/page.tsx
 ### What It Shows
 
 - Simple list of failed SMS from last 48 hours
+- **All intent types**: pickup_reminder, consent_enrolment, etc.
 - Each item shows:
   - Household name (link to household page)
-  - Pickup date
+  - Intent type (Pickup Reminder, Enrolment, etc.)
+  - Pickup date (for parcel SMS) or "Enrolment" (for non-parcel SMS)
   - Error message
-  - "View" button (links to household page with parcel query param)
+  - "View" button:
+    - Parcel SMS → links to household page with parcel query param
+    - Enrolment SMS → links to household page
 - No filtering, no statistics, no grouping
 - Refresh button
 
@@ -183,10 +187,21 @@ Returns:
       "id": "sms-123",
       "householdId": "hh-456",
       "householdName": "Andersson Family",
+      "intent": "pickup_reminder",
       "parcelId": "parcel-789",
       "pickupDate": "2025-01-15",
       "errorMessage": "Invalid phone number",
       "failedAt": "2025-01-13T10:30:00Z"
+    },
+    {
+      "id": "sms-456",
+      "householdId": "hh-789",
+      "householdName": "Johansson Family",
+      "intent": "consent_enrolment",
+      "parcelId": null,
+      "pickupDate": null,
+      "errorMessage": "Number no longer in service",
+      "failedAt": "2025-01-13T09:15:00Z"
     }
   ]
 }
@@ -248,7 +263,85 @@ export default async function SmsFailuresPage() {
 
 ---
 
-## Phase 5: Add SMS Badge to Household Parcel Cards
+## Phase 5: Add SMS Section to Household Page
+
+### Two Parts
+
+1. **Household-level SMS** (enrolment SMS, not tied to parcels)
+2. **Parcel-level SMS badges** (pickup reminders, on parcel cards)
+
+### Part A: Household SMS Section
+
+Add a section on the household page showing non-parcel SMS (like consent_enrolment):
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ SMS Status                                              │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Enrolment SMS              [Sent ✓]                │ │
+│ └─────────────────────────────────────────────────────┘ │
+│ or if failed:                                           │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Enrolment SMS              [Failed ✗]    [Resend]  │ │
+│ │ └─ Error: Invalid phone number                     │ │
+│ └─────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Files to Modify
+
+```
+app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx
+app/[locale]/households/actions.ts - getHouseholdDetails()
+```
+
+#### Backend Changes
+
+Modify `getHouseholdDetails()` to also fetch household-level SMS (where parcel_id is null):
+
+```sql
+SELECT * FROM outgoing_sms
+WHERE household_id = ? AND parcel_id IS NULL
+ORDER BY created_at DESC
+LIMIT 5
+```
+
+#### UI Changes
+
+Add a new section in `HouseholdDetailsPage.tsx` between household info and parcels:
+
+```tsx
+{/* Household SMS Status (enrolment, etc.) */}
+{householdSmsRecords.length > 0 && (
+  <Paper withBorder p="lg" radius="md">
+    <Title order={3} size="h4" mb="md">SMS Status</Title>
+    <Stack gap="sm">
+      {householdSmsRecords.map(sms => (
+        <Group key={sms.id} justify="space-between">
+          <Stack gap={4}>
+            <Text size="sm">{getIntentLabel(sms.intent)}</Text>
+            {sms.status === "failed" && sms.lastErrorMessage && (
+              <Text size="xs" c="red">{sms.lastErrorMessage}</Text>
+            )}
+          </Stack>
+          <Group gap="xs">
+            <Badge color={sms.status === "sent" ? "green" : sms.status === "failed" ? "red" : "blue"}>
+              {sms.status}
+            </Badge>
+            {sms.status === "failed" && (
+              <Button size="xs" variant="light" onClick={() => resendSms(sms.id)}>
+                Resend
+              </Button>
+            )}
+          </Group>
+        </Group>
+      ))}
+    </Stack>
+  </Paper>
+)}
+```
+
+### Part B: Add SMS Badge to Household Parcel Cards
 
 ### Files to Modify
 
@@ -354,16 +447,53 @@ find . -name "*.test.tsx" -o -name "*.spec.ts" | xargs grep -l "SmsDashboard\|Sm
 
 ---
 
+## Known Limitations (No HelloSMS Callback Yet)
+
+### Current State
+
+Without delivery callbacks from HelloSMS:
+- **"Sent" means "accepted by HelloSMS"**, not "delivered to recipient"
+- Real delivery failures (wrong number, phone off, number disconnected) are **silent**
+- We only catch API-level failures (invalid format, API down, rate limiting)
+
+### Implications for This Refactor
+
+| What We Can Show | What We Can't Show |
+|------------------|-------------------|
+| API accepted the SMS | SMS was delivered |
+| API rejected (bad format) | Phone was off |
+| API was down | Number disconnected |
+| Retry exhausted | Recipient blocked sender |
+
+### Recommendations
+
+1. **Consider adding a tooltip** on "Sent" badge: "Sent to provider. Delivery not confirmed."
+2. **Design for future callbacks**: Keep `status` field extensible for `delivered`, `undelivered` values
+3. **Accept the limitation**: Until callbacks are implemented, household complaints remain the main way to discover delivery issues
+
+### When Callbacks Are Implemented (Future)
+
+1. Add new statuses: `delivered`, `undelivered`
+2. Update failed SMS list to include `undelivered`
+3. Update badges: green ✓ only for `delivered`, yellow ? for `sent` (pending confirmation)
+4. Add webhook endpoint to receive HelloSMS callbacks
+
+---
+
 ## Testing Checklist
 
 After implementation, verify:
 
 - [ ] Nav badge shows nothing when no failures
 - [ ] Nav badge shows count and links to failures page when failures exist
-- [ ] Failed SMS page lists failures with correct info
-- [ ] Clicking "View" on failures page goes to household with parcel dialog open
+- [ ] Failed SMS page lists failures with correct info (both parcel and enrolment SMS)
+- [ ] Clicking "View" on failures page goes to correct location:
+  - Parcel SMS → household page with parcel dialog open
+  - Enrolment SMS → household page
+- [ ] Household page shows SMS section for enrolment SMS (when exists)
 - [ ] Household page parcel cards show SMS status badge
 - [ ] SMS status badge shows correct color (green=sent, red=failed, blue=queued)
+- [ ] Can resend failed enrolment SMS from household page
 - [ ] Clicking parcel on household page opens dialog with SMS details
 - [ ] Can resend SMS from ParcelAdminDialog
 - [ ] No broken links to old dashboard
