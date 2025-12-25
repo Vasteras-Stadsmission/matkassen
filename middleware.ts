@@ -96,7 +96,7 @@ export default async function middleware(request: NextRequest) {
     // Public pages that should bypass locale routing entirely
     const publicParcelPatterns = [
         /^\/p\/.*/, // Public parcel pages (/p/[parcelId]) - no locale prefix
-        /^\/privacy$/, // Public privacy policy page - no locale prefix
+        /^\/privacy\/?$/, // Public privacy policy page - no locale prefix (with or without trailing slash)
     ];
 
     const isPublicRoute = publicPatterns.some(pattern => pattern.test(pathname));

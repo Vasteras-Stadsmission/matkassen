@@ -32,6 +32,7 @@ interface PublicMessages {
     };
     publicPrivacy: {
         title: string;
+        description: string;
         lastUpdated: string;
         noPolicy: string;
         fallbackNotice: string;
@@ -77,6 +78,7 @@ async function loadMessages(locale: string): Promise<PublicMessages> {
                 },
                 publicPrivacy: {
                     title: "Privacy Policy",
+                    description: "Privacy policy and data protection information",
                     lastUpdated: "Last updated",
                     noPolicy: `No privacy policy has been configured yet. Contact ${BRAND_NAME} for more information.`,
                     fallbackNotice:
@@ -102,7 +104,7 @@ export async function generateMetadata({ searchParams }: PrivacyPageProps): Prom
 
     return {
         title: `${BRAND_NAME} - ${messages.publicPrivacy.title}`,
-        description: "Privacy policy and data protection information",
+        description: messages.publicPrivacy.description,
         robots: "noindex, nofollow",
     };
 }
@@ -128,6 +130,9 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
 
     // Check if the requested language is RTL (for UI layout)
     const isRtl = isRtlLocale(requestedLanguage as SupportedLocale);
+
+    // Check if the content language is RTL (for content display when showing fallback)
+    const isContentRtl = isRtlLocale(contentLanguage as SupportedLocale);
 
     // Format the date nicely using the content language
     const formatDate = (date: Date) => {
@@ -209,7 +214,7 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
                                 )}
 
                                 {policy ? (
-                                    <>
+                                    <div dir={isContentRtl ? "rtl" : "ltr"}>
                                         <TypographyStylesProvider>
                                             <div
                                                 dangerouslySetInnerHTML={{
@@ -222,7 +227,7 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
                                             {messages.publicPrivacy.lastUpdated}:{" "}
                                             {formatDate(policy.updatedAt)}
                                         </Text>
-                                    </>
+                                    </div>
                                 ) : (
                                     <Text c="dimmed">
                                         {formatNoPolicy(messages.publicPrivacy.noPolicy)}

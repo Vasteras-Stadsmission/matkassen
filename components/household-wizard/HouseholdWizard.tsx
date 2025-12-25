@@ -224,6 +224,37 @@ export function HouseholdWizard({
         }
     }, [initialData]);
 
+    // Track original phone number for edit mode (to detect changes)
+    const originalPhoneRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (
+            mode === "edit" &&
+            initialData?.household?.phone_number &&
+            originalPhoneRef.current === null
+        ) {
+            originalPhoneRef.current = initialData.household.phone_number;
+        }
+    }, [mode, initialData]);
+
+    // Auto-uncheck SMS consent when phone number changes in edit mode
+    useEffect(() => {
+        if (mode === "edit" && originalPhoneRef.current !== null) {
+            const currentPhone = formData.household.phone_number;
+            const phoneChanged = currentPhone !== originalPhoneRef.current;
+
+            // If phone changed and consent is still checked, uncheck it
+            if (phoneChanged && formData.household.sms_consent) {
+                setFormData(prev => ({
+                    ...prev,
+                    household: {
+                        ...prev.household,
+                        sms_consent: false,
+                    },
+                }));
+            }
+        }
+    }, [mode, formData.household.phone_number, formData.household.sms_consent]);
+
     // Function to handle navigation between steps with appropriate validation
     const nextStep = async () => {
         // Clear any previous validation errors
@@ -292,8 +323,15 @@ export function HouseholdWizard({
                 }
             }
 
-            // Check SMS consent
-            if (!sms_consent) {
+            // Check SMS consent:
+            // - Required for new enrollments (create mode)
+            // - Required when phone number changes in edit mode (re-consent for new number)
+            const phoneChanged =
+                mode === "edit" &&
+                originalPhoneRef.current !== null &&
+                phone_number !== originalPhoneRef.current;
+
+            if ((mode === "create" || phoneChanged) && !sms_consent) {
                 setValidationError({
                     field: "sms_consent",
                     message: t("validation.smsConsentRequired"),

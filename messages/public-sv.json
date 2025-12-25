@@ -41,6 +41,7 @@
     },
     "publicPrivacy": {
         "title": "Integritetspolicy",
+        "description": "Integritetspolicy och information om dataskydd",
         "lastUpdated": "Senast uppdaterad",
         "noPolicy": "Ingen integritetspolicy har konfigurerats ännu. Kontakta {brandName} för mer information.",
         "fallbackNotice": "Denna policy visas på svenska eftersom den inte finns tillgänglig på ditt valda språk."
