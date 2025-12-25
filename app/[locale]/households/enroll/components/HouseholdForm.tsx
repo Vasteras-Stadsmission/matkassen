@@ -60,7 +60,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
 
     // Use Mantine's useForm for proper form handling
     // Strip +46 prefix from phone for display (it's shown as a fixed prefix in the UI)
-    // Note: sms_consent is used for form validation only, not stored in database
+    // Note: sms_consent is collected here for validation and UI; persistence and audit logging of consent are handled server-side
     const form = useForm<FormValues>({
         initialValues: {
             first_name: data.first_name || "",

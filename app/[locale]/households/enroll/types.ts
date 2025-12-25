@@ -6,7 +6,7 @@ export interface Household {
     phone_number: string;
     locale: string;
     postal_code?: string | null;
-    sms_consent?: boolean; // UI-only field for form validation, not stored in database
+    sms_consent?: boolean; // UI-only field (not persisted); controls whether an enrollment SMS is queued/sent
 }
 
 export interface HouseholdMember {

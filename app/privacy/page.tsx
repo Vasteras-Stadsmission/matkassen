@@ -131,14 +131,29 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
 
     // Format the date nicely using the content language
     const formatDate = (date: Date) => {
+        // BCP 47 locale tags for all 21 supported locales
         const localeMap: Record<string, string> = {
             sv: "sv-SE",
             en: "en-GB",
             ar: "ar-SA",
             fa: "fa-IR",
-            de: "de-DE",
+            ku: "ku",
             es: "es-ES",
             fr: "fr-FR",
+            de: "de-DE",
+            el: "el-GR",
+            sw: "sw-KE",
+            so: "so-SO",
+            so_so: "so-SO",
+            uk: "uk-UA",
+            ru: "ru-RU",
+            ka: "ka-GE",
+            fi: "fi-FI",
+            it: "it-IT",
+            th: "th-TH",
+            vi: "vi-VN",
+            pl: "pl-PL",
+            hy: "hy-AM",
         };
         return date.toLocaleDateString(localeMap[contentLanguage] || "en-GB", {
             year: "numeric",

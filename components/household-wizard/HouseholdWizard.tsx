@@ -973,8 +973,10 @@ export function HouseholdWizard({
                             disabled={!privacyConfirmed}
                             onClick={() => {
                                 setShowPrivacyConfirm(false);
-                                // Now continue with submit
-                                handleSubmit();
+                                // Defer submit to next tick to avoid re-entering handleSubmit
+                                window.setTimeout(() => {
+                                    handleSubmit();
+                                }, 0);
                             }}
                         >
                             {t("privacyConfirm.confirm")}

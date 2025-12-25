@@ -153,7 +153,9 @@ function generateIdempotencyKey(data: CreateSmsData): string {
         case "pickup_updated":
             // These intents require a parcelId
             if (!data.parcelId) {
-                throw new Error(`${data.intent} SMS requires parcelId`);
+                throw new Error(
+                    `${data.intent} SMS requires parcelId (householdId: ${data.householdId})`,
+                );
             }
             return `${data.intent}|${data.parcelId}`;
         case "enrolment":
