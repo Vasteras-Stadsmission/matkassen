@@ -64,6 +64,7 @@
     },
     "publicPrivacy": {
         "title": "Chính sách Bảo mật",
+        "description": "Chính sách bảo mật và thông tin bảo vệ dữ liệu",
         "lastUpdated": "Cập nhật lần cuối",
         "noPolicy": "Chưa có chính sách bảo mật nào được cấu hình. Liên hệ {brandName} để biết thêm thông tin.",
         "fallbackNotice": "Chính sách này được hiển thị bằng tiếng Thụy Điển vì không có sẵn bằng ngôn ngữ bạn đã chọn."

@@ -64,6 +64,7 @@
     },
     "publicPrivacy": {
         "title": "Siyaasadda Arrimaha Gaarka ah",
+        "description": "Siyaasadda arrimaha gaarka ah iyo macluumaadka ilaalinta xogta",
         "lastUpdated": "Cusbooneysiintii ugu dambaysay",
         "noPolicy": "Weli lama dejin siyaasad sir ah. La xiriir {brandName} si aad u hesho macluumaad dheeraad ah.",
         "fallbackNotice": "Siyaasaddan waxaa lagu muujinayaa af Iswiidhish maxaa yeelay luqaddaada la doortay kuma jirto."

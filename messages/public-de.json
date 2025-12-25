@@ -64,6 +64,7 @@
     },
     "publicPrivacy": {
         "title": "Datenschutzerklärung",
+        "description": "Datenschutzerklärung und Datenschutzinformationen",
         "lastUpdated": "Zuletzt aktualisiert",
         "noPolicy": "Es wurde noch keine Datenschutzerklärung konfiguriert. Kontaktieren Sie {brandName} für weitere Informationen.",
         "fallbackNotice": "Diese Richtlinie wird auf Schwedisch angezeigt, da sie in Ihrer gewählten Sprache nicht verfügbar ist."

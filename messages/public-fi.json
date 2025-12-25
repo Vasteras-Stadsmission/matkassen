@@ -64,6 +64,7 @@
     },
     "publicPrivacy": {
         "title": "Tietosuojakäytäntö",
+        "description": "Tietosuojakäytäntö ja tietosuojatiedot",
         "lastUpdated": "Viimeksi päivitetty",
         "noPolicy": "Tietosuojakäytäntöä ei ole vielä määritetty. Ota yhteyttä {brandName} saadaksesi lisätietoja.",
         "fallbackNotice": "Tämä käytäntö näytetään ruotsiksi, koska se ei ole saatavilla valitsemallasi kielellä."

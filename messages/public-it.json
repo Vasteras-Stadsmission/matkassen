@@ -64,6 +64,7 @@
     },
     "publicPrivacy": {
         "title": "Informativa sulla Privacy",
+        "description": "Informativa sulla privacy e protezione dei dati",
         "lastUpdated": "Ultimo aggiornamento",
         "noPolicy": "Nessuna informativa sulla privacy è stata ancora configurata. Contatta {brandName} per maggiori informazioni.",
         "fallbackNotice": "Questa informativa è mostrata in svedese perché non è disponibile nella lingua selezionata."

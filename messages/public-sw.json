@@ -64,6 +64,7 @@
     },
     "publicPrivacy": {
         "title": "Sera ya Faragha",
+        "description": "Sera ya faragha na taarifa za ulinzi wa data",
         "lastUpdated": "Imesasishwa mwisho",
         "noPolicy": "Hakuna sera ya faragha iliyowekwa bado. Wasiliana na {brandName} kwa taarifa zaidi.",
         "fallbackNotice": "Sera hii inaonyeshwa kwa Kiswidi kwa sababu haipatikani kwa lugha uliyochagua."

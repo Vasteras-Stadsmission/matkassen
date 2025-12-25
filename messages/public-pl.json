@@ -64,6 +64,7 @@
     },
     "publicPrivacy": {
         "title": "Polityka Prywatności",
+        "description": "Polityka prywatności i informacje o ochronie danych",
         "lastUpdated": "Ostatnia aktualizacja",
         "noPolicy": "Polityka prywatności nie została jeszcze skonfigurowana. Skontaktuj się z {brandName}, aby uzyskać więcej informacji.",
         "fallbackNotice": "Ta polityka jest wyświetlana po szwedzku, ponieważ nie jest dostępna w wybranym przez Ciebie języku."
