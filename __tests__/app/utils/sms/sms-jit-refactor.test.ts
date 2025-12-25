@@ -606,55 +606,42 @@ describe("getParcelsNeedingReminder Query Logic", () => {
 });
 
 // ============================================================================
-// Lock Reporting Tests
+// API Response Format Tests
 // ============================================================================
 
-describe("Lock Reporting", () => {
+describe("API Response Format", () => {
+    /**
+     * Tests for triggerSmsJIT response format.
+     *
+     * Concurrency is handled by:
+     * - Idempotency constraint for reminders (insert fails if duplicate)
+     * - Atomic claim for queued SMS (conditional UPDATE)
+     */
     interface ProcessResult {
         processed: number;
-        lockAcquired: boolean;
     }
 
     function formatResponse(result: ProcessResult): {
         success: boolean;
         message: string;
         processedCount: number;
-        lockAcquired: boolean;
     } {
-        if (!result.lockAcquired) {
-            return {
-                success: true,
-                message: "Queue processing already in progress by another process",
-                processedCount: 0,
-                lockAcquired: false,
-            };
-        }
         return {
             success: true,
-            message: `Processed ${result.processed} SMS messages from queue`,
+            message: `Processed ${result.processed} SMS messages`,
             processedCount: result.processed,
-            lockAcquired: true,
         };
     }
 
-    it("should report when lock was acquired and messages processed", () => {
-        const response = formatResponse({ processed: 5, lockAcquired: true });
-        expect(response.lockAcquired).toBe(true);
+    it("should format response with messages processed", () => {
+        const response = formatResponse({ processed: 5 });
         expect(response.processedCount).toBe(5);
-        expect(response.message).toBe("Processed 5 SMS messages from queue");
+        expect(response.message).toBe("Processed 5 SMS messages");
     });
 
-    it("should report when lock was acquired but no messages", () => {
-        const response = formatResponse({ processed: 0, lockAcquired: true });
-        expect(response.lockAcquired).toBe(true);
+    it("should format response with no messages", () => {
+        const response = formatResponse({ processed: 0 });
         expect(response.processedCount).toBe(0);
-        expect(response.message).toBe("Processed 0 SMS messages from queue");
-    });
-
-    it("should report when lock was not acquired", () => {
-        const response = formatResponse({ processed: 0, lockAcquired: false });
-        expect(response.lockAcquired).toBe(false);
-        expect(response.processedCount).toBe(0);
-        expect(response.message).toBe("Queue processing already in progress by another process");
+        expect(response.message).toBe("Processed 0 SMS messages");
     });
 });

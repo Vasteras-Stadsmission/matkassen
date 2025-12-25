@@ -14,10 +14,7 @@ import {
     householdComments,
     users,
 } from "@/app/db/schema";
-import { eq, and, gt, ne } from "drizzle-orm";
-import { formatEnrolmentSms } from "@/app/utils/sms/templates";
-import { createSmsRecord } from "@/app/utils/sms/sms-service";
-import type { SupportedLocale } from "@/app/utils/locale-detection";
+import { eq, and, gt, ne, isNull } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
 import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
@@ -269,7 +266,7 @@ export const updateHousehold = protectedHouseholdAction(
             const phoneChanged = currentHousehold?.phone_number !== newPhoneE164;
 
             if (phoneChanged) {
-                // Check for duplicate phone numbers (exclude current household)
+                // Check for duplicate phone numbers (exclude current household and anonymized)
                 const existingWithPhone = await db
                     .select({ id: households.id })
                     .from(households)
@@ -277,6 +274,7 @@ export const updateHousehold = protectedHouseholdAction(
                         and(
                             eq(households.phone_number, newPhoneE164),
                             ne(households.id, household.id),
+                            isNull(households.anonymized_at),
                         ),
                     )
                     .limit(1);
@@ -570,29 +568,6 @@ export const updateHousehold = protectedHouseholdAction(
                     "Household updated",
                 );
             });
-
-            // After transaction: send welcome SMS to new phone number if changed
-            if (phoneChanged) {
-                try {
-                    const locale = (data.household.locale || "sv") as SupportedLocale;
-                    const smsText = formatEnrolmentSms(locale);
-                    await createSmsRecord({
-                        intent: "enrolment",
-                        householdId: household.id,
-                        toE164: newPhoneE164,
-                        text: smsText,
-                    });
-                    logger.info(
-                        { householdId: household.id },
-                        "Welcome SMS queued after phone number change",
-                    );
-                } catch (smsError) {
-                    // Non-fatal - log and continue, don't fail the update
-                    logError("Failed to queue welcome SMS after phone change", smsError, {
-                        householdId: household.id,
-                    });
-                }
-            }
 
             return success({ householdId: household.id });
         } catch (error: unknown) {

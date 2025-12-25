@@ -35,7 +35,9 @@
             "minute": "2-digit",
             "hour12": false
         },
-        "privacyPolicy": "Privacy Policy"
+        "privacyPolicy": "นโยบายความเป็นส่วนตัว",
+        "chooseLanguage": "เลือกภาษา",
+        "statusLabel": "สถานะ"
     },
     "qr": {
         "scanQrCode": "สแกน QR โค้ด"
@@ -59,5 +61,11 @@
     "maps": {
         "openInAppleMaps": "เปิดใน Apple Maps",
         "openInGoogleMaps": "เปิดใน Google Maps"
+    },
+    "publicPrivacy": {
+        "title": "นโยบายความเป็นส่วนตัว",
+        "lastUpdated": "อัปเดตล่าสุด",
+        "noPolicy": "ยังไม่ได้กำหนดนโยบายความเป็นส่วนตัว ติดต่อ {brandName} สำหรับข้อมูลเพิ่มเติม",
+        "fallbackNotice": "นโยบายนี้แสดงเป็นภาษาสวีเดนเนื่องจากไม่มีในภาษาที่คุณเลือก"
     }
 }

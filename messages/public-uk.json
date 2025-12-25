@@ -35,7 +35,9 @@
             "minute": "2-digit",
             "hour12": false
         },
-        "privacyPolicy": "Privacy Policy"
+        "privacyPolicy": "Політика конфіденційності",
+        "chooseLanguage": "Обрати мову",
+        "statusLabel": "Статус"
     },
     "qr": {
         "scanQrCode": "Сканувати QR-код"
@@ -59,5 +61,11 @@
     "maps": {
         "openInAppleMaps": "Відкрити в Apple Maps",
         "openInGoogleMaps": "Відкрити в Google Maps"
+    },
+    "publicPrivacy": {
+        "title": "Політика конфіденційності",
+        "lastUpdated": "Останнє оновлення",
+        "noPolicy": "Політику конфіденційності ще не налаштовано. Зверніться до {brandName} для отримання додаткової інформації.",
+        "fallbackNotice": "Ця політика відображається шведською мовою, оскільки вона недоступна вибраною вами мовою."
     }
 }

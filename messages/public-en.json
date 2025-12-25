@@ -35,6 +35,14 @@
             "minute": "2-digit",
             "hour12": false
         },
-        "privacyPolicy": "Privacy Policy"
+        "privacyPolicy": "Privacy Policy",
+        "chooseLanguage": "Choose Language",
+        "statusLabel": "Status"
+    },
+    "publicPrivacy": {
+        "title": "Privacy Policy",
+        "lastUpdated": "Last updated",
+        "noPolicy": "No privacy policy has been configured yet. Contact {brandName} for more information.",
+        "fallbackNotice": "This policy is shown in Swedish as it is not available in your selected language."
     }
 }

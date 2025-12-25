@@ -5,24 +5,19 @@
 
 import cron, { type ScheduledTask } from "node-cron";
 import {
-    getParcelsNeedingReminder,
-    createSmsRecord,
+    processRemindersJIT,
     getSmsRecordsReadyForSending,
     sendSmsRecord,
-    processSendQueueWithLock,
+    processQueuedSms,
 } from "@/app/utils/sms/sms-service";
-import { formatPickupSms } from "@/app/utils/sms/templates";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
-import { generateUrl } from "@/app/config/branding";
-import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { parseDuration } from "@/app/utils/duration-parser";
 import { anonymizeInactiveHouseholds } from "@/app/utils/anonymization/anonymize-household";
 import { logger, logError, logCron } from "@/app/utils/logger";
 
 type SchedulerState = {
     isRunning: boolean;
-    smsEnqueueInterval: NodeJS.Timeout | null;
-    smsSendInterval: NodeJS.Timeout | null;
+    smsInterval: NodeJS.Timeout | null; // Single interval for pure JIT
     anonymizationTask: ScheduledTask | null;
     healthCheckInterval: NodeJS.Timeout | null;
     lastHealthLog: number;
@@ -41,8 +36,7 @@ function getSchedulerState(): SchedulerState {
     if (!globalObj[GLOBAL_STATE_KEY]) {
         globalObj[GLOBAL_STATE_KEY] = {
             isRunning: false,
-            smsEnqueueInterval: null,
-            smsSendInterval: null,
+            smsInterval: null,
             anonymizationTask: null,
             healthCheckInterval: null,
             lastHealthLog: 0,
@@ -57,113 +51,69 @@ function getSchedulerState(): SchedulerState {
 
 const schedulerState = getSchedulerState();
 
-// SMS Configuration
-const SMS_ENQUEUE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-const SMS_SEND_INTERVAL = process.env.SMS_SEND_INTERVAL || "5 minutes";
+// SMS Configuration - Pure JIT uses single interval
+const SMS_INTERVAL = process.env.SMS_SEND_INTERVAL || "5 minutes";
 
-// Validate SMS_SEND_INTERVAL with descriptive error
-let SMS_SEND_INTERVAL_MS: number;
+// Validate SMS interval with descriptive error
+let SMS_INTERVAL_MS: number;
 try {
-    SMS_SEND_INTERVAL_MS = parseDuration(SMS_SEND_INTERVAL);
+    SMS_INTERVAL_MS = parseDuration(SMS_INTERVAL);
     logger.info(
-        { smsSendInterval: SMS_SEND_INTERVAL, intervalMs: SMS_SEND_INTERVAL_MS },
-        "SMS send interval configured",
+        { smsInterval: SMS_INTERVAL, intervalMs: SMS_INTERVAL_MS },
+        "SMS interval configured",
     );
 } catch (error) {
     throw new Error(
-        `Invalid SMS_SEND_INTERVAL environment variable: "${SMS_SEND_INTERVAL}". ` +
+        `Invalid SMS_SEND_INTERVAL environment variable: "${SMS_INTERVAL}". ` +
             `Expected format: "5 minutes", "30s", "2h", etc. ` +
             `Error: ${error instanceof Error ? error.message : String(error)}`,
     );
 }
 
 const HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
-const SMS_SEND_BATCH_SIZE = 5;
 
 // Anonymization Configuration (from env vars)
 const ANONYMIZATION_SCHEDULE = process.env.ANONYMIZATION_SCHEDULE || "0 2 * * 0"; // Sunday 2 AM
 const ANONYMIZATION_INACTIVE_DURATION = process.env.ANONYMIZATION_INACTIVE_DURATION || "1 year";
 
-/**
- * Enqueue SMS for parcels needing reminders
- */
-async function enqueueReminderSms(): Promise<number> {
-    const parcels = await getParcelsNeedingReminder();
-    let enqueuedCount = 0;
-
-    for (const parcel of parcels) {
-        try {
-            const publicUrl = generateUrl(`/p/${parcel.parcelId}`);
-            const smsText = formatPickupSms(
-                {
-                    pickupDate: parcel.pickupDate,
-                    publicUrl,
-                },
-                parcel.locale as SupportedLocale,
-            );
-
-            // Schedule SMS to be sent 48h before pickup
-            // If pickup is sooner than 48h, SMS will be sent on next scheduler run
-            const scheduledSendTime = new Date(parcel.pickupDate.getTime() - 48 * 60 * 60 * 1000);
-
-            await createSmsRecord({
-                intent: "pickup_reminder",
-                parcelId: parcel.parcelId,
-                householdId: parcel.householdId,
-                toE164: parcel.phone,
-                text: smsText,
-                nextAttemptAt: scheduledSendTime,
-            });
-
-            enqueuedCount++;
-        } catch (error) {
-            logError("Failed to enqueue SMS for parcel", error, { parcelId: parcel.parcelId });
-        }
-    }
-
-    if (enqueuedCount > 0) {
-        logger.info({ count: enqueuedCount }, "Enqueued SMS reminder messages");
-    }
-
-    return enqueuedCount;
-}
+const SMS_SEND_BATCH_SIZE = 5;
 
 /**
- * Process SMS send queue with advisory lock protection
+ * Process SMS: Pure JIT for reminders + queued SMS for other intents
+ *
+ * 1. Pure JIT for pickup_reminder: find parcels → render → send → create record
+ * 2. Send loop for other intents: process queued SMS (enrollment, etc.)
  */
-async function processSendQueue(): Promise<number> {
-    const result = await processSendQueueWithLock(async () => {
+async function processSmsJIT(): Promise<{ processed: number }> {
+    // Process pickup reminders using pure JIT
+    const jitResult = await processRemindersJIT();
+
+    // Also process any queued SMS (enrollment, etc.)
+    const queueResult = await processQueuedSms(async () => {
         const records = await getSmsRecordsReadyForSending(SMS_SEND_BATCH_SIZE);
 
-        if (records.length > 0) {
-            logger.info({ count: records.length }, "Processing SMS records ready for sending");
-        }
-
         let sentCount = 0;
-
         for (const record of records) {
             try {
-                await sendSmsRecord(record);
-                sentCount++;
-
+                const wasSent = await sendSmsRecord(record);
+                if (wasSent) {
+                    sentCount++;
+                }
                 await new Promise(resolve => setTimeout(resolve, 1000));
             } catch (error) {
-                logError("Failed to send SMS", error, {
+                logError("Failed to send queued SMS", error, {
                     intent: record.intent,
                     householdId: record.householdId,
                     smsId: record.id,
                 });
             }
         }
-
-        if (sentCount > 0) {
-            logger.debug({ count: sentCount }, "SMS batch sent successfully");
-        }
-
         return sentCount;
     });
 
-    return result.processed;
+    return {
+        processed: jitResult.processed + queueResult,
+    };
 }
 
 /**
@@ -269,43 +219,21 @@ export function startScheduler(): void {
     logger.info(
         {
             smsTestMode: testMode,
-            smsEnqueueIntervalMinutes: SMS_ENQUEUE_INTERVAL_MS / 60000,
-            smsSendInterval: SMS_SEND_INTERVAL,
+            smsInterval: SMS_INTERVAL,
             anonymizationSchedule: ANONYMIZATION_SCHEDULE,
             anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
         },
-        "Starting unified background scheduler",
+        "Starting unified background scheduler (pure JIT SMS)",
     );
 
-    // Start SMS enqueue loop
-    schedulerState.smsEnqueueInterval = setInterval(async () => {
+    // Start SMS loop (pure JIT: find parcels → render → send → create record)
+    schedulerState.smsInterval = setInterval(async () => {
         try {
-            await enqueueReminderSms();
+            await processSmsJIT();
         } catch (error) {
-            logError("Error in SMS enqueue loop", error);
+            logError("Error in SMS JIT loop", error);
         }
-    }, SMS_ENQUEUE_INTERVAL_MS);
-
-    // Run enqueue immediately on first startup (don't wait 30 min for first interval)
-    if (isFirstStartup) {
-        setImmediate(async () => {
-            try {
-                logger.info("Running initial SMS enqueue on startup");
-                await enqueueReminderSms();
-            } catch (error) {
-                logError("Error in initial SMS enqueue", error);
-            }
-        });
-    }
-
-    // Start SMS send loop (kept separate for backward compatibility)
-    schedulerState.smsSendInterval = setInterval(async () => {
-        try {
-            await processSendQueue();
-        } catch (error) {
-            logError("Error in SMS send loop", error);
-        }
-    }, SMS_SEND_INTERVAL_MS);
+    }, SMS_INTERVAL_MS);
 
     // Start anonymization cron job
     try {
@@ -365,11 +293,10 @@ export function startScheduler(): void {
         }
     }, HEALTH_CHECK_INTERVAL_MS);
 
-    // Run SMS tasks once immediately
-    enqueueReminderSms().catch(err => logError("Error in immediate SMS enqueue", err));
-    processSendQueue().catch(err => logError("Error in immediate SMS send", err));
+    // Run SMS JIT once immediately on startup
+    processSmsJIT().catch(err => logError("Error in immediate SMS JIT", err));
 
-    logger.debug("Scheduler started successfully");
+    logger.debug("Scheduler started successfully (pure JIT SMS)");
 
     // Send Slack notification on startup (production only, first startup)
     if (process.env.NODE_ENV === "production" && isFirstStartup) {
@@ -377,11 +304,11 @@ export function startScheduler(): void {
             .then(({ sendSlackAlert }) => {
                 return sendSlackAlert({
                     title: "🚀 Scheduler Started",
-                    message: "Unified background scheduler started successfully",
+                    message: "Unified background scheduler started successfully (pure JIT SMS)",
                     status: "success",
                     details: {
                         "SMS Test Mode": testMode ? "Enabled (no real SMS)" : "Disabled (live SMS)",
-                        "SMS Enqueue Interval": `${SMS_ENQUEUE_INTERVAL_MS / 60000} minutes`,
+                        "SMS Interval": SMS_INTERVAL,
                         "Anonymization Schedule": ANONYMIZATION_SCHEDULE,
                         "Anonymization Duration": ANONYMIZATION_INACTIVE_DURATION,
                         "Environment": process.env.NODE_ENV || "development",
@@ -411,14 +338,9 @@ export function stopScheduler(): void {
 
     schedulerState.isRunning = false;
 
-    if (schedulerState.smsEnqueueInterval) {
-        clearInterval(schedulerState.smsEnqueueInterval);
-        schedulerState.smsEnqueueInterval = null;
-    }
-
-    if (schedulerState.smsSendInterval) {
-        clearInterval(schedulerState.smsSendInterval);
-        schedulerState.smsSendInterval = null;
+    if (schedulerState.smsInterval) {
+        clearInterval(schedulerState.smsInterval);
+        schedulerState.smsInterval = null;
     }
 
     if (schedulerState.anonymizationTask) {
@@ -449,8 +371,6 @@ export async function schedulerHealthCheck(): Promise<{
     details: Record<string, unknown>;
 }> {
     try {
-        const pendingCount = await getSmsRecordsReadyForSending(5);
-
         // CRITICAL: If anonymization cron failed to start, treat as unhealthy
         // This catches invalid ANONYMIZATION_SCHEDULE env var before Slack alerts fail
         const anonymizationSchedulerRunning = schedulerState.anonymizationTask !== null;
@@ -460,18 +380,16 @@ export async function schedulerHealthCheck(): Promise<{
             status: isHealthy ? "healthy" : "unhealthy",
             details: {
                 schedulerRunning: schedulerState.isRunning,
-                smsSchedulerRunning:
-                    schedulerState.smsEnqueueInterval !== null &&
-                    schedulerState.smsSendInterval !== null,
+                smsSchedulerRunning: schedulerState.smsInterval !== null,
                 anonymizationSchedulerRunning,
                 smsTestMode: getHelloSmsConfig().testMode,
-                smsPendingCount: pendingCount.length,
                 lastAnonymizationRun: schedulerState.lastAnonymizationRun?.toISOString() || "Never",
                 lastAnonymizationStatus: schedulerState.lastAnonymizationStatus,
                 // Configuration visibility for debugging
                 anonymizationSchedule: ANONYMIZATION_SCHEDULE,
                 anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
-                smsSendInterval: SMS_SEND_INTERVAL,
+                smsInterval: SMS_INTERVAL,
+                smsMode: "pure JIT",
                 timestamp: new Date().toISOString(),
                 ...((!schedulerState.isRunning || !anonymizationSchedulerRunning) && {
                     healthCheckFailure: !schedulerState.isRunning
@@ -528,59 +446,23 @@ export async function triggerAnonymization(): Promise<{
 }
 
 /**
- * Manual trigger for SMS enqueue (for testing/admin)
+ * Manual trigger for SMS processing (for testing/admin)
+ *
+ * Processes both:
+ * - Pure JIT reminders: finds eligible parcels → renders → sends → creates records
+ * - Queued SMS: enrollment and other queued intents
  */
-export async function triggerSmsEnqueue(): Promise<{
-    success: boolean;
-    count?: number;
-    error?: string;
-}> {
-    try {
-        const count = await enqueueReminderSms();
-        return { success: true, count };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-        };
-    }
-}
-
-/**
- * Manual trigger for SMS queue processing (for testing/admin)
- * Processes pending SMS messages in the queue
- */
-export async function triggerSmsProcessQueue(): Promise<{
+export async function triggerSmsJIT(): Promise<{
     success: boolean;
     processedCount?: number;
-    lockAcquired?: boolean;
     error?: string;
 }> {
     try {
-        const result = await processSendQueueWithLock(async () => {
-            const records = await getSmsRecordsReadyForSending(SMS_SEND_BATCH_SIZE);
-
-            let sentCount = 0;
-            for (const record of records) {
-                try {
-                    await sendSmsRecord(record);
-                    sentCount++;
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                } catch (error) {
-                    logError("Failed to send SMS", error, {
-                        intent: record.intent,
-                        householdId: record.householdId,
-                        smsId: record.id,
-                    });
-                }
-            }
-            return sentCount;
-        });
-
+        // Process both JIT reminders and queued SMS (same as scheduler interval)
+        const result = await processSmsJIT();
         return {
             success: true,
             processedCount: result.processed,
-            lockAcquired: result.lockAcquired,
         };
     } catch (error) {
         return {

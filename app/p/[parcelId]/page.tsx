@@ -60,10 +60,7 @@ interface PublicMessages {
         mapsLabel: string;
         googleMaps: string;
         appleMaps: string;
-        statusLabel?: string;
-        languageSelectorLabel?: string;
-        languageSelectorDescription?: string;
-        languageSelectorAriaLabel?: string;
+        statusLabel: string;
         status: {
             scheduled: string;
             ready: string;
@@ -81,7 +78,8 @@ interface PublicMessages {
         pickupWindowFormat: string;
         dateFormat: Intl.DateTimeFormatOptions;
         timeFormat: Intl.DateTimeFormatOptions;
-        privacyPolicy?: string;
+        privacyPolicy: string;
+        chooseLanguage: string;
     };
 }
 
@@ -155,6 +153,9 @@ async function loadMessages(locale: SupportedLocale): Promise<PublicMessages> {
                         minute: "2-digit",
                         hour12: false,
                     },
+                    privacyPolicy: "Privacy Policy",
+                    chooseLanguage: "Choose Language",
+                    statusLabel: "Status",
                 },
             } as PublicMessages;
         }
@@ -255,8 +256,8 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
         value,
         label: value, // We'll use native names in the component
     }));
-    const languageAriaLabel = messages.publicParcel.languageSelectorAriaLabel ?? "Choose language";
-    const statusLabel = messages.publicParcel.statusLabel ?? "Status";
+    const chooseLanguageLabel = messages.publicParcel.chooseLanguage;
+    const statusLabel = messages.publicParcel.statusLabel;
     const qrCodeDescriptionId = `parcel-${parcel.id}-qr-description`;
     const mapsLabel = messages.publicParcel.mapsLabel;
     const googleMapsAriaLabel = `${mapsLabel} – ${messages.publicParcel.googleMaps}`;
@@ -293,7 +294,8 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
                                         {statusBadge.text}
                                     </Badge>
                                     <PublicLocaleSwitcher
-                                        ariaLabel={languageAriaLabel}
+                                        ariaLabel={chooseLanguageLabel}
+                                        menuLabel={chooseLanguageLabel}
                                         currentValue={locale}
                                         options={languageOptions}
                                     />
@@ -440,7 +442,7 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
                                 c="dimmed"
                                 td="underline"
                             >
-                                {messages.publicParcel.privacyPolicy ?? "Privacy Policy"}
+                                {messages.publicParcel.privacyPolicy}
                             </Text>
                         </Group>
                     </Stack>

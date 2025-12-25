@@ -35,7 +35,9 @@
             "minute": "2-digit",
             "hour12": false
         },
-        "privacyPolicy": "Privacy Policy"
+        "privacyPolicy": "Datenschutzerklärung",
+        "chooseLanguage": "Sprache wählen",
+        "statusLabel": "Status"
     },
     "qr": {
         "scanQrCode": "QR-Code scannen"
@@ -59,5 +61,11 @@
     "maps": {
         "openInAppleMaps": "In Apple Maps öffnen",
         "openInGoogleMaps": "In Google Maps öffnen"
+    },
+    "publicPrivacy": {
+        "title": "Datenschutzerklärung",
+        "lastUpdated": "Zuletzt aktualisiert",
+        "noPolicy": "Es wurde noch keine Datenschutzerklärung konfiguriert. Kontaktieren Sie {brandName} für weitere Informationen.",
+        "fallbackNotice": "Diese Richtlinie wird auf Schwedisch angezeigt, da sie in Ihrer gewählten Sprache nicht verfügbar ist."
     }
 }

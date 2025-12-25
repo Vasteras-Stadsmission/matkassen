@@ -20,7 +20,7 @@ export default function EnrollHouseholdPage() {
                     postalCode: formData.household.postal_code,
                     locale: formData.household.locale,
                 },
-                smsConsent: formData.household.sms_consent ?? true, // Always true since checkbox is mandatory
+                smsConsent: formData.household.sms_consent ?? false, // Default false, requires explicit opt-in
                 members: formData.members.map(member => ({
                     age: member.age,
                     sex: member.sex,

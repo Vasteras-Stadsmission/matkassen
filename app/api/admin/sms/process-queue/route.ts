@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { triggerSmsProcessQueue } from "@/app/utils/scheduler";
+import { triggerSmsJIT } from "@/app/utils/scheduler";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 import { logError } from "@/app/utils/logger";
@@ -15,8 +15,8 @@ export async function POST() {
             return authResult.response!;
         }
 
-        // Manually trigger SMS queue processing via unified scheduler
-        const result = await triggerSmsProcessQueue();
+        // Manually trigger SMS JIT processing via unified scheduler
+        const result = await triggerSmsJIT();
 
         if (!result.success) {
             return NextResponse.json(
@@ -25,21 +25,10 @@ export async function POST() {
             );
         }
 
-        // Report if lock wasn't acquired (another process is already processing)
-        if (!result.lockAcquired) {
-            return NextResponse.json({
-                success: true,
-                message: "Queue processing already in progress by another process",
-                processedCount: 0,
-                lockAcquired: false,
-            });
-        }
-
         return NextResponse.json({
             success: true,
-            message: `Processed ${result.processedCount} SMS messages from queue`,
+            message: `Processed ${result.processedCount} SMS messages`,
             processedCount: result.processedCount,
-            lockAcquired: true,
         });
     } catch (error) {
         logError("Error processing SMS queue", error, {

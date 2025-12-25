@@ -35,6 +35,14 @@
             "minute": "2-digit",
             "hour12": false
         },
-        "privacyPolicy": "Privacy Policy"
+        "privacyPolicy": "سياسة الخصوصية",
+        "chooseLanguage": "اختر اللغة",
+        "statusLabel": "الحالة"
+    },
+    "publicPrivacy": {
+        "title": "سياسة الخصوصية",
+        "lastUpdated": "آخر تحديث",
+        "noPolicy": "لم يتم تكوين سياسة الخصوصية بعد. اتصل بـ {brandName} لمزيد من المعلومات.",
+        "fallbackNotice": "يتم عرض هذه السياسة باللغة السويدية لأنها غير متوفرة بلغتك المختارة."
     }
 }

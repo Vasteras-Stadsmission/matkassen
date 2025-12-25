@@ -35,6 +35,14 @@
             "minute": "2-digit",
             "hour12": false
         },
-        "privacyPolicy": "Integritetspolicy"
+        "privacyPolicy": "Integritetspolicy",
+        "chooseLanguage": "Välj språk",
+        "statusLabel": "Status"
+    },
+    "publicPrivacy": {
+        "title": "Integritetspolicy",
+        "lastUpdated": "Senast uppdaterad",
+        "noPolicy": "Ingen integritetspolicy har konfigurerats ännu. Kontakta {brandName} för mer information.",
+        "fallbackNotice": "Denna policy visas på svenska eftersom den inte finns tillgänglig på ditt valda språk."
     }
 }

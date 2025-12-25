@@ -35,7 +35,9 @@
             "minute": "2-digit",
             "hour12": false
         },
-        "privacyPolicy": "Privacy Policy"
+        "privacyPolicy": "კონფიდენციალურობის პოლიტიკა",
+        "chooseLanguage": "აირჩიეთ ენა",
+        "statusLabel": "სტატუსი"
     },
     "qr": {
         "scanQrCode": "QR კოდის სკანირება"
@@ -59,5 +61,11 @@
     "maps": {
         "openInAppleMaps": "გახსნა Apple Maps-ში",
         "openInGoogleMaps": "გახსნა Google Maps-ში"
+    },
+    "publicPrivacy": {
+        "title": "კონფიდენციალურობის პოლიტიკა",
+        "lastUpdated": "ბოლო განახლება",
+        "noPolicy": "კონფიდენციალურობის პოლიტიკა ჯერ არ არის კონფიგურირებული. დაუკავშირდით {brandName}-ს დამატებითი ინფორმაციისთვის.",
+        "fallbackNotice": "ეს პოლიტიკა ნაჩვენებია შვედურად, რადგან ის არ არის ხელმისაწვდომი თქვენს არჩეულ ენაზე."
     }
 }
