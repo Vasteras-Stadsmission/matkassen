@@ -1,367 +1,531 @@
-# Test Database Implementation Plan
+# Test Database Implementation Plan (PGlite)
 
-## Executive Summary
+## Overview
 
-This document analyzes the current testing infrastructure and proposes a plan to add a real test database for integration testing. The codebase currently has **~95 test files** with **~1,344 test cases** that heavily mock Drizzle ORM operations instead of using a real database.
+Add real PostgreSQL integration tests using **PGlite** - a WASM-compiled PostgreSQL that runs in-process without Docker.
 
----
-
-## 1. Current State Analysis
-
-### Testing Infrastructure
-- **Framework**: Vitest (unit/integration) + Playwright (E2E)
-- **Database**: PostgreSQL 17.5 with Drizzle ORM
-- **Current approach**: All database operations are mocked at the ORM level
-- **Mock strategy**: `app/db/drizzle.ts` creates a chainable mock that returns empty arrays
-
-### The Problem with Current Mocking
-
-The current mock in `app/db/drizzle.ts:37-79` creates a proxy that:
-- Returns empty arrays for all `select()` queries
-- Throws errors for `insert()`, `update()`, `delete()` operations
-- Does NOT validate actual SQL/Drizzle query syntax
-- Does NOT test schema constraints, foreign keys, or database triggers
-
-**Example of current heavy mocking** (`actions.test.ts`):
-```typescript
-vi.mock("@/app/db/drizzle", () => ({
-    db: {
-        transaction: vi.fn(async (callback) => await callback(mockDb)),
-        delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
-        select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => Promise.resolve([])) })) })),
-        insert: vi.fn((table) => ({ values: vi.fn((values) => ({ ... })) })),
-    },
-}));
-```
-
-**Issues with this approach:**
-1. ❌ Cannot catch SQL syntax errors
-2. ❌ Cannot validate schema constraints (NOT NULL, UNIQUE, FK)
-3. ❌ Cannot test complex queries (JOINs, aggregations, subqueries)
-4. ❌ Cannot test database transactions properly
-5. ❌ Mocks may drift from actual database behavior
+**Why PGlite over Testcontainers:**
+- 3-5x faster test execution
+- No Docker dependency in CI/CD
+- Simpler setup, same SQL validation
+- Official Drizzle ORM support
 
 ---
 
-## 2. Third-Party Library Options
+## Phase 1: Infrastructure Setup
 
-### Option A: Testcontainers (Recommended)
-**Package**: `@testcontainers/postgresql`
+### 1.1 Install Dependencies
 
-**Pros:**
-- Real PostgreSQL in Docker, identical to production
-- Automatic container lifecycle management
-- Isolated database per test suite
-- Perfect for CI/CD (GitHub Actions has Docker support)
-- Tests actual Drizzle ORM queries
+```bash
+pnpm add -D @electric-sql/pglite
+```
 
-**Cons:**
-- Slower than mocks (~2-5 seconds startup per container)
-- Requires Docker in CI environment
-- Slightly more complex setup
+### 1.2 Create Test Database Utilities
 
-**Usage:**
+**File: `__tests__/db/test-db.ts`**
+
 ```typescript
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import * as schema from "@/app/db/schema";
 
-const container = await new PostgreSqlContainer().start();
-const connectionString = container.getConnectionUri();
-```
+let pglite: PGlite | null = null;
+let testDb: ReturnType<typeof drizzle> | null = null;
 
-### Option B: pg-mem (In-Memory PostgreSQL)
-**Package**: `pg-mem`
+/**
+ * Get or create a PGlite instance for testing.
+ * Reuses the same instance across tests in a file for performance.
+ */
+export async function getTestDb() {
+  if (!testDb) {
+    pglite = new PGlite();
+    testDb = drizzle(pglite, { schema });
 
-**Pros:**
-- Very fast (in-memory)
-- No Docker required
-- Works in any environment
+    // Enable pg_trgm extension (used for duplicate name checking)
+    await pglite.exec("CREATE EXTENSION IF NOT EXISTS pg_trgm");
 
-**Cons:**
-- Not 100% PostgreSQL compatible
-- May not support all Drizzle ORM features
-- Some PostgreSQL functions/extensions not available
-- Can give false positives/negatives
+    // Apply schema using Drizzle's push (no migration files needed)
+    await applySchema(testDb);
+  }
+  return testDb;
+}
 
-### Option C: Docker Compose Test Database
-**Approach**: Use existing `docker-compose.dev.yml` with a separate test database
+/**
+ * Clean up database between tests.
+ * Uses TRUNCATE for speed while maintaining referential integrity.
+ */
+export async function cleanupTestDb() {
+  if (!pglite) return;
 
-**Pros:**
-- Simple to implement
-- Uses existing infrastructure
-- Real PostgreSQL
+  await pglite.exec(`
+    TRUNCATE TABLE
+      outgoing_sms,
+      food_parcels,
+      household_verification_status,
+      household_dietary_restrictions,
+      household_additional_needs,
+      household_comments,
+      household_members,
+      pets,
+      households,
+      pickup_location_schedule_days,
+      pickup_location_schedules,
+      pickup_locations,
+      verification_questions,
+      pet_species_types,
+      dietary_restrictions,
+      additional_needs,
+      users,
+      global_settings,
+      csp_violations
+    RESTART IDENTITY CASCADE
+  `);
+}
 
-**Cons:**
-- Manual container management
-- Shared database between test runs (need cleanup strategy)
-- Not as isolated as testcontainers
+/**
+ * Close PGlite instance after all tests in a file complete.
+ */
+export async function closeTestDb() {
+  if (pglite) {
+    await pglite.close();
+    pglite = null;
+    testDb = null;
+  }
+}
 
-### Recommendation
-**Use Testcontainers** for integration tests because:
-1. Real PostgreSQL behavior guarantees test accuracy
-2. Container isolation prevents test pollution
-3. Automatic cleanup after tests
-4. Works in GitHub Actions (already used for CI)
-
----
-
-## 3. Test Cases to Migrate to Real Database
-
-### High Priority - Server Actions (Database-Heavy)
-
-| Test File | Current Mocks | Migration Benefit |
-|-----------|---------------|-------------------|
-| `__tests__/app/households/parcels/actions.test.ts` | Full DB mock | Tests actual parcel CRUD operations |
-| `__tests__/app/households/edit/actions.test.ts` | Full DB mock | Tests household updates with constraints |
-| `__tests__/app/schedule/actions/schedule-actions.test.ts` | Full DB mock | Tests complex schedule queries |
-| `__tests__/app/settings/parcels/actions.test.ts` | Full DB mock | Tests settings persistence |
-| `__tests__/app/parcels/softDeleteParcel.test.ts` | Full DB mock | Tests soft delete behavior |
-
-### High Priority - Integration Tests
-
-| Test File | Current Mocks | Migration Benefit |
-|-----------|---------------|-------------------|
-| `__tests__/app/households/user-profile-data.integration.test.ts` | ORM chain mock | Tests actual user upsert |
-| `__tests__/app/auth/auth-flow.test.ts` | Auth mock | Tests session persistence |
-| `__tests__/app/auth/session-callbacks.test.ts` | Callback mock | Tests token refresh with DB |
-
-### High Priority - API Routes
-
-| Test File | Current Mocks | Migration Benefit |
-|-----------|---------------|-------------------|
-| `__tests__/app/api/admin/sms/statistics.test.ts` | Full chain mock | Tests aggregation queries |
-| `__tests__/app/api/admin/sms/dashboard/route.test.ts` | Full chain mock | Tests dashboard data |
-| `__tests__/app/api/admin/parcels/upcoming/route.test.ts` | Full chain mock | Tests parcel queries |
-| `__tests__/app/api/admin/verification-questions/route.test.ts` | Full chain mock | Tests question management |
-
-### Medium Priority - Validation with DB Lookups
-
-| Test File | Current Approach | Migration Benefit |
-|-----------|------------------|-------------------|
-| `__tests__/utils/validation/parcel-assignment.test.ts` | Pure functions | Could test with real constraints |
-| `__tests__/app/households/enroll/capacity.test.ts` | Mock capacity | Test real capacity calculations |
-| `__tests__/app/utils/anonymization/anonymize-household.test.ts` | Mock DB | Test actual anonymization |
-
-### Keep as Unit Tests (No DB needed)
-
-These tests should remain mock-based as they test pure logic:
-- `__tests__/utils/date-utils-dst.test.ts` - Date calculations
-- `__tests__/utils/deep-equal.test.ts` - Utility functions
-- `__tests__/utils/schedule/*.test.ts` - Schedule logic (pure functions)
-- `__tests__/translations/*.test.ts` - i18n validation
-- `__tests__/middleware.test.ts` - Next.js middleware logic
-
----
-
-## 4. Important Implementation Considerations
-
-### 4.1 Test Isolation Strategies
-
-**Option A: Transaction Rollback (Fastest)**
-```typescript
-beforeEach(async () => {
-  await db.execute(sql`BEGIN`);
-});
-
-afterEach(async () => {
-  await db.execute(sql`ROLLBACK`);
-});
-```
-- ✅ Very fast (no data cleanup needed)
-- ❌ Cannot test transaction behavior in code
-
-**Option B: Truncate Tables (Recommended)**
-```typescript
-afterEach(async () => {
-  await db.execute(sql`TRUNCATE TABLE households, food_parcels, ... RESTART IDENTITY CASCADE`);
-});
-```
-- ✅ Clean state for each test
-- ✅ Can test transactions
-- ❌ Slower than rollback
-
-**Option C: Separate Database per Test**
-- ✅ Perfect isolation
-- ❌ Very slow (not recommended)
-
-### 4.2 Test Data Seeding
-
-Create factory functions for consistent test data:
-```typescript
-// __tests__/factories/household.ts
-export const createTestHousehold = async (overrides = {}) => {
-  const defaults = {
-    first_name: 'Test',
-    last_name: 'User',
-    phone_number: '+46701234567',
-    // ...
-  };
-  const [household] = await db.insert(households).values({ ...defaults, ...overrides }).returning();
-  return household;
-};
-```
-
-### 4.3 CI/CD Integration
-
-**GitHub Actions already supports Docker**, so testcontainers will work:
-```yaml
-# .github/workflows/build.yml
-- name: Run integration tests
-  run: pnpm test:integration
-  env:
-    TESTCONTAINERS_RYUK_DISABLED: true  # For CI environments
-```
-
-### 4.4 Performance Considerations
-
-| Approach | Speed | Use Case |
-|----------|-------|----------|
-| Current mocks | ~5-10s total | Keep for unit tests |
-| Testcontainers (reused) | +5-10s startup | Integration tests |
-| Testcontainers (per suite) | +2-5s per suite | Heavy isolation needs |
-
-**Strategy**: Run unit tests and integration tests separately:
-```json
-{
-  "test": "vitest run",
-  "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
-  "test:integration": "vitest run --include '**/*.integration.test.ts'"
+/**
+ * Apply database schema using drizzle-kit's programmatic API.
+ */
+async function applySchema(db: ReturnType<typeof drizzle>) {
+  // Use drizzle-kit push to apply schema without migration files
+  // This is faster for testing than running migrations
+  const { push } = await import("drizzle-kit");
+  // Implementation details TBD based on drizzle-kit API
 }
 ```
 
-### 4.5 Database Schema Synchronization
+### 1.3 Create Vitest Setup for Integration Tests
 
-Ensure test database has correct schema:
+**File: `__tests__/integration/setup.ts`**
+
 ```typescript
-// __tests__/db/setup.ts
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { beforeAll, afterAll, afterEach } from "vitest";
+import { getTestDb, cleanupTestDb, closeTestDb } from "../db/test-db";
 
-export const setupTestDb = async (connectionString: string) => {
-  const client = postgres(connectionString);
-  const testDb = drizzle(client);
-  await migrate(testDb, { migrationsFolder: './migrations' });
-  return testDb;
-};
+beforeAll(async () => {
+  await getTestDb();
+});
+
+afterEach(async () => {
+  await cleanupTestDb();
+});
+
+afterAll(async () => {
+  await closeTestDb();
+});
 ```
 
----
+### 1.4 Update Vitest Configuration
 
-## 5. Implementation Phases
+**File: `vitest.config.ts`** (modifications)
 
-### Phase 1: Infrastructure Setup
-1. Install `@testcontainers/postgresql`
-2. Create `__tests__/db/test-container.ts` - Container management
-3. Create `__tests__/db/setup.ts` - Schema migration for test DB
-4. Create `__tests__/db/cleanup.ts` - Table truncation utilities
-5. Update `vitest.config.ts` with integration test configuration
+```typescript
+export default defineConfig({
+  test: {
+    // Existing config...
 
-### Phase 2: Factory Functions
-1. Create `__tests__/factories/` directory
-2. Implement factories for main entities:
-   - `household.factory.ts`
-   - `food-parcel.factory.ts`
-   - `pickup-location.factory.ts`
-   - `user.factory.ts`
-   - `sms-message.factory.ts`
-
-### Phase 3: Migrate High-Priority Tests
-1. Convert `parcels/actions.test.ts` → `parcels/actions.integration.test.ts`
-2. Convert `user-profile-data.integration.test.ts` to use real DB
-3. Convert SMS statistics API tests
-4. Convert schedule action tests
-
-### Phase 4: CI/CD Updates
-1. Update GitHub Actions workflow
-2. Add separate test commands for unit vs integration
-3. Configure test timeouts for integration tests
-
-### Phase 5: Documentation & Patterns
-1. Document testing patterns for the team
-2. Create example tests as templates
-3. Update contribution guidelines
-
----
-
-## 6. File Structure Proposal
-
-```
-__tests__/
-├── db/
-│   ├── test-container.ts     # Testcontainers setup
-│   ├── setup.ts              # Schema migration
-│   ├── cleanup.ts            # Table truncation
-│   └── connection.ts         # Test DB connection
-├── factories/
-│   ├── household.factory.ts
-│   ├── food-parcel.factory.ts
-│   ├── pickup-location.factory.ts
-│   ├── user.factory.ts
-│   └── index.ts              # Export all factories
-├── integration/              # New integration tests
-│   ├── households/
-│   ├── parcels/
-│   ├── api/
-│   └── auth/
-└── unit/                     # Existing unit tests (reorganized)
+    // Add workspace for separating unit and integration tests
+    workspace: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["__tests__/**/*.test.ts"],
+          exclude: ["__tests__/**/*.integration.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          include: ["__tests__/**/*.integration.test.ts"],
+          setupFiles: ["__tests__/integration/setup.ts"],
+          // Integration tests run serially to avoid PGlite conflicts
+          pool: "forks",
+          poolOptions: {
+            forks: { singleFork: true },
+          },
+        },
+      },
+    ],
+  },
+});
 ```
 
----
+### 1.5 Add NPM Scripts
 
-## 7. Dependencies to Add
+**File: `package.json`** (additions)
 
 ```json
 {
-  "devDependencies": {
-    "@testcontainers/postgresql": "^10.x.x"
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:watch": "vitest --project unit",
+    "test:integration:watch": "vitest --project integration"
   }
 }
 ```
 
-No other third-party libraries are strictly required. Testcontainers provides everything needed for container management.
+---
+
+## Phase 2: Test Data Factories
+
+### 2.1 Create Factory Functions
+
+**File: `__tests__/factories/index.ts`**
+
+```typescript
+export * from "./household.factory";
+export * from "./food-parcel.factory";
+export * from "./pickup-location.factory";
+export * from "./user.factory";
+export * from "./sms.factory";
+```
+
+**File: `__tests__/factories/household.factory.ts`**
+
+```typescript
+import { getTestDb } from "../db/test-db";
+import { households, householdMembers } from "@/app/db/schema";
+
+let householdCounter = 0;
+
+export async function createTestHousehold(overrides: Partial<typeof households.$inferInsert> = {}) {
+  const db = await getTestDb();
+  householdCounter++;
+
+  const defaults = {
+    first_name: `Test${householdCounter}`,
+    last_name: `User${householdCounter}`,
+    phone_number: `+4670000${String(householdCounter).padStart(4, "0")}`,
+    locale: "sv",
+    postal_code: "72345",
+  };
+
+  const [household] = await db
+    .insert(households)
+    .values({ ...defaults, ...overrides })
+    .returning();
+
+  return household;
+}
+
+export async function createTestHouseholdWithMembers(
+  householdOverrides = {},
+  members: Array<{ age: number; sex: "male" | "female" | "other" }> = []
+) {
+  const household = await createTestHousehold(householdOverrides);
+  const db = await getTestDb();
+
+  if (members.length > 0) {
+    await db.insert(householdMembers).values(
+      members.map((m) => ({
+        household_id: household.id,
+        age: m.age,
+        sex: m.sex,
+      }))
+    );
+  }
+
+  return household;
+}
+```
+
+**File: `__tests__/factories/pickup-location.factory.ts`**
+
+```typescript
+import { getTestDb } from "../db/test-db";
+import { pickupLocations, pickupLocationSchedules, pickupLocationScheduleDays } from "@/app/db/schema";
+
+let locationCounter = 0;
+
+export async function createTestPickupLocation(overrides = {}) {
+  const db = await getTestDb();
+  locationCounter++;
+
+  const defaults = {
+    name: `Test Location ${locationCounter}`,
+    street_address: `Test Street ${locationCounter}`,
+    postal_code: "72345",
+    default_slot_duration_minutes: 15,
+    max_parcels_per_slot: 4,
+  };
+
+  const [location] = await db
+    .insert(pickupLocations)
+    .values({ ...defaults, ...overrides })
+    .returning();
+
+  return location;
+}
+
+export async function createTestLocationWithSchedule(locationOverrides = {}) {
+  const location = await createTestPickupLocation(locationOverrides);
+  const db = await getTestDb();
+
+  // Create a schedule valid for next 30 days
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 30);
+
+  const [schedule] = await db
+    .insert(pickupLocationSchedules)
+    .values({
+      pickup_location_id: location.id,
+      start_date: startDate.toISOString().split("T")[0],
+      end_date: endDate.toISOString().split("T")[0],
+      name: "Test Schedule",
+    })
+    .returning();
+
+  // Add weekday hours (Mon-Fri 9-17)
+  const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday"] as const;
+  await db.insert(pickupLocationScheduleDays).values(
+    weekdays.map((day) => ({
+      schedule_id: schedule.id,
+      weekday: day,
+      is_open: true,
+      opening_time: "09:00",
+      closing_time: "17:00",
+    }))
+  );
+
+  return { location, schedule };
+}
+```
+
+**File: `__tests__/factories/food-parcel.factory.ts`**
+
+```typescript
+import { getTestDb } from "../db/test-db";
+import { foodParcels } from "@/app/db/schema";
+
+export async function createTestParcel(overrides: {
+  household_id: string;
+  pickup_location_id: string;
+  pickup_date_time_earliest?: Date;
+  pickup_date_time_latest?: Date;
+  is_picked_up?: boolean;
+}) {
+  const db = await getTestDb();
+
+  const now = new Date();
+  const earliest = overrides.pickup_date_time_earliest ?? new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const latest = overrides.pickup_date_time_latest ?? new Date(earliest.getTime() + 30 * 60 * 1000);
+
+  const [parcel] = await db
+    .insert(foodParcels)
+    .values({
+      household_id: overrides.household_id,
+      pickup_location_id: overrides.pickup_location_id,
+      pickup_date_time_earliest: earliest,
+      pickup_date_time_latest: latest,
+      is_picked_up: overrides.is_picked_up ?? false,
+    })
+    .returning();
+
+  return parcel;
+}
+```
 
 ---
 
-## 8. Estimated Effort
+## Phase 3: Migrate Priority Tests
 
-| Phase | Effort | Description |
-|-------|--------|-------------|
-| Phase 1 | 1-2 days | Infrastructure setup |
-| Phase 2 | 1 day | Factory functions |
-| Phase 3 | 3-5 days | Migrate ~15-20 high-priority tests |
-| Phase 4 | 0.5 day | CI/CD updates |
-| Phase 5 | 0.5 day | Documentation |
+### 3.1 High Priority Tests to Convert
 
-**Total: ~6-9 days of work**
+| Current File | New File | Reason |
+|--------------|----------|--------|
+| `households/parcels/actions.test.ts` | `households/parcels/actions.integration.test.ts` | Heavy DB mocking, tests CRUD |
+| `households/user-profile-data.integration.test.ts` | Keep name, update impl | Already "integration" but uses mocks |
+| `api/admin/sms/statistics.test.ts` | `api/admin/sms/statistics.integration.test.ts` | Tests aggregation queries |
+| `households/edit/actions.test.ts` | `households/edit/actions.integration.test.ts` | Tests updates with constraints |
+| `parcels/softDeleteParcel.test.ts` | `parcels/softDeleteParcel.integration.test.ts` | Tests partial index behavior |
+
+### 3.2 Example Migration: `parcels/actions.test.ts`
+
+**Before (mocked):**
+```typescript
+vi.mock("@/app/db/drizzle", () => ({
+  db: {
+    transaction: vi.fn(async (callback) => await callback(mockDb)),
+    insert: vi.fn(() => ({ values: vi.fn(() => ({ ... })) })),
+    // ... 50+ lines of mock setup
+  },
+}));
+```
+
+**After (real DB):**
+```typescript
+import { getTestDb } from "../../db/test-db";
+import { createTestHousehold, createTestPickupLocation } from "../../factories";
+
+describe("updateHouseholdParcels", () => {
+  it("should include parcels scheduled for later today", async () => {
+    // Arrange - create real test data
+    const household = await createTestHousehold();
+    const { location } = await createTestLocationWithSchedule();
+
+    // Act - call the real action
+    const result = await updateHouseholdParcels(household.id, {
+      pickupLocationId: location.id,
+      parcels: [{ pickupDate: today, pickupEarliestTime: later, pickupLatestTime: end }],
+    });
+
+    // Assert - query real database
+    const db = await getTestDb();
+    const parcels = await db.select().from(foodParcels).where(eq(foodParcels.household_id, household.id));
+
+    expect(result.success).toBe(true);
+    expect(parcels).toHaveLength(1);
+  });
+});
+```
 
 ---
 
-## 9. Success Criteria
+## Phase 4: CI/CD Updates
 
-- [ ] Integration tests run against real PostgreSQL
-- [ ] All migrations apply correctly in test environment
-- [ ] Test isolation prevents data leakage between tests
-- [ ] CI/CD pipeline runs integration tests successfully
-- [ ] Test suite completes in reasonable time (<5 minutes for integration)
-- [ ] Clear separation between unit tests (fast, mocked) and integration tests (real DB)
+### 4.1 GitHub Actions Workflow
+
+**File: `.github/workflows/build.yml`** (modifications)
+
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Run integration tests
+        run: pnpm test:integration
+```
+
+No Docker setup needed - PGlite runs as a regular npm package.
 
 ---
 
-## 10. Risks and Mitigations
+## Phase 5: Documentation
 
-| Risk | Mitigation |
-|------|------------|
-| Slower test execution | Separate unit/integration test runs |
-| Docker not available in some CI environments | Use GitHub Actions with Docker support (already in use) |
-| Test data cleanup failures | Use TRUNCATE CASCADE, add cleanup verification |
-| Schema drift between test and production | Run same migrations, add schema validation |
-| Flaky tests from timing issues | Use proper async/await, add retries for container startup |
+### 5.1 Update CONTRIBUTING.md or README
+
+Add section explaining:
+- How to run unit vs integration tests
+- When to write integration tests (DB interactions)
+- How to use factories
+- Pattern for new integration tests
 
 ---
 
-## Next Steps
+## Implementation Order
 
-1. Confirm this approach with the team
-2. Start with Phase 1 infrastructure
-3. Pick one test file as a pilot (suggest: `parcels/actions.test.ts`)
-4. Validate the pattern works before scaling
+```
+Week 1:
+├── Day 1-2: Phase 1 (Infrastructure)
+│   ├── Install @electric-sql/pglite
+│   ├── Create test-db.ts utilities
+│   ├── Configure vitest workspaces
+│   └── Verify pg_trgm works
+│
+├── Day 3: Phase 2 (Factories)
+│   ├── Create household factory
+│   ├── Create pickup-location factory
+│   └── Create food-parcel factory
+│
+└── Day 4-5: Phase 3 (Migrate 2-3 tests)
+    ├── Convert parcels/actions.test.ts
+    ├── Convert user-profile-data.integration.test.ts
+    └── Validate pattern works
 
-Would you like me to proceed with implementing Phase 1?
+Week 2:
+├── Continue Phase 3 (remaining tests)
+├── Phase 4 (CI/CD)
+└── Phase 5 (Documentation)
+```
+
+---
+
+## Success Criteria
+
+- [ ] PGlite instance starts in <2 seconds
+- [ ] pg_trgm extension works (similarity function)
+- [ ] Schema applies correctly (all CHECK constraints pass)
+- [ ] Integration tests pass with real DB
+- [ ] Unit tests remain fast (mocked)
+- [ ] CI pipeline runs both test types
+- [ ] No Docker required for tests
+
+---
+
+## Risks & Mitigations
+
+| Risk | Likelihood | Mitigation |
+|------|------------|------------|
+| PGlite behavior differs from PostgreSQL | Low | Add targeted Testcontainers tests if found |
+| Schema push doesn't work with Drizzle | Medium | Fall back to running migration SQL directly |
+| Test isolation issues | Low | Use TRUNCATE CASCADE between tests |
+| pg_trgm not working | Low | Already confirmed supported |
+
+---
+
+## Files to Create/Modify
+
+### New Files
+```
+__tests__/
+├── db/
+│   └── test-db.ts              # PGlite setup & utilities
+├── factories/
+│   ├── index.ts                # Export all factories
+│   ├── household.factory.ts
+│   ├── pickup-location.factory.ts
+│   ├── food-parcel.factory.ts
+│   ├── user.factory.ts
+│   └── sms.factory.ts
+└── integration/
+    └── setup.ts                # Vitest setup for integration tests
+```
+
+### Modified Files
+```
+vitest.config.ts                # Add workspace configuration
+package.json                    # Add test:unit, test:integration scripts
+.github/workflows/build.yml     # Update test commands
+```
+
+---
+
+## Questions Before Implementation
+
+1. **Schema application strategy**: Should we run actual migration files or use drizzle-kit push?
+   - Push is faster but migrations are more production-like
+
+2. **Test file organization**: Keep integration tests next to unit tests (`.integration.test.ts` suffix) or separate directory?
+
+3. **Factory reset strategy**: Reset counters between test files or use UUIDs?
