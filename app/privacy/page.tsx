@@ -3,11 +3,7 @@ import {
     getAvailablePrivacyPolicyLanguages,
 } from "@/app/utils/public-privacy-policy";
 import { markdownToHtml } from "@/app/utils/markdown-to-html";
-import {
-    isRtlLocale,
-    SUPPORTED_LOCALES,
-    type SupportedLocale,
-} from "@/app/utils/locale-detection";
+import { isRtlLocale, SUPPORTED_LOCALES, type SupportedLocale } from "@/app/utils/locale-detection";
 import { BRAND_NAME } from "@/app/config/branding";
 import {
     Paper,
@@ -45,9 +41,7 @@ interface PublicMessages {
 // Load messages based on locale
 async function loadMessages(locale: string): Promise<PublicMessages> {
     // Validate locale is supported
-    const validLocale = SUPPORTED_LOCALES.includes(locale as SupportedLocale)
-        ? locale
-        : "en";
+    const validLocale = SUPPORTED_LOCALES.includes(locale as SupportedLocale) ? locale : "en";
 
     try {
         const messages = (await import(`@/messages/public-${validLocale}.json`)).default;

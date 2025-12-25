@@ -694,9 +694,7 @@ export async function getParcelsNeedingReminder(): Promise<
  * Concurrency is handled by atomic claim in sendSmsRecord() - each record
  * is claimed with a conditional UPDATE before sending, preventing duplicates.
  */
-export async function processQueuedSms(
-    processingFunction: () => Promise<number>,
-): Promise<number> {
+export async function processQueuedSms(processingFunction: () => Promise<number>): Promise<number> {
     return processingFunction();
 }
 
