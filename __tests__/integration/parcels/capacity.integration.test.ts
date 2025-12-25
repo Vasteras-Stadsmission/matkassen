@@ -230,10 +230,7 @@ describe("Pickup Location Capacity - Integration Tests", () => {
                 .select()
                 .from(foodParcels)
                 .where(
-                    and(
-                        eq(foodParcels.household_id, household.id),
-                        isNull(foodParcels.deleted_at),
-                    ),
+                    and(eq(foodParcels.household_id, household.id), isNull(foodParcels.deleted_at)),
                 );
             expect(activeParcels).toHaveLength(1);
             expect(activeParcels[0].id).toBe(parcel2.id);

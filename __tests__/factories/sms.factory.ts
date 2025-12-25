@@ -111,9 +111,7 @@ export async function createTestRetryingSms(overrides: {
     text?: string;
     next_retry_in_minutes?: number;
 }) {
-    const nextAttempt = new Date(
-        Date.now() + (overrides.next_retry_in_minutes ?? 5) * 60 * 1000,
-    );
+    const nextAttempt = new Date(Date.now() + (overrides.next_retry_in_minutes ?? 5) * 60 * 1000);
 
     return createTestSms({
         ...overrides,

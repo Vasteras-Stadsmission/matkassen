@@ -23,18 +23,18 @@ import {
     createTestDeletedParcel,
     createTestPickedUpParcel,
 } from "../factories/food-parcel.factory";
-import { createTestUser, createTestUserWithFavoriteLocation, resetUserCounter } from "../factories/user.factory";
+import {
+    createTestUser,
+    createTestUserWithFavoriteLocation,
+    resetUserCounter,
+} from "../factories/user.factory";
 import {
     createTestSms,
     createTestSentSms,
     createTestFailedSms,
     resetSmsCounter,
 } from "../factories/sms.factory";
-import {
-    households,
-    householdMembers,
-    pickupLocationScheduleDays,
-} from "@/app/db/schema";
+import { households, householdMembers, pickupLocationScheduleDays } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Test Data Factories", () => {

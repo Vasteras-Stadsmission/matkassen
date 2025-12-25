@@ -48,7 +48,9 @@ export async function createTestLocationWithSchedule(
     scheduleOptions: {
         startDate?: Date;
         endDate?: Date;
-        weekdays?: Array<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday">;
+        weekdays?: Array<
+            "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"
+        >;
         openingTime?: string;
         closingTime?: string;
     } = {},
@@ -107,7 +109,14 @@ export async function createTestLocationWithCustomSchedule(
         startDate: string; // YYYY-MM-DD format
         endDate: string;
         days: Array<{
-            weekday: "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+            weekday:
+                | "monday"
+                | "tuesday"
+                | "wednesday"
+                | "thursday"
+                | "friday"
+                | "saturday"
+                | "sunday";
             is_open: boolean;
             opening_time?: string;
             closing_time?: string;

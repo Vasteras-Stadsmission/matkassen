@@ -14,9 +14,7 @@ export function resetHouseholdCounter() {
  * Create a test household with default values.
  * Phone numbers are auto-generated to be unique.
  */
-export async function createTestHousehold(
-    overrides: Partial<typeof households.$inferInsert> = {},
-) {
+export async function createTestHousehold(overrides: Partial<typeof households.$inferInsert> = {}) {
     const db = await getTestDb();
     householdCounter++;
 
