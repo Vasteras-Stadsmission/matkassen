@@ -381,19 +381,131 @@ export async function createTestParcel(overrides: {
 
 ---
 
-## Phase 3: Migrate Priority Tests
+## Phase 3: Migrate "Documentation Tests" to Real Integration Tests
 
-### 3.1 High Priority Tests to Convert
+We identified **44 test files** that use mocking. Many of these are "documentation tests" that always pass because they test mocks, not real behavior. Below is a comprehensive list.
 
-| Current File | New File | Reason |
-|--------------|----------|--------|
-| `households/parcels/actions.test.ts` | `households/parcels/actions.integration.test.ts` | Heavy DB mocking, tests CRUD |
-| `households/user-profile-data.integration.test.ts` | Keep name, update impl | Already "integration" but uses mocks |
-| `api/admin/sms/statistics.test.ts` | `api/admin/sms/statistics.integration.test.ts` | Tests aggregation queries |
-| `households/edit/actions.test.ts` | `households/edit/actions.integration.test.ts` | Tests updates with constraints |
-| `parcels/softDeleteParcel.test.ts` | `parcels/softDeleteParcel.integration.test.ts` | Tests partial index behavior |
+### 3.1 Category A: "Always-Pass" Tests (Test the Mock, Not the Code)
 
-### 3.2 Example Migration: `parcels/actions.test.ts`
+These tests call mocks directly or only verify mock setup - they prove nothing:
+
+| File | Problem | Fix |
+|------|---------|-----|
+| `households/user-profile-data.integration.test.ts` | Calls `mockDb.insert()` directly, not actual auth code | Rewrite with real DB |
+| `utils/auth/username-tracking.test.ts` | Tests mock session object, not real function | Test actual user preferences |
+| `households/enroll/capacity.test.ts` | Mocks return values, asserts mock was called | Test real capacity counting |
+| `api/admin/verification-questions/route.test.ts` | Asserts `mockWhere.toHaveBeenCalled()` | Test actual query results |
+
+### 3.2 Category B: Heavy DB Mocking (Real Logic, Fake DB)
+
+These test real code but mock all DB operations - they can't catch query bugs:
+
+| File | What It Tests | Value of Real DB |
+|------|---------------|------------------|
+| `households/parcels/actions.test.ts` | Parcel CRUD | Validates constraints, partial indexes |
+| `households/parcels/location-change.test.ts` | Location switch | Tests FK constraints, cascades |
+| `households/parcels/past-parcel-prevention.test.ts` | Date validation | Tests with real timestamps |
+| `parcels/softDeleteParcel.test.ts` | Soft delete + SMS | **Critical** - tests partial unique index |
+| `api/admin/sms/statistics.test.ts` | SMS aggregation | Tests real GROUP BY, COUNT |
+| `api/admin/sms/dashboard/route.test.ts` | Dashboard data | Tests real joins |
+| `api/admin/sms/failure-count/route.test.ts` | Failure counts | Tests real aggregation |
+| `api/admin/sms/statistics/route.test.ts` | Stats endpoint | Tests query performance |
+| `households/edit/actions.test.ts` | Household updates | Tests constraints |
+| `settings/parcels/actions.test.ts` | Settings updates | Tests persistence |
+| `utils/sms/opening-hours-filtering.test.ts` | SMS timing | Tests schedule queries |
+| `utils/sms/parcel-sms.test.ts` | SMS creation | Tests insert behavior |
+| `utils/parcel-warnings.test.ts` | Warning counts | Tests aggregation |
+| `schedule/actions/schedule-actions.test.ts` | Schedule CRUD | Tests complex date queries |
+| `auth/auth-flow.test.ts` | Auth callbacks | Tests user upsert |
+| `api/admin/parcel/details.test.ts` | Parcel details | Tests joins |
+| `api/csp-report/route.test.ts` | CSP logging | Tests insert |
+
+### 3.3 Category C: Static Code Analysis Tests (Read Source, Not Execute)
+
+These read source files and check for patterns - they're code linting, not tests:
+
+| File | What It Does | Recommendation |
+|------|--------------|----------------|
+| `settings/general/help-text-clearing.test.ts` | `readFileSync()` + regex on source | Convert to real test OR keep as lint |
+| `settings/general/batch-update.static.test.ts` | Checks CASE statement exists | Convert to performance test |
+| `settings/general/revalidation.static.test.ts` | Checks revalidate call exists | Convert to real test |
+| `settings/general/active-filtering.static.test.ts` | Checks WHERE clause exists | Convert to real test |
+
+### 3.4 Category D: Component Tests with Mock Actions
+
+These test UI but mock all server actions - limited value without real data:
+
+| File | What It Tests | Could Test |
+|------|---------------|------------|
+| `households/edit/EditHouseholdClient.test.tsx` | Form submission | With real DB: full round-trip |
+| `households/enroll/components/HouseholdForm.test.tsx` | Form validation | With real DB: constraint errors |
+| `households/enroll/components/FoodParcelsForm.test.tsx` | Parcel selection | With real DB: capacity limits |
+| `handout-locations/components/schedules/SchedulesTab.test.tsx` | Schedule UI | With real DB: overlap detection |
+| `schedule/components/WeeklyScheduleGrid.test.tsx` | Grid interactions | With real DB: real updates |
+| `schedule/components/ScheduleForm.test.tsx` | Form | With real DB: validation |
+| `components/SmsActionButton.test.tsx` | SMS button | With real DB: status changes |
+
+### 3.5 Full List: All 44 Files Using Mocks
+
+```
+__tests__/app/api/admin/parcel/details.test.ts
+__tests__/app/api/admin/sms/dashboard/route.test.ts
+__tests__/app/api/admin/sms/failure-count/route.test.ts
+__tests__/app/api/admin/sms/statistics.test.ts
+__tests__/app/api/admin/sms/statistics/route.test.ts
+__tests__/app/api/admin/verification-questions/route.test.ts
+__tests__/app/api/csp-report/route.test.ts
+__tests__/app/auth/auth-flow.test.ts
+__tests__/app/handout-locations/components/schedules/SchedulesTab.test.tsx
+__tests__/app/hooks/useActionWithNotification.test.tsx
+__tests__/app/households/edit/actions.test.ts
+__tests__/app/households/edit/EditHouseholdClient.test.tsx
+__tests__/app/households/enroll/capacity.test.ts
+__tests__/app/households/enroll/components/FoodParcelsForm.test.tsx
+__tests__/app/households/enroll/components/HouseholdForm.test.tsx
+__tests__/app/households/enroll/VerificationForm.security.test.tsx
+__tests__/app/households/HouseholdsTable-localStorage.integration.test.tsx
+__tests__/app/households/parcels/actions.test.ts
+__tests__/app/households/parcels/location-change.test.ts
+__tests__/app/households/parcels/past-parcel-prevention.test.ts
+__tests__/app/households/user-profile-data.integration.test.ts
+__tests__/app/parcels/softDeleteParcel.test.ts
+__tests__/app/schedule/actions/schedule-actions.test.ts
+__tests__/app/schedule/components/ScheduleButtonValidation.test.tsx
+__tests__/app/schedule/components/ScheduleForm.test.tsx
+__tests__/app/schedule/components/WeeklyScheduleGrid.test.tsx
+__tests__/app/schedule/components/WeekSelectionValidation.test.tsx
+__tests__/app/schedule/mock-actions.tsx
+__tests__/app/schedule/test-helpers.tsx
+__tests__/app/schedule/utils/date-utils.test.ts
+__tests__/app/schedule/utils/schedule-utils.test.ts
+__tests__/app/settings/parcels/actions.test.ts
+__tests__/app/utils/auth/api-auth.test.ts
+__tests__/app/utils/auth/server-action-auth.test.ts
+__tests__/app/utils/auth/username-tracking.test.ts
+__tests__/app/utils/github-app.test.ts
+__tests__/app/utils/organization-auth.test.ts
+__tests__/app/utils/parcel-warnings.test.ts
+__tests__/app/utils/sms/opening-hours-filtering.test.ts
+__tests__/app/utils/sms/parcel-sms.test.ts
+__tests__/components/SmsActionButton.test.tsx
+__tests__/middleware.test.ts
+__tests__/scripts/db-backup.spec.ts
+__tests__/utils/schedule/outside-hours-filter.test.ts
+```
+
+**Note:** There may be additional tests not listed here that also fall into these categories. When migrating, review each test to determine if it actually tests behavior or just documents expected mock interactions.
+
+### 3.6 Migration Priority
+
+| Priority | Tests | Why |
+|----------|-------|-----|
+| **P0 - Critical** | `softDeleteParcel`, `capacity`, `parcels/actions` | Core business logic, partial indexes |
+| **P1 - High** | SMS tests, schedule actions, auth flow | Important features |
+| **P2 - Medium** | API routes, user preferences | Supporting features |
+| **P3 - Low** | Component tests, static tests | Can remain mocked or lint |
+
+### 3.7 Example Migration: `parcels/actions.test.ts`
 
 **Before (mocked):**
 ```typescript
