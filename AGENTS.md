@@ -15,8 +15,6 @@ Before making ANY changes:
 
 **If unsure, ask first!**
 
-**If unsure, ask first!**
-
 ---
 
 ## Project Overview
@@ -33,7 +31,7 @@ Before making ANY changes:
 
 ```bash
 # Development
-pnpm run dev              # Start dev server (never run yourself - assume already running)
+pnpm run dev              # Start dev server (assume already running)
 pnpm run validate         # Lint, typecheck, format-check, security checks (run before commit)
 
 # Database
@@ -253,8 +251,8 @@ SMS scheduler runs automatically via custom Next.js server (`server.js`). Uses P
 ## When You Need More Context
 
 1. **Check domain guides first** - They have detailed patterns and examples
-2. **Use `semantic_search`** - Search codebase for similar implementations
-3. **Use `grep_search`** - Find exact patterns in code
+2. **Search the codebase** - Look for similar implementations
+3. **Use grep/ripgrep** - Find exact patterns in code
 4. **Read the actual files** - User may have made manual changes
 
 **Don't make assumptions** - gather context before acting.

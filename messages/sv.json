@@ -130,6 +130,8 @@
         "phoneNumber": "Telefonnummer",
         "phoneDescription": "Endast svenska telefonnummer",
         "enterPhoneNumber": "Ange telefonnummer",
+        "smsConsent": "Hushållet samtycker till SMS-kontakt",
+        "smsConsentDescription": "Krävs för att skicka påminnelser och uppdateringar",
         "postalCode": "Postnummer",
         "language": "Språk",
         "selectLanguage": "Välj språk",
@@ -138,7 +140,8 @@
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
             "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
-            "postalCodeFormat": "Postnummer måste bestå av 5 siffror"
+            "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
+            "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll"
         },
         "duplicatePhone": {
             "title": "Telefonnumret finns redan",
@@ -608,7 +611,8 @@
             "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} - {phone} (ID: {id})",
             "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
             "pickupLocation": "Välj en hämtplats",
-            "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta"
+            "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta",
+            "smsConsentRequired": "SMS-samtycke krävs för att fortsätta"
         },
         "similarNameDialog": {
             "title": "Liknande hushåll hittades",
@@ -651,6 +655,14 @@
             "message": "Detta hushåll har inga kommande matkassar. Vill du lägga till några nu?",
             "addNow": "Lägg till nu",
             "later": "Lägg till senare"
+        },
+        "privacyConfirm": {
+            "title": "Bekräftelse av integritetspolicy",
+            "message": "Innan du slutför inskrivningen, bekräfta att du har informerat hushållet om hur deras personuppgifter kommer att behandlas.",
+            "checkbox": "Jag har informerat hushållet om integritetspolicyn",
+            "viewPolicy": "Visa integritetspolicy",
+            "cancel": "Avbryt",
+            "confirm": "Slutför inskrivning"
         }
     },
     "buttons": {
@@ -1028,7 +1040,8 @@
                 "pickup_reminder": "Påminnelse",
                 "pickup_updated": "Uppdatering",
                 "pickup_cancelled": "Avbruten",
-                "consent_enrolment": "Samtycke"
+                "consent_enrolment": "Samtycke",
+                "enrolment": "Inskrivning"
             },
             "dateGroups": {
                 "today": "IDAG",
@@ -1159,6 +1172,33 @@
                     "REORDER_FAILED": "Kunde inte omordna kontrollpunkter",
                     "UNKNOWN": "Ett oväntat fel inträffade"
                 }
+            }
+        },
+        "privacyPolicy": {
+            "title": "Integritetspolicy",
+            "description": "Redigera integritetspolicyn som visas för hushåll. Policyn finns tillgänglig på /privacy",
+            "viewPublicPage": "Visa publik sida",
+            "markdownHint": "Använd Markdown-formatering för rubriker, listor och betoning.",
+            "markdownExamples": "Exempel: # Rubrik, ## Underrubrik, - Listpunkt, **fet**, *kursiv*",
+            "placeholder": "Skriv integritetspolicyn här...",
+            "preview": "Förhandsgranskning",
+            "lastUpdated": "uppdaterad {date}",
+            "lastUpdatedFull": "Senast uppdaterad: {date}",
+            "saved": "Sparad",
+            "addLanguage": "Lägg till språk...",
+            "buttons": {
+                "edit": "Redigera",
+                "preview": "Förhandsgranska",
+                "save": "Spara"
+            },
+            "notifications": {
+                "success": "Klart",
+                "error": "Fel",
+                "saved": "Integritetspolicyn har sparats",
+                "loadError": "Kunde inte ladda integritetspolicyn",
+                "saveError": "Kunde inte spara integritetspolicyn",
+                "emptyContent": "Integritetspolicyn kan inte vara tom",
+                "cannotRemoveSaved": "Kan inte ta bort ett språk med sparat innehåll"
             }
         },
         "parcelThreshold": {

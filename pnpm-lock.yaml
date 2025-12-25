@@ -80,6 +80,9 @@ importers:
       mantine-datatable:
         specifier: ^7.17.1
         version: 7.17.1(@mantine/core@8.3.2(@mantine/hooks@8.3.2(react@19.1.2))(@types/react@19.1.8)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(@mantine/hooks@8.3.2(react@19.1.2))(clsx@2.1.1)(react@19.1.2)
+      marked:
+        specifier: ^17.0.1
+        version: 17.0.1
       ms:
         specifier: ^2.1.3
         version: 2.1.3
@@ -2893,6 +2896,11 @@ packages:
       '@mantine/hooks': '>=7.14'
       clsx: '>=2'
       react: '>=18.2'
+
+  marked@17.0.1:
+    resolution: {integrity: sha512-boeBdiS0ghpWcSwoNm/jJBwdpFaMnZWRzjA6SkUMYb40SVaN1x7mmfGKp0jvexGcx+7y2La5zRZsYFZI6Qpypg==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -6718,6 +6726,8 @@ snapshots:
       '@mantine/hooks': 8.3.2(react@19.1.2)
       clsx: 2.1.1
       react: 19.1.2
+
+  marked@17.0.1: {}
 
   math-intrinsics@1.1.0: {}
 

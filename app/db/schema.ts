@@ -273,7 +273,8 @@ export const smsIntentEnum = pgEnum("sms_intent", [
     "pickup_reminder",
     "pickup_updated",
     "pickup_cancelled",
-    "consent_enrolment",
+    "consent_enrolment", // Deprecated: use 'enrolment' instead
+    "enrolment",
 ]);
 
 // Define SMS status enum
@@ -443,6 +444,21 @@ export const globalSettings = pgTable("global_settings", {
     updated_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
     updated_by: varchar("updated_by", { length: 50 }), // GitHub username who last updated
 });
+
+// Privacy policies for GDPR compliance
+// Stores policy content per language with history (each edit creates a new row)
+export const privacyPolicies = pgTable(
+    "privacy_policies",
+    {
+        language: varchar("language", { length: 5 }).notNull(), // e.g., "sv", "en"
+        content: text("content").notNull(), // Markdown content
+        // Use precision 6 (microseconds) to avoid primary key collisions on rapid saves
+        // Precision 1 (100ms) had collision risk if two saves happened within 100ms
+        created_at: timestamp({ precision: 6, withTimezone: true }).defaultNow().notNull(),
+        created_by: varchar("created_by", { length: 50 }), // GitHub username who created this version
+    },
+    table => [primaryKey({ columns: [table.language, table.created_at] })],
+);
 
 // Users table for storing user preferences
 export const users = pgTable("users", {

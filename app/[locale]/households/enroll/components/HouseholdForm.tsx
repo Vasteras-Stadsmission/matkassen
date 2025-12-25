@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";
-import { TextInput, SimpleGrid, Title, Text, Card, Box, Select } from "@mantine/core";
+import {
+    TextInput,
+    SimpleGrid,
+    Title,
+    Text,
+    Card,
+    Box,
+    Select,
+    Checkbox,
+    Stack,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
 import { Household } from "../types";
@@ -33,6 +43,7 @@ interface FormValues {
     phone_number: string;
     locale: string;
     postal_code: string;
+    sms_consent: boolean;
 }
 
 // Using fast-deep-equal for robust deep comparison of objects
@@ -49,6 +60,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
 
     // Use Mantine's useForm for proper form handling
     // Strip +46 prefix from phone for display (it's shown as a fixed prefix in the UI)
+    // Note: sms_consent is collected here for validation and UI; persistence and audit logging of consent are handled server-side
     const form = useForm<FormValues>({
         initialValues: {
             first_name: data.first_name || "",
@@ -56,6 +68,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
+            sms_consent: data.sms_consent || false,
         },
         validate: {
             first_name: value => (value.trim().length < 2 ? t("validation.firstNameLength") : null),
@@ -96,6 +109,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: currentForm.values.phone_number,
             locale: currentForm.values.locale,
             postal_code: currentForm.values.postal_code,
+            sms_consent: currentForm.values.sms_consent,
         };
 
         const dataValues = {
@@ -104,6 +118,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: data.phone_number || "",
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
+            sms_consent: data.sms_consent || false,
         };
 
         // Only update form values if they are actually different
@@ -127,6 +142,7 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             phone_number: data.phone_number || "",
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
+            sms_consent: data.sms_consent || false,
         };
 
         // Only call updateData if the debounced values actually changed
@@ -179,27 +195,34 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
                     </Box>
 
                     <Box style={fieldContainerStyle}>
-                        <TextInput
-                            label={t("phoneNumber")}
-                            placeholder="712 34 56 78"
-                            description={t("phoneDescription")}
-                            leftSection={
-                                <span
-                                    style={{
-                                        fontSize: "14px",
-                                        color: "var(--mantine-color-dimmed)",
-                                    }}
-                                >
-                                    +46
-                                </span>
-                            }
-                            leftSectionWidth={45}
-                            withAsterisk
-                            {...form.getInputProps("phone_number")}
-                            onChange={handlePhoneNumberChange}
-                            inputMode="tel"
-                            maxLength={13}
-                        />
+                        <Stack gap="xs">
+                            <TextInput
+                                label={t("phoneNumber")}
+                                placeholder="712 34 56 78"
+                                description={t("phoneDescription")}
+                                leftSection={
+                                    <span
+                                        style={{
+                                            fontSize: "14px",
+                                            color: "var(--mantine-color-dimmed)",
+                                        }}
+                                    >
+                                        +46
+                                    </span>
+                                }
+                                leftSectionWidth={45}
+                                withAsterisk
+                                {...form.getInputProps("phone_number")}
+                                onChange={handlePhoneNumberChange}
+                                inputMode="tel"
+                                maxLength={13}
+                            />
+                            <Checkbox
+                                label={t("smsConsent")}
+                                description={t("smsConsentDescription")}
+                                {...form.getInputProps("sms_consent", { type: "checkbox" })}
+                            />
+                        </Stack>
                     </Box>
 
                     <Box style={fieldContainerStyle}>

@@ -1,7 +1,6 @@
 import { sql } from "drizzle-orm";
 import { foodParcels, nanoid } from "./schema";
 import { db } from "./drizzle";
-import { logger } from "@/app/utils/logger";
 
 /**
  * Centralized helper for inserting food parcels with proper conflict handling.
@@ -11,10 +10,11 @@ import { logger } from "@/app/utils/logger";
  * - Soft-deleted parcels don't block the slot
  * - Concurrent inserts are idempotent (duplicates are silently skipped)
  *
- * Additionally, this function automatically creates SMS records for each new parcel:
- * - If parcel is >48 hours away: SMS scheduled for 48 hours before pickup
- * - If parcel is <48 hours away: SMS scheduled with 5-minute grace period
- * - SMS records are created even if the parcel insert is skipped due to conflict
+ * SMS reminders are handled by the scheduler via pure JIT:
+ * - Scheduler finds parcels within 48h of pickup with no existing SMS
+ * - Renders fresh SMS with current data
+ * - Sends immediately
+ * This ensures phone numbers and pickup times are always accurate.
  *
  * The onConflictDoNothing with WHERE clause properly targets the partial unique index
  * defined in migration 0022_fix-soft-delete-unique-constraint.sql:
@@ -55,28 +55,6 @@ export async function insertParcels(
             where: sql`deleted_at IS NULL`, // Targets partial unique index
         })
         .returning({ id: foodParcels.id });
-
-    // If no parcels were inserted (all were duplicates), return early
-    if (insertedParcels.length === 0) {
-        return [];
-    }
-
-    // Create SMS records for the successfully inserted parcels
-    const insertedIds = new Set(insertedParcels.map(p => p.id));
-    const parcelsToQueueSms = parcelsWithIds.filter(p => insertedIds.has(p.id));
-
-    if (parcelsToQueueSms.length > 0) {
-        // Import dynamically to avoid circular dependencies
-        const { queueSmsForNewParcels } = await import("@/app/utils/sms/parcel-sms");
-        await queueSmsForNewParcels(tx, parcelsToQueueSms);
-        logger.info(
-            {
-                parcelCount: parcelsToQueueSms.length,
-                parcelIds: insertedParcels.map(p => p.id),
-            },
-            "SMS queued for new parcels",
-        );
-    }
 
     return insertedParcels.map(p => p.id);
 }

@@ -34,7 +34,10 @@
             "hour": "2-digit",
             "minute": "2-digit",
             "hour12": false
-        }
+        },
+        "privacyPolicy": "Tietosuojakäytäntö",
+        "chooseLanguage": "Valitse kieli",
+        "statusLabel": "Tila"
     },
     "qr": {
         "scanQrCode": "Skannaa QR-koodi"
@@ -58,5 +61,12 @@
     "maps": {
         "openInAppleMaps": "Avaa Apple Mapsissa",
         "openInGoogleMaps": "Avaa Google Mapsissa"
+    },
+    "publicPrivacy": {
+        "title": "Tietosuojakäytäntö",
+        "description": "Tietosuojakäytäntö ja tietosuojatiedot",
+        "lastUpdated": "Viimeksi päivitetty",
+        "noPolicy": "Tietosuojakäytäntöä ei ole vielä määritetty. Ota yhteyttä {brandName} saadaksesi lisätietoja.",
+        "fallbackNotice": "Tämä käytäntö näytetään ruotsiksi, koska se ei ole saatavilla valitsemallasi kielellä."
     }
 }
