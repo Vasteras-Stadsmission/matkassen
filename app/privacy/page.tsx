@@ -62,30 +62,13 @@ async function loadMessages(locale: string): Promise<PublicMessages> {
             "Locale-specific message bundle missing, falling back to English",
         );
 
-        try {
-            const fallbackMessages = (await import(`@/messages/public-en.json`)).default;
+        const fallbackMessages = (await import(`@/messages/public-en.json`)).default;
 
-            if (!fallbackMessages || !fallbackMessages.publicPrivacy) {
-                throw new Error("Invalid fallback message structure");
-            }
-
-            return fallbackMessages as PublicMessages;
-        } catch {
-            // Ultimate fallback - return a minimal structure
-            return {
-                publicParcel: {
-                    chooseLanguage: "Choose Language",
-                },
-                publicPrivacy: {
-                    title: "Privacy Policy",
-                    description: "Privacy policy and data protection information",
-                    lastUpdated: "Last updated",
-                    noPolicy: `No privacy policy has been configured yet. Contact ${BRAND_NAME} for more information.`,
-                    fallbackNotice:
-                        "This policy is shown in Swedish as it is not available in your selected language.",
-                },
-            };
+        if (!fallbackMessages || !fallbackMessages.publicPrivacy) {
+            throw new Error("Invalid fallback message structure");
         }
+
+        return fallbackMessages as PublicMessages;
     }
 }
 
