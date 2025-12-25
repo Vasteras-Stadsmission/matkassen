@@ -1,26 +1,15 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vitest/config";
+import { defineConfig, defineWorkspace } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { loadEnv } from "vite";
 
-export default defineConfig(({ mode }) => {
+// Shared configuration for all test workspaces
+const sharedConfig = ({ mode }: { mode: string }) => {
     const env = loadEnv(mode, process.cwd(), "");
 
     return {
         plugins: [react()],
-        test: {
-            environment: "happy-dom",
-            globals: true,
-            setupFiles: ["__tests__/setup.ts"],
-            include: ["__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-            exclude: ["node_modules", "dist", ".next"],
-            deps: {
-                external: [],
-                // Force inline dependencies that cause module resolution issues
-                inline: ["next-auth", "next/server", "@auth/core"],
-            },
-        },
         resolve: {
             alias: {
                 "@": path.resolve(__dirname, "./"),
@@ -36,4 +25,55 @@ export default defineConfig(({ mode }) => {
             "process.env": env,
         },
     };
-});
+};
+
+export default defineConfig(({ mode }) => ({
+    ...sharedConfig({ mode }),
+    test: {
+        // Project configuration for separating unit and integration tests
+        projects: [
+            {
+                extends: true,
+                test: {
+                    name: "unit",
+                    environment: "happy-dom",
+                    globals: true,
+                    setupFiles: ["__tests__/setup.ts"],
+                    include: ["__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+                    exclude: [
+                        "node_modules",
+                        "dist",
+                        ".next",
+                        "__tests__/**/*.integration.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+                    ],
+                    server: {
+                        deps: {
+                            inline: ["next-auth", "next/server", "@auth/core"],
+                        },
+                    },
+                },
+            },
+            {
+                extends: true,
+                test: {
+                    name: "integration",
+                    environment: "node",
+                    globals: true,
+                    setupFiles: ["__tests__/integration/setup.ts"],
+                    include: ["__tests__/**/*.integration.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+                    exclude: ["node_modules", "dist", ".next"],
+                    // Integration tests run serially to avoid PGlite conflicts
+                    pool: "forks",
+                    poolOptions: {
+                        forks: { singleFork: true },
+                    },
+                    server: {
+                        deps: {
+                            inline: ["next-auth", "next/server", "@auth/core"],
+                        },
+                    },
+                },
+            },
+        ],
+    },
+}));
