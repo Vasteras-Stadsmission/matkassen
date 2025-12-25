@@ -88,10 +88,14 @@ export async function cleanupTestDb() {
         RESTART IDENTITY CASCADE
     `);
 
-    // Note: We preserve these lookup tables (seeded by migrations):
+    // Lookup tables preserved (seeded by migrations, never change):
     // - dietary_restrictions
     // - pet_species_types
     // - additional_needs
+    //
+    // Tables truncated that DO have seed data:
+    // - pickup_locations (has one default location, but tests should create own)
+    // - verification_questions (admin-created, not static seed data)
 }
 
 /**

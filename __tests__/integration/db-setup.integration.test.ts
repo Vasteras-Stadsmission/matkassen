@@ -12,7 +12,6 @@
 import { describe, it, expect } from "vitest";
 import { getTestDb, getPgliteInstance } from "../db/test-db";
 import { households, dietaryRestrictions, petSpecies } from "@/app/db/schema";
-import { eq } from "drizzle-orm";
 
 describe("PGlite Test Database Setup", () => {
     it("should initialize PGlite and run migrations", async () => {
