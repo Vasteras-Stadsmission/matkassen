@@ -263,153 +263,156 @@ export default async function SmsFailuresPage() {
 
 ---
 
-## Phase 5: Add SMS Section to Household Page
+## Phase 5: Add SMS History Section to Household Page
 
-### Two Parts
+### What It Shows
 
-1. **Household-level SMS** (enrolment SMS, not tied to parcels)
-2. **Parcel-level SMS badges** (pickup reminders, on parcel cards)
+A single SMS section showing **all SMS history** for the household:
+- Enrolment SMS (consent_enrolment)
+- Pickup reminder SMS (pickup_reminder)
+- Any other SMS types
 
-### Part A: Household SMS Section
+This gives admins one place to see everything SMS-related for a household.
 
-Add a section on the household page showing non-parcel SMS (like consent_enrolment):
+### Visual Design
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ SMS Status                                              │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ Enrolment SMS              [Sent ✓]                │ │
-│ └─────────────────────────────────────────────────────┘ │
-│ or if failed:                                           │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ Enrolment SMS              [Failed ✗]    [Resend]  │ │
-│ │ └─ Error: Invalid phone number                     │ │
-│ └─────────────────────────────────────────────────────┘ │
+│ SMS History                                             │
+├─────────────────────────────────────────────────────────┤
+│ Enrolment              Jan 10      [Sent ✓]             │
+│                                                         │
+│ Pickup Reminder        Jan 15      [Sent ✓]             │
+│   └─ Parcel: Mon 2025-01-15                             │
+│                                                         │
+│ Pickup Reminder        Jan 22      [Failed ✗]  [Resend] │
+│   └─ Parcel: Mon 2025-01-22                             │
+│   └─ Error: Invalid phone number                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-#### Files to Modify
+### Files to Modify
 
 ```
 app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx
 app/[locale]/households/actions.ts - getHouseholdDetails()
 ```
 
-#### Backend Changes
+### Backend Changes
 
-Modify `getHouseholdDetails()` to also fetch household-level SMS (where parcel_id is null):
+Modify `getHouseholdDetails()` to fetch all SMS for the household:
 
 ```sql
-SELECT * FROM outgoing_sms
-WHERE household_id = ? AND parcel_id IS NULL
-ORDER BY created_at DESC
-LIMIT 5
+SELECT
+  s.id,
+  s.intent,
+  s.status,
+  s.last_error_message,
+  s.created_at,
+  s.parcel_id,
+  p.pickup_date
+FROM outgoing_sms s
+LEFT JOIN food_parcels p ON s.parcel_id = p.id
+WHERE s.household_id = ?
+ORDER BY s.created_at DESC
+LIMIT 10
 ```
 
-#### UI Changes
+### UI Changes
 
-Add a new section in `HouseholdDetailsPage.tsx` between household info and parcels:
+Add a new component or section in `HouseholdDetailsPage.tsx`:
 
 ```tsx
-{/* Household SMS Status (enrolment, etc.) */}
-{householdSmsRecords.length > 0 && (
+{/* SMS History */}
+{smsHistory.length > 0 && (
   <Paper withBorder p="lg" radius="md">
-    <Title order={3} size="h4" mb="md">SMS Status</Title>
+    <Title order={3} size="h4" mb="md">
+      SMS History ({smsHistory.length})
+    </Title>
     <Stack gap="sm">
-      {householdSmsRecords.map(sms => (
-        <Group key={sms.id} justify="space-between">
-          <Stack gap={4}>
-            <Text size="sm">{getIntentLabel(sms.intent)}</Text>
-            {sms.status === "failed" && sms.lastErrorMessage && (
-              <Text size="xs" c="red">{sms.lastErrorMessage}</Text>
-            )}
-          </Stack>
-          <Group gap="xs">
-            <Badge color={sms.status === "sent" ? "green" : sms.status === "failed" ? "red" : "blue"}>
-              {sms.status}
-            </Badge>
-            {sms.status === "failed" && (
-              <Button size="xs" variant="light" onClick={() => resendSms(sms.id)}>
-                Resend
-              </Button>
-            )}
+      {smsHistory.map(sms => (
+        <Paper key={sms.id} p="sm" withBorder radius="sm">
+          <Group justify="space-between" wrap="nowrap">
+            <Stack gap={4} style={{ flex: 1 }}>
+              <Group gap="xs">
+                <Text size="sm" fw={500}>
+                  {getIntentLabel(sms.intent)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {formatDate(sms.createdAt)}
+                </Text>
+              </Group>
+
+              {/* Show parcel info for pickup reminders */}
+              {sms.parcelId && sms.pickupDate && (
+                <Text size="xs" c="dimmed">
+                  Parcel: {formatDate(sms.pickupDate)}
+                </Text>
+              )}
+
+              {/* Show error message for failures */}
+              {sms.status === "failed" && sms.lastErrorMessage && (
+                <Text size="xs" c="red">
+                  {sms.lastErrorMessage}
+                </Text>
+              )}
+            </Stack>
+
+            <Group gap="xs">
+              <Badge
+                color={
+                  sms.status === "sent" ? "green" :
+                  sms.status === "failed" ? "red" :
+                  sms.status === "queued" ? "blue" :
+                  "gray"
+                }
+                variant="light"
+              >
+                {sms.status === "sent" && "Sent ✓"}
+                {sms.status === "failed" && "Failed ✗"}
+                {sms.status === "queued" && "Queued"}
+                {sms.status === "sending" && "Sending..."}
+              </Badge>
+
+              {sms.status === "failed" && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={() => handleResendSms(sms.id)}
+                >
+                  Resend
+                </Button>
+              )}
+            </Group>
           </Group>
-        </Group>
+        </Paper>
       ))}
     </Stack>
   </Paper>
 )}
 ```
 
-### Part B: Add SMS Badge to Household Parcel Cards
-
-### Files to Modify
-
-```
-app/[locale]/households/[id]/components/ParcelCard.tsx
-app/[locale]/households/[id]/components/ParcelList.tsx
-```
-
-### Data Changes
-
-The `ParcelCardData` interface needs SMS status:
+### Helper Function
 
 ```tsx
-export interface ParcelCardData {
-  id: string;
-  pickupDate: Date | string;
-  pickupEarliestTime: Date | string;
-  pickupLatestTime: Date | string;
-  isPickedUp?: boolean | null;
-  deletedAt?: Date | string | null;
-  deletedBy?: string | null;
-  // Add:
-  smsStatus?: "queued" | "sending" | "sent" | "failed" | "none";
-}
-```
-
-### Backend Changes
-
-Modify the household details query to include SMS status for each parcel:
-
-```
-app/[locale]/households/actions.ts - getHouseholdDetails()
-```
-
-Add a join or subquery to get latest SMS status for each parcel.
-
-### UI Changes
-
-In `ParcelCard.tsx`, add an SMS badge next to the status badge:
-
-```tsx
-// Add next to existing status badge
-{parcel.smsStatus && parcel.smsStatus !== "none" && (
-  <Badge
-    size="lg"
-    variant="light"
-    color={
-      parcel.smsStatus === "sent" ? "green" :
-      parcel.smsStatus === "failed" ? "red" :
-      parcel.smsStatus === "queued" ? "blue" :
-      "gray"
-    }
-  >
-    {parcel.smsStatus === "sent" && "SMS ✓"}
-    {parcel.smsStatus === "failed" && "SMS ✗"}
-    {parcel.smsStatus === "queued" && "SMS..."}
-    {parcel.smsStatus === "sending" && "SMS..."}
-  </Badge>
-)}
+const getIntentLabel = (intent: string): string => {
+  const labels: Record<string, string> = {
+    "consent_enrolment": "Enrolment",
+    "pickup_reminder": "Pickup Reminder",
+    "pickup_updated": "Pickup Updated",
+    "pickup_cancelled": "Pickup Cancelled",
+  };
+  return labels[intent] || intent;
+};
 ```
 
 ### Steps
 
-1. Modify `getHouseholdDetails()` in `app/[locale]/households/actions.ts` to include SMS status per parcel
-2. Update `ParcelCardData` interface to include `smsStatus`
-3. Update `ParcelCard.tsx` to render SMS badge
-4. Update `ParcelList.tsx` to pass through the SMS status
-5. Test with parcels that have sent, failed, and no SMS
+1. Modify `getHouseholdDetails()` in `app/[locale]/households/actions.ts` to fetch all SMS for household
+2. Add SMS history section to `HouseholdDetailsPage.tsx`
+3. Add resend functionality (can reuse existing API endpoint)
+4. Add translations for intent labels and section title
+5. Test with households that have various SMS (sent, failed, enrolment, pickup)
 
 ---
 
@@ -487,15 +490,14 @@ After implementation, verify:
 - [ ] Nav badge shows nothing when no failures
 - [ ] Nav badge shows count and links to failures page when failures exist
 - [ ] Failed SMS page lists failures with correct info (both parcel and enrolment SMS)
-- [ ] Clicking "View" on failures page goes to correct location:
-  - Parcel SMS → household page with parcel dialog open
-  - Enrolment SMS → household page
-- [ ] Household page shows SMS section for enrolment SMS (when exists)
-- [ ] Household page parcel cards show SMS status badge
-- [ ] SMS status badge shows correct color (green=sent, red=failed, blue=queued)
-- [ ] Can resend failed enrolment SMS from household page
+- [ ] Clicking "View" on failures page goes to household page
+- [ ] Household page shows SMS History section with all SMS (enrolment + pickup)
+- [ ] SMS History shows correct status badges (green=sent, red=failed, blue=queued)
+- [ ] SMS History shows error message for failed SMS
+- [ ] SMS History shows parcel date for pickup reminder SMS
+- [ ] Can resend failed SMS from household page SMS History section
 - [ ] Clicking parcel on household page opens dialog with SMS details
-- [ ] Can resend SMS from ParcelAdminDialog
+- [ ] Can resend SMS from ParcelAdminDialog (still works)
 - [ ] No broken links to old dashboard
 - [ ] No console errors from removed components
 - [ ] Build passes
