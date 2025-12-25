@@ -10,6 +10,14 @@ Add real PostgreSQL integration tests using **PGlite** - a WASM-compiled Postgre
 - Simpler setup, same SQL validation
 - Official Drizzle ORM support
 
+**Schema Strategy: Run Migrations (not push)**
+
+We run actual migration files because they contain critical SQL not expressible in `schema.ts`:
+- Partial unique indexes (`WHERE deleted_at IS NULL`)
+- Seed data for lookup tables (dietary restrictions, pet species, etc.)
+- Custom PL/pgSQL functions
+- Partial indexes for soft-delete queries
+
 ---
 
 ## Phase 1: Infrastructure Setup
@@ -28,6 +36,8 @@ pnpm add -D @electric-sql/pglite
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "@/app/db/schema";
+import * as fs from "fs";
+import * as path from "path";
 
 let pglite: PGlite | null = null;
 let testDb: ReturnType<typeof drizzle> | null = null;
@@ -39,24 +49,53 @@ let testDb: ReturnType<typeof drizzle> | null = null;
 export async function getTestDb() {
   if (!testDb) {
     pglite = new PGlite();
+
+    // Run actual migrations (includes partial indexes, seed data, extensions)
+    await runMigrations(pglite);
+
     testDb = drizzle(pglite, { schema });
-
-    // Enable pg_trgm extension (used for duplicate name checking)
-    await pglite.exec("CREATE EXTENSION IF NOT EXISTS pg_trgm");
-
-    // Apply schema using Drizzle's push (no migration files needed)
-    await applySchema(testDb);
   }
   return testDb;
 }
 
 /**
+ * Run all migration files in order.
+ * This ensures test DB matches production schema exactly, including:
+ * - Partial unique indexes (e.g., food_parcels soft-delete constraint)
+ * - Seed data for lookup tables
+ * - Custom PL/pgSQL functions
+ * - pg_trgm extension
+ */
+async function runMigrations(pglite: PGlite) {
+  const migrationsDir = path.join(process.cwd(), "migrations");
+  const files = fs.readdirSync(migrationsDir)
+    .filter(f => f.endsWith(".sql"))
+    .sort(); // Ensures correct order: 0000, 0001, 0002...
+
+  for (const file of files) {
+    const filePath = path.join(migrationsDir, file);
+    const sql = fs.readFileSync(filePath, "utf-8");
+
+    // Skip empty files or comment-only files
+    const cleanedSql = sql.replace(/--.*$/gm, "").trim();
+    if (!cleanedSql) continue;
+
+    try {
+      await pglite.exec(sql);
+    } catch (error) {
+      throw new Error(`Migration ${file} failed: ${error}`);
+    }
+  }
+}
+
+/**
  * Clean up database between tests.
- * Uses TRUNCATE for speed while maintaining referential integrity.
+ * Truncates data tables but preserves seed data in lookup tables.
  */
 export async function cleanupTestDb() {
   if (!pglite) return;
 
+  // Truncate transactional tables (not lookup tables with seed data)
   await pglite.exec(`
     TRUNCATE TABLE
       outgoing_sms,
@@ -70,16 +109,18 @@ export async function cleanupTestDb() {
       households,
       pickup_location_schedule_days,
       pickup_location_schedules,
-      pickup_locations,
-      verification_questions,
-      pet_species_types,
-      dietary_restrictions,
-      additional_needs,
       users,
       global_settings,
       csp_violations
     RESTART IDENTITY CASCADE
   `);
+
+  // Note: We preserve these lookup tables (seeded by migrations):
+  // - dietary_restrictions
+  // - pet_species_types
+  // - additional_needs
+  // - pickup_locations (has one default location)
+  // - verification_questions
 }
 
 /**
@@ -94,13 +135,11 @@ export async function closeTestDb() {
 }
 
 /**
- * Apply database schema using drizzle-kit's programmatic API.
+ * Get the raw PGlite instance for direct SQL execution.
+ * Useful for testing raw queries or debugging.
  */
-async function applySchema(db: ReturnType<typeof drizzle>) {
-  // Use drizzle-kit push to apply schema without migration files
-  // This is faster for testing than running migrations
-  const { push } = await import("drizzle-kit");
-  // Implementation details TBD based on drizzle-kit API
+export function getPgliteInstance() {
+  return pglite;
 }
 ```
 
@@ -488,9 +527,10 @@ Week 2:
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
 | PGlite behavior differs from PostgreSQL | Low | Add targeted Testcontainers tests if found |
-| Schema push doesn't work with Drizzle | Medium | Fall back to running migration SQL directly |
+| Migration fails in PGlite | Low | Check for unsupported syntax, adjust if needed |
 | Test isolation issues | Low | Use TRUNCATE CASCADE between tests |
 | pg_trgm not working | Low | Already confirmed supported |
+| Migrations slow down tests | Low | ~1s overhead is acceptable for correctness |
 
 ---
 
@@ -521,11 +561,16 @@ package.json                    # Add test:unit, test:integration scripts
 
 ---
 
-## Questions Before Implementation
+## Decisions Made
 
-1. **Schema application strategy**: Should we run actual migration files or use drizzle-kit push?
-   - Push is faster but migrations are more production-like
+1. **Schema application strategy**: ✅ **Run migrations**
+   - Migrations contain critical SQL not in schema.ts (partial indexes, seed data, extensions)
+   - ~1s slower but ensures test DB matches production exactly
 
-2. **Test file organization**: Keep integration tests next to unit tests (`.integration.test.ts` suffix) or separate directory?
+2. **Test file organization**: ✅ **Use `.integration.test.ts` suffix**
+   - Keep tests next to the code they test (Next.js colocation principle)
+   - Vitest workspaces handle separation via glob patterns
 
-3. **Factory reset strategy**: Reset counters between test files or use UUIDs?
+3. **Factory IDs**: ✅ **Use counters for unique fields, nanoid for IDs**
+   - IDs auto-generated by schema via `$defaultFn(() => nanoid(8))`
+   - Phone numbers use incrementing counters for predictability
