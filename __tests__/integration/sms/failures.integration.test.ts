@@ -3,6 +3,9 @@
  *
  * Tests the database query that powers /api/admin/sms/failures endpoint.
  * Verifies correct filtering, ordering, and data retrieval.
+ *
+ * IMPORTANT: Uses fixed base dates for deterministic testing.
+ * All dates are relative to TEST_NOW to avoid flaky tests.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -11,6 +14,7 @@ import {
     createTestHousehold,
     createTestLocationWithSchedule,
     createTestParcel,
+    createTestDeletedParcel,
     createTestFailedSms,
     createTestSentSms,
     createTestSms,
@@ -23,9 +27,27 @@ import { eq, and, gte, asc, sql } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 
 /**
- * Query function matching the failures list API endpoint logic.
+ * Fixed "now" time for all tests.
+ * Using a fixed date ensures tests are deterministic and don't depend on system time.
  */
-async function queryFailedSms(db: Awaited<ReturnType<typeof getTestDb>>) {
+const TEST_NOW = new Date("2024-06-15T10:00:00Z");
+
+/**
+ * Helper to create dates relative to TEST_NOW
+ */
+function daysFromNow(days: number): Date {
+    return new Date(TEST_NOW.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function hoursFromNow(hours: number): Date {
+    return new Date(TEST_NOW.getTime() + hours * 60 * 60 * 1000);
+}
+
+/**
+ * Query function matching the failures list API endpoint logic.
+ * Accepts 'now' parameter for deterministic testing.
+ */
+async function queryFailedSms(db: Awaited<ReturnType<typeof getTestDb>>, now: Date = new Date()) {
     return db
         .select({
             id: outgoingSms.id,
@@ -43,7 +65,7 @@ async function queryFailedSms(db: Awaited<ReturnType<typeof getTestDb>>) {
         .where(
             and(
                 notDeleted(),
-                gte(foodParcels.pickup_date_time_latest, new Date()),
+                gte(foodParcels.pickup_date_time_latest, now),
                 eq(outgoingSms.status, "failed"),
             ),
         )
@@ -53,8 +75,12 @@ async function queryFailedSms(db: Awaited<ReturnType<typeof getTestDb>>) {
 
 /**
  * Query function matching the failure count API endpoint logic.
+ * Accepts 'now' parameter for deterministic testing.
  */
-async function queryFailedSmsCount(db: Awaited<ReturnType<typeof getTestDb>>) {
+async function queryFailedSmsCount(
+    db: Awaited<ReturnType<typeof getTestDb>>,
+    now: Date = new Date(),
+) {
     const result = await db
         .select({
             count: sql<number>`count(*)::int`,
@@ -64,7 +90,7 @@ async function queryFailedSmsCount(db: Awaited<ReturnType<typeof getTestDb>>) {
         .where(
             and(
                 notDeleted(),
-                gte(foodParcels.pickup_date_time_latest, new Date()),
+                gte(foodParcels.pickup_date_time_latest, now),
                 eq(outgoingSms.status, "failed"),
             ),
         );
@@ -82,7 +108,7 @@ describe("SMS Failures Query - Integration Tests", () => {
         it("should return empty array when no failed SMS exist", async () => {
             const db = await getTestDb();
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(0);
         });
@@ -92,8 +118,8 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            // Create parcel for tomorrow
-            const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            // Create parcel for tomorrow (relative to TEST_NOW)
+            const tomorrow = daysFromNow(1);
             const parcel = await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -108,7 +134,7 @@ describe("SMS Failures Query - Integration Tests", () => {
                 error_message: "Invalid phone number",
             });
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(1);
             expect(results[0].householdFirstName).toBe(household.first_name);
@@ -121,8 +147,8 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            // Create parcel for yesterday (past)
-            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            // Create parcel for yesterday (past relative to TEST_NOW)
+            const yesterday = daysFromNow(-1);
             const pastParcel = await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -136,7 +162,7 @@ describe("SMS Failures Query - Integration Tests", () => {
                 parcel_id: pastParcel.id,
             });
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(0);
         });
@@ -146,19 +172,14 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            // Create and soft-delete a parcel
-            const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-            const [deletedParcel] = await db
-                .insert(foodParcels)
-                .values({
-                    household_id: household.id,
-                    pickup_location_id: location.id,
-                    pickup_date_time_earliest: tomorrow,
-                    pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
-                    deleted_at: new Date(), // Soft-deleted
-                    deleted_by_user_id: "test-admin",
-                })
-                .returning();
+            // Create and soft-delete a parcel using the factory
+            const tomorrow = daysFromNow(1);
+            const deletedParcel = await createTestDeletedParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
 
             // Create failed SMS for deleted parcel
             await createTestFailedSms({
@@ -166,7 +187,7 @@ describe("SMS Failures Query - Integration Tests", () => {
                 parcel_id: deletedParcel.id,
             });
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(0);
         });
@@ -176,7 +197,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const tomorrow = daysFromNow(1);
             const parcel = await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -200,7 +221,7 @@ describe("SMS Failures Query - Integration Tests", () => {
                 status: "sending",
             });
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(0);
         });
@@ -212,10 +233,10 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            // Create parcels at different times
-            const in3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-            const in1Day = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000);
-            const in2Days = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+            // Create parcels at different times (relative to TEST_NOW)
+            const in3Days = daysFromNow(3);
+            const in1Day = daysFromNow(1);
+            const in2Days = daysFromNow(2);
 
             const parcel3Days = await createTestParcel({
                 household_id: household.id,
@@ -255,7 +276,7 @@ describe("SMS Failures Query - Integration Tests", () => {
                 error_message: "Error 2",
             });
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(3);
             // Should be ordered: 1 day, 2 days, 3 days (soonest first)
@@ -272,7 +293,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household2 = await createTestHousehold({ first_name: "Bob" });
             const { location } = await createTestLocationWithSchedule();
 
-            const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const tomorrow = daysFromNow(1);
 
             const parcel1 = await createTestParcel({
                 household_id: household1.id,
@@ -297,7 +318,7 @@ describe("SMS Failures Query - Integration Tests", () => {
                 parcel_id: parcel2.id,
             });
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(2);
             const names = results.map(r => r.householdFirstName);
@@ -311,23 +332,27 @@ describe("SMS Failures Query - Integration Tests", () => {
             const db = await getTestDb();
             const { location } = await createTestLocationWithSchedule();
 
-            // Create 105 failed SMS
+            // Create 105 failed SMS using batch approach for efficiency
+            const households = await Promise.all(
+                Array.from({ length: 105 }, () => createTestHousehold()),
+            );
+
+            // Create parcels and SMS for each household
             for (let i = 0; i < 105; i++) {
-                const household = await createTestHousehold();
-                const tomorrow = new Date(Date.now() + (24 + i) * 60 * 60 * 1000);
+                const pickupTime = hoursFromNow(24 + i); // Stagger pickup times
                 const parcel = await createTestParcel({
-                    household_id: household.id,
+                    household_id: households[i].id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: tomorrow,
-                    pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_latest: new Date(pickupTime.getTime() + 30 * 60 * 1000),
                 });
                 await createTestFailedSms({
-                    household_id: household.id,
+                    household_id: households[i].id,
                     parcel_id: parcel.id,
                 });
             }
 
-            const results = await queryFailedSms(db);
+            const results = await queryFailedSms(db, TEST_NOW);
 
             expect(results).toHaveLength(100);
         });
@@ -341,12 +366,12 @@ describe("SMS Failures Query - Integration Tests", () => {
             // Create multiple failed SMS
             for (let i = 0; i < 5; i++) {
                 const household = await createTestHousehold();
-                const tomorrow = new Date(Date.now() + (24 + i) * 60 * 60 * 1000);
+                const pickupTime = hoursFromNow(24 + i);
                 const parcel = await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: tomorrow,
-                    pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_latest: new Date(pickupTime.getTime() + 30 * 60 * 1000),
                 });
                 await createTestFailedSms({
                     household_id: household.id,
@@ -354,8 +379,8 @@ describe("SMS Failures Query - Integration Tests", () => {
                 });
             }
 
-            const list = await queryFailedSms(db);
-            const count = await queryFailedSmsCount(db);
+            const list = await queryFailedSms(db, TEST_NOW);
+            const count = await queryFailedSmsCount(db, TEST_NOW);
 
             expect(count).toBe(list.length);
             expect(count).toBe(5);
@@ -364,8 +389,8 @@ describe("SMS Failures Query - Integration Tests", () => {
         it("should both return zero when no failures", async () => {
             const db = await getTestDb();
 
-            const list = await queryFailedSms(db);
-            const count = await queryFailedSmsCount(db);
+            const list = await queryFailedSms(db, TEST_NOW);
+            const count = await queryFailedSmsCount(db, TEST_NOW);
 
             expect(list).toHaveLength(0);
             expect(count).toBe(0);
