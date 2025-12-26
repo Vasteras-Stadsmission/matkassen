@@ -3,15 +3,27 @@
 > **Context:** This plan should be executed after the JIT SMS scheduler is merged.
 > The goal is to simplify SMS visibility by removing redundant features and adding focused, minimal ones.
 
+## Scope Decisions (Important)
+
+Before implementing, decide these:
+
+| Decision | Options | Recommendation |
+|----------|---------|----------------|
+| Which intents in "failures"? | Pickup-only vs All intents | **Pickup-only** (simplest, matches existing) |
+| Time window for failures? | 48h vs pickup window vs unresolved | **Pickup window** (matches badge count) |
+| What can be resent? | Pickup-only vs All intents | **Pickup-only** (existing API supports this) |
+
+> **Note:** The existing `/api/admin/sms/failure-count` endpoint only counts failed SMS for **active, upcoming parcels** (uses inner join with food_parcels). Any new failures page should use the same scope for consistency, or the badge count won't match the failures list.
+
 ## Summary of Changes
 
 | Action | Component |
 |--------|-----------|
 | Remove | SMS Dashboard (full page with statistics, filtering, grouping) |
 | Remove | Schedule SMS Panel (collapsible panel on parcel cards in schedule) |
-| Build | Nav badge showing failed SMS count (only visible when errors exist) |
+| Modify | Existing nav badge to link to failures page instead of SMS Dashboard |
 | Build | Failed SMS page (simple list of failures with links to households) |
-| Build | SMS status badge on parcel cards in household page |
+| Build | SMS History section on household page (all SMS types) |
 | Keep | ParcelAdminDialog SMS section (already exists, no changes needed) |
 | Keep | Slack alerts for developer notification |
 
@@ -85,61 +97,35 @@ Any files that import `PickupCardWithSms` should use the simpler `PickupCard` in
 
 ---
 
-## Phase 3: Build Nav Badge for Failed SMS
+## Phase 3: Update Nav Badge to Link to Failures Page
 
-### Location
+### Existing Implementation
 
-Add to the main navigation/header component (find where nav is defined).
+The nav badge **already exists** in `components/HeaderSimple/HeaderSimple.tsx:50-75`. It:
+- Fetches failure count on mount
+- Shows a red indicator on the "SMS Dashboard" nav link when count > 0
+- Currently links to `/sms-dashboard`
 
-### Behavior
+### Changes Needed
 
-- Only visible when there are failed SMS (count > 0)
-- Shows count: `[SMS: 2]` with warning color
-- Clicking navigates to failed SMS page
-- Fetches count on page load and periodically (every 60 seconds?)
+1. Update the link from `/sms-dashboard` to `/sms-failures`
+2. Update the label to match the new page (or keep generic)
 
-### Implementation
+### Steps
 
-1. Create a new component: `components/SmsFailureBadge.tsx`
+1. In `components/HeaderSimple/HeaderSimple.tsx`, find the links array (around line 72):
 
 ```tsx
-// Pseudocode structure
-"use client";
+// Current
+{ link: "/sms-dashboard", label: t("navigation.smsDashboard"), badge: smsFailureCount },
 
-import { useState, useEffect } from "react";
-import { Badge, Indicator } from "@mantine/core";
-import { IconMessage } from "@tabler/icons-react";
-import { Link } from "@/app/i18n/navigation";
-
-export function SmsFailureBadge() {
-  const [failureCount, setFailureCount] = useState(0);
-
-  useEffect(() => {
-    const fetchCount = async () => {
-      const res = await fetch("/api/admin/sms/failure-count");
-      const data = await res.json();
-      setFailureCount(data.count);
-    };
-
-    fetchCount();
-    const interval = setInterval(fetchCount, 60000); // Refresh every minute
-    return () => clearInterval(interval);
-  }, []);
-
-  if (failureCount === 0) return null;
-
-  return (
-    <Link href="/admin/sms-failures">
-      <Badge color="red" variant="filled" leftSection={<IconMessage size={14} />}>
-        SMS: {failureCount}
-      </Badge>
-    </Link>
-  );
-}
+// Change to
+{ link: "/sms-failures", label: t("navigation.smsFailures"), badge: smsFailureCount },
 ```
 
-2. Add `<SmsFailureBadge />` to the navigation component
-3. Ensure the existing `/api/admin/sms/failure-count/route.ts` returns the right data (check its implementation)
+2. Add the translation key `navigation.smsFailures` to `messages/en.json` and `messages/sv.json`
+
+3. The existing failure count API at `/api/admin/sms/failure-count/route.ts` is already correct - it counts failed SMS for active, upcoming parcels
 
 ---
 
@@ -147,39 +133,36 @@ export function SmsFailureBadge() {
 
 ### Location
 
-```
-app/[locale]/admin/sms-failures/page.tsx
-```
+Use the same routing convention as existing pages (no `/admin` prefix):
 
-Or simpler path if preferred:
 ```
 app/[locale]/sms-failures/page.tsx
 ```
 
 ### What It Shows
 
-- Simple list of failed SMS from last 48 hours
-- **All intent types**: pickup_reminder, consent_enrolment, etc.
+Based on the scope decision, show failed SMS for **active, upcoming parcels** (same scope as the badge count):
+
+- Simple list of failed parcel SMS
 - Each item shows:
   - Household name (link to household page)
-  - Intent type (Pickup Reminder, Enrolment, etc.)
-  - Pickup date (for parcel SMS) or "Enrolment" (for non-parcel SMS)
+  - Pickup date/time
   - Error message
-  - "View" button:
-    - Parcel SMS → links to household page with parcel query param
-    - Enrolment SMS → links to household page
+  - "View" button → links to household page with parcel query param
 - No filtering, no statistics, no grouping
-- Refresh button
+- Refresh button (use router.refresh() or revalidate)
+
+> **Note:** If you choose to show all intents including enrolment SMS, you'll need to modify the failure-count API to match, otherwise the badge count won't match the list.
 
 ### API Endpoint
 
-Create a new simple endpoint or modify existing:
+Create a new simple endpoint:
 
 ```
 app/api/admin/sms/failures/route.ts
 ```
 
-Returns:
+Returns (same scope as failure-count - active parcels with upcoming pickup):
 ```json
 {
   "failures": [
@@ -187,21 +170,11 @@ Returns:
       "id": "sms-123",
       "householdId": "hh-456",
       "householdName": "Andersson Family",
-      "intent": "pickup_reminder",
       "parcelId": "parcel-789",
-      "pickupDate": "2025-01-15",
+      "pickupDateEarliest": "2025-01-15T10:00:00Z",
+      "pickupDateLatest": "2025-01-15T12:00:00Z",
       "errorMessage": "Invalid phone number",
       "failedAt": "2025-01-13T10:30:00Z"
-    },
-    {
-      "id": "sms-456",
-      "householdId": "hh-789",
-      "householdName": "Johansson Family",
-      "intent": "consent_enrolment",
-      "parcelId": null,
-      "pickupDate": null,
-      "errorMessage": "Number no longer in service",
-      "failedAt": "2025-01-13T09:15:00Z"
     }
   ]
 }
@@ -210,36 +183,68 @@ Returns:
 ### Implementation
 
 1. Create the API route `app/api/admin/sms/failures/route.ts`:
-   - Query `outgoing_sms` where status = 'failed' and created_at > now - 48 hours
-   - Join with households and food_parcels to get names and dates
 
-2. Create the page component:
+```typescript
+// Use same query pattern as failure-count to ensure consistency
+const failures = await db
+  .select({
+    id: outgoingSms.id,
+    householdId: foodParcels.household_id,
+    householdName: households.name,
+    parcelId: outgoingSms.parcel_id,
+    pickupDateEarliest: foodParcels.pickup_date_time_earliest,
+    pickupDateLatest: foodParcels.pickup_date_time_latest,
+    errorMessage: outgoingSms.last_error_message,
+    failedAt: outgoingSms.updated_at,
+  })
+  .from(outgoingSms)
+  .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+  .innerJoin(households, eq(foodParcels.household_id, households.id))
+  .where(
+    and(
+      notDeleted(),
+      gte(foodParcels.pickup_date_time_latest, new Date()),
+      eq(outgoingSms.status, "failed"),
+    ),
+  )
+  .orderBy(desc(outgoingSms.updated_at));
+```
+
+2. Create the page component (use i18n for all user-facing strings):
 
 ```tsx
-// Pseudocode structure for app/[locale]/admin/sms-failures/page.tsx
+// app/[locale]/sms-failures/page.tsx
 import { Container, Title, Paper, Stack, Text, Group, Button, Badge } from "@mantine/core";
 import { Link } from "@/app/i18n/navigation";
+import { getTranslations } from "next-intl/server";
 
-// Server component that fetches data
 export default async function SmsFailuresPage() {
-  const failures = await fetchFailures(); // Implement this
+  const t = await getTranslations("smsFailures");
+
+  // Fetch with no-store to ensure fresh data
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin/sms/failures`, {
+    cache: "no-store",
+  });
+  const { failures } = await response.json();
 
   return (
     <Container size="md" py="xl">
-      <Title order={2} mb="lg">Failed SMS</Title>
+      <Title order={2} mb="lg">{t("title")}</Title>
 
       {failures.length === 0 ? (
         <Paper p="xl" withBorder>
-          <Text c="dimmed" ta="center">No failed SMS in the last 48 hours</Text>
+          <Text c="dimmed" ta="center">{t("noFailures")}</Text>
         </Paper>
       ) : (
         <Stack gap="sm">
-          {failures.map(failure => (
+          {failures.map((failure: FailedSms) => (
             <Paper key={failure.id} p="md" withBorder>
               <Group justify="space-between">
                 <Stack gap="xs">
                   <Text fw={600}>{failure.householdName}</Text>
-                  <Text size="sm" c="dimmed">Pickup: {failure.pickupDate}</Text>
+                  <Text size="sm" c="dimmed">
+                    {t("pickup")}: {formatDate(failure.pickupDateEarliest)}
+                  </Text>
                   <Badge color="red" variant="light">{failure.errorMessage}</Badge>
                 </Stack>
                 <Button
@@ -247,7 +252,7 @@ export default async function SmsFailuresPage() {
                   href={`/households/${failure.householdId}?parcel=${failure.parcelId}`}
                   variant="light"
                 >
-                  View
+                  {t("view")}
                 </Button>
               </Group>
             </Paper>
@@ -259,7 +264,18 @@ export default async function SmsFailuresPage() {
 }
 ```
 
-3. Add translations for the page title and empty state
+3. Add translations to `messages/en.json` and `messages/sv.json`:
+
+```json
+{
+  "smsFailures": {
+    "title": "Failed SMS",
+    "noFailures": "No failed SMS for upcoming pickups",
+    "pickup": "Pickup",
+    "view": "View"
+  }
+}
+```
 
 ---
 
@@ -300,7 +316,7 @@ app/[locale]/households/actions.ts - getHouseholdDetails()
 
 ### Backend Changes
 
-Modify `getHouseholdDetails()` to fetch all SMS for the household:
+Modify `getHouseholdDetails()` in `app/[locale]/households/actions.ts` to fetch all SMS for the household:
 
 ```sql
 SELECT
@@ -310,13 +326,16 @@ SELECT
   s.last_error_message,
   s.created_at,
   s.parcel_id,
-  p.pickup_date
+  p.pickup_date_time_earliest,
+  p.pickup_date_time_latest
 FROM outgoing_sms s
 LEFT JOIN food_parcels p ON s.parcel_id = p.id
 WHERE s.household_id = ?
 ORDER BY s.created_at DESC
 LIMIT 10
 ```
+
+> **Important:** The schema uses `pickup_date_time_earliest` and `pickup_date_time_latest`, NOT `pickup_date`.
 
 ### UI Changes
 
@@ -374,13 +393,14 @@ Add a new component or section in `HouseholdDetailsPage.tsx`:
                 {sms.status === "sending" && "Sending..."}
               </Badge>
 
-              {sms.status === "failed" && (
+              {/* Resend only available for pickup_reminder - existing API limitation */}
+              {sms.status === "failed" && sms.intent === "pickup_reminder" && sms.parcelId && (
                 <Button
                   size="xs"
                   variant="light"
-                  onClick={() => handleResendSms(sms.id)}
+                  onClick={() => handleResendSms(sms.parcelId)}
                 >
-                  Resend
+                  {t("smsHistory.resend")}
                 </Button>
               )}
             </Group>
@@ -390,6 +410,15 @@ Add a new component or section in `HouseholdDetailsPage.tsx`:
     </Stack>
   </Paper>
 )}
+
+// Note: The resend handler calls the existing parcel-based API
+const handleResendSms = async (parcelId: string) => {
+  await fetch(`/api/admin/sms/parcel/${parcelId}`, {
+    method: "POST",
+    body: JSON.stringify({ action: "send" }),
+  });
+  // Refresh data
+};
 ```
 
 ### Helper Function
@@ -425,8 +454,13 @@ Check and clean up translation keys in:
 - `messages/sv.json`
 
 Keys that may be removable (verify first):
-- `admin.smsDashboard.*` (if not used by ParcelAdminDialog)
+- `admin.smsDashboard.*` - **Check if used by ParcelAdminDialog first!** (`components/ParcelAdminDialog.tsx` and `components/SmsActionButton.tsx` use some of these)
 - `schedule.sms.*` (if not used elsewhere)
+- `navigation.smsDashboard` - Replace with `navigation.smsFailures`
+
+> **Important:** The `ParcelAdminDialog` and `SmsActionButton` share some translation keys with the old dashboard. Either:
+> 1. Keep those keys and just remove the dashboard-specific ones, OR
+> 2. Move them to a generic `sms.*` namespace and update both components
 
 ### Remove Unused Components
 
@@ -436,17 +470,21 @@ Search for any orphaned components:
 grep -r "SmsStatistics\|SmsDashboardClient\|SmsListItem" app/
 ```
 
-### Update Tests
+### Update Tests and Documentation
 
-Delete or update any tests related to:
-- SMS Dashboard
-- Schedule SMS Panel
-- SMS Statistics
-
+**Tests to update/delete:**
 ```bash
 # Find related test files
-find . -name "*.test.tsx" -o -name "*.spec.ts" | xargs grep -l "SmsDashboard\|SmsManagement"
+find . -name "*.test.tsx" -o -name "*.spec.ts" | xargs grep -l "SmsDashboard\|SmsManagement\|sms-dashboard"
 ```
+
+Known test files that reference SMS dashboard:
+- `e2e/admin.spec.ts` - Update navigation tests
+- `e2e/navigation.spec.ts` - Update route assertions
+
+**Documentation to update:**
+- `docs/user-manual.md` - Remove SMS dashboard references, add sms-failures page
+- `docs/user-flows.md` - Update admin workflows
 
 ---
 
@@ -516,23 +554,24 @@ app/[locale]/schedule/components/PickupCardWithSms.tsx
 app/[locale]/schedule/hooks/useSmsManagement.ts
 app/api/admin/sms/dashboard/route.ts
 app/api/admin/sms/statistics/route.ts
+app/utils/sms/statistics.ts                          # Only used by dashboard
 ```
 
 ### Create
 
 ```
-app/[locale]/admin/sms-failures/page.tsx             # Failed SMS list page
+app/[locale]/sms-failures/page.tsx                   # Failed SMS list page (NO /admin prefix)
 app/api/admin/sms/failures/route.ts                  # API for failures list
-components/SmsFailureBadge.tsx                       # Nav badge component
 ```
 
 ### Modify
 
 ```
-app/[locale]/households/actions.ts                   # Add SMS status to parcel query
-app/[locale]/households/[id]/components/ParcelCard.tsx    # Add SMS badge
-app/[locale]/households/[id]/components/ParcelList.tsx    # Pass SMS status
-components/Navigation.tsx (or wherever nav is)       # Add SmsFailureBadge
+app/[locale]/households/actions.ts                   # Add SMS history fetch
+app/[locale]/households/[id]/components/HouseholdDetailsPage.tsx  # Add SMS History section
+components/HeaderSimple/HeaderSimple.tsx             # Update link from /sms-dashboard to /sms-failures
+messages/en.json                                     # Add smsFailures translations, update navigation
+messages/sv.json                                     # Add smsFailures translations, update navigation
 ```
 
 ### Keep Unchanged
@@ -540,9 +579,29 @@ components/Navigation.tsx (or wherever nav is)       # Add SmsFailureBadge
 ```
 components/ParcelAdminDialog.tsx                     # Already has SMS section
 components/SmsActionButton.tsx                       # Used by dialog
-app/api/admin/sms/parcel/[parcelId]/route.ts        # Used by dialog
-app/api/admin/sms/failure-count/route.ts            # Used by nav badge
+app/api/admin/sms/parcel/[parcelId]/route.ts        # Used by dialog and resend
+app/api/admin/sms/failure-count/route.ts            # Used by nav badge (already correct)
+app/utils/sms/hello-sms.ts                          # Core SMS functionality
+app/utils/sms/sms-service.ts                        # Core SMS functionality
+app/utils/sms/templates.ts                          # SMS templates
 ```
+
+---
+
+## Implementation Order Recommendation
+
+The phases above are numbered for logical grouping, but **consider this alternative execution order** to avoid visibility gaps during implementation:
+
+| Order | Phase | Why This Order |
+|-------|-------|----------------|
+| 1 | Phase 4: Build failures page + API | Build new visibility first |
+| 2 | Phase 3: Update nav to link to new page | Connect new visibility to nav |
+| 3 | Phase 5: Add household SMS history | Complete new features |
+| 4 | Phase 1: Remove SMS dashboard | Safe to remove - new features exist |
+| 5 | Phase 2: Remove schedule SMS panel | Clean up old features |
+| 6 | Phase 6: Cleanup | Final cleanup |
+
+This order ensures admins never lose SMS visibility during the transition.
 
 ---
 
@@ -554,6 +613,6 @@ When you're ready to implement, you can use this prompt:
 I want to refactor the SMS visibility features. Please read the plan at
 docs/sms-dashboard-refactor-plan.md and implement it phase by phase.
 
-Start with Phase 1 (removing SMS Dashboard), verify build passes,
-then move to Phase 2, and so on. Commit after each phase.
+Use the recommended implementation order (build new features first, then remove old ones).
+Verify build passes after each phase. Commit after each phase.
 ```

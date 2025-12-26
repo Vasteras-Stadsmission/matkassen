@@ -18,6 +18,7 @@
         "todayHandouts": "Today's Handouts",
         "locations": "Pickup Locations",
         "smsDashboard": "SMS Management",
+        "smsFailures": "SMS Failures",
         "newHousehold": "New Household",
         "scanQrCode": "Scan QR Code",
         "navigation": "Navigation"
@@ -1238,5 +1239,13 @@
             "confirmButton": "Continue Adding Parcels",
             "cancelButton": "Cancel"
         }
+    },
+    "smsFailures": {
+        "title": "Failed SMS",
+        "noFailures": "No failed SMS for upcoming pickups",
+        "pickup": "Pickup",
+        "view": "View Household",
+        "refresh": "Refresh",
+        "error": "Error"
     }
 }

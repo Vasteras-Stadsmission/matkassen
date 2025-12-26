@@ -72,7 +72,7 @@ export function HeaderSimple() {
         () => [
             { link: "/households", label: t("navigation.households") },
             { link: "/schedule", label: t("navigation.schedule") },
-            { link: "/sms-dashboard", label: t("navigation.smsDashboard"), badge: smsFailureCount },
+            { link: "/sms-failures", label: t("navigation.smsFailures"), badge: smsFailureCount },
         ],
         [t, smsFailureCount],
     );
