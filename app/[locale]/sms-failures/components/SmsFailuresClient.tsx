@@ -118,7 +118,11 @@ export function SmsFailuresClient() {
             </Group>
 
             {error && (
-                <Alert icon={<IconAlertCircle size={16} />} title={t("smsFailures.error")} color="red">
+                <Alert
+                    icon={<IconAlertCircle size={16} />}
+                    title={t("smsFailures.error")}
+                    color="red"
+                >
                     {error}
                 </Alert>
             )}

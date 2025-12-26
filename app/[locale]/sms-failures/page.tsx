@@ -6,10 +6,9 @@ import { AuthProtection } from "@/components/AuthProtection";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
     const { locale } = await params;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const t = (await getTranslations({ locale })) as any;
+    const t = await getTranslations({ locale, namespace: "smsFailures" });
     return {
-        title: `${t("smsFailures.title")} - Matkassen`,
+        title: `${t("title")} - Matkassen`,
     };
 }
 

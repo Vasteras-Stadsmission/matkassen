@@ -57,7 +57,9 @@ export function HeaderSimple() {
                 const response = await fetch("/api/admin/sms/failure-count");
                 if (response.ok) {
                     const data = await response.json();
-                    setSmsFailureCount(data.count || 0);
+                    if (typeof data.count === "number") {
+                        setSmsFailureCount(data.count);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch SMS failure count:", error);

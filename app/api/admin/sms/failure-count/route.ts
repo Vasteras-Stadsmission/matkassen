@@ -32,7 +32,14 @@ export async function GET() {
 
         const failureCount = result[0]?.count || 0;
 
-        return NextResponse.json({ count: failureCount });
+        return NextResponse.json(
+            { count: failureCount },
+            {
+                headers: {
+                    "Cache-Control": "no-store",
+                },
+            },
+        );
     } catch (error) {
         logError("Error fetching SMS failure count", error, {
             method: "GET",

@@ -7,25 +7,25 @@
 
 Before implementing, decide these:
 
-| Decision | Options | Recommendation |
-|----------|---------|----------------|
-| Which intents in "failures"? | Pickup-only vs All intents | **Pickup-only** (simplest, matches existing) |
-| Time window for failures? | 48h vs pickup window vs unresolved | **Pickup window** (matches badge count) |
-| What can be resent? | Pickup-only vs All intents | **Pickup-only** (existing API supports this) |
+| Decision                     | Options                            | Recommendation                               |
+| ---------------------------- | ---------------------------------- | -------------------------------------------- |
+| Which intents in "failures"? | Pickup-only vs All intents         | **Pickup-only** (simplest, matches existing) |
+| Time window for failures?    | 48h vs pickup window vs unresolved | **Pickup window** (matches badge count)      |
+| What can be resent?          | Pickup-only vs All intents         | **Pickup-only** (existing API supports this) |
 
 > **Note:** The existing `/api/admin/sms/failure-count` endpoint only counts failed SMS for **active, upcoming parcels** (uses inner join with food_parcels). Any new failures page should use the same scope for consistency, or the badge count won't match the failures list.
 
 ## Summary of Changes
 
-| Action | Component |
-|--------|-----------|
-| Remove | SMS Dashboard (full page with statistics, filtering, grouping) |
-| Remove | Schedule SMS Panel (collapsible panel on parcel cards in schedule) |
+| Action | Component                                                            |
+| ------ | -------------------------------------------------------------------- |
+| Remove | SMS Dashboard (full page with statistics, filtering, grouping)       |
+| Remove | Schedule SMS Panel (collapsible panel on parcel cards in schedule)   |
 | Modify | Existing nav badge to link to failures page instead of SMS Dashboard |
-| Build | Failed SMS page (simple list of failures with links to households) |
-| Build | SMS History section on household page (all SMS types) |
-| Keep | ParcelAdminDialog SMS section (already exists, no changes needed) |
-| Keep | Slack alerts for developer notification |
+| Build  | Failed SMS page (simple list of failures with links to households)   |
+| Build  | SMS History section on household page (all SMS types)                |
+| Keep   | ParcelAdminDialog SMS section (already exists, no changes needed)    |
+| Keep   | Slack alerts for developer notification                              |
 
 ---
 
@@ -85,9 +85,9 @@ Any files that import `PickupCardWithSms` should use the simpler `PickupCard` in
 ### Steps
 
 1. Search for usages of `PickupCardWithSms`:
-   ```bash
-   grep -r "PickupCardWithSms" app/
-   ```
+    ```bash
+    grep -r "PickupCardWithSms" app/
+    ```
 2. Replace with `PickupCard` in those files
 3. Remove the `showSmsPanel` prop from any components
 4. Delete `SmsManagementPanel.tsx`
@@ -102,6 +102,7 @@ Any files that import `PickupCardWithSms` should use the simpler `PickupCard` in
 ### Existing Implementation
 
 The nav badge **already exists** in `components/HeaderSimple/HeaderSimple.tsx:50-75`. It:
+
 - Fetches failure count on mount
 - Shows a red indicator on the "SMS Dashboard" nav link when count > 0
 - Currently links to `/sms-dashboard`
@@ -145,10 +146,10 @@ Based on the scope decision, show failed SMS for **active, upcoming parcels** (s
 
 - Simple list of failed parcel SMS
 - Each item shows:
-  - Household name (link to household page)
-  - Pickup date/time
-  - Error message
-  - "View" button → links to household page with parcel query param
+    - Household name (link to household page)
+    - Pickup date/time
+    - Error message
+    - "View" button → links to household page with parcel query param
 - No filtering, no statistics, no grouping
 - Refresh button (use router.refresh() or revalidate)
 
@@ -163,20 +164,21 @@ app/api/admin/sms/failures/route.ts
 ```
 
 Returns (same scope as failure-count - active parcels with upcoming pickup):
+
 ```json
 {
-  "failures": [
-    {
-      "id": "sms-123",
-      "householdId": "hh-456",
-      "householdName": "Andersson Family",
-      "parcelId": "parcel-789",
-      "pickupDateEarliest": "2025-01-15T10:00:00Z",
-      "pickupDateLatest": "2025-01-15T12:00:00Z",
-      "errorMessage": "Invalid phone number",
-      "failedAt": "2025-01-13T10:30:00Z"
-    }
-  ]
+    "failures": [
+        {
+            "id": "sms-123",
+            "householdId": "hh-456",
+            "householdName": "Andersson Family",
+            "parcelId": "parcel-789",
+            "pickupDateEarliest": "2025-01-15T10:00:00Z",
+            "pickupDateLatest": "2025-01-15T12:00:00Z",
+            "errorMessage": "Invalid phone number",
+            "failedAt": "2025-01-13T10:30:00Z"
+        }
+    ]
 }
 ```
 
@@ -187,27 +189,27 @@ Returns (same scope as failure-count - active parcels with upcoming pickup):
 ```typescript
 // Use same query pattern as failure-count to ensure consistency
 const failures = await db
-  .select({
-    id: outgoingSms.id,
-    householdId: foodParcels.household_id,
-    householdName: households.name,
-    parcelId: outgoingSms.parcel_id,
-    pickupDateEarliest: foodParcels.pickup_date_time_earliest,
-    pickupDateLatest: foodParcels.pickup_date_time_latest,
-    errorMessage: outgoingSms.last_error_message,
-    failedAt: outgoingSms.updated_at,
-  })
-  .from(outgoingSms)
-  .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-  .innerJoin(households, eq(foodParcels.household_id, households.id))
-  .where(
-    and(
-      notDeleted(),
-      gte(foodParcels.pickup_date_time_latest, new Date()),
-      eq(outgoingSms.status, "failed"),
-    ),
-  )
-  .orderBy(desc(outgoingSms.updated_at));
+    .select({
+        id: outgoingSms.id,
+        householdId: foodParcels.household_id,
+        householdName: households.name,
+        parcelId: outgoingSms.parcel_id,
+        pickupDateEarliest: foodParcels.pickup_date_time_earliest,
+        pickupDateLatest: foodParcels.pickup_date_time_latest,
+        errorMessage: outgoingSms.last_error_message,
+        failedAt: outgoingSms.updated_at,
+    })
+    .from(outgoingSms)
+    .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+    .innerJoin(households, eq(foodParcels.household_id, households.id))
+    .where(
+        and(
+            notDeleted(),
+            gte(foodParcels.pickup_date_time_latest, new Date()),
+            eq(outgoingSms.status, "failed"),
+        ),
+    )
+    .orderBy(desc(outgoingSms.updated_at));
 ```
 
 2. Create the page component (use i18n for all user-facing strings):
@@ -219,48 +221,54 @@ import { Link } from "@/app/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 
 export default async function SmsFailuresPage() {
-  const t = await getTranslations("smsFailures");
+    const t = await getTranslations("smsFailures");
 
-  // Fetch with no-store to ensure fresh data
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin/sms/failures`, {
-    cache: "no-store",
-  });
-  const { failures } = await response.json();
+    // Fetch with no-store to ensure fresh data
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin/sms/failures`, {
+        cache: "no-store",
+    });
+    const { failures } = await response.json();
 
-  return (
-    <Container size="md" py="xl">
-      <Title order={2} mb="lg">{t("title")}</Title>
+    return (
+        <Container size="md" py="xl">
+            <Title order={2} mb="lg">
+                {t("title")}
+            </Title>
 
-      {failures.length === 0 ? (
-        <Paper p="xl" withBorder>
-          <Text c="dimmed" ta="center">{t("noFailures")}</Text>
-        </Paper>
-      ) : (
-        <Stack gap="sm">
-          {failures.map((failure: FailedSms) => (
-            <Paper key={failure.id} p="md" withBorder>
-              <Group justify="space-between">
-                <Stack gap="xs">
-                  <Text fw={600}>{failure.householdName}</Text>
-                  <Text size="sm" c="dimmed">
-                    {t("pickup")}: {formatDate(failure.pickupDateEarliest)}
-                  </Text>
-                  <Badge color="red" variant="light">{failure.errorMessage}</Badge>
+            {failures.length === 0 ? (
+                <Paper p="xl" withBorder>
+                    <Text c="dimmed" ta="center">
+                        {t("noFailures")}
+                    </Text>
+                </Paper>
+            ) : (
+                <Stack gap="sm">
+                    {failures.map((failure: FailedSms) => (
+                        <Paper key={failure.id} p="md" withBorder>
+                            <Group justify="space-between">
+                                <Stack gap="xs">
+                                    <Text fw={600}>{failure.householdName}</Text>
+                                    <Text size="sm" c="dimmed">
+                                        {t("pickup")}: {formatDate(failure.pickupDateEarliest)}
+                                    </Text>
+                                    <Badge color="red" variant="light">
+                                        {failure.errorMessage}
+                                    </Badge>
+                                </Stack>
+                                <Button
+                                    component={Link}
+                                    href={`/households/${failure.householdId}?parcel=${failure.parcelId}`}
+                                    variant="light"
+                                >
+                                    {t("view")}
+                                </Button>
+                            </Group>
+                        </Paper>
+                    ))}
                 </Stack>
-                <Button
-                  component={Link}
-                  href={`/households/${failure.householdId}?parcel=${failure.parcelId}`}
-                  variant="light"
-                >
-                  {t("view")}
-                </Button>
-              </Group>
-            </Paper>
-          ))}
-        </Stack>
-      )}
-    </Container>
-  );
+            )}
+        </Container>
+    );
 }
 ```
 
@@ -268,12 +276,12 @@ export default async function SmsFailuresPage() {
 
 ```json
 {
-  "smsFailures": {
-    "title": "Failed SMS",
-    "noFailures": "No failed SMS for upcoming pickups",
-    "pickup": "Pickup",
-    "view": "View"
-  }
+    "smsFailures": {
+        "title": "Failed SMS",
+        "noFailures": "No failed SMS for upcoming pickups",
+        "pickup": "Pickup",
+        "view": "View"
+    }
 }
 ```
 
@@ -284,6 +292,7 @@ export default async function SmsFailuresPage() {
 ### What It Shows
 
 A single SMS section showing **all SMS history** for the household:
+
 - Enrolment SMS (consent_enrolment)
 - Pickup reminder SMS (pickup_reminder)
 - Any other SMS types
@@ -342,82 +351,91 @@ LIMIT 10
 Add a new component or section in `HouseholdDetailsPage.tsx`:
 
 ```tsx
-{/* SMS History */}
-{smsHistory.length > 0 && (
-  <Paper withBorder p="lg" radius="md">
-    <Title order={3} size="h4" mb="md">
-      SMS History ({smsHistory.length})
-    </Title>
-    <Stack gap="sm">
-      {smsHistory.map(sms => (
-        <Paper key={sms.id} p="sm" withBorder radius="sm">
-          <Group justify="space-between" wrap="nowrap">
-            <Stack gap={4} style={{ flex: 1 }}>
-              <Group gap="xs">
-                <Text size="sm" fw={500}>
-                  {getIntentLabel(sms.intent)}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {formatDate(sms.createdAt)}
-                </Text>
-              </Group>
+{
+    /* SMS History */
+}
+{
+    smsHistory.length > 0 && (
+        <Paper withBorder p="lg" radius="md">
+            <Title order={3} size="h4" mb="md">
+                SMS History ({smsHistory.length})
+            </Title>
+            <Stack gap="sm">
+                {smsHistory.map(sms => (
+                    <Paper key={sms.id} p="sm" withBorder radius="sm">
+                        <Group justify="space-between" wrap="nowrap">
+                            <Stack gap={4} style={{ flex: 1 }}>
+                                <Group gap="xs">
+                                    <Text size="sm" fw={500}>
+                                        {getIntentLabel(sms.intent)}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {formatDate(sms.createdAt)}
+                                    </Text>
+                                </Group>
 
-              {/* Show parcel info for pickup reminders */}
-              {sms.parcelId && sms.pickupDate && (
-                <Text size="xs" c="dimmed">
-                  Parcel: {formatDate(sms.pickupDate)}
-                </Text>
-              )}
+                                {/* Show parcel info for pickup reminders */}
+                                {sms.parcelId && sms.pickupDate && (
+                                    <Text size="xs" c="dimmed">
+                                        Parcel: {formatDate(sms.pickupDate)}
+                                    </Text>
+                                )}
 
-              {/* Show error message for failures */}
-              {sms.status === "failed" && sms.lastErrorMessage && (
-                <Text size="xs" c="red">
-                  {sms.lastErrorMessage}
-                </Text>
-              )}
+                                {/* Show error message for failures */}
+                                {sms.status === "failed" && sms.lastErrorMessage && (
+                                    <Text size="xs" c="red">
+                                        {sms.lastErrorMessage}
+                                    </Text>
+                                )}
+                            </Stack>
+
+                            <Group gap="xs">
+                                <Badge
+                                    color={
+                                        sms.status === "sent"
+                                            ? "green"
+                                            : sms.status === "failed"
+                                              ? "red"
+                                              : sms.status === "queued"
+                                                ? "blue"
+                                                : "gray"
+                                    }
+                                    variant="light"
+                                >
+                                    {sms.status === "sent" && "Sent ✓"}
+                                    {sms.status === "failed" && "Failed ✗"}
+                                    {sms.status === "queued" && "Queued"}
+                                    {sms.status === "sending" && "Sending..."}
+                                </Badge>
+
+                                {/* Resend only available for pickup_reminder - existing API limitation */}
+                                {sms.status === "failed" &&
+                                    sms.intent === "pickup_reminder" &&
+                                    sms.parcelId && (
+                                        <Button
+                                            size="xs"
+                                            variant="light"
+                                            onClick={() => handleResendSms(sms.parcelId)}
+                                        >
+                                            {t("smsHistory.resend")}
+                                        </Button>
+                                    )}
+                            </Group>
+                        </Group>
+                    </Paper>
+                ))}
             </Stack>
-
-            <Group gap="xs">
-              <Badge
-                color={
-                  sms.status === "sent" ? "green" :
-                  sms.status === "failed" ? "red" :
-                  sms.status === "queued" ? "blue" :
-                  "gray"
-                }
-                variant="light"
-              >
-                {sms.status === "sent" && "Sent ✓"}
-                {sms.status === "failed" && "Failed ✗"}
-                {sms.status === "queued" && "Queued"}
-                {sms.status === "sending" && "Sending..."}
-              </Badge>
-
-              {/* Resend only available for pickup_reminder - existing API limitation */}
-              {sms.status === "failed" && sms.intent === "pickup_reminder" && sms.parcelId && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  onClick={() => handleResendSms(sms.parcelId)}
-                >
-                  {t("smsHistory.resend")}
-                </Button>
-              )}
-            </Group>
-          </Group>
         </Paper>
-      ))}
-    </Stack>
-  </Paper>
-)}
+    );
+}
 
 // Note: The resend handler calls the existing parcel-based API
 const handleResendSms = async (parcelId: string) => {
-  await fetch(`/api/admin/sms/parcel/${parcelId}`, {
-    method: "POST",
-    body: JSON.stringify({ action: "send" }),
-  });
-  // Refresh data
+    await fetch(`/api/admin/sms/parcel/${parcelId}`, {
+        method: "POST",
+        body: JSON.stringify({ action: "send" }),
+    });
+    // Refresh data
 };
 ```
 
@@ -425,13 +443,13 @@ const handleResendSms = async (parcelId: string) => {
 
 ```tsx
 const getIntentLabel = (intent: string): string => {
-  const labels: Record<string, string> = {
-    "consent_enrolment": "Enrolment",
-    "pickup_reminder": "Pickup Reminder",
-    "pickup_updated": "Pickup Updated",
-    "pickup_cancelled": "Pickup Cancelled",
-  };
-  return labels[intent] || intent;
+    const labels: Record<string, string> = {
+        consent_enrolment: "Enrolment",
+        pickup_reminder: "Pickup Reminder",
+        pickup_updated: "Pickup Updated",
+        pickup_cancelled: "Pickup Cancelled",
+    };
+    return labels[intent] || intent;
 };
 ```
 
@@ -450,21 +468,25 @@ const getIntentLabel = (intent: string): string => {
 ### Remove Unused Translations
 
 Check and clean up translation keys in:
+
 - `messages/en.json`
 - `messages/sv.json`
 
 Keys that may be removable (verify first):
+
 - `admin.smsDashboard.*` - **Check if used by ParcelAdminDialog first!** (`components/ParcelAdminDialog.tsx` and `components/SmsActionButton.tsx` use some of these)
 - `schedule.sms.*` (if not used elsewhere)
 - `navigation.smsDashboard` - Replace with `navigation.smsFailures`
 
 > **Important:** The `ParcelAdminDialog` and `SmsActionButton` share some translation keys with the old dashboard. Either:
+>
 > 1. Keep those keys and just remove the dashboard-specific ones, OR
 > 2. Move them to a generic `sms.*` namespace and update both components
 
 ### Remove Unused Components
 
 Search for any orphaned components:
+
 ```bash
 # Find unused exports
 grep -r "SmsStatistics\|SmsDashboardClient\|SmsListItem" app/
@@ -473,16 +495,19 @@ grep -r "SmsStatistics\|SmsDashboardClient\|SmsListItem" app/
 ### Update Tests and Documentation
 
 **Tests to update/delete:**
+
 ```bash
 # Find related test files
 find . -name "*.test.tsx" -o -name "*.spec.ts" | xargs grep -l "SmsDashboard\|SmsManagement\|sms-dashboard"
 ```
 
 Known test files that reference SMS dashboard:
+
 - `e2e/admin.spec.ts` - Update navigation tests
 - `e2e/navigation.spec.ts` - Update route assertions
 
 **Documentation to update:**
+
 - `docs/user-manual.md` - Remove SMS dashboard references, add sms-failures page
 - `docs/user-flows.md` - Update admin workflows
 
@@ -493,18 +518,19 @@ Known test files that reference SMS dashboard:
 ### Current State
 
 Without delivery callbacks from HelloSMS:
+
 - **"Sent" means "accepted by HelloSMS"**, not "delivered to recipient"
 - Real delivery failures (wrong number, phone off, number disconnected) are **silent**
 - We only catch API-level failures (invalid format, API down, rate limiting)
 
 ### Implications for This Refactor
 
-| What We Can Show | What We Can't Show |
-|------------------|-------------------|
-| API accepted the SMS | SMS was delivered |
-| API rejected (bad format) | Phone was off |
-| API was down | Number disconnected |
-| Retry exhausted | Recipient blocked sender |
+| What We Can Show          | What We Can't Show       |
+| ------------------------- | ------------------------ |
+| API accepted the SMS      | SMS was delivered        |
+| API rejected (bad format) | Phone was off            |
+| API was down              | Number disconnected      |
+| Retry exhausted           | Recipient blocked sender |
 
 ### Recommendations
 
@@ -592,14 +618,14 @@ app/utils/sms/templates.ts                          # SMS templates
 
 The phases above are numbered for logical grouping, but **consider this alternative execution order** to avoid visibility gaps during implementation:
 
-| Order | Phase | Why This Order |
-|-------|-------|----------------|
-| 1 | Phase 4: Build failures page + API | Build new visibility first |
-| 2 | Phase 3: Update nav to link to new page | Connect new visibility to nav |
-| 3 | Phase 5: Add household SMS history | Complete new features |
-| 4 | Phase 1: Remove SMS dashboard | Safe to remove - new features exist |
-| 5 | Phase 2: Remove schedule SMS panel | Clean up old features |
-| 6 | Phase 6: Cleanup | Final cleanup |
+| Order | Phase                                   | Why This Order                      |
+| ----- | --------------------------------------- | ----------------------------------- |
+| 1     | Phase 4: Build failures page + API      | Build new visibility first          |
+| 2     | Phase 3: Update nav to link to new page | Connect new visibility to nav       |
+| 3     | Phase 5: Add household SMS history      | Complete new features               |
+| 4     | Phase 1: Remove SMS dashboard           | Safe to remove - new features exist |
+| 5     | Phase 2: Remove schedule SMS panel      | Clean up old features               |
+| 6     | Phase 6: Cleanup                        | Final cleanup                       |
 
 This order ensures admins never lose SMS visibility during the transition.
 
