@@ -274,6 +274,13 @@
       "when": 1766517565247,
       "tag": "0038_daffy_nighthawk",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1766843650622,
+      "tag": "0039_hot_spitfire",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,9 @@ export async function createTestSms(overrides: {
     next_attempt_at?: Date;
     last_error_message?: string;
     sent_at?: Date;
+    provider_message_id?: string;
+    provider_status?: string;
+    provider_status_updated_at?: Date;
 }) {
     const db = await getTestDb();
     smsCounter++;
@@ -56,6 +59,9 @@ export async function createTestSms(overrides: {
             next_attempt_at: overrides.next_attempt_at,
             last_error_message: overrides.last_error_message,
             sent_at: overrides.sent_at,
+            provider_message_id: overrides.provider_message_id,
+            provider_status: overrides.provider_status,
+            provider_status_updated_at: overrides.provider_status_updated_at,
         })
         .returning();
 
@@ -71,6 +77,7 @@ export async function createTestSentSms(overrides: {
     intent?: SmsIntent;
     to_e164?: string;
     text?: string;
+    provider_message_id?: string;
 }) {
     // Use deterministic timestamp
     const sentAt = new Date(TEST_NOW);
@@ -80,6 +87,7 @@ export async function createTestSentSms(overrides: {
         status: "sent",
         sent_at: sentAt,
         attempt_count: 1,
+        provider_message_id: overrides.provider_message_id,
     });
 }
 
