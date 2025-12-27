@@ -2,6 +2,12 @@ import { getTestDb } from "../db/test-db";
 import { foodParcels } from "@/app/db/schema";
 
 /**
+ * Fixed base time for deterministic test data.
+ * All factory-generated timestamps are relative to this.
+ */
+const FACTORY_BASE_TIME = new Date("2024-06-15T10:00:00Z");
+
+/**
  * Create a test food parcel.
  * Requires household_id and pickup_location_id.
  */
@@ -18,9 +24,8 @@ export async function createTestParcel(overrides: {
 }) {
     const db = await getTestDb();
 
-    // Default to tomorrow, 30-minute slot
-    const now = new Date();
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Default to tomorrow relative to FACTORY_BASE_TIME, 30-minute slot
+    const tomorrow = new Date(FACTORY_BASE_TIME.getTime() + 24 * 60 * 60 * 1000);
     tomorrow.setHours(10, 0, 0, 0);
 
     const earliest = overrides.pickup_date_time_earliest ?? tomorrow;
@@ -46,7 +51,7 @@ export async function createTestParcel(overrides: {
 }
 
 /**
- * Create a parcel scheduled for today.
+ * Create a parcel scheduled for "today" (relative to FACTORY_BASE_TIME).
  */
 export async function createTestParcelForToday(overrides: {
     household_id: string;
@@ -54,8 +59,10 @@ export async function createTestParcelForToday(overrides: {
     hoursFromNow?: number;
     is_picked_up?: boolean;
 }) {
-    const now = new Date();
-    const earliest = new Date(now.getTime() + (overrides.hoursFromNow ?? 2) * 60 * 60 * 1000);
+    // Use deterministic base time
+    const earliest = new Date(
+        FACTORY_BASE_TIME.getTime() + (overrides.hoursFromNow ?? 2) * 60 * 60 * 1000,
+    );
     const latest = new Date(earliest.getTime() + 30 * 60 * 1000);
 
     return createTestParcel({
@@ -80,7 +87,8 @@ export async function createTestDeletedParcel(overrides: {
 }) {
     return createTestParcel({
         ...overrides,
-        deleted_at: new Date(),
+        // Use deterministic timestamp
+        deleted_at: new Date(FACTORY_BASE_TIME),
         deleted_by_user_id: overrides.deleted_by_user_id ?? "test-admin",
     });
 }
@@ -95,7 +103,8 @@ export async function createTestPickedUpParcel(overrides: {
     pickup_date_time_latest?: Date;
     picked_up_by_user_id?: string;
 }) {
-    const pickedUpAt = new Date();
+    // Use deterministic timestamp
+    const pickedUpAt = new Date(FACTORY_BASE_TIME);
 
     return createTestParcel({
         ...overrides,
