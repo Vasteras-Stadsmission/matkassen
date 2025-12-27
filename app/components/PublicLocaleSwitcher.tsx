@@ -12,6 +12,7 @@ export interface LocaleOption {
 
 interface PublicLocaleSwitcherProps {
     ariaLabel: string;
+    menuLabel: string;
     currentValue: string;
     options: LocaleOption[];
 }
@@ -47,6 +48,7 @@ function getNativeLanguageName(locale: string): string {
 
 export function PublicLocaleSwitcher({
     ariaLabel,
+    menuLabel,
     currentValue,
     options,
 }: PublicLocaleSwitcherProps) {
@@ -100,7 +102,7 @@ export function PublicLocaleSwitcher({
             </Menu.Target>
 
             <Menu.Dropdown>
-                <Menu.Label>Choose Language</Menu.Label>
+                <Menu.Label>{menuLabel}</Menu.Label>
                 {nativeOptions.map(option => (
                     <Menu.Item
                         key={option.value}

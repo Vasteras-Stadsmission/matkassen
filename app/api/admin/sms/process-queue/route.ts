@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { processSendQueue } from "@/app/utils/sms/scheduler";
+import { triggerSmsJIT } from "@/app/utils/scheduler";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 import { logError } from "@/app/utils/logger";
@@ -15,13 +15,20 @@ export async function POST() {
             return authResult.response!;
         }
 
-        // Manually trigger SMS queue processing
-        const result = await processSendQueue();
+        // Manually trigger SMS JIT processing via unified scheduler
+        const result = await triggerSmsJIT();
+
+        if (!result.success) {
+            return NextResponse.json(
+                { error: result.error || "Failed to process SMS queue" },
+                { status: 500 },
+            );
+        }
 
         return NextResponse.json({
             success: true,
-            message: `Processed ${result} SMS messages from queue`,
-            processedCount: result,
+            message: `Processed ${result.processedCount} SMS messages`,
+            processedCount: result.processedCount,
         });
     } catch (error) {
         logError("Error processing SMS queue", error, {

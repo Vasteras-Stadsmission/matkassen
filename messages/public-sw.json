@@ -34,7 +34,10 @@
             "hour": "2-digit",
             "minute": "2-digit",
             "hour12": false
-        }
+        },
+        "privacyPolicy": "Sera ya Faragha",
+        "chooseLanguage": "Chagua Lugha",
+        "statusLabel": "Hali"
     },
     "qr": {
         "scanQrCode": "Skana msimbo wa QR"
@@ -58,5 +61,12 @@
     "maps": {
         "openInAppleMaps": "Fungua katika Apple Maps",
         "openInGoogleMaps": "Fungua katika Google Maps"
+    },
+    "publicPrivacy": {
+        "title": "Sera ya Faragha",
+        "description": "Sera ya faragha na taarifa za ulinzi wa data",
+        "lastUpdated": "Imesasishwa mwisho",
+        "noPolicy": "Hakuna sera ya faragha iliyowekwa bado. Wasiliana na {brandName} kwa taarifa zaidi.",
+        "fallbackNotice": "Sera hii inaonyeshwa kwa Kiswidi kwa sababu haipatikani kwa lugha uliyochagua."
     }
 }

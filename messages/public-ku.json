@@ -34,7 +34,10 @@
             "hour": "2-digit",
             "minute": "2-digit",
             "hour12": false
-        }
+        },
+        "privacyPolicy": "Siyaseta Nepenîtiyê",
+        "chooseLanguage": "Ziman hilbijêre",
+        "statusLabel": "Rewş"
     },
     "qr": {
         "scanQrCode": "Koda QR biskenin"
@@ -58,5 +61,12 @@
     "maps": {
         "openInAppleMaps": "Di Apple Maps de veke",
         "openInGoogleMaps": "Di Google Maps de veke"
+    },
+    "publicPrivacy": {
+        "title": "Siyaseta Nepenîtiyê",
+        "description": "Siyaseta nepenîtiyê û agahdariya parastina daneyê",
+        "lastUpdated": "Dawî hate nûkirin",
+        "noPolicy": "Hêj siyaseta nepenîtiyê nehatiye mîheng kirin. Ji bo agahiyên zêdetir bi {brandName} re têkilî daynin.",
+        "fallbackNotice": "Ev siyaset bi zimanê Swêdî tê xuyang kirin ji ber ku bi zimanê we yê bijartî ne peyda ye."
     }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "privacy_policies" ALTER COLUMN "created_at" SET DATA TYPE timestamp (6) with time zone;

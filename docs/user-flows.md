@@ -65,9 +65,8 @@ flowchart LR
         HandoutLocationsPage --> SchedulesTab
         SchedulesTab["Schedules tab<br/>- configure opening hours & slot duration<br/>- week picker + validation helpers"]
 
-        Header --> SmsDashboard
-        SmsDashboard["SMS Dashboard /sms-dashboard<br/>- two-view system: active vs cancelled<br/>- filters: location, status, search, cancelled toggle<br/>- monitor SMS status & handle failures<br/>- Send Now / Try Again actions"]
-        SmsDashboard -- view parcel --> ParcelAdminDialog
-        SmsDashboard -- view household --> HouseholdDetailModal
+        Header --> SmsFailures
+        SmsFailures["SMS Failures /sms-failures<br/>- shows failed SMS requiring attention<br/>- navigation badge shows failure count<br/>- retry failed SMS<br/>- link to household for fixing issues"]
+        SmsFailures -- view household --> HouseholdDetailModal
     end
 ```

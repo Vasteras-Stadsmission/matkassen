@@ -10,7 +10,7 @@ This manual provides detailed information about all Matkassen features. For a qu
 
 - [Household Management](#household-management)
 - [Parcel Scheduling](#parcel-scheduling)
-- [SMS Dashboard](#sms-dashboard)
+- [SMS Failures](#sms-failures)
 - [Pickup Location Management](#pickup-location-management)
 - [Recipient Experience](#recipient-experience)
 - [Troubleshooting](#troubleshooting)
@@ -295,117 +295,55 @@ Favorite persists across sessions. Change by clicking star on different location
 
 ---
 
-## SMS Dashboard
+## SMS Failures
 
 ### Overview
 
-SMS Dashboard monitors all SMS notifications related to food parcel pickups. Has two separate views for different purposes:
+The SMS Failures page shows failed SMS notifications that need attention. A badge in the navigation shows the count of failures - no badge means all SMS are being delivered successfully.
 
-1. **Default view** (active parcels): Your operational work queue
-2. **Cancelled view** (toggle ON): Audit trail of cancelled parcels
+**Design principle**: SMS follows parcel state automatically. You manage parcels in schedule, and SMS updates accordingly. The failures page is for monitoring and recovery when issues occur.
 
-**Design principle**: SMS follows parcel state automatically. You manage parcels in schedule, and SMS updates accordingly. Dashboard is for monitoring and recovery.
+### Navigation Badge
 
-### Two-View System
+The navigation shows a red badge when SMS failures exist:
 
-The dashboard shows either active or cancelled parcels, never both:
+- **Red badge with number**: That many SMS failed to send
+- **No badge**: All SMS sent successfully
 
-**Active Parcels View** (default):
+Click the badge to go directly to the SMS Failures page.
 
-- Shows SMS for parcels that are NOT deleted/cancelled
-- Your day-to-day operational work queue
-- What needs attention right now
-- Toggle OFF or omitted
+### SMS Failures List
 
-**Cancelled Parcels View** (toggle ON):
+The failures page shows:
 
-- Shows SMS for parcels that ARE deleted/cancelled
-- Audit trail of cancellations
-- Verify households were notified (`pickup_cancelled` SMS)
-- Historical record of what was cancelled
-
-Switch between views using the **Show cancelled parcels** toggle in the filters section.
-
-### Dashboard Layout
-
-Date-grouped list view:
-
-- Groups: "TODAY", "TOMORROW", specific dates
-- Each SMS entry shows:
-    - Household name
-    - Pickup time and location
-    - SMS status badge
-    - Action button (context-aware)
-    - Three-dot menu
-- Click row to open parcel admin dialog
-
-### SMS Status Meanings
-
-- 🕒 **Queued**: Waiting to send (shows scheduled send time)
-- 📤 **Sending**: Currently being sent
-- ✅ **Sent**: Successfully delivered
-- 🔄 **Retrying**: Auto-retry after temporary failure
-- ⚠️ **Failed**: Send failed, needs attention
-- ⏸️ **Cancelled**: Parcel was deleted
-
-### Filtering and Search
-
-Available filters:
-
-- **Location**: Show SMS for specific pickup location
-- **Status**: Filter by SMS status
-- **Search**: Find by household name
-- **Show cancelled parcels**: Toggle between active/cancelled views
-
-Filters sync to URL for sharing and refresh persistence.
-
-Clear all filters with "Clear Filters" button (note: cancelled toggle separate).
-
-### Viewing Cancelled Parcels
-
-To see SMS for cancelled/deleted parcels:
-
-1. Toggle **Show cancelled parcels** switch ON
-2. Dashboard switches to show ONLY cancelled parcels
-3. All other filters still work (location, status, search)
-4. Toggle OFF to return to active parcels view
-
-**Common use cases**:
-
-- Verify a household received cancellation notification
-- Audit what parcels were cancelled this week
-- Check if `pickup_cancelled` SMS sent successfully
-- Review historical cancellations
-
-**Important**: The two views are mutually exclusive. You see either active parcels OR cancelled parcels, never both together. This keeps the operational view clean and focused.
-
-### SMS Actions
-
-**Context-aware send button**:
-
-- Failed SMS: "Try Again"
-- Sent SMS: "Send Again"
-- Queued SMS: "Send Now"
-
-Clicking sends immediately, bypassing grace period.
-
-**Three-dot menu**:
-
-- Send SMS (context-aware)
-- View Household
-- View Parcel
+- Household name and phone number
+- Pickup date, time, and location
+- Error message explaining the failure
+- Retry button to attempt resending
 
 ### Handling Failed SMS
 
-1. Failed SMS shows error message in English
-2. Common issues:
-    - Invalid phone number
-    - Insufficient account balance
-    - Technical issues
-3. Fix underlying issue (usually phone number)
-4. Click "Try Again" to resend
+1. Review the error message (common issues below)
+2. Click **View Household** to fix the underlying issue
+3. Update the phone number or other relevant data
+4. Click **Retry** to resend the SMS
 
-SMS Dashboard shows failure count in navigation badge for quick awareness.
+**Common failure reasons**:
+
+- **Invalid phone number**: Number format incorrect or doesn't exist
+- **Phone not in service**: Number is disconnected
+- **Technical issues**: Temporary provider problems (retry usually works)
+
+### SMS History on Household Page
+
+For complete SMS history for a household:
+
+1. Go to **Households** → find the household
+2. Click to open household details
+3. Scroll to **SMS History** section
+4. View all SMS: sent, failed, queued, and cancelled
+
+This shows the full history including successful deliveries, not just failures.
 
 ### Understanding Automatic SMS
 
@@ -433,32 +371,17 @@ SMS Dashboard shows failure count in navigation badge for quick awareness.
 - Only final version sends
 - Prevents SMS spam to recipients
 
-### Sending Urgent SMS
-
-Use "Send Now" to bypass grace period:
-
-- SMS sends immediately
-- No confirmation dialog
-- Use for time-sensitive situations
-
-**When to use**:
-
-- Recipient called asking about parcel
-- Last-minute parcel additions
-- Emergency changes
-
 ### Investigating Delivery Issues
 
 If recipient reports not receiving SMS:
 
-1. Search for their name in dashboard
-2. Check status:
+1. Check SMS Failures page for any errors
+2. Go to household details → SMS History section
+3. Check status:
     - **Queued**: Hasn't sent yet (check scheduled time)
-    - **Failed**: Check error message
+    - **Failed**: Check error message, fix issue, retry
     - **Sent**: SMS was delivered successfully
-3. View parcel details for full SMS history
-4. Use "Send Again" if needed
-5. Alternatively, share public link directly
+4. Alternatively, share the public parcel link directly with the recipient
 
 ---
 
@@ -770,20 +693,20 @@ Useful if primary recipient cannot attend pickup.
 
 - Refresh page (may have already sent)
 - SMS processes every minute
-- Check SMS Dashboard for current status
+- Check household SMS History section for current status
 
 **Recipient says didn't receive SMS**
 
-- Check SMS Dashboard status
+- Check SMS Failures page for errors
+- Check household SMS History section
 - **Failed**: Fix phone number and retry
 - **Sent**: SMS was delivered (recipient may have missed it)
-- Use "Send Again" to resend
 - Or share public link directly
 
-**SMS Dashboard shows English error message**
+**SMS Failures shows error message**
 
 - Read error message for specific issue
-- Common: invalid phone number, balance insufficient
+- Common: invalid phone number, phone not in service
 - Fix underlying issue and retry
 
 **Want to prevent SMS from sending**

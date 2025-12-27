@@ -14,7 +14,7 @@ import {
     householdComments,
     users,
 } from "@/app/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, ne, isNull } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
 import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
@@ -254,6 +254,39 @@ export const updateHousehold = protectedHouseholdAction(
                 });
             }
 
+            // Check if phone number changed and validate no duplicates
+            const newPhoneE164 = normalizePhoneToE164(data.household.phone_number);
+
+            // Fetch current phone number to detect changes (HouseholdData doesn't include it)
+            const [currentHousehold] = await db
+                .select({ phone_number: households.phone_number })
+                .from(households)
+                .where(eq(households.id, household.id))
+                .limit(1);
+            const phoneChanged = currentHousehold?.phone_number !== newPhoneE164;
+
+            if (phoneChanged) {
+                // Check for duplicate phone numbers (exclude current household and anonymized)
+                const existingWithPhone = await db
+                    .select({ id: households.id })
+                    .from(households)
+                    .where(
+                        and(
+                            eq(households.phone_number, newPhoneE164),
+                            ne(households.id, household.id),
+                            isNull(households.anonymized_at),
+                        ),
+                    )
+                    .limit(1);
+
+                if (existingWithPhone.length > 0) {
+                    return failure({
+                        code: "DUPLICATE_PHONE",
+                        message: "validation.phoneNumberInUse",
+                    });
+                }
+            }
+
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
                 // 1. Update the household basic information
@@ -262,11 +295,14 @@ export const updateHousehold = protectedHouseholdAction(
                     .set({
                         first_name: data.household.first_name,
                         last_name: data.household.last_name,
-                        phone_number: normalizePhoneToE164(data.household.phone_number),
+                        phone_number: newPhoneE164,
                         locale: data.household.locale,
                         postal_code: normalizePostalCode(data.household.postal_code),
                     })
                     .where(eq(households.id, household.id));
+
+                // Note: We don't update pending SMS phone numbers here.
+                // JIT re-rendering at send time ensures fresh phone numbers are used.
 
                 // 2. Handle household members - first delete existing members
                 await tx

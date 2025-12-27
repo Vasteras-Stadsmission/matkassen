@@ -34,7 +34,10 @@
             "hour": "2-digit",
             "minute": "2-digit",
             "hour12": false
-        }
+        },
+        "privacyPolicy": "سیاست حفظ حریم خصوصی",
+        "chooseLanguage": "انتخاب زبان",
+        "statusLabel": "وضعیت"
     },
     "qr": {
         "scanQrCode": "کد QR را اسکن کنید"
@@ -58,5 +61,12 @@
     "maps": {
         "openInAppleMaps": "باز کردن در Apple Maps",
         "openInGoogleMaps": "باز کردن در Google Maps"
+    },
+    "publicPrivacy": {
+        "title": "سیاست حفظ حریم خصوصی",
+        "description": "سیاست حفظ حریم خصوصی و اطلاعات حفاظت از داده‌ها",
+        "lastUpdated": "آخرین به‌روزرسانی",
+        "noPolicy": "هنوز سیاست حریم خصوصی پیکربندی نشده است. برای اطلاعات بیشتر با {brandName} تماس بگیرید.",
+        "fallbackNotice": "این سیاست به زبان سوئدی نمایش داده می‌شود زیرا به زبان انتخابی شما موجود نیست."
     }
 }

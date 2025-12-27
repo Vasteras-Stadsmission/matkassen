@@ -75,10 +75,15 @@ jobs:
                   fi
                   echo "✅ Migration files are up to date with schema."
 
-            - name: Run tests
+            - name: Run unit tests
               env:
                   NODE_ENV: test
-              run: pnpm test
+              run: pnpm test:unit
+
+            - name: Run integration tests
+              env:
+                  NODE_ENV: test
+              run: pnpm test:integration
 
             - name: Build
               env:

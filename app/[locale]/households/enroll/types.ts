@@ -6,6 +6,7 @@ export interface Household {
     phone_number: string;
     locale: string;
     postal_code?: string | null;
+    sms_consent?: boolean; // UI-only field (not persisted); controls whether an enrollment SMS is queued/sent
 }
 
 export interface HouseholdMember {
@@ -102,6 +103,7 @@ export interface HouseholdCreateData {
         postalCode?: string | null;
         locale?: string;
     };
+    smsConsent: boolean;
     members: HouseholdMemberData[];
     dietaryRestrictions: DietaryRestrictionData[];
     additionalNeeds: AdditionalNeedData[];
@@ -117,8 +119,6 @@ export interface HouseholdCreateData {
 }
 
 export interface HouseholdMemberData {
-    firstName: string;
-    lastName: string;
     age: number;
     sex: string;
 }

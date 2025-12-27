@@ -44,7 +44,7 @@ import {
     isSchedulerRunning,
     schedulerHealthCheck,
     triggerAnonymization,
-    triggerSmsEnqueue,
+    triggerSmsJIT,
 } from "@/app/utils/scheduler";
 
 // Import duration parser for configuration tests
@@ -58,7 +58,7 @@ describe("Unified Scheduler", () => {
             expect(typeof isSchedulerRunning).toBe("function");
             expect(typeof schedulerHealthCheck).toBe("function");
             expect(typeof triggerAnonymization).toBe("function");
-            expect(typeof triggerSmsEnqueue).toBe("function");
+            expect(typeof triggerSmsJIT).toBe("function");
         });
     });
 
@@ -69,10 +69,11 @@ describe("Unified Scheduler", () => {
              *
              * The scheduler combines two independent background tasks:
              *
-             * 1. SMS PROCESSING (interval-based):
-             *    - Enqueue loop: 30 minutes (finds parcels needing reminders)
-             *    - Send loop: 5 minutes (processes SMS send queue)
-             *    - Uses advisory lock 12345678 (prevents concurrent sends)
+             * 1. SMS PROCESSING (interval-based, Pure JIT):
+             *    - Single 5-minute interval
+             *    - Insert-before-send: create "sending" record → send → update status
+             *    - Idempotency constraint prevents duplicates (no lock needed)
+             *    - Stale "sending" records auto-recovered after 10 minutes
              *
              * 2. ANONYMIZATION (cron-based):
              *    - Schedule: "0 2 * * 0" (Sunday 2:00 AM in production)
@@ -90,10 +91,11 @@ describe("Unified Scheduler", () => {
              * - Consistent error handling and logging
              * - Easier to reason about lifecycle
              *
-             * WHY SEPARATE LOOPS:
-             * - SMS send loop runs every 5 minutes (responsive without excessive overhead)
-             * - Anonymization needs weekly scheduling (cron)
-             * - Different advisory locks prevent interference
+             * WHY PURE JIT:
+             * - SMS rendered at send time with fresh data
+             * - No stale phone numbers or pickup times
+             * - Insert-before-send prevents duplicate SMS (idempotency key constraint)
+             * - Simpler architecture (no separate enqueue step at parcel creation)
              */
             expect(true).toBe(true); // Documentation test
         });
@@ -102,15 +104,11 @@ describe("Unified Scheduler", () => {
             /**
              * TIMING CONFIGURATION:
              *
-             * SMS_ENQUEUE_INTERVAL_MS = 30 * 60 * 1000  (30 minutes)
-             * - Why: Parcels need reminders ~1 day before pickup
-             * - Trade-off: More frequent = more DB queries, less frequent = delayed reminders
-             * - Optimal: 30 minutes catches new parcels quickly without hammering DB
-             *
-             * SMS_SEND_INTERVAL_MS = 5 * 60 * 1000  (5 minutes)
-             * - Why: Rate limiting to avoid overwhelming SMS provider
-             * - HelloSMS: No documented rate limit, but 5 min is safe
-             * - Batch size: 5 SMS per interval
+             * SMS_INTERVAL_MS = 5 * 60 * 1000  (5 minutes, configurable via SMS_SEND_INTERVAL)
+             * - Pure JIT: find parcels → insert "sending" record → render → send → update status
+             * - 48h reminder window: SMS sent when pickup is within 48h
+             * - Why 5 min: Balance between responsiveness and API load
+             * - No separate enqueue/send - simpler architecture
              *
              * HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000  (12 hours)
              * - Why: Reduced from 5 minutes to minimize log noise
@@ -198,11 +196,10 @@ describe("Unified Scheduler", () => {
              * 1. startScheduler()
              *    - Checks if already running (prevents double-start)
              *    - Sets isRunning = true
-             *    - Starts SMS enqueue interval (30 minutes)
-             *    - Starts SMS send interval (5 minutes)
+             *    - Starts SMS JIT interval (5 minutes)
              *    - Starts anonymization cron task
              *    - Starts health check interval (12 hours)
-             *    - Runs SMS tasks immediately (enqueue + send)
+             *    - Runs SMS JIT immediately
              *    - Sends Slack notification on first startup (production only)
              *
              * 2. stopScheduler()
@@ -263,11 +260,11 @@ describe("Unified Scheduler", () => {
              *   status: "healthy" | "unhealthy",
              *   details: {
              *     schedulerRunning: boolean,              // Overall scheduler state
-             *     smsSchedulerRunning: boolean,           // SMS intervals active
+             *     smsSchedulerRunning: boolean,           // SMS JIT interval active
              *     anonymizationSchedulerRunning: boolean, // Cron task active
              *     smsTestMode: boolean,                   // HelloSMS config
-             *     smsPendingCount: number,                // Queue size
-             *     anonymizationEnabled: boolean,          // Config setting
+             *     smsMode: "pure JIT",                    // SMS architecture
+             *     smsInterval: string,                    // Configured interval
              *     lastAnonymizationRun: string | "Never", // ISO timestamp
              *     lastAnonymizationStatus: "success" | "error" | null,
              *     timestamp: string                       // ISO timestamp
@@ -348,29 +345,27 @@ describe("Unified Scheduler", () => {
             expect(true).toBe(true); // Documentation test
         });
 
-        it("should document triggerSmsEnqueue usage", () => {
+        it("should document triggerSmsJIT usage", () => {
             /**
-             * triggerSmsEnqueue() - Manual SMS Enqueue:
+             * triggerSmsJIT() - Manual SMS JIT Processing:
              *
              * RETURNS: Promise<{
              *   success: boolean,
-             *   count?: number,
+             *   processedCount?: number,
              *   error?: string
              * }>
              *
              * USE CASES:
-             * 1. Testing: Verify SMS enqueue works
-             * 2. Emergency: Force re-check if reminders missed
-             * 3. Debugging: Test reminder logic without waiting 30 minutes
+             * 1. Admin API: /api/admin/sms/process-queue endpoint
+             * 2. Testing: Force immediate SMS processing
+             * 3. Debugging: Test JIT flow without waiting
              *
              * BEHAVIOR:
-             * - Calls enqueueReminderSms() directly
-             * - Returns count of enqueued messages
-             * - Does NOT send SMS (only enqueues)
-             *
-             * NOT IMPLEMENTED IN UI:
-             * - Kept for backward compatibility with old SMS scheduler
-             * - Future: May be exposed in admin panel
+             * - Pure JIT: find parcels → insert "sending" → send → update status
+             * - Idempotency constraint prevents duplicates (reminders)
+             * - Atomic claim prevents duplicates (queued SMS)
+             * - Concurrent runs are safe
+             * - Renders SMS with fresh data at send time
              */
             expect(true).toBe(true); // Documentation test
         });
@@ -433,32 +428,26 @@ describe("Unified Scheduler", () => {
         });
     });
 
-    describe("Advisory Locks", () => {
-        it("should document advisory lock strategy", () => {
+    describe("Concurrency Protection", () => {
+        it("should document concurrency strategy", () => {
             /**
-             * ADVISORY LOCKS (prevent concurrent execution):
+             * CONCURRENCY PROTECTION:
              *
-             * 1. SMS SEND QUEUE (lock ID: 12345678)
-             *    - Used by: processSendQueueWithLock()
-             *    - Purpose: Prevent multiple instances from sending same SMS
-             *    - Scope: Only SMS send loop (not enqueue)
-             *    - Why: HelloSMS API could charge twice for duplicates
+             * 1. SMS SENDING
+             *    - Uses idempotency constraint (unique key per parcel/intent)
+             *    - No advisory lock needed - constraint prevents duplicates
+             *    - Concurrent runs are safe: second insert hits constraint, skips
+             *    - PGLite compatible (advisory locks not supported there)
              *
              * 2. ANONYMIZATION (lock ID: 87654321)
-             *    - Used by: anonymizeInactiveHouseholds() (inside the function)
+             *    - Uses advisory lock (inside anonymizeInactiveHouseholds)
              *    - Purpose: Prevent multiple instances from anonymizing same household
-             *    - Scope: Entire anonymization run
              *    - Why: Race condition could corrupt data or cause double-delete
              *
-             * WHY DIFFERENT LOCKS:
-             * - SMS and anonymization are independent
-             * - Can run concurrently without conflict
-             * - Different lock IDs prevent interference
-             *
-             * WHY NOT LOCK EVERYTHING:
-             * - SMS enqueue can run concurrently (idempotent)
-             * - Health check can run concurrently (read-only)
-             * - Only write operations need locks
+             * WHY SMS DOESN'T NEED LOCKS:
+             *    - Insert-before-send pattern with unique idempotency_key
+             *    - If two processes try same parcel, one hits constraint and skips
+             *    - Stale "sending" records recovered automatically (10 min threshold)
              */
             expect(true).toBe(true); // Documentation test
         });
@@ -495,39 +484,76 @@ describe("Unified Scheduler", () => {
     });
 
     describe("Integration with Existing Services", () => {
+        it("should document JIT SMS architecture", () => {
+            /**
+             * PURE JIT (JUST-IN-TIME) SMS ARCHITECTURE:
+             *
+             * PROBLEM SOLVED:
+             * - Pre-queued SMS captured phone/text at parcel creation time
+             * - If phone changed after queue but before send, wrong number got SMS
+             * - If pickup time changed, SMS text was stale
+             *
+             * PURE JIT SOLUTION (with insert-before-send):
+             * 1. Parcel created → NO SMS record created (insert-parcels.ts clean)
+             * 2. Scheduler runs every 5 min → queries parcels within 48h window
+             * 3. For each parcel: insert "sending" record → render → send → update status
+             * 4. "sending" state with idempotency key prevents duplicate sends
+             * 5. Final status is "sent" or "failed" (or stuck "sending" on crash)
+             *
+             * ELIGIBILITY CHECKS (in getParcelsNeedingReminder):
+             * - pickup_date_time_earliest within 48h
+             * - pickup_date_time_latest not passed
+             * - Not picked up
+             * - Not deleted
+             * - Household not anonymized
+             * - No existing SMS record for parcel
+             *
+             * IDEMPOTENCY:
+             * - pickup_reminder|{parcelId}: Stable key per parcel
+             * - If SMS record exists, parcel is skipped
+             * - Manual resend would use unique key (future feature)
+             *
+             * FILES:
+             * - app/utils/scheduler.ts: processSmsJIT() single interval
+             * - app/utils/sms/sms-service.ts: sendReminderForParcel(), processRemindersJIT()
+             * - app/db/insert-parcels.ts: Just inserts parcels (no SMS logic)
+             */
+            expect(true).toBe(true); // Documentation test
+        });
+
         it("should document SMS service integration", () => {
             /**
-             * SMS SERVICE FUNCTIONS USED:
+             * SMS SERVICE FUNCTIONS USED (Pure JIT):
              *
              * 1. getParcelsNeedingReminder()
-             *    - Queries parcels due for SMS reminder
-             *    - Checks: pickup date soon, no SMS sent yet, not cancelled
+             *    - Queries parcels due for SMS reminder (0-48h window)
+             *    - Excludes: picked up, deleted, anonymized households
+             *    - Excludes: parcels with existing SMS (any status)
              *    - Returns: Array of parcel data with household phone
              *
-             * 2. createSmsRecord()
-             *    - Inserts SMS into outgoing_sms table
-             *    - Status: "pending"
-             *    - Includes: intent, parcel_id, household_id, phone, text
-             *
-             * 3. getSmsRecordsReadyForSending()
-             *    - Queries SMS with status "pending"
-             *    - Batch size: 5 (rate limiting)
-             *    - Orders by: created_at ASC (FIFO)
-             *
-             * 4. sendSmsRecord()
+             * 2. sendReminderForParcel(parcel)
+             *    - Insert-before-send: insert "sending" → render → send → update
+             *    - Renders SMS with current data at send time
              *    - Calls HelloSMS API (or test mode)
-             *    - Updates SMS status: "sent" or "failed"
-             *    - Handles retries and error logging
+             *    - Updates record to "sent" or "failed"
+             *    - Idempotency key prevents duplicate inserts
              *
-             * 5. processSendQueueWithLock()
-             *    - Wrapper that acquires advisory lock
-             *    - Calls provided callback function
-             *    - Releases lock automatically
+             * 3. processRemindersJIT()
+             *    - Main scheduler function for pure JIT
+             *    - First recovers stale "sending" records (crash recovery)
+             *    - Calls getParcelsNeedingReminder()
+             *    - For each: calls sendReminderForParcel()
+             *    - Returns { processed: number }
              *
-             * WHY REUSE:
-             * - SMS logic is already tested and proven
-             * - Scheduler just orchestrates timing
-             * - No duplication of business logic
+             * 4. processQueuedSms()
+             *    - Thin wrapper for queued SMS processing
+             *    - Returns number of processed SMS
+             *
+             * WHY PURE JIT WITH INSERT-BEFORE-SEND:
+             * - SMS always has fresh data (no stale phone/time)
+             * - Simpler architecture (no separate enqueue at parcel creation)
+             * - Insert-before-send prevents duplicate SMS via idempotency constraint
+             * - Stale "sending" records auto-recovered after 10 minutes
              */
             expect(true).toBe(true); // Documentation test
         });

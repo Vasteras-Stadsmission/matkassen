@@ -107,51 +107,32 @@ Both views accessible via tabs at the location schedule page.
 
 ---
 
-## SMS Dashboard
+## SMS Failures
 
-### Monitor SMS Status
+### Monitor Failed SMS
 
-1. Click **SMS** in navigation
-2. Dashboard shows all upcoming SMS for **active parcels** grouped by date
-3. Check for **Failed** badges (red)
-4. Click refresh button to update
-5. Toggle **Show cancelled parcels** to view SMS for deleted/cancelled parcels
-
-**Two views**:
-
-- **Default**: Shows SMS for active, operational parcels (your work queue)
-- **Cancelled toggle ON**: Shows SMS for cancelled parcels (audit trail)
-
-**Navigation badge**: Shows count of failed SMS. No badge = all OK.
+1. Check navigation for **red badge** on SMS Failures link
+2. Badge shows count of failed SMS requiring attention
+3. Click **SMS Failures** to view the list
+4. No badge = all SMS sent successfully
 
 ### Fix Failed SMS
 
-1. Failed SMS shows error message in English
-2. Click **⋮** menu → **View Household**
-3. Fix the issue (usually phone number)
-4. Return to SMS Dashboard
-5. Click **⋮** menu → **Try Again**
+1. Click **SMS Failures** in navigation
+2. Review list of failed SMS with error messages
+3. Click **View Household** to fix the issue (usually phone number)
+4. Click **Retry** to resend the SMS
 
-**Common issues**: Invalid phone number, insufficient account balance.
+**Common issues**: Invalid phone number, phone number not in service.
 
-### Send SMS Immediately
+### SMS History
 
-1. Find SMS in dashboard (use search if needed)
-2. Click **⋮** menu → **Send Now**
-3. SMS sends immediately, bypassing grace period
+To view all SMS for a specific household (sent, failed, queued):
 
-**Use when**: Recipient called asking, last-minute changes, time-sensitive situations.
-
-### View Cancelled Parcels
-
-1. Toggle **Show cancelled parcels** switch ON
-2. Dashboard switches to show SMS for deleted/cancelled parcels only
-3. Verify households were notified about cancellations
-4. Check if `pickup_cancelled` SMS were sent successfully
-
-**Use when**: Auditing cancellations, verifying recipients were informed, checking historical cancellations.
-
-**Note**: Active and cancelled parcels are shown in separate views (mutually exclusive).
+1. Go to **Households** → find the household
+2. Click to open household details
+3. Scroll to **SMS History** section
+4. View full SMS history for that household
 
 ---
 
@@ -237,11 +218,11 @@ Refresh the page. Check search box isn't filtering results.
 
 ### "SMS shows as queued but time has passed"
 
-Refresh SMS Dashboard. SMS processes every minute and may have already sent.
+Check SMS Failures page. SMS processes every minute and may have already sent. You can also view SMS History on the household details page.
 
 ### "Recipient says they didn't get SMS"
 
-Check SMS Dashboard for status. If failed, check phone number and retry. If sent, SMS was delivered (recipient may have missed it). Use **Send Again** to resend.
+Check SMS Failures page for errors. If failed, check phone number on household and retry. View the household's SMS History section to see if SMS was sent. If sent, SMS was delivered (recipient may have missed it).
 
 ### "Can't delete parcel"
 
@@ -264,7 +245,7 @@ You may be trying to drag to a past date, different location, or parcel is alrea
 - **Grace periods protect you** from mistakes (5 min for new parcels, 1 min for cancellations)
 - **Refresh regularly** in today's view to see real-time updates
 - **Add comments** to households for special circumstances or important notes
-- **Check SMS Dashboard daily** to catch any failed notifications
+- **Check SMS Failures badge** to catch any failed notifications
 
 ---
 

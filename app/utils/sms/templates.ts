@@ -1,4 +1,5 @@
 import type { SupportedLocale } from "../locale-detection";
+import { BRAND_NAME, generateUrl } from "@/app/config/branding";
 
 /**
  * SMS template data interface
@@ -389,5 +390,59 @@ export function formatCancellationSms(data: SmsTemplateData, locale: SupportedLo
             return `Սնունդ ${date} ${time} չեղարկվել է.`;
         default:
             return `Food pickup ${date} ${time} is cancelled.`;
+    }
+}
+
+/**
+ * Generate enrolment welcome SMS with privacy policy link
+ * Sent when a new household is enrolled
+ */
+export function formatEnrolmentSms(locale: SupportedLocale): string {
+    const privacyUrl = generateUrl(`/privacy?lang=${locale}`);
+
+    switch (locale) {
+        case "sv":
+            return `Välkommen till ${BRAND_NAME}! Info: ${privacyUrl}`;
+        case "en":
+            return `Welcome to ${BRAND_NAME}! Info: ${privacyUrl}`;
+        case "ar":
+            return `مرحبًا بك في ${BRAND_NAME}! معلومات: ${privacyUrl}`;
+        case "fa":
+            return `به ${BRAND_NAME} خوش آمدید! اطلاعات: ${privacyUrl}`;
+        case "ku":
+            return `Bi xêr hatî ${BRAND_NAME}! Agahî: ${privacyUrl}`;
+        case "es":
+            return `¡Bienvenido a ${BRAND_NAME}! Info: ${privacyUrl}`;
+        case "fr":
+            return `Bienvenue à ${BRAND_NAME}! Info: ${privacyUrl}`;
+        case "de":
+            return `Willkommen bei ${BRAND_NAME}! Info: ${privacyUrl}`;
+        case "el":
+            return `Καλώς ήρθατε στο ${BRAND_NAME}! Πληροφορίες: ${privacyUrl}`;
+        case "sw":
+            return `Karibu ${BRAND_NAME}! Taarifa: ${privacyUrl}`;
+        case "so":
+        case "so_so":
+            return `Ku soo dhawow ${BRAND_NAME}! Macluumaad: ${privacyUrl}`;
+        case "uk":
+            return `Ласкаво просимо до ${BRAND_NAME}! Інформація: ${privacyUrl}`;
+        case "ru":
+            return `Добро пожаловать в ${BRAND_NAME}! Информация: ${privacyUrl}`;
+        case "ka":
+            return `კეთილი იყოს თქვენი მობრძანება ${BRAND_NAME}-ში! ინფორმაცია: ${privacyUrl}`;
+        case "fi":
+            return `Tervetuloa ${BRAND_NAME}! Tietoa: ${privacyUrl}`;
+        case "it":
+            return `Benvenuto a ${BRAND_NAME}! Info: ${privacyUrl}`;
+        case "th":
+            return `ยินดีต้อนรับสู่ ${BRAND_NAME}! ข้อมูล: ${privacyUrl}`;
+        case "vi":
+            return `Chào mừng đến ${BRAND_NAME}! Thông tin: ${privacyUrl}`;
+        case "pl":
+            return `Witamy w ${BRAND_NAME}! Info: ${privacyUrl}`;
+        case "hy":
+            return `Welcome to ${BRAND_NAME}! Info: ${privacyUrl}`;
+        default:
+            return `Welcome to ${BRAND_NAME}! Info: ${privacyUrl}`;
     }
 }

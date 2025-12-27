@@ -34,7 +34,10 @@
             "hour": "2-digit",
             "minute": "2-digit",
             "hour12": false
-        }
+        },
+        "privacyPolicy": "Polityka Prywatności",
+        "chooseLanguage": "Wybierz język",
+        "statusLabel": "Status"
     },
     "qr": {
         "scanQrCode": "Skanuj kod QR"
@@ -58,5 +61,12 @@
     "maps": {
         "openInAppleMaps": "Otwórz w Apple Maps",
         "openInGoogleMaps": "Otwórz w Google Maps"
+    },
+    "publicPrivacy": {
+        "title": "Polityka Prywatności",
+        "description": "Polityka prywatności i informacje o ochronie danych",
+        "lastUpdated": "Ostatnia aktualizacja",
+        "noPolicy": "Polityka prywatności nie została jeszcze skonfigurowana. Skontaktuj się z {brandName}, aby uzyskać więcej informacji.",
+        "fallbackNotice": "Ta polityka jest wyświetlana po szwedzku, ponieważ nie jest dostępna w wybranym przez Ciebie języku."
     }
 }

@@ -34,7 +34,10 @@
             "hour": "2-digit",
             "minute": "2-digit",
             "hour12": false
-        }
+        },
+        "privacyPolicy": "Πολιτική Απορρήτου",
+        "chooseLanguage": "Επιλέξτε γλώσσα",
+        "statusLabel": "Κατάσταση"
     },
     "qr": {
         "scanQrCode": "Σάρωση κώδικα QR"
@@ -58,5 +61,12 @@
     "maps": {
         "openInAppleMaps": "Άνοιγμα σε Apple Maps",
         "openInGoogleMaps": "Άνοιγμα σε Google Maps"
+    },
+    "publicPrivacy": {
+        "title": "Πολιτική Απορρήτου",
+        "description": "Πολιτική απορρήτου και πληροφορίες προστασίας δεδομένων",
+        "lastUpdated": "Τελευταία ενημέρωση",
+        "noPolicy": "Δεν έχει διαμορφωθεί ακόμα πολιτική απορρήτου. Επικοινωνήστε με {brandName} για περισσότερες πληροφορίες.",
+        "fallbackNotice": "Αυτή η πολιτική εμφανίζεται στα Σουηδικά καθώς δεν είναι διαθέσιμη στην επιλεγμένη γλώσσα σας."
     }
 }

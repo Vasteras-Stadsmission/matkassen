@@ -15,6 +15,7 @@ import { generateUrl } from "@/app/config/branding";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
+import { nanoid } from "nanoid";
 
 // GET /api/admin/sms/parcel/[parcelId] - Get SMS history for a parcel
 export async function GET(
@@ -135,12 +136,17 @@ export async function POST(
         );
 
         // Create SMS record
+        // For "send": use default stable idempotency key (deduplicates automatically)
+        // For "resend": use unique key to allow re-sending despite stable key
         const smsId = await createSmsRecord({
             intent: "pickup_reminder",
             parcelId: parcelData.parcelId,
             householdId: parcelData.householdId,
             toE164: normalizePhoneToE164(parcelData.householdPhone),
             text: smsText,
+            ...(action === "resend" && {
+                idempotencyKey: `pickup_reminder|${parcelData.parcelId}|manual|${nanoid(8)}`,
+            }),
         });
 
         // Audit log with IDs only (no PII)

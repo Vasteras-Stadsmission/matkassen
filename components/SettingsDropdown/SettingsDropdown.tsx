@@ -9,7 +9,7 @@ export function SettingsDropdown() {
     const t = useTranslations("settings");
 
     return (
-        <Menu shadow="md" width={200} position="bottom-end">
+        <Menu shadow="md" width={200} position="bottom-end" withinPortal zIndex={1100}>
             <Menu.Target>
                 <ActionIcon
                     variant="subtle"

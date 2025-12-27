@@ -70,7 +70,7 @@ importers:
         version: 0.30.6
       drizzle-orm:
         specifier: ^0.42.0
-        version: 0.42.0(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(bun-types@1.2.15)(gel@2.1.0)(pg@8.16.0)(postgres@3.4.7)
+        version: 0.42.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(bun-types@1.2.15)(gel@2.1.0)(pg@8.16.0)(postgres@3.4.7)
       fast-deep-equal:
         specifier: ^3.1.3
         version: 3.1.3
@@ -80,6 +80,9 @@ importers:
       mantine-datatable:
         specifier: ^7.17.1
         version: 7.17.1(@mantine/core@8.3.2(@mantine/hooks@8.3.2(react@19.1.2))(@types/react@19.1.8)(react-dom@19.1.2(react@19.1.2))(react@19.1.2))(@mantine/hooks@8.3.2(react@19.1.2))(clsx@2.1.1)(react@19.1.2)
+      marked:
+        specifier: ^17.0.1
+        version: 17.0.1
       ms:
         specifier: ^2.1.3
         version: 2.1.3
@@ -117,6 +120,9 @@ importers:
         specifier: ^19.1.2
         version: 19.1.2(react@19.1.2)
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.3.14
+        version: 0.3.14
       '@eslint/eslintrc':
         specifier: ^3.3.1
         version: 3.3.1
@@ -368,6 +374,9 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
+
+  '@electric-sql/pglite@0.3.14':
+    resolution: {integrity: sha512-3DB258dhqdsArOI1fIt7cb9RpUOgcDg5hXWVgVHAeqVQ/qxtFy605QKs4gx6mFq3jWsSPqDN8TgSEsqC3OfV9Q==}
 
   '@emnapi/core@1.4.3':
     resolution: {integrity: sha512-4m62DuCE07lw01soJwPiBGC0nAww0Q+RY70VZ+n49yDIO13yyinhbWCeNnaob0lakDtWQzSdtNWzJeOJt2ma+g==}
@@ -2894,6 +2903,11 @@ packages:
       clsx: '>=2'
       react: '>=18.2'
 
+  marked@17.0.1:
+    resolution: {integrity: sha512-boeBdiS0ghpWcSwoNm/jJBwdpFaMnZWRzjA6SkUMYb40SVaN1x7mmfGKp0jvexGcx+7y2La5zRZsYFZI6Qpypg==}
+    engines: {node: '>= 20'}
+    hasBin: true
+
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -4276,6 +4290,8 @@ snapshots:
       tslib: 2.8.1
 
   '@drizzle-team/brocli@0.10.2': {}
+
+  '@electric-sql/pglite@0.3.14': {}
 
   '@emnapi/core@1.4.3':
     dependencies:
@@ -5772,8 +5788,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.42.0(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(bun-types@1.2.15)(gel@2.1.0)(pg@8.16.0)(postgres@3.4.7):
+  drizzle-orm@0.42.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(bun-types@1.2.15)(gel@2.1.0)(pg@8.16.0)(postgres@3.4.7):
     optionalDependencies:
+      '@electric-sql/pglite': 0.3.14
       '@opentelemetry/api': 1.9.0
       '@types/pg': 8.15.4
       bun-types: 1.2.15
@@ -6718,6 +6735,8 @@ snapshots:
       '@mantine/hooks': 8.3.2(react@19.1.2)
       clsx: 2.1.1
       react: 19.1.2
+
+  marked@17.0.1: {}
 
   math-intrinsics@1.1.0: {}
 

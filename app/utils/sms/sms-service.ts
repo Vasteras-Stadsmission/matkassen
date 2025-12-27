@@ -6,14 +6,15 @@ import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
-import { eq, and, lte, sql, gte } from "drizzle-orm";
+import { eq, and, lte, lt, sql, gt } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
+import { formatPickupSms } from "./templates";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
-// Note: normalizePhoneToE164 available but not used in this service layer
-// Individual functions handle normalization as needed
+import { generateUrl } from "@/app/config/branding";
 import { nanoid } from "nanoid";
 import { logger, logError } from "@/app/utils/logger";
 
@@ -21,58 +22,79 @@ export type SmsIntent =
     | "pickup_reminder"
     | "pickup_updated"
     | "pickup_cancelled"
-    | "consent_enrolment";
+    | "consent_enrolment" // Deprecated: use 'enrolment' instead
+    | "enrolment";
 export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
-// Advisory lock key for SMS queue processing
-const SMS_QUEUE_LOCK_KEY = "sms-queue-processing";
 const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
 
+// Threshold for considering a "sending" record as stale (crashed mid-send)
+// 10 minutes is generous since actual sends complete in ~1-2 seconds
+const STALE_SENDING_THRESHOLD_MS = 10 * 60 * 1000;
+
 /**
- * Get numeric hash for advisory lock (PostgreSQL requires a numeric key)
+ * Recover from crash gap: Delete stale pickup_reminder records stuck in "sending"
+ *
+ * These occur when the process crashes after inserting the record but before
+ * updating the status to "sent" or "failed". Since actual SMS sends complete
+ * in ~1-2 seconds, any record in "sending" status for 10+ minutes is stale.
+ *
+ * IMPORTANT: At-least-once delivery semantics
+ * If crash occurred after SMS was sent but before DB update, deleting the record
+ * makes the parcel eligible again → possible duplicate SMS. This is acceptable
+ * for reminders (duplicate "pick up your food" is annoying but harmless; missing
+ * reminder could mean someone doesn't get their food).
+ *
+ * Only pickup_reminder is auto-recovered. Other intents (enrollment, cancellation)
+ * stay stuck for manual review - their duplicates could be more problematic.
  */
-function getAdvisoryLockKey(key: string): number {
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) {
-        const char = key.charCodeAt(i);
-        hash = (hash << 5) - hash + char;
-        hash = hash & hash; // Convert to 32-bit integer
+async function recoverStaleSendingRecords(): Promise<number> {
+    const staleThreshold = new Date(Time.now().toUTC().getTime() - STALE_SENDING_THRESHOLD_MS);
+
+    const deleted = await db
+        .delete(outgoingSms)
+        .where(
+            and(
+                eq(outgoingSms.status, "sending"),
+                eq(outgoingSms.intent, "pickup_reminder"),
+                lt(outgoingSms.created_at, staleThreshold),
+            ),
+        )
+        .returning({ id: outgoingSms.id });
+
+    if (deleted.length > 0) {
+        logger.warn(
+            { count: deleted.length, thresholdMinutes: STALE_SENDING_THRESHOLD_MS / 60000 },
+            "Recovered stale 'sending' SMS records (likely crashed mid-send)",
+        );
     }
-    return Math.abs(hash);
+
+    return deleted.length;
 }
 
 /**
- * Acquire PostgreSQL advisory lock for SMS queue processing
- * Returns true if lock was acquired, false if already held by another process
+ * Atomically claim an SMS record for sending.
+ *
+ * Uses conditional UPDATE to prevent concurrent processes from sending
+ * the same record. Only one process can successfully claim a record.
+ *
+ * @returns true if claim succeeded, false if already claimed by another process
  */
-async function acquireSmsQueueLock(): Promise<boolean> {
-    const lockKey = getAdvisoryLockKey(SMS_QUEUE_LOCK_KEY);
+async function claimSmsForSending(id: string): Promise<boolean> {
+    const now = Time.now().toUTC();
+    const claimed = await db
+        .update(outgoingSms)
+        .set({ status: "sending" })
+        .where(
+            and(
+                eq(outgoingSms.id, id),
+                sql`${outgoingSms.status} IN ('queued', 'retrying')`,
+                lte(outgoingSms.next_attempt_at, now),
+            ),
+        )
+        .returning({ id: outgoingSms.id });
 
-    try {
-        const result = await db.execute(sql`SELECT pg_try_advisory_lock(${lockKey}) as acquired`);
-
-        const acquired = result[0]?.acquired as boolean;
-
-        // Only log failures - routine lock operations create too much noise
-        return acquired;
-    } catch (error) {
-        logError("Failed to acquire SMS queue lock", error);
-        return false;
-    }
-}
-
-/**
- * Release PostgreSQL advisory lock for SMS queue processing
- */
-async function releaseSmsQueueLock(): Promise<void> {
-    const lockKey = getAdvisoryLockKey(SMS_QUEUE_LOCK_KEY);
-
-    try {
-        await db.execute(sql`SELECT pg_advisory_unlock(${lockKey})`);
-        // Only log failures - routine lock operations create too much noise
-    } catch (error) {
-        logError("Failed to release SMS queue lock", error);
-    }
+    return claimed.length === 1;
 }
 
 export interface CreateSmsData {
@@ -108,12 +130,43 @@ type DbSmsRecord = InferSelectModel<typeof outgoingSms>;
 
 /**
  * Generate idempotency key for SMS deduplication
- * Based on parcelId, intent, and scheduled time (rounded to hour)
+ *
+ * Stable keys ensure:
+ * - One automatic reminder per parcel (deduplicates within scheduling window)
+ * - One enrollment SMS per household + phone combination
+ * - One cancellation SMS per parcel
+ *
+ * For manual resends, callers should provide a unique idempotencyKey.
+ *
+ * IMPORTANT: Cancelled SMS behavior
+ * If an SMS is cancelled (e.g., JIT found pickup passed), the stable key remains
+ * in the database. If the same parcel becomes eligible again, createSmsRecord()
+ * will return the existing cancelled record ID (won't create a new one).
+ * This is intentional - cancelled reminders should stay cancelled.
+ * For manual re-sending after cancellation, use action="resend" which generates
+ * a unique key.
  */
 function generateIdempotencyKey(data: CreateSmsData): string {
-    const scheduledHour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
-    const parts = [data.parcelId || "no-parcel", data.intent, data.householdId, scheduledHour];
-    return parts.join("|");
+    switch (data.intent) {
+        case "pickup_reminder":
+        case "pickup_cancelled":
+        case "pickup_updated":
+            // These intents require a parcelId
+            if (!data.parcelId) {
+                throw new Error(
+                    `${data.intent} SMS requires parcelId (householdId: ${data.householdId})`,
+                );
+            }
+            return `${data.intent}|${data.parcelId}`;
+        case "enrolment":
+        case "consent_enrolment":
+            // One enrollment SMS per household + phone number
+            // This allows a new SMS when phone number changes
+            return `enrolment|${data.householdId}|${data.toE164}`;
+        default:
+            // Fallback for any future intents
+            return `${data.intent}|${data.householdId}|${data.parcelId || "no-parcel"}`;
+    }
 }
 
 // Create a new SMS record. Returns the ID of the queued SMS. If an SMS with the
@@ -266,10 +319,137 @@ export async function smsExistsForParcel(parcelId: string, intent: SmsIntent): P
     return existing.length > 0;
 }
 
-// Send SMS and update record (with smart retry logic)
-export async function sendSmsRecord(record: SmsRecord): Promise<void> {
-    // Mark as sending (attempt count will be incremented only on failure)
-    await updateSmsStatus(record.id, "sending");
+/**
+ * Fetch fresh parcel and household data for JIT SMS rendering
+ * Returns null if parcel doesn't exist or is no longer eligible for SMS
+ */
+async function getFreshParcelData(parcelId: string): Promise<{
+    phoneNumber: string;
+    locale: SupportedLocale;
+    pickupEarliest: Date;
+    pickupLatest: Date;
+    isDeleted: boolean;
+    isPickedUp: boolean;
+    householdAnonymized: boolean;
+} | null> {
+    const result = await db
+        .select({
+            phoneNumber: households.phone_number,
+            locale: households.locale,
+            pickupEarliest: foodParcels.pickup_date_time_earliest,
+            pickupLatest: foodParcels.pickup_date_time_latest,
+            deletedAt: foodParcels.deleted_at,
+            isPickedUp: foodParcels.is_picked_up,
+            anonymizedAt: households.anonymized_at,
+        })
+        .from(foodParcels)
+        .innerJoin(households, eq(foodParcels.household_id, households.id))
+        .where(eq(foodParcels.id, parcelId))
+        .limit(1);
+
+    if (result.length === 0) {
+        return null;
+    }
+
+    const row = result[0];
+    if (!row) {
+        return null;
+    }
+
+    return {
+        phoneNumber: row.phoneNumber,
+        locale: row.locale as SupportedLocale,
+        pickupEarliest: row.pickupEarliest,
+        pickupLatest: row.pickupLatest,
+        isDeleted: row.deletedAt !== null,
+        isPickedUp: row.isPickedUp,
+        householdAnonymized: row.anonymizedAt !== null,
+    };
+}
+
+/**
+ * Send SMS and update record status
+ *
+ * Used for sending queued SMS records (enrollment, etc.).
+ *
+ * Note: For pickup_reminder, pure JIT is preferred (sendReminderForParcel).
+ * The JIT re-render logic below is kept as a fallback for any pickup_reminder
+ * SMS that might be in the queue from legacy code or manual creation.
+ *
+ * @returns true if we claimed and attempted to send, false if skipped
+ */
+export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
+    // Atomically claim the record FIRST (prevents concurrent sends and DB updates)
+    const claimed = await claimSmsForSending(record.id);
+    if (!claimed) {
+        // Another process already claimed this record, skip
+        logger.debug({ smsId: record.id }, "SMS already claimed by another process, skipping");
+        return false;
+    }
+
+    // JIT re-render for pickup_reminder (fallback for queued records)
+    // Done AFTER claim to avoid loser updating DB before returning
+    if (record.intent === "pickup_reminder" && record.parcelId) {
+        const freshData = await getFreshParcelData(record.parcelId);
+
+        // Check if parcel is no longer eligible for SMS
+        const now = Time.now().toUTC();
+        const pickupHasPassed = freshData && freshData.pickupLatest < now;
+
+        if (
+            !freshData ||
+            freshData.isDeleted ||
+            freshData.isPickedUp ||
+            freshData.householdAnonymized ||
+            pickupHasPassed
+        ) {
+            logger.info(
+                {
+                    smsId: record.id,
+                    parcelId: record.parcelId,
+                    reason: !freshData
+                        ? "parcel_not_found"
+                        : freshData.isDeleted
+                          ? "parcel_deleted"
+                          : freshData.isPickedUp
+                            ? "parcel_picked_up"
+                            : freshData.householdAnonymized
+                              ? "household_anonymized"
+                              : "pickup_time_passed",
+                },
+                "SMS cancelled - parcel no longer eligible",
+            );
+            await updateSmsStatus(record.id, "cancelled");
+            return false; // Claimed but cancelled, not a "processed" send
+        }
+
+        // Re-render SMS with current data
+        const publicUrl = generateUrl(`/p/${record.parcelId}`);
+        const smsText = formatPickupSms(
+            { pickupDate: freshData.pickupEarliest, publicUrl },
+            freshData.locale,
+        );
+
+        // Update record with fresh data (phone number and text may have changed)
+        if (freshData.phoneNumber !== record.toE164 || smsText !== record.text) {
+            await db
+                .update(outgoingSms)
+                .set({
+                    to_e164: freshData.phoneNumber,
+                    text: smsText,
+                })
+                .where(eq(outgoingSms.id, record.id));
+
+            // Update the in-memory record for sending
+            record.toE164 = freshData.phoneNumber;
+            record.text = smsText;
+
+            logger.debug(
+                { smsId: record.id, parcelId: record.parcelId },
+                "SMS updated with fresh data at send time",
+            );
+        }
+    }
 
     try {
         const result: SendSmsResponse = await sendSms({
@@ -290,6 +470,8 @@ export async function sendSmsRecord(record: SmsRecord): Promise<void> {
             error: error instanceof Error ? error.message : "Unknown error",
         });
     }
+
+    return true; // Claimed and attempted to send (success or failure)
 }
 
 // Handle SMS sending failures with simple retry logic
@@ -362,7 +544,22 @@ function mapDbRecordToSmsRecord(dbRecord: DbSmsRecord): SmsRecord {
     };
 }
 
-// Get parcels that need reminder SMS (48h window) - excludes parcels outside opening hours
+/**
+ * Get parcels eligible for automatic reminder SMS
+ *
+ * Used by the pure JIT scheduler which:
+ * 1. Finds eligible parcels (this function)
+ * 2. Renders SMS with current data
+ * 3. Sends immediately
+ * 4. Creates record with result (sent/failed)
+ *
+ * Criteria:
+ * - Pickup earliest time within 48h from now
+ * - Pickup latest time not yet passed (still within pickup window)
+ * - Not deleted, not picked up
+ * - Household not anonymized
+ * - No existing reminder SMS (any status blocks auto-enqueue; use manual resend)
+ */
 export async function getParcelsNeedingReminder(): Promise<
     Array<{
         parcelId: string;
@@ -371,13 +568,15 @@ export async function getParcelsNeedingReminder(): Promise<
         phone: string;
         locale: string;
         pickupDate: Date;
+        pickupLatestDate: Date;
+        locationId: string;
         locationName: string;
         locationAddress: string;
     }>
 > {
     const now = Time.now();
-    const start = now.addMinutes(47 * 60).toUTC(); // 47 hours from now
-    const end = now.addMinutes(49 * 60).toUTC(); // 49 hours from now
+    const nowUtc = now.toUTC();
+    const reminderWindow = now.addMinutes(48 * 60).toUTC(); // 48 hours from now
 
     const parcels = await db
         .select({
@@ -400,26 +599,40 @@ export async function getParcelsNeedingReminder(): Promise<
             and(
                 eq(outgoingSms.parcel_id, foodParcels.id),
                 eq(outgoingSms.intent, "pickup_reminder"),
+                // Match ANY existing pickup_reminder (including cancelled/failed)
+                // Cancelled reminders stay cancelled; use manual resend to override
             ),
         )
         .where(
             and(
-                gte(foodParcels.pickup_date_time_earliest, start),
-                lte(foodParcels.pickup_date_time_earliest, end),
+                // Pickup earliest must be within 48h window
+                lte(foodParcels.pickup_date_time_earliest, reminderWindow),
+                // Pickup latest must not have passed (still within pickup window)
+                gt(foodParcels.pickup_date_time_latest, nowUtc),
                 eq(foodParcels.is_picked_up, false),
-                sql`${outgoingSms.id} IS NULL`, // No existing SMS
+                sql`${outgoingSms.id} IS NULL`, // No existing SMS for this parcel
+                sql`${households.anonymized_at} IS NULL`, // Household not anonymized
                 notDeleted(),
             ),
         );
 
     // Filter out parcels that are outside opening hours
+    // Cache schedules by locationId to avoid N+1 queries
+    const scheduleCache = new Map<
+        string,
+        Awaited<ReturnType<typeof fetchPickupLocationSchedules>>
+    >();
     const validParcels = [];
     let filteredCount = 0;
 
     for (const parcel of parcels) {
         try {
-            // Get location schedules for opening hours validation
-            const locationSchedules = await fetchPickupLocationSchedules(parcel.locationId);
+            // Get location schedules (cached to avoid N+1)
+            let locationSchedules = scheduleCache.get(parcel.locationId);
+            if (!locationSchedules) {
+                locationSchedules = await fetchPickupLocationSchedules(parcel.locationId);
+                scheduleCache.set(parcel.locationId, locationSchedules);
+            }
 
             if (
                 !locationSchedules ||
@@ -470,28 +683,197 @@ export async function getParcelsNeedingReminder(): Promise<
         phone: p.phone,
         locale: p.locale,
         pickupDate: p.pickupDate,
+        pickupLatestDate: p.pickupLatestDate,
+        locationId: p.locationId,
         locationName: p.locationName,
         locationAddress: p.locationAddress,
     }));
 }
 
 /**
- * Protected version of queue processing that uses advisory locks
- * to prevent concurrent execution
+ * Run SMS queue processing function
+ *
+ * Concurrency is handled by atomic claim in sendSmsRecord() - each record
+ * is claimed with a conditional UPDATE before sending, preventing duplicates.
  */
-export async function processSendQueueWithLock(
-    processingFunction: () => Promise<number>,
-): Promise<{ processed: number; lockAcquired: boolean }> {
-    const lockAcquired = await acquireSmsQueueLock();
+export async function processQueuedSms(processingFunction: () => Promise<number>): Promise<number> {
+    return processingFunction();
+}
 
-    if (!lockAcquired) {
-        return { processed: 0, lockAcquired: false };
-    }
+/**
+ * Pure JIT SMS sending for a single parcel
+ *
+ * Safe send order to prevent duplicate SMS on crash:
+ * 1. Insert record with "sending" status (idempotency key prevents duplicates)
+ * 2. Send SMS via HelloSMS
+ * 3. Update record with final status (sent/failed)
+ *
+ * If crash occurs:
+ * - After insert, before send: record is "sending", no SMS sent (can retry)
+ * - After send, before update: record is "sending", SMS may have been sent (recovery may resend)
+ *
+ * @returns Object with success status and record ID (if created)
+ */
+export async function sendReminderForParcel(parcel: {
+    parcelId: string;
+    householdId: string;
+    phone: string;
+    locale: string;
+    pickupDate: Date;
+}): Promise<{ success: boolean; recordId?: string; error?: string }> {
+    const { formatPickupSms } = await import("./templates");
+    const { generateUrl } = await import("@/app/config/branding");
+    const { sendSms } = await import("./hello-sms");
 
+    const id = nanoid(16);
+    const now = Time.now().toUTC();
+    const idempotencyKey = `pickup_reminder|${parcel.parcelId}`;
+
+    // Render SMS with current data
+    const publicUrl = generateUrl(`/p/${parcel.parcelId}`);
+    const smsText = formatPickupSms(
+        { pickupDate: parcel.pickupDate, publicUrl },
+        parcel.locale as SupportedLocale,
+    );
+
+    // Step 1: Insert record with "sending" status first (prevents duplicates)
     try {
-        const processed = await processingFunction();
-        return { processed, lockAcquired: true };
-    } finally {
-        await releaseSmsQueueLock();
+        await db.insert(outgoingSms).values({
+            id,
+            intent: "pickup_reminder",
+            parcel_id: parcel.parcelId,
+            household_id: parcel.householdId,
+            to_e164: parcel.phone,
+            text: smsText,
+            status: "sending",
+            attempt_count: 1,
+            next_attempt_at: now,
+            idempotency_key: idempotencyKey,
+            created_at: now,
+        });
+    } catch (dbError: unknown) {
+        // Handle idempotency constraint violation (SMS already exists/being sent)
+        const err = dbError as {
+            code?: string;
+            constraint?: string;
+            constraint_name?: string;
+            detail?: string;
+        };
+        const constraintName =
+            err?.constraint ||
+            err?.constraint_name ||
+            (err?.detail?.includes(SMS_IDEMPOTENCY_CONSTRAINT)
+                ? SMS_IDEMPOTENCY_CONSTRAINT
+                : undefined);
+        if (
+            err?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
+            constraintName === SMS_IDEMPOTENCY_CONSTRAINT
+        ) {
+            logger.debug(
+                { parcelId: parcel.parcelId, idempotencyKey },
+                "SMS already exists for parcel, skipping",
+            );
+            return { success: true }; // Already handled by another process
+        }
+        throw dbError;
     }
+
+    // Step 2: Send SMS
+    try {
+        const result = await sendSms({
+            to: parcel.phone,
+            text: smsText,
+        });
+
+        // Step 3: Update record with final status
+        const updateTime = Time.now().toUTC();
+        await db
+            .update(outgoingSms)
+            .set({
+                status: result.success ? "sent" : "failed",
+                sent_at: result.success ? updateTime : null,
+                provider_message_id: result.success ? result.messageId : null,
+                last_error_message: result.success ? null : result.error,
+            })
+            .where(eq(outgoingSms.id, id));
+
+        if (result.success) {
+            logger.info({ smsId: id, parcelId: parcel.parcelId }, "SMS sent successfully (JIT)");
+        } else {
+            logger.warn(
+                { smsId: id, parcelId: parcel.parcelId, error: result.error },
+                "SMS failed (JIT)",
+            );
+        }
+
+        return { success: result.success, recordId: id, error: result.error };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logError("Failed to send SMS (JIT)", error, { parcelId: parcel.parcelId });
+
+        // Update record with failed status
+        try {
+            await db
+                .update(outgoingSms)
+                .set({
+                    status: "failed",
+                    last_error_message: errorMessage,
+                })
+                .where(eq(outgoingSms.id, id));
+        } catch (updateError) {
+            logError("Failed to update SMS record to failed status", updateError, {
+                smsId: id,
+                parcelId: parcel.parcelId,
+            });
+        }
+
+        return { success: false, recordId: id, error: errorMessage };
+    }
+}
+
+/**
+ * Pure JIT SMS processing for pickup reminders
+ *
+ * This is the main scheduler function for pure JIT:
+ * 1. Recovers any stale "sending" records from crashed processes
+ * 2. Finds all eligible parcels (within 48h, no existing SMS)
+ * 3. For each: insert "sending" → send → update to "sent/failed"
+ *
+ * Concurrency is handled by idempotency constraint on insert - if two
+ * processes try the same parcel, the second insert fails and skips.
+ *
+ * @returns Count of SMS processed
+ */
+export async function processRemindersJIT(): Promise<{ processed: number }> {
+    // Recover any stale "sending" records from crashed processes
+    await recoverStaleSendingRecords();
+
+    const parcels = await getParcelsNeedingReminder();
+
+    if (parcels.length === 0) {
+        return { processed: 0 };
+    }
+
+    logger.info({ count: parcels.length }, "Processing eligible parcels for SMS (pure JIT)");
+
+    let processedCount = 0;
+
+    for (const parcel of parcels) {
+        const result = await sendReminderForParcel(parcel);
+        if (result.recordId) {
+            processedCount++;
+        }
+
+        // Small delay between sends to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    if (processedCount > 0) {
+        logger.info(
+            { processed: processedCount, total: parcels.length },
+            "SMS batch completed (pure JIT)",
+        );
+    }
+
+    return { processed: processedCount };
 }
