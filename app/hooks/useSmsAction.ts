@@ -5,8 +5,10 @@ import { notifications } from "@mantine/notifications";
 import { useTranslations } from "next-intl";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
+export type SmsActionType = "send" | "resend";
+
 export interface UseSmsActionResult {
-    sendSms: (parcelId: string) => Promise<void>;
+    sendSms: (parcelId: string, action?: SmsActionType) => Promise<void>;
     isLoading: boolean;
     error: string | null;
 }
@@ -21,7 +23,7 @@ export function useSmsAction(): UseSmsActionResult {
     const [error, setError] = useState<string | null>(null);
 
     const sendSms = useCallback(
-        async (parcelId: string) => {
+        async (parcelId: string, action: SmsActionType = "send") => {
             setIsLoading(true);
             setError(null);
 
@@ -32,7 +34,7 @@ export function useSmsAction(): UseSmsActionResult {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        action: "send",
+                        action,
                     }),
                 });
 

@@ -1035,7 +1035,9 @@
                 "sent": "Skickad",
                 "retrying": "Försöker igen",
                 "failed": "Misslyckad",
-                "cancelled": "Avbruten"
+                "cancelled": "Avbruten",
+                "retryScheduled": "Nytt försök schemalagt",
+                "retryScheduledAt": "Nytt försök kl {time}"
             },
             "intent": {
                 "pickup_reminder": "Påminnelse",

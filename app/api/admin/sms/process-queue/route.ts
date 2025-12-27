@@ -27,8 +27,11 @@ export async function POST() {
 
         return NextResponse.json({
             success: true,
-            message: `Processed ${result.processedCount} SMS messages`,
+            message: result.skipped
+                ? "SMS processing already in progress, request skipped"
+                : `Processed ${result.processedCount} SMS messages`,
             processedCount: result.processedCount,
+            skipped: result.skipped,
         });
     } catch (error) {
         logError("Error processing SMS queue", error, {

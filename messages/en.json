@@ -1035,7 +1035,9 @@
                 "sent": "Sent",
                 "retrying": "Retrying",
                 "failed": "Failed",
-                "cancelled": "Cancelled"
+                "cancelled": "Cancelled",
+                "retryScheduled": "Retry scheduled",
+                "retryScheduledAt": "Retry at {time}"
             },
             "intent": {
                 "pickup_reminder": "Reminder",

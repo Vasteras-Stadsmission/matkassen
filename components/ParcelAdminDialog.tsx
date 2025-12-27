@@ -48,6 +48,7 @@ interface SmsRecord {
     id: string;
     status: "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
     intent: string;
+    nextAttemptAt?: string; // ISO date string for retry scheduling
 }
 
 interface ParcelDialogState {
@@ -666,6 +667,11 @@ export function ParcelAdminDialog({
                                                     | "retrying"
                                                     | "failed"
                                                     | "cancelled"
+                                            }
+                                            nextRetryAt={
+                                                state.smsRecords[0]?.nextAttemptAt
+                                                    ? new Date(state.smsRecords[0].nextAttemptAt)
+                                                    : undefined
                                             }
                                             onSuccess={fetchParcelDetails}
                                             variant="light"

@@ -2,7 +2,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, households } from "@/app/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
@@ -113,6 +113,23 @@ export async function softDeleteParcelInTransaction(
         }
         // For "failed" and "cancelled" - no action needed (already in terminal state)
     }
+
+    // Also cancel any pending pickup_updated SMS (prevents stale updates after cancellation)
+    // No need to send cancellation SMS for these - if the parcel is cancelled, an update is irrelevant
+    await tx
+        .update(outgoingSms)
+        .set({
+            status: "cancelled",
+            next_attempt_at: null,
+        })
+        .where(
+            and(
+                eq(outgoingSms.parcel_id, parcelId),
+                eq(outgoingSms.intent, "pickup_updated"),
+                // Only cancel if not already in terminal state (sent, failed, cancelled)
+                inArray(outgoingSms.status, ["queued", "sending", "retrying"]),
+            ),
+        );
 
     // Soft delete the parcel
     await tx

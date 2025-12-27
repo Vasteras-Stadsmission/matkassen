@@ -33,6 +33,22 @@ const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
 const STALE_SENDING_THRESHOLD_MS = 10 * 60 * 1000;
 
 /**
+ * HTTP status codes that indicate transient errors eligible for retry.
+ * Unified across both queued and JIT SMS pipelines.
+ */
+const RETRIABLE_HTTP_STATUS_CODES = new Set([
+    429, // Rate limit
+    500, // Server error
+    502, // Bad gateway
+    503, // Service unavailable
+    504, // Gateway timeout
+]);
+
+function isRetriableHttpError(httpStatus?: number): boolean {
+    return httpStatus !== undefined && RETRIABLE_HTTP_STATUS_CODES.has(httpStatus);
+}
+
+/**
  * Recover from crash gap: Delete stale pickup_reminder records stuck in "sending"
  *
  * These occur when the process crashes after inserting the record but before
@@ -322,6 +338,93 @@ export async function smsExistsForParcel(parcelId: string, intent: SmsIntent): P
 }
 
 /**
+ * Queue a pickup_updated SMS when a parcel is rescheduled.
+ *
+ * Only sends if:
+ * 1. A pickup_reminder SMS was already sent for this parcel
+ * 2. No pickup_updated SMS already exists for this parcel (idempotency)
+ *
+ * @returns Object with success status and record ID (if created)
+ */
+export async function queuePickupUpdatedSms(parcelId: string): Promise<{
+    success: boolean;
+    recordId?: string;
+    skipped?: boolean;
+    reason?: string;
+}> {
+    // Check if pickup_reminder was already sent
+    const existingReminder = await db
+        .select({ id: outgoingSms.id, status: outgoingSms.status })
+        .from(outgoingSms)
+        .where(
+            and(
+                eq(outgoingSms.parcel_id, parcelId),
+                eq(outgoingSms.intent, "pickup_reminder"),
+                eq(outgoingSms.status, "sent"),
+            ),
+        )
+        .limit(1);
+
+    if (existingReminder.length === 0) {
+        return {
+            success: true,
+            skipped: true,
+            reason: "No sent pickup_reminder exists for this parcel",
+        };
+    }
+
+    // Get parcel and household data
+    const parcelData = await db
+        .select({
+            parcelId: foodParcels.id,
+            householdId: households.id,
+            phone: households.phone_number,
+            locale: households.locale,
+            pickupDate: foodParcels.pickup_date_time_earliest,
+        })
+        .from(foodParcels)
+        .innerJoin(households, eq(foodParcels.household_id, households.id))
+        .where(and(eq(foodParcels.id, parcelId), notDeleted()))
+        .limit(1);
+
+    if (parcelData.length === 0) {
+        return { success: false, reason: "Parcel not found" };
+    }
+
+    const data = parcelData[0];
+
+    // Generate SMS content using dynamic imports to avoid circular dependencies
+    const { formatUpdateSms } = await import("./templates");
+    const { generateUrl } = await import("@/app/config/branding");
+
+    const publicUrl = generateUrl(`/p/${parcelId}`);
+    const smsText = formatUpdateSms(
+        { pickupDate: data.pickupDate, publicUrl },
+        data.locale as SupportedLocale,
+    );
+
+    // Create SMS record (idempotency key will prevent duplicates)
+    try {
+        const smsId = await createSmsRecord({
+            intent: "pickup_updated",
+            parcelId: data.parcelId,
+            householdId: data.householdId,
+            toE164: data.phone,
+            text: smsText,
+        });
+
+        logger.info({ smsId, parcelId }, "Pickup updated SMS queued");
+        return { success: true, recordId: smsId };
+    } catch (error) {
+        logError("Failed to queue pickup_updated SMS", error, { parcelId });
+        return {
+            success: false,
+            reason: error instanceof Error ? error.message : "Unknown error",
+        };
+    }
+}
+
+/**
  * Fetch fresh parcel and household data for JIT SMS rendering
  * Returns null if parcel doesn't exist or is no longer eligible for SMS
  */
@@ -482,13 +585,8 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
     const maxAttempts = 3; // Total attempts: initial + 2 retries
     const currentAttempt = record.attemptCount + 1; // This is the attempt we just made
 
-    // Check if we should retry based on error type
-    const isRetriableError =
-        result.httpStatus === 429 || // Rate limit
-        result.httpStatus === 500 || // Server error
-        result.httpStatus === 503; // Service unavailable
-
-    const shouldRetry = currentAttempt < maxAttempts && isRetriableError;
+    // Check if we should retry based on error type (uses unified retry codes)
+    const shouldRetry = currentAttempt < maxAttempts && isRetriableHttpError(result.httpStatus);
 
     if (shouldRetry) {
         // Simple backoff: 5 minutes, then 30 minutes
@@ -911,14 +1009,6 @@ async function handleJitFailure(
         return;
     }
 
-    // Check if error is retriable (transient HTTP errors)
-    const isRetriableError =
-        result.httpStatus === 429 || // Rate limit
-        result.httpStatus === 500 || // Server error
-        result.httpStatus === 502 || // Bad gateway
-        result.httpStatus === 503 || // Service unavailable
-        result.httpStatus === 504; // Gateway timeout
-
     // Get current attempt count
     const [record] = await db
         .select({ attemptCount: outgoingSms.attempt_count })
@@ -926,7 +1016,8 @@ async function handleJitFailure(
         .where(eq(outgoingSms.id, smsId));
 
     const currentAttempt = record?.attemptCount ?? 1;
-    const shouldRetry = currentAttempt < maxAttempts && isRetriableError;
+    // Check if we should retry based on error type (uses unified retry codes)
+    const shouldRetry = currentAttempt < maxAttempts && isRetriableHttpError(result.httpStatus);
 
     if (shouldRetry) {
         // Simple backoff: 5 minutes, then 30 minutes
@@ -944,13 +1035,14 @@ async function handleJitFailure(
             "SMS retry scheduled (JIT)",
         );
 
+        // Don't increment attempt_count here - it was set to 1 on insert (counting the JIT attempt).
+        // The queued pipeline will increment when it picks up and retries.
         await db
             .update(outgoingSms)
             .set({
                 status: "retrying",
                 last_error_message: result.error,
                 next_attempt_at: nextAttemptAt,
-                attempt_count: sql`${outgoingSms.attempt_count} + 1`,
             })
             .where(eq(outgoingSms.id, smsId));
     } else {

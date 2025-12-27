@@ -225,9 +225,9 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(false);
             }
 
-            // Verify SMS was cancelled
-            expect(updatedSms).toHaveLength(1);
-            expect(updatedSms[0].status).toBe("cancelled");
+            // 2 SMS updates: queued cancelled + pickup_updated cancellation attempt
+            expect(updatedSms).toHaveLength(2);
+            expect(updatedSms.every((sms: any) => sms.status === "cancelled")).toBe(true);
 
             // Verify no new SMS was inserted
             expect(insertedSms).toHaveLength(0);
@@ -307,8 +307,9 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(true); // Detects that SMS was sent
             }
 
-            // Verify original SMS was NOT updated
-            expect(updatedSms).toHaveLength(0);
+            // 1 SMS update for pickup_updated cancellation attempt
+            // (sent pickup_reminder SMS is not modified)
+            expect(updatedSms).toHaveLength(1);
 
             // Verify cancellation SMS was inserted
             expect(insertedSms).toHaveLength(1);
@@ -352,7 +353,9 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(false);
             }
 
-            expect(updatedSms).toHaveLength(0);
+            // 1 SMS update for pickup_updated cancellation attempt
+            // (failed pickup_reminder SMS is not modified)
+            expect(updatedSms).toHaveLength(1);
             expect(insertedSms).toHaveLength(0);
         });
 
@@ -402,8 +405,8 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(false);
             }
 
-            // ALL queued/sending SMS should be cancelled
-            expect(updatedSms).toHaveLength(3);
+            // 4 SMS updates: 3 queued/sending cancelled + 1 pickup_updated cancellation attempt
+            expect(updatedSms).toHaveLength(4);
             expect(updatedSms.every((sms: any) => sms.status === "cancelled")).toBe(true);
 
             // No cancellation SMS sent (none were "sent" status)
@@ -451,9 +454,9 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(true); // Cancellation sent for sent one
             }
 
-            // Queued SMS should be cancelled
-            expect(updatedSms).toHaveLength(1);
-            expect(updatedSms[0].status).toBe("cancelled");
+            // 2 SMS updates: queued cancelled + pickup_updated cancellation attempt
+            expect(updatedSms).toHaveLength(2);
+            expect(updatedSms.every((sms: any) => sms.status === "cancelled")).toBe(true);
 
             // Cancellation SMS should be inserted
             expect(insertedSms).toHaveLength(1);
@@ -503,8 +506,10 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(true);
             }
 
-            // No SMS updates (sent SMS are not modified)
-            expect(updatedSms).toHaveLength(0);
+            // 1 SMS update for pickup_updated cancellation (even though none exist)
+            // The sent pickup_reminder SMS are not modified
+            expect(updatedSms).toHaveLength(1);
+            expect(updatedSms[0].status).toBe("cancelled"); // pickup_updated cancellation attempt
 
             // Only ONE cancellation SMS inserted (not 2)
             expect(insertedSms).toHaveLength(1);
@@ -562,8 +567,8 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(true); // cancellation for sent
             }
 
-            // 2 SMS should be cancelled (queued + sending)
-            expect(updatedSms).toHaveLength(2);
+            // 3 SMS updates: queued cancelled + sending cancelled + pickup_updated cancellation attempt
+            expect(updatedSms).toHaveLength(3);
             expect(updatedSms.every((sms: any) => sms.status === "cancelled")).toBe(true);
 
             // 1 cancellation SMS should be inserted (for sent)
@@ -601,8 +606,8 @@ describe("softDeleteParcel", () => {
                 expect(result.data.smsSent).toBe(false);
             }
 
-            // No SMS operations
-            expect(updatedSms).toHaveLength(0);
+            // 1 SMS update for pickup_updated cancellation attempt (even though none exist)
+            expect(updatedSms).toHaveLength(1);
             expect(insertedSms).toHaveLength(0);
 
             // Parcel still deleted

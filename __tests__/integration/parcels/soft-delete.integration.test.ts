@@ -287,5 +287,77 @@ describe("softDeleteParcel - Integration Tests", () => {
 
             expect(smsRecords).toHaveLength(0);
         });
+
+        it("should cancel queued pickup_updated SMS when deleting parcel", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+            });
+
+            // Reminder was sent, then pickup_updated was queued (reschedule scenario)
+            await createTestSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                intent: "pickup_reminder",
+                status: "sent",
+                sent_at: new Date(),
+            });
+
+            const updateSms = await createTestSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                intent: "pickup_updated",
+                status: "queued",
+            });
+
+            // Delete the parcel
+            await db.transaction(async tx => {
+                await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+            });
+
+            // Verify pickup_updated SMS is cancelled
+            const [updatedSms] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, updateSms.id));
+
+            expect(updatedSms.status).toBe("cancelled");
+        });
+
+        it("should cancel retrying pickup_updated SMS when deleting parcel", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+            });
+
+            // Create a retrying pickup_updated SMS (failed once, scheduled for retry)
+            const updateSms = await createTestSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                intent: "pickup_updated",
+                status: "retrying",
+                next_attempt_at: new Date(Date.now() + 5 * 60 * 1000), // Retry in 5 min
+            });
+
+            // Delete the parcel
+            await db.transaction(async tx => {
+                await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+            });
+
+            // Verify pickup_updated SMS is cancelled and next_attempt_at is cleared
+            const [updatedSms] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, updateSms.id));
+
+            expect(updatedSms.status).toBe("cancelled");
+            expect(updatedSms.next_attempt_at).toBeNull();
+        });
     });
 });

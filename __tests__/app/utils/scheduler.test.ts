@@ -433,10 +433,10 @@ describe("Unified Scheduler", () => {
             /**
              * CONCURRENCY PROTECTION:
              *
-             * 1. SMS SENDING
-             *    - Uses idempotency constraint (unique key per parcel/intent)
-             *    - No advisory lock needed - constraint prevents duplicates
-             *    - Concurrent runs are safe: second insert hits constraint, skips
+             * 1. SMS SENDING (in-memory lock + idempotency)
+             *    - In-memory lock: smsProcessingInFlight flag prevents overlapping runs
+             *    - Idempotency constraint: unique key per parcel/intent as backup
+             *    - If manual trigger fires during scheduled interval, second run is skipped
              *    - PGLite compatible (advisory locks not supported there)
              *
              * 2. ANONYMIZATION (lock ID: 87654321)
@@ -444,10 +444,39 @@ describe("Unified Scheduler", () => {
              *    - Purpose: Prevent multiple instances from anonymizing same household
              *    - Why: Race condition could corrupt data or cause double-delete
              *
-             * WHY SMS DOESN'T NEED LOCKS:
+             * WHY IN-MEMORY LOCK FOR SMS:
+             *    - Prevents duplicate database queries and API rate pressure
+             *    - Cleaner than relying solely on constraint violations
+             *    - Lock released even on error (try/finally pattern)
+             *    - Skipped runs return skipped: true for visibility
+             *
+             * WHY SMS ALSO HAS IDEMPOTENCY:
              *    - Insert-before-send pattern with unique idempotency_key
              *    - If two processes try same parcel, one hits constraint and skips
              *    - Stale "sending" records recovered automatically (10 min threshold)
+             */
+            expect(true).toBe(true); // Documentation test
+        });
+
+        it("should document triggerSmsJIT concurrency behavior", () => {
+            /**
+             * triggerSmsJIT() CONCURRENCY:
+             *
+             * RETURNS: Promise<{
+             *   success: boolean,
+             *   processedCount?: number,
+             *   skipped?: boolean,  // NEW: indicates concurrent run prevention
+             *   error?: string
+             * }>
+             *
+             * BEHAVIOR:
+             * - If smsProcessingInFlight is true, returns { success: true, skipped: true }
+             * - API returns message: "SMS processing already in progress, request skipped"
+             * - No duplicate processing, no wasted database queries
+             *
+             * USE CASE:
+             * - Admin clicks "Process Queue" button while scheduled run is in progress
+             * - Second request skips gracefully instead of duplicating work
              */
             expect(true).toBe(true); // Documentation test
         });

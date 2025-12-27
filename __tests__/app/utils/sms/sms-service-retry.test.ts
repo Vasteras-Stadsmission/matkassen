@@ -6,18 +6,29 @@ import { describe, it, expect } from "vitest";
 
 // Test the retry decision logic separately from database operations
 describe("SMS Retry Logic", () => {
+    /**
+     * HTTP status codes that indicate transient errors eligible for retry.
+     * Must match RETRIABLE_HTTP_STATUS_CODES in sms-service.ts
+     */
+    const RETRIABLE_HTTP_STATUS_CODES = new Set([
+        429, // Rate limit
+        500, // Server error
+        502, // Bad gateway
+        503, // Service unavailable
+        504, // Gateway timeout
+    ]);
+
+    function isRetriableHttpError(httpStatus?: number): boolean {
+        return httpStatus !== undefined && RETRIABLE_HTTP_STATUS_CODES.has(httpStatus);
+    }
+
     // Helper function to simulate retry decision logic
     function shouldRetry(attemptCount: number, httpStatus?: number): boolean {
         const maxAttempts = 3;
         // attemptCount is the number of attempts already made (not including current)
         const currentAttempt = attemptCount + 1;
 
-        const isRetriableError =
-            httpStatus === 429 || // Rate limit
-            httpStatus === 500 || // Server error
-            httpStatus === 503; // Service unavailable
-
-        return currentAttempt < maxAttempts && isRetriableError;
+        return currentAttempt < maxAttempts && isRetriableHttpError(httpStatus);
     }
 
     // Helper function to calculate backoff time
@@ -39,10 +50,30 @@ describe("SMS Retry Logic", () => {
             expect(shouldRetry(0, 503)).toBe(true);
         });
 
+        it("should retry on 502 Bad Gateway (transient provider issue)", () => {
+            expect(shouldRetry(0, 502)).toBe(true);
+            expect(shouldRetry(1, 502)).toBe(true);
+            expect(shouldRetry(2, 502)).toBe(false); // Max attempts reached
+        });
+
+        it("should retry on 504 Gateway Timeout (transient provider issue)", () => {
+            expect(shouldRetry(0, 504)).toBe(true);
+            expect(shouldRetry(1, 504)).toBe(true);
+            expect(shouldRetry(2, 504)).toBe(false); // Max attempts reached
+        });
+
         it("should not retry on client errors (400, 401, 404)", () => {
             expect(shouldRetry(0, 400)).toBe(false);
             expect(shouldRetry(0, 401)).toBe(false);
             expect(shouldRetry(0, 404)).toBe(false);
+        });
+
+        it("should retry on network errors (mapped to 503)", () => {
+            // Network/DNS/timeout errors are now mapped to 503 in hello-sms.ts
+            // This ensures transient network issues don't cause permanent SMS failures
+            expect(shouldRetry(0, 503)).toBe(true);
+            expect(shouldRetry(1, 503)).toBe(true);
+            expect(shouldRetry(2, 503)).toBe(false); // Max attempts reached
         });
 
         it("should not retry after max attempts", () => {

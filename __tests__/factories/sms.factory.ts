@@ -84,6 +84,23 @@ export async function createTestSentSms(overrides: {
 }
 
 /**
+ * Create a queued SMS (waiting to be sent).
+ */
+export async function createTestQueuedSms(overrides: {
+    household_id: string;
+    parcel_id?: string;
+    intent?: SmsIntent;
+    to_e164?: string;
+    text?: string;
+}) {
+    return createTestSms({
+        ...overrides,
+        status: "queued",
+        attempt_count: 0,
+    });
+}
+
+/**
  * Create a failed SMS.
  */
 export async function createTestFailedSms(overrides: {
