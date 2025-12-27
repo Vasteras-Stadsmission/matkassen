@@ -320,3 +320,27 @@ export function generateTimeSlotsBetween(
 export function getStockholmDateKey(date: Date): string {
     return formatInTimeZone(date, TIMEZONE, "yyyy-MM-dd");
 }
+
+/**
+ * Get the UTC date range for a Stockholm day.
+ *
+ * Converts a date to Stockholm timezone, finds the start (00:00:00) and end (23:59:59.999)
+ * of that day in Stockholm, then converts back to UTC for database queries.
+ *
+ * Example for 2025-01-15 in Stockholm:
+ * - Stockholm start: 2025-01-15 00:00:00 CET
+ * - UTC start: 2025-01-14 23:00:00 UTC (during CET)
+ * - Stockholm end: 2025-01-15 23:59:59.999 CET
+ * - UTC end: 2025-01-15 22:59:59.999 UTC (during CET)
+ *
+ * DST Safety: Uses fromZonedTime which handles DST automatically.
+ *
+ * @param date - Any date within the Stockholm day you want the range for
+ * @returns Object with startUtc and endUtc in UTC for database queries
+ */
+export function getStockholmDayUtcRange(date: Date): { startUtc: Date; endUtc: Date } {
+    return {
+        startUtc: setToStartOfDay(date),
+        endUtc: setToEndOfDay(date),
+    };
+}

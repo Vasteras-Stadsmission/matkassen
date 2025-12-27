@@ -47,11 +47,13 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             expect(result).toBe(10);
         });
 
-        it("should return threshold of 0 when set to 0", async () => {
+        it("should return null when set to 0 (treated as disabled)", async () => {
+            // Zero threshold would mean "warn for every household" which is not useful
+            // So it's treated as disabled (null)
             await createTestParcelWarningThreshold(0);
 
             const result = await getParcelWarningThreshold();
-            expect(result).toBe(0);
+            expect(result).toBe(null);
         });
     });
 

@@ -135,11 +135,10 @@ export class StockholmTime {
 
     /**
      * Add minutes to this time
+     * Uses UTC millisecond math to avoid DST drift
      */
     addMinutes(minutes: number): StockholmTime {
-        const newDate = new Date(this._utcDate);
-        newDate.setMinutes(newDate.getMinutes() + minutes);
-        return new StockholmTime(newDate);
+        return new StockholmTime(new Date(this._utcDate.getTime() + minutes * 60 * 1000));
     }
 
     /**

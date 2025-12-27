@@ -44,6 +44,15 @@ export function isActiveParcel(parcel: ParcelTimeInfo, currentTime: Date = new D
     return !parcel.isPickedUp && isFutureParcel(parcel, currentTime);
 }
 
+export interface OpeningHoursCheckOptions {
+    /**
+     * How to handle errors:
+     * - "return-true": Return true (outside hours) on error - fail-closed (default)
+     * - "throw": Re-throw the error so caller can handle it - fail-open capable
+     */
+    onError?: "return-true" | "throw";
+}
+
 /**
  * Determines if a parcel's time slot is outside opening hours
  * Returns true if the parcel is outside opening hours, false if it's within hours
@@ -51,7 +60,9 @@ export function isActiveParcel(parcel: ParcelTimeInfo, currentTime: Date = new D
 export function isParcelOutsideOpeningHours(
     parcel: ParcelTimeInfo,
     locationSchedules: LocationScheduleInfo,
+    options: OpeningHoursCheckOptions = {},
 ): boolean {
+    const { onError = "return-true" } = options;
     const startLocal = Time.fromDate(parcel.pickupEarliestTime);
     const endLocal = Time.fromDate(parcel.pickupLatestTime);
 
@@ -85,6 +96,9 @@ export function isParcelOutsideOpeningHours(
         const isWithinHours = startAvailability.isAvailable && endAvailability.isAvailable;
         return !isWithinHours;
     } catch (error) {
+        if (onError === "throw") {
+            throw error;
+        }
         logError(`Error checking time availability for parcel ${parcel.id}`, error);
         // If there's an error checking availability, treat as outside hours to be safe
         return true;

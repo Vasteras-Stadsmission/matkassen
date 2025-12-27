@@ -15,14 +15,9 @@ import {
     pickupLocationSchedules as pickupLocationSchedulesTable,
     pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
 } from "@/app/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, gte, lte, count } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
-import {
-    setToStartOfDay,
-    setToEndOfDay,
-    getDateParts,
-    formatDateToISOString,
-} from "@/app/utils/date-utils";
+import { getStockholmDayUtcRange, getStockholmDateKey } from "@/app/utils/date-utils";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
@@ -443,37 +438,29 @@ export async function checkPickupLocationCapacity(
             };
         }
 
-        // Use date-utils to normalize date and extract parts for comparison
-        const { year, month, day } = getDateParts(date);
+        // Get Stockholm day boundaries in UTC for correct timezone-aware comparison
+        const { startUtc, endUtc } = getStockholmDayUtcRange(date);
 
-        // Use raw SQL for a more precise date comparison that handles timezone information
-        // This extracts year, month, and day from the timestamp to perform the comparison
-        // regardless of time part or timezone
-        const whereConditions = [eq(foodParcels.pickup_location_id, locationId)];
-
-        // Add date comparison conditions
-        whereConditions.push(
-            eq(sql`EXTRACT(YEAR FROM ${foodParcels.pickup_date_time_earliest})::int`, year),
-            eq(sql`EXTRACT(MONTH FROM ${foodParcels.pickup_date_time_earliest})::int`, month),
-            eq(sql`EXTRACT(DAY FROM ${foodParcels.pickup_date_time_earliest})::int`, day),
-        );
+        // Build query conditions using range comparison (more reliable than EXTRACT)
+        const whereConditions = [
+            eq(foodParcels.pickup_location_id, locationId),
+            gte(foodParcels.pickup_date_time_earliest, startUtc),
+            lte(foodParcels.pickup_date_time_earliest, endUtc),
+            notDeleted(),
+        ];
 
         // Exclude the current household's parcels if we're editing an existing household
         if (excludeHouseholdId) {
             whereConditions.push(sql`${foodParcels.household_id} != ${excludeHouseholdId}`);
         }
 
-        // Exclude soft-deleted parcels from capacity calculations
-        whereConditions.push(notDeleted());
-
-        // Execute the query with all conditions
-        const parcels = await db
-            .select()
+        // Use count(*) for efficiency instead of selecting all rows
+        const [result] = await db
+            .select({ count: count() })
             .from(foodParcels)
             .where(and(...whereConditions));
 
-        // Count the parcels
-        const parcelCount = parcels.length;
+        const parcelCount = result?.count ?? 0;
         const isAvailable = parcelCount < location.parcels_max_per_day;
 
         // Return availability info
@@ -530,9 +517,9 @@ export async function getPickupLocationCapacityForRange(
             };
         }
 
-        // Use date-utils for consistent date handling
-        const start = setToStartOfDay(startDate);
-        const end = setToEndOfDay(endDate);
+        // Get Stockholm day boundaries in UTC for consistent timezone handling
+        const { startUtc } = getStockholmDayUtcRange(startDate);
+        const { endUtc } = getStockholmDayUtcRange(endDate);
 
         // Get all food parcels for this location within the date range
         const parcels = await db
@@ -543,19 +530,18 @@ export async function getPickupLocationCapacityForRange(
             .where(
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
-                    sql`${foodParcels.pickup_date_time_earliest} >= ${start.toISOString()}`,
-                    sql`${foodParcels.pickup_date_time_earliest} <= ${end.toISOString()}`,
+                    gte(foodParcels.pickup_date_time_earliest, startUtc),
+                    lte(foodParcels.pickup_date_time_earliest, endUtc),
                     notDeleted(),
                 ),
             );
 
-        // Count parcels by date
+        // Count parcels by Stockholm date (consistent with checkPickupLocationCapacity)
         const dateCountMap: Record<string, number> = {};
 
         parcels.forEach(parcel => {
-            const date = new Date(parcel.pickupDateEarliest);
-            // Use date-utils for consistent date formatting
-            const dateKey = formatDateToISOString(date);
+            // Use getStockholmDateKey for consistent date bucketing
+            const dateKey = getStockholmDateKey(parcel.pickupDateEarliest);
 
             if (!dateCountMap[dateKey]) {
                 dateCountMap[dateKey] = 0;
@@ -593,8 +579,8 @@ export async function getPickupLocationCapacityForRange(
 export async function getPickupLocationSchedules(locationId: string) {
     try {
         const currentDate = new Date();
-        // Use our date utility for consistent date formatting
-        const currentDateStr = formatDateToISOString(currentDate);
+        // Use our date utility for consistent Stockholm timezone date formatting
+        const currentDateStr = getStockholmDateKey(currentDate);
 
         // Get all current and upcoming schedules for this location
         // (end_date is in the future - this includes both active and upcoming schedules)

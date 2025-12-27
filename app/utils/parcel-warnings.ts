@@ -30,7 +30,9 @@ export async function getParcelWarningThreshold(): Promise<number | null> {
     }
 
     const threshold = parseInt(setting.value, 10);
-    return isNaN(threshold) ? null : threshold;
+    // Treat invalid (NaN), zero, or negative thresholds as disabled
+    // Zero would mean "warn for every household" which is not useful
+    return isNaN(threshold) || threshold < 1 ? null : threshold;
 }
 
 /**
