@@ -1278,5 +1278,14 @@
         "dismissSuccessMessage": "Felet har markerats som hanterat",
         "restoreSuccess": "Återställd",
         "restoreSuccessMessage": "Felet har återställts till aktiv lista"
+    },
+    "smsConfirm": {
+        "title": "Skicka SMS",
+        "recentWarning": "Nyligen skickat",
+        "recentWarningMessage": "Ett SMS skickades till denna mottagare kl {time}. Är du säker på att du vill skicka ett till?",
+        "previousSms": "Tidigare SMS",
+        "moreHistory": "+{count} till",
+        "cancel": "Avbryt",
+        "confirm": "Skicka SMS"
     }
 }

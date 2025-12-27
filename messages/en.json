@@ -1278,5 +1278,14 @@
         "dismissSuccessMessage": "Failure has been marked as handled",
         "restoreSuccess": "Restored",
         "restoreSuccessMessage": "Failure has been restored to active list"
+    },
+    "smsConfirm": {
+        "title": "Send SMS",
+        "recentWarning": "Recently Sent",
+        "recentWarningMessage": "An SMS was sent to this recipient at {time}. Are you sure you want to send another?",
+        "previousSms": "Previous SMS",
+        "moreHistory": "+{count} more",
+        "cancel": "Cancel",
+        "confirm": "Send SMS"
     }
 }
