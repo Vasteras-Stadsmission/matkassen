@@ -1,6 +1,5 @@
-import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
-import { Container, Loader, Center } from "@mantine/core";
+import { Container } from "@mantine/core";
 import { SmsFailuresClient } from "./components/SmsFailuresClient";
 import { AuthProtection } from "@/components/AuthProtection";
 
@@ -16,15 +15,7 @@ export default async function SmsFailuresPage() {
     return (
         <AuthProtection>
             <Container size="md" py="xl">
-                <Suspense
-                    fallback={
-                        <Center style={{ minHeight: "60vh" }}>
-                            <Loader size="lg" />
-                        </Center>
-                    }
-                >
-                    <SmsFailuresClient />
-                </Suspense>
+                <SmsFailuresClient />
             </Container>
         </AuthProtection>
     );

@@ -49,8 +49,8 @@ export function HeaderSimple() {
     const [active, setActive] = useState("");
     const [smsFailureCount, setSmsFailureCount] = useState(0);
 
-    // Fetch SMS failure count once on mount
-    // Badge updates naturally when users navigate between pages
+    // Fetch SMS failure count on mount
+    // Note: Badge only updates on full page refresh, not on client-side navigation
     useEffect(() => {
         const fetchFailureCount = async () => {
             try {
