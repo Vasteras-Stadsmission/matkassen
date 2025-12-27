@@ -22,6 +22,7 @@ import {
     resetHouseholdCounter,
     resetLocationCounter,
 } from "../../factories";
+import { TEST_NOW, daysFromTestNow, hoursFromTestNow, minutesFromTestNow } from "../../test-time";
 import { foodParcels } from "@/app/db/schema";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
 
@@ -33,13 +34,10 @@ describe("Parcel Operations - Integration Tests", () => {
 
     describe("Parcel Creation", () => {
         it("should create parcel with future pickup time", async () => {
-            const db = await getTestDb();
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const futureDate = new Date();
-            futureDate.setDate(futureDate.getDate() + 1);
-            futureDate.setHours(14, 0, 0, 0);
+            const futureDate = daysFromTestNow(1);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -58,15 +56,14 @@ describe("Parcel Operations - Integration Tests", () => {
             const db = await getTestDb();
             const { location } = await createTestLocationWithSchedule();
 
-            const futureDate = new Date();
-            futureDate.setDate(futureDate.getDate() + 1);
+            const futureDate = daysFromTestNow(1);
 
             await expect(
                 db.insert(foodParcels).values({
                     household_id: "non-existent-household",
                     pickup_location_id: location.id,
                     pickup_date_time_earliest: futureDate,
-                    pickup_date_time_latest: new Date(futureDate.getTime() + 30 * 60 * 1000),
+                    pickup_date_time_latest: minutesFromTestNow(24 * 60 + 30), // 1 day + 30 min
                 }),
             ).rejects.toThrow();
         });
@@ -75,15 +72,14 @@ describe("Parcel Operations - Integration Tests", () => {
             const db = await getTestDb();
             const household = await createTestHousehold();
 
-            const futureDate = new Date();
-            futureDate.setDate(futureDate.getDate() + 1);
+            const futureDate = daysFromTestNow(1);
 
             await expect(
                 db.insert(foodParcels).values({
                     household_id: household.id,
                     pickup_location_id: "non-existent-location",
                     pickup_date_time_earliest: futureDate,
-                    pickup_date_time_latest: new Date(futureDate.getTime() + 30 * 60 * 1000),
+                    pickup_date_time_latest: minutesFromTestNow(24 * 60 + 30), // 1 day + 30 min
                 }),
             ).rejects.toThrow();
         });
@@ -95,9 +91,7 @@ describe("Parcel Operations - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const originalDate = new Date();
-            originalDate.setDate(originalDate.getDate() + 1);
-            originalDate.setHours(10, 0, 0, 0);
+            const originalDate = daysFromTestNow(1);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -105,16 +99,14 @@ describe("Parcel Operations - Integration Tests", () => {
                 pickup_date_time_earliest: originalDate,
             });
 
-            // Update to different time
-            const newDate = new Date();
-            newDate.setDate(newDate.getDate() + 2);
-            newDate.setHours(15, 0, 0, 0);
+            // Update to different time (2 days from now)
+            const newDate = daysFromTestNow(2);
 
             await db
                 .update(foodParcels)
                 .set({
                     pickup_date_time_earliest: newDate,
-                    pickup_date_time_latest: new Date(newDate.getTime() + 30 * 60 * 1000),
+                    pickup_date_time_latest: minutesFromTestNow(48 * 60 + 30), // 2 days + 30 min
                 })
                 .where(eq(foodParcels.id, parcel.id));
 
@@ -164,12 +156,11 @@ describe("Parcel Operations - Integration Tests", () => {
 
             expect(parcel.is_picked_up).toBe(false);
 
-            const pickedUpAt = new Date();
             await db
                 .update(foodParcels)
                 .set({
                     is_picked_up: true,
-                    picked_up_at: pickedUpAt,
+                    picked_up_at: TEST_NOW,
                     picked_up_by_user_id: "volunteer-user",
                 })
                 .where(eq(foodParcels.id, parcel.id));
@@ -197,11 +188,10 @@ describe("Parcel Operations - Integration Tests", () => {
 
             expect(parcel.deleted_at).toBeNull();
 
-            const deletedAt = new Date();
             await db
                 .update(foodParcels)
                 .set({
-                    deleted_at: deletedAt,
+                    deleted_at: TEST_NOW,
                     deleted_by_user_id: "admin-user",
                 })
                 .where(eq(foodParcels.id, parcel.id));
@@ -248,10 +238,8 @@ describe("Parcel Operations - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const pickupDate = new Date();
-            pickupDate.setDate(pickupDate.getDate() + 1);
-            pickupDate.setHours(10, 0, 0, 0);
-            const endDate = new Date(pickupDate.getTime() + 30 * 60 * 1000);
+            const pickupDate = daysFromTestNow(1);
+            const endDate = minutesFromTestNow(24 * 60 + 30); // 1 day + 30 min
 
             // Create and cancel a parcel
             const parcel1 = await createTestParcel({
@@ -264,7 +252,7 @@ describe("Parcel Operations - Integration Tests", () => {
             // Soft delete
             await db
                 .update(foodParcels)
-                .set({ deleted_at: new Date(), deleted_by_user_id: "admin" })
+                .set({ deleted_at: TEST_NOW, deleted_by_user_id: "admin" })
                 .where(eq(foodParcels.id, parcel1.id));
 
             // Create new parcel for same slot - should succeed due to partial unique index
@@ -296,19 +284,13 @@ describe("Parcel Operations - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
-            // Create 3 parcels for different times
+            // Create 3 parcels for different times (each 1 hour apart, starting from 1 day in future)
             for (let i = 0; i < 3; i++) {
-                const pickupDate = new Date(baseDate);
-                pickupDate.setHours(10 + i, 0, 0, 0);
-
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupDate,
-                    pickup_date_time_latest: new Date(pickupDate.getTime() + 30 * 60 * 1000),
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i), // 1 day + i hours
+                    pickup_date_time_latest: minutesFromTestNow((24 + i) * 60 + 30), // + 30 min
                 });
             }
 
@@ -325,26 +307,20 @@ describe("Parcel Operations - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            // Create multiple parcels
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
+            // Create 3 parcels for different times (each 1 hour apart, starting from 1 day in future)
             for (let i = 0; i < 3; i++) {
-                const pickupDate = new Date(baseDate);
-                pickupDate.setHours(10 + i, 0, 0, 0);
-
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupDate,
-                    pickup_date_time_latest: new Date(pickupDate.getTime() + 30 * 60 * 1000),
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i), // 1 day + i hours
+                    pickup_date_time_latest: minutesFromTestNow((24 + i) * 60 + 30), // + 30 min
                 });
             }
 
             // Soft delete all
             await db
                 .update(foodParcels)
-                .set({ deleted_at: new Date(), deleted_by_user_id: "admin" })
+                .set({ deleted_at: TEST_NOW, deleted_by_user_id: "admin" })
                 .where(eq(foodParcels.household_id, household.id));
 
             // All should be deleted

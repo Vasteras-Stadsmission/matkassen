@@ -23,6 +23,7 @@ import {
     resetHouseholdCounter,
     resetLocationCounter,
 } from "../../factories";
+import { TEST_NOW, daysFromTestNow, hoursFromTestNow, minutesFromTestNow } from "../../test-time";
 import { foodParcels } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -32,17 +33,6 @@ import {
     getPickupLocationCapacityForRange,
 } from "@/app/[locale]/households/enroll/actions";
 import { formatDateToISOString } from "@/app/utils/date-utils";
-
-/**
- * Helper to create a pickup date for testing.
- * Uses fixed dates to avoid time-dependent flakiness.
- */
-function makePickupDate(daysFromNow: number, hour: number = 10): Date {
-    const date = new Date();
-    date.setDate(date.getDate() + daysFromNow);
-    date.setHours(hour, 0, 0, 0);
-    return date;
-}
 
 describe("Capacity Action Functions - Integration Tests", () => {
     beforeEach(() => {
@@ -56,7 +46,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: null, // No limit
             });
 
-            const result = await checkPickupLocationCapacity(location.id, new Date());
+            const result = await checkPickupLocationCapacity(location.id, TEST_NOW);
 
             expect(result.isAvailable).toBe(true);
             expect(result.maxCount).toBeNull();
@@ -64,10 +54,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
         });
 
         it("should return available when location does not exist", async () => {
-            const result = await checkPickupLocationCapacity(
-                "non-existent-location-id",
-                new Date(),
-            );
+            const result = await checkPickupLocationCapacity("non-existent-location-id", TEST_NOW);
 
             // When location not found, should return available with no limit
             expect(result.isAvailable).toBe(true);
@@ -82,10 +69,8 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 5,
             });
 
-            // Create a specific date for testing
-            const testDate = new Date();
-            testDate.setDate(testDate.getDate() + 1);
-            testDate.setHours(10, 0, 0, 0);
+            // Use deterministic test time - 1 day in future
+            const testDate = daysFromTestNow(1);
 
             // Create 2 active parcels
             await createTestParcel({
@@ -96,14 +81,14 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 30 * 60 * 1000), // 30 min later
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // 1 day + 30 min
             });
 
             // Create 1 soft-deleted parcel (should NOT count)
             await createTestDeletedParcel({
                 household_id: household3.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 60 * 60 * 1000), // 1 hour later
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 60), // 1 day + 1 hour
             });
 
             const result = await checkPickupLocationCapacity(location.id, testDate);
@@ -120,9 +105,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 2,
             });
 
-            const testDate = new Date();
-            testDate.setDate(testDate.getDate() + 1);
-            testDate.setHours(10, 0, 0, 0);
+            const testDate = daysFromTestNow(1);
 
             // Fill to capacity
             await createTestParcel({
@@ -133,7 +116,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // 1 day + 30 min
             });
 
             const result = await checkPickupLocationCapacity(location.id, testDate);
@@ -152,9 +135,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 2,
             });
 
-            const testDate = new Date();
-            testDate.setDate(testDate.getDate() + 1);
-            testDate.setHours(10, 0, 0, 0);
+            const testDate = daysFromTestNow(1);
 
             // Fill to capacity
             const parcel1 = await createTestParcel({
@@ -165,7 +146,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // 1 day + 30 min
             });
 
             // Verify full
@@ -175,7 +156,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             // Soft-delete one parcel
             await db
                 .update(foodParcels)
-                .set({ deleted_at: new Date(), deleted_by_user_id: "test-admin" })
+                .set({ deleted_at: TEST_NOW, deleted_by_user_id: "test-admin" })
                 .where(eq(foodParcels.id, parcel1.id));
 
             // Now should be available again
@@ -190,9 +171,9 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 5,
             });
 
-            const testDate = makePickupDate(1);
+            const testDate = daysFromTestNow(1);
 
-            // Create 2 parcels
+            // Create 1 parcel
             await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -212,9 +193,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 2,
             });
 
-            const testDate = new Date();
-            testDate.setDate(testDate.getDate() + 1);
-            testDate.setHours(10, 0, 0, 0);
+            const testDate = daysFromTestNow(1);
 
             // Both households have parcels
             await createTestParcel({
@@ -225,7 +204,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // 1 day + 30 min
             });
 
             // Without exclusion: 2 parcels (full)
@@ -246,8 +225,8 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: null,
             });
 
-            const startDate = new Date();
-            const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            const startDate = TEST_NOW;
+            const endDate = daysFromTestNow(7);
 
             const result = await getPickupLocationCapacityForRange(location.id, startDate, endDate);
 
@@ -264,13 +243,8 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 5,
             });
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-            baseDate.setHours(10, 0, 0, 0);
-
-            const day1 = new Date(baseDate);
-            const day2 = new Date(baseDate);
-            day2.setDate(day2.getDate() + 1);
+            const day1 = daysFromTestNow(1);
+            const day2 = daysFromTestNow(2);
 
             // 2 parcels on day 1
             await createTestParcel({
@@ -281,7 +255,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(day1.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // day 1 + 30 min
             });
 
             // 1 parcel on day 2
@@ -291,7 +265,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 pickup_date_time_earliest: day2,
             });
 
-            const result = await getPickupLocationCapacityForRange(location.id, baseDate, day2);
+            const result = await getPickupLocationCapacityForRange(location.id, day1, day2);
 
             expect(result.hasLimit).toBe(true);
             expect(result.maxPerDay).toBe(5);
@@ -312,9 +286,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 5,
             });
 
-            const testDate = new Date();
-            testDate.setDate(testDate.getDate() + 1);
-            testDate.setHours(10, 0, 0, 0);
+            const testDate = daysFromTestNow(1);
 
             // 2 active parcels
             await createTestParcel({
@@ -325,18 +297,17 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // day 1 + 30 min
             });
 
             // 1 soft-deleted parcel (should NOT count)
             await createTestDeletedParcel({
                 household_id: household3.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 60 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 60), // day 1 + 1 hour
             });
 
-            const endDate = new Date(testDate);
-            endDate.setDate(endDate.getDate() + 1);
+            const endDate = daysFromTestNow(2);
 
             const result = await getPickupLocationCapacityForRange(location.id, testDate, endDate);
 
@@ -354,9 +325,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 2,
             });
 
-            const testDate = new Date();
-            testDate.setDate(testDate.getDate() + 1);
-            testDate.setHours(10, 0, 0, 0);
+            const testDate = daysFromTestNow(1);
 
             // Fill to capacity
             const parcel1 = await createTestParcel({
@@ -367,11 +336,10 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // day 1 + 30 min
             });
 
-            const endDate = new Date(testDate);
-            endDate.setDate(endDate.getDate() + 1);
+            const endDate = daysFromTestNow(2);
 
             // Verify full
             let result = await getPickupLocationCapacityForRange(location.id, testDate, endDate);
@@ -382,7 +350,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             // Soft-delete one parcel
             await db
                 .update(foodParcels)
-                .set({ deleted_at: new Date(), deleted_by_user_id: "test-admin" })
+                .set({ deleted_at: TEST_NOW, deleted_by_user_id: "test-admin" })
                 .where(eq(foodParcels.id, parcel1.id));
 
             // Now should have capacity again
@@ -400,9 +368,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 parcels_max_per_day: 5,
             });
 
-            const testDate = new Date();
-            testDate.setDate(testDate.getDate() + 1);
-            testDate.setHours(10, 0, 0, 0);
+            const testDate = daysFromTestNow(1);
 
             // Create 2 parcels
             await createTestParcel({
@@ -413,7 +379,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(testDate.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // day 1 + 30 min
             });
 
             // Check single date
