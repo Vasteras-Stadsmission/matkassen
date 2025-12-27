@@ -2,9 +2,12 @@
  * HelloSMS integration utility for sending SMS messages
  * Supports test mode for development/testing
  */
-import { SMS_SENDER_NAME } from "@/app/config/branding";
+import { SMS_SENDER_NAME, generateUrl } from "@/app/config/branding";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import { logger, logError } from "@/app/utils/logger";
+
+// SMS status callback webhook URL
+const SMS_STATUS_CALLBACK_PATH = "/api/webhooks/sms-status";
 
 export interface HelloSmsConfig {
     apiUrl: string;
@@ -189,12 +192,16 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
     }
 
     try {
+        // Generate callback URL for delivery status updates
+        const callbackUrl = generateUrl(SMS_STATUS_CALLBACK_PATH);
+
         // Prepare HelloSMS API request
         const body = {
             to: normalizedTo,
             message: request.text,
             from: request.from || config.from,
-            sendApiCallback: false,
+            sendApiCallback: true,
+            callbackUrl: callbackUrl,
         };
 
         const response = await fetch(config.apiUrl, {
