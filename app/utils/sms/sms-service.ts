@@ -137,6 +137,8 @@ export interface SmsRecord {
     lastErrorMessage?: string;
     idempotencyKey: string;
     providerMessageId?: string;
+    providerStatus?: string;
+    providerStatusUpdatedAt?: Date;
     sentAt?: Date;
     createdAt: Date;
 }
@@ -324,6 +326,34 @@ export async function updateSmsStatus(
     }
 
     await db.update(outgoingSms).set(updateData).where(eq(outgoingSms.id, id));
+}
+
+/**
+ * Update SMS record with provider delivery status from callback
+ *
+ * Called when HelloSMS sends a delivery status callback.
+ * Updates the provider_status and provider_status_updated_at fields.
+ *
+ * @param providerMessageId The apiMessageId from HelloSMS
+ * @param providerStatus The delivery status text (e.g., "Delivered", "Failed")
+ * @returns true if a record was updated, false if no matching record found
+ */
+export async function updateSmsProviderStatus(
+    providerMessageId: string,
+    providerStatus: string,
+): Promise<boolean> {
+    const now = Time.now().toUTC();
+
+    const updated = await db
+        .update(outgoingSms)
+        .set({
+            provider_status: providerStatus,
+            provider_status_updated_at: now,
+        })
+        .where(eq(outgoingSms.provider_message_id, providerMessageId))
+        .returning({ id: outgoingSms.id });
+
+    return updated.length > 0;
 }
 
 // Check if SMS already exists for a parcel + intent
@@ -640,6 +670,8 @@ function mapDbRecordToSmsRecord(dbRecord: DbSmsRecord): SmsRecord {
         lastErrorMessage: dbRecord.last_error_message ?? undefined,
         idempotencyKey: dbRecord.idempotency_key,
         providerMessageId: dbRecord.provider_message_id ?? undefined,
+        providerStatus: dbRecord.provider_status ?? undefined,
+        providerStatusUpdatedAt: dbRecord.provider_status_updated_at ?? undefined,
         sentAt: dbRecord.sent_at ?? undefined,
         createdAt: dbRecord.created_at,
     };
