@@ -4,6 +4,10 @@
  * HelloSMS calls this endpoint when the delivery status of an SMS changes.
  * The callback URL must be configured by contacting HelloSMS support.
  *
+ * Security: The URL includes a secret token that acts as authentication.
+ * Only HelloSMS (and our server) should know the full URL.
+ * Generate a secret with: npx nanoid --size 32
+ *
  * Expected payload format from HelloSMS:
  * {
  *   "apiMessageId": "12345",
@@ -28,6 +32,34 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "Content-Type",
 };
 
+// Get the webhook secret from environment
+function getWebhookSecret(): string | null {
+    return process.env.SMS_CALLBACK_SECRET || null;
+}
+
+// Validate the secret from the URL
+function isValidSecret(providedSecret: string): boolean {
+    const expectedSecret = getWebhookSecret();
+
+    if (!expectedSecret) {
+        // If no secret is configured, log error and reject all requests
+        logger.error("SMS_CALLBACK_SECRET environment variable is not set");
+        return false;
+    }
+
+    // Use timing-safe comparison to prevent timing attacks
+    if (providedSecret.length !== expectedSecret.length) {
+        return false;
+    }
+
+    // Simple constant-time comparison
+    let mismatch = 0;
+    for (let i = 0; i < providedSecret.length; i++) {
+        mismatch |= providedSecret.charCodeAt(i) ^ expectedSecret.charCodeAt(i);
+    }
+    return mismatch === 0;
+}
+
 // Handle CORS preflight requests
 export async function OPTIONS() {
     return new NextResponse("", {
@@ -44,7 +76,20 @@ interface HelloSmsCallbackPayload {
     callbackRef?: string; // Custom reference from original request
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+    request: NextRequest,
+    { params }: { params: Promise<{ secret: string }> },
+) {
+    const { secret } = await params;
+
+    // Validate the secret first
+    if (!isValidSecret(secret)) {
+        // Don't reveal whether the secret was wrong or missing
+        // Use 404 to make it look like the endpoint doesn't exist
+        logger.warn("SMS status callback received with invalid secret");
+        return new NextResponse("Not Found", { status: 404 });
+    }
+
     try {
         const body = (await request.json()) as HelloSmsCallbackPayload;
 
@@ -91,7 +136,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         logError("Error processing SMS status callback", error, {
             method: "POST",
-            path: "/api/webhooks/sms-status",
+            path: "/api/webhooks/sms-status/[secret]",
         });
 
         // Return 200 even on errors to prevent HelloSMS from retrying

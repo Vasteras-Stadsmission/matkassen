@@ -9,7 +9,11 @@ This plan covers UI improvements to display SMS delivery status from HelloSMS ca
 The following backend infrastructure is already implemented:
 
 - `provider_status` and `provider_status_updated_at` columns in `outgoing_sms` table
-- Webhook endpoint at `/api/webhooks/sms-status` to receive HelloSMS callbacks
+- Webhook endpoint at `/api/webhooks/sms-status/[secret]` to receive HelloSMS callbacks
+    - Secret URL authentication (secret is part of URL path)
+    - Generate secret with: `npx nanoid --size 32`
+    - Set `SMS_CALLBACK_SECRET` environment variable
+    - Give HelloSMS the full URL: `https://yourdomain.com/api/webhooks/sms-status/{secret}`
 - `updateSmsProviderStatus()` function in SMS service
 - `SmsRecord` interface includes `providerStatus` and `providerStatusUpdatedAt`
 - Integration tests for callback handling
@@ -37,12 +41,12 @@ The following backend infrastructure is already implemented:
 
 ## Provider Status Display Mapping
 
-| Raw Value         | i18n Key                    | Badge Color | Icon |
-| ----------------- | --------------------------- | ----------- | ---- |
-| `delivered`       | `sms.status.delivered`      | Green       | ✓    |
-| `failed`          | `sms.status.provider_failed`| Red         | ✗    |
-| `not delivered`   | `sms.status.not_delivered`  | Orange      | ⚠    |
-| (null, status=sent) | `sms.status.awaiting`     | Gray        | ...  |
+| Raw Value           | i18n Key                     | Badge Color | Icon |
+| ------------------- | ---------------------------- | ----------- | ---- |
+| `delivered`         | `sms.status.delivered`       | Green       | ✓    |
+| `failed`            | `sms.status.provider_failed` | Red         | ✗    |
+| `not delivered`     | `sms.status.not_delivered`   | Orange      | ⚠   |
+| (null, status=sent) | `sms.status.awaiting`        | Gray        | ...  |
 
 **Note:** HelloSMS callbacks do NOT include error reasons. We only know the status, not why it failed.
 
@@ -199,10 +203,10 @@ Expandable section showing all SMS attempts for that parcel:
 
 - Default sort: Pickup date (soonest first)
 - Filter options:
-  - All failures
-  - API failures only (our system failed)
-  - Delivery failures only (HelloSMS failed)
-  - By date range
+    - All failures
+    - API failures only (our system failed)
+    - Delivery failures only (HelloSMS failed)
+    - By date range
 
 #### 3.6 Dismissed view
 
@@ -274,8 +278,8 @@ This ensures the navigation badge reflects both internal and provider failures.
 ```typescript
 interface SmsRecord {
     // ... existing fields
-    providerStatus?: string;          // Already present
-    providerStatusUpdatedAt?: Date;   // Already present
+    providerStatus?: string; // Already present
+    providerStatusUpdatedAt?: Date; // Already present
 }
 ```
 
