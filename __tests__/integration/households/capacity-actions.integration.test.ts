@@ -23,7 +23,7 @@ import {
     resetHouseholdCounter,
     resetLocationCounter,
 } from "../../factories";
-import { TEST_NOW, daysFromTestNow, hoursFromTestNow, minutesFromTestNow } from "../../test-time";
+import { TEST_NOW, daysFromTestNow, minutesFromTestNow } from "../../test-time";
 import { foodParcels } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
