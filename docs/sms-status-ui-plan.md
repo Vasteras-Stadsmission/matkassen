@@ -4,15 +4,55 @@
 
 This plan covers UI improvements to display SMS delivery status from HelloSMS callbacks and improve the SMS failure handling workflow.
 
-## Background
+## Backend Status: Complete
 
-We have implemented:
+The following backend infrastructure is already implemented:
 
 - `provider_status` and `provider_status_updated_at` columns in `outgoing_sms` table
 - Webhook endpoint at `/api/webhooks/sms-status` to receive HelloSMS callbacks
-- Status values: `delivered`, `failed`, `not delivered`
+- `updateSmsProviderStatus()` function in SMS service
+- `SmsRecord` interface includes `providerStatus` and `providerStatusUpdatedAt`
+- Integration tests for callback handling
+- Index on `provider_message_id` for fast callback lookups
 
-Now we need to surface this information in the UI.
+**Remaining work:** UI to surface this information + dismiss workflow.
+
+---
+
+## Failure Definition
+
+**Internal failures** (our API call to HelloSMS failed):
+
+- `outgoing_sms.status = 'failed'`
+- Caused by: network errors, API errors, validation failures
+
+**Provider failures** (HelloSMS couldn't deliver):
+
+- `providerStatus = 'failed'` - Permanent failure (invalid/inactive phone number)
+- `providerStatus = 'not delivered'` - Temporary failure (phone off/no signal)
+
+**Navigation badge:** Will count BOTH internal failures AND provider failures (`failed` or `not delivered`).
+
+---
+
+## Provider Status Display Mapping
+
+| Raw Value         | i18n Key                    | Badge Color | Icon |
+| ----------------- | --------------------------- | ----------- | ---- |
+| `delivered`       | `sms.status.delivered`      | Green       | ✓    |
+| `failed`          | `sms.status.provider_failed`| Red         | ✗    |
+| `not delivered`   | `sms.status.not_delivered`  | Orange      | ⚠    |
+| (null, status=sent) | `sms.status.awaiting`     | Gray        | ...  |
+
+**Note:** HelloSMS callbacks do NOT include error reasons. We only know the status, not why it failed.
+
+---
+
+## Resend Semantics
+
+**Important:** UI must POST `{ action: 'resend' }` for manual retries.
+
+Using `action: 'send'` is deduplicated by idempotency key and won't create a new SMS. The `resend` action generates a unique idempotency key to allow re-sending.
 
 ---
 
@@ -34,6 +74,8 @@ Now we need to surface this information in the UI.
 | SMS Failures page | Handle all SMS issues | Resend, dismiss, view history |
 | ParcelAdminDialog | Context for specific parcel | Resend, view status |
 
+**Note:** Navigation badge only refreshes on mount. Dismiss/resend won't instantly update it unless we add polling or manual refresh.
+
 ---
 
 ## Implementation Tasks
@@ -42,17 +84,14 @@ Now we need to surface this information in the UI.
 
 **File:** `app/api/admin/sms/parcel/[parcelId]/route.ts`
 
-**Changes:**
-
-- Ensure `provider_status` and `provider_status_updated_at` are included in SMS record response
-- Already returning full SMS records, just verify fields are present
+**Status:** Already returns `providerStatus` and `providerStatusUpdatedAt` via `getSmsRecordsForParcel()`.
 
 **File:** `app/api/admin/sms/failures/route.ts`
 
-**Changes:**
+**Changes needed:**
 
-- Include `provider_status` and `provider_status_updated_at` in failure records
-- This enables distinguishing API failures from delivery failures
+- Include `providerStatus` and `providerStatusUpdatedAt` in failure records
+- Add query params: `status=active|dismissed`, `include_history=true`
 
 ---
 
@@ -71,7 +110,7 @@ Display a second badge showing delivery status when available:
 - `delivered` → Green badge with checkmark
 - `failed` → Red badge
 - `not delivered` → Orange/yellow badge (temporary failure)
-- No status yet → Gray text "Awaiting confirmation" (only show if status is `sent`)
+- No status yet → Gray text (i18n: `sms.status.awaiting`) - only show if status is `sent`
 
 #### 2.2 Display format
 
@@ -83,16 +122,17 @@ Pickup Reminder
 └─ [Send Again]
 ```
 
-For failures:
+For provider failures:
 
 ```
 Pickup Reminder
 ├─ Status: [Sent ✓] → [Failed ✗]
 ├─ Sent: Jan 15, 10:30
-├─ Failed: Jan 15, 10:31
-├─ Error: Invalid phone number
+├─ Provider: [Failed]
 └─ [Try Again]
 ```
+
+**Note:** We don't have error details from HelloSMS - just the status.
 
 #### 2.3 Multiple attempts
 
@@ -123,12 +163,14 @@ If multiple SMS records exist for same parcel:
 
 #### 3.2 Schema change: Add dismissed tracking
 
-Add to `outgoing_sms` table:
+Add to `outgoing_sms` table in `app/db/schema.ts`:
 
-```sql
-dismissed_at TIMESTAMP WITH TIME ZONE,
-dismissed_by VARCHAR(255)  -- admin user ID/email
+```typescript
+dismissed_at: timestamp({ precision: 1, withTimezone: true }),
+dismissed_by_user_id: varchar("dismissed_by_user_id", { length: 50 }),
 ```
+
+Then run: `pnpm run db:generate`
 
 #### 3.3 Failure card improvements
 
@@ -140,8 +182,10 @@ Each failure card shows:
 - SMS intent (pickup_reminder, etc.)
 - API status + Provider status with badges
 - Timestamp of failure
-- Full error message (expandable if long)
+- Full error message (expandable if long) - for internal failures only
 - Action buttons: [Resend] [Dismiss] [View Parcel]
+
+**Resend button must use `action: 'resend'`** to bypass idempotency deduplication.
 
 #### 3.4 Show SMS history per failure
 
@@ -155,10 +199,10 @@ Expandable section showing all SMS attempts for that parcel:
 
 - Default sort: Pickup date (soonest first)
 - Filter options:
-    - All failures
-    - API failures only (our system failed)
-    - Delivery failures only (HelloSMS failed)
-    - By date range
+  - All failures
+  - API failures only (our system failed)
+  - Delivery failures only (HelloSMS failed)
+  - By date range
 
 #### 3.6 Dismissed view
 
@@ -169,7 +213,19 @@ Expandable section showing all SMS attempts for that parcel:
 
 ---
 
-### 4. Confirmation Dialog Before Sending SMS
+### 4. Update Failure Count API
+
+**File:** `app/api/admin/sms/failure-count/route.ts`
+
+**Current:** Counts only `status = 'failed'` (internal failures)
+
+**Change:** Also count SMS where `status = 'sent'` AND `provider_status IN ('failed', 'not delivered')`
+
+This ensures the navigation badge reflects both internal and provider failures.
+
+---
+
+### 5. Confirmation Dialog Before Sending SMS
 
 **File:** New component `components/SmsConfirmDialog.tsx`
 
@@ -205,35 +261,29 @@ Expandable section showing all SMS attempts for that parcel:
 **Integration:**
 
 - Update `SmsActionButton` to open this dialog instead of sending directly
-- Or wrap it in the dialog component
+- Dialog calls API with `action: 'resend'` for manual retries
 
 ---
 
-### 5. Type Updates
+### 6. Type Updates
 
 **File:** `app/utils/sms/sms-service.ts`
 
-Ensure `SmsRecord` interface includes:
+`SmsRecord` interface already includes:
 
 ```typescript
 interface SmsRecord {
     // ... existing fields
-    provider_status: string | null;
-    provider_status_updated_at: Date | null;
-    dismissed_at: Date | null;
-    dismissed_by: string | null;
+    providerStatus?: string;          // Already present
+    providerStatusUpdatedAt?: Date;   // Already present
 }
 ```
 
----
+Add for dismiss tracking:
 
-## Database Migration
-
-New migration for dismissed tracking:
-
-```sql
-ALTER TABLE "outgoing_sms" ADD COLUMN "dismissed_at" timestamp with time zone;
-ALTER TABLE "outgoing_sms" ADD COLUMN "dismissed_by" varchar(255);
+```typescript
+    dismissedAt?: Date;
+    dismissedByUserId?: string;
 ```
 
 ---
@@ -269,9 +319,9 @@ Mark an SMS failure as dismissed.
 
 ## Implementation Order
 
-1. **Schema + Migration:** Add dismissed_at/dismissed_by columns
-2. **API updates:** Expose provider_status, add dismiss endpoint
-3. **ParcelAdminDialog:** Add provider status display
+1. **Schema + Migration:** Add `dismissed_at`/`dismissed_by_user_id` columns via Drizzle
+2. **API updates:** Update failures endpoint, add dismiss endpoint, update failure-count
+3. **ParcelAdminDialog:** Add provider status display with i18n
 4. **SMS Failures page:** Overhaul with history and dismiss
 5. **Confirmation dialog:** Add before sending
 6. **Testing:** Integration tests for new flows
