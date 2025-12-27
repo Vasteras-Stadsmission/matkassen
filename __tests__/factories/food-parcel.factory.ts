@@ -1,5 +1,6 @@
 import { getTestDb } from "../db/test-db";
 import { foodParcels } from "@/app/db/schema";
+import { TEST_NOW } from "../test-time";
 
 /**
  * Create a test food parcel.
@@ -18,9 +19,8 @@ export async function createTestParcel(overrides: {
 }) {
     const db = await getTestDb();
 
-    // Default to tomorrow, 30-minute slot
-    const now = new Date();
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Default to tomorrow relative to TEST_NOW, 30-minute slot
+    const tomorrow = new Date(TEST_NOW.getTime() + 24 * 60 * 60 * 1000);
     tomorrow.setHours(10, 0, 0, 0);
 
     const earliest = overrides.pickup_date_time_earliest ?? tomorrow;
@@ -46,7 +46,7 @@ export async function createTestParcel(overrides: {
 }
 
 /**
- * Create a parcel scheduled for today.
+ * Create a parcel scheduled for "today" (relative to TEST_NOW).
  */
 export async function createTestParcelForToday(overrides: {
     household_id: string;
@@ -54,8 +54,8 @@ export async function createTestParcelForToday(overrides: {
     hoursFromNow?: number;
     is_picked_up?: boolean;
 }) {
-    const now = new Date();
-    const earliest = new Date(now.getTime() + (overrides.hoursFromNow ?? 2) * 60 * 60 * 1000);
+    // Use deterministic base time
+    const earliest = new Date(TEST_NOW.getTime() + (overrides.hoursFromNow ?? 2) * 60 * 60 * 1000);
     const latest = new Date(earliest.getTime() + 30 * 60 * 1000);
 
     return createTestParcel({
@@ -80,7 +80,8 @@ export async function createTestDeletedParcel(overrides: {
 }) {
     return createTestParcel({
         ...overrides,
-        deleted_at: new Date(),
+        // Use deterministic timestamp
+        deleted_at: new Date(TEST_NOW),
         deleted_by_user_id: overrides.deleted_by_user_id ?? "test-admin",
     });
 }
@@ -95,7 +96,8 @@ export async function createTestPickedUpParcel(overrides: {
     pickup_date_time_latest?: Date;
     picked_up_by_user_id?: string;
 }) {
-    const pickedUpAt = new Date();
+    // Use deterministic timestamp
+    const pickedUpAt = new Date(TEST_NOW);
 
     return createTestParcel({
         ...overrides,

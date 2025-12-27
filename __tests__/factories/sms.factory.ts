@@ -1,5 +1,6 @@
 import { getTestDb } from "../db/test-db";
 import { outgoingSms } from "@/app/db/schema";
+import { TEST_NOW } from "../test-time";
 
 let smsCounter = 0;
 
@@ -37,7 +38,7 @@ export async function createTestSms(overrides: {
         to_e164: `+4670000${String(smsCounter).padStart(4, "0")}`,
         text: `Test SMS message ${smsCounter}`,
         status: "queued" as SmsStatus,
-        idempotency_key: `test-sms-${Date.now()}-${smsCounter}`,
+        idempotency_key: `test-sms-${TEST_NOW.getTime()}-${smsCounter}`,
         attempt_count: 0,
     };
 
@@ -71,7 +72,8 @@ export async function createTestSentSms(overrides: {
     to_e164?: string;
     text?: string;
 }) {
-    const sentAt = new Date();
+    // Use deterministic timestamp
+    const sentAt = new Date(TEST_NOW);
 
     return createTestSms({
         ...overrides,
@@ -111,7 +113,10 @@ export async function createTestRetryingSms(overrides: {
     text?: string;
     next_retry_in_minutes?: number;
 }) {
-    const nextAttempt = new Date(Date.now() + (overrides.next_retry_in_minutes ?? 5) * 60 * 1000);
+    // Use deterministic timestamp
+    const nextAttempt = new Date(
+        TEST_NOW.getTime() + (overrides.next_retry_in_minutes ?? 5) * 60 * 1000,
+    );
 
     return createTestSms({
         ...overrides,

@@ -49,15 +49,17 @@ export function HeaderSimple() {
     const [active, setActive] = useState("");
     const [smsFailureCount, setSmsFailureCount] = useState(0);
 
-    // Fetch SMS failure count once on mount
-    // Badge updates naturally when users navigate between pages
+    // Fetch SMS failure count on mount
+    // Note: Badge only updates on full page refresh, not on client-side navigation
     useEffect(() => {
         const fetchFailureCount = async () => {
             try {
                 const response = await fetch("/api/admin/sms/failure-count");
                 if (response.ok) {
                     const data = await response.json();
-                    setSmsFailureCount(data.count || 0);
+                    if (typeof data.count === "number") {
+                        setSmsFailureCount(data.count);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch SMS failure count:", error);
@@ -72,7 +74,7 @@ export function HeaderSimple() {
         () => [
             { link: "/households", label: t("navigation.households") },
             { link: "/schedule", label: t("navigation.schedule") },
-            { link: "/sms-dashboard", label: t("navigation.smsDashboard"), badge: smsFailureCount },
+            { link: "/sms-failures", label: t("navigation.smsFailures"), badge: smsFailureCount },
         ],
         [t, smsFailureCount],
     );

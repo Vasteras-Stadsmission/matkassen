@@ -38,6 +38,7 @@
         "todayHandouts": "Dagens utlämningar",
         "locations": "Utlämningsställen",
         "smsDashboard": "SMS-hantering",
+        "smsFailures": "Misslyckade SMS",
         "newHousehold": "Nytt hushåll",
         "scanQrCode": "Skanna QR-kod",
         "navigation": "Navigation"
@@ -1238,5 +1239,13 @@
             "confirmButton": "Fortsätt lägga till matkassar",
             "cancelButton": "Avbryt"
         }
+    },
+    "smsFailures": {
+        "title": "Misslyckade SMS",
+        "noFailures": "Inga misslyckade SMS för kommande hämtningar",
+        "pickup": "Hämtning",
+        "view": "Visa hushåll",
+        "refresh": "Uppdatera",
+        "error": "Fel"
     }
 }
