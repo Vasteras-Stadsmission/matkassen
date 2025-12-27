@@ -139,6 +139,8 @@ export interface SmsRecord {
     providerMessageId?: string;
     providerStatus?: string;
     providerStatusUpdatedAt?: Date;
+    dismissedAt?: Date;
+    dismissedByUserId?: string;
     sentAt?: Date;
     createdAt: Date;
 }
@@ -693,6 +695,8 @@ function mapDbRecordToSmsRecord(dbRecord: DbSmsRecord): SmsRecord {
         providerMessageId: dbRecord.provider_message_id ?? undefined,
         providerStatus: dbRecord.provider_status ?? undefined,
         providerStatusUpdatedAt: dbRecord.provider_status_updated_at ?? undefined,
+        dismissedAt: dbRecord.dismissed_at ?? undefined,
+        dismissedByUserId: dbRecord.dismissed_by_user_id ?? undefined,
         sentAt: dbRecord.sent_at ?? undefined,
         createdAt: dbRecord.created_at,
     };
