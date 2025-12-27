@@ -192,9 +192,7 @@ describe("User Preferences - Integration Tests", () => {
             await createTestUser({ github_username: "uniqueuser" });
 
             // Try to create another user with same github_username
-            await expect(
-                createTestUser({ github_username: "uniqueuser" }),
-            ).rejects.toThrow();
+            await expect(createTestUser({ github_username: "uniqueuser" })).rejects.toThrow();
         });
 
         it("should allow same display_name for different github_usernames", async () => {

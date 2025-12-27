@@ -25,56 +25,6 @@ import {
 } from "../../factories";
 import { getParcelsNeedingReminder } from "@/app/utils/sms/sms-service";
 
-/**
- * Helper to get the next occurrence of a specific weekday.
- * Returns a date in UTC that, when converted to Stockholm time,
- * will be on the specified weekday at the specified hour.
- *
- * @param targetWeekday 0=Sunday, 1=Monday, ..., 6=Saturday
- * @param hourStockholm Hour in Stockholm local time (0-23)
- */
-function getNextWeekdayAtHour(
-    targetWeekday: number,
-    hourStockholm: number,
-): Date {
-    const now = new Date();
-    const currentDay = now.getDay();
-
-    // Calculate days until target weekday (must be in the future)
-    let daysUntil = targetWeekday - currentDay;
-    if (daysUntil <= 0) {
-        daysUntil += 7; // Move to next week
-    }
-
-    // Create the date in Stockholm timezone
-    // Sweden is UTC+1 in winter, UTC+2 in summer (CEST)
-    // For simplicity, we'll set the UTC time and the filter should handle it
-    const targetDate = new Date(now);
-    targetDate.setDate(targetDate.getDate() + daysUntil);
-    targetDate.setUTCHours(hourStockholm - 1); // Approximate UTC offset (may be off by 1h due to DST)
-    targetDate.setUTCMinutes(0);
-    targetDate.setUTCSeconds(0);
-    targetDate.setUTCMilliseconds(0);
-
-    return targetDate;
-}
-
-/**
- * Helper to get a weekday name for scheduling.
- */
-function getWeekdayName(date: Date): string {
-    const weekdays = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-    ];
-    return weekdays[date.getDay()]!;
-}
-
 describe("SMS Opening Hours Filtering - Integration Tests", () => {
     beforeEach(() => {
         resetHouseholdCounter();
@@ -88,13 +38,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const { location } = await createTestLocationWithSchedule(
                 {},
                 {
-                    weekdays: [
-                        "monday",
-                        "tuesday",
-                        "wednesday",
-                        "thursday",
-                        "friday",
-                    ],
+                    weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"],
                     openingTime: "09:00",
                     closingTime: "17:00",
                 },
@@ -109,9 +53,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(
-                    tomorrow.getTime() + 30 * 60 * 1000,
-                ),
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
             });
 
             const result = await getParcelsNeedingReminder();
@@ -146,7 +88,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const result = await getParcelsNeedingReminder();
 
             // Parcel with existing SMS should be excluded
-            const foundParcel = result.find((p) => p.parcelId === parcel.id);
+            const foundParcel = result.find(p => p.parcelId === parcel.id);
             expect(foundParcel).toBeUndefined();
         });
 
@@ -167,8 +109,11 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
 
             const result = await getParcelsNeedingReminder();
 
-            // Parcel at location without schedule should be included (fail-safe)
-            const foundParcel = result.find((p) => p.parcelId === parcel.id);
+            // Parcel at location without schedule should be included (fail-safe).
+            // Business rule: missing/misconfigured opening-hours data must never cause
+            // us to skip SMS reminders. The SMS service treats "no schedule" as "always
+            // open", so locations without schedules are intentionally included.
+            const foundParcel = result.find(p => p.parcelId === parcel.id);
             expect(foundParcel).toBeDefined();
             expect(foundParcel?.locationId).toBe(location.id);
         });
@@ -191,7 +136,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const result = await getParcelsNeedingReminder();
 
             // Parcel beyond 48h should be excluded
-            const foundParcel = result.find((p) => p.parcelId === parcel.id);
+            const foundParcel = result.find(p => p.parcelId === parcel.id);
             expect(foundParcel).toBeUndefined();
         });
 
@@ -204,9 +149,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             tomorrow.setHours(12, 0, 0, 0);
 
             // Use createTestDeletedParcel for soft-deleted parcel
-            const { createTestDeletedParcel } = await import(
-                "../../factories"
-            );
+            const { createTestDeletedParcel } = await import("../../factories");
             const parcel = await createTestDeletedParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -216,7 +159,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const result = await getParcelsNeedingReminder();
 
             // Deleted parcel should be excluded
-            const foundParcel = result.find((p) => p.parcelId === parcel.id);
+            const foundParcel = result.find(p => p.parcelId === parcel.id);
             expect(foundParcel).toBeUndefined();
         });
 
@@ -229,9 +172,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             tomorrow.setHours(12, 0, 0, 0);
 
             // Create parcel and mark as picked up
-            const { createTestPickedUpParcel } = await import(
-                "../../factories"
-            );
+            const { createTestPickedUpParcel } = await import("../../factories");
             const parcel = await createTestPickedUpParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -241,7 +182,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const result = await getParcelsNeedingReminder();
 
             // Picked up parcel should be excluded
-            const foundParcel = result.find((p) => p.parcelId === parcel.id);
+            const foundParcel = result.find(p => p.parcelId === parcel.id);
             expect(foundParcel).toBeUndefined();
         });
 
@@ -268,7 +209,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             });
 
             const result = await getParcelsNeedingReminder();
-            const foundParcel = result.find((p) => p.parcelId === parcel.id);
+            const foundParcel = result.find(p => p.parcelId === parcel.id);
 
             if (foundParcel) {
                 // Verify data structure
@@ -304,22 +245,18 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const parcel2 = await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(
-                    tomorrow.getTime() + 30 * 60 * 1000,
-                ),
+                pickup_date_time_earliest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
             });
             const parcel3 = await createTestParcel({
                 household_id: household3.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(
-                    tomorrow.getTime() + 60 * 60 * 1000,
-                ),
+                pickup_date_time_earliest: new Date(tomorrow.getTime() + 60 * 60 * 1000),
             });
 
             const result = await getParcelsNeedingReminder();
 
             // Find our test parcels
-            const parcelIds = result.map((p) => p.parcelId);
+            const parcelIds = result.map(p => p.parcelId);
             const found1 = parcelIds.includes(parcel1.id);
             const found2 = parcelIds.includes(parcel2.id);
             const found3 = parcelIds.includes(parcel3.id);

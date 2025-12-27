@@ -20,9 +20,10 @@ export async function createTestPrivacyPolicy(
     const db = await getTestDb();
     policyCounter++;
 
-    // Add small offset to created_at to avoid primary key collisions
-    const createdAt = new Date();
-    createdAt.setMilliseconds(createdAt.getMilliseconds() + policyCounter);
+    // Use a fixed base timestamp plus counter to guarantee unique created_at values.
+    // This avoids collisions regardless of wall-clock timing or test execution speed.
+    const baseCreatedAt = new Date("2020-01-01T00:00:00.000Z");
+    const createdAt = new Date(baseCreatedAt.getTime() + policyCounter * 1000);
 
     const defaults: typeof privacyPolicies.$inferInsert = {
         language: "sv",
