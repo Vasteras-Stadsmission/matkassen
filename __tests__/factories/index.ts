@@ -18,3 +18,6 @@ export * from "./pickup-location.factory";
 export * from "./food-parcel.factory";
 export * from "./user.factory";
 export * from "./sms.factory";
+export * from "./verification-question.factory";
+export * from "./privacy-policy.factory";
+export * from "./global-settings.factory";

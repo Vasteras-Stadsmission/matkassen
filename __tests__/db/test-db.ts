@@ -84,7 +84,8 @@ export async function cleanupTestDb() {
             users,
             global_settings,
             csp_violations,
-            verification_questions
+            verification_questions,
+            privacy_policies
         RESTART IDENTITY CASCADE
     `);
 
