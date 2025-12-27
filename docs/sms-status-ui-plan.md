@@ -7,6 +7,7 @@ This plan covers UI improvements to display SMS delivery status from HelloSMS ca
 ## Background
 
 We have implemented:
+
 - `provider_status` and `provider_status_updated_at` columns in `outgoing_sms` table
 - Webhook endpoint at `/api/webhooks/sms-status` to receive HelloSMS callbacks
 - Status values: `delivered`, `failed`, `not delivered`
@@ -20,6 +21,7 @@ Now we need to surface this information in the UI.
 **Centralized approach:** Keep SMS failure handling on the dedicated SMS Failures page rather than spreading indicators across multiple pages.
 
 **Rationale:**
+
 - Single source of truth for SMS problems
 - Each page does one thing well
 - Avoid "same action in 5 places" confusion
@@ -41,12 +43,14 @@ Now we need to surface this information in the UI.
 **File:** `app/api/admin/sms/parcel/[parcelId]/route.ts`
 
 **Changes:**
+
 - Ensure `provider_status` and `provider_status_updated_at` are included in SMS record response
 - Already returning full SMS records, just verify fields are present
 
 **File:** `app/api/admin/sms/failures/route.ts`
 
 **Changes:**
+
 - Include `provider_status` and `provider_status_updated_at` in failure records
 - This enables distinguishing API failures from delivery failures
 
@@ -61,13 +65,16 @@ Now we need to surface this information in the UI.
 **Changes:**
 
 #### 2.1 Add provider status badge
+
 Display a second badge showing delivery status when available:
+
 - `delivered` → Green badge with checkmark
 - `failed` → Red badge
 - `not delivered` → Orange/yellow badge (temporary failure)
 - No status yet → Gray text "Awaiting confirmation" (only show if status is `sent`)
 
 #### 2.2 Display format
+
 ```
 Pickup Reminder
 ├─ Status: [Sent ✓] → [Delivered ✓]
@@ -77,6 +84,7 @@ Pickup Reminder
 ```
 
 For failures:
+
 ```
 Pickup Reminder
 ├─ Status: [Sent ✓] → [Failed ✗]
@@ -87,7 +95,9 @@ Pickup Reminder
 ```
 
 #### 2.3 Multiple attempts
+
 If multiple SMS records exist for same parcel:
+
 - Show all records, newest first
 - Label as "Attempt 1", "Attempt 2", etc. if same intent
 - Collapse older attempts by default (expandable)
@@ -97,6 +107,7 @@ If multiple SMS records exist for same parcel:
 ### 3. SMS Failures Page: Full Overhaul
 
 **Files:**
+
 - `app/[locale]/sms-failures/page.tsx`
 - `app/[locale]/sms-failures/components/SmsFailuresClient.tsx`
 
@@ -105,19 +116,24 @@ If multiple SMS records exist for same parcel:
 **Changes:**
 
 #### 3.1 Add "Active" vs "Dismissed" views
+
 - Tab or toggle: "Active" | "Dismissed"
 - Active = failures not yet handled
 - Dismissed = marked as handled by admin
 
 #### 3.2 Schema change: Add dismissed tracking
+
 Add to `outgoing_sms` table:
+
 ```sql
 dismissed_at TIMESTAMP WITH TIME ZONE,
 dismissed_by VARCHAR(255)  -- admin user ID/email
 ```
 
 #### 3.3 Failure card improvements
+
 Each failure card shows:
+
 - Household name (link to household page)
 - Phone number (full, not masked)
 - Pickup date/time
@@ -128,20 +144,24 @@ Each failure card shows:
 - Action buttons: [Resend] [Dismiss] [View Parcel]
 
 #### 3.4 Show SMS history per failure
+
 Expandable section showing all SMS attempts for that parcel:
+
 - Newest first
 - Each with status, timestamps, error if any
 - Helps admin see if this is a recurring problem
 
 #### 3.5 Sorting and filtering
+
 - Default sort: Pickup date (soonest first)
 - Filter options:
-  - All failures
-  - API failures only (our system failed)
-  - Delivery failures only (HelloSMS failed)
-  - By date range
+    - All failures
+    - API failures only (our system failed)
+    - Delivery failures only (HelloSMS failed)
+    - By date range
 
 #### 3.6 Dismissed view
+
 - Shows all dismissed failures
 - Can restore (un-dismiss) if needed
 - Shows who dismissed and when
@@ -156,6 +176,7 @@ Expandable section showing all SMS attempts for that parcel:
 **Trigger:** Before any SMS send/resend action
 
 **Contents:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Send SMS to Household?                      │
@@ -174,6 +195,7 @@ Expandable section showing all SMS attempts for that parcel:
 ```
 
 **Features:**
+
 - Show recipient phone number
 - Show message preview (or at least intent type)
 - Show previous SMS attempts with delivery status
@@ -181,6 +203,7 @@ Expandable section showing all SMS attempts for that parcel:
 - Clear action buttons
 
 **Integration:**
+
 - Update `SmsActionButton` to open this dialog instead of sending directly
 - Or wrap it in the dialog component
 
@@ -191,13 +214,14 @@ Expandable section showing all SMS attempts for that parcel:
 **File:** `app/utils/sms/sms-service.ts`
 
 Ensure `SmsRecord` interface includes:
+
 ```typescript
 interface SmsRecord {
-  // ... existing fields
-  provider_status: string | null;
-  provider_status_updated_at: Date | null;
-  dismissed_at: Date | null;
-  dismissed_by: string | null;
+    // ... existing fields
+    provider_status: string | null;
+    provider_status_updated_at: Date | null;
+    dismissed_at: Date | null;
+    dismissed_by: string | null;
 }
 ```
 
@@ -219,20 +243,25 @@ ALTER TABLE "outgoing_sms" ADD COLUMN "dismissed_by" varchar(255);
 ### New/Modified Endpoints
 
 #### PATCH `/api/admin/sms/[smsId]/dismiss`
+
 Mark an SMS failure as dismissed.
 
 **Request:**
+
 ```json
 { "dismissed": true }
 ```
 
 **Response:**
+
 ```json
 { "success": true }
 ```
 
 #### GET `/api/admin/sms/failures`
+
 **Add query params:**
+
 - `status=active|dismissed` (default: active)
 - `include_history=true` to include all SMS for each parcel
 

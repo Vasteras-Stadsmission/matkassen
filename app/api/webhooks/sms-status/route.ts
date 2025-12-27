@@ -87,10 +87,7 @@ export async function POST(request: NextRequest) {
 
         // Always return success to HelloSMS to prevent retries
         // Even if we don't find the message, we don't want HelloSMS to keep retrying
-        return NextResponse.json(
-            { received: true },
-            { status: 200, headers: corsHeaders },
-        );
+        return NextResponse.json({ received: true }, { status: 200, headers: corsHeaders });
     } catch (error) {
         logError("Error processing SMS status callback", error, {
             method: "POST",

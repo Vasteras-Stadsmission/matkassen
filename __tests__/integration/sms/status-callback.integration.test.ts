@@ -39,10 +39,7 @@ describe("SMS Delivery Status Tracking", () => {
             await updateSmsProviderStatusWithDb(db as any, "msg_123", "delivered");
 
             // Admin can see the SMS was delivered
-            const [record] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
+            const [record] = await db.select().from(outgoingSms).where(eq(outgoingSms.id, sms.id));
 
             expect(record.provider_status).toBe("delivered");
             expect(record.provider_status_updated_at).not.toBeNull();
@@ -63,10 +60,7 @@ describe("SMS Delivery Status Tracking", () => {
             await updateSmsProviderStatusWithDb(db as any, "msg_456", "failed");
 
             // Admin can see the failure and follow up with household
-            const [record] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
+            const [record] = await db.select().from(outgoingSms).where(eq(outgoingSms.id, sms.id));
 
             expect(record.provider_status).toBe("failed");
         });
@@ -85,10 +79,7 @@ describe("SMS Delivery Status Tracking", () => {
             // HelloSMS reports temporary failure (phone off/no signal)
             await updateSmsProviderStatusWithDb(db as any, "msg_789", "not delivered");
 
-            const [record] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
+            const [record] = await db.select().from(outgoingSms).where(eq(outgoingSms.id, sms.id));
 
             expect(record.provider_status).toBe("not delivered");
         });
@@ -108,10 +99,7 @@ describe("SMS Delivery Status Tracking", () => {
             // Later: phone came online, SMS delivered
             await updateSmsProviderStatusWithDb(db as any, "msg_retry", "delivered");
 
-            const [record] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
+            const [record] = await db.select().from(outgoingSms).where(eq(outgoingSms.id, sms.id));
 
             expect(record.provider_status).toBe("delivered");
         });
@@ -148,10 +136,7 @@ describe("SMS Delivery Status Tracking", () => {
 
             await updateSmsProviderStatusWithDb(db as any, "msg_integrity", "delivered");
 
-            const [record] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
+            const [record] = await db.select().from(outgoingSms).where(eq(outgoingSms.id, sms.id));
 
             // Original data unchanged
             expect(record.text).toBe("Original pickup reminder");
