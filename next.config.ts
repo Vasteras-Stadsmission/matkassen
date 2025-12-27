@@ -55,6 +55,21 @@ const nextConfig: NextConfig = {
     staticPageGenerationTimeout: 180,
 
     // CSP is now handled in middleware.ts for better nonce support
+
+    // Prevent search engine indexing via HTTP headers
+    async headers() {
+        return [
+            {
+                source: "/:path*",
+                headers: [
+                    {
+                        key: "X-Robots-Tag",
+                        value: "noindex, nofollow",
+                    },
+                ],
+            },
+        ];
+    },
 };
 
 const withNextIntl = createNextIntlPlugin({
