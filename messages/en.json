@@ -1242,10 +1242,15 @@
     },
     "smsFailures": {
         "title": "Failed SMS",
-        "noFailures": "No failed SMS for upcoming pickups",
+        "noFailures": "No failed SMS",
         "pickup": "Pickup",
+        "sent": "Sent",
         "view": "View Household",
         "refresh": "Refresh",
-        "error": "Error"
+        "error": "Error",
+        "intentEnrolment": "Enrolment",
+        "intentPickupReminder": "Pickup Reminder",
+        "intentPickupUpdated": "Pickup Updated",
+        "intentPickupCancelled": "Pickup Cancelled"
     }
 }

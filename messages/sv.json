@@ -1242,10 +1242,15 @@
     },
     "smsFailures": {
         "title": "Misslyckade SMS",
-        "noFailures": "Inga misslyckade SMS för kommande hämtningar",
+        "noFailures": "Inga misslyckade SMS",
         "pickup": "Hämtning",
+        "sent": "Skickat",
         "view": "Visa hushåll",
         "refresh": "Uppdatera",
-        "error": "Fel"
+        "error": "Fel",
+        "intentEnrolment": "Registrering",
+        "intentPickupReminder": "Hämtningspåminnelse",
+        "intentPickupUpdated": "Hämtning uppdaterad",
+        "intentPickupCancelled": "Hämtning avbokad"
     }
 }

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms } from "@/app/db/schema";
-import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, sql } from "drizzle-orm";
+import { eq, and, gte, or, isNull, sql } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 
@@ -15,18 +14,32 @@ export async function GET() {
             return authResult.response!;
         }
 
-        // Query for failed SMS count
+        // For enrolment SMS (no parcel), show failures from last 7 days
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        // Query for failed SMS count - includes both parcel and non-parcel (enrolment) SMS
         const result = await db
             .select({
                 count: sql<number>`count(*)::int`,
             })
             .from(outgoingSms)
-            .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+            .leftJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
             .where(
                 and(
-                    notDeleted(), // Only active parcels
-                    gte(foodParcels.pickup_date_time_latest, new Date()), // Upcoming only - use latest to keep failures visible until pickup window ends
                     eq(outgoingSms.status, "failed"), // Failed status only
+                    or(
+                        // Parcel SMS: upcoming parcels only (not deleted)
+                        and(
+                            isNull(foodParcels.deleted_at),
+                            gte(foodParcels.pickup_date_time_latest, new Date()),
+                        ),
+                        // Non-parcel SMS (enrolment): recent failures only
+                        and(
+                            isNull(outgoingSms.parcel_id),
+                            gte(outgoingSms.created_at, sevenDaysAgo),
+                        ),
+                    ),
                 ),
             );
 

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, households } from "@/app/db/schema";
-import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, asc } from "drizzle-orm";
+import { eq, and, gte, or, isNull, asc, desc } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 
@@ -26,7 +25,7 @@ function sanitizeErrorMessage(message: string | null): string | null {
     return sanitized;
 }
 
-// GET /api/admin/sms/failures - Get list of failed SMS for upcoming parcels
+// GET /api/admin/sms/failures - Get list of failed SMS (both parcel and enrolment)
 export async function GET() {
     try {
         // Validate authentication
@@ -35,30 +34,51 @@ export async function GET() {
             return authResult.response!;
         }
 
-        // Query for failed SMS - same scope as failure-count for consistency
-        // Limited to 100 to prevent unbounded responses
+        // For enrolment SMS (no parcel), show failures from last 7 days
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        // Query for failed SMS - includes both parcel and non-parcel (enrolment) SMS
+        // Uses LEFT JOIN to include SMS without parcels
+        // Joins households directly via outgoingSms.household_id
         const failures = await db
             .select({
                 id: outgoingSms.id,
-                householdId: foodParcels.household_id,
+                intent: outgoingSms.intent,
+                householdId: outgoingSms.household_id,
                 householdFirstName: households.first_name,
                 householdLastName: households.last_name,
                 parcelId: outgoingSms.parcel_id,
                 pickupDateEarliest: foodParcels.pickup_date_time_earliest,
                 pickupDateLatest: foodParcels.pickup_date_time_latest,
                 errorMessage: outgoingSms.last_error_message,
+                createdAt: outgoingSms.created_at,
             })
             .from(outgoingSms)
-            .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-            .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .leftJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+            .innerJoin(households, eq(outgoingSms.household_id, households.id))
             .where(
                 and(
-                    notDeleted(), // Only active parcels
-                    gte(foodParcels.pickup_date_time_latest, new Date()), // Upcoming only
                     eq(outgoingSms.status, "failed"), // Failed status only
+                    or(
+                        // Parcel SMS: upcoming parcels only (not deleted)
+                        and(
+                            isNull(foodParcels.deleted_at),
+                            gte(foodParcels.pickup_date_time_latest, new Date()),
+                        ),
+                        // Non-parcel SMS (enrolment): recent failures only
+                        and(
+                            isNull(outgoingSms.parcel_id),
+                            gte(outgoingSms.created_at, sevenDaysAgo),
+                        ),
+                    ),
                 ),
             )
-            .orderBy(asc(foodParcels.pickup_date_time_earliest)) // Soonest pickups first
+            .orderBy(
+                // Parcel SMS first (by pickup date), then enrolment SMS (by created date)
+                asc(foodParcels.pickup_date_time_earliest),
+                desc(outgoingSms.created_at),
+            )
             .limit(100);
 
         // Sanitize error messages before returning to client
