@@ -521,6 +521,24 @@
                 "upcomingParcelsAction": "Delete those parcels first, then remove the household.",
                 "removalFailed": "Failed to remove household"
             }
+        },
+        "smsHistory": {
+            "title": "SMS History ({count})",
+            "parcel": "Parcel",
+            "intent": {
+                "consent_enrolment": "Enrolment",
+                "pickup_reminder": "Pickup Reminder",
+                "pickup_updated": "Pickup Updated",
+                "pickup_cancelled": "Pickup Cancelled"
+            },
+            "status": {
+                "sent": "Sent",
+                "failed": "Failed",
+                "queued": "Queued",
+                "sending": "Sending",
+                "retrying": "Retrying",
+                "cancelled": "Cancelled"
+            }
         }
     },
     "comments": {

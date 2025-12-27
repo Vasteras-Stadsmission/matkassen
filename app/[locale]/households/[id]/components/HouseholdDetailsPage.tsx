@@ -30,8 +30,10 @@ import {
     IconChevronUp,
     IconTrash,
     IconAlertCircle,
+    IconMessage,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
+import type { TranslationFunction } from "@/app/[locale]/types";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import CommentSection from "@/components/CommentSection";
 import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../../actions";
@@ -62,7 +64,7 @@ export default function HouseholdDetailsPage({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const t = useTranslations("householdDetail");
+    const t = useTranslations("householdDetail") as TranslationFunction;
     const tNav = useTranslations("navigation");
     const tWeekdays = useTranslations("weekdays");
     const tSms = useTranslations("sms");
@@ -385,6 +387,64 @@ export default function HouseholdDetailsPage({
                             entityType="household"
                         />
                     </Paper>
+
+                    {/* SMS History Section */}
+                    {householdData.smsHistory && householdData.smsHistory.length > 0 && (
+                        <Paper withBorder p="lg" radius="md">
+                            <Group gap="xs" mb="md">
+                                <ThemeIcon size="md" variant="light" color="blue">
+                                    <IconMessage size={16} />
+                                </ThemeIcon>
+                                <Title order={3} size="h4">
+                                    {t("smsHistory.title", {
+                                        count: String(householdData.smsHistory.length),
+                                    })}
+                                </Title>
+                            </Group>
+                            <Stack gap="sm">
+                                {householdData.smsHistory.map(sms => (
+                                    <Paper key={sms.id} p="sm" withBorder radius="sm">
+                                        <Group justify="space-between" wrap="nowrap">
+                                            <Stack gap={4} style={{ flex: 1 }}>
+                                                <Group gap="xs">
+                                                    <Text size="sm" fw={500}>
+                                                        {t(`smsHistory.intent.${sms.intent}`)}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {formatDate(sms.createdAt)}
+                                                    </Text>
+                                                </Group>
+                                                {sms.parcelId && sms.pickupDate && (
+                                                    <Text size="xs" c="dimmed">
+                                                        {t("smsHistory.parcel")}: {formatDate(sms.pickupDate)}
+                                                    </Text>
+                                                )}
+                                                {sms.status === "failed" && sms.lastErrorMessage && (
+                                                    <Text size="xs" c="red">
+                                                        {sms.lastErrorMessage}
+                                                    </Text>
+                                                )}
+                                            </Stack>
+                                            <Badge
+                                                color={
+                                                    sms.status === "sent"
+                                                        ? "green"
+                                                        : sms.status === "failed"
+                                                          ? "red"
+                                                          : sms.status === "queued"
+                                                            ? "blue"
+                                                            : "gray"
+                                                }
+                                                variant="light"
+                                            >
+                                                {t(`smsHistory.status.${sms.status}`)}
+                                            </Badge>
+                                        </Group>
+                                    </Paper>
+                                ))}
+                            </Stack>
+                        </Paper>
+                    )}
                 </Stack>
 
                 {/* Right Column - Parcels */}

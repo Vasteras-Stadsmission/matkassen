@@ -14,8 +14,9 @@ import {
     pickupLocations,
     householdComments,
     users,
+    outgoingSms,
 } from "@/app/db/schema";
-import { asc, eq, and, isNull } from "drizzle-orm";
+import { asc, desc, eq, and, isNull } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
@@ -230,6 +231,23 @@ export async function getHouseholdDetails(householdId: string) {
             }
         }
 
+        // Fetch SMS history for this household
+        const smsHistoryResult = await db
+            .select({
+                id: outgoingSms.id,
+                intent: outgoingSms.intent,
+                status: outgoingSms.status,
+                lastErrorMessage: outgoingSms.last_error_message,
+                createdAt: outgoingSms.created_at,
+                parcelId: outgoingSms.parcel_id,
+                pickupDate: foodParcels.pickup_date_time_earliest,
+            })
+            .from(outgoingSms)
+            .leftJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+            .where(eq(outgoingSms.household_id, householdId))
+            .orderBy(desc(outgoingSms.created_at))
+            .limit(10);
+
         return {
             household,
             creatorGithubData,
@@ -258,6 +276,15 @@ export async function getHouseholdDetails(householdId: string) {
             })),
             pickupLocation,
             comments,
+            smsHistory: smsHistoryResult.map(sms => ({
+                id: sms.id,
+                intent: sms.intent,
+                status: sms.status,
+                lastErrorMessage: sms.lastErrorMessage,
+                createdAt: sms.createdAt,
+                parcelId: sms.parcelId,
+                pickupDate: sms.pickupDate,
+            })),
         };
     } catch (error) {
         logError("Error fetching household details", error, {

@@ -521,6 +521,24 @@
                 "upcomingParcelsAction": "Ta bort dessa matkassar först, sedan kan hushållet tas bort.",
                 "removalFailed": "Misslyckades att ta bort hushåll"
             }
+        },
+        "smsHistory": {
+            "title": "SMS-historik ({count})",
+            "parcel": "Matkasse",
+            "intent": {
+                "consent_enrolment": "Registrering",
+                "pickup_reminder": "Hämtningspåminnelse",
+                "pickup_updated": "Hämtning uppdaterad",
+                "pickup_cancelled": "Hämtning avbokad"
+            },
+            "status": {
+                "sent": "Skickat",
+                "failed": "Misslyckades",
+                "queued": "Köad",
+                "sending": "Skickar",
+                "retrying": "Försöker igen",
+                "cancelled": "Avbruten"
+            }
         }
     },
     "comments": {
