@@ -22,58 +22,76 @@
  * - "not delivered": Temporary failure (phone off/offline)
  */
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { updateSmsProviderStatus } from "@/app/utils/sms/sms-service";
 import { logger, logError } from "@/app/utils/logger";
 
-// CORS headers to allow HelloSMS to call this endpoint
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-};
+// Minimum required length for the webhook secret
+const MIN_SECRET_LENGTH = 32;
+
+// Valid status values from HelloSMS
+const VALID_STATUSES = ["delivered", "failed", "not delivered"] as const;
 
 // Get the webhook secret from environment
 function getWebhookSecret(): string | null {
-    return process.env.SMS_CALLBACK_SECRET || null;
+    const secret = process.env.SMS_CALLBACK_SECRET?.trim() || null;
+
+    // Reject secrets that are too short or contain only whitespace
+    if (secret && secret.length < MIN_SECRET_LENGTH) {
+        logger.error(
+            { length: secret.length, required: MIN_SECRET_LENGTH },
+            "SMS_CALLBACK_SECRET is too short",
+        );
+        return null;
+    }
+
+    return secret;
 }
 
-// Validate the secret from the URL
+// Validate the secret from the URL using timing-safe comparison
 function isValidSecret(providedSecret: string): boolean {
     const expectedSecret = getWebhookSecret();
 
     if (!expectedSecret) {
-        // If no secret is configured, log error and reject all requests
-        logger.error("SMS_CALLBACK_SECRET environment variable is not set");
+        logger.error("SMS_CALLBACK_SECRET environment variable is not set or invalid");
         return false;
     }
 
-    // Use timing-safe comparison to prevent timing attacks
-    if (providedSecret.length !== expectedSecret.length) {
+    // Reject obviously invalid secrets without timing info leak
+    if (!providedSecret || providedSecret.length < MIN_SECRET_LENGTH) {
         return false;
     }
 
-    // Simple constant-time comparison
-    let mismatch = 0;
-    for (let i = 0; i < providedSecret.length; i++) {
-        mismatch |= providedSecret.charCodeAt(i) ^ expectedSecret.charCodeAt(i);
-    }
-    return mismatch === 0;
+    // Use Node's crypto.timingSafeEqual for constant-time comparison
+    // Pad to same length to prevent length-based timing attacks
+    const maxLength = Math.max(providedSecret.length, expectedSecret.length);
+    const providedBuffer = Buffer.alloc(maxLength);
+    const expectedBuffer = Buffer.alloc(maxLength);
+
+    Buffer.from(providedSecret).copy(providedBuffer);
+    Buffer.from(expectedSecret).copy(expectedBuffer);
+
+    // Both buffers same length, and we also check actual lengths match
+    return (
+        providedSecret.length === expectedSecret.length &&
+        timingSafeEqual(providedBuffer, expectedBuffer)
+    );
 }
 
-// Handle CORS preflight requests
-export async function OPTIONS() {
-    return new NextResponse("", {
-        status: 200,
-        headers: corsHeaders,
-    });
+// Validate that status is a known HelloSMS status value
+function isValidStatus(status: unknown): status is (typeof VALID_STATUSES)[number] {
+    return (
+        typeof status === "string" &&
+        VALID_STATUSES.includes(status as (typeof VALID_STATUSES)[number])
+    );
 }
 
 // HelloSMS API callback payload structure
 interface HelloSmsCallbackPayload {
-    apiMessageId?: string;
-    status?: string; // "delivered" | "failed" | "not delivered"
-    timestamp?: number; // UNIX timestamp
-    callbackRef?: string; // Custom reference from original request
+    apiMessageId?: unknown;
+    status?: unknown;
+    timestamp?: unknown;
+    callbackRef?: unknown;
 }
 
 export async function POST(
@@ -93,25 +111,23 @@ export async function POST(
     try {
         const body = (await request.json()) as HelloSmsCallbackPayload;
 
-        // Extract the message ID and status from the callback
+        // Extract and validate the message ID (must be a non-empty string)
         const messageId = body.apiMessageId;
-        const status = body.status;
-
-        // Validate required fields
-        if (!messageId) {
-            logger.warn({ body }, "SMS status callback missing apiMessageId");
-            return NextResponse.json(
-                { error: "Missing apiMessageId" },
-                { status: 400, headers: corsHeaders },
-            );
+        if (typeof messageId !== "string" || !messageId.trim()) {
+            // Return 400 for malformed payloads - HelloSMS should fix their request
+            // This is different from "message not found" which returns 200
+            logger.warn("SMS status callback missing or invalid apiMessageId");
+            return NextResponse.json({ error: "Missing apiMessageId" }, { status: 400 });
         }
 
-        if (!status) {
-            logger.warn({ messageId, body }, "SMS status callback missing status");
-            return NextResponse.json(
-                { error: "Missing status" },
-                { status: 400, headers: corsHeaders },
+        // Extract and validate the status
+        const status = body.status;
+        if (!isValidStatus(status)) {
+            logger.warn(
+                { messageId, statusType: typeof status },
+                "SMS status callback has invalid status",
             );
+            return NextResponse.json({ error: "Invalid status" }, { status: 400 });
         }
 
         // Update the SMS record with the provider status
@@ -130,9 +146,8 @@ export async function POST(
             );
         }
 
-        // Always return success to HelloSMS to prevent retries
-        // Even if we don't find the message, we don't want HelloSMS to keep retrying
-        return NextResponse.json({ received: true }, { status: 200, headers: corsHeaders });
+        // Always return 200 for valid payloads to prevent HelloSMS retries
+        return NextResponse.json({ received: true }, { status: 200 });
     } catch (error) {
         logError("Error processing SMS status callback", error, {
             method: "POST",
@@ -143,7 +158,7 @@ export async function POST(
         // We log the error for investigation but don't want to cause retry loops
         return NextResponse.json(
             { received: true, error: "Processing failed but acknowledged" },
-            { status: 200, headers: corsHeaders },
+            { status: 200 },
         );
     }
 }
