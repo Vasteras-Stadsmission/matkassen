@@ -156,6 +156,7 @@ describe("SMS Opening Hours Filtering", () => {
                     isPickedUp: false,
                 },
                 mockLocationSchedule,
+                { onError: "throw" },
             );
         });
 

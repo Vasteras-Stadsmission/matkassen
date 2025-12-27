@@ -299,7 +299,9 @@ export async function updateSmsStatus(
     } else if (status === "failed") {
         updateData.last_error_message = options.errorMessage;
     } else if (status === "sent") {
-        updateData.sent_at = new Date();
+        updateData.sent_at = Time.now().toUTC();
+        // Clear any error message from previous failed attempts
+        updateData.last_error_message = null;
         if (options.providerMessageId) {
             updateData.provider_message_id = options.providerMessageId;
         }
@@ -460,6 +462,7 @@ export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
         if (result.success) {
             await updateSmsStatus(record.id, "sent", {
                 providerMessageId: result.messageId,
+                incrementAttempt: true,
             });
         } else {
             await handleSmsFailure(record, result);
@@ -652,7 +655,11 @@ export async function getParcelsNeedingReminder(): Promise<
                 isPickedUp: false,
             };
 
-            const isOutsideHours = isParcelOutsideOpeningHours(parcelTimeInfo, locationSchedules);
+            // Use onError: "throw" so errors propagate to our catch block,
+            // which implements fail-safe behavior (include parcel on error)
+            const isOutsideHours = isParcelOutsideOpeningHours(parcelTimeInfo, locationSchedules, {
+                onError: "throw",
+            });
 
             if (!isOutsideHours) {
                 validParcels.push(parcel);
@@ -778,56 +785,188 @@ export async function sendReminderForParcel(parcel: {
         throw dbError;
     }
 
+    // Step 1.5: Revalidate parcel is still eligible (prevents race conditions)
+    // Between getParcelsNeedingReminder() and now, the parcel could have been
+    // deleted, picked up, or the household anonymized
+    const freshData = await getFreshParcelData(parcel.parcelId);
+    const now2 = Time.now().toUTC();
+    const pickupHasPassed = freshData && freshData.pickupLatest < now2;
+
+    if (
+        !freshData ||
+        freshData.isDeleted ||
+        freshData.isPickedUp ||
+        freshData.householdAnonymized ||
+        pickupHasPassed
+    ) {
+        logger.info(
+            {
+                smsId: id,
+                parcelId: parcel.parcelId,
+                reason: !freshData
+                    ? "parcel_not_found"
+                    : freshData.isDeleted
+                      ? "parcel_deleted"
+                      : freshData.isPickedUp
+                        ? "parcel_picked_up"
+                        : freshData.householdAnonymized
+                          ? "household_anonymized"
+                          : "pickup_time_passed",
+            },
+            "SMS cancelled during JIT - parcel no longer eligible",
+        );
+        await db.update(outgoingSms).set({ status: "cancelled" }).where(eq(outgoingSms.id, id));
+        return { success: false, recordId: id, error: "Parcel no longer eligible" };
+    }
+
+    // Re-render SMS if phone number or locale changed
+    let phoneToUse = parcel.phone;
+    let textToUse = smsText;
+    if (freshData.phoneNumber !== parcel.phone || freshData.locale !== parcel.locale) {
+        phoneToUse = freshData.phoneNumber;
+        const newText = formatPickupSms(
+            { pickupDate: freshData.pickupEarliest, publicUrl },
+            freshData.locale,
+        );
+        textToUse = newText;
+
+        // Update the record with fresh data
+        await db
+            .update(outgoingSms)
+            .set({ to_e164: phoneToUse, text: textToUse })
+            .where(eq(outgoingSms.id, id));
+
+        logger.debug(
+            { smsId: id, parcelId: parcel.parcelId },
+            "SMS updated with fresh data during JIT",
+        );
+    }
+
     // Step 2: Send SMS
     try {
         const result = await sendSms({
-            to: parcel.phone,
-            text: smsText,
+            to: phoneToUse,
+            text: textToUse,
         });
 
         // Step 3: Update record with final status
-        const updateTime = Time.now().toUTC();
-        await db
-            .update(outgoingSms)
-            .set({
-                status: result.success ? "sent" : "failed",
-                sent_at: result.success ? updateTime : null,
-                provider_message_id: result.success ? result.messageId : null,
-                last_error_message: result.success ? null : result.error,
-            })
-            .where(eq(outgoingSms.id, id));
-
         if (result.success) {
+            const updateTime = Time.now().toUTC();
+            await db
+                .update(outgoingSms)
+                .set({
+                    status: "sent",
+                    sent_at: updateTime,
+                    provider_message_id: result.messageId,
+                    last_error_message: null,
+                })
+                .where(eq(outgoingSms.id, id));
             logger.info({ smsId: id, parcelId: parcel.parcelId }, "SMS sent successfully (JIT)");
+            return { success: true, recordId: id };
         } else {
-            logger.warn(
-                { smsId: id, parcelId: parcel.parcelId, error: result.error },
-                "SMS failed (JIT)",
-            );
+            // Handle failure with retry logic
+            await handleJitFailure(id, parcel.parcelId, freshData.pickupLatest, result);
+            return { success: false, recordId: id, error: result.error };
         }
-
-        return { success: result.success, recordId: id, error: result.error };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logError("Failed to send SMS (JIT)", error, { parcelId: parcel.parcelId });
 
-        // Update record with failed status
-        try {
-            await db
-                .update(outgoingSms)
-                .set({
-                    status: "failed",
-                    last_error_message: errorMessage,
-                })
-                .where(eq(outgoingSms.id, id));
-        } catch (updateError) {
-            logError("Failed to update SMS record to failed status", updateError, {
-                smsId: id,
-                parcelId: parcel.parcelId,
-            });
-        }
+        // Handle exception with retry logic (treat as retriable if pickup hasn't passed)
+        await handleJitFailure(id, parcel.parcelId, freshData.pickupLatest, {
+            success: false,
+            error: errorMessage,
+            httpStatus: 500, // Treat exceptions as server errors (retriable)
+        });
 
         return { success: false, recordId: id, error: errorMessage };
+    }
+}
+
+/**
+ * Handle JIT SMS failures with retry logic
+ *
+ * Unlike permanent failures, transient errors (429, 500, 503) are retried
+ * unless max attempts reached or pickup time has passed.
+ */
+async function handleJitFailure(
+    smsId: string,
+    parcelId: string,
+    pickupLatest: Date,
+    result: SendSmsResponse,
+): Promise<void> {
+    const maxAttempts = 3;
+    const now = Time.now().toUTC();
+
+    // Don't retry if pickup time has passed
+    if (pickupLatest < now) {
+        logger.info({ smsId, parcelId }, "SMS failed permanently - pickup time already passed");
+        await db
+            .update(outgoingSms)
+            .set({
+                status: "failed",
+                last_error_message: result.error || "Pickup time passed",
+            })
+            .where(eq(outgoingSms.id, smsId));
+        return;
+    }
+
+    // Check if error is retriable (transient HTTP errors)
+    const isRetriableError =
+        result.httpStatus === 429 || // Rate limit
+        result.httpStatus === 500 || // Server error
+        result.httpStatus === 502 || // Bad gateway
+        result.httpStatus === 503 || // Service unavailable
+        result.httpStatus === 504; // Gateway timeout
+
+    // Get current attempt count
+    const [record] = await db
+        .select({ attemptCount: outgoingSms.attempt_count })
+        .from(outgoingSms)
+        .where(eq(outgoingSms.id, smsId));
+
+    const currentAttempt = record?.attemptCount ?? 1;
+    const shouldRetry = currentAttempt < maxAttempts && isRetriableError;
+
+    if (shouldRetry) {
+        // Simple backoff: 5 minutes, then 30 minutes
+        const backoffMinutes = currentAttempt === 1 ? 5 : 30;
+        const nextAttemptAt = Time.now().addMinutes(backoffMinutes).toUTC();
+
+        logger.info(
+            {
+                smsId,
+                parcelId,
+                backoffMinutes,
+                attempt: currentAttempt,
+                maxAttempts,
+            },
+            "SMS retry scheduled (JIT)",
+        );
+
+        await db
+            .update(outgoingSms)
+            .set({
+                status: "retrying",
+                last_error_message: result.error,
+                next_attempt_at: nextAttemptAt,
+                attempt_count: sql`${outgoingSms.attempt_count} + 1`,
+            })
+            .where(eq(outgoingSms.id, smsId));
+    } else {
+        logError("SMS failed permanently (JIT)", new Error(result.error || "Unknown error"), {
+            smsId,
+            parcelId,
+            attempts: currentAttempt,
+        });
+
+        await db
+            .update(outgoingSms)
+            .set({
+                status: "failed",
+                last_error_message: result.error,
+            })
+            .where(eq(outgoingSms.id, smsId));
     }
 }
 
