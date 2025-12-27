@@ -1,11 +1,6 @@
 import { getTestDb } from "../db/test-db";
 import { outgoingSms } from "@/app/db/schema";
-
-/**
- * Fixed base time for deterministic test data.
- * All factory-generated timestamps are relative to this.
- */
-const FACTORY_BASE_TIME = new Date("2024-06-15T10:00:00Z");
+import { TEST_NOW } from "../test-time";
 
 let smsCounter = 0;
 
@@ -43,7 +38,7 @@ export async function createTestSms(overrides: {
         to_e164: `+4670000${String(smsCounter).padStart(4, "0")}`,
         text: `Test SMS message ${smsCounter}`,
         status: "queued" as SmsStatus,
-        idempotency_key: `test-sms-${FACTORY_BASE_TIME.getTime()}-${smsCounter}`,
+        idempotency_key: `test-sms-${TEST_NOW.getTime()}-${smsCounter}`,
         attempt_count: 0,
     };
 
@@ -78,7 +73,7 @@ export async function createTestSentSms(overrides: {
     text?: string;
 }) {
     // Use deterministic timestamp
-    const sentAt = new Date(FACTORY_BASE_TIME);
+    const sentAt = new Date(TEST_NOW);
 
     return createTestSms({
         ...overrides,
@@ -120,7 +115,7 @@ export async function createTestRetryingSms(overrides: {
 }) {
     // Use deterministic timestamp
     const nextAttempt = new Date(
-        FACTORY_BASE_TIME.getTime() + (overrides.next_retry_in_minutes ?? 5) * 60 * 1000,
+        TEST_NOW.getTime() + (overrides.next_retry_in_minutes ?? 5) * 60 * 1000,
     );
 
     return createTestSms({

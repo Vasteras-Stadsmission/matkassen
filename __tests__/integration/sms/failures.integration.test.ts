@@ -4,7 +4,7 @@
  * Tests the database query that powers /api/admin/sms/failures endpoint.
  * Verifies correct filtering, ordering, and data retrieval.
  *
- * IMPORTANT: Uses fixed base dates for deterministic testing.
+ * IMPORTANT: Uses shared TEST_NOW for deterministic testing.
  * All dates are relative to TEST_NOW to avoid flaky tests.
  */
 
@@ -22,26 +22,10 @@ import {
     resetLocationCounter,
     resetSmsCounter,
 } from "../../factories";
+import { TEST_NOW, daysFromTestNow, hoursFromTestNow } from "../../test-time";
 import { foodParcels, outgoingSms, households } from "@/app/db/schema";
 import { eq, and, gte, asc, sql } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
-
-/**
- * Fixed "now" time for all tests.
- * Using a fixed date ensures tests are deterministic and don't depend on system time.
- */
-const TEST_NOW = new Date("2024-06-15T10:00:00Z");
-
-/**
- * Helper to create dates relative to TEST_NOW
- */
-function daysFromNow(days: number): Date {
-    return new Date(TEST_NOW.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
-function hoursFromNow(hours: number): Date {
-    return new Date(TEST_NOW.getTime() + hours * 60 * 60 * 1000);
-}
 
 /**
  * Query function matching the failures list API endpoint logic.
@@ -119,7 +103,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             const { location } = await createTestLocationWithSchedule();
 
             // Create parcel for tomorrow (relative to TEST_NOW)
-            const tomorrow = daysFromNow(1);
+            const tomorrow = daysFromTestNow(1);
             const parcel = await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -148,7 +132,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             const { location } = await createTestLocationWithSchedule();
 
             // Create parcel for yesterday (past relative to TEST_NOW)
-            const yesterday = daysFromNow(-1);
+            const yesterday = daysFromTestNow(-1);
             const pastParcel = await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -173,7 +157,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             const { location } = await createTestLocationWithSchedule();
 
             // Create and soft-delete a parcel using the factory
-            const tomorrow = daysFromNow(1);
+            const tomorrow = daysFromTestNow(1);
             const deletedParcel = await createTestDeletedParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -197,7 +181,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const tomorrow = daysFromNow(1);
+            const tomorrow = daysFromTestNow(1);
             const parcel = await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
@@ -234,9 +218,9 @@ describe("SMS Failures Query - Integration Tests", () => {
             const { location } = await createTestLocationWithSchedule();
 
             // Create parcels at different times (relative to TEST_NOW)
-            const in3Days = daysFromNow(3);
-            const in1Day = daysFromNow(1);
-            const in2Days = daysFromNow(2);
+            const in3Days = daysFromTestNow(3);
+            const in1Day = daysFromTestNow(1);
+            const in2Days = daysFromTestNow(2);
 
             const parcel3Days = await createTestParcel({
                 household_id: household.id,
@@ -293,7 +277,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             const household2 = await createTestHousehold({ first_name: "Bob" });
             const { location } = await createTestLocationWithSchedule();
 
-            const tomorrow = daysFromNow(1);
+            const tomorrow = daysFromTestNow(1);
 
             const parcel1 = await createTestParcel({
                 household_id: household1.id,
@@ -339,7 +323,7 @@ describe("SMS Failures Query - Integration Tests", () => {
 
             // Create parcels and SMS for each household
             for (let i = 0; i < 105; i++) {
-                const pickupTime = hoursFromNow(24 + i); // Stagger pickup times
+                const pickupTime = hoursFromTestNow(24 + i); // Stagger pickup times
                 const parcel = await createTestParcel({
                     household_id: households[i].id,
                     pickup_location_id: location.id,
@@ -366,7 +350,7 @@ describe("SMS Failures Query - Integration Tests", () => {
             // Create multiple failed SMS
             for (let i = 0; i < 5; i++) {
                 const household = await createTestHousehold();
-                const pickupTime = hoursFromNow(24 + i);
+                const pickupTime = hoursFromTestNow(24 + i);
                 const parcel = await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,

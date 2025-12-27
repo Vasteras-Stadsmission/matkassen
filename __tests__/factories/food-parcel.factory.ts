@@ -1,11 +1,6 @@
 import { getTestDb } from "../db/test-db";
 import { foodParcels } from "@/app/db/schema";
-
-/**
- * Fixed base time for deterministic test data.
- * All factory-generated timestamps are relative to this.
- */
-const FACTORY_BASE_TIME = new Date("2024-06-15T10:00:00Z");
+import { TEST_NOW } from "../test-time";
 
 /**
  * Create a test food parcel.
@@ -24,8 +19,8 @@ export async function createTestParcel(overrides: {
 }) {
     const db = await getTestDb();
 
-    // Default to tomorrow relative to FACTORY_BASE_TIME, 30-minute slot
-    const tomorrow = new Date(FACTORY_BASE_TIME.getTime() + 24 * 60 * 60 * 1000);
+    // Default to tomorrow relative to TEST_NOW, 30-minute slot
+    const tomorrow = new Date(TEST_NOW.getTime() + 24 * 60 * 60 * 1000);
     tomorrow.setHours(10, 0, 0, 0);
 
     const earliest = overrides.pickup_date_time_earliest ?? tomorrow;
@@ -51,7 +46,7 @@ export async function createTestParcel(overrides: {
 }
 
 /**
- * Create a parcel scheduled for "today" (relative to FACTORY_BASE_TIME).
+ * Create a parcel scheduled for "today" (relative to TEST_NOW).
  */
 export async function createTestParcelForToday(overrides: {
     household_id: string;
@@ -60,9 +55,7 @@ export async function createTestParcelForToday(overrides: {
     is_picked_up?: boolean;
 }) {
     // Use deterministic base time
-    const earliest = new Date(
-        FACTORY_BASE_TIME.getTime() + (overrides.hoursFromNow ?? 2) * 60 * 60 * 1000,
-    );
+    const earliest = new Date(TEST_NOW.getTime() + (overrides.hoursFromNow ?? 2) * 60 * 60 * 1000);
     const latest = new Date(earliest.getTime() + 30 * 60 * 1000);
 
     return createTestParcel({
@@ -88,7 +81,7 @@ export async function createTestDeletedParcel(overrides: {
     return createTestParcel({
         ...overrides,
         // Use deterministic timestamp
-        deleted_at: new Date(FACTORY_BASE_TIME),
+        deleted_at: new Date(TEST_NOW),
         deleted_by_user_id: overrides.deleted_by_user_id ?? "test-admin",
     });
 }
@@ -104,7 +97,7 @@ export async function createTestPickedUpParcel(overrides: {
     picked_up_by_user_id?: string;
 }) {
     // Use deterministic timestamp
-    const pickedUpAt = new Date(FACTORY_BASE_TIME);
+    const pickedUpAt = new Date(TEST_NOW);
 
     return createTestParcel({
         ...overrides,
