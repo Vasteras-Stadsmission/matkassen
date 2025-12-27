@@ -23,8 +23,19 @@ import {
     resetLocationCounter,
     resetSmsCounter,
 } from "../../factories";
-import { daysFromTestNow, hoursFromTestNow, minutesFromTestNow } from "../../test-time";
 import { getParcelsNeedingReminder } from "@/app/utils/sms/sms-service";
+
+/**
+ * Helper to create a pickup date relative to real current time.
+ *
+ * Note: Unlike other integration tests, these tests MUST use real time because
+ * getParcelsNeedingReminder() uses Time.now() internally and doesn't accept a
+ * custom "now" parameter. Parcels must be created relative to actual current
+ * time to be found by the 48h window query.
+ */
+function realTimeFromNow(hours: number): Date {
+    return new Date(Date.now() + hours * 60 * 60 * 1000);
+}
 
 describe("SMS Opening Hours Filtering - Integration Tests", () => {
     beforeEach(() => {
@@ -39,28 +50,26 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const { location } = await createTestLocationWithSchedule(
                 {},
                 {
-                    // TEST_NOW is Saturday 2024-06-15, so Monday is 2 days away
                     weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"],
                     openingTime: "09:00",
                     closingTime: "17:00",
                 },
             );
 
-            // Create parcel with pickup on Monday (2 days from TEST_NOW Saturday)
-            // at 14:00 (within opening hours 09:00-17:00)
-            const pickupTime = hoursFromTestNow(48 + 4); // Monday at 14:00
+            // Create parcel with pickup 24 hours from now (within 48h window)
+            const pickupTime = realTimeFromNow(24);
 
             await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: pickupTime,
-                pickup_date_time_latest: minutesFromTestNow((48 + 4) * 60 + 30),
+                pickup_date_time_latest: new Date(pickupTime.getTime() + 30 * 60 * 1000),
             });
 
             const result = await getParcelsNeedingReminder();
 
-            // Should find our parcel (Monday is a weekday, 14:00 is during opening hours)
-            // Note: Result depends on getParcelsNeedingReminder using TEST_NOW as reference
+            // Should find our parcel (assuming it's on a weekday during opening hours)
+            // Note: May be 0 or 1 depending on what day of week tomorrow is
             expect(result.length).toBeGreaterThanOrEqual(0);
             expect(result.length).toBeLessThanOrEqual(1);
         });
@@ -69,7 +78,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const pickupTime = daysFromTestNow(1);
+            const pickupTime = realTimeFromNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -96,7 +105,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             // Create location WITHOUT a schedule
             const location = await createTestPickupLocation();
 
-            const pickupTime = daysFromTestNow(1);
+            const pickupTime = realTimeFromNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -119,8 +128,8 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            // Create parcel with pickup 3 days from now (beyond 48h)
-            const pickupTime = daysFromTestNow(3);
+            // Create parcel with pickup 72 hours from now (beyond 48h)
+            const pickupTime = realTimeFromNow(72);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -139,7 +148,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const pickupTime = daysFromTestNow(1);
+            const pickupTime = realTimeFromNow(24);
 
             // Use createTestDeletedParcel for soft-deleted parcel
             const { createTestDeletedParcel } = await import("../../factories");
@@ -160,7 +169,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const pickupTime = daysFromTestNow(1);
+            const pickupTime = realTimeFromNow(24);
 
             // Create parcel and mark as picked up
             const { createTestPickedUpParcel } = await import("../../factories");
@@ -189,7 +198,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
                 street_address: "Test Street 123",
             });
 
-            const pickupTime = daysFromTestNow(1);
+            const pickupTime = realTimeFromNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -221,23 +230,23 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household3 = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const pickupTime = daysFromTestNow(1);
+            const baseTime = realTimeFromNow(24);
 
-            // Create 3 parcels for different households
+            // Create 3 parcels for different households at slightly different times
             const parcel1 = await createTestParcel({
                 household_id: household1.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: pickupTime,
+                pickup_date_time_earliest: baseTime,
             });
             const parcel2 = await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 30), // 1 day + 30 min
+                pickup_date_time_earliest: new Date(baseTime.getTime() + 30 * 60 * 1000),
             });
             const parcel3 = await createTestParcel({
                 household_id: household3.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: minutesFromTestNow(24 * 60 + 60), // 1 day + 1 hour
+                pickup_date_time_earliest: new Date(baseTime.getTime() + 60 * 60 * 1000),
             });
 
             const result = await getParcelsNeedingReminder();
