@@ -329,6 +329,38 @@ export async function updateSmsStatus(
 }
 
 /**
+ * Update SMS record with provider delivery status from callback (with custom db instance)
+ *
+ * Called when HelloSMS sends a delivery status callback.
+ * Updates the provider_status and provider_status_updated_at fields.
+ *
+ * This version accepts a database instance for use in tests or transactions.
+ *
+ * @param dbInstance The database instance to use
+ * @param providerMessageId The apiMessageId from HelloSMS
+ * @param providerStatus The delivery status text (e.g., "Delivered", "Failed")
+ * @returns true if a record was updated, false if no matching record found
+ */
+export async function updateSmsProviderStatusWithDb(
+    dbInstance: typeof db,
+    providerMessageId: string,
+    providerStatus: string,
+): Promise<boolean> {
+    const now = Time.now().toUTC();
+
+    const updated = await dbInstance
+        .update(outgoingSms)
+        .set({
+            provider_status: providerStatus,
+            provider_status_updated_at: now,
+        })
+        .where(eq(outgoingSms.provider_message_id, providerMessageId))
+        .returning({ id: outgoingSms.id });
+
+    return updated.length > 0;
+}
+
+/**
  * Update SMS record with provider delivery status from callback
  *
  * Called when HelloSMS sends a delivery status callback.
@@ -342,18 +374,7 @@ export async function updateSmsProviderStatus(
     providerMessageId: string,
     providerStatus: string,
 ): Promise<boolean> {
-    const now = Time.now().toUTC();
-
-    const updated = await db
-        .update(outgoingSms)
-        .set({
-            provider_status: providerStatus,
-            provider_status_updated_at: now,
-        })
-        .where(eq(outgoingSms.provider_message_id, providerMessageId))
-        .returning({ id: outgoingSms.id });
-
-    return updated.length > 0;
+    return updateSmsProviderStatusWithDb(db, providerMessageId, providerStatus);
 }
 
 // Check if SMS already exists for a parcel + intent
