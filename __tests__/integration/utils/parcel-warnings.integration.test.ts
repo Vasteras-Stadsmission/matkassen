@@ -20,6 +20,7 @@ import {
     resetHouseholdCounter,
     resetLocationCounter,
 } from "../../factories";
+import { daysFromTestNow, hoursFromTestNow } from "../../test-time";
 import {
     getParcelWarningThreshold,
     getHouseholdParcelCount,
@@ -66,17 +67,12 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
-            // Create 3 parcels at different times
+            // Create 3 parcels at different times (1 hour apart, starting 1 day from TEST_NOW)
             for (let i = 0; i < 3; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(10 + i, 0, 0, 0);
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i),
                 });
             }
 
@@ -88,27 +84,20 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
             // Create 2 active parcels at different times
             for (let i = 0; i < 2; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(10 + i, 0, 0, 0);
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i),
                 });
             }
 
             // Create 1 deleted parcel (should NOT be counted)
-            const deletedTime = new Date(baseDate);
-            deletedTime.setHours(15, 0, 0, 0);
             await createTestDeletedParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: deletedTime,
+                pickup_date_time_earliest: hoursFromTestNow(24 + 5),
             });
 
             const count = await getHouseholdParcelCount(household.id);
@@ -120,27 +109,20 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household2 = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
             // Create 3 parcels for household1 at different times
             for (let i = 0; i < 3; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(10 + i, 0, 0, 0);
                 await createTestParcel({
                     household_id: household1.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i),
                 });
             }
 
             // Create 1 parcel for household2
-            const pickupTime2 = new Date(baseDate);
-            pickupTime2.setHours(14, 0, 0, 0);
             await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: pickupTime2,
+                pickup_date_time_earliest: hoursFromTestNow(24 + 4),
             });
 
             const count1 = await getHouseholdParcelCount(household1.id);
@@ -161,18 +143,18 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
-            // Create many parcels at different times (spread across multiple days)
+            // Create 15 parcels at distinct pickup times.
+            // We spread them across days and hours to avoid time collisions with
+            // the (date,time) unique constraint used in the database.
             for (let i = 0; i < 15; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setDate(pickupTime.getDate() + Math.floor(i / 8)); // Spread across days
-                pickupTime.setHours(9 + (i % 8), 0, 0, 0); // Different hours each day
+                // After every 8 parcels, move to the next day (8 parcels per day).
+                // Within a day, assign parcels to different hours.
+                const dayOffset = Math.floor(i / 8);
+                const hourOffset = i % 8;
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 * (1 + dayOffset) + hourOffset),
                 });
             }
 
@@ -188,17 +170,12 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
             // Create exactly 5 parcels (equals threshold)
             for (let i = 0; i < 5; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(9 + i, 0, 0, 0);
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i),
                 });
             }
 
@@ -214,17 +191,12 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
             // Create 6 parcels (exceeds threshold of 5)
             for (let i = 0; i < 6; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(9 + i, 0, 0, 0);
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i),
                 });
             }
 
@@ -240,17 +212,12 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
             // Create 5 parcels (below threshold of 10)
             for (let i = 0; i < 5; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(9 + i, 0, 0, 0);
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i),
                 });
             }
 
@@ -266,28 +233,21 @@ describe("Parcel Warning Utilities - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
 
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() + 1);
-
             // Create 4 active parcels at different times
             for (let i = 0; i < 4; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(9 + i, 0, 0, 0);
                 await createTestParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + i),
                 });
             }
 
             // Create 3 deleted parcels at different times (should not count toward total)
             for (let i = 0; i < 3; i++) {
-                const pickupTime = new Date(baseDate);
-                pickupTime.setHours(14 + i, 0, 0, 0);
                 await createTestDeletedParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
-                    pickup_date_time_earliest: pickupTime,
+                    pickup_date_time_earliest: hoursFromTestNow(24 + 5 + i),
                 });
             }
 

@@ -28,8 +28,11 @@ vi.mock("@/app/db/drizzle", async () => {
 });
 
 beforeAll(async () => {
-    // Initialize PGlite and run all migrations
-    // (already done by the mock above, but we call it again to ensure it's ready)
+    // Initialize PGlite and run all migrations.
+    // Note: getTestDb() is also called in the mock above, but we call it again here
+    // to ensure initialization is complete before tests run. This is safe because
+    // getTestDb() uses a singleton pattern - the second call simply returns the
+    // already-initialized instance.
     await getTestDb();
 });
 
