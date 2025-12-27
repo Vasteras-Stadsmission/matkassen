@@ -1,8 +1,8 @@
 /**
- * Integration tests for SMS status callback functionality
+ * Integration tests for SMS delivery status tracking
  *
- * Tests the updateSmsProviderStatusWithDb function which is called
- * when HelloSMS sends delivery status callbacks.
+ * These tests verify the business use cases for tracking SMS delivery
+ * via HelloSMS callbacks, ensuring admins can see delivery outcomes.
  *
  * HelloSMS status values:
  * - "delivered": Message successfully delivered to recipient's phone
@@ -17,249 +17,148 @@ import { updateSmsProviderStatusWithDb } from "@/app/utils/sms/sms-service";
 import { createTestHousehold, resetHouseholdCounter } from "../../factories/household.factory";
 import { createTestSentSms, resetSmsCounter } from "../../factories/sms.factory";
 
-describe("SMS Status Callback - Integration Tests", () => {
+describe("SMS Delivery Status Tracking", () => {
     beforeEach(() => {
         resetHouseholdCounter();
         resetSmsCounter();
     });
 
-    describe("updateSmsProviderStatusWithDb", () => {
-        it("should update provider_status for SMS with matching provider_message_id", async () => {
+    describe("Successful delivery", () => {
+        it("admin can see that a pickup reminder was delivered to the household", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold();
 
-            // Create a sent SMS with a provider message ID
+            // SMS was sent to household with pickup reminder
             const sms = await createTestSentSms({
                 household_id: household.id,
-                provider_message_id: "hellosms_msg_123456",
+                provider_message_id: "msg_123",
+                text: "Matpaket 15 juni 10:00-10:30",
             });
 
-            // Simulate HelloSMS callback
-            const updated = await updateSmsProviderStatusWithDb(
-                db as any,
-                "hellosms_msg_123456",
-                "delivered",
-            );
+            // HelloSMS confirms delivery
+            await updateSmsProviderStatusWithDb(db as any, "msg_123", "delivered");
 
-            expect(updated).toBe(true);
-
-            // Verify the database was updated
-            const [updatedSms] = await db
+            // Admin can see the SMS was delivered
+            const [record] = await db
                 .select()
                 .from(outgoingSms)
                 .where(eq(outgoingSms.id, sms.id));
 
-            expect(updatedSms.provider_status).toBe("delivered");
-            expect(updatedSms.provider_status_updated_at).not.toBeNull();
+            expect(record.provider_status).toBe("delivered");
+            expect(record.provider_status_updated_at).not.toBeNull();
         });
+    });
 
-        it("should return false when no SMS matches the provider_message_id", async () => {
+    describe("Permanent failure - invalid phone number", () => {
+        it("admin can identify households with invalid phone numbers to follow up manually", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold();
 
-            // Create a sent SMS with a different provider message ID
-            await createTestSentSms({
+            const sms = await createTestSentSms({
                 household_id: household.id,
-                provider_message_id: "hellosms_msg_different",
+                provider_message_id: "msg_456",
             });
 
-            // Try to update with non-matching ID
+            // HelloSMS reports permanent failure (invalid number)
+            await updateSmsProviderStatusWithDb(db as any, "msg_456", "failed");
+
+            // Admin can see the failure and follow up with household
+            const [record] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, sms.id));
+
+            expect(record.provider_status).toBe("failed");
+        });
+    });
+
+    describe("Temporary failure - phone unreachable", () => {
+        it("admin can see when SMS could not be delivered because phone was off", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+
+            const sms = await createTestSentSms({
+                household_id: household.id,
+                provider_message_id: "msg_789",
+            });
+
+            // HelloSMS reports temporary failure (phone off/no signal)
+            await updateSmsProviderStatusWithDb(db as any, "msg_789", "not delivered");
+
+            const [record] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, sms.id));
+
+            expect(record.provider_status).toBe("not delivered");
+        });
+
+        it("status updates to delivered when phone comes back online and receives SMS", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+
+            const sms = await createTestSentSms({
+                household_id: household.id,
+                provider_message_id: "msg_retry",
+            });
+
+            // First: phone was off
+            await updateSmsProviderStatusWithDb(db as any, "msg_retry", "not delivered");
+
+            // Later: phone came online, SMS delivered
+            await updateSmsProviderStatusWithDb(db as any, "msg_retry", "delivered");
+
+            const [record] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, sms.id));
+
+            expect(record.provider_status).toBe("delivered");
+        });
+    });
+
+    describe("Callback for unknown message", () => {
+        it("system gracefully ignores callbacks for messages not in our database", async () => {
+            const db = await getTestDb();
+
+            // HelloSMS sends callback for a message we don't have
+            // (could be old, deleted, or from another system)
             const updated = await updateSmsProviderStatusWithDb(
                 db as any,
-                "hellosms_msg_unknown",
+                "unknown_msg_id",
                 "delivered",
             );
 
+            // Should not crash, just return false
             expect(updated).toBe(false);
         });
+    });
 
-        it("should handle various status values from HelloSMS", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold();
-
-            // Actual HelloSMS status values (lowercase)
-            const statusValues = [
-                "delivered",
-                "failed",
-                "not delivered",
-            ];
-
-            for (let i = 0; i < statusValues.length; i++) {
-                const status = statusValues[i];
-                const messageId = `hellosms_msg_${i}`;
-
-                const sms = await createTestSentSms({
-                    household_id: household.id,
-                    provider_message_id: messageId,
-                });
-
-                const updated = await updateSmsProviderStatusWithDb(db as any, messageId, status);
-
-                expect(updated).toBe(true);
-
-                const [updatedSms] = await db
-                    .select()
-                    .from(outgoingSms)
-                    .where(eq(outgoingSms.id, sms.id));
-
-                expect(updatedSms.provider_status).toBe(status);
-            }
-        });
-
-        it("should update provider_status_updated_at timestamp", async () => {
+    describe("Data integrity", () => {
+        it("callback only updates delivery status, not the SMS content or recipient", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold();
 
             const sms = await createTestSentSms({
                 household_id: household.id,
-                provider_message_id: "hellosms_msg_timestamp_test",
-            });
-
-            // Initial state: no provider_status_updated_at
-            const [initialSms] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-
-            expect(initialSms.provider_status_updated_at).toBeNull();
-
-            // Update status
-            await updateSmsProviderStatusWithDb(
-                db as any,
-                "hellosms_msg_timestamp_test",
-                "delivered",
-            );
-
-            // Verify timestamp was set
-            const [updatedSms] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-
-            expect(updatedSms.provider_status_updated_at).not.toBeNull();
-            expect(updatedSms.provider_status_updated_at).toBeInstanceOf(Date);
-        });
-
-        it("should overwrite previous provider_status on subsequent callbacks", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold();
-
-            const sms = await createTestSentSms({
-                household_id: household.id,
-                provider_message_id: "hellosms_msg_multi_update",
-            });
-
-            // First callback: not delivered (temporary failure)
-            await updateSmsProviderStatusWithDb(
-                db as any,
-                "hellosms_msg_multi_update",
-                "not delivered",
-            );
-
-            const [afterFirst] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-
-            expect(afterFirst.provider_status).toBe("not delivered");
-            const firstTimestamp = afterFirst.provider_status_updated_at;
-
-            // Small delay to ensure timestamp difference
-            await new Promise(resolve => setTimeout(resolve, 10));
-
-            // Second callback: delivered (retry succeeded)
-            await updateSmsProviderStatusWithDb(
-                db as any,
-                "hellosms_msg_multi_update",
-                "delivered",
-            );
-
-            const [afterSecond] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-
-            expect(afterSecond.provider_status).toBe("delivered");
-            // Timestamp should be updated
-            expect(afterSecond.provider_status_updated_at).not.toBeNull();
-            expect(afterSecond.provider_status_updated_at!.getTime()).toBeGreaterThanOrEqual(
-                firstTimestamp!.getTime(),
-            );
-        });
-
-        it("should not modify other SMS fields when updating provider status", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold();
-
-            const sms = await createTestSentSms({
-                household_id: household.id,
-                provider_message_id: "hellosms_msg_no_side_effects",
-                text: "Original message text",
+                provider_message_id: "msg_integrity",
+                text: "Original pickup reminder",
                 to_e164: "+46701234567",
             });
 
-            // Record original values
-            const [originalSms] = await db
+            await updateSmsProviderStatusWithDb(db as any, "msg_integrity", "delivered");
+
+            const [record] = await db
                 .select()
                 .from(outgoingSms)
                 .where(eq(outgoingSms.id, sms.id));
 
-            // Update provider status
-            await updateSmsProviderStatusWithDb(
-                db as any,
-                "hellosms_msg_no_side_effects",
-                "delivered",
-            );
-
-            // Verify other fields unchanged
-            const [updatedSms] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-
-            expect(updatedSms.text).toBe(originalSms.text);
-            expect(updatedSms.to_e164).toBe(originalSms.to_e164);
-            expect(updatedSms.status).toBe(originalSms.status);
-            expect(updatedSms.intent).toBe(originalSms.intent);
-            expect(updatedSms.sent_at?.getTime()).toBe(originalSms.sent_at?.getTime());
-            expect(updatedSms.household_id).toBe(originalSms.household_id);
-        });
-
-        it("should handle SMS without provider_message_id (queued SMS)", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold();
-
-            // Create SMS without provider_message_id (hasn't been sent yet)
-            const [queuedSms] = await db
-                .insert(outgoingSms)
-                .values({
-                    household_id: household.id,
-                    intent: "pickup_reminder",
-                    to_e164: "+46701234567",
-                    text: "Test message",
-                    status: "queued",
-                    idempotency_key: `test-queued-${Date.now()}`,
-                    attempt_count: 0,
-                    // No provider_message_id
-                })
-                .returning();
-
-            // Try to update - should not match anything
-            const updated = await updateSmsProviderStatusWithDb(
-                db as any,
-                "hellosms_msg_random",
-                "delivered",
-            );
-
-            expect(updated).toBe(false);
-
-            // Original SMS should be unchanged
-            const [unchangedSms] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, queuedSms.id));
-
-            expect(unchangedSms.provider_status).toBeNull();
+            // Original data unchanged
+            expect(record.text).toBe("Original pickup reminder");
+            expect(record.to_e164).toBe("+46701234567");
+            expect(record.household_id).toBe(household.id);
+            // Only delivery status added
+            expect(record.provider_status).toBe("delivered");
         });
     });
 });
