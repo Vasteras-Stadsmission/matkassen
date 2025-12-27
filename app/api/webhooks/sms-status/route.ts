@@ -2,15 +2,20 @@
  * SMS Status Callback Webhook for HelloSMS
  *
  * HelloSMS calls this endpoint when the delivery status of an SMS changes.
- * The callback contains the message ID and a status text in English.
+ * The callback URL must be configured by contacting HelloSMS support.
  *
  * Expected payload format from HelloSMS:
  * {
- *   "apiMessageId": "abc123...",
- *   "status": "Delivered" | "Failed" | "Sent" | etc.
- *   "to": "+46701234567" (optional)
- *   "statusText": "Additional details" (optional)
+ *   "apiMessageId": "12345",
+ *   "status": "delivered" | "failed" | "not delivered",
+ *   "timestamp": 1672531199,
+ *   "callbackRef": "someReference"
  * }
+ *
+ * Status values:
+ * - "delivered": Message successfully delivered to recipient's phone
+ * - "failed": Permanent failure (invalid/inactive phone number)
+ * - "not delivered": Temporary failure (phone off/offline)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { updateSmsProviderStatus } from "@/app/utils/sms/sms-service";
@@ -31,14 +36,12 @@ export async function OPTIONS() {
     });
 }
 
-// HelloSMS callback payload structure
+// HelloSMS API callback payload structure
 interface HelloSmsCallbackPayload {
     apiMessageId?: string;
-    status?: string;
-    to?: string;
-    statusText?: string;
-    // HelloSMS may send additional fields
-    [key: string]: unknown;
+    status?: string; // "delivered" | "failed" | "not delivered"
+    timestamp?: number; // UNIX timestamp
+    callbackRef?: string; // Custom reference from original request
 }
 
 export async function POST(request: NextRequest) {
@@ -66,21 +69,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Combine status and statusText if both present
-        const fullStatus = body.statusText ? `${status}: ${body.statusText}` : status;
-
         // Update the SMS record with the provider status
-        const updated = await updateSmsProviderStatus(messageId, fullStatus);
+        const updated = await updateSmsProviderStatus(messageId, status);
 
         if (updated) {
             logger.info(
-                { messageId, status: fullStatus },
+                { messageId, status, callbackRef: body.callbackRef },
                 "SMS provider status updated via callback",
             );
         } else {
             // This is not necessarily an error - the message might be old or already processed
             logger.debug(
-                { messageId, status: fullStatus },
+                { messageId, status },
                 "SMS status callback for unknown or already processed message",
             );
         }

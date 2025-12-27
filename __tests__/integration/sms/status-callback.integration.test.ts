@@ -3,6 +3,11 @@
  *
  * Tests the updateSmsProviderStatusWithDb function which is called
  * when HelloSMS sends delivery status callbacks.
+ *
+ * HelloSMS status values:
+ * - "delivered": Message successfully delivered to recipient's phone
+ * - "failed": Permanent failure (invalid/inactive phone number)
+ * - "not delivered": Temporary failure (phone off/offline)
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
@@ -33,7 +38,7 @@ describe("SMS Status Callback - Integration Tests", () => {
             const updated = await updateSmsProviderStatusWithDb(
                 db as any,
                 "hellosms_msg_123456",
-                "Delivered",
+                "delivered",
             );
 
             expect(updated).toBe(true);
@@ -44,7 +49,7 @@ describe("SMS Status Callback - Integration Tests", () => {
                 .from(outgoingSms)
                 .where(eq(outgoingSms.id, sms.id));
 
-            expect(updatedSms.provider_status).toBe("Delivered");
+            expect(updatedSms.provider_status).toBe("delivered");
             expect(updatedSms.provider_status_updated_at).not.toBeNull();
         });
 
@@ -62,7 +67,7 @@ describe("SMS Status Callback - Integration Tests", () => {
             const updated = await updateSmsProviderStatusWithDb(
                 db as any,
                 "hellosms_msg_unknown",
-                "Delivered",
+                "delivered",
             );
 
             expect(updated).toBe(false);
@@ -72,15 +77,11 @@ describe("SMS Status Callback - Integration Tests", () => {
             const db = await getTestDb();
             const household = await createTestHousehold();
 
+            // Actual HelloSMS status values (lowercase)
             const statusValues = [
-                "Delivered",
-                "Failed",
-                "Sent",
-                "Queued",
-                "Expired",
-                "Rejected",
-                "Failed: Invalid phone number",
-                "Delivered: Handset confirmed",
+                "delivered",
+                "failed",
+                "not delivered",
             ];
 
             for (let i = 0; i < statusValues.length; i++) {
@@ -126,7 +127,7 @@ describe("SMS Status Callback - Integration Tests", () => {
             await updateSmsProviderStatusWithDb(
                 db as any,
                 "hellosms_msg_timestamp_test",
-                "Delivered",
+                "delivered",
             );
 
             // Verify timestamp was set
@@ -148,25 +149,29 @@ describe("SMS Status Callback - Integration Tests", () => {
                 provider_message_id: "hellosms_msg_multi_update",
             });
 
-            // First callback: Sent
-            await updateSmsProviderStatusWithDb(db as any, "hellosms_msg_multi_update", "Sent");
+            // First callback: not delivered (temporary failure)
+            await updateSmsProviderStatusWithDb(
+                db as any,
+                "hellosms_msg_multi_update",
+                "not delivered",
+            );
 
             const [afterFirst] = await db
                 .select()
                 .from(outgoingSms)
                 .where(eq(outgoingSms.id, sms.id));
 
-            expect(afterFirst.provider_status).toBe("Sent");
+            expect(afterFirst.provider_status).toBe("not delivered");
             const firstTimestamp = afterFirst.provider_status_updated_at;
 
             // Small delay to ensure timestamp difference
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            // Second callback: Delivered
+            // Second callback: delivered (retry succeeded)
             await updateSmsProviderStatusWithDb(
                 db as any,
                 "hellosms_msg_multi_update",
-                "Delivered",
+                "delivered",
             );
 
             const [afterSecond] = await db
@@ -174,7 +179,7 @@ describe("SMS Status Callback - Integration Tests", () => {
                 .from(outgoingSms)
                 .where(eq(outgoingSms.id, sms.id));
 
-            expect(afterSecond.provider_status).toBe("Delivered");
+            expect(afterSecond.provider_status).toBe("delivered");
             // Timestamp should be updated
             expect(afterSecond.provider_status_updated_at).not.toBeNull();
             expect(afterSecond.provider_status_updated_at!.getTime()).toBeGreaterThanOrEqual(
@@ -203,7 +208,7 @@ describe("SMS Status Callback - Integration Tests", () => {
             await updateSmsProviderStatusWithDb(
                 db as any,
                 "hellosms_msg_no_side_effects",
-                "Delivered",
+                "delivered",
             );
 
             // Verify other fields unchanged
@@ -243,7 +248,7 @@ describe("SMS Status Callback - Integration Tests", () => {
             const updated = await updateSmsProviderStatusWithDb(
                 db as any,
                 "hellosms_msg_random",
-                "Delivered",
+                "delivered",
             );
 
             expect(updated).toBe(false);
