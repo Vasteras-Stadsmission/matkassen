@@ -1010,7 +1010,14 @@
                 "parcelInPast": "Cannot cancel a parcel from the past"
             },
             "smsStatus": {
-                "title": "SMS Status"
+                "title": "SMS Status",
+                "provider": {
+                    "delivered": "Delivered",
+                    "failed": "Failed",
+                    "notDelivered": "Not Delivered",
+                    "awaiting": "Awaiting confirmation"
+                },
+                "deliveryStatusAt": "Delivery status at"
             }
         },
         "smsDashboard": {

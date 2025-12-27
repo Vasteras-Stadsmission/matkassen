@@ -49,6 +49,10 @@ interface SmsRecord {
     status: "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
     intent: string;
     nextAttemptAt?: string; // ISO date string for retry scheduling
+    providerStatus?: "delivered" | "failed" | "not delivered" | null;
+    providerStatusUpdatedAt?: string;
+    sentAt?: string;
+    createdAt: string;
 }
 
 interface ParcelDialogState {
@@ -679,27 +683,75 @@ export function ParcelAdminDialog({
                                         />
                                     </Group>
                                     {state.smsRecords.map(sms => (
-                                        <Group key={sms.id} justify="space-between">
-                                            <Group gap="xs">
-                                                <Badge
-                                                    color={
-                                                        sms.status === "sent"
-                                                            ? "green"
-                                                            : sms.status === "failed"
-                                                              ? "red"
-                                                              : sms.status === "queued"
-                                                                ? "blue"
-                                                                : "gray"
-                                                    }
-                                                    size="sm"
-                                                >
-                                                    {t(`admin.smsDashboard.status.${sms.status}`)}
-                                                </Badge>
-                                                <Text size="sm" c="dimmed">
-                                                    {t(`admin.smsDashboard.intent.${sms.intent}`)}
+                                        <Stack key={sms.id} gap="xs">
+                                            <Group justify="space-between" wrap="nowrap">
+                                                <Group gap="xs" wrap="nowrap">
+                                                    {/* Internal status badge */}
+                                                    <Badge
+                                                        color={
+                                                            sms.status === "sent"
+                                                                ? "green"
+                                                                : sms.status === "failed"
+                                                                  ? "red"
+                                                                  : sms.status === "queued"
+                                                                    ? "blue"
+                                                                    : "gray"
+                                                        }
+                                                        size="sm"
+                                                    >
+                                                        {t(
+                                                            `admin.smsDashboard.status.${sms.status}`,
+                                                        )}
+                                                    </Badge>
+                                                    {/* Provider status badge (only when sent) */}
+                                                    {sms.status === "sent" && (
+                                                        <Badge
+                                                            color={
+                                                                sms.providerStatus === "delivered"
+                                                                    ? "green"
+                                                                    : sms.providerStatus ===
+                                                                        "failed"
+                                                                      ? "red"
+                                                                      : sms.providerStatus ===
+                                                                          "not delivered"
+                                                                        ? "orange"
+                                                                        : "gray"
+                                                            }
+                                                            variant="outline"
+                                                            size="sm"
+                                                        >
+                                                            {sms.providerStatus
+                                                                ? t(
+                                                                      `admin.parcelDialog.smsStatus.provider.${sms.providerStatus === "not delivered" ? "notDelivered" : sms.providerStatus}`,
+                                                                  )
+                                                                : t(
+                                                                      "admin.parcelDialog.smsStatus.provider.awaiting",
+                                                                  )}
+                                                        </Badge>
+                                                    )}
+                                                    <Text size="sm" c="dimmed">
+                                                        {t(
+                                                            `admin.smsDashboard.intent.${sms.intent}`,
+                                                        )}
+                                                    </Text>
+                                                </Group>
+                                                {/* Timestamp */}
+                                                <Text size="xs" c="dimmed">
+                                                    {sms.sentAt
+                                                        ? formatDateTime(sms.sentAt)
+                                                        : formatDateTime(sms.createdAt)}
                                                 </Text>
                                             </Group>
-                                        </Group>
+                                            {/* Provider status update time */}
+                                            {sms.providerStatusUpdatedAt && (
+                                                <Text size="xs" c="dimmed" ml="xs">
+                                                    {t(
+                                                        "admin.parcelDialog.smsStatus.deliveryStatusAt",
+                                                    )}{" "}
+                                                    {formatDateTime(sms.providerStatusUpdatedAt)}
+                                                </Text>
+                                            )}
+                                        </Stack>
                                     ))}
                                 </Stack>
                             </Card>

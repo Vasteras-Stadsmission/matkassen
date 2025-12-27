@@ -1010,7 +1010,14 @@
                 "parcelInPast": "Kan inte avboka en matkasse från det förflutna"
             },
             "smsStatus": {
-                "title": "SMS-status"
+                "title": "SMS-status",
+                "provider": {
+                    "delivered": "Levererat",
+                    "failed": "Misslyckades",
+                    "notDelivered": "Ej levererat",
+                    "awaiting": "Inväntar bekräftelse"
+                },
+                "deliveryStatusAt": "Leveransstatus kl"
             }
         },
         "smsDashboard": {
