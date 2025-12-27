@@ -1252,9 +1252,31 @@
     "smsFailures": {
         "title": "Misslyckade SMS",
         "noFailures": "Inga misslyckade SMS för kommande hämtningar",
+        "noDismissed": "Inga avfärdade fel",
         "pickup": "Hämtning",
         "view": "Visa hushåll",
         "refresh": "Uppdatera",
-        "error": "Fel"
+        "error": "Fel",
+        "activeTab": "Aktiva",
+        "dismissedTab": "Avfärdade",
+        "internalError": "Sändning misslyckades",
+        "providerFailed": "Leverans misslyckades",
+        "notDelivered": "Ej levererat",
+        "sentAt": "Skickat",
+        "showError": "Visa feldetaljer",
+        "hideError": "Dölj feldetaljer",
+        "dismissedAt": "Avfärdad",
+        "by": "av",
+        "resend": "Skicka igen",
+        "resendTooltip": "Köa ett nytt SMS för denna matkasse",
+        "dismiss": "Avfärda",
+        "restore": "Återställ",
+        "resendSuccess": "SMS köat",
+        "resendSuccessMessage": "SMS har köats för sändning",
+        "resendError": "Omsändning misslyckades",
+        "dismissSuccess": "Avfärdad",
+        "dismissSuccessMessage": "Felet har markerats som hanterat",
+        "restoreSuccess": "Återställd",
+        "restoreSuccessMessage": "Felet har återställts till aktiv lista"
     }
 }
