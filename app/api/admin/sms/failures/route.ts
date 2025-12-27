@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, households } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, asc } from "drizzle-orm";
+import { eq, and, gte, asc, isNull, isNotNull, or } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 
@@ -26,8 +26,17 @@ function sanitizeErrorMessage(message: string | null): string | null {
     return sanitized;
 }
 
-// GET /api/admin/sms/failures - Get list of failed SMS for upcoming parcels
-export async function GET() {
+/**
+ * GET /api/admin/sms/failures - Get list of failed SMS for upcoming parcels
+ *
+ * Query params:
+ * - status: "active" (default) | "dismissed" - filter by dismiss status
+ *
+ * Returns failures including:
+ * - Internal failures (status = 'failed')
+ * - Provider failures (status = 'sent' AND provider_status IN ('failed', 'not delivered'))
+ */
+export async function GET(request: NextRequest) {
     try {
         // Validate authentication
         const authResult = await authenticateAdminRequest();
@@ -35,18 +44,45 @@ export async function GET() {
             return authResult.response!;
         }
 
-        // Query for failed SMS - same scope as failure-count for consistency
+        // Parse query params
+        const { searchParams } = new URL(request.url);
+        const statusFilter = searchParams.get("status") || "active";
+
+        // Validate status param
+        if (statusFilter !== "active" && statusFilter !== "dismissed") {
+            return NextResponse.json(
+                { error: "Invalid status parameter. Must be 'active' or 'dismissed'" },
+                { status: 400 },
+            );
+        }
+
+        // Build dismiss filter based on status param
+        const dismissFilter =
+            statusFilter === "dismissed"
+                ? isNotNull(outgoingSms.dismissed_at)
+                : isNull(outgoingSms.dismissed_at);
+
+        // Query for failed SMS - includes both internal and provider failures
         // Limited to 100 to prevent unbounded responses
         const failures = await db
             .select({
                 id: outgoingSms.id,
+                intent: outgoingSms.intent,
                 householdId: foodParcels.household_id,
                 householdFirstName: households.first_name,
                 householdLastName: households.last_name,
                 parcelId: outgoingSms.parcel_id,
+                phoneNumber: outgoingSms.to_e164,
                 pickupDateEarliest: foodParcels.pickup_date_time_earliest,
                 pickupDateLatest: foodParcels.pickup_date_time_latest,
+                status: outgoingSms.status,
+                providerStatus: outgoingSms.provider_status,
+                providerStatusUpdatedAt: outgoingSms.provider_status_updated_at,
                 errorMessage: outgoingSms.last_error_message,
+                sentAt: outgoingSms.sent_at,
+                createdAt: outgoingSms.created_at,
+                dismissedAt: outgoingSms.dismissed_at,
+                dismissedByUserId: outgoingSms.dismissed_by_user_id,
             })
             .from(outgoingSms)
             .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
@@ -55,7 +91,18 @@ export async function GET() {
                 and(
                     notDeleted(), // Only active parcels
                     gte(foodParcels.pickup_date_time_latest, new Date()), // Upcoming only
-                    eq(outgoingSms.status, "failed"), // Failed status only
+                    dismissFilter, // Active or dismissed based on query param
+                    // Include both internal failures AND provider failures
+                    or(
+                        eq(outgoingSms.status, "failed"), // Internal API failure
+                        and(
+                            eq(outgoingSms.status, "sent"), // Sent but provider failed
+                            or(
+                                eq(outgoingSms.provider_status, "failed"),
+                                eq(outgoingSms.provider_status, "not delivered"),
+                            ),
+                        ),
+                    ),
                 ),
             )
             .orderBy(asc(foodParcels.pickup_date_time_earliest)) // Soonest pickups first
