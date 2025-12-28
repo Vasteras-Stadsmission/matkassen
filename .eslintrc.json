@@ -1,5 +1,6 @@
 {
     "extends": ["next/core-web-vitals", "next/typescript"],
+    "plugins": ["eslint-plugin-local-rules"],
     "rules": {
         "react/no-unescaped-entities": "off",
         // Prevent console.* usage - use Pino logger instead
@@ -59,6 +60,13 @@
             ],
             "rules": {
                 "no-console": "off"
+            }
+        },
+        {
+            // Enforce error handling in server action files
+            "files": ["app/**/actions.ts"],
+            "rules": {
+                "local-rules/server-action-error-handling": "warn"
             }
         }
     ]
