@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, households } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, asc, isNull, isNotNull, or } from "drizzle-orm";
+import { eq, and, gte, lt, asc, isNull, isNotNull, or } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
+import { Time } from "@/app/utils/time-provider";
+
+// 24 hours in milliseconds - threshold for considering an unconfirmed SMS as stale
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Sanitize error messages to remove potential PII like phone numbers.
@@ -30,6 +34,28 @@ function sanitizeErrorMessage(message: string | null): string | null {
 }
 
 /**
+ * Determine the failure type based on SMS status and provider status
+ */
+function getFailureType(
+    status: string,
+    providerStatus: string | null,
+    sentAt: Date | null,
+    staleThreshold: Date,
+): "internal" | "provider" | "stale" {
+    if (status === "failed") {
+        return "internal";
+    }
+    if (providerStatus === "failed" || providerStatus === "not delivered") {
+        return "provider";
+    }
+    if (status === "sent" && !providerStatus && sentAt && sentAt < staleThreshold) {
+        return "stale";
+    }
+    // Fallback (shouldn't happen with proper query)
+    return "internal";
+}
+
+/**
  * GET /api/admin/sms/failures - Get list of failed SMS for upcoming parcels
  *
  * Query params:
@@ -38,6 +64,7 @@ function sanitizeErrorMessage(message: string | null): string | null {
  * Returns failures including:
  * - Internal failures (status = 'failed')
  * - Provider failures (status = 'sent' AND provider_status IN ('failed', 'not delivered'))
+ * - Stale unconfirmed (status = 'sent' AND provider_status IS NULL AND sent > 24h ago)
  */
 export async function GET(request: NextRequest) {
     try {
@@ -59,13 +86,17 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // Calculate stale threshold (24 hours ago)
+        const now = Time.now().toUTC();
+        const staleThreshold = new Date(now.getTime() - TWENTY_FOUR_HOURS_MS);
+
         // Build dismiss filter based on status param
         const dismissFilter =
             statusFilter === "dismissed"
                 ? isNotNull(outgoingSms.dismissed_at)
                 : isNull(outgoingSms.dismissed_at);
 
-        // Query for failed SMS - includes both internal and provider failures
+        // Query for failed SMS - includes internal failures, provider failures, and stale unconfirmed
         // Limited to 100 to prevent unbounded responses
         const failures = await db
             .select({
@@ -95,7 +126,7 @@ export async function GET(request: NextRequest) {
                     notDeleted(), // Only active parcels
                     gte(foodParcels.pickup_date_time_latest, new Date()), // Upcoming only
                     dismissFilter, // Active or dismissed based on query param
-                    // Include both internal failures AND provider failures
+                    // Include internal failures, provider failures, AND stale unconfirmed
                     or(
                         eq(outgoingSms.status, "failed"), // Internal API failure
                         and(
@@ -105,20 +136,26 @@ export async function GET(request: NextRequest) {
                                 eq(outgoingSms.provider_status, "not delivered"),
                             ),
                         ),
+                        and(
+                            eq(outgoingSms.status, "sent"), // Sent but no callback received
+                            isNull(outgoingSms.provider_status),
+                            lt(outgoingSms.sent_at, staleThreshold), // Sent > 24h ago
+                        ),
                     ),
                 ),
             )
             .orderBy(asc(foodParcels.pickup_date_time_earliest)) // Soonest pickups first
             .limit(100);
 
-        // Sanitize error messages before returning to client
-        const sanitizedFailures = failures.map(f => ({
+        // Add failureType and sanitize error messages before returning to client
+        const enrichedFailures = failures.map(f => ({
             ...f,
             errorMessage: sanitizeErrorMessage(f.errorMessage),
+            failureType: getFailureType(f.status, f.providerStatus, f.sentAt, staleThreshold),
         }));
 
         return NextResponse.json(
-            { failures: sanitizedFailures },
+            { failures: enrichedFailures },
             {
                 headers: {
                     "Cache-Control": "no-store, max-age=0",

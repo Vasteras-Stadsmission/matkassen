@@ -315,3 +315,63 @@ export async function sendDiskSpaceHealthAlert(isHealthy: boolean): Promise<void
 
     await sendSlackAlert(message);
 }
+
+/**
+ * SMS health statistics for daily report
+ */
+export interface SmsHealthStats {
+    sent: number;
+    delivered: number;
+    providerFailed: number;
+    notDelivered: number;
+    awaiting: number;
+    internalFailed: number;
+    staleUnconfirmed: number;
+    hasIssues: boolean;
+}
+
+/**
+ * Send daily SMS health report to Slack
+ *
+ * Only sends if there are issues (failures, stale unconfirmed, etc.)
+ * This is NOT state-transition based - it's a daily summary report.
+ */
+export async function sendSmsHealthReport(stats: SmsHealthStats): Promise<boolean> {
+    // Only send if there are issues
+    if (!stats.hasIssues) {
+        logger.debug("SMS health report skipped - no issues to report");
+        return true;
+    }
+
+    // Build the message body
+    const lines = [
+        `*Sent:* ${stats.sent}`,
+        `├─ Delivered: ${stats.delivered}`,
+        `├─ Provider Failed: ${stats.providerFailed}`,
+        `├─ Not Delivered: ${stats.notDelivered}`,
+        `└─ Awaiting: ${stats.awaiting}`,
+        "",
+        `*Internal Failures:* ${stats.internalFailed}`,
+        `*Stale (>24h unconfirmed):* ${stats.staleUnconfirmed}`,
+    ];
+
+    // Add actionable link
+    const appUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://matcentralen.com";
+    lines.push("", `→ <${appUrl}/sms-failures|Review SMS Failures>`);
+
+    const message: SlackMessage = {
+        title: "⚠️ SMS Health Report (Last 24h)",
+        message: lines.join("\n"),
+        status: "warning",
+        details: {
+            "Sent": stats.sent.toString(),
+            "Delivered": stats.delivered.toString(),
+            "Provider Failed": stats.providerFailed.toString(),
+            "Not Delivered": stats.notDelivered.toString(),
+            "Internal Failed": stats.internalFailed.toString(),
+            "Stale Unconfirmed": stats.staleUnconfirmed.toString(),
+        },
+    };
+
+    return sendSlackAlert(message);
+}

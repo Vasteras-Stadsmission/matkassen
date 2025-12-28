@@ -34,6 +34,8 @@ export async function createTestSms(overrides: {
     provider_status_updated_at?: Date;
     dismissed_at?: Date;
     dismissed_by_user_id?: string;
+    created_at?: Date;
+    error_message?: string;
 }) {
     const db = await getTestDb();
     smsCounter++;
@@ -59,13 +61,15 @@ export async function createTestSms(overrides: {
             idempotency_key: defaults.idempotency_key,
             attempt_count: overrides.attempt_count ?? defaults.attempt_count,
             next_attempt_at: overrides.next_attempt_at,
-            last_error_message: overrides.last_error_message,
+            last_error_message: overrides.last_error_message ?? overrides.error_message,
             sent_at: overrides.sent_at,
             provider_message_id: overrides.provider_message_id,
             provider_status: overrides.provider_status,
             provider_status_updated_at: overrides.provider_status_updated_at,
             dismissed_at: overrides.dismissed_at,
             dismissed_by_user_id: overrides.dismissed_by_user_id,
+            // Allow explicit created_at for time-sensitive tests (defaults to DB now() if not provided)
+            ...(overrides.created_at && { created_at: overrides.created_at }),
         })
         .returning();
 

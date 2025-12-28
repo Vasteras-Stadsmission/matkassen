@@ -1262,6 +1262,7 @@
         "internalError": "Sändning misslyckades",
         "providerFailed": "Leverans misslyckades",
         "notDelivered": "Ej levererat",
+        "staleUnconfirmed": "Ingen bekräftelse",
         "sentAt": "Skickat",
         "showError": "Visa feldetaljer",
         "hideError": "Dölj feldetaljer",

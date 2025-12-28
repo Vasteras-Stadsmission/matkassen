@@ -6,7 +6,7 @@ import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
-import { eq, and, lte, lt, sql, gt } from "drizzle-orm";
+import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
 import { formatPickupSms } from "./templates";
@@ -40,6 +40,9 @@ type DbErrorShape = {
 // Threshold for considering a "sending" record as stale (crashed mid-send)
 // 10 minutes is generous since actual sends complete in ~1-2 seconds
 const STALE_SENDING_THRESHOLD_MS = 10 * 60 * 1000;
+
+// 24 hours in milliseconds - used for SMS health stats time window
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 /**
  * HTTP status codes that indicate transient errors eligible for retry.
@@ -1122,6 +1125,105 @@ async function handleJitFailure(
             })
             .where(eq(outgoingSms.id, smsId));
     }
+}
+
+/**
+ * Get SMS health statistics for monitoring/alerting
+ *
+ * Returns counts of SMS by status for the last 24 hours, plus stale unconfirmed SMS.
+ * Used by the daily SMS health report to Slack.
+ *
+ * @returns Statistics object with counts and whether there are any issues
+ */
+export async function getSmsHealthStats(): Promise<{
+    sent: number;
+    delivered: number;
+    providerFailed: number;
+    notDelivered: number;
+    awaiting: number;
+    internalFailed: number;
+    staleUnconfirmed: number;
+    hasIssues: boolean;
+}> {
+    const now = Time.now().toUTC();
+    const twentyFourHoursAgo = new Date(now.getTime() - TWENTY_FOUR_HOURS_MS);
+
+    // Query 1: Last 24h stats for sent SMS (based on sent_at)
+    // Using gte to include SMS sent exactly at the 24h boundary
+    const sentStatsResult = await db
+        .select({
+            sent: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent')`,
+            delivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'delivered')`,
+            providerFailed: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'failed')`,
+            notDelivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'not delivered')`,
+            awaiting: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} IS NULL)`,
+        })
+        .from(outgoingSms)
+        .where(
+            and(
+                gte(outgoingSms.sent_at, twentyFourHoursAgo),
+                sql`${outgoingSms.dismissed_at} IS NULL`,
+            ),
+        );
+
+    // Query 1b: Internal failures (based on created_at since they never got sent_at)
+    // Using gte to include failures created exactly at the 24h boundary
+    const failedStatsResult = await db
+        .select({
+            internalFailed: sql<number>`COUNT(*)`,
+        })
+        .from(outgoingSms)
+        .where(
+            and(
+                eq(outgoingSms.status, "failed"),
+                gte(outgoingSms.created_at, twentyFourHoursAgo),
+                sql`${outgoingSms.dismissed_at} IS NULL`,
+            ),
+        );
+
+    // Query 2: Stale unconfirmed (sent > 24h ago, no provider status, not dismissed)
+    // Using lt (strictly older than 24h) so boundary case falls into "awaiting" not "stale"
+    const staleResult = await db
+        .select({
+            count: sql<number>`COUNT(*)`,
+        })
+        .from(outgoingSms)
+        .where(
+            and(
+                eq(outgoingSms.status, "sent"),
+                sql`${outgoingSms.provider_status} IS NULL`,
+                lt(outgoingSms.sent_at, twentyFourHoursAgo),
+                sql`${outgoingSms.dismissed_at} IS NULL`,
+            ),
+        );
+
+    const sentStats = sentStatsResult[0] || {
+        sent: 0,
+        delivered: 0,
+        providerFailed: 0,
+        notDelivered: 0,
+        awaiting: 0,
+    };
+    const internalFailed = Number(failedStatsResult[0]?.internalFailed || 0);
+    const staleUnconfirmed = staleResult[0]?.count || 0;
+
+    // Determine if there are any issues worth alerting about
+    const hasIssues =
+        internalFailed > 0 ||
+        Number(sentStats.providerFailed) > 0 ||
+        Number(sentStats.notDelivered) > 0 ||
+        Number(staleUnconfirmed) > 0;
+
+    return {
+        sent: Number(sentStats.sent),
+        delivered: Number(sentStats.delivered),
+        providerFailed: Number(sentStats.providerFailed),
+        notDelivered: Number(sentStats.notDelivered),
+        awaiting: Number(sentStats.awaiting),
+        internalFailed,
+        staleUnconfirmed: Number(staleUnconfirmed),
+        hasIssues,
+    };
 }
 
 /**
