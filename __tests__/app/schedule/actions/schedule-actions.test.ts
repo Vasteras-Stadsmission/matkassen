@@ -110,16 +110,12 @@ import {
 import { toStockholmTime } from "../../../../app/utils/date-utils";
 
 describe("Schedule Server Actions", () => {
-    let originalDateNow: any;
-
     beforeEach(() => {
-        // Store original Date.now implementation
-        originalDateNow = Date.now;
+        vi.useFakeTimers();
     });
 
     afterEach(() => {
-        // Restore original Date.now implementation
-        Date.now = originalDateNow;
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -129,9 +125,8 @@ describe("Schedule Server Actions", () => {
             // In Stockholm, this would be Sunday 00:30 (past midnight)
             const saturdayNight = new Date("2025-08-23T23:30:00.000Z"); // Saturday 23:30 UTC
 
-            // Mock Date.now to return this time
-            vi.spyOn(global, "Date").mockImplementation(() => saturdayNight as any);
-            Date.now = vi.fn(() => saturdayNight.getTime());
+            // Use fake timers to set the system time
+            vi.setSystemTime(saturdayNight);
 
             // Test that the function correctly handles the timezone conversion
             const stockholmTime = toStockholmTime(saturdayNight);
@@ -171,9 +166,8 @@ describe("Schedule Server Actions", () => {
             ];
 
             for (const testTime of testTimes) {
-                // Mock Date.now to return this time
-                vi.spyOn(global, "Date").mockImplementation(() => testTime as any);
-                Date.now = vi.fn(() => testTime.getTime());
+                // Use fake timers to set the system time
+                vi.setSystemTime(testTime);
 
                 const stockholmTime = toStockholmTime(testTime);
 
