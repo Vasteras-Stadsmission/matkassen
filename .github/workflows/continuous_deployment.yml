@@ -161,6 +161,7 @@ jobs:
                       export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
                       export HELLO_SMS_TEST_MODE="false"
                       export SMS_SEND_INTERVAL="5 minutes"
+                      export SMS_CALLBACK_SECRET="${{ secrets.SMS_CALLBACK_SECRET }}"
                       export ANONYMIZATION_SCHEDULE="0 2 * * 0"
                       export ANONYMIZATION_INACTIVE_DURATION="1 year"
                       export DB_BACKUP_PASSPHRASE="${{ secrets.DB_BACKUP_PASSPHRASE }}"
