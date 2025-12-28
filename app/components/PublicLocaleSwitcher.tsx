@@ -87,7 +87,7 @@ export function PublicLocaleSwitcher({
     };
 
     return (
-        <Menu shadow="md" width={200} disabled={isPending}>
+        <Menu shadow="md" width={200} disabled={isPending} position="bottom-end">
             <Menu.Target>
                 <Button
                     variant="light"

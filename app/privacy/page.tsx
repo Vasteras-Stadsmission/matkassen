@@ -172,8 +172,8 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
                     <Stack gap="lg">
                         <Paper p="xl" radius="md" shadow="sm">
                             <Stack gap="lg">
-                                <Group justify="space-between" align="center" wrap="nowrap">
-                                    <Title order={1}>
+                                <Group justify="space-between" align="flex-start">
+                                    <Title order={1} style={{ flex: 1, minWidth: 0 }}>
                                         {BRAND_NAME} - {messages.publicPrivacy.title}
                                     </Title>
                                     {languageOptions.length > 1 && (
