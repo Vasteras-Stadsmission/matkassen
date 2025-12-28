@@ -45,7 +45,7 @@ The following backend infrastructure is already implemented:
 | ------------------- | ---------------------------- | ----------- | ---- |
 | `delivered`         | `sms.status.delivered`       | Green       | ✓    |
 | `failed`            | `sms.status.provider_failed` | Red         | ✗    |
-| `not delivered`     | `sms.status.not_delivered`   | Orange      | ⚠   |
+| `not delivered`     | `sms.status.not_delivered`   | Orange      | ⚠    |
 | (null, status=sent) | `sms.status.awaiting`        | Gray        | ...  |
 
 **Note:** HelloSMS callbacks do NOT include error reasons. We only know the status, not why it failed.

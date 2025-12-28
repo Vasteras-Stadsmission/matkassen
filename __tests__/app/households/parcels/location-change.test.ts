@@ -128,9 +128,8 @@ describe("updateHouseholdParcels - Location Changes", () => {
 
     it("should handle location change with same time window", async () => {
         // Import after mocks are set up
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date();
         now.setHours(14, 0, 0, 0); // 2:00 PM today
@@ -193,9 +192,8 @@ describe("updateHouseholdParcels - Location Changes", () => {
 
     it("should not delete parcels when location changes but times remain", async () => {
         // Import after mocks are set up
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date();
         now.setHours(14, 0, 0, 0);
@@ -251,9 +249,8 @@ describe("updateHouseholdParcels - Location Changes", () => {
     });
 
     it("should handle multiple parcels with location changes", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date();
         now.setHours(14, 0, 0, 0);
@@ -324,9 +321,8 @@ describe("updateHouseholdParcels - Location Changes", () => {
     });
 
     it("should handle partial location changes (one changed, one stays)", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date();
         now.setHours(14, 0, 0, 0);

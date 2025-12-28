@@ -359,9 +359,8 @@ export const updateFoodParcelSchedule = protectedAction(
                 endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
 
                 // Use comprehensive validation
-                const { validateParcelAssignment } = await import(
-                    "@/app/utils/validation/parcel-assignment"
-                );
+                const { validateParcelAssignment } =
+                    await import("@/app/utils/validation/parcel-assignment");
                 const validationResult = await validateParcelAssignment({
                     parcelId,
                     newLocationId: parcel.locationId,
@@ -377,9 +376,8 @@ export const updateFoodParcelSchedule = protectedAction(
                     // Return the first error for display
                     const errors = validationResult.errors || [];
                     const primaryError = errors[0];
-                    const { formatValidationError } = await import(
-                        "@/app/utils/validation/parcel-assignment"
-                    );
+                    const { formatValidationError } =
+                        await import("@/app/utils/validation/parcel-assignment");
 
                     throw new Error(formatValidationError(primaryError));
                 }
@@ -468,9 +466,8 @@ export async function validateParcelAssignments(
         const locationId = parcels[0].locationId;
 
         // Import validation utilities
-        const { validateBulkParcelAssignments } = await import(
-            "@/app/utils/validation/parcel-assignment"
-        );
+        const { validateBulkParcelAssignments } =
+            await import("@/app/utils/validation/parcel-assignment");
 
         // Prepare assignments for validation
         const assignments = parcels.map(parcel => {

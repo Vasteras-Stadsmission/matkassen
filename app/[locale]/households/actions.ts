@@ -279,9 +279,8 @@ export async function addHouseholdComment(
 
     try {
         // Authorization: Verify user is authenticated and is an org member
-        const { validateOrganizationMembership } = await import(
-            "@/app/utils/auth/organization-auth"
-        );
+        const { validateOrganizationMembership } =
+            await import("@/app/utils/auth/organization-auth");
 
         // Get the current user from the session
         const session = await auth();

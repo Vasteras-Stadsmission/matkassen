@@ -118,26 +118,22 @@ rm -rf .auth && pnpm run test:e2e:auth
 **Current coverage** (stable, non-flaky):
 
 1. **Authentication** (`auth-verification.spec.ts`)
-
     - Session loads correctly
     - User avatar visible
     - Auth persists across refreshes
 
 2. **Admin Pages** (`admin.spec.ts`)
-
     - Dashboard, households, schedule, handout locations, SMS dashboard load
     - No crashes (500 errors)
     - No assumptions about content
 
 3. **Navigation** (`navigation.spec.ts`)
-
     - Sequential navigation through all sections
     - Back/forward browser navigation
     - Direct URL navigation
     - English locale navigation
 
 4. **Public Pages** (`public-parcel.spec.ts`)
-
     - `/p/*` routes accessible without auth
     - Graceful handling of invalid parcel IDs
     - Multi-language support via query params

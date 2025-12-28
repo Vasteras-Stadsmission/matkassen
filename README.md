@@ -33,7 +33,6 @@ Once these values are updated, the UI labels, SMS sender, and public pages refle
 The application requires **two** GitHub integrations for secure authentication:
 
 1. **GitHub OAuth App** - Handles user login
-
     - Create at: https://github.com/settings/developers
     - Set `Homepage URL` to your domain (e.g., `https://yourdomain.com`)
     - Set `Authorization callback URL` to `https://yourdomain.com/api/auth/callback/github`
@@ -325,18 +324,15 @@ The build validation (`pnpm run validate`) will fail if server actions are missi
 The project uses Drizzle ORM with a migration-based approach:
 
 1. **Making Schema Changes**:
-
     - Update the schema definition in `app/db/schema.ts`
     - Generate SQL migration files with `pnpm run db:generate`
     - Migration files will be created in the `migrations` directory
 
 2. **Applying Migrations**:
-
     - Run `pnpm run db:migrate` to apply migration files to the database
     - In Docker environments, migrations run automatically on startup
 
 3. **Custom SQL Migrations**:
-
     - If you want to ship custom DDL changes or seed data separately from your schema diffs, run:
         ```sh
         pnpm exec drizzle-kit generate --custom --name=seed-users
@@ -346,7 +342,6 @@ The project uses Drizzle ORM with a migration-based approach:
     - Custom migrations are applied in sequence along with schema migrations
 
 4. **Migration in Development**:
-
     - When using `pnpm run dev`, migrations apply automatically before the web service starts
     - When using `pnpm run preview:production`, migrations run automatically when the containers start
 

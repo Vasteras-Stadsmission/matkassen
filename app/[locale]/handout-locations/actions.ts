@@ -269,9 +269,8 @@ export const createSchedule = protectedAction(
 
         try {
             // Validate schedule overlap using shared utility
-            const { validateScheduleOverlap } = await import(
-                "@/app/utils/schedule/overlap-validation"
-            );
+            const { validateScheduleOverlap } =
+                await import("@/app/utils/schedule/overlap-validation");
             await validateScheduleOverlap(scheduleData, locationId);
 
             let createdSchedule: PickupLocationScheduleWithDays;
@@ -333,9 +332,8 @@ export const createSchedule = protectedAction(
 
             // Recompute outside-hours count for this location after schedule change
             try {
-                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
-                    "@/app/[locale]/schedule/actions"
-                );
+                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                    await import("@/app/[locale]/schedule/actions");
                 await recomputeOutsideHoursCount(locationId);
                 await clearLocationSchedulesCache(locationId);
             } catch (e) {
@@ -386,9 +384,8 @@ export const updateSchedule = protectedAction(
             const locationId = currentSchedule[0].pickup_location_id;
 
             // Validate schedule overlap using shared utility (excluding current schedule)
-            const { validateScheduleOverlap } = await import(
-                "@/app/utils/schedule/overlap-validation"
-            );
+            const { validateScheduleOverlap } =
+                await import("@/app/utils/schedule/overlap-validation");
             await validateScheduleOverlap(scheduleData, locationId, scheduleId);
 
             let updatedSchedule: PickupLocationScheduleWithDays;
@@ -455,9 +452,8 @@ export const updateSchedule = protectedAction(
 
             // Recompute outside-hours count for this location after schedule update
             try {
-                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } = await import(
-                    "@/app/[locale]/schedule/actions"
-                );
+                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                    await import("@/app/[locale]/schedule/actions");
                 await recomputeOutsideHoursCount(locationId);
                 await clearLocationSchedulesCache(locationId);
             } catch (e) {

@@ -224,9 +224,8 @@ export const enrollHousehold = protectedAction(
                     data.foodParcels.parcels.length > 0
                 ) {
                     // Validate all parcel assignments before creating any
-                    const { validateParcelAssignments } = await import(
-                        "@/app/[locale]/schedule/actions"
-                    );
+                    const { validateParcelAssignments } =
+                        await import("@/app/[locale]/schedule/actions");
 
                     const parcelsToValidate = data.foodParcels.parcels.map(parcel => ({
                         householdId: household.id,
@@ -290,9 +289,8 @@ export const enrollHousehold = protectedAction(
              */
             if (locationId) {
                 try {
-                    const { recomputeOutsideHoursCount } = await import(
-                        "@/app/[locale]/schedule/actions"
-                    );
+                    const { recomputeOutsideHoursCount } =
+                        await import("@/app/[locale]/schedule/actions");
                     await recomputeOutsideHoursCount(locationId);
                 } catch (e) {
                     logError("Failed to recompute outside-hours count after enrollment", e, {

@@ -288,9 +288,8 @@ export function ScheduleForm({
     // Check how many parcels would be affected by this schedule change
     const checkAffectedParcels = async (values: ScheduleInput) => {
         try {
-            const { checkParcelsAffectedByScheduleChange } = await import(
-                "@/app/[locale]/schedule/actions"
-            );
+            const { checkParcelsAffectedByScheduleChange } =
+                await import("@/app/[locale]/schedule/actions");
             const count = await checkParcelsAffectedByScheduleChange(
                 locationId,
                 values,
