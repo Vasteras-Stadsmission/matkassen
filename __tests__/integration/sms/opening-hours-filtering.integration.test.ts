@@ -37,6 +37,21 @@ function realTimeFromNow(hours: number): Date {
     return new Date(Date.now() + hours * 60 * 60 * 1000);
 }
 
+/**
+ * Helper to create a pickup date at a safe time within opening hours.
+ * This ensures the pickup time is at noon (12:00) on a future day,
+ * safely within the 09:00-17:00 opening hours window to avoid flaky tests
+ * caused by tests running near schedule boundaries.
+ */
+function safePickupTime(daysFromNow: number): Date {
+    const now = new Date();
+    const futureDate = new Date(now);
+    futureDate.setDate(futureDate.getDate() + daysFromNow);
+    // Set to noon (12:00) - safely in the middle of 09:00-17:00 window
+    futureDate.setHours(12, 0, 0, 0);
+    return futureDate;
+}
+
 describe("SMS Opening Hours Filtering - Integration Tests", () => {
     beforeEach(() => {
         resetHouseholdCounter();
@@ -228,9 +243,28 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household1 = await createTestHousehold();
             const household2 = await createTestHousehold();
             const household3 = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
+            // Use a schedule that covers all days to avoid weekend flakiness
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                {
+                    weekdays: [
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                        "sunday",
+                    ],
+                    openingTime: "09:00",
+                    closingTime: "17:00",
+                },
+            );
 
-            const baseTime = realTimeFromNow(24);
+            // Use safePickupTime to ensure all parcels are at noon (12:00),
+            // safely within the 09:00-17:00 opening hours window.
+            // Space them only 5 minutes apart so they all stay near noon.
+            const baseTime = safePickupTime(1);
 
             // Create 3 parcels for different households at slightly different times
             const parcel1 = await createTestParcel({
@@ -241,12 +275,12 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const parcel2 = await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(baseTime.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: new Date(baseTime.getTime() + 5 * 60 * 1000),
             });
             const parcel3 = await createTestParcel({
                 household_id: household3.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(baseTime.getTime() + 60 * 60 * 1000),
+                pickup_date_time_earliest: new Date(baseTime.getTime() + 10 * 60 * 1000),
             });
 
             const result = await getParcelsNeedingReminder();
