@@ -469,6 +469,8 @@
     "householdDetail": {
         "basics": "Grunduppgifter",
         "createdBy": "Skapad av {username}",
+        "created": "Skapad",
+        "enrollmentSmsDelivered": "Välkomst-SMS levererat",
         "members": "Medlemmar ({count})",
         "noMembers": "Inga medlemmar tillagda",
         "pets": "Husdjur ({count})",

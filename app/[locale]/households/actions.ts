@@ -14,8 +14,9 @@ import {
     pickupLocations,
     householdComments,
     users,
+    outgoingSms,
 } from "@/app/db/schema";
-import { asc, eq, and, isNull } from "drizzle-orm";
+import { asc, desc, eq, and, isNull } from "drizzle-orm";
 import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
@@ -79,6 +80,7 @@ export async function getHouseholdDetails(householdId: string) {
                 locale: households.locale,
                 postal_code: households.postal_code,
                 created_by: households.created_by,
+                created_at: households.created_at,
                 anonymized_at: households.anonymized_at,
                 anonymized_by: households.anonymized_by,
             })
@@ -230,9 +232,26 @@ export async function getHouseholdDetails(householdId: string) {
             }
         }
 
+        // Check enrollment SMS delivery status (get most recent)
+        const [enrollmentSms] = await db
+            .select({
+                status: outgoingSms.status,
+                provider_status: outgoingSms.provider_status,
+            })
+            .from(outgoingSms)
+            .where(
+                and(eq(outgoingSms.household_id, householdId), eq(outgoingSms.intent, "enrolment")),
+            )
+            .orderBy(desc(outgoingSms.created_at))
+            .limit(1);
+
+        const enrollmentSmsDelivered =
+            enrollmentSms?.status === "sent" && enrollmentSms?.provider_status === "delivered";
+
         return {
             household,
             creatorGithubData,
+            enrollmentSmsDelivered,
             members,
             dietaryRestrictions: dietaryRestrictionsResult,
             additionalNeeds: additionalNeedsResult,
