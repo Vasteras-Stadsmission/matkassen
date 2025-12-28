@@ -148,7 +148,7 @@ describe("Validation Error Messages (i18n verification)", () => {
             en: "Location capacity exceeded for selected date",
         },
         "foodParcels.validationErrors.slotCapacityReached": {
-            sv: "Tidsluckan är fullbokad",
+            sv: "Tidssloten är fullbokad",
             en: "Time slot is fully booked",
         },
         "foodParcels.validationErrors.doubleBooking": {
