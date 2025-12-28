@@ -306,7 +306,9 @@ export default function HouseholdDetailsPage({
                         postalCode={householdData.household.postal_code}
                         locale={householdData.household.locale}
                         createdBy={householdData.household.created_by}
+                        createdAt={householdData.household.created_at}
                         creatorGithubData={householdData.creatorGithubData}
+                        enrollmentSmsDelivered={householdData.enrollmentSmsDelivered}
                         getLanguageName={getLanguageName}
                     />
 

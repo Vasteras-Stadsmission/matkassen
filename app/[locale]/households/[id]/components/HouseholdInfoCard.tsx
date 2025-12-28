@@ -1,8 +1,15 @@
 "use client";
 
-import { Paper, Title, Stack, Group, ThemeIcon, Text, Avatar } from "@mantine/core";
-import { IconUser, IconPhone, IconMailbox, IconLanguage, IconUserCheck } from "@tabler/icons-react";
-import { useTranslations } from "next-intl";
+import { Paper, Title, Stack, Group, ThemeIcon, Text, Avatar, Tooltip } from "@mantine/core";
+import {
+    IconUser,
+    IconPhone,
+    IconMailbox,
+    IconLanguage,
+    IconUserCheck,
+    IconCircleCheck,
+} from "@tabler/icons-react";
+import { useTranslations, useLocale } from "next-intl";
 import type { GithubUserData } from "@/app/[locale]/households/enroll/types";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
@@ -13,7 +20,9 @@ interface HouseholdInfoCardProps {
     postalCode: string | null;
     locale: string;
     createdBy: string | null;
+    createdAt: Date | string | null;
     creatorGithubData?: GithubUserData | null;
+    enrollmentSmsDelivered?: boolean;
     getLanguageName: (locale: string) => string;
 }
 
@@ -24,10 +33,13 @@ export function HouseholdInfoCard({
     postalCode,
     locale,
     createdBy,
+    createdAt,
     creatorGithubData,
+    enrollmentSmsDelivered,
     getLanguageName,
 }: HouseholdInfoCardProps) {
     const t = useTranslations("householdDetail");
+    const currentLocale = useLocale();
 
     const formatPostalCode = (code: string | null) => {
         if (!code) return "";
@@ -36,6 +48,15 @@ export function HouseholdInfoCard({
             return `${digits.substring(0, 3)} ${digits.substring(3)}`;
         }
         return code;
+    };
+
+    const formatDate = (date: Date | string | null) => {
+        if (!date) return "";
+        return new Date(date).toLocaleDateString(currentLocale, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
     };
 
     return (
@@ -57,6 +78,18 @@ export function HouseholdInfoCard({
                         <IconPhone size={20} />
                     </ThemeIcon>
                     <Text size="md">{formatPhoneForDisplay(phoneNumber)}</Text>
+                    {enrollmentSmsDelivered && (
+                        <Tooltip label={t("enrollmentSmsDelivered")} withArrow>
+                            <ThemeIcon
+                                size="sm"
+                                variant="transparent"
+                                color="green"
+                                aria-label={t("enrollmentSmsDelivered")}
+                            >
+                                <IconCircleCheck size={16} />
+                            </ThemeIcon>
+                        </Tooltip>
+                    )}
                 </Group>
                 <Group gap="sm">
                     <ThemeIcon size="lg" variant="light" color="blue">
@@ -70,30 +103,33 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
-                {createdBy && (
+                {(createdBy || createdAt) && (
                     <Group gap="sm">
                         {creatorGithubData ? (
-                            <>
-                                <Avatar
-                                    src={creatorGithubData.avatar_url}
-                                    alt={creatorGithubData.name || createdBy}
-                                    size="md"
-                                    radius="xl"
-                                />
-                                <Text size="md">
-                                    {t("createdBy", {
-                                        username: creatorGithubData.name || createdBy,
-                                    })}
-                                </Text>
-                            </>
+                            <Avatar
+                                src={creatorGithubData.avatar_url}
+                                alt={creatorGithubData.name || createdBy || ""}
+                                size="md"
+                                radius="xl"
+                            />
                         ) : (
-                            <>
-                                <ThemeIcon size="lg" variant="light" color="blue">
-                                    <IconUserCheck size={20} />
-                                </ThemeIcon>
-                                <Text size="md">{t("createdBy", { username: createdBy })}</Text>
-                            </>
+                            <ThemeIcon size="lg" variant="light" color="blue">
+                                <IconUserCheck size={20} />
+                            </ThemeIcon>
                         )}
+                        <Text size="md">
+                            {createdBy
+                                ? t("createdBy", {
+                                      username: creatorGithubData?.name || createdBy,
+                                  })
+                                : t("created")}
+                            {createdAt && (
+                                <Text span c="dimmed" size="sm">
+                                    {" · "}
+                                    {formatDate(createdAt)}
+                                </Text>
+                            )}
+                        </Text>
                     </Group>
                 )}
             </Stack>

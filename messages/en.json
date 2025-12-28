@@ -469,6 +469,8 @@
     "householdDetail": {
         "basics": "Basic Information",
         "createdBy": "Created by {username}",
+        "created": "Created",
+        "enrollmentSmsDelivered": "Enrollment SMS delivered",
         "members": "Members ({count})",
         "noMembers": "No members added",
         "pets": "Pets ({count})",
