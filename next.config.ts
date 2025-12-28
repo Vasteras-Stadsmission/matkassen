@@ -32,8 +32,6 @@ const nextConfig: NextConfig = {
     experimental: {
         // Enable tree-shaking for mantine
         optimizePackageImports: ["@mantine/core", "@mantine/hooks"],
-        // Improve resource loading
-        optimizeCss: true,
         // PPR is only available in canary versions, so removing it
         // ppr: true,
         // Trust proxy headers for Server Actions when behind nginx
