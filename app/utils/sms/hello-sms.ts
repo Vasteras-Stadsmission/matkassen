@@ -223,9 +223,12 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
             };
         }
     } catch (error) {
+        // Network/DNS/timeout errors should be treated as retriable (503 Service Unavailable)
+        // This ensures transient network issues don't cause permanent SMS failures
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",
+            httpStatus: 503,
         };
     }
 }

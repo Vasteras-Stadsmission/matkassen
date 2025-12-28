@@ -417,6 +417,15 @@ export const updateFoodParcelSchedule = protectedAction(
                 // Non-fatal: The count will be corrected by the next schedule operation
             }
 
+            // Queue pickup_updated SMS if a reminder was already sent
+            try {
+                const { queuePickupUpdatedSms } = await import("@/app/utils/sms/sms-service");
+                await queuePickupUpdatedSms(parcelId);
+            } catch (e) {
+                logError("Failed to queue pickup_updated SMS", e, { parcelId });
+                // Non-fatal: The parcel update succeeded, SMS is a nice-to-have
+            }
+
             return success(undefined);
         } catch (error) {
             logError("Error updating food parcel schedule", error, { parcelId });

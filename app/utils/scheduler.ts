@@ -24,6 +24,7 @@ type SchedulerState = {
     hasEverStarted: boolean;
     lastAnonymizationRun: Date | null;
     lastAnonymizationStatus: "success" | "error" | null;
+    smsProcessingInFlight: boolean; // Prevents concurrent SMS processing
 };
 
 const GLOBAL_STATE_KEY = "__matkassenSchedulerState";
@@ -43,6 +44,7 @@ function getSchedulerState(): SchedulerState {
             hasEverStarted: false,
             lastAnonymizationRun: null,
             lastAnonymizationStatus: null,
+            smsProcessingInFlight: false,
         };
     }
 
@@ -114,6 +116,25 @@ async function processSmsJIT(): Promise<{ processed: number }> {
     return {
         processed: jitResult.processed + queueResult,
     };
+}
+
+/**
+ * Process SMS with concurrency guard.
+ * Prevents overlapping executions from interval and manual triggers.
+ */
+async function processSmsJITWithLock(): Promise<{ processed: number; skipped: boolean }> {
+    if (schedulerState.smsProcessingInFlight) {
+        logger.debug("SMS processing already in flight, skipping this run");
+        return { processed: 0, skipped: true };
+    }
+
+    schedulerState.smsProcessingInFlight = true;
+    try {
+        const result = await processSmsJIT();
+        return { ...result, skipped: false };
+    } finally {
+        schedulerState.smsProcessingInFlight = false;
+    }
 }
 
 /**
@@ -227,9 +248,10 @@ export function startScheduler(): void {
     );
 
     // Start SMS loop (pure JIT: find parcels → render → send → create record)
+    // Uses lock to prevent overlapping runs
     schedulerState.smsInterval = setInterval(async () => {
         try {
-            await processSmsJIT();
+            await processSmsJITWithLock();
         } catch (error) {
             logError("Error in SMS JIT loop", error);
         }
@@ -293,8 +315,8 @@ export function startScheduler(): void {
         }
     }, HEALTH_CHECK_INTERVAL_MS);
 
-    // Run SMS JIT once immediately on startup
-    processSmsJIT().catch(err => logError("Error in immediate SMS JIT", err));
+    // Run SMS JIT once immediately on startup (uses lock)
+    processSmsJITWithLock().catch(err => logError("Error in immediate SMS JIT", err));
 
     logger.debug("Scheduler started successfully (pure JIT SMS)");
 
@@ -451,18 +473,23 @@ export async function triggerAnonymization(): Promise<{
  * Processes both:
  * - Pure JIT reminders: finds eligible parcels → renders → sends → creates records
  * - Queued SMS: enrollment and other queued intents
+ *
+ * Uses concurrency lock to prevent overlapping runs with scheduled interval.
  */
 export async function triggerSmsJIT(): Promise<{
     success: boolean;
     processedCount?: number;
+    skipped?: boolean;
     error?: string;
 }> {
     try {
         // Process both JIT reminders and queued SMS (same as scheduler interval)
-        const result = await processSmsJIT();
+        // Uses lock to prevent concurrent execution
+        const result = await processSmsJITWithLock();
         return {
             success: true,
             processedCount: result.processed,
+            skipped: result.skipped,
         };
     } catch (error) {
         return {
