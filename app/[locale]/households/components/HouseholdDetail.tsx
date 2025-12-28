@@ -188,7 +188,9 @@ export default function InternationalizedHouseholdDetail({
                             <ThemeIcon size="md" variant="light" color="blue">
                                 <IconPhone size={16} />
                             </ThemeIcon>
-                            <Text>{formatPhoneForDisplay(householdDetail.household.phone_number)}</Text>
+                            <Text>
+                                {formatPhoneForDisplay(householdDetail.household.phone_number)}
+                            </Text>
                         </Group>
                         <Group gap="xs" mb="xs">
                             <ThemeIcon size="md" variant="light" color="blue">
