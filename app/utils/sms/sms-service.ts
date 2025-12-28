@@ -6,7 +6,7 @@ import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
-import { eq, and, lte, lt, sql, gt } from "drizzle-orm";
+import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
 import { formatPickupSms } from "./templates";
@@ -31,6 +31,9 @@ const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
 // Threshold for considering a "sending" record as stale (crashed mid-send)
 // 10 minutes is generous since actual sends complete in ~1-2 seconds
 const STALE_SENDING_THRESHOLD_MS = 10 * 60 * 1000;
+
+// 24 hours in milliseconds - used for SMS health stats time window
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 /**
  * HTTP status codes that indicate transient errors eligible for retry.
@@ -1138,9 +1141,10 @@ export async function getSmsHealthStats(): Promise<{
     hasIssues: boolean;
 }> {
     const now = Time.now().toUTC();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const twentyFourHoursAgo = new Date(now.getTime() - TWENTY_FOUR_HOURS_MS);
 
     // Query 1: Last 24h stats for sent SMS (based on sent_at)
+    // Using gte to include SMS sent exactly at the 24h boundary
     const sentStatsResult = await db
         .select({
             sent: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent')`,
@@ -1152,12 +1156,13 @@ export async function getSmsHealthStats(): Promise<{
         .from(outgoingSms)
         .where(
             and(
-                gt(outgoingSms.sent_at, twentyFourHoursAgo),
+                gte(outgoingSms.sent_at, twentyFourHoursAgo),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
             ),
         );
 
     // Query 1b: Internal failures (based on created_at since they never got sent_at)
+    // Using gte to include failures created exactly at the 24h boundary
     const failedStatsResult = await db
         .select({
             internalFailed: sql<number>`COUNT(*)`,
@@ -1166,12 +1171,13 @@ export async function getSmsHealthStats(): Promise<{
         .where(
             and(
                 eq(outgoingSms.status, "failed"),
-                gt(outgoingSms.created_at, twentyFourHoursAgo),
+                gte(outgoingSms.created_at, twentyFourHoursAgo),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
             ),
         );
 
     // Query 2: Stale unconfirmed (sent > 24h ago, no provider status, not dismissed)
+    // Using lt (strictly older than 24h) so boundary case falls into "awaiting" not "stale"
     const staleResult = await db
         .select({
             count: sql<number>`COUNT(*)`,

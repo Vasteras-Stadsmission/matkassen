@@ -478,7 +478,9 @@ export async function schedulerHealthCheck(): Promise<{
         // This catches invalid ANONYMIZATION_SCHEDULE env var before Slack alerts fail
         const anonymizationSchedulerRunning = schedulerState.anonymizationTask !== null;
         const smsReportSchedulerRunning = schedulerState.smsReportTask !== null;
-        // SMS report is not critical for health - it's just a reporting task
+        // SMS report is not critical for health - it's just a reporting task, so we
+        // expose smsReportSchedulerRunning in details for observability but do not
+        // include it in the health determination.
         const isHealthy = schedulerState.isRunning && anonymizationSchedulerRunning;
 
         return {

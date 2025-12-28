@@ -356,7 +356,7 @@ export async function sendSmsHealthReport(stats: SmsHealthStats): Promise<boolea
     ];
 
     // Add actionable link
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://matcentralen.com";
+    const appUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://matcentralen.com";
     lines.push("", `→ <${appUrl}/sms-failures|Review SMS Failures>`);
 
     const message: SlackMessage = {

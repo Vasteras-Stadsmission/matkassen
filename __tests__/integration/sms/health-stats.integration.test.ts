@@ -3,8 +3,12 @@
  *
  * These tests verify the getSmsHealthStats() function correctly
  * aggregates SMS delivery statistics for the daily health report.
+ *
+ * Note: Time is mocked globally by the integration test setup (setup.ts)
+ * to TEST_NOW. Do not call vi.useFakeTimers() or vi.useRealTimers() here
+ * as it would interfere with other integration tests.
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { getSmsHealthStats } from "@/app/utils/sms/sms-service";
 import { createTestHousehold, resetHouseholdCounter } from "../../factories/household.factory";
 import {
@@ -17,17 +21,14 @@ import {
 } from "../../factories/sms.factory";
 import { TEST_NOW } from "../../test-time";
 
+// 24 hours in milliseconds - matches the constant in sms-service.ts
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
 describe("SMS Health Statistics", () => {
     beforeEach(() => {
         resetHouseholdCounter();
         resetSmsCounter();
-        // Mock Time.now() to return TEST_NOW for consistent testing
-        vi.useFakeTimers();
-        vi.setSystemTime(TEST_NOW);
-    });
-
-    afterEach(() => {
-        vi.useRealTimers();
+        // Time is already mocked to TEST_NOW by global setup
     });
 
     describe("Basic counting", () => {
@@ -311,6 +312,93 @@ describe("SMS Health Statistics", () => {
 
             expect(stats.sent).toBe(5);
             expect(stats.delivered).toBe(5);
+            expect(stats.hasIssues).toBe(false);
+        });
+    });
+
+    describe("Boundary conditions", () => {
+        it("counts SMS sent exactly 24h ago as awaiting (not stale)", async () => {
+            const household = await createTestHousehold();
+
+            // SMS sent exactly 24 hours ago, no provider status yet
+            const exactlyTwentyFourHoursAgo = new Date(TEST_NOW.getTime() - TWENTY_FOUR_HOURS_MS);
+            await createTestSms({
+                household_id: household.id,
+                status: "sent",
+                sent_at: exactlyTwentyFourHoursAgo,
+                // No provider_status = awaiting confirmation
+            });
+
+            const stats = await getSmsHealthStats();
+
+            // Should be in "awaiting" (within 24h window due to gte), not "stale"
+            expect(stats.sent).toBe(1);
+            expect(stats.awaiting).toBe(1);
+            expect(stats.staleUnconfirmed).toBe(0);
+            expect(stats.hasIssues).toBe(false);
+        });
+
+        it("counts internal failure created exactly 24h ago", async () => {
+            const household = await createTestHousehold();
+
+            // Internal failure created exactly 24 hours ago
+            const exactlyTwentyFourHoursAgo = new Date(TEST_NOW.getTime() - TWENTY_FOUR_HOURS_MS);
+            await createTestSms({
+                household_id: household.id,
+                status: "failed",
+                created_at: exactlyTwentyFourHoursAgo,
+                error_message: "API error",
+            });
+
+            const stats = await getSmsHealthStats();
+
+            expect(stats.internalFailed).toBe(1);
+            expect(stats.hasIssues).toBe(true);
+        });
+    });
+
+    describe("Time window behavior", () => {
+        it("does not count provider failures older than 24h in sent stats", async () => {
+            const household = await createTestHousehold();
+
+            // Provider failure from 30 hours ago (outside 24h window)
+            // This documents current behavior: old failures need dismissal or backlog query
+            const thirtyHoursAgo = new Date(TEST_NOW.getTime() - 30 * 60 * 60 * 1000);
+            await createTestSms({
+                household_id: household.id,
+                status: "sent",
+                sent_at: thirtyHoursAgo,
+                provider_message_id: "msg_old",
+                provider_status: "failed",
+                provider_status_updated_at: thirtyHoursAgo,
+            });
+
+            const stats = await getSmsHealthStats();
+
+            // Old provider failure is not in the 24h "sent" stats
+            expect(stats.sent).toBe(0);
+            expect(stats.providerFailed).toBe(0);
+            // It's also not "stale unconfirmed" since it has a provider_status
+            expect(stats.staleUnconfirmed).toBe(0);
+            // No issues detected (old failures outside monitoring window)
+            expect(stats.hasIssues).toBe(false);
+        });
+
+        it("does not count internal failures older than 24h", async () => {
+            const household = await createTestHousehold();
+
+            // Internal failure from 30 hours ago (outside 24h window)
+            const thirtyHoursAgo = new Date(TEST_NOW.getTime() - 30 * 60 * 60 * 1000);
+            await createTestSms({
+                household_id: household.id,
+                status: "failed",
+                created_at: thirtyHoursAgo,
+                error_message: "Old API error",
+            });
+
+            const stats = await getSmsHealthStats();
+
+            expect(stats.internalFailed).toBe(0);
             expect(stats.hasIssues).toBe(false);
         });
     });
