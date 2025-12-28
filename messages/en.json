@@ -1277,7 +1277,8 @@
         "dismissSuccess": "Dismissed",
         "dismissSuccessMessage": "Failure has been marked as handled",
         "restoreSuccess": "Restored",
-        "restoreSuccessMessage": "Failure has been restored to active list"
+        "restoreSuccessMessage": "Failure has been restored to active list",
+        "accessDenied": "Access denied. You don't have permission to view SMS failures."
     },
     "smsConfirm": {
         "title": "Send SMS",

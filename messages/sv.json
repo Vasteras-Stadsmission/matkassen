@@ -1277,7 +1277,8 @@
         "dismissSuccess": "Avfärdad",
         "dismissSuccessMessage": "Felet har markerats som hanterat",
         "restoreSuccess": "Återställd",
-        "restoreSuccessMessage": "Felet har återställts till aktiv lista"
+        "restoreSuccessMessage": "Felet har återställts till aktiv lista",
+        "accessDenied": "Åtkomst nekad. Du har inte behörighet att visa SMS-fel."
     },
     "smsConfirm": {
         "title": "Skicka SMS",

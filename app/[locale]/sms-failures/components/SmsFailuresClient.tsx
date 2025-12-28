@@ -91,10 +91,15 @@ export function SmsFailuresClient() {
                 });
 
                 // Handle auth errors specifically
-                if (response.status === 401 || response.status === 403) {
-                    // Redirect to sign-in page with callback URL for better UX
+                if (response.status === 401) {
+                    // Not authenticated - redirect to sign-in with callback URL
                     const callbackUrl = encodeURIComponent(window.location.pathname);
                     window.location.href = `/api/auth/signin?callbackUrl=${callbackUrl}`;
+                    return;
+                }
+                if (response.status === 403) {
+                    // Authenticated but not authorized - show access denied
+                    setError(t("smsFailures.accessDenied"));
                     return;
                 }
 
