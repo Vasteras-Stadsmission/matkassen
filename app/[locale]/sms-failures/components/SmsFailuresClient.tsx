@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
     Stack,
@@ -67,8 +67,17 @@ export function SmsFailuresClient() {
     const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
+    // Abort controller to cancel in-flight requests when a new one starts
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     const fetchData = useCallback(
         async (isRefresh = false, tab: TabValue = activeTab) => {
+            // Cancel any in-flight request to prevent race conditions
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+            abortControllerRef.current = new AbortController();
+
             if (isRefresh) {
                 setRefreshing(true);
             } else {
@@ -77,7 +86,17 @@ export function SmsFailuresClient() {
             setError(null);
 
             try {
-                const response = await fetch(`/api/admin/sms/failures?status=${tab}`);
+                const response = await fetch(`/api/admin/sms/failures?status=${tab}`, {
+                    signal: abortControllerRef.current.signal,
+                });
+
+                // Handle auth errors specifically
+                if (response.status === 401 || response.status === 403) {
+                    // Redirect to sign-in page for auth errors
+                    window.location.href = "/api/auth/signin";
+                    return;
+                }
+
                 if (!response.ok) {
                     throw new Error(t("smsFailures.error"));
                 }
@@ -88,7 +107,11 @@ export function SmsFailuresClient() {
                 } else {
                     setFailures([]);
                 }
-            } catch {
+            } catch (err) {
+                // Ignore abort errors (expected when cancelling requests)
+                if (err instanceof Error && err.name === "AbortError") {
+                    return;
+                }
                 setError(t("smsFailures.error"));
             } finally {
                 setInitialLoading(false);
@@ -100,6 +123,13 @@ export function SmsFailuresClient() {
 
     useEffect(() => {
         fetchData(false, activeTab);
+
+        // Cleanup: cancel any in-flight request on unmount
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
     }, [fetchData, activeTab]);
 
     const handleTabChange = (value: string | null) => {
