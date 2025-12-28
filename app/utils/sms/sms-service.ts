@@ -28,6 +28,15 @@ export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | 
 
 const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
 
+// Type for database errors, supporting both direct postgres errors and drizzle-orm 0.45+ wrapped errors
+type DbErrorShape = {
+    code?: string;
+    constraint?: string;
+    constraint_name?: string;
+    detail?: string;
+    cause?: DbErrorShape;
+};
+
 // Threshold for considering a "sending" record as stale (crashed mid-send)
 // 10 minutes is generous since actual sends complete in ~1-2 seconds
 const STALE_SENDING_THRESHOLD_MS = 10 * 60 * 1000;
@@ -223,12 +232,10 @@ export async function createSmsRecord(data: CreateSmsData): Promise<string> {
         return id;
     } catch (error: unknown) {
         // Handle unique constraint violation on idempotency key
-        const dbError = error as {
-            code?: string;
-            constraint?: string;
-            constraint_name?: string;
-            detail?: string;
-        };
+        // Drizzle-orm 0.45+ wraps postgres errors, so check both direct properties and cause
+        const errorObj = error as DbErrorShape;
+        // Check both the error itself and its cause (for drizzle-orm 0.45+ wrapped errors)
+        const dbError = errorObj?.cause || errorObj;
         const constraintName =
             dbError?.constraint ||
             dbError?.constraint_name ||
@@ -915,12 +922,10 @@ export async function sendReminderForParcel(parcel: {
         });
     } catch (dbError: unknown) {
         // Handle idempotency constraint violation (SMS already exists/being sent)
-        const err = dbError as {
-            code?: string;
-            constraint?: string;
-            constraint_name?: string;
-            detail?: string;
-        };
+        // Drizzle-orm 0.45+ wraps postgres errors, so check both direct properties and cause
+        const errorObj = dbError as DbErrorShape;
+        // Check both the error itself and its cause (for drizzle-orm 0.45+ wrapped errors)
+        const err = errorObj?.cause || errorObj;
         const constraintName =
             err?.constraint ||
             err?.constraint_name ||
