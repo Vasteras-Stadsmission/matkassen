@@ -9,6 +9,7 @@ import {
     getSmsRecordsReadyForSending,
     sendSmsRecord,
     processQueuedSms,
+    getSmsHealthStats,
 } from "@/app/utils/sms/sms-service";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { parseDuration } from "@/app/utils/duration-parser";
@@ -19,11 +20,14 @@ type SchedulerState = {
     isRunning: boolean;
     smsInterval: NodeJS.Timeout | null; // Single interval for pure JIT
     anonymizationTask: ScheduledTask | null;
+    smsReportTask: ScheduledTask | null; // Daily SMS health report
     healthCheckInterval: NodeJS.Timeout | null;
     lastHealthLog: number;
     hasEverStarted: boolean;
     lastAnonymizationRun: Date | null;
     lastAnonymizationStatus: "success" | "error" | null;
+    lastSmsReportRun: Date | null;
+    lastSmsReportStatus: "success" | "skipped" | "error" | null;
     smsProcessingInFlight: boolean; // Prevents concurrent SMS processing
 };
 
@@ -39,11 +43,14 @@ function getSchedulerState(): SchedulerState {
             isRunning: false,
             smsInterval: null,
             anonymizationTask: null,
+            smsReportTask: null,
             healthCheckInterval: null,
             lastHealthLog: 0,
             hasEverStarted: false,
             lastAnonymizationRun: null,
             lastAnonymizationStatus: null,
+            lastSmsReportRun: null,
+            lastSmsReportStatus: null,
             smsProcessingInFlight: false,
         };
     }
@@ -77,6 +84,10 @@ const HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
 // Anonymization Configuration (from env vars)
 const ANONYMIZATION_SCHEDULE = process.env.ANONYMIZATION_SCHEDULE || "0 2 * * 0"; // Sunday 2 AM
 const ANONYMIZATION_INACTIVE_DURATION = process.env.ANONYMIZATION_INACTIVE_DURATION || "1 year";
+
+// SMS Health Report Configuration (from env vars)
+// Default: 8:00 AM daily (server timezone, typically Europe/Stockholm)
+const SMS_REPORT_SCHEDULE = process.env.SMS_REPORT_SCHEDULE || "0 8 * * *";
 
 const SMS_SEND_BATCH_SIZE = 5;
 
@@ -224,6 +235,53 @@ async function notifyAnonymizationError(result: {
 }
 
 /**
+ * Run SMS health report
+ * Collects SMS delivery statistics and sends to Slack if there are issues
+ */
+async function runSmsHealthReport(): Promise<{
+    sent: boolean;
+    hasIssues: boolean;
+}> {
+    logCron("sms-health-report", "started", {});
+    schedulerState.lastSmsReportRun = new Date();
+
+    try {
+        const stats = await getSmsHealthStats();
+
+        if (!stats.hasIssues) {
+            logCron("sms-health-report", "completed", { skipped: true, reason: "no issues" });
+            schedulerState.lastSmsReportStatus = "skipped";
+            return { sent: false, hasIssues: false };
+        }
+
+        // Send to Slack (only in production)
+        if (process.env.NODE_ENV === "production") {
+            const { sendSmsHealthReport } = await import("@/app/utils/notifications/slack");
+            const sent = await sendSmsHealthReport(stats);
+
+            if (sent) {
+                logCron("sms-health-report", "completed", { sent: true, stats });
+                schedulerState.lastSmsReportStatus = "success";
+            } else {
+                logCron("sms-health-report", "failed", { reason: "Slack send failed" });
+                schedulerState.lastSmsReportStatus = "error";
+            }
+
+            return { sent, hasIssues: true };
+        } else {
+            // Non-production: just log
+            logger.info({ stats }, "SMS health report (non-production mode)");
+            schedulerState.lastSmsReportStatus = "success";
+            return { sent: false, hasIssues: true };
+        }
+    } catch (error) {
+        logError("Failed to run SMS health report", error);
+        schedulerState.lastSmsReportStatus = "error";
+        return { sent: false, hasIssues: false };
+    }
+}
+
+/**
  * Start the unified scheduler
  */
 export function startScheduler(): void {
@@ -297,6 +355,23 @@ export function startScheduler(): void {
         }
     }
 
+    // Start SMS health report cron job (daily)
+    try {
+        schedulerState.smsReportTask = cron.schedule(SMS_REPORT_SCHEDULE, async () => {
+            await runSmsHealthReport();
+        });
+        logger.info({ schedule: SMS_REPORT_SCHEDULE }, "SMS health report cron job scheduled");
+    } catch (error) {
+        logError(
+            "Failed to schedule SMS health report cron job - invalid schedule format.",
+            error,
+            {
+                invalidSchedule: SMS_REPORT_SCHEDULE,
+                expectedFormat: "Cron syntax (e.g., '0 8 * * *' for 8 AM daily)",
+            },
+        );
+    }
+
     // Start health check loop
     schedulerState.healthCheckInterval = setInterval(async () => {
         const now = Date.now();
@@ -333,6 +408,7 @@ export function startScheduler(): void {
                         "SMS Interval": SMS_INTERVAL,
                         "Anonymization Schedule": ANONYMIZATION_SCHEDULE,
                         "Anonymization Duration": ANONYMIZATION_INACTIVE_DURATION,
+                        "SMS Report Schedule": SMS_REPORT_SCHEDULE,
                         "Environment": process.env.NODE_ENV || "development",
                     },
                 });
@@ -370,6 +446,11 @@ export function stopScheduler(): void {
         schedulerState.anonymizationTask = null;
     }
 
+    if (schedulerState.smsReportTask) {
+        schedulerState.smsReportTask.stop();
+        schedulerState.smsReportTask = null;
+    }
+
     if (schedulerState.healthCheckInterval) {
         clearInterval(schedulerState.healthCheckInterval);
         schedulerState.healthCheckInterval = null;
@@ -396,6 +477,8 @@ export async function schedulerHealthCheck(): Promise<{
         // CRITICAL: If anonymization cron failed to start, treat as unhealthy
         // This catches invalid ANONYMIZATION_SCHEDULE env var before Slack alerts fail
         const anonymizationSchedulerRunning = schedulerState.anonymizationTask !== null;
+        const smsReportSchedulerRunning = schedulerState.smsReportTask !== null;
+        // SMS report is not critical for health - it's just a reporting task
         const isHealthy = schedulerState.isRunning && anonymizationSchedulerRunning;
 
         return {
@@ -404,12 +487,16 @@ export async function schedulerHealthCheck(): Promise<{
                 schedulerRunning: schedulerState.isRunning,
                 smsSchedulerRunning: schedulerState.smsInterval !== null,
                 anonymizationSchedulerRunning,
+                smsReportSchedulerRunning,
                 smsTestMode: getHelloSmsConfig().testMode,
                 lastAnonymizationRun: schedulerState.lastAnonymizationRun?.toISOString() || "Never",
                 lastAnonymizationStatus: schedulerState.lastAnonymizationStatus,
+                lastSmsReportRun: schedulerState.lastSmsReportRun?.toISOString() || "Never",
+                lastSmsReportStatus: schedulerState.lastSmsReportStatus,
                 // Configuration visibility for debugging
                 anonymizationSchedule: ANONYMIZATION_SCHEDULE,
                 anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
+                smsReportSchedule: SMS_REPORT_SCHEDULE,
                 smsInterval: SMS_INTERVAL,
                 smsMode: "pure JIT",
                 timestamp: new Date().toISOString(),

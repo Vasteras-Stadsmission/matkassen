@@ -1120,6 +1120,102 @@ async function handleJitFailure(
 }
 
 /**
+ * Get SMS health statistics for monitoring/alerting
+ *
+ * Returns counts of SMS by status for the last 24 hours, plus stale unconfirmed SMS.
+ * Used by the daily SMS health report to Slack.
+ *
+ * @returns Statistics object with counts and whether there are any issues
+ */
+export async function getSmsHealthStats(): Promise<{
+    sent: number;
+    delivered: number;
+    providerFailed: number;
+    notDelivered: number;
+    awaiting: number;
+    internalFailed: number;
+    staleUnconfirmed: number;
+    hasIssues: boolean;
+}> {
+    const now = Time.now().toUTC();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // Query 1: Last 24h stats for sent SMS (based on sent_at)
+    const sentStatsResult = await db
+        .select({
+            sent: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent')`,
+            delivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'delivered')`,
+            providerFailed: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'failed')`,
+            notDelivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'not delivered')`,
+            awaiting: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} IS NULL)`,
+        })
+        .from(outgoingSms)
+        .where(
+            and(
+                gt(outgoingSms.sent_at, twentyFourHoursAgo),
+                sql`${outgoingSms.dismissed_at} IS NULL`,
+            ),
+        );
+
+    // Query 1b: Internal failures (based on created_at since they never got sent_at)
+    const failedStatsResult = await db
+        .select({
+            internalFailed: sql<number>`COUNT(*)`,
+        })
+        .from(outgoingSms)
+        .where(
+            and(
+                eq(outgoingSms.status, "failed"),
+                gt(outgoingSms.created_at, twentyFourHoursAgo),
+                sql`${outgoingSms.dismissed_at} IS NULL`,
+            ),
+        );
+
+    // Query 2: Stale unconfirmed (sent > 24h ago, no provider status, not dismissed)
+    const staleResult = await db
+        .select({
+            count: sql<number>`COUNT(*)`,
+        })
+        .from(outgoingSms)
+        .where(
+            and(
+                eq(outgoingSms.status, "sent"),
+                sql`${outgoingSms.provider_status} IS NULL`,
+                lt(outgoingSms.sent_at, twentyFourHoursAgo),
+                sql`${outgoingSms.dismissed_at} IS NULL`,
+            ),
+        );
+
+    const sentStats = sentStatsResult[0] || {
+        sent: 0,
+        delivered: 0,
+        providerFailed: 0,
+        notDelivered: 0,
+        awaiting: 0,
+    };
+    const internalFailed = Number(failedStatsResult[0]?.internalFailed || 0);
+    const staleUnconfirmed = staleResult[0]?.count || 0;
+
+    // Determine if there are any issues worth alerting about
+    const hasIssues =
+        internalFailed > 0 ||
+        Number(sentStats.providerFailed) > 0 ||
+        Number(sentStats.notDelivered) > 0 ||
+        Number(staleUnconfirmed) > 0;
+
+    return {
+        sent: Number(sentStats.sent),
+        delivered: Number(sentStats.delivered),
+        providerFailed: Number(sentStats.providerFailed),
+        notDelivered: Number(sentStats.notDelivered),
+        awaiting: Number(sentStats.awaiting),
+        internalFailed,
+        staleUnconfirmed: Number(staleUnconfirmed),
+        hasIssues,
+    };
+}
+
+/**
  * Pure JIT SMS processing for pickup reminders
  *
  * This is the main scheduler function for pure JIT:
