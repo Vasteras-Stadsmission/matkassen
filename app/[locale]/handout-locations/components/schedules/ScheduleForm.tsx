@@ -429,6 +429,7 @@ export function ScheduleForm({
                         value={localScheduleName} // Use local state value
                         onChange={event => setLocalScheduleName(event.currentTarget.value)} // Update local state immediately
                         onBlur={handleScheduleNameBlur} // Update form value on blur
+                        error={form.errors.name}
                     />
 
                     {/* Week-based date selection */}
