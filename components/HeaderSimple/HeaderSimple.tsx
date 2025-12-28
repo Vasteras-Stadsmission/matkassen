@@ -70,11 +70,20 @@ export function HeaderSimple() {
     }, []);
 
     // Define navigation links with translated labels using useMemo to avoid dependency changes
+    // SMS failures link only shows when there are failures
     const links = useMemo(
         () => [
             { link: "/households", label: t("navigation.households") },
             { link: "/schedule", label: t("navigation.schedule") },
-            { link: "/sms-failures", label: t("navigation.smsFailures"), badge: smsFailureCount },
+            ...(smsFailureCount > 0
+                ? [
+                      {
+                          link: "/sms-failures",
+                          label: t("navigation.smsFailures"),
+                          badge: smsFailureCount,
+                      },
+                  ]
+                : []),
         ],
         [t, smsFailureCount],
     );
