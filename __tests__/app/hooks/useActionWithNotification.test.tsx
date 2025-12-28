@@ -35,8 +35,8 @@ Object.defineProperty(window, "history", {
     writable: true,
 });
 
-// Mock URL constructor
-(global as any).URL = vi.fn().mockImplementation((url: string) => {
+// Mock URL constructor - must use function syntax for Vitest 4 compatibility
+(global as any).URL = function MockURL(this: any, url: string) {
     const params = new Map<string, string>();
     let searchValue = "";
 
@@ -47,24 +47,24 @@ Object.defineProperty(window, "history", {
         searchValue = searchStr ? `?${searchStr}` : "";
     };
 
-    return {
-        pathname: url.split("?")[0],
-        get search() {
+    this.pathname = url.split("?")[0];
+    Object.defineProperty(this, "search", {
+        get() {
             return searchValue;
         },
-        searchParams: {
-            set: (key: string, value: string) => {
-                params.set(key, value);
-                updateSearch();
-            },
-            delete: (key: string) => {
-                params.delete(key);
-                updateSearch();
-            },
-            get: (key: string) => params.get(key) || null,
+    });
+    this.searchParams = {
+        set: (key: string, value: string) => {
+            params.set(key, value);
+            updateSearch();
         },
+        delete: (key: string) => {
+            params.delete(key);
+            updateSearch();
+        },
+        get: (key: string) => params.get(key) || null,
     };
-});
+};
 
 describe("useActionWithNotification", () => {
     beforeEach(() => {
