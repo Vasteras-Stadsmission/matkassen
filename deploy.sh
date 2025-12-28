@@ -227,6 +227,10 @@ if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
 fi
 echo "HELLO_SMS_TEST_MODE=\"${HELLO_SMS_TEST_MODE:-true}\"" >> "$APP_DIR/.env"
 echo "SMS_SEND_INTERVAL=\"${SMS_SEND_INTERVAL:-5 minutes}\"" >> "$APP_DIR/.env"
+# SMS callback webhook secret (required for HelloSMS status callbacks in production)
+if [ -n "${SMS_CALLBACK_SECRET:-}" ]; then
+  echo "SMS_CALLBACK_SECRET=\"${SMS_CALLBACK_SECRET}\"" >> "$APP_DIR/.env"
+fi
 # Logging configuration
 echo "LOG_LEVEL=\"${LOG_LEVEL:-info}\"" >> "$APP_DIR/.env"
 # White-label configuration (required in production)
@@ -239,6 +243,8 @@ fi
 # Anonymization scheduler configuration (always enabled for GDPR compliance)
 echo "ANONYMIZATION_SCHEDULE=\"${ANONYMIZATION_SCHEDULE:-0 2 * * 0}\"" >> "$APP_DIR/.env"
 echo "ANONYMIZATION_INACTIVE_DURATION=\"${ANONYMIZATION_INACTIVE_DURATION:-1 year}\"" >> "$APP_DIR/.env"
+# SMS health report schedule (daily at 8 AM Stockholm time)
+echo "SMS_REPORT_SCHEDULE=\"${SMS_REPORT_SCHEDULE:-0 8 * * *}\"" >> "$APP_DIR/.env"
 # Slack notifications (optional - alerts only sent when ENV_NAME=production)
 if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
   echo "SLACK_BOT_TOKEN=\"${SLACK_BOT_TOKEN}\"" >> "$APP_DIR/.env"

@@ -93,6 +93,10 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     fi
     printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
     printf 'SMS_SEND_INTERVAL="%s"\n' "${SMS_SEND_INTERVAL:-5 minutes}"
+    # SMS callback webhook secret (required for HelloSMS status callbacks in production)
+    if [ -n "${SMS_CALLBACK_SECRET:-}" ]; then
+        printf 'SMS_CALLBACK_SECRET="%s"\n' "${SMS_CALLBACK_SECRET}"
+    fi
     # Logging configuration
     printf 'LOG_LEVEL="%s"\n' "${LOG_LEVEL:-info}"
     # White-label configuration (required in production)
@@ -105,6 +109,8 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     # Anonymization scheduler configuration (always enabled for GDPR compliance)
     printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
     printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
+    # SMS health report schedule (daily at 8 AM Stockholm time)
+    printf 'SMS_REPORT_SCHEDULE="%s"\n' "${SMS_REPORT_SCHEDULE:-0 8 * * *}"
     # Slack notifications (optional - alerts only sent when ENV_NAME=production)
     if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
         printf 'SLACK_BOT_TOKEN="%s"\n' "${SLACK_BOT_TOKEN}"
