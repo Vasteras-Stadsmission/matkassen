@@ -1,10 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
-import { config } from "dotenv";
 import { logger } from "@/app/utils/logger";
-
-config();
 
 // Check if we're running in a test environment
 const isTestEnvironment = process.env.NODE_ENV === "test";
