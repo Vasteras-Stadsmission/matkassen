@@ -236,6 +236,7 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
                     success: false,
                     error: errorMsg,
                     messageId: messageId, // Include message ID for tracking even on failure
+                    httpStatus: 400, // Permanent failure - don't retry
                 };
             }
 

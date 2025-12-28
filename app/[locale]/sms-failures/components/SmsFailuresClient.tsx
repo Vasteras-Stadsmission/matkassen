@@ -92,8 +92,9 @@ export function SmsFailuresClient() {
 
                 // Handle auth errors specifically
                 if (response.status === 401 || response.status === 403) {
-                    // Redirect to sign-in page for auth errors
-                    window.location.href = "/api/auth/signin";
+                    // Redirect to sign-in page with callback URL for better UX
+                    const callbackUrl = encodeURIComponent(window.location.pathname);
+                    window.location.href = `/api/auth/signin?callbackUrl=${callbackUrl}`;
                     return;
                 }
 
