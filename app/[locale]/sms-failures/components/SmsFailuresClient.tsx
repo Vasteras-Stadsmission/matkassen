@@ -51,6 +51,7 @@ interface SmsFailure {
     createdAt: string;
     dismissedAt: string | null;
     dismissedByUserId: string | null;
+    failureType: "internal" | "provider" | "stale";
 }
 
 type TabValue = "active" | "dismissed";
@@ -265,25 +266,36 @@ export function SmsFailuresClient() {
     };
 
     const getFailureType = (failure: SmsFailure) => {
-        if (failure.status === "failed") {
-            return {
-                type: "internal",
-                color: "red" as const,
-                label: t("smsFailures.internalError"),
-            };
+        // Use server-provided failureType for consistent classification
+        switch (failure.failureType) {
+            case "internal":
+                return {
+                    type: "internal",
+                    color: "red" as const,
+                    label: t("smsFailures.internalError"),
+                };
+            case "stale":
+                return {
+                    type: "stale",
+                    color: "yellow" as const,
+                    label: t("smsFailures.staleUnconfirmed"),
+                };
+            case "provider":
+            default:
+                // Distinguish between "failed" and "not delivered" for provider failures
+                if (failure.providerStatus === "failed") {
+                    return {
+                        type: "provider",
+                        color: "red" as const,
+                        label: t("smsFailures.providerFailed"),
+                    };
+                }
+                return {
+                    type: "provider",
+                    color: "orange" as const,
+                    label: t("smsFailures.notDelivered"),
+                };
         }
-        if (failure.providerStatus === "failed") {
-            return {
-                type: "provider",
-                color: "red" as const,
-                label: t("smsFailures.providerFailed"),
-            };
-        }
-        return {
-            type: "provider",
-            color: "orange" as const,
-            label: t("smsFailures.notDelivered"),
-        };
     };
 
     const getIntentLabel = (intent: string) => {

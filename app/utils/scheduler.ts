@@ -86,8 +86,11 @@ const ANONYMIZATION_SCHEDULE = process.env.ANONYMIZATION_SCHEDULE || "0 2 * * 0"
 const ANONYMIZATION_INACTIVE_DURATION = process.env.ANONYMIZATION_INACTIVE_DURATION || "1 year";
 
 // SMS Health Report Configuration (from env vars)
-// Default: 8:00 AM daily (server timezone, typically Europe/Stockholm)
+// Default: 8:00 AM daily in Stockholm timezone
 const SMS_REPORT_SCHEDULE = process.env.SMS_REPORT_SCHEDULE || "0 8 * * *";
+
+// Timezone for all cron jobs - ensures consistent scheduling regardless of server timezone
+const CRON_TIMEZONE = "Europe/Stockholm";
 
 const SMS_SEND_BATCH_SIZE = 5;
 
@@ -317,10 +320,17 @@ export function startScheduler(): void {
 
     // Start anonymization cron job
     try {
-        schedulerState.anonymizationTask = cron.schedule(ANONYMIZATION_SCHEDULE, async () => {
-            await runAnonymizationSchedule();
-        });
-        logger.info({ schedule: ANONYMIZATION_SCHEDULE }, "Anonymization cron job scheduled");
+        schedulerState.anonymizationTask = cron.schedule(
+            ANONYMIZATION_SCHEDULE,
+            async () => {
+                await runAnonymizationSchedule();
+            },
+            { timezone: CRON_TIMEZONE },
+        );
+        logger.info(
+            { schedule: ANONYMIZATION_SCHEDULE, timezone: CRON_TIMEZONE },
+            "Anonymization cron job scheduled",
+        );
     } catch (error) {
         logError(
             "Failed to schedule anonymization cron job - invalid schedule format. Health checks will report unhealthy until fixed.",
@@ -357,10 +367,17 @@ export function startScheduler(): void {
 
     // Start SMS health report cron job (daily)
     try {
-        schedulerState.smsReportTask = cron.schedule(SMS_REPORT_SCHEDULE, async () => {
-            await runSmsHealthReport();
-        });
-        logger.info({ schedule: SMS_REPORT_SCHEDULE }, "SMS health report cron job scheduled");
+        schedulerState.smsReportTask = cron.schedule(
+            SMS_REPORT_SCHEDULE,
+            async () => {
+                await runSmsHealthReport();
+            },
+            { timezone: CRON_TIMEZONE },
+        );
+        logger.info(
+            { schedule: SMS_REPORT_SCHEDULE, timezone: CRON_TIMEZONE },
+            "SMS health report cron job scheduled",
+        );
     } catch (error) {
         logError(
             "Failed to schedule SMS health report cron job - invalid schedule format.",

@@ -1262,6 +1262,7 @@
         "internalError": "Send Failed",
         "providerFailed": "Delivery Failed",
         "notDelivered": "Not Delivered",
+        "staleUnconfirmed": "No Confirmation",
         "sentAt": "Sent",
         "showError": "Show error details",
         "hideError": "Hide error details",
