@@ -99,9 +99,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
     });
 
     it("should reject creating a NEW parcel with a time in the past", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         // October 2nd, 2024 at 10:00 AM Stockholm time
         const now = new Date("2024-10-02T10:00:00+02:00");
@@ -141,9 +140,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
     });
 
     it("should ALLOW new parcels with future pickup times", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date("2025-10-02T13:00:00Z"); // 1:00 PM UTC
         vi.setSystemTime(now);
@@ -177,9 +175,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
     });
 
     it("should ALLOW updating existing parcels even if their time has passed", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date("2025-10-02T13:00:00Z"); // 1:00 PM UTC
         vi.setSystemTime(now);
@@ -213,9 +210,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
     });
 
     it("should reject SOME parcels and allow OTHERS in mixed batch", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date("2025-10-02T13:00:00Z"); // 1:00 PM UTC
         vi.setSystemTime(now);
@@ -253,9 +249,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
     });
 
     it("should provide clear error message with affected dates", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date("2025-10-02T13:00:00Z");
         vi.setSystemTime(now);
@@ -285,9 +280,8 @@ describe("Past Parcel Prevention - Backend Validation", () => {
     });
 
     it("should allow parcel for later today (edge case)", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         // It's 9:00 AM, user creates parcel for 4:00 PM same day
         const now = new Date("2025-10-02T09:00:00Z");

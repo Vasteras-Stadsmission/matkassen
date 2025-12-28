@@ -53,9 +53,8 @@ export default function CommentSection({
                 await onDeleteComment(commentId);
             } else {
                 // Import the delete function dynamically to avoid circular imports
-                const { deleteHouseholdComment } = await import(
-                    "@/app/[locale]/households/actions"
-                );
+                const { deleteHouseholdComment } =
+                    await import("@/app/[locale]/households/actions");
                 const success = await deleteHouseholdComment(commentId);
 
                 if (success) {

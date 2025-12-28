@@ -85,9 +85,8 @@ describe("Database Operations with GitHub Username", () => {
             // Set session with display name
             Object.assign(mockSessionForProtectedAction, createMockSessionWithDisplayName());
 
-            const { getUserFavoriteLocation } = await import(
-                "@/app/[locale]/schedule/utils/user-preferences"
-            );
+            const { getUserFavoriteLocation } =
+                await import("@/app/[locale]/schedule/utils/user-preferences");
 
             await getUserFavoriteLocation();
 
@@ -105,9 +104,8 @@ describe("Database Operations with GitHub Username", () => {
                 }),
             );
 
-            const { setUserFavoriteLocation } = await import(
-                "@/app/[locale]/schedule/utils/user-preferences"
-            );
+            const { setUserFavoriteLocation } =
+                await import("@/app/[locale]/schedule/utils/user-preferences");
 
             const result = await setUserFavoriteLocation("location-123");
 
@@ -124,9 +122,8 @@ describe("Database Operations with GitHub Username", () => {
                 },
             });
 
-            const { getUserFavoriteLocation } = await import(
-                "@/app/[locale]/schedule/utils/user-preferences"
-            );
+            const { getUserFavoriteLocation } =
+                await import("@/app/[locale]/schedule/utils/user-preferences");
 
             const result = await getUserFavoriteLocation();
 
@@ -144,9 +141,8 @@ describe("Database Operations with GitHub Username", () => {
                 }),
             );
 
-            const { getUserFavoriteLocation } = await import(
-                "@/app/[locale]/schedule/utils/user-preferences"
-            );
+            const { getUserFavoriteLocation } =
+                await import("@/app/[locale]/schedule/utils/user-preferences");
 
             const result = await getUserFavoriteLocation();
 
@@ -156,9 +152,8 @@ describe("Database Operations with GitHub Username", () => {
         it("getCurrentUser should return githubUsername", async () => {
             Object.assign(mockSessionForProtectedAction, createMockSessionWithDisplayName());
 
-            const { getCurrentUser } = await import(
-                "@/app/[locale]/schedule/utils/user-preferences"
-            );
+            const { getCurrentUser } =
+                await import("@/app/[locale]/schedule/utils/user-preferences");
 
             const result = await getCurrentUser();
 

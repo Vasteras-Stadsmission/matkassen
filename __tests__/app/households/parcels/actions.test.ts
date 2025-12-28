@@ -94,9 +94,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
 
     it("should include parcels scheduled for later today", async () => {
         // Import after mocks are set up
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         // Scenario: It's 2:00 PM today, user schedules a parcel for 4:00-4:30 PM today
         const now = new Date();
@@ -146,9 +145,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
 
     it("should reject new parcels scheduled for past times today", async () => {
         // Import after mocks are set up
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         // Scenario: It's 2:00 PM today, user tries to schedule a parcel for 10:00-10:30 AM today (past)
         const now = new Date();
@@ -205,9 +203,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
 
     it("should include parcels scheduled for future dates", async () => {
         // Import after mocks are set up
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         // Scenario: User schedules a parcel for tomorrow at 12:00-12:30 PM
         const now = new Date();
@@ -263,9 +260,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
 
     it("should fail the whole submission when a new past parcel is included", async () => {
         // Import after mocks are set up
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         // Scenario: User submits multiple parcels with different times
         const now = new Date();
@@ -347,9 +343,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     });
 
     it("should keep existing past parcels while saving future updates", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
 
         const now = new Date();
         now.setHours(14, 0, 0, 0);
@@ -405,9 +400,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     });
 
     it("should treat persisted parcels with past pickup times as existing during validation", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
         const scheduleActions = await import("@/app/[locale]/schedule/actions");
         const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
 
@@ -454,9 +448,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     });
 
     it("should propagate validation failures from schedule validation", async () => {
-        const { updateHouseholdParcels } = await import(
-            "@/app/[locale]/households/[id]/parcels/actions"
-        );
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
         const scheduleActions = await import("@/app/[locale]/schedule/actions");
         const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
 

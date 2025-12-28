@@ -53,9 +53,8 @@ export const updateHouseholdParcels = protectedHouseholdAction(
                 // Create new food parcels based on the updated schedule
                 if (parcelsData.parcels && parcelsData.parcels.length > 0) {
                     // Validate all parcel assignments before creating any
-                    const { validateParcelAssignments } = await import(
-                        "@/app/[locale]/schedule/actions"
-                    );
+                    const { validateParcelAssignments } =
+                        await import("@/app/[locale]/schedule/actions");
 
                     const parcelsToValidate = parcelsData.parcels
                         .filter(parcel => parcel.pickupLatestTime > now || parcel.id) // Future parcels OR existing parcels being updated
@@ -141,9 +140,8 @@ export const updateHouseholdParcels = protectedHouseholdAction(
 
                 if (parcelsToDelete.length > 0) {
                     // Import helper function for SMS-aware soft deletion
-                    const { softDeleteParcelInTransaction } = await import(
-                        "@/app/[locale]/parcels/actions"
-                    );
+                    const { softDeleteParcelInTransaction } =
+                        await import("@/app/[locale]/parcels/actions");
 
                     for (const parcel of parcelsToDelete) {
                         await softDeleteParcelInTransaction(
@@ -172,9 +170,8 @@ export const updateHouseholdParcels = protectedHouseholdAction(
              * If stronger consistency is required, consider moving this to a background job queue.
              */
             try {
-                const { recomputeOutsideHoursCount } = await import(
-                    "@/app/[locale]/schedule/actions"
-                );
+                const { recomputeOutsideHoursCount } =
+                    await import("@/app/[locale]/schedule/actions");
                 await recomputeOutsideHoursCount(locationId);
             } catch (e) {
                 logError("Failed to recompute outside-hours count after parcel update", e, {

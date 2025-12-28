@@ -21,7 +21,6 @@ App runs at http://localhost:3000
 ## Local Development Modes
 
 1. **Fast development** (recommended):
-
     - `pnpm run dev`
     - Next.js runs locally
     - PostgreSQL in Docker

@@ -523,9 +523,8 @@ export const updateHousehold = protectedHouseholdAction(
                 // Execute DELETE operations (soft delete with SMS cancellation handling)
                 if (operations.toDelete.length > 0) {
                     // Import helper function for SMS-aware soft deletion
-                    const { softDeleteParcelInTransaction } = await import(
-                        "@/app/[locale]/parcels/actions"
-                    );
+                    const { softDeleteParcelInTransaction } =
+                        await import("@/app/[locale]/parcels/actions");
 
                     for (const parcelId of operations.toDelete) {
                         await softDeleteParcelInTransaction(

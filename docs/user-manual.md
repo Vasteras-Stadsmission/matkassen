@@ -28,37 +28,31 @@ Households are the central registry of families/individuals receiving food parce
 The enrollment wizard has 7 steps:
 
 1. **Basics**
-
     - First name, last name (required)
     - Phone number in Swedish format: +46XXXXXXXXX or 07XXXXXXXX (required)
     - Street address, postal code, city (optional but recommended)
     - Pickup location (required - determines where parcels can be scheduled)
 
 2. **Members**
-
     - Add household members with names and birthdates
     - Helps with parcel planning and statistics
     - All fields optional
 
 3. **Diet**
-
     - Select from: Vegetarian, Vegan, Lactose-free, Gluten-free, Halal, Kosher, etc.
     - Multiple selections allowed
     - Used for food parcel planning
 
 4. **Pets**
-
     - Add pets with species and names
     - Relevant for certain food items or allergen considerations
 
 5. **Needs**
-
     - Special requirements: Wheelchair access, Interpreter needed, etc.
     - Multiple selections allowed
     - Helps staff prepare for pickup
 
 6. **Parcels** (optional)
-
     - Schedule initial food parcels directly from wizard
     - Or skip and schedule later from schedule page
 

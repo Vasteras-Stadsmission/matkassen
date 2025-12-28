@@ -10,6 +10,10 @@
  * Note: This test complements the unit tests which use mocks to test
  * specific edge cases and error handling. Integration tests verify the
  * end-to-end flow with real database operations.
+ *
+ * IMPORTANT: Time is mocked globally in the integration test setup to use
+ * TEST_NOW (2024-06-15T10:00:00Z, a Saturday at 12:00 Stockholm time).
+ * All time-relative helpers should use hoursFromTestNow() for deterministic tests.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -24,18 +28,7 @@ import {
     resetSmsCounter,
 } from "../../factories";
 import { getParcelsNeedingReminder } from "@/app/utils/sms/sms-service";
-
-/**
- * Helper to create a pickup date relative to real current time.
- *
- * Note: Unlike other integration tests, these tests MUST use real time because
- * getParcelsNeedingReminder() uses Time.now() internally and doesn't accept a
- * custom "now" parameter. Parcels must be created relative to actual current
- * time to be found by the 48h window query.
- */
-function realTimeFromNow(hours: number): Date {
-    return new Date(Date.now() + hours * 60 * 60 * 1000);
-}
+import { hoursFromTestNow } from "../../test-time";
 
 describe("SMS Opening Hours Filtering - Integration Tests", () => {
     beforeEach(() => {
@@ -45,21 +38,27 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
     });
 
     describe("getParcelsNeedingReminder with real database", () => {
+        // TEST_NOW is 2024-06-15T10:00:00Z (Saturday at 12:00 Stockholm time)
+        // 24h later = Sunday at 12:00 Stockholm time
+        // Schedules must include Saturday/Sunday for parcels to be found
+
         it("should return parcels within pickup window", async () => {
             const household = await createTestHousehold();
+            // Schedule includes Saturday & Sunday with wide opening hours
             const { location } = await createTestLocationWithSchedule(
                 {},
                 {
-                    weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+                    weekdays: ["saturday", "sunday"],
                     openingTime: "09:00",
                     closingTime: "17:00",
                 },
             );
 
-            // Create parcel with pickup 24 hours from now (within 48h window)
-            const pickupTime = realTimeFromNow(24);
+            // Create parcel with pickup 24 hours from TEST_NOW (within 48h window)
+            // 24h from Saturday 12:00 = Sunday 12:00, within opening hours
+            const pickupTime = hoursFromTestNow(24);
 
-            await createTestParcel({
+            const parcel = await createTestParcel({
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: pickupTime,
@@ -68,17 +67,19 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
 
             const result = await getParcelsNeedingReminder();
 
-            // Should find our parcel (assuming it's on a weekday during opening hours)
-            // Note: May be 0 or 1 depending on what day of week tomorrow is
-            expect(result.length).toBeGreaterThanOrEqual(0);
-            expect(result.length).toBeLessThanOrEqual(1);
+            // Should find our parcel
+            const foundParcel = result.find(p => p.parcelId === parcel.id);
+            expect(foundParcel).toBeDefined();
         });
 
         it("should exclude parcels that already have SMS", async () => {
             const household = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
+            );
 
-            const pickupTime = realTimeFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -105,7 +106,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             // Create location WITHOUT a schedule
             const location = await createTestPickupLocation();
 
-            const pickupTime = realTimeFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -126,10 +127,13 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
 
         it("should exclude parcels beyond 48h window", async () => {
             const household = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
+            );
 
-            // Create parcel with pickup 72 hours from now (beyond 48h)
-            const pickupTime = realTimeFromNow(72);
+            // Create parcel with pickup 72 hours from TEST_NOW (beyond 48h)
+            const pickupTime = hoursFromTestNow(72);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -146,9 +150,12 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
 
         it("should exclude deleted parcels", async () => {
             const household = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
+            );
 
-            const pickupTime = realTimeFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             // Use createTestDeletedParcel for soft-deleted parcel
             const { createTestDeletedParcel } = await import("../../factories");
@@ -167,9 +174,12 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
 
         it("should exclude picked up parcels", async () => {
             const household = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
+            );
 
-            const pickupTime = realTimeFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             // Create parcel and mark as picked up
             const { createTestPickedUpParcel } = await import("../../factories");
@@ -193,12 +203,15 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
                 phone_number: "+46701234567",
                 locale: "sv",
             });
-            const { location } = await createTestLocationWithSchedule({
-                name: "Test Location",
-                street_address: "Test Street 123",
-            });
+            const { location } = await createTestLocationWithSchedule(
+                {
+                    name: "Test Location",
+                    street_address: "Test Street 123",
+                },
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
+            );
 
-            const pickupTime = realTimeFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -209,28 +222,31 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const result = await getParcelsNeedingReminder();
             const foundParcel = result.find(p => p.parcelId === parcel.id);
 
-            if (foundParcel) {
-                // Verify data structure
-                expect(foundParcel.parcelId).toBe(parcel.id);
-                expect(foundParcel.householdId).toBe(household.id);
-                expect(foundParcel.householdName).toBe("Test User");
-                expect(foundParcel.phone).toBe("+46701234567");
-                expect(foundParcel.locale).toBe("sv");
-                expect(foundParcel.locationId).toBe(location.id);
-                expect(foundParcel.locationName).toBe("Test Location");
-                expect(foundParcel.locationAddress).toBe("Test Street 123");
-                expect(foundParcel.pickupDate).toBeInstanceOf(Date);
-                expect(foundParcel.pickupLatestDate).toBeInstanceOf(Date);
-            }
+            // Parcel should be found
+            expect(foundParcel).toBeDefined();
+            expect(foundParcel!.parcelId).toBe(parcel.id);
+            expect(foundParcel!.householdId).toBe(household.id);
+            expect(foundParcel!.householdName).toBe("Test User");
+            expect(foundParcel!.phone).toBe("+46701234567");
+            expect(foundParcel!.locale).toBe("sv");
+            expect(foundParcel!.locationId).toBe(location.id);
+            expect(foundParcel!.locationName).toBe("Test Location");
+            expect(foundParcel!.locationAddress).toBe("Test Street 123");
+            expect(foundParcel!.pickupDate).toBeInstanceOf(Date);
+            expect(foundParcel!.pickupLatestDate).toBeInstanceOf(Date);
         });
 
         it("should return multiple eligible parcels from different households", async () => {
             const household1 = await createTestHousehold();
             const household2 = await createTestHousehold();
             const household3 = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
+            );
 
-            const baseTime = realTimeFromNow(24);
+            // 24h from Saturday 12:00 = Sunday 12:00
+            const baseTime = hoursFromTestNow(24);
 
             // Create 3 parcels for different households at slightly different times
             const parcel1 = await createTestParcel({
@@ -241,27 +257,21 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const parcel2 = await createTestParcel({
                 household_id: household2.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(baseTime.getTime() + 30 * 60 * 1000),
+                pickup_date_time_earliest: new Date(baseTime.getTime() + 5 * 60 * 1000),
             });
             const parcel3 = await createTestParcel({
                 household_id: household3.id,
                 pickup_location_id: location.id,
-                pickup_date_time_earliest: new Date(baseTime.getTime() + 60 * 60 * 1000),
+                pickup_date_time_earliest: new Date(baseTime.getTime() + 10 * 60 * 1000),
             });
 
             const result = await getParcelsNeedingReminder();
 
-            // Find our test parcels
+            // Find our test parcels - all should be found
             const parcelIds = result.map(p => p.parcelId);
-            const found1 = parcelIds.includes(parcel1.id);
-            const found2 = parcelIds.includes(parcel2.id);
-            const found3 = parcelIds.includes(parcel3.id);
-
-            // If any are found, all should be found (same location/schedule)
-            if (found1 || found2 || found3) {
-                expect(found1).toBe(found2);
-                expect(found2).toBe(found3);
-            }
+            expect(parcelIds).toContain(parcel1.id);
+            expect(parcelIds).toContain(parcel2.id);
+            expect(parcelIds).toContain(parcel3.id);
         });
     });
 });
