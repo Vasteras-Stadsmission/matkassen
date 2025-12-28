@@ -25,6 +25,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/app/i18n/navigation";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 import { useLocale } from "next-intl";
+import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
 interface Household {
     id: string;
@@ -408,6 +409,8 @@ export default function HouseholdsTable({ households }: { households: Household[
                                   accessor: "phone_number",
                                   title: t("table.phoneNumber"),
                                   sortable: true,
+                                  render: (household: Household) =>
+                                      formatPhoneForDisplay(household.phone_number),
                               },
                           ]
                         : []),

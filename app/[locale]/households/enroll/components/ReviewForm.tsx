@@ -29,6 +29,7 @@ import { FormData, Comment } from "../types";
 import { getPickupLocationsAction } from "../client-actions";
 import CommentSection from "@/components/CommentSection";
 import { useTranslations } from "next-intl";
+import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 import { useLocale } from "next-intl";
 import LocalizedDate from "@/components/LocalizedDate";
 
@@ -165,7 +166,7 @@ export default function ReviewForm({
                             <ThemeIcon size="md" variant="light" color="blue">
                                 <IconPhone size={16} />
                             </ThemeIcon>
-                            <Text>{formData.household.phone_number}</Text>
+                            <Text>{formatPhoneForDisplay(formData.household.phone_number)}</Text>
                         </Group>
                         <Group gap="xs">
                             <ThemeIcon size="md" variant="light" color="blue">

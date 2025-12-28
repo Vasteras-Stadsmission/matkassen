@@ -4,6 +4,7 @@ import { Paper, Title, Stack, Group, ThemeIcon, Text, Avatar } from "@mantine/co
 import { IconUser, IconPhone, IconMailbox, IconLanguage, IconUserCheck } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import type { GithubUserData } from "@/app/[locale]/households/enroll/types";
+import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
 interface HouseholdInfoCardProps {
     firstName: string;
@@ -55,7 +56,7 @@ export function HouseholdInfoCard({
                     <ThemeIcon size="lg" variant="light" color="blue">
                         <IconPhone size={20} />
                     </ThemeIcon>
-                    <Text size="md">{phoneNumber}</Text>
+                    <Text size="md">{formatPhoneForDisplay(phoneNumber)}</Text>
                 </Group>
                 <Group gap="sm">
                     <ThemeIcon size="lg" variant="light" color="blue">

@@ -18,6 +18,7 @@ import CommentSection from "@/components/CommentSection";
 import { Comment } from "@/app/[locale]/households/enroll/types";
 import { useTranslations, useLocale } from "next-intl";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
+import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
 interface HouseholdDetailProps {
     householdDetail: {
@@ -187,7 +188,9 @@ export default function InternationalizedHouseholdDetail({
                             <ThemeIcon size="md" variant="light" color="blue">
                                 <IconPhone size={16} />
                             </ThemeIcon>
-                            <Text>{householdDetail.household.phone_number}</Text>
+                            <Text>
+                                {formatPhoneForDisplay(householdDetail.household.phone_number)}
+                            </Text>
                         </Group>
                         <Group gap="xs" mb="xs">
                             <ThemeIcon size="md" variant="light" color="blue">
