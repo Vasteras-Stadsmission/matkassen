@@ -240,10 +240,7 @@ export async function getHouseholdDetails(householdId: string) {
             })
             .from(outgoingSms)
             .where(
-                and(
-                    eq(outgoingSms.household_id, householdId),
-                    eq(outgoingSms.intent, "enrolment"),
-                ),
+                and(eq(outgoingSms.household_id, householdId), eq(outgoingSms.intent, "enrolment")),
             )
             .orderBy(desc(outgoingSms.created_at))
             .limit(1);
