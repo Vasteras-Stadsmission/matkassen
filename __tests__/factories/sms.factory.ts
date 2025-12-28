@@ -29,6 +29,11 @@ export async function createTestSms(overrides: {
     next_attempt_at?: Date;
     last_error_message?: string;
     sent_at?: Date;
+    provider_message_id?: string;
+    provider_status?: string;
+    provider_status_updated_at?: Date;
+    dismissed_at?: Date;
+    dismissed_by_user_id?: string;
 }) {
     const db = await getTestDb();
     smsCounter++;
@@ -56,6 +61,11 @@ export async function createTestSms(overrides: {
             next_attempt_at: overrides.next_attempt_at,
             last_error_message: overrides.last_error_message,
             sent_at: overrides.sent_at,
+            provider_message_id: overrides.provider_message_id,
+            provider_status: overrides.provider_status,
+            provider_status_updated_at: overrides.provider_status_updated_at,
+            dismissed_at: overrides.dismissed_at,
+            dismissed_by_user_id: overrides.dismissed_by_user_id,
         })
         .returning();
 
@@ -71,6 +81,7 @@ export async function createTestSentSms(overrides: {
     intent?: SmsIntent;
     to_e164?: string;
     text?: string;
+    provider_message_id?: string;
 }) {
     // Use deterministic timestamp
     const sentAt = new Date(TEST_NOW);
@@ -80,6 +91,7 @@ export async function createTestSentSms(overrides: {
         status: "sent",
         sent_at: sentAt,
         attempt_count: 1,
+        provider_message_id: overrides.provider_message_id,
     });
 }
 
@@ -141,5 +153,51 @@ export async function createTestRetryingSms(overrides: {
         attempt_count: 1,
         next_attempt_at: nextAttempt,
         last_error_message: "Temporary failure, will retry",
+    });
+}
+
+/**
+ * Create a dismissed failed SMS.
+ */
+export async function createTestDismissedFailedSms(overrides: {
+    household_id: string;
+    parcel_id?: string;
+    intent?: SmsIntent;
+    to_e164?: string;
+    text?: string;
+    error_message?: string;
+    dismissed_by?: string;
+}) {
+    return createTestSms({
+        ...overrides,
+        status: "failed",
+        attempt_count: 3,
+        last_error_message: overrides.error_message ?? "Test error: SMS delivery failed",
+        dismissed_at: TEST_NOW,
+        dismissed_by_user_id: overrides.dismissed_by ?? "test-user",
+    });
+}
+
+/**
+ * Create a sent SMS with provider failure status.
+ */
+export async function createTestProviderFailedSms(overrides: {
+    household_id: string;
+    parcel_id?: string;
+    intent?: SmsIntent;
+    to_e164?: string;
+    text?: string;
+    provider_status?: "failed" | "not delivered";
+}) {
+    const sentAt = new Date(TEST_NOW);
+
+    return createTestSms({
+        ...overrides,
+        status: "sent",
+        sent_at: sentAt,
+        attempt_count: 1,
+        provider_message_id: `msg_${Date.now()}`,
+        provider_status: overrides.provider_status ?? "failed",
+        provider_status_updated_at: new Date(TEST_NOW.getTime() + 60000), // 1 min after send
     });
 }

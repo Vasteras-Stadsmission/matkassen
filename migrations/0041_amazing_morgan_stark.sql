@@ -1,0 +1,1 @@
+CREATE INDEX "idx_outgoing_sms_active_failures" ON "outgoing_sms" USING btree ("status","created_at") WHERE "outgoing_sms"."status" = 'failed' AND "outgoing_sms"."dismissed_at" IS NULL;

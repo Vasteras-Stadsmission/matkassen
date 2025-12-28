@@ -62,6 +62,7 @@ export default async function middleware(request: NextRequest) {
             /^\/api\/auth\//, // NextAuth endpoints
             /^\/api\/csp-report/, // CSP violation reports
             /^\/api\/pickup-locations/, // Public pickup locations (unused but keeping public)
+            /^\/api\/webhooks\//, // Webhook endpoints (authenticated via URL secret or other means)
         ];
 
         const isPublicApiRoute = publicApiPatterns.some(pattern => pattern.test(pathname));

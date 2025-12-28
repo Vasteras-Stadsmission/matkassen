@@ -1010,7 +1010,14 @@
                 "parcelInPast": "Cannot cancel a parcel from the past"
             },
             "smsStatus": {
-                "title": "SMS Status"
+                "title": "SMS Status",
+                "provider": {
+                    "delivered": "Delivered",
+                    "failed": "Failed",
+                    "notDelivered": "Not Delivered",
+                    "awaiting": "Awaiting confirmation"
+                },
+                "deliveryStatusAt": "Delivery status at"
             }
         },
         "smsDashboard": {
@@ -1245,9 +1252,41 @@
     "smsFailures": {
         "title": "Failed SMS",
         "noFailures": "No failed SMS for upcoming pickups",
+        "noDismissed": "No dismissed failures",
         "pickup": "Pickup",
         "view": "View Household",
         "refresh": "Refresh",
-        "error": "Error"
+        "error": "Error",
+        "activeTab": "Active",
+        "dismissedTab": "Dismissed",
+        "internalError": "Send Failed",
+        "providerFailed": "Delivery Failed",
+        "notDelivered": "Not Delivered",
+        "sentAt": "Sent",
+        "showError": "Show error details",
+        "hideError": "Hide error details",
+        "dismissedAt": "Dismissed",
+        "by": "by",
+        "resend": "Resend",
+        "resendTooltip": "Queue a new SMS for this parcel",
+        "dismiss": "Dismiss",
+        "restore": "Restore",
+        "resendSuccess": "SMS Queued",
+        "resendSuccessMessage": "SMS has been queued for sending",
+        "resendError": "Resend Failed",
+        "dismissSuccess": "Dismissed",
+        "dismissSuccessMessage": "Failure has been marked as handled",
+        "restoreSuccess": "Restored",
+        "restoreSuccessMessage": "Failure has been restored to active list",
+        "accessDenied": "Access denied. You don't have permission to view SMS failures."
+    },
+    "smsConfirm": {
+        "title": "Send SMS",
+        "recentWarning": "Recently Sent",
+        "recentWarningMessage": "An SMS was sent to this recipient at {time}. Are you sure you want to send another?",
+        "previousSms": "Previous SMS",
+        "moreHistory": "+{count} more",
+        "cancel": "Cancel",
+        "confirm": "Send SMS"
     }
 }

@@ -1,6 +1,9 @@
 /**
  * HelloSMS integration utility for sending SMS messages
  * Supports test mode for development/testing
+ *
+ * Callback URL for delivery status updates must be configured
+ * by contacting HelloSMS support (not per-request).
  */
 import { SMS_SENDER_NAME } from "@/app/config/branding";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
@@ -190,11 +193,12 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
 
     try {
         // Prepare HelloSMS API request
+        // Note: Callback URL is configured at account level with HelloSMS support
         const body = {
             to: normalizedTo,
             message: request.text,
             from: request.from || config.from,
-            sendApiCallback: false,
+            sendApiCallback: true,
         };
 
         const response = await fetch(config.apiUrl, {
@@ -209,7 +213,33 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
         const responseData = (await response.json()) as HelloSmsApiResponse;
 
         if (response.ok && responseData.status === "success") {
-            const messageId = responseData.messageIds?.[0]?.apiMessageId || "unknown";
+            const firstRecipient = responseData.messageIds?.[0];
+            const messageId = firstRecipient?.apiMessageId || "unknown";
+
+            // Check per-recipient status for immediate rejection errors
+            // Status codes: 0 = pending/queued, 1 = sent, >= 2 typically indicates failure
+            // This catches cases where API returns success but recipient is rejected
+            // (e.g., invalid phone format, blocked number)
+            if (firstRecipient && firstRecipient.status >= 2) {
+                const errorMsg =
+                    firstRecipient.message ||
+                    `Recipient rejected (status: ${firstRecipient.status})`;
+                logger.warn(
+                    {
+                        to: normalizedTo,
+                        recipientStatus: firstRecipient.status,
+                        message: firstRecipient.message,
+                    },
+                    "SMS recipient rejected by provider",
+                );
+                return {
+                    success: false,
+                    error: errorMsg,
+                    messageId: messageId, // Include message ID for tracking even on failure
+                    httpStatus: 400, // Permanent failure - don't retry
+                };
+            }
+
             return {
                 success: true,
                 messageId: messageId,
