@@ -1,5 +1,6 @@
-import { beforeAll, afterAll, afterEach, vi } from "vitest";
+import { beforeAll, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { getTestDb, cleanupTestDb, closeTestDb } from "../db/test-db";
+import { TEST_NOW } from "../test-time";
 
 /**
  * Integration test setup for PGlite.
@@ -11,9 +12,14 @@ import { getTestDb, cleanupTestDb, closeTestDb } from "../db/test-db";
  * production mock. This allows integration tests to call real action functions
  * that import `db` from @/app/db/drizzle.
  *
+ * KEY: We use vi.useFakeTimers() and vi.setSystemTime() to freeze time at
+ * TEST_NOW for deterministic time-based testing. This mocks Date, Date.now(),
+ * and all timer functions globally.
+ *
  * Lifecycle:
- * - beforeAll: Initialize PGlite, run migrations, and inject test db
- * - afterEach: Truncate transactional tables (preserves lookup/seed data)
+ * - beforeAll: Initialize PGlite, run migrations
+ * - beforeEach: Set fake timers to TEST_NOW
+ * - afterEach: Truncate tables, restore real timers
  * - afterAll: Close PGlite connection
  */
 
@@ -26,6 +32,11 @@ vi.mock("@/app/db/drizzle", async () => {
         client: null, // Not needed for PGlite
     };
 });
+
+// Use fake timers for deterministic time testing
+// This must be called before beforeAll/beforeEach hooks
+vi.useFakeTimers();
+vi.setSystemTime(TEST_NOW);
 
 beforeAll(async () => {
     // Initialize PGlite and run all migrations.

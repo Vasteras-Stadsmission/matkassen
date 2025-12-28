@@ -11,12 +11,9 @@
  * specific edge cases and error handling. Integration tests verify the
  * end-to-end flow with real database operations.
  *
- * IMPORTANT: These tests use REAL time because mocking the time provider
- * doesn't work due to vitest module isolation (the sms-service gets its own
- * module instance). To keep tests deterministic:
- * - Schedules are set to cover all 7 days of the week
- * - Opening hours are 00:00-23:59 (all hours) for reliability
- * - Pickup times are set relative to real current time
+ * IMPORTANT: Time is mocked globally in the integration test setup to use
+ * TEST_NOW (2024-06-15T10:00:00Z, a Saturday at 12:00 Stockholm time).
+ * All time-relative helpers should use hoursFromTestNow() for deterministic tests.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -31,28 +28,7 @@ import {
     resetSmsCounter,
 } from "../../factories";
 import { getParcelsNeedingReminder } from "@/app/utils/sms/sms-service";
-
-/**
- * Helper to create a pickup time relative to real current time.
- * This is necessary because getParcelsNeedingReminder uses Time.now()
- * internally and we cannot mock it in integration tests.
- */
-function hoursFromNow(hours: number): Date {
-    return new Date(Date.now() + hours * 60 * 60 * 1000);
-}
-
-/**
- * All weekdays for schedules that should always match.
- */
-const ALL_WEEKDAYS: (
-    | "monday"
-    | "tuesday"
-    | "wednesday"
-    | "thursday"
-    | "friday"
-    | "saturday"
-    | "sunday"
-)[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+import { hoursFromTestNow } from "../../test-time";
 
 describe("SMS Opening Hours Filtering - Integration Tests", () => {
     beforeEach(() => {
@@ -62,20 +38,25 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
     });
 
     describe("getParcelsNeedingReminder with real database", () => {
+        // TEST_NOW is 2024-06-15T10:00:00Z (Saturday at 12:00 Stockholm time)
+        // 24h later = Sunday at 12:00 Stockholm time
+        // Schedules must include Saturday/Sunday for parcels to be found
+
         it("should return parcels within pickup window", async () => {
             const household = await createTestHousehold();
-            // Use schedule covering all days and all hours
+            // Schedule includes Saturday & Sunday with wide opening hours
             const { location } = await createTestLocationWithSchedule(
                 {},
                 {
-                    weekdays: ALL_WEEKDAYS,
-                    openingTime: "00:00",
-                    closingTime: "23:59",
+                    weekdays: ["saturday", "sunday"],
+                    openingTime: "09:00",
+                    closingTime: "17:00",
                 },
             );
 
-            // Create parcel with pickup 24 hours from now (within 48h window)
-            const pickupTime = hoursFromNow(24);
+            // Create parcel with pickup 24 hours from TEST_NOW (within 48h window)
+            // 24h from Saturday 12:00 = Sunday 12:00, within opening hours
+            const pickupTime = hoursFromTestNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -95,10 +76,10 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule(
                 {},
-                { weekdays: ALL_WEEKDAYS, openingTime: "00:00", closingTime: "23:59" },
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
             );
 
-            const pickupTime = hoursFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -125,7 +106,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             // Create location WITHOUT a schedule
             const location = await createTestPickupLocation();
 
-            const pickupTime = hoursFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -148,11 +129,11 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule(
                 {},
-                { weekdays: ALL_WEEKDAYS, openingTime: "00:00", closingTime: "23:59" },
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
             );
 
-            // Create parcel with pickup 72 hours from now (beyond 48h)
-            const pickupTime = hoursFromNow(72);
+            // Create parcel with pickup 72 hours from TEST_NOW (beyond 48h)
+            const pickupTime = hoursFromTestNow(72);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -171,10 +152,10 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule(
                 {},
-                { weekdays: ALL_WEEKDAYS, openingTime: "00:00", closingTime: "23:59" },
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
             );
 
-            const pickupTime = hoursFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             // Use createTestDeletedParcel for soft-deleted parcel
             const { createTestDeletedParcel } = await import("../../factories");
@@ -195,10 +176,10 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule(
                 {},
-                { weekdays: ALL_WEEKDAYS, openingTime: "00:00", closingTime: "23:59" },
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
             );
 
-            const pickupTime = hoursFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             // Create parcel and mark as picked up
             const { createTestPickedUpParcel } = await import("../../factories");
@@ -227,10 +208,10 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
                     name: "Test Location",
                     street_address: "Test Street 123",
                 },
-                { weekdays: ALL_WEEKDAYS, openingTime: "00:00", closingTime: "23:59" },
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
             );
 
-            const pickupTime = hoursFromNow(24);
+            const pickupTime = hoursFromTestNow(24);
 
             const parcel = await createTestParcel({
                 household_id: household.id,
@@ -241,7 +222,7 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const result = await getParcelsNeedingReminder();
             const foundParcel = result.find(p => p.parcelId === parcel.id);
 
-            // Parcel should be found (schedule covers all days/hours)
+            // Parcel should be found
             expect(foundParcel).toBeDefined();
             expect(foundParcel!.parcelId).toBe(parcel.id);
             expect(foundParcel!.householdId).toBe(household.id);
@@ -259,14 +240,13 @@ describe("SMS Opening Hours Filtering - Integration Tests", () => {
             const household1 = await createTestHousehold();
             const household2 = await createTestHousehold();
             const household3 = await createTestHousehold();
-            // Schedule covers all days and hours for reliability
             const { location } = await createTestLocationWithSchedule(
                 {},
-                { weekdays: ALL_WEEKDAYS, openingTime: "00:00", closingTime: "23:59" },
+                { weekdays: ["saturday", "sunday"], openingTime: "09:00", closingTime: "17:00" },
             );
 
-            // Use hoursFromNow for timing relative to real current time
-            const baseTime = hoursFromNow(24);
+            // 24h from Saturday 12:00 = Sunday 12:00
+            const baseTime = hoursFromTestNow(24);
 
             // Create 3 parcels for different households at slightly different times
             const parcel1 = await createTestParcel({
