@@ -32,6 +32,7 @@ import {
 import { Link } from "@/app/i18n/navigation";
 import { notifications } from "@mantine/notifications";
 import type { TranslationFunction } from "@/app/[locale]/types";
+import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
 interface SmsFailure {
     id: string;
@@ -389,7 +390,7 @@ export function SmsFailuresClient() {
                                         <Group gap="xs">
                                             <IconPhone size={14} color="gray" />
                                             <Text size="sm" c="dimmed">
-                                                {failure.phoneNumber}
+                                                {formatPhoneForDisplay(failure.phoneNumber)}
                                             </Text>
                                         </Group>
                                         <Text size="sm" c="dimmed">

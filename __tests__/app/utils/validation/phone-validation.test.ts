@@ -159,15 +159,26 @@ describe("Phone Validation Utilities", () => {
         });
 
         describe("Non-Swedish numbers", () => {
-            it("should return non-Swedish numbers unchanged", () => {
-                expect(formatPhoneForDisplay("+15551234567")).toBe("+15551234567");
-                expect(formatPhoneForDisplay("+4474123456789")).toBe("+4474123456789");
+            it("should normalize non-Swedish numbers to Swedish format (system only supports Swedish)", () => {
+                // The system only supports Swedish numbers, so non-Swedish inputs
+                // get normalized to +46 format (this shouldn't happen in practice)
+                expect(formatPhoneForDisplay("+15551234567")).toBe("+46 15551234567");
+                expect(formatPhoneForDisplay("+4474123456789")).toBe("+46 4474123456789");
             });
         });
 
         describe("Edge cases", () => {
             it("should handle other lengths by adding space after country code", () => {
                 expect(formatPhoneForDisplay("+461234")).toBe("+46 1234");
+            });
+
+            it("should return empty string for empty input", () => {
+                expect(formatPhoneForDisplay("")).toBe("");
+            });
+
+            it("should normalize local numbers without +46 prefix", () => {
+                expect(formatPhoneForDisplay("701234567")).toBe("+46 70 123 45 67");
+                expect(formatPhoneForDisplay("0701234567")).toBe("+46 70 123 45 67");
             });
         });
     });

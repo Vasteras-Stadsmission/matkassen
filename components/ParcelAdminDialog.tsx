@@ -35,6 +35,7 @@ import type { TranslationFunction } from "@/app/[locale]/types";
 import { getLanguageName } from "@/app/constants/languages";
 import { Time } from "@/app/utils/time-provider";
 import { modals } from "@mantine/modals";
+import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 import { notifications } from "@mantine/notifications";
 
 interface ParcelAdminDialogProps {
@@ -554,7 +555,9 @@ export function ParcelAdminDialog({
                                                 size="1rem"
                                                 color="var(--mantine-color-gray-6)"
                                             />
-                                            <Text size="md">{data.household.phoneNumber}</Text>
+                                            <Text size="md">
+                                                {formatPhoneForDisplay(data.household.phoneNumber)}
+                                            </Text>
                                         </Group>
                                         <Group gap="sm" align="baseline">
                                             <Text size="sm" c="dimmed" fw={500}>
