@@ -14,6 +14,8 @@ export async function createTestParcel(overrides: {
     is_picked_up?: boolean;
     picked_up_at?: Date;
     picked_up_by_user_id?: string;
+    no_show_at?: Date;
+    no_show_by_user_id?: string;
     deleted_at?: Date;
     deleted_by_user_id?: string;
 }) {
@@ -37,6 +39,8 @@ export async function createTestParcel(overrides: {
             is_picked_up: overrides.is_picked_up ?? false,
             picked_up_at: overrides.picked_up_at,
             picked_up_by_user_id: overrides.picked_up_by_user_id,
+            no_show_at: overrides.no_show_at,
+            no_show_by_user_id: overrides.no_show_by_user_id,
             deleted_at: overrides.deleted_at,
             deleted_by_user_id: overrides.deleted_by_user_id,
         })
@@ -94,15 +98,38 @@ export async function createTestPickedUpParcel(overrides: {
     pickup_location_id: string;
     pickup_date_time_earliest?: Date;
     pickup_date_time_latest?: Date;
+    picked_up_at?: Date;
     picked_up_by_user_id?: string;
 }) {
-    // Use deterministic timestamp
-    const pickedUpAt = new Date(TEST_NOW);
+    // Use deterministic timestamp if not provided
+    const pickedUpAt = overrides.picked_up_at ?? new Date(TEST_NOW);
 
     return createTestParcel({
         ...overrides,
         is_picked_up: true,
         picked_up_at: pickedUpAt,
         picked_up_by_user_id: overrides.picked_up_by_user_id ?? "test-admin",
+    });
+}
+
+/**
+ * Create a no-show parcel.
+ */
+export async function createTestNoShowParcel(overrides: {
+    household_id: string;
+    pickup_location_id: string;
+    pickup_date_time_earliest?: Date;
+    pickup_date_time_latest?: Date;
+    no_show_at?: Date;
+    no_show_by_user_id?: string;
+}) {
+    // Use deterministic timestamp if not provided
+    const noShowAt = overrides.no_show_at ?? new Date(TEST_NOW);
+
+    return createTestParcel({
+        ...overrides,
+        is_picked_up: false,
+        no_show_at: noShowAt,
+        no_show_by_user_id: overrides.no_show_by_user_id ?? "test-admin",
     });
 }

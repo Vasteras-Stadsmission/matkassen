@@ -41,7 +41,8 @@
         "smsFailures": "Misslyckade SMS",
         "newHousehold": "Nytt hushåll",
         "scanQrCode": "Skanna QR-kod",
-        "navigation": "Navigation"
+        "navigation": "Navigation",
+        "issues": "Ärenden"
     },
     "households": {
         "title": "Hushåll",
@@ -389,8 +390,8 @@
         },
         "pickupTimeLabel": "Tid",
         "statusLabel": "Status",
-        "handedOutStatus": "Utlämnad",
-        "notHandedOutStatus": "Ej utlämnad",
+        "pickedUpStatus": "Utlämnad",
+        "notPickedUpStatus": "Ej utlämnad",
         "reschedule": {
             "title": "Schemalägg matstöd för {name}",
             "modalTitle": "Omboka matstöd",
@@ -489,8 +490,8 @@
         "deletedOn": "Avbokad den",
         "by": "av",
         "status": {
-            "handedOut": "Utlämnad",
-            "notHandedOut": "Ej utlämnad",
+            "pickedUp": "Utlämnad",
+            "notPickedUp": "Ej utlämnad",
             "upcoming": "Kommande",
             "cancelled": "Avbokad"
         },
@@ -919,7 +920,7 @@
             "failed": "Misslyckades"
         },
         "actions": {
-            "markHandedOut": "Markera som utlämnad",
+            "markPickedUp": "Markera som utlämnad",
             "previewSms": "Förhandsgranska SMS",
             "resendSms": "Skicka SMS igen",
             "sendSms": "Skicka SMS",
@@ -944,7 +945,7 @@
             "locale": "Språk"
         },
         "notifications": {
-            "markedHandedOut": "Matkasse markerad som utlämnad",
+            "markedPickedUp": "Matkasse markerad som utlämnad",
             "smsQueued": "SMS köad för sändning",
             "smsResent": "SMS köad för omsändning",
             "deliverySimulated": "Leveransstatus simulerad",
@@ -961,10 +962,10 @@
             "title": "Matkasseinformation",
             "loading": "Laddar matkassedetaljer...",
             "pickupSchedule": "Hämtschema",
-            "handedOut": "Utlämnad",
-            "notHandedOut": "Ej utlämnad",
+            "pickedUp": "Utlämnad",
+            "notPickedUp": "Ej utlämnad",
             "status": {
-                "handedOut": "Utlämnad",
+                "pickedUp": "Utlämnad",
                 "cancelled": "AVBOKAD",
                 "wrongDay": "Fel dag",
                 "checkTime": "Kolla tid",
@@ -985,8 +986,8 @@
             "noComments": "Inga kommentarer än",
             "addCommentPlaceholder": "Lägg till en kommentar om detta hushåll...",
             "addComment": "Lägg till kommentar",
-            "markHandedOut": "Markera som utlämnad",
-            "undoHandout": "Ångra utlämning",
+            "markPickedUp": "Markera som utlämnad",
+            "undoPickup": "Ångra utlämning",
             "cancelParcel": "Avboka matkasse",
             "deleteConfirmTitle": "Bekräfta avbokning",
             "deleteConfirmMessage": "Är du säker på att du vill avboka denna matkasse? {smsWarning}",
@@ -1282,6 +1283,66 @@
         "restoreSuccess": "Återställd",
         "restoreSuccessMessage": "Felet har återställts till aktiv lista",
         "accessDenied": "Åtkomst nekad. Du har inte behörighet att visa SMS-fel."
+    },
+    "issues": {
+        "title": "Ärenden",
+        "allClear": "Allt klart! Inga ärenden att åtgärda.",
+        "refresh": "Uppdatera",
+        "error": "Fel vid inläsning av ärenden",
+        "accessDenied": "Åtkomst nekad. Du har inte behörighet att visa ärenden.",
+        "filters": {
+            "all": "Alla",
+            "unresolvedHandouts": "Oregistrerade utlämningar",
+            "outsideOpeningHours": "Utanför öppettider",
+            "failedSms": "Misslyckade SMS"
+        },
+        "sections": {
+            "unresolvedHandouts": "Oregistrerade utlämningar",
+            "outsideOpeningHours": "Utanför öppettider",
+            "failedSms": "Misslyckade SMS"
+        },
+        "actions": {
+            "handedOut": "Utlämnad",
+            "noShow": "Uteblev",
+            "cancelParcel": "Avboka paket",
+            "reschedule": "Omboka",
+            "retry": "Försök igen",
+            "dismiss": "Ignorera",
+            "editHousehold": "Redigera hushåll",
+            "cancel": "Avbryt",
+            "save": "Spara"
+        },
+        "quickLinks": "Snabblänkar",
+        "locationOpens": "Platsen öppnar {time}",
+        "toast": {
+            "handedOut": "Markerad som utlämnad",
+            "noShow": "Markerad som utebliven",
+            "retry": "SMS köat för nytt försök",
+            "dismiss": "Ärende ignorerat",
+            "cancelParcel": "Paket avbokat",
+            "rescheduled": "Paket ombokat",
+            "success": "Lyckades",
+            "actionError": "Åtgärden misslyckades",
+            "handedOutError": "Kunde inte markera som utlämnad",
+            "noShowError": "Kunde inte markera som utebliven",
+            "cancelError": "Kunde inte avboka paket",
+            "retryError": "Kunde inte skicka SMS igen",
+            "dismissError": "Kunde inte ignorera"
+        },
+        "confirmCancelTitle": "Avboka paket?",
+        "confirmCancelMessage": "Är du säker på att du vill avboka detta matpaket? Denna åtgärd kan inte ångras.",
+        "reschedule": {
+            "loading": "Laddar tillgänglighet...",
+            "newDate": "Nytt datum",
+            "selectDate": "Välj datum",
+            "newTime": "Ny tid",
+            "selectTime": "Välj tid",
+            "dateUnavailable": "Platsen är stängd detta datum",
+            "noTimesAvailable": "Inga lediga tider",
+            "requiredFields": "Välj både datum och tid",
+            "genericError": "Ombokningen misslyckades. Försök igen.",
+            "loadError": "Kunde inte ladda schema"
+        }
     },
     "smsConfirm": {
         "title": "Skicka SMS",

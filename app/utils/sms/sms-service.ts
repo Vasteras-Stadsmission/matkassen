@@ -9,7 +9,7 @@ import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSms, type SendSmsResponse } from "./hello-sms";
-import { formatPickupSms } from "./templates";
+import { formatPickupSms, formatFoodParcelsEndedSms } from "./templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
@@ -23,7 +23,8 @@ export type SmsIntent =
     | "pickup_updated"
     | "pickup_cancelled"
     | "consent_enrolment" // Deprecated: use 'enrolment' instead
-    | "enrolment";
+    | "enrolment"
+    | "food_parcels_ended";
 export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
 const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
@@ -73,8 +74,13 @@ function isRetriableHttpError(httpStatus?: number): boolean {
  * for reminders (duplicate "pick up your food" is annoying but harmless; missing
  * reminder could mean someone doesn't get their food).
  *
- * Only pickup_reminder is auto-recovered. Other intents (enrollment, cancellation)
- * stay stuck for manual review - their duplicates could be more problematic.
+ * Auto-recovered intents: pickup_reminder, food_parcels_ended
+ * - These use JIT sending where at-least-once is acceptable
+ * - Duplicate reminder/notification is annoying but harmless
+ * - Missing notification could mean someone doesn't get important info
+ *
+ * NOT auto-recovered: enrollment, cancellation
+ * - Stay stuck for manual review - their duplicates could be more problematic
  */
 async function recoverStaleSendingRecords(): Promise<number> {
     const staleThreshold = new Date(Time.now().toUTC().getTime() - STALE_SENDING_THRESHOLD_MS);
@@ -84,7 +90,7 @@ async function recoverStaleSendingRecords(): Promise<number> {
         .where(
             and(
                 eq(outgoingSms.status, "sending"),
-                eq(outgoingSms.intent, "pickup_reminder"),
+                sql`${outgoingSms.intent} IN ('pickup_reminder', 'food_parcels_ended')`,
                 lt(outgoingSms.created_at, staleThreshold),
             ),
         )
@@ -1267,6 +1273,411 @@ export async function processRemindersJIT(): Promise<{ processed: number }> {
         logger.info(
             { processed: processedCount, total: parcels.length },
             "SMS batch completed (pure JIT)",
+        );
+    }
+
+    return { processed: processedCount };
+}
+
+/**
+ * Get households eligible for "food parcels ended" notification
+ *
+ * Criteria:
+ * - Has a terminal parcel (picked up or no-show) from 48+ hours ago
+ * - No future parcels scheduled (date-based: pickup date >= today in Stockholm)
+ * - No unresolved parcels (past date with no outcome)
+ * - Not anonymized
+ * - Has valid phone number
+ * - No existing SMS for this ending cycle (idempotency)
+ *
+ * The query uses raw SQL with CTEs for complex eligibility logic.
+ *
+ * @param now - Optional reference time for eligibility checks (defaults to current time)
+ * @param testDb - Optional database instance for testing (defaults to production db)
+ */
+export async function getHouseholdsForEndedNotification(
+    now?: Date,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    testDb?: any,
+): Promise<
+    Array<{
+        householdId: string;
+        phoneNumber: string;
+        locale: string;
+        lastParcelId: string;
+        terminalAt: Date;
+    }>
+> {
+    // Use raw SQL for complex query with CTEs
+    // Type the result inline as db.execute returns the rows directly
+    type ResultRow = {
+        household_id: string;
+        phone_number: string;
+        locale: string;
+        last_parcel_id: string;
+        terminal_at: Date;
+    };
+
+    // Use provided time or current time
+    const referenceTime = now ?? Time.now().toUTC();
+
+    // Calculate the 48-hour threshold in JavaScript to avoid SQL operator issues
+    const threshold48HoursAgo = new Date(referenceTime.getTime() - 48 * 60 * 60 * 1000);
+
+    // Use test database if provided, otherwise production db
+    const database = testDb ?? db;
+
+    const result = await database.execute(sql`
+        WITH latest_terminal_parcel AS (
+            -- Get the most recent terminal parcel per household
+            -- IMPORTANT: Only include VALID terminal states (exclude bad data)
+            SELECT DISTINCT ON (fp.household_id)
+                fp.household_id,
+                fp.id as parcel_id,
+                CASE
+                    WHEN fp.is_picked_up THEN fp.picked_up_at
+                    ELSE fp.no_show_at
+                END as terminal_at
+            FROM food_parcels fp
+            WHERE fp.deleted_at IS NULL
+              -- Valid terminal states only (exclude invalid data):
+              AND (
+                  (fp.is_picked_up = true AND fp.picked_up_at IS NOT NULL AND fp.no_show_at IS NULL)
+                  OR (fp.no_show_at IS NOT NULL AND fp.is_picked_up = false)
+              )
+            -- Deterministic tie-breaker: terminal_at DESC, then fp.id DESC
+            ORDER BY fp.household_id,
+                     CASE WHEN fp.is_picked_up THEN fp.picked_up_at ELSE fp.no_show_at END DESC NULLS LAST,
+                     fp.id DESC
+        ),
+        households_with_unresolved AS (
+            -- Households that have unresolved parcels (should NOT get "ended" SMS)
+            SELECT DISTINCT household_id
+            FROM food_parcels
+            WHERE deleted_at IS NULL
+              AND is_picked_up = false
+              AND no_show_at IS NULL
+              -- Use explicit Stockholm timezone for date comparison
+              AND (pickup_date_time_latest AT TIME ZONE 'Europe/Stockholm')::date < (${referenceTime}::timestamptz AT TIME ZONE 'Europe/Stockholm')::date
+        )
+        SELECT
+            h.id as household_id,
+            h.phone_number,
+            h.locale,
+            ltp.parcel_id as last_parcel_id,
+            ltp.terminal_at
+        FROM households h
+        JOIN latest_terminal_parcel ltp ON ltp.household_id = h.id
+        WHERE
+            -- Not anonymized
+            h.anonymized_at IS NULL
+
+            -- Has valid phone number (defensive, since column is NOT NULL)
+            AND h.phone_number IS NOT NULL
+
+            -- Terminal state was set 48+ hours ago
+            AND ltp.terminal_at <= ${threshold48HoursAgo}::timestamptz
+
+            -- No future parcels (date-based: pickup date >= today in Stockholm)
+            AND NOT EXISTS (
+                SELECT 1 FROM food_parcels upcoming
+                WHERE upcoming.household_id = h.id
+                AND upcoming.deleted_at IS NULL
+                AND (upcoming.pickup_date_time_latest AT TIME ZONE 'Europe/Stockholm')::date >= (${referenceTime}::timestamptz AT TIME ZONE 'Europe/Stockholm')::date
+            )
+
+            -- No unresolved parcels (must resolve all before sending "ended")
+            AND NOT EXISTS (
+                SELECT 1 FROM households_with_unresolved u WHERE u.household_id = h.id
+            )
+
+            -- Idempotency: no existing SMS for this parcel ending
+            AND NOT EXISTS (
+                SELECT 1 FROM outgoing_sms sms
+                WHERE sms.idempotency_key = 'food_parcels_ended|' || h.id::text || '|' || ltp.parcel_id::text
+            )
+        ORDER BY ltp.terminal_at ASC
+    `);
+
+    // Handle different result formats from different DB drivers:
+    // - PGlite returns { rows: [...], fields: [...] }
+    // - node-postgres returns an iterable RowList
+    const rows: ResultRow[] =
+        "rows" in result
+            ? (result as { rows: ResultRow[] }).rows
+            : Array.from(result as Iterable<ResultRow>);
+
+    return rows.map(row => ({
+        householdId: row.household_id,
+        phoneNumber: row.phone_number,
+        locale: row.locale,
+        lastParcelId: row.last_parcel_id,
+        terminalAt: row.terminal_at,
+    }));
+}
+
+/**
+ * Send "food parcels ended" SMS for a single household
+ *
+ * Safe send order to prevent duplicate SMS on crash:
+ * 1. Insert record with "sending" status (idempotency key prevents duplicates)
+ * 2. Send SMS via HelloSMS
+ * 3. Update record with final status (sent/failed)
+ *
+ * @returns Object with success status and record ID (if created)
+ */
+export async function sendEndedSmsForHousehold(household: {
+    householdId: string;
+    phoneNumber: string;
+    locale: string;
+    lastParcelId: string;
+}): Promise<{ success: boolean; recordId?: string; error?: string }> {
+    const { sendSms } = await import("./hello-sms");
+
+    const id = nanoid(16);
+    const now = Time.now().toUTC();
+    const idempotencyKey = `food_parcels_ended|${household.householdId}|${household.lastParcelId}`;
+
+    // Render SMS with locale
+    const smsText = formatFoodParcelsEndedSms(household.locale as SupportedLocale);
+
+    // Step 1: Insert record with "sending" status first (prevents duplicates)
+    try {
+        await db.insert(outgoingSms).values({
+            id,
+            intent: "food_parcels_ended",
+            parcel_id: household.lastParcelId,
+            household_id: household.householdId,
+            to_e164: household.phoneNumber,
+            text: smsText,
+            status: "sending",
+            attempt_count: 1,
+            next_attempt_at: now,
+            idempotency_key: idempotencyKey,
+            created_at: now,
+        });
+    } catch (dbError: unknown) {
+        // Handle idempotency constraint violation (SMS already exists/being sent)
+        const errorObj = dbError as DbErrorShape;
+        const err = errorObj?.cause || errorObj;
+        const constraintName =
+            err?.constraint ||
+            err?.constraint_name ||
+            (err?.detail?.includes(SMS_IDEMPOTENCY_CONSTRAINT)
+                ? SMS_IDEMPOTENCY_CONSTRAINT
+                : undefined);
+        if (
+            err?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
+            constraintName === SMS_IDEMPOTENCY_CONSTRAINT
+        ) {
+            logger.debug(
+                { householdId: household.householdId, idempotencyKey },
+                "Food parcels ended SMS already exists, skipping",
+            );
+            return { success: true }; // Already handled by another process
+        }
+        throw dbError;
+    }
+
+    // Step 1.5: Revalidate household is still eligible
+    // Check if household was anonymized between query and now
+    const [freshHousehold] = await db
+        .select({
+            anonymizedAt: households.anonymized_at,
+            phoneNumber: households.phone_number,
+            locale: households.locale,
+        })
+        .from(households)
+        .where(eq(households.id, household.householdId))
+        .limit(1);
+
+    if (!freshHousehold || freshHousehold.anonymizedAt !== null) {
+        logger.info(
+            { smsId: id, householdId: household.householdId, reason: "household_anonymized" },
+            "Food parcels ended SMS cancelled - household no longer eligible",
+        );
+        await db.update(outgoingSms).set({ status: "cancelled" }).where(eq(outgoingSms.id, id));
+        return { success: false, recordId: id, error: "Household no longer eligible" };
+    }
+
+    // Update phone/locale if changed
+    let phoneToUse = household.phoneNumber;
+    let textToUse = smsText;
+    if (
+        freshHousehold.phoneNumber !== household.phoneNumber ||
+        freshHousehold.locale !== household.locale
+    ) {
+        phoneToUse = freshHousehold.phoneNumber;
+        textToUse = formatFoodParcelsEndedSms(freshHousehold.locale as SupportedLocale);
+
+        await db
+            .update(outgoingSms)
+            .set({ to_e164: phoneToUse, text: textToUse })
+            .where(eq(outgoingSms.id, id));
+
+        logger.debug(
+            { smsId: id, householdId: household.householdId },
+            "Food parcels ended SMS updated with fresh data",
+        );
+    }
+
+    // Step 2: Send SMS
+    try {
+        const result = await sendSms({
+            to: phoneToUse,
+            text: textToUse,
+        });
+
+        // Step 3: Update record with final status
+        if (result.success) {
+            const updateTime = Time.now().toUTC();
+            await db
+                .update(outgoingSms)
+                .set({
+                    status: "sent",
+                    sent_at: updateTime,
+                    provider_message_id: result.messageId,
+                    last_error_message: null,
+                })
+                .where(eq(outgoingSms.id, id));
+            logger.info(
+                { smsId: id, householdId: household.householdId },
+                "Food parcels ended SMS sent successfully",
+            );
+            return { success: true, recordId: id };
+        } else {
+            // Handle failure with retry logic
+            await handleEndedSmsFailure(id, household.householdId, result);
+            return { success: false, recordId: id, error: result.error };
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logError("Failed to send food parcels ended SMS", error, {
+            householdId: household.householdId,
+        });
+
+        // Handle exception with retry logic
+        await handleEndedSmsFailure(id, household.householdId, {
+            success: false,
+            error: errorMessage,
+            httpStatus: 500, // Treat exceptions as server errors (retriable)
+        });
+
+        return { success: false, recordId: id, error: errorMessage };
+    }
+}
+
+/**
+ * Handle "food parcels ended" SMS failures with retry logic
+ *
+ * Unlike pickup reminders, these SMS don't have a time constraint (pickup window),
+ * so we retry transient errors up to 3 times with simple backoff.
+ */
+async function handleEndedSmsFailure(
+    smsId: string,
+    householdId: string,
+    result: SendSmsResponse,
+): Promise<void> {
+    const maxAttempts = 3;
+
+    // Get current attempt count
+    const [record] = await db
+        .select({ attemptCount: outgoingSms.attempt_count })
+        .from(outgoingSms)
+        .where(eq(outgoingSms.id, smsId));
+
+    const currentAttempt = record?.attemptCount ?? 1;
+    // Check if we should retry based on error type (uses unified retry codes)
+    const shouldRetry = currentAttempt < maxAttempts && isRetriableHttpError(result.httpStatus);
+
+    if (shouldRetry) {
+        // Simple backoff: 5 minutes, then 30 minutes
+        const backoffMinutes = currentAttempt === 1 ? 5 : 30;
+        const nextAttemptAt = Time.now().addMinutes(backoffMinutes).toUTC();
+
+        logger.info(
+            {
+                smsId,
+                householdId,
+                backoffMinutes,
+                attempt: currentAttempt,
+                maxAttempts,
+            },
+            "Food parcels ended SMS retry scheduled",
+        );
+
+        await db
+            .update(outgoingSms)
+            .set({
+                status: "retrying",
+                last_error_message: result.error,
+                next_attempt_at: nextAttemptAt,
+            })
+            .where(eq(outgoingSms.id, smsId));
+    } else {
+        logError(
+            "Food parcels ended SMS failed permanently",
+            new Error(result.error || "Unknown error"),
+            {
+                smsId,
+                householdId,
+                attempts: currentAttempt,
+            },
+        );
+
+        await db
+            .update(outgoingSms)
+            .set({
+                status: "failed",
+                last_error_message: result.error,
+            })
+            .where(eq(outgoingSms.id, smsId));
+    }
+}
+
+/**
+ * Pure JIT SMS processing for "food parcels ended" notifications
+ *
+ * This is called by the scheduler to:
+ * 1. Find all eligible households (48h after terminal parcel, no future parcels)
+ * 2. For each: insert "sending" → send → update to "sent/failed"
+ *
+ * Concurrency is handled by idempotency constraint on insert - if two
+ * processes try the same household/parcel combo, the second insert fails and skips.
+ *
+ * @returns Count of SMS processed
+ */
+export async function processFoodParcelsEndedJIT(): Promise<{ processed: number }> {
+    // Recover any stale "sending" records from crashed processes
+    await recoverStaleSendingRecords();
+
+    const households = await getHouseholdsForEndedNotification();
+
+    if (households.length === 0) {
+        return { processed: 0 };
+    }
+
+    logger.info(
+        { count: households.length },
+        "Processing eligible households for food parcels ended SMS",
+    );
+
+    let processedCount = 0;
+
+    for (const household of households) {
+        const result = await sendEndedSmsForHousehold(household);
+        if (result.recordId) {
+            processedCount++;
+        }
+
+        // Small delay between sends to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    if (processedCount > 0) {
+        logger.info(
+            { processed: processedCount, total: households.length },
+            "Food parcels ended SMS batch completed",
         );
     }
 

@@ -418,8 +418,8 @@ export default function HouseholdDetailsPage({
                             formatTime={formatTime}
                             isDateInPast={isDateInPast}
                             statusLabels={{
-                                pickedUp: t("status.handedOut"),
-                                notPickedUp: t("status.notHandedOut"),
+                                pickedUp: t("status.pickedUp"),
+                                notPickedUp: t("status.notPickedUp"),
                                 upcoming: t("status.upcoming"),
                                 cancelled: t("status.cancelled"),
                             }}
@@ -461,8 +461,8 @@ export default function HouseholdDetailsPage({
                                     formatTime={formatTime}
                                     isDateInPast={isDateInPast}
                                     statusLabels={{
-                                        pickedUp: t("status.handedOut"),
-                                        notPickedUp: t("status.notHandedOut"),
+                                        pickedUp: t("status.pickedUp"),
+                                        notPickedUp: t("status.notPickedUp"),
                                         upcoming: t("status.upcoming"),
                                         cancelled: t("status.cancelled"),
                                     }}

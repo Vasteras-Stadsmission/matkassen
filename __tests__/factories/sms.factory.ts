@@ -11,7 +11,13 @@ export function resetSmsCounter() {
     smsCounter = 0;
 }
 
-type SmsIntent = "pickup_reminder" | "pickup_updated" | "pickup_cancelled" | "consent_enrolment";
+type SmsIntent =
+    | "pickup_reminder"
+    | "pickup_updated"
+    | "pickup_cancelled"
+    | "consent_enrolment"
+    | "enrolment"
+    | "food_parcels_ended";
 type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
 /**

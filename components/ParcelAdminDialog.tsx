@@ -478,7 +478,7 @@ export function ParcelAdminDialog({
                                             const status = getPickupStatus(data.parcel);
                                             switch (status.key) {
                                                 case "pickedUp":
-                                                    return t("admin.parcelDialog.status.handedOut");
+                                                    return t("admin.parcelDialog.status.pickedUp");
                                                 case "cancelled":
                                                     return t("admin.parcelDialog.status.cancelled");
                                                 case "wrongDay":
@@ -784,7 +784,7 @@ export function ParcelAdminDialog({
                                             onClick={handleUndoPickup}
                                             loading={submitting}
                                         >
-                                            {t("admin.parcelDialog.undoHandout")}
+                                            {t("admin.parcelDialog.undoPickup")}
                                         </Button>
                                     ) : (
                                         <Button
@@ -793,7 +793,7 @@ export function ParcelAdminDialog({
                                             onClick={handleMarkPickedUp}
                                             loading={submitting}
                                         >
-                                            {t("admin.parcelDialog.markHandedOut")}
+                                            {t("admin.parcelDialog.markPickedUp")}
                                         </Button>
                                     )}
                                 </Group>

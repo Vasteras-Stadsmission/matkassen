@@ -62,6 +62,9 @@ export default defineConfig(({ mode }) => ({
                     include: ["__tests__/**/*.integration.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
                     exclude: ["node_modules", "dist", ".next"],
                     // Integration tests run serially to avoid PGlite conflicts
+                    // NOTE: poolOptions is deprecated in Vitest 4+, but the replacement
+                    // (fileParallelism: false + isolate: false) causes "PGlite is closed" errors.
+                    // Keeping singleFork until PGlite compatibility is resolved.
                     pool: "forks",
                     poolOptions: {
                         forks: { singleFork: true },

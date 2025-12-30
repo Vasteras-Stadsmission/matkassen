@@ -21,7 +21,8 @@
         "smsFailures": "SMS Failures",
         "newHousehold": "New Household",
         "scanQrCode": "Scan QR Code",
-        "navigation": "Navigation"
+        "navigation": "Navigation",
+        "issues": "Issues"
     },
     "auth": {
         "login": "Log in",
@@ -389,8 +390,8 @@
         },
         "pickupTimeLabel": "Time",
         "statusLabel": "Status",
-        "handedOutStatus": "Handed out",
-        "notHandedOutStatus": "Not handed out",
+        "pickedUpStatus": "Handed out",
+        "notPickedUpStatus": "Not handed out",
         "reschedule": {
             "title": "Schedule food support for {name}",
             "modalTitle": "Reschedule Food Support",
@@ -489,8 +490,8 @@
         "deletedOn": "Cancelled on",
         "by": "by",
         "status": {
-            "handedOut": "Handed out",
-            "notHandedOut": "Not handed out",
+            "pickedUp": "Handed out",
+            "notPickedUp": "Not handed out",
             "upcoming": "Upcoming",
             "cancelled": "Cancelled"
         },
@@ -919,7 +920,7 @@
             "failed": "Failed"
         },
         "actions": {
-            "markHandedOut": "Mark as Handed Out",
+            "markPickedUp": "Mark as Handed Out",
             "previewSms": "Preview SMS",
             "resendSms": "Resend SMS",
             "sendSms": "Send SMS",
@@ -944,7 +945,7 @@
             "locale": "Language"
         },
         "notifications": {
-            "markedHandedOut": "Food parcel marked as handed out",
+            "markedPickedUp": "Food parcel marked as handed out",
             "smsQueued": "SMS queued for sending",
             "smsResent": "SMS queued for resending",
             "deliverySimulated": "Delivery status simulated",
@@ -961,10 +962,10 @@
             "title": "Parcel Information",
             "loading": "Loading parcel details...",
             "pickupSchedule": "Pickup Schedule",
-            "handedOut": "Handed Out",
-            "notHandedOut": "Not Handed Out",
+            "pickedUp": "Handed Out",
+            "notPickedUp": "Not Handed Out",
             "status": {
-                "handedOut": "Handed Out",
+                "pickedUp": "Handed Out",
                 "cancelled": "CANCELLED",
                 "wrongDay": "Wrong Day",
                 "checkTime": "Check Time",
@@ -985,8 +986,8 @@
             "noComments": "No comments yet",
             "addCommentPlaceholder": "Add a comment about this household...",
             "addComment": "Add Comment",
-            "markHandedOut": "Mark as Handed Out",
-            "undoHandout": "Undo Handout",
+            "markPickedUp": "Mark as Handed Out",
+            "undoPickup": "Undo Handout",
             "cancelParcel": "Cancel Parcel",
             "deleteConfirmTitle": "Confirm Cancellation",
             "deleteConfirmMessage": "Are you sure you want to cancel this parcel? {smsWarning}",
@@ -1282,6 +1283,66 @@
         "restoreSuccess": "Restored",
         "restoreSuccessMessage": "Failure has been restored to active list",
         "accessDenied": "Access denied. You don't have permission to view SMS failures."
+    },
+    "issues": {
+        "title": "Issues",
+        "allClear": "All clear! No issues need attention.",
+        "refresh": "Refresh",
+        "error": "Error loading issues",
+        "accessDenied": "Access denied. You don't have permission to view issues.",
+        "filters": {
+            "all": "All",
+            "unresolvedHandouts": "Unresolved handouts",
+            "outsideOpeningHours": "Outside opening hours",
+            "failedSms": "Failed SMS"
+        },
+        "sections": {
+            "unresolvedHandouts": "Unresolved handouts",
+            "outsideOpeningHours": "Outside opening hours",
+            "failedSms": "Failed SMS"
+        },
+        "actions": {
+            "handedOut": "Handed out",
+            "noShow": "No-show",
+            "cancelParcel": "Cancel parcel",
+            "reschedule": "Reschedule",
+            "retry": "Retry",
+            "dismiss": "Dismiss",
+            "editHousehold": "Edit household",
+            "cancel": "Cancel",
+            "save": "Save"
+        },
+        "quickLinks": "Quick links",
+        "locationOpens": "Location opens {time}",
+        "toast": {
+            "handedOut": "Marked as handed out",
+            "noShow": "Marked as no-show",
+            "retry": "SMS queued for retry",
+            "dismiss": "Issue dismissed",
+            "cancelParcel": "Parcel cancelled",
+            "rescheduled": "Parcel rescheduled",
+            "success": "Success",
+            "actionError": "Action failed",
+            "handedOutError": "Failed to mark as handed out",
+            "noShowError": "Failed to mark as no-show",
+            "cancelError": "Failed to cancel parcel",
+            "retryError": "Failed to retry SMS",
+            "dismissError": "Failed to dismiss"
+        },
+        "confirmCancelTitle": "Cancel parcel?",
+        "confirmCancelMessage": "Are you sure you want to cancel this food parcel? This action cannot be undone.",
+        "reschedule": {
+            "loading": "Loading availability...",
+            "newDate": "New date",
+            "selectDate": "Select date",
+            "newTime": "New time",
+            "selectTime": "Select time",
+            "dateUnavailable": "Location is closed on this date",
+            "noTimesAvailable": "No available time slots",
+            "requiredFields": "Please select both date and time",
+            "genericError": "Failed to reschedule. Please try again.",
+            "loadError": "Failed to load schedule"
+        }
     },
     "smsConfirm": {
         "title": "Send SMS",

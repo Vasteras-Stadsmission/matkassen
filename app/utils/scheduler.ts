@@ -6,6 +6,7 @@
 import cron, { type ScheduledTask } from "node-cron";
 import {
     processRemindersJIT,
+    processFoodParcelsEndedJIT,
     getSmsRecordsReadyForSending,
     sendSmsRecord,
     processQueuedSms,
@@ -95,14 +96,18 @@ const CRON_TIMEZONE = "Europe/Stockholm";
 const SMS_SEND_BATCH_SIZE = 5;
 
 /**
- * Process SMS: Pure JIT for reminders + queued SMS for other intents
+ * Process SMS: Pure JIT for reminders + ended notifications + queued SMS for other intents
  *
  * 1. Pure JIT for pickup_reminder: find parcels → render → send → create record
- * 2. Send loop for other intents: process queued SMS (enrollment, etc.)
+ * 2. Pure JIT for food_parcels_ended: find households → render → send → create record
+ * 3. Send loop for other intents: process queued SMS (enrollment, etc.)
  */
 async function processSmsJIT(): Promise<{ processed: number }> {
     // Process pickup reminders using pure JIT
     const jitResult = await processRemindersJIT();
+
+    // Process "food parcels ended" notifications using pure JIT
+    const endedResult = await processFoodParcelsEndedJIT();
 
     // Also process any queued SMS (enrollment, etc.)
     const queueResult = await processQueuedSms(async () => {
@@ -128,7 +133,7 @@ async function processSmsJIT(): Promise<{ processed: number }> {
     });
 
     return {
-        processed: jitResult.processed + queueResult,
+        processed: jitResult.processed + endedResult.processed + queueResult,
     };
 }
 
