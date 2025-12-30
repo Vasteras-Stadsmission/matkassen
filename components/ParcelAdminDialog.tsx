@@ -555,7 +555,9 @@ export function ParcelAdminDialog({
                                                 size="1rem"
                                                 color="var(--mantine-color-gray-6)"
                                             />
-                                            <Text size="md">{formatPhoneForDisplay(data.household.phoneNumber)}</Text>
+                                            <Text size="md">
+                                                {formatPhoneForDisplay(data.household.phoneNumber)}
+                                            </Text>
                                         </Group>
                                         <Group gap="sm" align="baseline">
                                             <Text size="sm" c="dimmed" fw={500}>
