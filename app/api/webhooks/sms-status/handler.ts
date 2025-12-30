@@ -1,8 +1,7 @@
 /**
- * Shared handler for SMS Status Callback Webhook
+ * Handler for SMS Status Callback Webhook
  *
- * Used by both the legacy endpoint (/api/webhooks/sms-status) and
- * the secure endpoint (/api/webhooks/sms-status/[secret]).
+ * Used by the secure endpoint: /api/webhooks/sms-status/[secret]
  *
  * Expected payload format from HelloSMS:
  * {
