@@ -377,7 +377,7 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 
 | Action | Toast message (EN) | Toast message (SV) |
 |--------|-------------------|-------------------|
-| Picked up | Marked as picked up | Markerad som uthämtad |
+| Picked up | Marked as picked up | Markerad som utlämnad |
 | No-show | Marked as no-show | Markerad som ej hämtad |
 | Retry | SMS queued for retry | SMS köat för nytt försök |
 | Dismiss | Issue dismissed | Ärende ignorerat |
@@ -465,7 +465,7 @@ Add translations for English and Swedish:
 | `issues.actions.save` | Save | Spara |
 | `issues.quickLinks` | Quick links | Snabblänkar |
 | `issues.locationOpens` | Location opens {time} | Platsen öppnar {time} |
-| `issues.toast.pickedUp` | Marked as picked up | Markerad som uthämtad |
+| `issues.toast.pickedUp` | Marked as picked up | Markerad som utlämnad |
 | `issues.toast.noShow` | Marked as no-show | Markerad som ej hämtad |
 | `issues.toast.retry` | SMS queued for retry | SMS köat för nytt försök |
 | `issues.toast.dismiss` | Issue dismissed | Ärende ignorerat |
