@@ -270,7 +270,6 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 | ka | `აღარ არის დაგეგმილი. კითხვები? დაგვიკავშირდით.` | 46 |
 | th | `ไม่มีรับอาหารอีก คำถาม? ติดต่อเรา` | 32 |
 | vi | `Không còn nhận thực phẩm. Hỏi? Liên hệ.` | 40 |
-| hy | *To be added during implementation* | - |
 
 **Note:** Messages use simple, everyday language for dignity. Avoid formal humanitarian terminology.
 
@@ -597,6 +596,5 @@ Clicking the logo/site name navigates to the Issues page (same as landing page).
 
 ## 11. Open Items
 
-- [ ] Armenian translation needs proper translation (removed corrupted placeholder)
 - [ ] Consider "Acknowledge/Snooze" for issues that can't be fixed immediately
 - [ ] Decide on retry behavior for failed "ended" SMS (manual only? auto-retry?)
