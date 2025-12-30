@@ -462,11 +462,11 @@ export default function InternationalizedHouseholdDetail({
                                             <Group mt="xs" gap="xs">
                                                 {isPickedUp ? (
                                                     <Badge color="green" variant="light">
-                                                        {t("status.pickedUp")}
+                                                        {t("status.handedOut")}
                                                     </Badge>
                                                 ) : isPast ? (
                                                     <Badge color="red" variant="light">
-                                                        {t("status.notPickedUp")}
+                                                        {t("status.notHandedOut")}
                                                     </Badge>
                                                 ) : (
                                                     <Badge color="blue" variant="light">

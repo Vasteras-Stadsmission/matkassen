@@ -96,7 +96,7 @@ function PickupCard({
             </Text>
             <Text size="sm">
                 {t("statusLabel")}:{" "}
-                {foodParcel.isPickedUp ? t("pickedUpStatus") : t("notPickedUpStatus")}
+                {foodParcel.isPickedUp ? t("handedOutStatus") : t("notHandedOutStatus")}
             </Text>
         </div>
     );

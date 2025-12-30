@@ -389,8 +389,8 @@
         },
         "pickupTimeLabel": "Tid",
         "statusLabel": "Status",
-        "pickedUpStatus": "Uthämtad",
-        "notPickedUpStatus": "Ej uthämtad",
+        "handedOutStatus": "Utlämnad",
+        "notHandedOutStatus": "Ej utlämnad",
         "reschedule": {
             "title": "Schemalägg matstöd för {name}",
             "modalTitle": "Omboka matstöd",
@@ -489,8 +489,8 @@
         "deletedOn": "Avbokad den",
         "by": "av",
         "status": {
-            "pickedUp": "Uthämtad",
-            "notPickedUp": "Ej uthämtad",
+            "handedOut": "Utlämnad",
+            "notHandedOut": "Ej utlämnad",
             "upcoming": "Kommande",
             "cancelled": "Avbokad"
         },
@@ -919,7 +919,7 @@
             "failed": "Misslyckades"
         },
         "actions": {
-            "markPickedUp": "Markera som upphämtat",
+            "markHandedOut": "Markera som utlämnad",
             "previewSms": "Förhandsgranska SMS",
             "resendSms": "Skicka SMS igen",
             "sendSms": "Skicka SMS",
@@ -944,7 +944,7 @@
             "locale": "Språk"
         },
         "notifications": {
-            "markedPickedUp": "Matkasse markerad som upphämtad",
+            "markedHandedOut": "Matkasse markerad som utlämnad",
             "smsQueued": "SMS köad för sändning",
             "smsResent": "SMS köad för omsändning",
             "deliverySimulated": "Leveransstatus simulerad",
@@ -961,10 +961,10 @@
             "title": "Matkasseinformation",
             "loading": "Laddar matkassedetaljer...",
             "pickupSchedule": "Hämtschema",
-            "pickedUp": "Upphämtad",
-            "notPickedUp": "Ej hämtad",
+            "handedOut": "Utlämnad",
+            "notHandedOut": "Ej utlämnad",
             "status": {
-                "pickedUp": "Upphämtad",
+                "handedOut": "Utlämnad",
                 "cancelled": "AVBOKAD",
                 "wrongDay": "Fel dag",
                 "checkTime": "Kolla tid",
@@ -985,8 +985,8 @@
             "noComments": "Inga kommentarer än",
             "addCommentPlaceholder": "Lägg till en kommentar om detta hushåll...",
             "addComment": "Lägg till kommentar",
-            "markPickedUp": "Markera som hämtat",
-            "undoPickup": "Ångra hämtning",
+            "markHandedOut": "Markera som utlämnad",
+            "undoHandout": "Ångra utlämning",
             "cancelParcel": "Avboka matkasse",
             "deleteConfirmTitle": "Bekräfta avbokning",
             "deleteConfirmMessage": "Är du säker på att du vill avboka denna matkasse? {smsWarning}",

@@ -477,7 +477,7 @@ export function ParcelAdminDialog({
                                             const status = getPickupStatus(data.parcel);
                                             switch (status.key) {
                                                 case "pickedUp":
-                                                    return t("admin.parcelDialog.status.pickedUp");
+                                                    return t("admin.parcelDialog.status.handedOut");
                                                 case "cancelled":
                                                     return t("admin.parcelDialog.status.cancelled");
                                                 case "wrongDay":
@@ -489,7 +489,7 @@ export function ParcelAdminDialog({
                                                         "admin.parcelDialog.status.okToHandOut",
                                                     );
                                                 default:
-                                                    return t("admin.parcelDialog.notPickedUp");
+                                                    return t("admin.parcelDialog.notHandedOut");
                                             }
                                         })()}
                                     </Badge>
@@ -781,7 +781,7 @@ export function ParcelAdminDialog({
                                             onClick={handleUndoPickup}
                                             loading={submitting}
                                         >
-                                            {t("admin.parcelDialog.undoPickup")}
+                                            {t("admin.parcelDialog.undoHandout")}
                                         </Button>
                                     ) : (
                                         <Button
@@ -790,7 +790,7 @@ export function ParcelAdminDialog({
                                             onClick={handleMarkPickedUp}
                                             loading={submitting}
                                         >
-                                            {t("admin.parcelDialog.markPickedUp")}
+                                            {t("admin.parcelDialog.markHandedOut")}
                                         </Button>
                                     )}
                                 </Group>
