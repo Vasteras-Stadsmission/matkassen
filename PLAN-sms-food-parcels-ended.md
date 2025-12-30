@@ -270,7 +270,7 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 | ka | `აღარ არის დაგეგმილი. კითხვები? დაგვიკავშირდით.` | 46 |
 | th | `ไม่มีรับอาหารอีก คำถาม? ติดต่อเรา` | 32 |
 | vi | `Không còn nhận thực phẩm. Hỏi? Liên hệ.` | 40 |
-| hy | **TODO: Needs proper Armenian translation** | - |
+| hy | *To be added during implementation* | - |
 
 **Note:** Messages use simple, everyday language for dignity. Avoid formal humanitarian terminology.
 
