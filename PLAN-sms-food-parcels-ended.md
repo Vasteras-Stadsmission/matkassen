@@ -436,31 +436,75 @@ interface RescheduleProps {
 
 ---
 
-## 5. Navigation
+## 5. Internationalization (i18n)
 
-### 5.1 Navbar
+### 5.1 Admin UI Translations
 
-Since Issues IS the landing page, minimal changes needed:
+Add translations for English and Swedish:
 
-```
-[Schedule] [Households] [SMS] [Issues]
-                                 ↑
-                    Shows badge when count > 0
-```
+| Key | English | Swedish |
+|-----|---------|---------|
+| `issues.title` | Issues | Problem |
+| `issues.allClear` | All clear! No issues need attention. | Allt klart! Inga problem att åtgärda. |
+| `issues.tabs.all` | All | Alla |
+| `issues.tabs.parcels` | Parcels | Paket |
+| `issues.tabs.sms` | SMS | SMS |
+| `issues.unresolvedParcels` | Unresolved parcels | Ej hanterade paket |
+| `issues.outsideHours` | Outside opening hours | Utanför öppettider |
+| `issues.smsFailures` | SMS failures | Misslyckade SMS |
+| `issues.actions.pickedUp` | Picked up | Hämtat |
+| `issues.actions.noShow` | No-show | Ej hämtat |
+| `issues.actions.cancelParcel` | Cancel parcel | Avboka paket |
+| `issues.actions.reschedule` | Reschedule | Omboka |
+| `issues.actions.retry` | Retry | Försök igen |
+| `issues.actions.dismiss` | Dismiss | Ignorera |
+| `issues.actions.editHousehold` | Edit household | Redigera hushåll |
+| `issues.actions.cancel` | Cancel | Avbryt |
+| `issues.actions.save` | Save | Spara |
+| `issues.quickLinks` | Quick links | Snabblänkar |
+| `issues.locationOpens` | Location opens {time} | Platsen öppnar {time} |
+| `nav.issues` | Issues | Problem |
 
-Or: No separate Issues link - clicking logo/home goes to Issues page.
+### 5.2 Translation Files
 
-### 5.2 Secondary Indicators (Keep Existing)
-
-Keep existing contextual badges as helpful secondary indicators:
-- Schedule location dropdown still shows outside-hours count
-- SMS section still shows failure indicator
-
-The Issues page is the **canonical** place; these are **convenience** indicators.
+Add to existing translation files:
+- `messages/en.json`
+- `messages/sv.json`
 
 ---
 
-## 6. Files to Create/Modify
+## 6. Navigation
+
+### 6.1 Navbar Design
+
+**Decision:** Issues button only appears when there are issues (Option 2).
+
+```
+No issues:  [Schedule] [Households] [SMS]
+Has issues: [Schedule] [Households] [SMS] [Issues ⚠️ 5]
+```
+
+**Rationale:**
+- The button appearing IS the notification - impossible to miss
+- Clean navbar most of the time (when system is healthy)
+- Matches current SMS failures pattern (only shows when relevant)
+
+**Changes:**
+- **Remove:** Existing SMS failures navbar button (consolidated into Issues page)
+- **Add:** Issues button that appears only when `issueCount > 0`
+- **Keep:** Schedule outside-hours badge as secondary indicator (contextually useful)
+
+### 6.2 Landing Page
+
+After login, users are redirected to `/[locale]/admin` (the Issues page).
+
+### 6.3 Home/Logo Click
+
+Clicking the logo/site name navigates to the Issues page (same as landing page).
+
+---
+
+## 7. Files to Create/Modify
 
 | File | Changes |
 |------|---------|
@@ -475,10 +519,13 @@ The Issues page is the **canonical** place; these are **convenience** indicators
 | `app/api/admin/issues/route.ts` | **New:** API to fetch all issues with counts |
 | `app/components/admin/IssueCard.tsx` | **New:** Card component with inline actions/expansion |
 | `app/components/admin/RescheduleInline.tsx` | **New:** Inline calendar + time picker (reuse ParcelCalendar style) |
+| `messages/en.json` | Add `issues.*` and `nav.issues` translations |
+| `messages/sv.json` | Add `issues.*` and `nav.issues` translations |
+| `app/components/navbar.tsx` (or similar) | Remove SMS failures button, add conditional Issues button |
 
 ---
 
-## 7. Test Cases
+## 8. Test Cases
 
 ### SMS "Food Parcels Ended"
 
@@ -538,7 +585,7 @@ The Issues page is the **canonical** place; these are **convenience** indicators
 
 ---
 
-## 8. Implementation Order
+## 9. Implementation Order
 
 1. **Database migration** - Add no_show columns + SMS intent
 2. **Update schema.ts** - Add new columns
@@ -555,7 +602,7 @@ The Issues page is the **canonical** place; these are **convenience** indicators
 
 ---
 
-## 9. Decisions Made
+## 10. Decisions Made
 
 | Question | Decision | Rationale |
 |----------|----------|-----------|
@@ -569,12 +616,13 @@ The Issues page is the **canonical** place; these are **convenience** indicators
 | Time vs date for "upcoming"? | Date-based | Consistent with "unresolved", prevents edge cases |
 | Edit phone inline? | No, link to household | Editing phone affects all SMS, needs full context |
 | Retry SMS behavior? | Update existing record | Preserves idempotency, no duplicate rows |
+| Navbar Issues button? | Only show when issues exist | Clean navbar when healthy, button appearing = notification |
+| SMS failures navbar button? | Remove (consolidated) | All issues in one place |
 
 ---
 
-## 10. Open Items
+## 11. Open Items
 
 - [ ] Armenian translation needs proper translation (removed corrupted placeholder)
-- [ ] Confirm navbar design (separate Issues link vs home = issues)
 - [ ] Consider "Acknowledge/Snooze" for issues that can't be fixed immediately
 - [ ] Decide on retry behavior for failed "ended" SMS (manual only? auto-retry?)
