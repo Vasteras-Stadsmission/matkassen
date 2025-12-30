@@ -308,38 +308,43 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 
 ### 4.4 Page Layout
 
+**Filter chips** (not tabs) - wrap naturally on mobile, clear descriptive labels:
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  Issues                                         │
 │  ─────────────────────────────────────────────  │
-│  [All (15)] [Parcels (10)] [SMS (5)]           │
+│  [All (6)] [Unresolved pickups (3)]            │  ← Filter chips
+│  [Outside opening hours (2)] [Failed SMS (1)]  │    (wrap on mobile)
 │                                                 │
-│  UNRESOLVED PARCELS                             │
+│  📋 UNRESOLVED PICKUPS                          │
 │  ┌─────────────────────────────────────────┐   │
-│  │ 📦 Andersson family  ←── link to        │   │
-│  │    Dec 15, 12:00-14:00 · Centrum        │   │
-│  │    [Picked up] [No-show]                │   │
+│  │ Andersson family  ←── link to household │   │
+│  │ Dec 15, 12:00-14:00 · Centrum           │   │
+│  │ [Picked up] [No-show]                   │   │
 │  └─────────────────────────────────────────┘   │
 │                                                 │
-│  OUTSIDE OPENING HOURS                          │
+│  ⏰ OUTSIDE OPENING HOURS                       │
 │  ┌─────────────────────────────────────────┐   │
-│  │ 📦 Berg family                          │   │
-│  │    Dec 20, 10:00-12:00 · Centrum        │   │
-│  │    (Location opens 12:00)               │   │
-│  │    [Cancel parcel] [Reschedule]         │   │
+│  │ Berg family                             │   │
+│  │ Dec 20, 10:00-12:00 · Centrum           │   │
+│  │ (Location opens 12:00)                  │   │
+│  │ [Cancel parcel] [Reschedule]            │   │
 │  └─────────────────────────────────────────┘   │
 │                                                 │
-│  SMS FAILURES                                   │
+│  💬 FAILED SMS                                  │
 │  ┌─────────────────────────────────────────┐   │
-│  │ 📱 Eriksson family                      │   │
-│  │    "Invalid phone number"               │   │
-│  │    [Retry] [Dismiss] [Edit household →] │   │
+│  │ Eriksson family                         │   │
+│  │ "Invalid phone number"                  │   │
+│  │ [Retry] [Dismiss] [Edit household →]    │   │
 │  └─────────────────────────────────────────┘   │
 │                                                 │
 │  ─────────────────────────────────────────────  │
 │  Quick links: [Schedule] [Households] [SMS]    │
 └─────────────────────────────────────────────────┘
 ```
+
+**"All" is the default filter** - users see everything on load, chips filter down.
 
 ### 4.5 Empty State
 
@@ -426,15 +431,16 @@ Add translations for English and Swedish:
 
 | Key | English | Swedish |
 |-----|---------|---------|
-| `issues.title` | Issues | Problem |
-| `issues.allClear` | All clear! No issues need attention. | Allt klart! Inga problem att åtgärda. |
-| `issues.tabs.all` | All | Alla |
-| `issues.tabs.parcels` | Parcels | Paket |
-| `issues.tabs.sms` | SMS | SMS |
-| `issues.unresolvedParcels` | Unresolved parcels | Ej hanterade paket |
-| `issues.outsideHours` | Outside opening hours | Utanför öppettider |
-| `issues.smsFailures` | SMS failures | Misslyckade SMS |
-| `issues.actions.pickedUp` | Picked up | Hämtat |
+| `issues.title` | Issues | Ärenden |
+| `issues.allClear` | All clear! No issues need attention. | Allt klart! Inga ärenden att åtgärda. |
+| `issues.filters.all` | All | Alla |
+| `issues.filters.unresolvedPickups` | Unresolved pickups | Oregistrerade uthämtningar |
+| `issues.filters.outsideOpeningHours` | Outside opening hours | Utanför öppettider |
+| `issues.filters.failedSms` | Failed SMS | Misslyckade SMS |
+| `issues.sections.unresolvedPickups` | Unresolved pickups | Oregistrerade uthämtningar |
+| `issues.sections.outsideOpeningHours` | Outside opening hours | Utanför öppettider |
+| `issues.sections.failedSms` | Failed SMS | Misslyckade SMS |
+| `issues.actions.pickedUp` | Picked up | Uthämtat |
 | `issues.actions.noShow` | No-show | Ej hämtat |
 | `issues.actions.cancelParcel` | Cancel parcel | Avboka paket |
 | `issues.actions.reschedule` | Reschedule | Omboka |
@@ -445,7 +451,7 @@ Add translations for English and Swedish:
 | `issues.actions.save` | Save | Spara |
 | `issues.quickLinks` | Quick links | Snabblänkar |
 | `issues.locationOpens` | Location opens {time} | Platsen öppnar {time} |
-| `nav.issues` | Issues | Problem |
+| `nav.issues` | Issues | Ärenden |
 
 ### 5.2 Translation Files
 
