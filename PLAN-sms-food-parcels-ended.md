@@ -365,9 +365,23 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 **Inline actions (no navigation):**
 - [Picked up] → marks parcel `is_picked_up = true`, sets `picked_up_at`, card disappears
 - [No-show] → sets `no_show_at`, card disappears
-- [Retry] → retries SMS with SAME idempotency key (updates existing record), shows result inline
+- [Retry] → sets status to `queued`, card disappears immediately + toast "SMS queued for retry". If it fails again later, card re-appears in list.
 - [Dismiss] → sets `dismissed_at` and `dismissed_by_user_id`, card disappears
 - [Cancel parcel] → confirmation dialog, then soft-deletes parcel
+
+**Why [Retry] removes the card immediately:** A queued SMS is not a failure - it's being handled. The Issues page shows issues, not pending work. If the retry fails, it becomes an issue again and re-appears.
+
+**Visual feedback when card disappears:**
+1. **Exit animation** - card fades/slides out (Mantine `Transition`) - shows which card was affected
+2. **Success toast** - green notification confirms action (Mantine `notifications.show()`)
+
+| Action | Toast message (EN) | Toast message (SV) |
+|--------|-------------------|-------------------|
+| Picked up | Marked as picked up | Markerad som uthämtad |
+| No-show | Marked as no-show | Markerad som ej hämtad |
+| Retry | SMS queued for retry | SMS köat för nytt försök |
+| Dismiss | Issue dismissed | Ärende ignorerat |
+| Cancel parcel | Parcel cancelled | Paket avbokat |
 
 **Navigation actions:**
 - [Edit household →] → links to `/households/[id]/edit` (for fixing phone number)
@@ -451,6 +465,12 @@ Add translations for English and Swedish:
 | `issues.actions.save` | Save | Spara |
 | `issues.quickLinks` | Quick links | Snabblänkar |
 | `issues.locationOpens` | Location opens {time} | Platsen öppnar {time} |
+| `issues.toast.pickedUp` | Marked as picked up | Markerad som uthämtad |
+| `issues.toast.noShow` | Marked as no-show | Markerad som ej hämtad |
+| `issues.toast.retry` | SMS queued for retry | SMS köat för nytt försök |
+| `issues.toast.dismiss` | Issue dismissed | Ärende ignorerat |
+| `issues.toast.cancelParcel` | Parcel cancelled | Paket avbokat |
+| `issues.toast.rescheduled` | Parcel rescheduled | Paket ombokat |
 | `nav.issues` | Issues | Ärenden |
 
 ### 5.2 Translation Files
@@ -561,7 +581,7 @@ Clicking the logo/site name navigates to the Issues page (same as landing page).
 **SMS failures:**
 28. All three failure types appear: internal (`status='failed'`), provider (`provider_status IN ('failed','not delivered')`), stale (no callback after 24h)
 29. Each failure shows appropriate error context (sanitized, no phone numbers)
-30. Click [Retry] → updates existing record (same idempotency key), attempts resend
+30. Click [Retry] → card disappears immediately, toast shows "SMS queued for retry", status set to `queued`
 31. Click [Dismiss] → sets `dismissed_at/by`, removes from list
 32. Click [Edit household →] → navigates to household edit page
 
