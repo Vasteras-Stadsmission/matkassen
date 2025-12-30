@@ -1,121 +1,258 @@
-# Implementation Plan: SMS When Food Parcels End
+# Implementation Plan: SMS When Food Parcels End + Unified Issues Page
 
 ## Overview
 
-Send an SMS to households 48 hours after their last food parcel outcome (picked up or no-show) when they have no upcoming parcels scheduled. This notifies them that their food assistance has concluded and provides contact information for questions.
+1. Send an SMS to households 48 hours after their last food parcel outcome (picked up or no-show) when they have no upcoming parcels scheduled
+2. Create a unified Issues page as the admin landing page for all system health items
 
 ---
 
-## 1. Database Changes
+## 1. Database Changes (Simplified Approach)
 
-### 1.1 New Enums
+### 1.1 Add No-Show Tracking
+
+**Rationale:** Instead of a complex state enum refactor that touches `notDeleted()`, partial unique indexes, and upsert logic, we add simple columns alongside existing fields.
 
 ```sql
--- Parcel state enum (replaces is_picked_up boolean + deleted_at pattern)
-CREATE TYPE parcel_state AS ENUM ('pending', 'picked_up', 'no_show', 'cancelled');
+ALTER TABLE food_parcels
+ADD COLUMN no_show_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN no_show_by_user_id VARCHAR(50);
+```
 
--- New SMS intent
+**Keep existing columns unchanged:**
+- `is_picked_up`, `picked_up_at`, `picked_up_by_user_id`
+- `deleted_at`, `deleted_by_user_id` (soft-delete is a separate concern)
+
+### 1.2 Data Integrity Constraints
+
+Add application-level validation to ensure mutual exclusivity:
+
+```typescript
+// In server actions that mark parcels
+function validateParcelState(parcel: {
+    is_picked_up: boolean;
+    picked_up_at: Date | null;
+    no_show_at: Date | null;
+}) {
+    // Cannot be both picked up AND no-show
+    if (parcel.is_picked_up && parcel.no_show_at !== null) {
+        throw new Error("Parcel cannot be both picked up and no-show");
+    }
+    // If picked up, must have timestamp
+    if (parcel.is_picked_up && parcel.picked_up_at === null) {
+        throw new Error("Picked up parcel must have picked_up_at timestamp");
+    }
+    // If no-show, must not be picked up
+    if (parcel.no_show_at !== null && parcel.is_picked_up) {
+        throw new Error("No-show parcel cannot be marked as picked up");
+    }
+}
+```
+
+### 1.3 Terminal State Logic
+
+```typescript
+// A parcel has terminal state if:
+const hasTerminalState = parcel.is_picked_up || parcel.no_show_at !== null;
+
+// Terminal timestamp (when outcome was recorded)
+const terminalTimestamp = parcel.is_picked_up
+    ? parcel.picked_up_at
+    : parcel.no_show_at;
+
+// Unresolved parcel = pickup DATE has passed, no terminal state, not deleted
+// NOTE: Date-based, not time-based! A same-day parcel is not unresolved.
+const isUnresolved =
+    parcel.pickup_date_time_latest::date < CURRENT_DATE &&
+    !parcel.is_picked_up &&
+    parcel.no_show_at === null &&
+    parcel.deleted_at === null;
+```
+
+### 1.4 New SMS Intent
+
+```sql
 ALTER TYPE sms_intent ADD VALUE 'food_parcels_ended';
 ```
 
-### 1.2 Schema Changes to `food_parcels` Table
+### 1.5 Drizzle Schema Update
 
-**Add new columns:**
-```sql
-ALTER TABLE food_parcels
-ADD COLUMN state parcel_state NOT NULL DEFAULT 'pending',
-ADD COLUMN state_changed_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN state_changed_by_user_id VARCHAR(50);
-```
-
-**Add index for stale parcels query:**
-```sql
-CREATE INDEX idx_food_parcels_stale
-ON food_parcels (state, pickup_date_time_latest)
-WHERE state = 'pending';
-```
-
-### 1.3 Data Migration
-
-Migrate existing data BEFORE dropping old columns:
-
-```sql
--- Migrate is_picked_up = true → state = 'picked_up'
-UPDATE food_parcels
-SET
-    state = 'picked_up',
-    state_changed_at = picked_up_at,
-    state_changed_by_user_id = picked_up_by_user_id
-WHERE is_picked_up = true AND deleted_at IS NULL;
-
--- Migrate deleted_at IS NOT NULL → state = 'cancelled'
-UPDATE food_parcels
-SET
-    state = 'cancelled',
-    state_changed_at = deleted_at,
-    state_changed_by_user_id = deleted_by_user_id
-WHERE deleted_at IS NOT NULL;
-
--- Remaining (is_picked_up = false AND deleted_at IS NULL) stay as 'pending' (default)
-```
-
-### 1.4 Drop Old Columns (Separate Migration Later)
-
-After verifying data migration is correct:
-
-```sql
-ALTER TABLE food_parcels
-DROP COLUMN is_picked_up,
-DROP COLUMN picked_up_at,
-DROP COLUMN picked_up_by_user_id,
-DROP COLUMN deleted_at,
-DROP COLUMN deleted_by_user_id;
-```
-
-### 1.5 Drizzle Migration Strategy
-
-1. Run `pnpm drizzle-kit generate` after updating `schema.ts`
-2. This generates a new migration file in `drizzle/migrations/`
-3. Manually append the data migration SQL (UPDATE statements) to the generated file
-4. The drop columns should be a separate migration file (run after verification)
-
-**Updated schema.ts:**
 ```typescript
-export const parcelStateEnum = pgEnum("parcel_state", [
-    "pending",
-    "picked_up",
-    "no_show",
-    "cancelled",
-]);
-
-export const foodParcels = pgTable(
-    "food_parcels",
-    {
-        id: text("id").primaryKey().notNull().$defaultFn(() => nanoid(12)),
-        household_id: text("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
-        pickup_location_id: text("pickup_location_id").notNull().references(() => pickupLocations.id),
-        pickup_date_time_earliest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-        pickup_date_time_latest: timestamp({ precision: 0, withTimezone: true }).notNull(),
-        state: parcelStateEnum("state").notNull().default("pending"),
-        state_changed_at: timestamp({ precision: 1, withTimezone: true }),
-        state_changed_by_user_id: varchar("state_changed_by_user_id", { length: 50 }),
-    },
-    // ... indexes
-);
+// app/db/schema.ts
+export const foodParcels = pgTable("food_parcels", {
+    // ... existing columns unchanged ...
+    no_show_at: timestamp({ precision: 1, withTimezone: true }),
+    no_show_by_user_id: varchar("no_show_by_user_id", { length: 50 }),
+});
 ```
 
 ---
 
-## 2. SMS Template
+## 2. SMS Sending: Pure JIT (No Queue)
 
-### 2.1 New Template Function
+### 2.1 Rationale
 
-**File:** `app/utils/sms/templates.ts`
+JIT is better than queue-based for this use case:
+- No stale data - query criteria evaluated at send time, not 48h earlier
+- Simpler logic - no send-time revalidation needed
+- Self-healing - if scheduler was down, catches up on next run
+- Matches existing `processRemindersJIT()` pattern
+
+### 2.2 Implementation
 
 ```typescript
+// app/utils/sms/sms-service.ts
+export async function processFoodParcelsEndedJIT() {
+    const eligible = await getHouseholdsForEndedNotification();
+
+    for (const household of eligible) {
+        // Use INSERT ... ON CONFLICT to claim the send atomically
+        // This prevents duplicate SMS under concurrent scheduler runs
+        const claimed = await claimEndedSmsSlot(household);
+        if (!claimed) continue; // Another process already claimed it
+
+        try {
+            await sendSms(household);
+            await markSmsSent(household.smsId);
+        } catch (error) {
+            await markSmsFailed(household.smsId, error);
+        }
+    }
+}
+```
+
+### 2.3 Eligibility Query (Fixed)
+
+**Key fixes:**
+1. Only consider the LATEST terminal parcel per household (not all terminal parcels)
+2. Use DATE comparison for "upcoming" (not timestamp)
+3. Exclude households with ANY unresolved parcels
+4. Safe NULL handling
+
+```sql
+WITH latest_terminal_parcel AS (
+    -- Get the most recent terminal parcel per household
+    SELECT DISTINCT ON (fp.household_id)
+        fp.household_id,
+        fp.id as parcel_id,
+        CASE
+            WHEN fp.is_picked_up THEN fp.picked_up_at
+            ELSE fp.no_show_at
+        END as terminal_at
+    FROM food_parcels fp
+    WHERE fp.deleted_at IS NULL
+      AND (fp.is_picked_up = true OR fp.no_show_at IS NOT NULL)
+    ORDER BY fp.household_id,
+             CASE WHEN fp.is_picked_up THEN fp.picked_up_at ELSE fp.no_show_at END DESC NULLS LAST
+),
+households_with_unresolved AS (
+    -- Households that have unresolved parcels (should NOT get "ended" SMS)
+    SELECT DISTINCT household_id
+    FROM food_parcels
+    WHERE deleted_at IS NULL
+      AND is_picked_up = false
+      AND no_show_at IS NULL
+      AND (pickup_date_time_latest AT TIME ZONE 'Europe/Stockholm')::date < CURRENT_DATE
+)
+SELECT
+    h.id as household_id,
+    h.phone_number,
+    h.locale,
+    ltp.parcel_id as last_parcel_id,
+    ltp.terminal_at
+FROM households h
+JOIN latest_terminal_parcel ltp ON ltp.household_id = h.id
+WHERE
+    -- Not anonymized
+    h.anonymized_at IS NULL
+
+    -- Has valid phone number
+    AND h.phone_number IS NOT NULL
+
+    -- Terminal state was set 48+ hours ago
+    AND ltp.terminal_at <= NOW() - INTERVAL '48 hours'
+
+    -- No future parcels (date-based: pickup date >= today)
+    AND NOT EXISTS (
+        SELECT 1 FROM food_parcels upcoming
+        WHERE upcoming.household_id = h.id
+        AND upcoming.deleted_at IS NULL
+        AND (upcoming.pickup_date_time_latest AT TIME ZONE 'Europe/Stockholm')::date >= CURRENT_DATE
+    )
+
+    -- No unresolved parcels (must resolve all before sending "ended")
+    AND h.id NOT IN (SELECT household_id FROM households_with_unresolved)
+
+    -- Idempotency: no existing SMS for this parcel ending
+    AND NOT EXISTS (
+        SELECT 1 FROM outgoing_sms sms
+        WHERE sms.idempotency_key = 'food_parcels_ended|' || h.id::text || '|' || ltp.parcel_id::text
+    )
+ORDER BY ltp.terminal_at ASC;
+```
+
+### 2.4 Atomic SMS Claiming (Concurrency Safety)
+
+To prevent duplicate SMS when multiple scheduler instances run concurrently:
+
+```typescript
+async function claimEndedSmsSlot(household: EligibleHousehold): Promise<boolean> {
+    // INSERT with ON CONFLICT - only one process wins
+    const result = await db.execute(sql`
+        INSERT INTO outgoing_sms (
+            id, intent, household_id, parcel_id, to_e164, text,
+            status, idempotency_key, created_at
+        ) VALUES (
+            ${nanoid(12)},
+            'food_parcels_ended',
+            ${household.householdId},
+            ${household.lastParcelId},
+            ${household.phoneNumber},
+            ${formatFoodParcelsEndedSms(household.locale)},
+            'sending',
+            ${'food_parcels_ended|' + household.householdId + '|' + household.lastParcelId},
+            NOW()
+        )
+        ON CONFLICT (idempotency_key) DO NOTHING
+        RETURNING id
+    `);
+
+    return result.rowCount > 0; // True if we claimed it
+}
+```
+
+### 2.5 Idempotency Key
+
+Format: `food_parcels_ended|{householdId}|{lastParcelId}`
+
+This allows:
+- One SMS per "ending cycle"
+- Re-sending if household is re-enrolled and ends again (different parcel ID)
+- Concurrent scheduler safety via unique constraint
+
+### 2.6 Integration with Scheduler
+
+```typescript
+// app/utils/scheduler.ts
+async function processSmsJIT() {
+    await processRemindersJIT();
+    await processQueuedSms();
+    await processFoodParcelsEndedJIT();  // New
+}
+```
+
+---
+
+## 3. SMS Template
+
+### 3.1 New Template Function
+
+```typescript
+// app/utils/sms/templates.ts
+
 /**
  * Generate SMS for when household has no more food parcels planned.
- * Uses simple, dignity-preserving language - not formal humanitarian terminology.
+ * Uses simple, dignity-preserving language.
  *
  * Character limits:
  * - GSM-7 (Latin scripts): ≤120 chars
@@ -128,7 +265,7 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 }
 ```
 
-### 2.2 Messages by Locale
+### 3.2 Messages by Locale
 
 **GSM-7 Languages (≤120 chars):**
 
@@ -158,282 +295,286 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 | ka | `აღარ არის დაგეგმილი. კითხვები? დაგვიკავშირდით.` | 46 |
 | th | `ไม่มีรับอาหารอีก คำถาม? ติดต่อเรา` | 32 |
 | vi | `Không còn nhận thực phẩm. Hỏi? Liên hệ.` | 40 |
-| hy | `Այլևdelays չdelays. Հdelays? Կdelays.` | ~40 |
+| hy | **TODO: Needs proper Armenian translation** | - |
 
-**Note:** Messages use simple, everyday language for dignity. Avoid formal humanitarian terminology which can feel stigmatizing.
+**Note:** Messages use simple, everyday language for dignity. Avoid formal humanitarian terminology.
 
 ---
 
-## 3. Scheduler Logic
+## 4. Unified Issues Page (Admin Landing Page)
 
-### 3.1 Query: Find Households for "Ended" SMS
+### 4.1 Design Principles
 
-**File:** `app/utils/sms/sms-service.ts`
+- **Mobile-first:** Card-based layout, works on any screen
+- **Single page:** All issue types in one place (scales to future types)
+- **Inline actions:** Resolve issues without page navigation
+- **Progressive disclosure:** Complex forms (reschedule) expand inline
 
+### 4.2 Route
+
+`/[locale]/admin` - This IS the landing page after login
+
+### 4.3 Issue Types
+
+| Type | Condition | Actions |
+|------|-----------|---------|
+| Unresolved parcels | Pickup DATE < today, no outcome set | [Picked up] [No-show] |
+| Outside opening hours | Parcel scheduled outside location hours | [Cancel parcel] [Reschedule] |
+| SMS failures | `status = 'failed'` | [Retry] [Dismiss] [Edit household →] |
+
+**Important:** "Unresolved" uses DATE comparison, not timestamp. A parcel scheduled today with a passed time window is NOT unresolved yet - staff has until end of day.
+
+### 4.4 Page Layout
+
+```
+┌─────────────────────────────────────────────────┐
+│  Issues                                         │
+│  ─────────────────────────────────────────────  │
+│  [All (15)] [Parcels (10)] [SMS (5)]           │
+│                                                 │
+│  UNRESOLVED PARCELS                             │
+│  ┌─────────────────────────────────────────┐   │
+│  │ 📦 Andersson family  ←── link to        │   │
+│  │    Dec 15, 12:00-14:00 · Centrum        │   │
+│  │    [Picked up] [No-show]                │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  OUTSIDE OPENING HOURS                          │
+│  ┌─────────────────────────────────────────┐   │
+│  │ 📦 Berg family                          │   │
+│  │    Dec 20, 10:00-12:00 · Centrum        │   │
+│  │    (Location opens 12:00)               │   │
+│  │    [Cancel parcel] [Reschedule]         │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  SMS FAILURES                                   │
+│  ┌─────────────────────────────────────────┐   │
+│  │ 📱 Eriksson family                      │   │
+│  │    "Invalid phone number"               │   │
+│  │    [Retry] [Dismiss] [Edit household →] │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  ─────────────────────────────────────────────  │
+│  Quick links: [Schedule] [Households] [SMS]    │
+└─────────────────────────────────────────────────┘
+```
+
+### 4.5 Empty State
+
+```
+┌─────────────────────────────────────────────────┐
+│  Issues                                         │
+│  ─────────────────────────────────────────────  │
+│  ✓ All clear! No issues need attention.        │
+│                                                 │
+│  Quick links: [Schedule] [Households] [SMS]    │
+└─────────────────────────────────────────────────┘
+```
+
+### 4.6 Card Interactions
+
+**Household name:** Clickable link to `/households/[id]`
+
+**Inline actions (no navigation):**
+- [Picked up] → marks parcel `is_picked_up = true`, sets `picked_up_at`, card disappears
+- [No-show] → sets `no_show_at`, card disappears
+- [Retry] → retries SMS with SAME idempotency key (updates existing record), shows result inline
+- [Dismiss] → sets `dismissed_at` and `dismissed_by_user_id`, card disappears
+- [Cancel parcel] → confirmation dialog, then soft-deletes parcel
+
+**Navigation actions:**
+- [Edit household →] → links to `/households/[id]/edit` (for fixing phone number)
+
+**Inline expansion (form appears in card):**
+- [Reschedule] → expands to show calendar + time picker
+
+### 4.7 Reschedule Inline Expansion
+
+When user clicks [Reschedule], the card expands:
+
+```
+┌─────────────────────────────────────────────────┐
+│ 📦 Berg family                                  │
+│    Dec 20, 10:00-12:00 · Centrum               │
+│                                                 │
+│    ┌───────────────────────────────────┐       │
+│    │       December 2025        < >    │       │
+│    │  Mo Tu We Th Fr Sa Su      W      │       │
+│    │  16 17 18 19 20 21 22      51     │       │
+│    │  23 24 25 26 27 28 29      52     │       │
+│    │  30 31  1  2  3  4  5      1      │       │
+│    └───────────────────────────────────┘       │
+│                                                 │
+│    Time: [12:00-14:00 ▼]  ← available slots    │
+│                                                 │
+│    [Cancel] [Save]                              │
+└─────────────────────────────────────────────────┘
+```
+
+**Calendar implementation:**
+- Reuse style from `/households/[id]/parcels` page
+- Grey out unavailable dates (no opening hours, location closed)
+- Show week numbers
+- Single month view (continuous)
+- **Must use parcel's `pickup_location_id`** to determine availability
+
+**Time dropdown:**
+- Only shows available slots for selected date at the parcel's location
+- Updates when date changes
+
+**Data flow:**
 ```typescript
-export async function getHouseholdsForEndedNotification(): Promise<HouseholdForEndedSms[]> {
-    // Find households where:
-    // 1. Not anonymized
-    // 2. Last parcel has terminal state (picked_up or no_show)
-    // 3. State changed 48+ hours ago
-    // 4. No upcoming pending parcels
-    // 5. No existing SMS with this idempotency key
+// RescheduleInline receives:
+interface RescheduleProps {
+    parcelId: string;
+    householdId: string;
+    currentDate: Date;
+    currentTimeSlot: string;
+    pickupLocationId: string;  // Required for availability lookup
 }
 ```
 
-```sql
-SELECT
-    h.id as household_id,
-    h.phone_number,
-    h.locale,
-    fp.id as last_parcel_id,
-    fp.state_changed_at
-FROM households h
-JOIN food_parcels fp ON fp.household_id = h.id
-WHERE
-    -- Not anonymized (efficiency: filter early)
-    h.anonymized_at IS NULL
+---
 
-    -- Terminal state, 48h ago
-    AND fp.state IN ('picked_up', 'no_show')
-    AND fp.state_changed_at <= NOW() - INTERVAL '48 hours'
+## 5. Navigation
 
-    -- No upcoming pending parcels
-    AND NOT EXISTS (
-        SELECT 1 FROM food_parcels upcoming
-        WHERE upcoming.household_id = h.id
-        AND upcoming.state = 'pending'
-        AND upcoming.pickup_date_time_latest > NOW()
-    )
+### 5.1 Navbar
 
-    -- Idempotency: no existing SMS for this ending
-    AND NOT EXISTS (
-        SELECT 1 FROM outgoing_sms sms
-        WHERE sms.idempotency_key = 'food_parcels_ended|' || h.id || '|' || fp.id
-    )
+Since Issues IS the landing page, minimal changes needed:
 
--- Get the most recent terminal parcel per household
-ORDER BY fp.state_changed_at DESC;
+```
+[Schedule] [Households] [SMS] [Issues]
+                                 ↑
+                    Shows badge when count > 0
 ```
 
-### 3.2 Idempotency Key
+Or: No separate Issues link - clicking logo/home goes to Issues page.
 
-**Format:** `food_parcels_ended|{householdId}|{lastParcelId}`
+### 5.2 Secondary Indicators (Keep Existing)
 
-This allows:
-- One SMS per "ending cycle"
-- Re-sending if household is re-enrolled and ends again (different parcel ID)
+Keep existing contextual badges as helpful secondary indicators:
+- Schedule location dropdown still shows outside-hours count
+- SMS section still shows failure indicator
 
-### 3.3 Integration with Scheduler
-
-**File:** `app/utils/scheduler.ts`
-
-Add call to process ended notifications in the existing SMS processing loop:
-
-```typescript
-async function processSmsJIT() {
-    await processRemindersJIT();
-    await processQueuedSms();
-    await processFoodParcelsEndedSms(); // New
-}
-```
+The Issues page is the **canonical** place; these are **convenience** indicators.
 
 ---
 
-## 4. Admin UI Changes
-
-### 4.1 Issues Dashboard on Sign-In Page
-
-Show actionable issues with clear text and links:
-
-```
-┌─────────────────────────────────────────────────────┐
-│ ⚠️ Needs Attention                                  │
-├─────────────────────────────────────────────────────┤
-│ 🔴 3 parcels scheduled outside opening hours    →   │
-│ 🔴 5 SMS failed to deliver                      →   │
-│ 🔴 8 parcels need outcome (picked up / no-show) →   │
-└─────────────────────────────────────────────────────┘
-```
-
-If no issues → nothing shown (clean dashboard).
-
-| Issue Type | Text | Links To |
-|------------|------|----------|
-| Outside hours | "X parcels scheduled outside opening hours" | `/admin/parcels/outside-hours` |
-| SMS failures | "X SMS failed to deliver" | `/admin/sms/failures` |
-| Stale parcels | "X parcels need outcome (picked up / no-show)" | `/admin/parcels/stale` |
-
-### 4.2 Stale Parcels Page
-
-**Route:** `/admin/parcels/stale`
-
-Shows parcels where:
-- `state = 'pending'`
-- `pickup_date_time_latest < NOW()`
-
-**Columns:**
-- Household name
-- Pickup date/time
-- Location
-- Time since pickup window closed
-
-**Actions per parcel:**
-- "Mark picked up" → `state = 'picked_up'`
-- "Mark no-show" → `state = 'no_show'`
-- "Cancel" → `state = 'cancelled'`
-
-### 4.3 Red Badge in Nav
-
-Keep as secondary indicator when admin navigates away from dashboard.
-
-Badge shows count of: stale parcels + SMS failures + outside hours parcels
-
-### 4.4 When Badge Appears
-
-**Immediately** when `pickup_date_time_latest < NOW()` for any pending parcel.
-
-No delay - admins should act promptly.
-
----
-
-## 5. Developer Alerts (Slack)
-
-### 5.1 Weekly Report
-
-If any stale parcels are > 7 days old, send weekly Slack report to developer:
-
-```
-⚠️ Stale Parcels Report
-12 parcels need attention
-Oldest: 23 days (Household: ABC123)
-```
-
-This is escalation - if admins ignore the dashboard, developer can intervene.
-
----
-
-## 6. Files to Modify
+## 6. Files to Create/Modify
 
 | File | Changes |
 |------|---------|
-| `drizzle/migrations/XXXX_add_parcel_state_enum.sql` | New enum, columns, data migration |
-| `drizzle/migrations/XXXX_drop_old_parcel_columns.sql` | Drop deprecated columns (later) |
+| `drizzle/migrations/XXXX_add_no_show_columns.sql` | Add `no_show_at`, `no_show_by_user_id` |
 | `drizzle/migrations/XXXX_add_food_parcels_ended_intent.sql` | Add SMS intent |
-| `app/db/schema.ts` | Add `parcelStateEnum`, update `foodParcels` table |
+| `app/db/schema.ts` | Add no_show columns to foodParcels |
 | `app/utils/sms/templates.ts` | Add `formatFoodParcelsEndedSms()` |
-| `app/utils/sms/sms-service.ts` | Add `getHouseholdsForEndedNotification()`, `sendFoodParcelsEndedSms()` |
-| `app/utils/scheduler.ts` | Add call to process ended notifications |
-| `app/[locale]/admin/page.tsx` | Add issues dashboard section |
-| `app/[locale]/admin/parcels/stale/page.tsx` | New stale parcels page |
-| `app/[locale]/admin/parcels/stale/actions.ts` | Server actions for state changes |
-| `app/components/admin/nav.tsx` | Update badge to include stale count |
-| `app/utils/admin-issues.ts` | Shared function to get all issue counts |
+| `app/utils/sms/sms-service.ts` | Add `processFoodParcelsEndedJIT()`, `getHouseholdsForEndedNotification()`, `claimEndedSmsSlot()` |
+| `app/utils/scheduler.ts` | Call `processFoodParcelsEndedJIT()` in `processSmsJIT()` |
+| `app/[locale]/admin/page.tsx` | **New:** Unified Issues page |
+| `app/[locale]/admin/actions.ts` | **New:** Server actions for issue resolution (use `protectedAction()`) |
+| `app/api/admin/issues/route.ts` | **New:** API to fetch all issues with counts |
+| `app/components/admin/IssueCard.tsx` | **New:** Card component with inline actions/expansion |
+| `app/components/admin/RescheduleInline.tsx` | **New:** Inline calendar + time picker (reuse ParcelCalendar style) |
 
 ---
 
-## 7. Integration Test Cases
+## 7. Test Cases
 
-### Happy Path
+### SMS "Food Parcels Ended"
 
-1. **Last parcel picked up, 48h passes, no new parcels**
-   - Household has 1 parcel → picks it up → 48h passes → SMS sent
+**Happy paths:**
+1. Last parcel picked up, 48h passes, no new parcels → SMS sent
+2. Last parcel marked no-show, 48h passes → SMS sent
+3. Re-enrollment after ending → SMS → re-enroll → new ending → second SMS (different parcel ID)
 
-2. **Multiple parcels, last one picked up**
-   - Household has 3 parcels → picks up all → 48h after last pickup → SMS sent
+**No SMS should be sent:**
+4. Parcel picked up but future parcels exist (by date) → no SMS
+5. Parcel picked up, new parcel added within 48h → no SMS
+6. Household anonymized before 48h passes → no SMS
+7. Parcel cancelled (not picked up/no-show) → no SMS
+8. Household has unresolved parcel (older, no outcome) → no SMS (must resolve first)
+9. Same-day parcel with passed time window → still counts as "upcoming", no SMS yet
 
-3. **Re-enrollment after ending**
-   - Parcel A picked up → 48h → SMS sent → new parcel B added → picked up → 48h → second SMS sent
+**Idempotency & concurrency:**
+10. Scheduler runs multiple times after 48h → no duplicate SMS
+11. Two scheduler instances run in parallel → only one SMS sent (atomic claim)
+12. Existing failed SMS with same idempotency key → skip (don't auto-retry)
 
-4. **Last parcel marked as no-show**
-   - Parcel marked no-show → 48h passes → SMS sent
+**Edge cases & bad data:**
+13. Multiple terminal parcels per household → only latest one considered
+14. `is_picked_up=true` but `picked_up_at=NULL` → skip (invalid state)
+15. Both `picked_up_at` and `no_show_at` set → skip (invalid state)
+16. `phone_number` is NULL → skip
+17. `locale` is NULL → use fallback locale (sv)
 
-### Admin Adds Parcels in Time
+### Issues Page
 
-5. **New parcel added within 48h window**
-   - Parcel picked up → 24h later admin adds new parcel → 48h passes → no SMS
+**Unresolved parcels:**
+18. Parcel pickup DATE passes (not time) → appears in list
+19. Same-day parcel with passed time window → NOT in unresolved list yet
+20. Click [Picked up] → sets `is_picked_up=true`, `picked_up_at=now`, removes from list
+21. Click [No-show] → sets `no_show_at=now`, removes from list
 
-6. **New parcel added just before 48h threshold**
-   - Parcel picked up → 47h later admin adds new parcel → scheduler runs at 48h → no SMS
+**Outside opening hours:**
+22. Parcel scheduled outside hours → appears in list
+23. Click [Reschedule] → calendar expands inline
+24. Calendar shows availability for parcel's location (not other locations)
+25. Only available dates are selectable (greyed out otherwise)
+26. Time dropdown shows only available slots for selected date
+27. Click [Save] → parcel updated, removed from list
+28. Click [Cancel parcel] → confirmation → soft-deletes, removed from list
 
-### No SMS Should Be Sent
+**SMS failures:**
+29. Failed SMS appears with error message
+30. Click [Retry] → updates existing record (same idempotency key), attempts resend
+31. Click [Dismiss] → sets `dismissed_at/by`, removes from list
+32. Click [Edit household →] → navigates to household edit page
 
-7. **Parcel picked up but more upcoming parcels exist**
-   - Household has 2 parcels → picks up first → 48h passes → no SMS (second parcel still upcoming)
-
-8. **Household anonymized before 48h**
-   - Parcel picked up → household anonymized at 24h → 48h passes → no SMS
-
-9. **Parcel cancelled (never picked up)**
-   - Parcel state = cancelled → 48h passes → no SMS (only triggers on picked_up/no_show)
-
-10. **Parcel still pending (not yet resolved)**
-    - Parcel state = pending → no SMS
-
-11. **No-show but has upcoming parcel**
-    - Parcel marked no-show, but another parcel scheduled → no SMS
-
-### Idempotency / No Spam
-
-12. **Scheduler runs multiple times after 48h**
-    - Parcel picked up → 48h → SMS sent → scheduler runs again at 49h, 50h, 72h → no duplicate SMS
-
-13. **SMS fails, retries, succeeds**
-    - 48h passes → SMS queued → fails → retries → succeeds → scheduler runs again → no duplicate
-
-### Timing Edge Cases
-
-14. **Just before 48h threshold**
-    - Parcel picked up 47h59m ago → scheduler runs → no SMS yet
-
-15. **Just after 48h threshold**
-    - Parcel picked up 48h01m ago → scheduler runs → SMS sent
-
-### Stale Parcels (Admin Dashboard)
-
-16. **Stale parcel exists (pending, window passed)**
-    - Parcel pickup window passed, state = pending → no SMS (wait for admin to resolve)
-    - Badge shows in nav, issue shows on dashboard
-
-17. **Admin marks stale parcel as picked up**
-    - Stale parcel → admin marks picked up → 48h passes → SMS sent
-
-18. **Admin marks stale parcel as no-show**
-    - Stale parcel → admin marks no-show → 48h passes → SMS sent
-
-19. **Admin cancels stale parcel**
-    - Stale parcel → admin cancels → no SMS (cancelled parcels don't trigger)
-
-### Edge Cases
-
-20. **Anonymized household excluded from query**
-    - Household anonymized → parcel picked up → 48h passes → no SMS (excluded from query)
-
-21. **Parcel with null state_changed_at (legacy data edge case)**
-    - Handle gracefully - skip or use fallback timestamp
+**General:**
+33. Household name links to `/households/[id]`
+34. Tabs filter correctly by issue type
+35. Counts in tabs update after actions
+36. Empty state shows "All clear" message
 
 ---
 
 ## 8. Implementation Order
 
-1. **Database migration** - Add enum, columns, migrate data
-2. **Update schema.ts** - Reflect new structure
-3. **Update existing code** - Replace `is_picked_up`/`deleted_at` with `state`
-4. **Admin UI** - Stale parcels page, dashboard issues, badge
-5. **SMS template** - Add `formatFoodParcelsEndedSms()`
-6. **Scheduler logic** - Add ended notification processing
-7. **Tests** - All integration test cases
-8. **Drop old columns** - Separate migration after verification
-9. **Slack weekly report** - Developer escalation
+1. **Database migration** - Add no_show columns + SMS intent
+2. **Update schema.ts** - Add new columns
+3. **Issues page UI** - Build page with tabs, sections, cards (empty at first)
+4. **Issue queries** - API/actions to fetch issues by type
+5. **Inline actions** - [Picked up], [No-show], [Retry], [Dismiss] (with `protectedAction()`)
+6. **Reschedule component** - Calendar + time picker (pass `pickup_location_id`)
+7. **SMS template** - Add `formatFoodParcelsEndedSms()` with i18n
+8. **SMS JIT logic** - Query + atomic claim + send for ended notifications
+9. **Integration tests** - All test cases above
+10. **Cleanup** - Update any affected existing UI
+
+**Note:** Steps 1-6 (Issues page + no-show UI) should be completed BEFORE enabling the SMS logic (steps 7-8). This ensures staff can resolve unresolved parcels before the "ended" SMS feature goes live.
 
 ---
 
-## 9. Open Questions (Resolved)
+## 9. Decisions Made
 
-| Question | Decision |
-|----------|----------|
-| Idempotency: per-household or per-parcel? | Per-parcel (`householdId\|parcelId`) - allows re-sending after re-enrollment |
-| Contact URL in SMS? | Not yet - TBD with stakeholders |
-| Delay after pickup? | 48 hours |
-| Terminology? | Simple, everyday language for dignity (not formal humanitarian terms) |
-| Badge timing? | Immediately when pickup window closes |
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| State enum vs columns? | Add `no_show_at/by` columns | Simpler, doesn't break existing soft-delete pattern |
+| Queue vs JIT? | Pure JIT | No stale data, simpler, matches existing pattern |
+| Separate vs unified issues? | Unified page | Scales, one place to check, mobile-friendly |
+| Modal vs page for reschedule? | Inline expansion | Stays in context, no navigation, mobile-friendly |
+| Calendar vs dropdowns? | Calendar with time dropdown | Visual context for scheduling, matches existing UI |
+| Keep existing indicators? | Yes, as secondary | Convenience for users already in those sections |
+| Time vs date for "unresolved"? | Date-based | Staff has until end of day to resolve same-day parcels |
+| Time vs date for "upcoming"? | Date-based | Consistent with "unresolved", prevents edge cases |
+| Edit phone inline? | No, link to household | Editing phone affects all SMS, needs full context |
+| Retry SMS behavior? | Update existing record | Preserves idempotency, no duplicate rows |
+
+---
+
+## 10. Open Items
+
+- [ ] Armenian translation needs proper translation (removed corrupted placeholder)
+- [ ] Confirm navbar design (separate Issues link vs home = issues)
+- [ ] Consider "Acknowledge/Snooze" for issues that can't be fixed immediately
+- [ ] Decide on retry behavior for failed "ended" SMS (manual only? auto-retry?)
