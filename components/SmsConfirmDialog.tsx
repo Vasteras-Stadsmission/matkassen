@@ -16,6 +16,7 @@ import {
 import { IconSend, IconAlertTriangle, IconPhone, IconCheck } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { TranslationFunction } from "@/app/[locale]/types";
+import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
 interface SmsRecord {
     id: string;
@@ -190,7 +191,7 @@ export function SmsConfirmDialog({
                         <Group gap="xs">
                             <IconPhone size={16} color="gray" />
                             <Text size="sm" c="dimmed">
-                                {phoneNumber}
+                                {formatPhoneForDisplay(phoneNumber)}
                             </Text>
                         </Group>
                     </Stack>
