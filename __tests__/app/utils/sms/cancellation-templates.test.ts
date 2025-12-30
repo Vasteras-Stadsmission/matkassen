@@ -87,7 +87,6 @@ describe("formatCancellationSms", () => {
             "th",
             "vi",
             "pl",
-            "hy",
         ];
 
         it("should keep all cancellation messages within single SMS limits", () => {

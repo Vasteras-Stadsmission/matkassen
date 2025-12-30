@@ -51,7 +51,6 @@ describe("formatEnrolmentSms", () => {
             "th",
             "vi",
             "pl",
-            "hy",
         ];
 
         for (const locale of locales) {

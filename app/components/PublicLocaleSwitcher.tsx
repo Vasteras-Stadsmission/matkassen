@@ -39,7 +39,6 @@ const NATIVE_LANGUAGE_NAMES: Record<string, string> = {
     th: "ไทย",
     vi: "Tiếng Việt",
     pl: "Polski",
-    hy: "Հայերեն",
 };
 
 function getNativeLanguageName(locale: string): string {

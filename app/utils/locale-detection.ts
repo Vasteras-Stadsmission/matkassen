@@ -25,7 +25,6 @@ export const SUPPORTED_LOCALES = [
     "th", // Thai
     "vi", // Vietnamese
     "pl", // Polish
-    "hy", // Armenian
 ] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
