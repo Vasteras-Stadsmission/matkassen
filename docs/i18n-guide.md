@@ -26,7 +26,6 @@ The project uses `next-intl` for internationalization with:
 - `messages/public-fa.json` (Persian)
 - `messages/public-fi.json` (Finnish)
 - `messages/public-fr.json` (French)
-- `messages/public-hy.json` (Armenian)
 - `messages/public-it.json` (Italian)
 - `messages/public-ka.json` (Georgian)
 - `messages/public-ku.json` (Kurdish)

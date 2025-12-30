@@ -141,7 +141,6 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
             th: "th-TH",
             vi: "vi-VN",
             pl: "pl-PL",
-            hy: "hy-AM",
         };
         return date.toLocaleDateString(localeMap[contentLanguage] || "en-GB", {
             year: "numeric",

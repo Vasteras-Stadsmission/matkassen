@@ -92,7 +92,6 @@ describe("SMS Message Templates", () => {
             "th",
             "vi",
             "pl",
-            "hy",
         ];
 
         it("should keep all SMS messages within single SMS limits", () => {

@@ -532,7 +532,7 @@ Accessible at: `https://matcentralen.com/p/[parcelId]`
 - Language switcher
 
 **Supported languages** (20+):
-Swedish, English, Arabic, German, Greek, Spanish, Persian, Finnish, French, Armenian, Italian, Georgian, Kurdish, Polish, Russian, Somali, Swahili, Thai, Ukrainian, Vietnamese
+Swedish, English, Arabic, German, Greek, Spanish, Persian, Finnish, French, Italian, Georgian, Kurdish, Polish, Russian, Somali, Swahili, Thai, Ukrainian, Vietnamese
 
 Language auto-detected from phone settings, can be manually changed.
 

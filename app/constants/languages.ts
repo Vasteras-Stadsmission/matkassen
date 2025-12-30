@@ -26,7 +26,6 @@ const SUPPORTED_LOCALES = [
     "th",
     "vi",
     "pl",
-    "hy",
 ];
 
 // Helper function to get language name using Intl.DisplayNames

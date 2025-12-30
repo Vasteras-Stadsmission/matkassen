@@ -203,7 +203,7 @@ export function formatDateTimeForSms(
                 break;
 
             default:
-                // For all other locales including ku, el, sw, so, so_so, uk, ka, th, vi, hy
+                // For all other locales including ku, el, sw, so, so_so, uk, ka, th, vi
                 // Use English format as fallback
                 dateStr = date.toLocaleDateString("en-GB", {
                     weekday: "short",
@@ -278,8 +278,6 @@ export function formatPickupSms(data: SmsTemplateData, locale: SupportedLocale):
             return `Thức ăn ${date} ${time}: ${data.publicUrl}`;
         case "pl":
             return `Jedzenie ${date} ${time}: ${data.publicUrl}`;
-        case "hy":
-            return `Սնունդ ${date} ${time}: ${data.publicUrl}`;
         default:
             return `Food pickup ${date} ${time}: ${data.publicUrl}`;
     }
@@ -332,8 +330,6 @@ export function formatUpdateSms(data: SmsTemplateData, locale: SupportedLocale):
             return `Cập nhật! Thức ăn ${date} ${time}: ${data.publicUrl}`;
         case "pl":
             return `Aktualizacja! Jedzenie ${date} ${time}: ${data.publicUrl}`;
-        case "hy":
-            return `Թարմացում! Սնունդ ${date} ${time}: ${data.publicUrl}`;
         default:
             return `Update! Food pickup ${date} ${time}: ${data.publicUrl}`;
     }
@@ -386,8 +382,6 @@ export function formatCancellationSms(data: SmsTemplateData, locale: SupportedLo
             return `Thức ăn ${date} ${time} đã hủy.`;
         case "pl":
             return `Jedzenie ${date} ${time} odwołane.`;
-        case "hy":
-            return `Սնունդ ${date} ${time} չեղարկվել է.`;
         default:
             return `Food pickup ${date} ${time} is cancelled.`;
     }
@@ -440,8 +434,6 @@ export function formatEnrolmentSms(locale: SupportedLocale): string {
             return `Chào mừng đến ${BRAND_NAME}! Thông tin: ${privacyUrl}`;
         case "pl":
             return `Witamy w ${BRAND_NAME}! Info: ${privacyUrl}`;
-        case "hy":
-            return `Welcome to ${BRAND_NAME}! Info: ${privacyUrl}`;
         default:
             return `Welcome to ${BRAND_NAME}! Info: ${privacyUrl}`;
     }
