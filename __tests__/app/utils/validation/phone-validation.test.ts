@@ -169,6 +169,15 @@ describe("Phone Validation Utilities", () => {
             it("should handle other lengths by adding space after country code", () => {
                 expect(formatPhoneForDisplay("+461234")).toBe("+46 1234");
             });
+
+            it("should return empty string for empty input", () => {
+                expect(formatPhoneForDisplay("")).toBe("");
+            });
+
+            it("should normalize local numbers without +46 prefix", () => {
+                expect(formatPhoneForDisplay("701234567")).toBe("+46 70 123 45 67");
+                expect(formatPhoneForDisplay("0701234567")).toBe("+46 70 123 45 67");
+            });
         });
     });
 
