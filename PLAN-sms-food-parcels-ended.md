@@ -133,13 +133,7 @@ export async function processFoodParcelsEndedJIT() {
 
 **Note:** Since this runs on a single VPS with the existing `smsProcessingInFlight` lock, we don't need atomic claiming with `INSERT ON CONFLICT`. The `NOT EXISTS` check in the query provides idempotency - once an SMS record exists, that household won't be returned in future queries.
 
-### 2.3 Eligibility Query (Fixed)
-
-**Key fixes:**
-1. Only consider the LATEST terminal parcel per household (not all terminal parcels)
-2. Use DATE comparison for "upcoming" (not timestamp)
-3. Exclude households with ANY unresolved parcels
-4. Safe NULL handling
+### 2.3 Eligibility Query
 
 ```sql
 WITH latest_terminal_parcel AS (
