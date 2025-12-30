@@ -294,7 +294,15 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
 |------|-----------|---------|
 | Unresolved parcels | Pickup DATE < today, no outcome set | [Picked up] [No-show] |
 | Outside opening hours | Parcel scheduled outside location hours | [Cancel parcel] [Reschedule] |
-| SMS failures | `status = 'failed'` | [Retry] [Dismiss] [Edit household →] |
+| SMS failures | See failure types below | [Retry] [Dismiss] [Edit household →] |
+
+**SMS Failure Types** (matches existing `app/api/admin/sms/failures/route.ts`):
+
+| Failure Type | Condition | Meaning |
+|--------------|-----------|---------|
+| Internal | `status = 'failed'` | Our system couldn't send to HelloSMS (API error, invalid phone) |
+| Provider | `status = 'sent' AND provider_status IN ('failed', 'not delivered')` | HelloSMS received but couldn't deliver to recipient |
+| Stale | `status = 'sent' AND provider_status IS NULL AND sent_at < 24h ago` | Sent to HelloSMS but no delivery callback received |
 
 **Important:** "Unresolved" uses DATE comparison, not timestamp. A parcel scheduled today with a passed time window is NOT unresolved yet - staff has until end of day.
 
@@ -545,16 +553,17 @@ Clicking the logo/site name navigates to the Issues page (same as landing page).
 27. Click [Cancel parcel] → confirmation → soft-deletes, removed from list
 
 **SMS failures:**
-28. Failed SMS appears with error message
-29. Click [Retry] → updates existing record (same idempotency key), attempts resend
-30. Click [Dismiss] → sets `dismissed_at/by`, removes from list
-31. Click [Edit household →] → navigates to household edit page
+28. All three failure types appear: internal (`status='failed'`), provider (`provider_status IN ('failed','not delivered')`), stale (no callback after 24h)
+29. Each failure shows appropriate error context (sanitized, no phone numbers)
+30. Click [Retry] → updates existing record (same idempotency key), attempts resend
+31. Click [Dismiss] → sets `dismissed_at/by`, removes from list
+32. Click [Edit household →] → navigates to household edit page
 
 **General:**
-32. Household name links to `/households/[id]`
-33. Tabs filter correctly by issue type
-34. Counts in tabs update after actions
-35. Empty state shows "All clear" message
+33. Household name links to `/households/[id]`
+34. Tabs filter correctly by issue type
+35. Counts in tabs update after actions
+36. Empty state shows "All clear" message
 
 ---
 
