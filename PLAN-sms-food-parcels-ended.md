@@ -118,20 +118,20 @@ export async function processFoodParcelsEndedJIT() {
     const eligible = await getHouseholdsForEndedNotification();
 
     for (const household of eligible) {
-        // Use INSERT ... ON CONFLICT to claim the send atomically
-        // This prevents duplicate SMS under concurrent scheduler runs
-        const claimed = await claimEndedSmsSlot(household);
-        if (!claimed) continue; // Another process already claimed it
+        // Insert SMS record with "sending" status
+        const smsId = await createEndedSmsRecord(household);
 
         try {
             await sendSms(household);
-            await markSmsSent(household.smsId);
+            await markSmsSent(smsId);
         } catch (error) {
-            await markSmsFailed(household.smsId, error);
+            await markSmsFailed(smsId, error);
         }
     }
 }
 ```
+
+**Note:** Since this runs on a single VPS with the existing `smsProcessingInFlight` lock, we don't need atomic claiming with `INSERT ON CONFLICT`. The `NOT EXISTS` check in the query provides idempotency - once an SMS record exists, that household won't be returned in future queries.
 
 ### 2.3 Eligibility Query (Fixed)
 
@@ -203,46 +203,15 @@ WHERE
 ORDER BY ltp.terminal_at ASC;
 ```
 
-### 2.4 Atomic SMS Claiming (Concurrency Safety)
-
-To prevent duplicate SMS when multiple scheduler instances run concurrently:
-
-```typescript
-async function claimEndedSmsSlot(household: EligibleHousehold): Promise<boolean> {
-    // INSERT with ON CONFLICT - only one process wins
-    const result = await db.execute(sql`
-        INSERT INTO outgoing_sms (
-            id, intent, household_id, parcel_id, to_e164, text,
-            status, idempotency_key, created_at
-        ) VALUES (
-            ${nanoid(12)},
-            'food_parcels_ended',
-            ${household.householdId},
-            ${household.lastParcelId},
-            ${household.phoneNumber},
-            ${formatFoodParcelsEndedSms(household.locale)},
-            'sending',
-            ${'food_parcels_ended|' + household.householdId + '|' + household.lastParcelId},
-            NOW()
-        )
-        ON CONFLICT (idempotency_key) DO NOTHING
-        RETURNING id
-    `);
-
-    return result.rowCount > 0; // True if we claimed it
-}
-```
-
-### 2.5 Idempotency Key
+### 2.4 Idempotency Key
 
 Format: `food_parcels_ended|{householdId}|{lastParcelId}`
 
 This allows:
 - One SMS per "ending cycle"
 - Re-sending if household is re-enrolled and ends again (different parcel ID)
-- Concurrent scheduler safety via unique constraint
 
-### 2.6 Integration with Scheduler
+### 2.5 Integration with Scheduler
 
 ```typescript
 // app/utils/scheduler.ts
@@ -524,7 +493,7 @@ Clicking the logo/site name navigates to the Issues page (same as landing page).
 | `drizzle/migrations/XXXX_*.sql` | **Generated** by `pnpm drizzle-kit generate` |
 | `drizzle/migrations/meta/_journal.json` | **Generated** by Drizzle |
 | `app/utils/sms/templates.ts` | Add `formatFoodParcelsEndedSms()` |
-| `app/utils/sms/sms-service.ts` | Add `processFoodParcelsEndedJIT()`, `getHouseholdsForEndedNotification()`, `claimEndedSmsSlot()` |
+| `app/utils/sms/sms-service.ts` | Add `processFoodParcelsEndedJIT()`, `getHouseholdsForEndedNotification()`, `createEndedSmsRecord()` |
 | `app/utils/scheduler.ts` | Call `processFoodParcelsEndedJIT()` in `processSmsJIT()` |
 | `app/[locale]/admin/page.tsx` | **New:** Unified Issues page |
 | `app/[locale]/admin/actions.ts` | **New:** Server actions for issue resolution (use `protectedAction()`) |
@@ -554,46 +523,45 @@ Clicking the logo/site name navigates to the Issues page (same as landing page).
 8. Household has unresolved parcel (older, no outcome) → no SMS (must resolve first)
 9. Same-day parcel with passed time window → still counts as "upcoming", no SMS yet
 
-**Idempotency & concurrency:**
-10. Scheduler runs multiple times after 48h → no duplicate SMS
-11. Two scheduler instances run in parallel → only one SMS sent (atomic claim)
-12. Existing failed SMS with same idempotency key → skip (don't auto-retry)
+**Idempotency:**
+10. Scheduler runs multiple times after 48h → no duplicate SMS (NOT EXISTS check)
+11. Existing failed SMS with same idempotency key → skip (don't auto-retry)
 
 **Edge cases & bad data:**
-13. Multiple terminal parcels per household → only latest one considered
-14. `is_picked_up=true` but `picked_up_at=NULL` → skip (invalid state)
-15. Both `picked_up_at` and `no_show_at` set → skip (invalid state)
-16. `phone_number` is NULL → skip
-17. `locale` is NULL → use fallback locale (sv)
+12. Multiple terminal parcels per household → only latest one considered
+13. `is_picked_up=true` but `picked_up_at=NULL` → skip (invalid state)
+14. Both `picked_up_at` and `no_show_at` set → skip (invalid state)
+15. `phone_number` is NULL → skip
+16. `locale` is NULL → use fallback locale (sv)
 
 ### Issues Page
 
 **Unresolved parcels:**
-18. Parcel pickup DATE passes (not time) → appears in list
-19. Same-day parcel with passed time window → NOT in unresolved list yet
-20. Click [Picked up] → sets `is_picked_up=true`, `picked_up_at=now`, removes from list
-21. Click [No-show] → sets `no_show_at=now`, removes from list
+17. Parcel pickup DATE passes (not time) → appears in list
+18. Same-day parcel with passed time window → NOT in unresolved list yet
+19. Click [Picked up] → sets `is_picked_up=true`, `picked_up_at=now`, removes from list
+20. Click [No-show] → sets `no_show_at=now`, removes from list
 
 **Outside opening hours:**
-22. Parcel scheduled outside hours → appears in list
-23. Click [Reschedule] → calendar expands inline
-24. Calendar shows availability for parcel's location (not other locations)
-25. Only available dates are selectable (greyed out otherwise)
-26. Time dropdown shows only available slots for selected date
-27. Click [Save] → parcel updated, removed from list
-28. Click [Cancel parcel] → confirmation → soft-deletes, removed from list
+21. Parcel scheduled outside hours → appears in list
+22. Click [Reschedule] → calendar expands inline
+23. Calendar shows availability for parcel's location (not other locations)
+24. Only available dates are selectable (greyed out otherwise)
+25. Time dropdown shows only available slots for selected date
+26. Click [Save] → parcel updated, removed from list
+27. Click [Cancel parcel] → confirmation → soft-deletes, removed from list
 
 **SMS failures:**
-29. Failed SMS appears with error message
-30. Click [Retry] → updates existing record (same idempotency key), attempts resend
-31. Click [Dismiss] → sets `dismissed_at/by`, removes from list
-32. Click [Edit household →] → navigates to household edit page
+28. Failed SMS appears with error message
+29. Click [Retry] → updates existing record (same idempotency key), attempts resend
+30. Click [Dismiss] → sets `dismissed_at/by`, removes from list
+31. Click [Edit household →] → navigates to household edit page
 
 **General:**
-33. Household name links to `/households/[id]`
-34. Tabs filter correctly by issue type
-35. Counts in tabs update after actions
-36. Empty state shows "All clear" message
+32. Household name links to `/households/[id]`
+33. Tabs filter correctly by issue type
+34. Counts in tabs update after actions
+35. Empty state shows "All clear" message
 
 ---
 
