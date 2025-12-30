@@ -13,17 +13,46 @@
 
 **Rationale:** Instead of a complex state enum refactor that touches `notDeleted()`, partial unique indexes, and upsert logic, we add simple columns alongside existing fields.
 
-```sql
-ALTER TABLE food_parcels
-ADD COLUMN no_show_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN no_show_by_user_id VARCHAR(50);
-```
-
 **Keep existing columns unchanged:**
 - `is_picked_up`, `picked_up_at`, `picked_up_by_user_id`
 - `deleted_at`, `deleted_by_user_id` (soft-delete is a separate concern)
 
-### 1.2 Data Integrity Constraints
+### 1.2 Drizzle Schema Update
+
+Update `app/db/schema.ts`:
+
+```typescript
+export const foodParcels = pgTable("food_parcels", {
+    // ... existing columns unchanged ...
+    no_show_at: timestamp({ precision: 1, withTimezone: true }),
+    no_show_by_user_id: varchar("no_show_by_user_id", { length: 50 }),
+});
+
+// Add new SMS intent to existing enum
+export const smsIntentEnum = pgEnum("sms_intent", [
+    "pickup_reminder",
+    "pickup_updated",
+    "pickup_cancelled",
+    "consent_enrolment",
+    "enrolment",
+    "food_parcels_ended",  // New
+]);
+```
+
+### 1.3 Generate Migration
+
+```bash
+pnpm drizzle-kit generate
+```
+
+This generates migration files in `drizzle/migrations/`. The generated SQL will include:
+- `ALTER TABLE food_parcels ADD COLUMN no_show_at ...`
+- `ALTER TABLE food_parcels ADD COLUMN no_show_by_user_id ...`
+- `ALTER TYPE sms_intent ADD VALUE 'food_parcels_ended'`
+
+**No manual data migration needed** - new columns are nullable, existing rows remain unchanged.
+
+### 1.4 Data Integrity Constraints
 
 Add application-level validation to ensure mutual exclusivity:
 
@@ -49,7 +78,7 @@ function validateParcelState(parcel: {
 }
 ```
 
-### 1.3 Terminal State Logic
+### 1.5 Terminal State Logic
 
 ```typescript
 // A parcel has terminal state if:
@@ -67,23 +96,6 @@ const isUnresolved =
     !parcel.is_picked_up &&
     parcel.no_show_at === null &&
     parcel.deleted_at === null;
-```
-
-### 1.4 New SMS Intent
-
-```sql
-ALTER TYPE sms_intent ADD VALUE 'food_parcels_ended';
-```
-
-### 1.5 Drizzle Schema Update
-
-```typescript
-// app/db/schema.ts
-export const foodParcels = pgTable("food_parcels", {
-    // ... existing columns unchanged ...
-    no_show_at: timestamp({ precision: 1, withTimezone: true }),
-    no_show_by_user_id: varchar("no_show_by_user_id", { length: 50 }),
-});
 ```
 
 ---
@@ -508,9 +520,9 @@ Clicking the logo/site name navigates to the Issues page (same as landing page).
 
 | File | Changes |
 |------|---------|
-| `drizzle/migrations/XXXX_add_no_show_columns.sql` | Add `no_show_at`, `no_show_by_user_id` |
-| `drizzle/migrations/XXXX_add_food_parcels_ended_intent.sql` | Add SMS intent |
-| `app/db/schema.ts` | Add no_show columns to foodParcels |
+| `app/db/schema.ts` | Add no_show columns to foodParcels, add SMS intent to enum |
+| `drizzle/migrations/XXXX_*.sql` | **Generated** by `pnpm drizzle-kit generate` |
+| `drizzle/migrations/meta/_journal.json` | **Generated** by Drizzle |
 | `app/utils/sms/templates.ts` | Add `formatFoodParcelsEndedSms()` |
 | `app/utils/sms/sms-service.ts` | Add `processFoodParcelsEndedJIT()`, `getHouseholdsForEndedNotification()`, `claimEndedSmsSlot()` |
 | `app/utils/scheduler.ts` | Call `processFoodParcelsEndedJIT()` in `processSmsJIT()` |
@@ -587,8 +599,8 @@ Clicking the logo/site name navigates to the Issues page (same as landing page).
 
 ## 9. Implementation Order
 
-1. **Database migration** - Add no_show columns + SMS intent
-2. **Update schema.ts** - Add new columns
+1. **Update schema.ts** - Add no_show columns + SMS intent to enum
+2. **Generate migration** - Run `pnpm drizzle-kit generate`
 3. **Issues page UI** - Build page with tabs, sections, cards (empty at first)
 4. **Issue queries** - API/actions to fetch issues by type
 5. **Inline actions** - [Picked up], [No-show], [Retry], [Dismiss] (with `protectedAction()`)
