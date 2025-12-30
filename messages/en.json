@@ -389,8 +389,8 @@
         },
         "pickupTimeLabel": "Time",
         "statusLabel": "Status",
-        "pickedUpStatus": "Picked up",
-        "notPickedUpStatus": "Not picked up",
+        "handedOutStatus": "Handed out",
+        "notHandedOutStatus": "Not handed out",
         "reschedule": {
             "title": "Schedule food support for {name}",
             "modalTitle": "Reschedule Food Support",
@@ -489,8 +489,8 @@
         "deletedOn": "Cancelled on",
         "by": "by",
         "status": {
-            "pickedUp": "Picked up",
-            "notPickedUp": "Not picked up",
+            "handedOut": "Handed out",
+            "notHandedOut": "Not handed out",
             "upcoming": "Upcoming",
             "cancelled": "Cancelled"
         },
@@ -919,7 +919,7 @@
             "failed": "Failed"
         },
         "actions": {
-            "markPickedUp": "Mark as Picked Up",
+            "markHandedOut": "Mark as Handed Out",
             "previewSms": "Preview SMS",
             "resendSms": "Resend SMS",
             "sendSms": "Send SMS",
@@ -944,7 +944,7 @@
             "locale": "Language"
         },
         "notifications": {
-            "markedPickedUp": "Food parcel marked as picked up",
+            "markedHandedOut": "Food parcel marked as handed out",
             "smsQueued": "SMS queued for sending",
             "smsResent": "SMS queued for resending",
             "deliverySimulated": "Delivery status simulated",
@@ -961,10 +961,10 @@
             "title": "Parcel Information",
             "loading": "Loading parcel details...",
             "pickupSchedule": "Pickup Schedule",
-            "pickedUp": "Picked Up",
-            "notPickedUp": "Not Picked Up",
+            "handedOut": "Handed Out",
+            "notHandedOut": "Not Handed Out",
             "status": {
-                "pickedUp": "Picked Up",
+                "handedOut": "Handed Out",
                 "cancelled": "CANCELLED",
                 "wrongDay": "Wrong Day",
                 "checkTime": "Check Time",
@@ -985,8 +985,8 @@
             "noComments": "No comments yet",
             "addCommentPlaceholder": "Add a comment about this household...",
             "addComment": "Add Comment",
-            "markPickedUp": "Mark as Picked Up",
-            "undoPickup": "Undo Pickup",
+            "markHandedOut": "Mark as Handed Out",
+            "undoHandout": "Undo Handout",
             "cancelParcel": "Cancel Parcel",
             "deleteConfirmTitle": "Confirm Cancellation",
             "deleteConfirmMessage": "Are you sure you want to cancel this parcel? {smsWarning}",
