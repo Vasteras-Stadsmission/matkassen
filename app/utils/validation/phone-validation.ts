@@ -39,17 +39,18 @@ export function isValidE164(phone: string): boolean {
 }
 
 /**
- * Format E.164 phone number for display
+ * Format phone number for display
  * Swedish format: +46 70 123 45 67
- * @param phone - E.164 formatted phone number
+ * @param phone - Phone number (E.164 or local Swedish format)
  * @returns Formatted phone number for display
  */
 export function formatPhoneForDisplay(phone: string): string {
-    if (!phone.startsWith("+46")) {
-        return phone; // Return as-is for non-Swedish numbers
-    }
+    if (!phone) return "";
 
-    const withoutPrefix = phone.substring(3); // Remove "+46"
+    // Normalize to E.164 format first if not already
+    const normalized = phone.startsWith("+46") ? phone : normalizePhoneToE164(phone);
+
+    const withoutPrefix = normalized.substring(3); // Remove "+46"
 
     // Format as: +46 XX XXX XX XX (Swedish mobile) or +46 XX XXX XXXX (Swedish landline)
     if (withoutPrefix.length === 9) {
