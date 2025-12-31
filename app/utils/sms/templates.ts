@@ -405,7 +405,7 @@ export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
         case "en":
             return "No more food pickups planned. Questions? Contact us.";
         case "es":
-            return "No hay mas recogidas de comida. Preguntas? Contactenos.";
+            return "No hay más recogidas de comida. Preguntas? Contáctenos.";
         case "fr":
             return "Plus de collectes prevues. Questions? Contactez-nous.";
         case "de":

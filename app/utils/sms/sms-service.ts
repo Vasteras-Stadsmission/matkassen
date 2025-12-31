@@ -46,6 +46,9 @@ const STALE_SENDING_THRESHOLD_MS = 10 * 60 * 1000;
 // 24 hours in milliseconds - used for SMS health stats time window
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
+// 48 hours in milliseconds - delay before sending "food parcels ended" SMS
+const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+
 /**
  * HTTP status codes that indicate transient errors eligible for retry.
  * Unified across both queued and JIT SMS pipelines.
@@ -1322,7 +1325,7 @@ export async function getHouseholdsForEndedNotification(
     const referenceTime = now ?? Time.now().toUTC();
 
     // Calculate the 48-hour threshold in JavaScript to avoid SQL operator issues
-    const threshold48HoursAgo = new Date(referenceTime.getTime() - 48 * 60 * 60 * 1000);
+    const threshold48HoursAgo = new Date(referenceTime.getTime() - FORTY_EIGHT_HOURS_MS);
 
     // Use test database if provided, otherwise production db
     const database = testDb ?? db;
