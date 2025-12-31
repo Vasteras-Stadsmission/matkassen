@@ -4,6 +4,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households, pickupLocations } from "@/app/db/schema";
+import type { AnyPgDatabase } from "@/app/db/types";
 import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
@@ -1297,8 +1298,7 @@ export async function processRemindersJIT(): Promise<{ processed: number }> {
  */
 export async function getHouseholdsForEndedNotification(
     now?: Date,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    testDb?: any,
+    testDb?: AnyPgDatabase,
 ): Promise<
     Array<{
         householdId: string;
@@ -1402,10 +1402,12 @@ export async function getHouseholdsForEndedNotification(
     // Handle different result formats from different DB drivers:
     // - PGlite returns { rows: [...], fields: [...] }
     // - node-postgres returns an iterable RowList
+    // Type assertion needed because AnyPgDatabase.execute returns unknown
+    const typedResult = result as { rows?: ResultRow[] } | Iterable<ResultRow>;
     const rows: ResultRow[] =
-        "rows" in result
-            ? (result as { rows: ResultRow[] }).rows
-            : Array.from(result as Iterable<ResultRow>);
+        "rows" in typedResult
+            ? (typedResult as { rows: ResultRow[] }).rows
+            : Array.from(typedResult as Iterable<ResultRow>);
 
     return rows.map(row => ({
         householdId: row.household_id,

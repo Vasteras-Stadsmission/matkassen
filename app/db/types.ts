@@ -2,9 +2,10 @@
  * Shared database types for use across the application.
  */
 
-import { type PgTransaction } from "drizzle-orm/pg-core";
+import { type PgDatabase, type PgQueryResultHKT, type PgTransaction } from "drizzle-orm/pg-core";
 import { type PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { db } from "./drizzle";
+import * as schema from "./schema";
 
 /**
  * Type alias for Drizzle database or transaction.
@@ -13,3 +14,10 @@ import { db } from "./drizzle";
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DbOrTransaction = PgTransaction<PostgresJsQueryResultHKT, any, any> | typeof db;
+
+/**
+ * Type alias for any Postgres database compatible with our schema.
+ * Works with both production (postgres-js) and test (pglite) databases.
+ * Uses the base PgQueryResultHKT which both backends extend.
+ */
+export type AnyPgDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
