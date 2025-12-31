@@ -529,9 +529,7 @@ export default function IssuesPageClient() {
                                                 color="red"
                                                 size="xs"
                                                 loading={actionLoading[`cancel-${parcel.parcelId}`]}
-                                                onClick={() =>
-                                                    handleCancelParcel(parcel.parcelId)
-                                                }
+                                                onClick={() => handleCancelParcel(parcel.parcelId)}
                                             >
                                                 {t("actions.cancelParcel")}
                                             </Button>

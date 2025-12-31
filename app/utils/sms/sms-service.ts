@@ -45,6 +45,9 @@ const STALE_SENDING_THRESHOLD_MS = 10 * 60 * 1000;
 // 24 hours in milliseconds - used for SMS health stats time window
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
+// 48 hours in milliseconds - used for reminder window and "food parcels ended" threshold
+const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+
 /**
  * HTTP status codes that indicate transient errors eligible for retry.
  * Unified across both queued and JIT SMS pipelines.
@@ -901,7 +904,6 @@ export async function sendReminderForParcel(parcel: {
 }): Promise<{ success: boolean; recordId?: string; error?: string }> {
     const { formatPickupSms } = await import("./templates");
     const { generateUrl } = await import("@/app/config/branding");
-    const { sendSms } = await import("./hello-sms");
 
     const id = nanoid(16);
     const now = Time.now().toUTC();
@@ -1322,7 +1324,7 @@ export async function getHouseholdsForEndedNotification(
     const referenceTime = now ?? Time.now().toUTC();
 
     // Calculate the 48-hour threshold in JavaScript to avoid SQL operator issues
-    const threshold48HoursAgo = new Date(referenceTime.getTime() - 48 * 60 * 60 * 1000);
+    const threshold48HoursAgo = new Date(referenceTime.getTime() - FORTY_EIGHT_HOURS_MS);
 
     // Use test database if provided, otherwise production db
     const database = testDb ?? db;
@@ -1432,8 +1434,6 @@ export async function sendEndedSmsForHousehold(household: {
     locale: string;
     lastParcelId: string;
 }): Promise<{ success: boolean; recordId?: string; error?: string }> {
-    const { sendSms } = await import("./hello-sms");
-
     const id = nanoid(16);
     const now = Time.now().toUTC();
     const idempotencyKey = `food_parcels_ended|${household.householdId}|${household.lastParcelId}`;
