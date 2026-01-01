@@ -23,7 +23,8 @@ jobs:
               uses: openai/codex-action@v1
               with:
                   openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-                  model: gpt-5.2-high
+                  model: gpt-5.2
+                  effort: high
                   prompt: |
                       Review this pull request. Follow the review guidelines in AGENTS.md.
                       Focus on security issues, code quality, and adherence to project conventions.
