@@ -385,6 +385,7 @@ export default function IssuesPageClient() {
             await fetch(`/api/admin/sms/${sms.id}/dismiss`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ dismissed: true }),
             });
 
             notifications.show({
