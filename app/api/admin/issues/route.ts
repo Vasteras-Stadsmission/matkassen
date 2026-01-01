@@ -64,6 +64,7 @@ export async function GET() {
         }
 
         const now = Time.now().toUTC();
+        const todayStockholm = Time.now().toDateString(); // YYYY-MM-DD for testability
         const staleThreshold = new Date(now.getTime() - TWENTY_FOUR_HOURS_MS);
 
         // Run count queries first (without limits) for accurate badge counts
@@ -77,7 +78,7 @@ export async function GET() {
                     eq(foodParcels.is_picked_up, false),
                     isNull(foodParcels.no_show_at),
                     isNull(households.anonymized_at),
-                    sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < (NOW() AT TIME ZONE 'Europe/Stockholm')::date`,
+                    sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < ${todayStockholm}::date`,
                 ),
             );
 
@@ -130,7 +131,7 @@ export async function GET() {
                     isNull(foodParcels.no_show_at),
                     isNull(households.anonymized_at), // Exclude anonymized households
                     // Date-based check: pickup_date_time_latest's DATE < today's DATE (Stockholm)
-                    sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < (NOW() AT TIME ZONE 'Europe/Stockholm')::date`,
+                    sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < ${todayStockholm}::date`,
                 ),
             )
             .orderBy(asc(foodParcels.pickup_date_time_earliest))
