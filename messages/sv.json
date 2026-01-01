@@ -38,11 +38,10 @@
         "todayHandouts": "Dagens utlämningar",
         "locations": "Utlämningsställen",
         "smsDashboard": "SMS-hantering",
-        "smsFailures": "Misslyckade SMS",
         "newHousehold": "Nytt hushåll",
         "scanQrCode": "Skanna QR-kod",
         "navigation": "Navigation",
-        "issues": "Ärenden"
+        "issues": "Behöver uppföljning"
     },
     "households": {
         "title": "Hushåll",
@@ -483,6 +482,7 @@
         "foodParcels": "Matkassar ({count})",
         "noFoodParcels": "Inga matkassar schemalagda",
         "cancelledParcels": "Avbokade matkassar",
+        "noCancelledParcels": "Inga avbokade matkassar",
         "ageUnit": "år",
         "editHousehold": "Redigera hushåll",
         "manageParcels": "Hantera matkassar",
@@ -492,6 +492,7 @@
         "status": {
             "pickedUp": "Utlämnad",
             "notPickedUp": "Ej utlämnad",
+            "noShow": "Uteblev",
             "upcoming": "Kommande",
             "cancelled": "Avbokad"
         },
@@ -1252,41 +1253,9 @@
             "cancelButton": "Avbryt"
         }
     },
-    "smsFailures": {
-        "title": "Misslyckade SMS",
-        "noFailures": "Inga misslyckade SMS för kommande hämtningar",
-        "noDismissed": "Inga avfärdade fel",
-        "pickup": "Hämtning",
-        "view": "Visa hushåll",
-        "refresh": "Uppdatera",
-        "error": "Fel",
-        "activeTab": "Aktiva",
-        "dismissedTab": "Avfärdade",
-        "internalError": "Sändning misslyckades",
-        "providerFailed": "Leverans misslyckades",
-        "notDelivered": "Ej levererat",
-        "staleUnconfirmed": "Ingen bekräftelse",
-        "sentAt": "Skickat",
-        "showError": "Visa feldetaljer",
-        "hideError": "Dölj feldetaljer",
-        "dismissedAt": "Avfärdad",
-        "by": "av",
-        "resend": "Skicka igen",
-        "resendTooltip": "Köa ett nytt SMS för denna matkasse",
-        "dismiss": "Avfärda",
-        "restore": "Återställ",
-        "resendSuccess": "SMS köat",
-        "resendSuccessMessage": "SMS har köats för sändning",
-        "resendError": "Omsändning misslyckades",
-        "dismissSuccess": "Avfärdad",
-        "dismissSuccessMessage": "Felet har markerats som hanterat",
-        "restoreSuccess": "Återställd",
-        "restoreSuccessMessage": "Felet har återställts till aktiv lista",
-        "accessDenied": "Åtkomst nekad. Du har inte behörighet att visa SMS-fel."
-    },
     "issues": {
-        "title": "Ärenden",
-        "allClear": "Allt klart! Inga ärenden att åtgärda.",
+        "title": "Uppföljning",
+        "allClear": "Allt klart! Inget behöver följas upp.",
         "refresh": "Uppdatera",
         "error": "Fel vid inläsning av ärenden",
         "accessDenied": "Åtkomst nekad. Du har inte behörighet att visa ärenden.",
@@ -1301,6 +1270,11 @@
             "outsideOpeningHours": "Utanför öppettider",
             "failedSms": "Misslyckade SMS"
         },
+        "cardType": {
+            "unresolvedHandout": "Oregistrerad utlämning",
+            "outsideHours": "Utanför öppettider",
+            "failedSms": "SMS-leverans misslyckades"
+        },
         "actions": {
             "handedOut": "Utlämnad",
             "noShow": "Uteblev",
@@ -1312,8 +1286,21 @@
             "cancel": "Avbryt",
             "save": "Spara"
         },
-        "quickLinks": "Snabblänkar",
-        "locationOpens": "Platsen öppnar {time}",
+        "openingHours": "Öppettider {hours}",
+        "closedThisDay": "Stängt denna dag",
+        "smsIntent": {
+            "pickup_reminder": "Påminnelse om hämtning",
+            "pickup_updated": "Ändrad hämtningstid",
+            "pickup_cancelled": "Hämtning avbokad",
+            "enrolment": "Välkomstmeddelande",
+            "consent_enrolment": "Samtyckesbegäran",
+            "food_parcels_ended": "Meddelande om avslutad mathjälp"
+        },
+        "failureDescription": {
+            "internal": "Kunde inte skickas. Kontakta teknisk support.",
+            "provider": "SMS ej levererat. Detta betyder vanligtvis att telefonnumret inte är i bruk.",
+            "stale": "Ingen leveransbekräftelse mottagen. Kontakta teknisk support."
+        },
         "toast": {
             "handedOut": "Markerad som utlämnad",
             "noShow": "Markerad som utebliven",
@@ -1328,6 +1315,15 @@
             "cancelError": "Kunde inte avboka paket",
             "retryError": "Kunde inte skicka SMS igen",
             "dismissError": "Kunde inte ignorera"
+        },
+        "confirm": {
+            "noShowTitle": "Markera som utebliven?",
+            "noShowMessage": "Är du säker på att du vill markera {name} som utebliven?",
+            "noShowConfirm": "Ja, markera som utebliven",
+            "cancelParcelTitle": "Avboka paket?",
+            "cancelParcelMessage": "Är du säker på att du vill avboka matpaketet för {name}? Denna åtgärd kan inte ångras.",
+            "cancelParcelConfirm": "Ja, avboka paket",
+            "cancel": "Avbryt"
         },
         "confirmCancelTitle": "Avboka paket?",
         "confirmCancelMessage": "Är du säker på att du vill avboka detta matpaket? Denna åtgärd kan inte ångras.",

@@ -10,6 +10,7 @@ export interface ParcelCardData {
     pickupEarliestTime: Date | string;
     pickupLatestTime: Date | string;
     isPickedUp?: boolean | null;
+    noShowAt?: Date | string | null;
     deletedAt?: Date | string | null;
     deletedBy?: string | null;
 }
@@ -17,7 +18,7 @@ export interface ParcelCardData {
 interface ParcelCardProps {
     parcel: ParcelCardData;
     onClick?: () => void;
-    status: "upcoming" | "pickedUp" | "notPickedUp" | "cancelled";
+    status: "upcoming" | "pickedUp" | "notPickedUp" | "noShow" | "cancelled";
     statusLabel: string;
     getWeekdayName: (date: Date | string) => string;
     formatDate: (date: Date | string | null | undefined) => string;
@@ -37,13 +38,15 @@ export function ParcelCard({
     deletedLabel,
     byLabel,
 }: ParcelCardProps) {
-    const isPast = status === "notPickedUp";
+    const isPast = status === "notPickedUp" || status === "noShow";
     const isCancelled = status === "cancelled";
 
     const getStatusColor = () => {
         switch (status) {
             case "pickedUp":
                 return "green";
+            case "noShow":
+                return "orange";
             case "notPickedUp":
                 return "red";
             case "cancelled":
@@ -55,6 +58,7 @@ export function ParcelCard({
 
     const getIconColor = () => {
         if (isCancelled) return "gray";
+        if (status === "noShow") return "orange";
         if (isPast) return "red";
         return "indigo";
     };

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
-import { foodParcels, households, pickupLocations } from "@/app/db/schema";
+import {
+    foodParcels,
+    households,
+    pickupLocations,
+    pickupLocationSchedules,
+    pickupLocationScheduleDays,
+} from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { eq, and } from "drizzle-orm";
 import {
@@ -16,6 +22,11 @@ import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
 import { nanoid } from "nanoid";
+import {
+    isParcelOutsideOpeningHours,
+    type ParcelTimeInfo,
+    type LocationScheduleInfo,
+} from "@/app/utils/schedule/outside-hours-filter";
 
 // GET /api/admin/sms/parcel/[parcelId] - Get SMS history for a parcel
 export async function GET(
@@ -88,8 +99,11 @@ export async function POST(
                 householdPhone: households.phone_number,
                 householdLocale: households.locale,
                 pickupDateTimeEarliest: foodParcels.pickup_date_time_earliest,
+                pickupDateTimeLatest: foodParcels.pickup_date_time_latest,
+                locationId: foodParcels.pickup_location_id,
                 locationName: pickupLocations.name,
                 locationAddress: pickupLocations.street_address,
+                isPickedUp: foodParcels.is_picked_up,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
@@ -102,6 +116,66 @@ export async function POST(
         }
 
         const parcelData = result[0];
+
+        // Check if parcel is outside opening hours
+        const scheduleData = await db
+            .select({
+                scheduleId: pickupLocationSchedules.id,
+                scheduleName: pickupLocationSchedules.name,
+                startDate: pickupLocationSchedules.start_date,
+                endDate: pickupLocationSchedules.end_date,
+                weekday: pickupLocationScheduleDays.weekday,
+                isOpen: pickupLocationScheduleDays.is_open,
+                openingTime: pickupLocationScheduleDays.opening_time,
+                closingTime: pickupLocationScheduleDays.closing_time,
+            })
+            .from(pickupLocationSchedules)
+            .leftJoin(
+                pickupLocationScheduleDays,
+                eq(pickupLocationScheduleDays.schedule_id, pickupLocationSchedules.id),
+            )
+            .where(eq(pickupLocationSchedules.pickup_location_id, parcelData.locationId));
+
+        // Build LocationScheduleInfo from query results
+        const locationScheduleInfo: LocationScheduleInfo = { schedules: [] };
+        for (const row of scheduleData) {
+            let schedule = locationScheduleInfo.schedules.find(s => s.id === row.scheduleId);
+            if (!schedule) {
+                schedule = {
+                    id: row.scheduleId,
+                    name: row.scheduleName,
+                    startDate: row.startDate,
+                    endDate: row.endDate,
+                    days: [],
+                };
+                locationScheduleInfo.schedules.push(schedule);
+            }
+            if (row.weekday) {
+                schedule.days.push({
+                    weekday: row.weekday,
+                    isOpen: row.isOpen ?? false,
+                    openingTime: row.openingTime,
+                    closingTime: row.closingTime,
+                });
+            }
+        }
+
+        // Check if parcel is outside opening hours (only if schedules exist)
+        if (locationScheduleInfo.schedules.length > 0) {
+            const parcelTimeInfo: ParcelTimeInfo = {
+                id: parcelData.parcelId,
+                pickupEarliestTime: parcelData.pickupDateTimeEarliest,
+                pickupLatestTime: parcelData.pickupDateTimeLatest,
+                isPickedUp: parcelData.isPickedUp,
+            };
+
+            if (isParcelOutsideOpeningHours(parcelTimeInfo, locationScheduleInfo)) {
+                return NextResponse.json(
+                    { error: "Cannot send SMS for parcel scheduled outside opening hours" },
+                    { status: 400 },
+                );
+            }
+        }
 
         // Determine the actual intent based on existing SMS and user request
         const existingRecords = await getSmsRecordsForParcel(parcelId);

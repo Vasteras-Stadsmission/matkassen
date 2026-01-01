@@ -47,45 +47,45 @@ export function HeaderSimple() {
 
     // State to track active link - initialized as empty string to ensure consistent SSR/client rendering
     const [active, setActive] = useState("");
-    const [smsFailureCount, setSmsFailureCount] = useState(0);
+    const [issuesCount, setIssuesCount] = useState(0);
 
-    // Fetch SMS failure count on mount
+    // Fetch issues count on mount
     // Note: Badge only updates on full page refresh, not on client-side navigation
     useEffect(() => {
-        const fetchFailureCount = async () => {
+        const fetchIssuesCount = async () => {
             try {
-                const response = await fetch("/api/admin/sms/failure-count");
+                const response = await fetch("/api/admin/issues/count");
                 if (response.ok) {
                     const data = await response.json();
-                    if (typeof data.count === "number") {
-                        setSmsFailureCount(data.count);
+                    if (typeof data.total === "number") {
+                        setIssuesCount(data.total);
                     }
                 }
             } catch (error) {
-                console.error("Failed to fetch SMS failure count:", error);
+                console.error("Failed to fetch issues count:", error);
             }
         };
 
-        fetchFailureCount();
+        fetchIssuesCount();
     }, []);
 
     // Define navigation links with translated labels using useMemo to avoid dependency changes
-    // SMS failures link only shows when there are failures
+    // Issues link only appears when there are issues to address (home page is accessible via logo)
     const links = useMemo(
         () => [
-            { link: "/households", label: t("navigation.households") },
-            { link: "/schedule", label: t("navigation.schedule") },
-            ...(smsFailureCount > 0
+            ...(issuesCount > 0
                 ? [
                       {
-                          link: "/sms-failures",
-                          label: t("navigation.smsFailures"),
-                          badge: smsFailureCount,
+                          link: "/",
+                          label: t("navigation.issues"),
+                          badge: issuesCount,
                       },
                   ]
                 : []),
+            { link: "/households", label: t("navigation.households") },
+            { link: "/schedule", label: t("navigation.schedule") },
         ],
-        [t, smsFailureCount],
+        [t, issuesCount],
     );
 
     // Calculate active link after hydration to prevent SSR/client mismatch

@@ -18,11 +18,10 @@
         "todayHandouts": "Today's Handouts",
         "locations": "Pickup Locations",
         "smsDashboard": "SMS Management",
-        "smsFailures": "SMS Failures",
         "newHousehold": "New Household",
         "scanQrCode": "Scan QR Code",
         "navigation": "Navigation",
-        "issues": "Issues"
+        "issues": "Needs Follow-up"
     },
     "auth": {
         "login": "Log in",
@@ -483,6 +482,7 @@
         "foodParcels": "Food Parcels ({count})",
         "noFoodParcels": "No food parcels scheduled",
         "cancelledParcels": "Cancelled Parcels",
+        "noCancelledParcels": "No cancelled parcels",
         "ageUnit": "years",
         "editHousehold": "Edit Household",
         "manageParcels": "Manage Parcels",
@@ -492,6 +492,7 @@
         "status": {
             "pickedUp": "Handed out",
             "notPickedUp": "Not handed out",
+            "noShow": "No-show",
             "upcoming": "Upcoming",
             "cancelled": "Cancelled"
         },
@@ -1252,41 +1253,9 @@
             "cancelButton": "Cancel"
         }
     },
-    "smsFailures": {
-        "title": "Failed SMS",
-        "noFailures": "No failed SMS for upcoming pickups",
-        "noDismissed": "No dismissed failures",
-        "pickup": "Pickup",
-        "view": "View Household",
-        "refresh": "Refresh",
-        "error": "Error",
-        "activeTab": "Active",
-        "dismissedTab": "Dismissed",
-        "internalError": "Send Failed",
-        "providerFailed": "Delivery Failed",
-        "notDelivered": "Not Delivered",
-        "staleUnconfirmed": "No Confirmation",
-        "sentAt": "Sent",
-        "showError": "Show error details",
-        "hideError": "Hide error details",
-        "dismissedAt": "Dismissed",
-        "by": "by",
-        "resend": "Resend",
-        "resendTooltip": "Queue a new SMS for this parcel",
-        "dismiss": "Dismiss",
-        "restore": "Restore",
-        "resendSuccess": "SMS Queued",
-        "resendSuccessMessage": "SMS has been queued for sending",
-        "resendError": "Resend Failed",
-        "dismissSuccess": "Dismissed",
-        "dismissSuccessMessage": "Failure has been marked as handled",
-        "restoreSuccess": "Restored",
-        "restoreSuccessMessage": "Failure has been restored to active list",
-        "accessDenied": "Access denied. You don't have permission to view SMS failures."
-    },
     "issues": {
-        "title": "Issues",
-        "allClear": "All clear! No issues need attention.",
+        "title": "Follow-up",
+        "allClear": "All clear! Nothing needs follow-up.",
         "refresh": "Refresh",
         "error": "Error loading issues",
         "accessDenied": "Access denied. You don't have permission to view issues.",
@@ -1301,6 +1270,11 @@
             "outsideOpeningHours": "Outside opening hours",
             "failedSms": "Failed SMS"
         },
+        "cardType": {
+            "unresolvedHandout": "Unresolved handout",
+            "outsideHours": "Outside opening hours",
+            "failedSms": "SMS delivery failed"
+        },
         "actions": {
             "handedOut": "Handed out",
             "noShow": "No-show",
@@ -1312,8 +1286,21 @@
             "cancel": "Cancel",
             "save": "Save"
         },
-        "quickLinks": "Quick links",
-        "locationOpens": "Location opens {time}",
+        "openingHours": "Open {hours}",
+        "closedThisDay": "Closed this day",
+        "smsIntent": {
+            "pickup_reminder": "Pickup reminder",
+            "pickup_updated": "Pickup time changed",
+            "pickup_cancelled": "Pickup cancelled",
+            "enrolment": "Welcome message",
+            "consent_enrolment": "Consent request",
+            "food_parcels_ended": "End of food support notice"
+        },
+        "failureDescription": {
+            "internal": "Could not send. Contact technical support.",
+            "provider": "SMS not delivered. This usually means the phone number is not in use.",
+            "stale": "No delivery confirmation received. Contact technical support."
+        },
         "toast": {
             "handedOut": "Marked as handed out",
             "noShow": "Marked as no-show",
@@ -1328,6 +1315,15 @@
             "cancelError": "Failed to cancel parcel",
             "retryError": "Failed to retry SMS",
             "dismissError": "Failed to dismiss"
+        },
+        "confirm": {
+            "noShowTitle": "Mark as no-show?",
+            "noShowMessage": "Are you sure you want to mark {name} as no-show?",
+            "noShowConfirm": "Yes, mark as no-show",
+            "cancelParcelTitle": "Cancel parcel?",
+            "cancelParcelMessage": "Are you sure you want to cancel the food parcel for {name}? This action cannot be undone.",
+            "cancelParcelConfirm": "Yes, cancel parcel",
+            "cancel": "Cancel"
         },
         "confirmCancelTitle": "Cancel parcel?",
         "confirmCancelMessage": "Are you sure you want to cancel this food parcel? This action cannot be undone.",

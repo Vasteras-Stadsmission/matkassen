@@ -13,20 +13,17 @@ import {
     Center,
     Text,
     Paper,
-    Badge,
     Chip,
     ThemeIcon,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { modals } from "@mantine/modals";
 import {
     IconAlertCircle,
-    IconRefresh,
     IconCheck,
     IconPackage,
     IconClock,
     IconMessage,
-    IconUsers,
-    IconCalendar,
     IconX,
 } from "@tabler/icons-react";
 import { Link } from "@/app/i18n/navigation";
@@ -52,7 +49,8 @@ interface OutsideHoursParcel {
     pickupDateLatest: string;
     locationId: string;
     locationName: string;
-    locationOpensAt: string | null;
+    locationOpeningHours: string | null;
+    locationIsClosed: boolean;
 }
 
 interface FailedSms {
@@ -62,6 +60,8 @@ interface FailedSms {
     householdFirstName: string;
     householdLastName: string;
     parcelId: string | null;
+    parcelDeleted: boolean;
+    parcelOutsideHours: boolean;
     errorMessage: string | null;
     failureType: "internal" | "provider" | "stale";
     createdAt: string;
@@ -83,66 +83,118 @@ type FilterType = "all" | "unresolvedHandouts" | "outsideHours" | "failedSms";
 
 export default function IssuesPageClient() {
     const t = useTranslations("issues");
-    const tNav = useTranslations("navigation");
     const locale = useLocale();
 
     const [issues, setIssues] = useState<IssuesData | null>(null);
-    const [initialLoading, setInitialLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>("all");
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [rescheduleParcelId, setRescheduleParcelId] = useState<string | null>(null);
+    const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
+
+    // Helper to optimistically remove a card with animation
+    const removeCardWithAnimation = useCallback((cardKey: string) => {
+        setRemovingItems(prev => new Set(prev).add(cardKey));
+        // After animation completes, actually remove from data
+        setTimeout(() => {
+            setIssues(prev => {
+                if (!prev) return prev;
+
+                // Filter arrays and track what was actually removed
+                const newUnresolvedHandouts = prev.unresolvedHandouts.filter(
+                    p => `handout-${p.parcelId}` !== cardKey,
+                );
+                const newOutsideHours = prev.outsideHours.filter(
+                    p => `outside-${p.parcelId}` !== cardKey,
+                );
+                const newFailedSms = prev.failedSms.filter(s => `sms-${s.id}` !== cardKey);
+
+                // Only decrement counts if item was actually removed
+                const handoutRemoved =
+                    newUnresolvedHandouts.length < prev.unresolvedHandouts.length;
+                const outsideRemoved = newOutsideHours.length < prev.outsideHours.length;
+                const smsRemoved = newFailedSms.length < prev.failedSms.length;
+
+                // If nothing was removed, return unchanged state
+                if (!handoutRemoved && !outsideRemoved && !smsRemoved) {
+                    return prev;
+                }
+
+                return {
+                    ...prev,
+                    unresolvedHandouts: newUnresolvedHandouts,
+                    outsideHours: newOutsideHours,
+                    failedSms: newFailedSms,
+                    counts: {
+                        ...prev.counts,
+                        // Clamp counts at 0 to prevent negative values from race conditions
+                        total: Math.max(
+                            0,
+                            prev.counts.total -
+                                (handoutRemoved || outsideRemoved || smsRemoved ? 1 : 0),
+                        ),
+                        unresolvedHandouts: handoutRemoved
+                            ? Math.max(0, prev.counts.unresolvedHandouts - 1)
+                            : prev.counts.unresolvedHandouts,
+                        outsideHours: outsideRemoved
+                            ? Math.max(0, prev.counts.outsideHours - 1)
+                            : prev.counts.outsideHours,
+                        failedSms: smsRemoved
+                            ? Math.max(0, prev.counts.failedSms - 1)
+                            : prev.counts.failedSms,
+                    },
+                };
+            });
+            setRemovingItems(prev => {
+                const next = new Set(prev);
+                next.delete(cardKey);
+                return next;
+            });
+        }, 300); // Match CSS transition duration
+    }, []);
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    const fetchData = useCallback(
-        async (isRefresh = false) => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
+    const fetchData = useCallback(async () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch("/api/admin/issues", {
+                signal: abortControllerRef.current.signal,
+            });
+
+            if (response.status === 401) {
+                const callbackUrl = encodeURIComponent(window.location.pathname);
+                window.location.href = `/api/auth/signin?callbackUrl=${callbackUrl}`;
+                return;
             }
-            abortControllerRef.current = new AbortController();
-
-            if (isRefresh) {
-                setRefreshing(true);
-            } else {
-                setInitialLoading(true);
+            if (response.status === 403) {
+                setError(t("accessDenied"));
+                return;
             }
-            setError(null);
 
-            try {
-                const response = await fetch("/api/admin/issues", {
-                    signal: abortControllerRef.current.signal,
-                });
-
-                if (response.status === 401) {
-                    const callbackUrl = encodeURIComponent(window.location.pathname);
-                    window.location.href = `/api/auth/signin?callbackUrl=${callbackUrl}`;
-                    return;
-                }
-                if (response.status === 403) {
-                    setError(t("accessDenied"));
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error(t("error"));
-                }
-
-                const data = await response.json();
-                setIssues(data);
-            } catch (err) {
-                if (err instanceof Error && err.name === "AbortError") {
-                    return;
-                }
-                setError(t("error"));
-            } finally {
-                setInitialLoading(false);
-                setRefreshing(false);
+            if (!response.ok) {
+                throw new Error(t("error"));
             }
-        },
-        [t],
-    );
+
+            const data = await response.json();
+            setIssues(data);
+        } catch (err) {
+            if (err instanceof Error && err.name === "AbortError") {
+                return;
+            }
+            setError(t("error"));
+        } finally {
+            setLoading(false);
+        }
+    }, [t]);
 
     useEffect(() => {
         fetchData();
@@ -196,7 +248,7 @@ export default function IssuesPageClient() {
                 icon: <IconCheck size="1rem" />,
             });
 
-            fetchData(true);
+            removeCardWithAnimation(`handout-${parcelId}`);
         } catch (err) {
             notifications.show({
                 title: t("toast.actionError"),
@@ -209,8 +261,21 @@ export default function IssuesPageClient() {
         }
     };
 
-    // Action handler: Mark parcel as no-show
-    const handleNoShow = async (parcelId: string) => {
+    // Action handler: Mark parcel as no-show (with confirmation)
+    const handleNoShow = (parcelId: string, householdName: string) => {
+        modals.openConfirmModal({
+            title: t("confirm.noShowTitle"),
+            children: <Text size="sm">{t("confirm.noShowMessage", { name: householdName })}</Text>,
+            labels: {
+                confirm: t("confirm.noShowConfirm"),
+                cancel: t("confirm.cancel"),
+            },
+            confirmProps: { color: "orange" },
+            onConfirm: () => executeNoShow(parcelId),
+        });
+    };
+
+    const executeNoShow = async (parcelId: string) => {
         const key = `noshow-${parcelId}`;
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
@@ -231,7 +296,7 @@ export default function IssuesPageClient() {
                 icon: <IconCheck size="1rem" />,
             });
 
-            fetchData(true);
+            removeCardWithAnimation(`handout-${parcelId}`);
         } catch (err) {
             notifications.show({
                 title: t("toast.actionError"),
@@ -244,8 +309,23 @@ export default function IssuesPageClient() {
         }
     };
 
-    // Action handler: Cancel parcel (soft delete)
-    const handleCancelParcel = async (parcelId: string) => {
+    // Action handler: Cancel parcel (soft delete) (with confirmation)
+    const handleCancelParcel = (parcelId: string, householdName: string) => {
+        modals.openConfirmModal({
+            title: t("confirm.cancelParcelTitle"),
+            children: (
+                <Text size="sm">{t("confirm.cancelParcelMessage", { name: householdName })}</Text>
+            ),
+            labels: {
+                confirm: t("confirm.cancelParcelConfirm"),
+                cancel: t("confirm.cancel"),
+            },
+            confirmProps: { color: "red" },
+            onConfirm: () => executeCancelParcel(parcelId),
+        });
+    };
+
+    const executeCancelParcel = async (parcelId: string) => {
         const key = `cancel-${parcelId}`;
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
@@ -266,7 +346,7 @@ export default function IssuesPageClient() {
                 icon: <IconCheck size="1rem" />,
             });
 
-            fetchData(true);
+            removeCardWithAnimation(`outside-${parcelId}`);
         } catch (err) {
             notifications.show({
                 title: t("toast.actionError"),
@@ -307,7 +387,7 @@ export default function IssuesPageClient() {
                 icon: <IconCheck size="1rem" />,
             });
 
-            fetchData(true);
+            removeCardWithAnimation(`sms-${sms.id}`);
         } catch (err) {
             notifications.show({
                 title: t("toast.actionError"),
@@ -344,7 +424,7 @@ export default function IssuesPageClient() {
                 icon: <IconCheck size="1rem" />,
             });
 
-            fetchData(true);
+            removeCardWithAnimation(`sms-${smsId}`);
         } catch (err) {
             notifications.show({
                 title: t("toast.actionError"),
@@ -357,7 +437,7 @@ export default function IssuesPageClient() {
         }
     };
 
-    if (initialLoading) {
+    if (loading) {
         return (
             <Center style={{ minHeight: "40vh" }}>
                 <Loader size="lg" />
@@ -374,17 +454,7 @@ export default function IssuesPageClient() {
     return (
         <Container size="lg" py="xl">
             <Stack gap="lg">
-                <Group justify="space-between" align="center">
-                    <Title order={2}>{t("title")}</Title>
-                    <Button
-                        variant="light"
-                        leftSection={<IconRefresh size={16} />}
-                        onClick={() => fetchData(true)}
-                        loading={refreshing}
-                    >
-                        {t("refresh")}
-                    </Button>
-                </Group>
+                <Title order={2}>{t("title")}</Title>
 
                 {/* Filter chips */}
                 {!hasNoIssues && (
@@ -396,17 +466,23 @@ export default function IssuesPageClient() {
                             <Chip value="all" variant="filled">
                                 {t("filters.all")} ({issues?.counts.total ?? 0})
                             </Chip>
-                            <Chip value="unresolvedHandouts" variant="filled">
-                                {t("filters.unresolvedHandouts")} (
-                                {issues?.counts.unresolvedHandouts ?? 0})
-                            </Chip>
-                            <Chip value="outsideHours" variant="filled">
-                                {t("filters.outsideOpeningHours")} (
-                                {issues?.counts.outsideHours ?? 0})
-                            </Chip>
-                            <Chip value="failedSms" variant="filled">
-                                {t("filters.failedSms")} ({issues?.counts.failedSms ?? 0})
-                            </Chip>
+                            {(issues?.counts.unresolvedHandouts ?? 0) > 0 && (
+                                <Chip value="unresolvedHandouts" variant="filled">
+                                    {t("filters.unresolvedHandouts")} (
+                                    {issues?.counts.unresolvedHandouts})
+                                </Chip>
+                            )}
+                            {(issues?.counts.outsideHours ?? 0) > 0 && (
+                                <Chip value="outsideHours" variant="filled">
+                                    {t("filters.outsideOpeningHours")} (
+                                    {issues?.counts.outsideHours})
+                                </Chip>
+                            )}
+                            {(issues?.counts.failedSms ?? 0) > 0 && (
+                                <Chip value="failedSms" variant="filled">
+                                    {t("filters.failedSms")} ({issues?.counts.failedSms})
+                                </Chip>
+                            )}
                         </Group>
                     </Chip.Group>
                 )}
@@ -431,156 +507,228 @@ export default function IssuesPageClient() {
                     </Paper>
                 )}
 
-                {/* Unresolved Handouts Section */}
-                {showUnresolvedHandouts && issues && issues.unresolvedHandouts.length > 0 && (
+                {/* Unified issue list */}
+                {issues && !hasNoIssues && (
                     <Stack gap="sm">
-                        <Group gap="xs">
-                            <ThemeIcon size="sm" variant="light" color="orange">
-                                <IconPackage size={14} />
-                            </ThemeIcon>
-                            <Title order={4}>{t("sections.unresolvedHandouts")}</Title>
-                        </Group>
-                        {issues.unresolvedHandouts.map(parcel => (
-                            <Paper key={parcel.parcelId} p="md" withBorder>
-                                <Stack gap="sm">
-                                    <Group justify="space-between" wrap="nowrap">
-                                        <Text
-                                            fw={600}
-                                            component={Link}
-                                            href={`/households/${parcel.householdId}`}
-                                            style={{ textDecoration: "none" }}
-                                            c="inherit"
-                                        >
-                                            {parcel.householdFirstName} {parcel.householdLastName}
-                                        </Text>
-                                    </Group>
-                                    <Text size="sm" c="dimmed">
-                                        {formatPickupTime(
-                                            parcel.pickupDateEarliest,
-                                            parcel.pickupDateLatest,
-                                        )}{" "}
-                                        · {parcel.locationName}
-                                    </Text>
-                                    <Group gap="sm" justify="flex-end">
-                                        <Button
-                                            variant="light"
-                                            color="green"
-                                            size="xs"
-                                            loading={actionLoading[`pickup-${parcel.parcelId}`]}
-                                            onClick={() => handleHandedOut(parcel.parcelId)}
-                                        >
-                                            {t("actions.handedOut")}
-                                        </Button>
-                                        <Button
-                                            variant="light"
-                                            color="orange"
-                                            size="xs"
-                                            loading={actionLoading[`noshow-${parcel.parcelId}`]}
-                                            onClick={() => handleNoShow(parcel.parcelId)}
-                                        >
-                                            {t("actions.noShow")}
-                                        </Button>
-                                    </Group>
-                                </Stack>
-                            </Paper>
-                        ))}
-                    </Stack>
-                )}
-
-                {/* Outside Opening Hours Section */}
-                {showOutsideHours && issues && issues.outsideHours.length > 0 && (
-                    <Stack gap="sm">
-                        <Group gap="xs">
-                            <ThemeIcon size="sm" variant="light" color="yellow">
-                                <IconClock size={14} />
-                            </ThemeIcon>
-                            <Title order={4}>{t("sections.outsideOpeningHours")}</Title>
-                        </Group>
-                        {issues.outsideHours.map(parcel => (
-                            <Paper key={parcel.parcelId} p="md" withBorder>
-                                <Stack gap="sm">
-                                    <Group justify="space-between" wrap="nowrap">
-                                        <Text
-                                            fw={600}
-                                            component={Link}
-                                            href={`/households/${parcel.householdId}`}
-                                            style={{ textDecoration: "none" }}
-                                            c="inherit"
-                                        >
-                                            {parcel.householdFirstName} {parcel.householdLastName}
-                                        </Text>
-                                    </Group>
-                                    <Text size="sm" c="dimmed">
-                                        {formatPickupTime(
-                                            parcel.pickupDateEarliest,
-                                            parcel.pickupDateLatest,
-                                        )}{" "}
-                                        · {parcel.locationName}
-                                    </Text>
-                                    {parcel.locationOpensAt && (
-                                        <Text size="sm" c="orange">
-                                            {t("locationOpens", { time: parcel.locationOpensAt })}
-                                        </Text>
-                                    )}
-                                    {rescheduleParcelId !== parcel.parcelId && (
-                                        <Group gap="sm" justify="flex-end">
+                        {/* Unresolved Handouts */}
+                        {showUnresolvedHandouts &&
+                            issues.unresolvedHandouts.map(parcel => (
+                                <Paper
+                                    key={`handout-${parcel.parcelId}`}
+                                    p="xs"
+                                    withBorder
+                                    style={{
+                                        borderLeft: "3px solid var(--mantine-color-violet-5)",
+                                        opacity: removingItems.has(`handout-${parcel.parcelId}`)
+                                            ? 0
+                                            : 1,
+                                        transform: removingItems.has(`handout-${parcel.parcelId}`)
+                                            ? "translateX(-20px)"
+                                            : "translateX(0)",
+                                        transition:
+                                            "opacity 300ms ease-out, transform 300ms ease-out",
+                                    }}
+                                >
+                                    <Stack gap={2}>
+                                        <Group gap={6}>
+                                            <IconPackage
+                                                size={16}
+                                                color="var(--mantine-color-violet-5)"
+                                            />
+                                            <Text size="sm" c="dark.5" fw={500}>
+                                                {t("cardType.unresolvedHandout")}
+                                            </Text>
+                                        </Group>
+                                        <Group gap="xs" wrap="wrap">
+                                            <Text
+                                                fw={600}
+                                                component={Link}
+                                                href={`/households/${parcel.householdId}`}
+                                                style={{ textDecoration: "none" }}
+                                                c="inherit"
+                                            >
+                                                {parcel.householdFirstName}{" "}
+                                                {parcel.householdLastName}
+                                            </Text>
                                             <Button
                                                 variant="light"
-                                                color="red"
-                                                size="xs"
-                                                loading={actionLoading[`cancel-${parcel.parcelId}`]}
-                                                onClick={() => handleCancelParcel(parcel.parcelId)}
+                                                color="green"
+                                                size="compact-sm"
+                                                loading={actionLoading[`pickup-${parcel.parcelId}`]}
+                                                onClick={() => handleHandedOut(parcel.parcelId)}
                                             >
-                                                {t("actions.cancelParcel")}
+                                                {t("actions.handedOut")}
                                             </Button>
                                             <Button
                                                 variant="light"
-                                                color="blue"
-                                                size="xs"
+                                                color="orange"
+                                                size="compact-sm"
+                                                loading={actionLoading[`noshow-${parcel.parcelId}`]}
                                                 onClick={() =>
-                                                    setRescheduleParcelId(parcel.parcelId)
+                                                    handleNoShow(
+                                                        parcel.parcelId,
+                                                        `${parcel.householdFirstName} ${parcel.householdLastName}`,
+                                                    )
                                                 }
                                             >
-                                                {t("actions.reschedule")}
+                                                {t("actions.noShow")}
                                             </Button>
                                         </Group>
-                                    )}
-                                    <RescheduleInline
-                                        parcelId={parcel.parcelId}
-                                        locationId={parcel.locationId}
-                                        isExpanded={rescheduleParcelId === parcel.parcelId}
-                                        onCancel={() => setRescheduleParcelId(null)}
-                                        onSuccess={() => {
-                                            setRescheduleParcelId(null);
-                                            notifications.show({
-                                                title: t("toast.success"),
-                                                message: t("toast.rescheduled"),
-                                                color: "green",
-                                                icon: <IconCheck size="1rem" />,
-                                            });
-                                            fetchData(true);
-                                        }}
-                                    />
-                                </Stack>
-                            </Paper>
-                        ))}
-                    </Stack>
-                )}
+                                        <Text size="sm" c="dark.4">
+                                            {formatPickupTime(
+                                                parcel.pickupDateEarliest,
+                                                parcel.pickupDateLatest,
+                                            )}{" "}
+                                            · {parcel.locationName}
+                                        </Text>
+                                    </Stack>
+                                </Paper>
+                            ))}
 
-                {/* Failed SMS Section */}
-                {showFailedSms && issues && issues.failedSms.length > 0 && (
-                    <Stack gap="sm">
-                        <Group gap="xs">
-                            <ThemeIcon size="sm" variant="light" color="red">
-                                <IconMessage size={14} />
-                            </ThemeIcon>
-                            <Title order={4}>{t("sections.failedSms")}</Title>
-                        </Group>
-                        {issues.failedSms.map(sms => (
-                            <Paper key={sms.id} p="md" withBorder>
-                                <Stack gap="sm">
-                                    <Group justify="space-between" wrap="nowrap">
-                                        <Group gap="sm">
+                        {/* Outside Opening Hours */}
+                        {showOutsideHours &&
+                            issues.outsideHours.map(parcel => (
+                                <Paper
+                                    key={`outside-${parcel.parcelId}`}
+                                    p="xs"
+                                    withBorder
+                                    style={{
+                                        borderLeft: "3px solid var(--mantine-color-indigo-5)",
+                                        opacity: removingItems.has(`outside-${parcel.parcelId}`)
+                                            ? 0
+                                            : 1,
+                                        transform: removingItems.has(`outside-${parcel.parcelId}`)
+                                            ? "translateX(-20px)"
+                                            : "translateX(0)",
+                                        transition:
+                                            "opacity 300ms ease-out, transform 300ms ease-out",
+                                    }}
+                                >
+                                    <Stack gap={2}>
+                                        <Group gap={6}>
+                                            <IconClock
+                                                size={16}
+                                                color="var(--mantine-color-indigo-5)"
+                                            />
+                                            <Text size="sm" c="dark.5" fw={500}>
+                                                {t("cardType.outsideHours")}
+                                            </Text>
+                                        </Group>
+                                        <Group gap="xs" wrap="wrap">
+                                            <Text
+                                                fw={600}
+                                                component={Link}
+                                                href={`/households/${parcel.householdId}`}
+                                                style={{ textDecoration: "none" }}
+                                                c="inherit"
+                                            >
+                                                {parcel.householdFirstName}{" "}
+                                                {parcel.householdLastName}
+                                            </Text>
+                                            {rescheduleParcelId !== parcel.parcelId && (
+                                                <>
+                                                    <Button
+                                                        variant="light"
+                                                        color="red"
+                                                        size="compact-sm"
+                                                        loading={
+                                                            actionLoading[
+                                                                `cancel-${parcel.parcelId}`
+                                                            ]
+                                                        }
+                                                        onClick={() =>
+                                                            handleCancelParcel(
+                                                                parcel.parcelId,
+                                                                `${parcel.householdFirstName} ${parcel.householdLastName}`,
+                                                            )
+                                                        }
+                                                    >
+                                                        {t("actions.cancelParcel")}
+                                                    </Button>
+                                                    <Button
+                                                        variant="light"
+                                                        color="blue"
+                                                        size="compact-sm"
+                                                        onClick={() =>
+                                                            setRescheduleParcelId(parcel.parcelId)
+                                                        }
+                                                    >
+                                                        {t("actions.reschedule")}
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Group>
+                                        <Text size="sm" c="dark.4">
+                                            {formatPickupTime(
+                                                parcel.pickupDateEarliest,
+                                                parcel.pickupDateLatest,
+                                            )}{" "}
+                                            · {parcel.locationName}
+                                            {parcel.locationIsClosed ? (
+                                                <Text span fw={500} inherit>
+                                                    {" "}
+                                                    · {t("closedThisDay")}
+                                                </Text>
+                                            ) : parcel.locationOpeningHours ? (
+                                                <Text span fw={500} inherit>
+                                                    {" "}
+                                                    ·{" "}
+                                                    {t("openingHours", {
+                                                        hours: parcel.locationOpeningHours,
+                                                    })}
+                                                </Text>
+                                            ) : null}
+                                        </Text>
+                                        <RescheduleInline
+                                            parcelId={parcel.parcelId}
+                                            locationId={parcel.locationId}
+                                            isExpanded={rescheduleParcelId === parcel.parcelId}
+                                            onCancel={() => setRescheduleParcelId(null)}
+                                            onSuccess={() => {
+                                                setRescheduleParcelId(null);
+                                                notifications.show({
+                                                    title: t("toast.success"),
+                                                    message: t("toast.rescheduled"),
+                                                    color: "green",
+                                                    icon: <IconCheck size="1rem" />,
+                                                });
+                                                removeCardWithAnimation(
+                                                    `outside-${parcel.parcelId}`,
+                                                );
+                                            }}
+                                        />
+                                    </Stack>
+                                </Paper>
+                            ))}
+
+                        {/* Failed SMS */}
+                        {showFailedSms &&
+                            issues.failedSms.map(sms => (
+                                <Paper
+                                    key={`sms-${sms.id}`}
+                                    p="xs"
+                                    withBorder
+                                    style={{
+                                        borderLeft: "3px solid var(--mantine-color-grape-5)",
+                                        opacity: removingItems.has(`sms-${sms.id}`) ? 0 : 1,
+                                        transform: removingItems.has(`sms-${sms.id}`)
+                                            ? "translateX(-20px)"
+                                            : "translateX(0)",
+                                        transition:
+                                            "opacity 300ms ease-out, transform 300ms ease-out",
+                                    }}
+                                >
+                                    <Stack gap={2}>
+                                        <Group gap={6}>
+                                            <IconMessage
+                                                size={16}
+                                                color="var(--mantine-color-grape-5)"
+                                            />
+                                            <Text size="sm" c="dark.5" fw={500}>
+                                                {t("cardType.failedSms")}
+                                            </Text>
+                                        </Group>
+                                        <Group gap="xs" wrap="wrap">
                                             <Text
                                                 fw={600}
                                                 component={Link}
@@ -590,88 +738,72 @@ export default function IssuesPageClient() {
                                             >
                                                 {sms.householdFirstName} {sms.householdLastName}
                                             </Text>
-                                            <Badge
-                                                color={
-                                                    sms.failureType === "internal"
-                                                        ? "red"
-                                                        : sms.failureType === "provider"
-                                                          ? "orange"
-                                                          : "yellow"
-                                                }
-                                                size="sm"
-                                            >
-                                                {sms.failureType}
-                                            </Badge>
-                                        </Group>
-                                    </Group>
-                                    {sms.errorMessage && (
-                                        <Text size="sm" c="red">
-                                            {sms.errorMessage}
-                                        </Text>
-                                    )}
-                                    <Group gap="sm" justify="flex-end">
-                                        {/* Retry only available for pickup_reminder (API limitation) */}
-                                        {sms.parcelId && sms.intent === "pickup_reminder" && (
+                                            {/* Retry only available for pickup_reminder with valid parcel (not deleted, not outside hours) */}
+                                            {sms.parcelId &&
+                                                !sms.parcelDeleted &&
+                                                !sms.parcelOutsideHours &&
+                                                sms.intent === "pickup_reminder" && (
+                                                    <Button
+                                                        variant="light"
+                                                        color="blue"
+                                                        size="compact-sm"
+                                                        loading={actionLoading[`retry-${sms.id}`]}
+                                                        onClick={() => handleRetry(sms)}
+                                                    >
+                                                        {t("actions.retry")}
+                                                    </Button>
+                                                )}
                                             <Button
                                                 variant="light"
-                                                color="blue"
-                                                size="xs"
-                                                loading={actionLoading[`retry-${sms.id}`]}
-                                                onClick={() => handleRetry(sms)}
+                                                color="gray"
+                                                size="compact-sm"
+                                                loading={actionLoading[`dismiss-${sms.id}`]}
+                                                onClick={() => handleDismiss(sms.id)}
                                             >
-                                                {t("actions.retry")}
+                                                {t("actions.dismiss")}
                                             </Button>
-                                        )}
-                                        <Button
-                                            variant="light"
-                                            color="gray"
-                                            size="xs"
-                                            loading={actionLoading[`dismiss-${sms.id}`]}
-                                            onClick={() => handleDismiss(sms.id)}
-                                        >
-                                            {t("actions.dismiss")}
-                                        </Button>
-                                        <Button
-                                            component={Link}
-                                            href={`/households/${sms.householdId}/edit`}
-                                            variant="light"
-                                            size="xs"
-                                        >
-                                            {t("actions.editHousehold")} →
-                                        </Button>
-                                    </Group>
-                                </Stack>
-                            </Paper>
-                        ))}
+                                            <Button
+                                                component={Link}
+                                                href={`/households/${sms.householdId}/edit`}
+                                                variant="light"
+                                                size="compact-sm"
+                                            >
+                                                {t("actions.editHousehold")} →
+                                            </Button>
+                                        </Group>
+                                        <Text size="sm" c="dark.4">
+                                            {
+                                                {
+                                                    pickup_reminder: t("smsIntent.pickup_reminder"),
+                                                    pickup_updated: t("smsIntent.pickup_updated"),
+                                                    pickup_cancelled: t(
+                                                        "smsIntent.pickup_cancelled",
+                                                    ),
+                                                    enrolment: t("smsIntent.enrolment"),
+                                                    consent_enrolment: t(
+                                                        "smsIntent.consent_enrolment",
+                                                    ),
+                                                    food_parcels_ended: t(
+                                                        "smsIntent.food_parcels_ended",
+                                                    ),
+                                                }[sms.intent]
+                                            }
+                                        </Text>
+                                        <Text size="sm" c="dark.4">
+                                            {
+                                                {
+                                                    internal: t("failureDescription.internal"),
+                                                    provider: t("failureDescription.provider"),
+                                                    stale: t("failureDescription.stale"),
+                                                }[sms.failureType]
+                                            }
+                                            {sms.errorMessage && `: ${sms.errorMessage}`}
+                                        </Text>
+                                    </Stack>
+                                </Paper>
+                            ))}
                     </Stack>
                 )}
-
-                {/* Quick Links */}
-                <Paper p="md" withBorder mt="md">
-                    <Text size="sm" fw={500} mb="sm">
-                        {t("quickLinks")}
-                    </Text>
-                    <Group gap="sm">
-                        <Button
-                            component={Link}
-                            href="/schedule"
-                            variant="default"
-                            size="xs"
-                            leftSection={<IconCalendar size={14} />}
-                        >
-                            {tNav("schedule")}
-                        </Button>
-                        <Button
-                            component={Link}
-                            href="/households"
-                            variant="default"
-                            size="xs"
-                            leftSection={<IconUsers size={14} />}
-                        >
-                            {tNav("households")}
-                        </Button>
-                    </Group>
-                </Paper>
             </Stack>
         </Container>
     );

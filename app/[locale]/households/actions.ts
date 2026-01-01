@@ -147,6 +147,7 @@ export async function getHouseholdDetails(householdId: string) {
                 pickup_date_time_earliest: foodParcels.pickup_date_time_earliest,
                 pickup_date_time_latest: foodParcels.pickup_date_time_latest,
                 is_picked_up: foodParcels.is_picked_up,
+                no_show_at: foodParcels.no_show_at,
             })
             .from(foodParcels)
             .where(and(eq(foodParcels.household_id, householdId), notDeleted()))
@@ -160,6 +161,7 @@ export async function getHouseholdDetails(householdId: string) {
                 pickup_date_time_earliest: foodParcels.pickup_date_time_earliest,
                 pickup_date_time_latest: foodParcels.pickup_date_time_latest,
                 is_picked_up: foodParcels.is_picked_up,
+                no_show_at: foodParcels.no_show_at,
                 deleted_at: foodParcels.deleted_at,
                 deleted_by_user_id: foodParcels.deleted_by_user_id,
             })
@@ -264,6 +266,7 @@ export async function getHouseholdDetails(householdId: string) {
                     pickupEarliestTime: parcel.pickup_date_time_earliest,
                     pickupLatestTime: parcel.pickup_date_time_latest,
                     isPickedUp: parcel.is_picked_up,
+                    noShowAt: parcel.no_show_at,
                 })),
             },
             deletedParcels: deletedParcelsResult.map(parcel => ({
@@ -272,6 +275,7 @@ export async function getHouseholdDetails(householdId: string) {
                 pickupEarliestTime: parcel.pickup_date_time_earliest,
                 pickupLatestTime: parcel.pickup_date_time_latest,
                 isPickedUp: parcel.is_picked_up,
+                noShowAt: parcel.no_show_at,
                 deletedAt: parcel.deleted_at,
                 deletedBy: parcel.deleted_by_user_id,
             })),

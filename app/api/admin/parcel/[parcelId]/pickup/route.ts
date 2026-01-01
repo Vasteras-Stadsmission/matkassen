@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels } from "@/app/db/schema";
-import { eq } from "drizzle-orm";
+import { notDeleted } from "@/app/db/query-helpers";
+import { eq, and } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 
@@ -20,19 +21,23 @@ export async function PATCH(
         const { parcelId } = await params;
         const now = new Date();
 
-        // Update the parcel
+        // Update the parcel (only if not deleted)
+        // Also clear no_show fields to avoid CHECK constraint violation
+        // (business logic: if picked up, they clearly showed up)
         const result = await db
             .update(foodParcels)
             .set({
                 is_picked_up: true,
                 picked_up_at: now,
-                picked_up_by_user_id: authResult.session!.user.githubUsername, // GitHub username
+                picked_up_by_user_id: authResult.session!.user.githubUsername,
+                no_show_at: null,
+                no_show_by_user_id: null,
             })
-            .where(eq(foodParcels.id, parcelId))
+            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
             .returning({ id: foodParcels.id });
 
         if (result.length === 0) {
-            return NextResponse.json({ error: "Parcel not found" }, { status: 404 });
+            return NextResponse.json({ error: "Parcel not found or deleted" }, { status: 404 });
         }
 
         return NextResponse.json({
@@ -65,7 +70,7 @@ export async function DELETE(
 
         const { parcelId } = await params;
 
-        // Update the parcel to clear pickup status
+        // Update the parcel to clear pickup status (only if not deleted)
         const result = await db
             .update(foodParcels)
             .set({
@@ -73,11 +78,11 @@ export async function DELETE(
                 picked_up_at: null,
                 picked_up_by_user_id: null,
             })
-            .where(eq(foodParcels.id, parcelId))
+            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
             .returning({ id: foodParcels.id });
 
         if (result.length === 0) {
-            return NextResponse.json({ error: "Parcel not found" }, { status: 404 });
+            return NextResponse.json({ error: "Parcel not found or deleted" }, { status: 404 });
         }
 
         return NextResponse.json({

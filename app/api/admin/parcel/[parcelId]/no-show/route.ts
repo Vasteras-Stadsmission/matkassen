@@ -22,6 +22,7 @@ export async function PATCH(
         }
 
         const now = Time.now().toUTC();
+        const nowIso = now.toISOString(); // Convert to ISO string for SQL compatibility
 
         // Update the parcel - only if:
         // - Not deleted
@@ -40,7 +41,7 @@ export async function PATCH(
                     eq(foodParcels.is_picked_up, false), // Can't mark as no-show if already picked up
                     notDeleted(), // Can't mark deleted parcels as no-show
                     // Pickup date must be in the past (Stockholm timezone)
-                    sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < (${now}::timestamptz AT TIME ZONE 'Europe/Stockholm')::date`,
+                    sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < (${nowIso}::timestamptz AT TIME ZONE 'Europe/Stockholm')::date`,
                 ),
             )
             .returning({ id: foodParcels.id });
@@ -82,18 +83,29 @@ export async function DELETE(
             return authResult.response!;
         }
 
-        // Update the parcel to clear no-show status
+        // Update the parcel to clear no-show status - only if:
+        // - Not deleted
+        // - Currently marked as no-show
         const result = await db
             .update(foodParcels)
             .set({
                 no_show_at: null,
                 no_show_by_user_id: null,
             })
-            .where(eq(foodParcels.id, parcelId))
+            .where(
+                and(
+                    eq(foodParcels.id, parcelId),
+                    notDeleted(),
+                    sql`${foodParcels.no_show_at} IS NOT NULL`,
+                ),
+            )
             .returning({ id: foodParcels.id });
 
         if (result.length === 0) {
-            return NextResponse.json({ error: "Parcel not found" }, { status: 404 });
+            return NextResponse.json(
+                { error: "Parcel not found, deleted, or not marked as no-show" },
+                { status: 404 },
+            );
         }
 
         return NextResponse.json({

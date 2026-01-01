@@ -10,7 +10,7 @@ This manual provides detailed information about all Matkassen features. For a qu
 
 - [Household Management](#household-management)
 - [Parcel Scheduling](#parcel-scheduling)
-- [SMS Failures](#sms-failures)
+- [Issues Dashboard](#issues-dashboard)
 - [Pickup Location Management](#pickup-location-management)
 - [Recipient Experience](#recipient-experience)
 - [Troubleshooting](#troubleshooting)
@@ -289,44 +289,59 @@ Favorite persists across sessions. Change by clicking star on different location
 
 ---
 
-## SMS Failures
+## Issues Dashboard
 
 ### Overview
 
-The SMS Failures page shows failed SMS notifications that need attention. A badge in the navigation shows the count of failures - no badge means all SMS are being delivered successfully.
+The Issues Dashboard (home page) shows operational issues that need attention. Issues are grouped into three categories:
 
-**Design principle**: SMS follows parcel state automatically. You manage parcels in schedule, and SMS updates accordingly. The failures page is for monitoring and recovery when issues occur.
+1. **Unresolved Handouts** - Past parcels not marked as picked up or no-show
+2. **Outside Hours** - Upcoming parcels scheduled outside location opening hours
+3. **Failed SMS** - SMS notifications that failed to send
+
+**Design principle**: The Issues Dashboard provides a single place to address all operational problems. When no issues exist, the Issues link doesn't appear in navigation - indicating everything is running smoothly.
 
 ### Navigation Badge
 
-The navigation shows a red badge when SMS failures exist:
+The navigation shows an "Issues" link with a red badge when problems exist:
 
-- **Red badge with number**: That many SMS failed to send
-- **No badge**: All SMS sent successfully
+- **Red badge with number**: Total count of all issues (handouts + outside hours + SMS)
+- **No "Issues" link**: No issues to address
 
-Click the badge to go directly to the SMS Failures page.
+The Issues link only appears when there are issues to resolve.
 
-### SMS Failures List
+### Unresolved Handouts
 
-The failures page shows:
+Parcels from past dates that weren't marked as picked up or no-show. To resolve:
 
-- Household name and phone number
-- Pickup date, time, and location
-- Error message explaining the failure
-- Retry button to attempt resending
+1. Click the parcel card to open details
+2. Mark as **Handed out** if collected, or **No-show** if missed
+3. The issue is removed from the list
 
-### Handling Failed SMS
+### Outside Opening Hours
 
-1. Review the error message (common issues below)
-2. Click **View Household** to fix the underlying issue
-3. Update the phone number or other relevant data
-4. Click **Retry** to resend the SMS
+Upcoming parcels scheduled for times when the location is closed. To resolve:
 
-**Common failure reasons**:
+1. Click **Reschedule** on the parcel card
+2. Select a new date/time within opening hours
+3. SMS updates are sent automatically
 
-- **Invalid phone number**: Number format incorrect or doesn't exist
-- **Phone not in service**: Number is disconnected
-- **Technical issues**: Temporary provider problems (retry usually works)
+Or update the location's schedule if the hours were changed.
+
+### Failed SMS
+
+SMS notifications that failed to send. To resolve:
+
+1. Review the error type (internal, provider, or stale)
+2. Click the household link to fix underlying issues (e.g., phone number)
+3. Click **Dismiss** to clear the alert after addressing
+4. New SMS will queue automatically when parcels are modified
+
+**Common failure types**:
+
+- **Internal error**: System issue - usually temporary
+- **Provider error**: Phone number invalid or not in service
+- **Stale**: SMS sent but no delivery confirmation after 24 hours
 
 ### SMS History on Household Page
 
@@ -369,7 +384,7 @@ This shows the full history including successful deliveries, not just failures.
 
 If recipient reports not receiving SMS:
 
-1. Check SMS Failures page for any errors
+1. Check Issues Dashboard for any failed SMS
 2. Go to household details → SMS History section
 3. Check status:
     - **Queued**: Hasn't sent yet (check scheduled time)
@@ -691,17 +706,17 @@ Useful if primary recipient cannot attend pickup.
 
 **Recipient says didn't receive SMS**
 
-- Check SMS Failures page for errors
+- Check Issues Dashboard for failed SMS
 - Check household SMS History section
-- **Failed**: Fix phone number and retry
+- **Failed**: Fix phone number, issue will resolve when parcel is updated
 - **Sent**: SMS was delivered (recipient may have missed it)
 - Or share public link directly
 
-**SMS Failures shows error message**
+**Issues Dashboard shows SMS error**
 
-- Read error message for specific issue
+- Review failure type (internal, provider, or stale)
 - Common: invalid phone number, phone not in service
-- Fix underlying issue and retry
+- Fix underlying issue in household details, then dismiss the alert
 
 **Want to prevent SMS from sending**
 

@@ -8,37 +8,50 @@ const pino = require("pino");
  */
 
 const isDevelopment = process.env.NODE_ENV === "development";
+const isServer = typeof window === "undefined";
 
 // Create base logger
-const baseLogger = pino({
-    level: process.env.LOG_LEVEL || (isDevelopment ? "debug" : "info"),
-    // Exclude pid and hostname from all logs (not useful in Docker)
-    base: undefined,
-    formatters: {
-        level: label => {
-            return { level: label.toUpperCase() };
+let baseLogger;
+
+if (isServer) {
+    // Server-side logging
+    const loggerConfig = {
+        level: process.env.LOG_LEVEL || (isDevelopment ? "debug" : "info"),
+        base: undefined,
+        formatters: {
+            level: label => {
+                return { level: label.toUpperCase() };
+            },
         },
-    },
-    timestamp: pino.stdTimeFunctions.isoTime,
-    // In development, use pretty printing (disabled worker mode for Next.js SSR compatibility)
-    ...(isDevelopment
-        ? {
-              transport: {
-                  target: "pino-pretty",
-                  options: {
-                      colorize: true,
-                      translateTime: "HH:MM:ss",
-                      ignore: "pid,hostname",
-                      singleLine: false,
-                  },
-                  worker: {
-                      // Disable worker thread to prevent "worker has exited" errors in Next.js SSR
-                      enabled: false,
-                  },
-              },
-          }
-        : {}),
-});
+        timestamp: pino.stdTimeFunctions.isoTime,
+    };
+
+    if (isDevelopment) {
+        // Development: use pino-pretty via transport with sync mode
+        // Use eval to prevent webpack from bundling pino-pretty in client builds
+        const prettyModule = "pino-pretty";
+        // eslint-disable-next-line no-eval
+        const pretty = eval("require")(prettyModule)({
+            colorize: true,
+            translateTime: "HH:MM:ss",
+            ignore: "pid,hostname",
+            singleLine: false,
+            sync: true,
+        });
+        baseLogger = pino(loggerConfig, pretty);
+    } else {
+        // Production: JSON logs
+        baseLogger = pino(loggerConfig);
+    }
+} else {
+    // Client-side: use pino browser build (minimal, no fs dependencies)
+    baseLogger = pino({
+        level: "warn",
+        browser: {
+            asObject: true,
+        },
+    });
+}
 
 // Export the base logger
 const logger = baseLogger;

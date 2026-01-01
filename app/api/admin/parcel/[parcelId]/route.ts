@@ -32,8 +32,9 @@ export async function DELETE(
 
         const { parcelId } = await params;
 
-        // Validate parcelId format (nanoid(12) for food parcels)
-        const isValid = parcelId?.length === 12 && /^[a-zA-Z0-9_-]+$/.test(parcelId);
+        // Validate parcelId format (nanoid - typically 12-14 characters, alphanumeric with _ and -)
+        const isValid =
+            parcelId?.length >= 8 && parcelId?.length <= 32 && /^[a-zA-Z0-9_-]+$/.test(parcelId);
 
         if (!isValid) {
             return NextResponse.json({ error: "Invalid parcel ID format" }, { status: 400 });

@@ -67,16 +67,16 @@ test.describe("Admin Pages Load", () => {
         await expect(page.locator("body")).toBeVisible();
     });
 
-    test("should load SMS failures page", async ({ page }) => {
-        await page.goto("/sv/sms-failures");
+    test("should load Issues page", async ({ page }) => {
+        await page.goto("/sv");
 
-        // Should be on correct URL
-        await expect(page).toHaveURL(/\/sv\/sms-failures/);
+        // Should be on correct URL (Issues is now the home page)
+        await expect(page).toHaveURL(/\/sv\/?$/);
 
         // Should be authenticated
         await expect(page).not.toHaveURL(/\/auth\//);
 
-        // Page should render
+        // Page should render with Issues title
         await expect(page.locator("body")).toBeVisible();
     });
 });

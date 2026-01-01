@@ -1322,10 +1322,14 @@ export async function getHouseholdsForEndedNotification(
     };
 
     // Use provided time or current time
-    const referenceTime = now ?? Time.now().toUTC();
+    const referenceTimeDate = now ?? Time.now().toUTC();
 
     // Calculate the 48-hour threshold in JavaScript to avoid SQL operator issues
-    const threshold48HoursAgo = new Date(referenceTime.getTime() - FORTY_EIGHT_HOURS_MS);
+    const threshold48HoursAgoDate = new Date(referenceTimeDate.getTime() - FORTY_EIGHT_HOURS_MS);
+
+    // Convert to ISO strings for SQL compatibility (PostgreSQL can't parse JS Date.toString() format)
+    const referenceTime = referenceTimeDate.toISOString();
+    const threshold48HoursAgo = threshold48HoursAgoDate.toISOString();
 
     // Use test database if provided, otherwise production db
     const database = testDb ?? db;
@@ -1503,6 +1507,53 @@ export async function sendEndedSmsForHousehold(household: {
         );
         await db.update(outgoingSms).set({ status: "cancelled" }).where(eq(outgoingSms.id, id));
         return { success: false, recordId: id, error: "Household no longer eligible" };
+    }
+
+    // Check for future parcels (staff may have scheduled new parcel during batch)
+    // Use Stockholm timezone for consistency with eligibility SQL logic
+    const todayStart = Time.now().startOfDay().toUTC();
+
+    const [futureParcels] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(foodParcels)
+        .where(
+            and(
+                eq(foodParcels.household_id, household.householdId),
+                notDeleted(),
+                gte(foodParcels.pickup_date_time_latest, todayStart),
+            ),
+        );
+
+    if (futureParcels && futureParcels.count > 0) {
+        logger.info(
+            { smsId: id, householdId: household.householdId, reason: "future_parcels_exist" },
+            "Food parcels ended SMS cancelled - household has future parcels",
+        );
+        await db.update(outgoingSms).set({ status: "cancelled" }).where(eq(outgoingSms.id, id));
+        return { success: false, recordId: id, error: "Household has future parcels" };
+    }
+
+    // Check for unresolved parcels (past parcels not picked up and not marked as no-show)
+    const [unresolvedParcels] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(foodParcels)
+        .where(
+            and(
+                eq(foodParcels.household_id, household.householdId),
+                notDeleted(),
+                eq(foodParcels.is_picked_up, false),
+                sql`${foodParcels.no_show_at} IS NULL`,
+                lt(foodParcels.pickup_date_time_latest, todayStart),
+            ),
+        );
+
+    if (unresolvedParcels && unresolvedParcels.count > 0) {
+        logger.info(
+            { smsId: id, householdId: household.householdId, reason: "unresolved_parcels_exist" },
+            "Food parcels ended SMS cancelled - household has unresolved parcels",
+        );
+        await db.update(outgoingSms).set({ status: "cancelled" }).where(eq(outgoingSms.id, id));
+        return { success: false, recordId: id, error: "Household has unresolved parcels" };
     }
 
     // Update phone/locale if changed

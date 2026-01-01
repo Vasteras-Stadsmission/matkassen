@@ -420,6 +420,7 @@ export default function HouseholdDetailsPage({
                             statusLabels={{
                                 pickedUp: t("status.pickedUp"),
                                 notPickedUp: t("status.notPickedUp"),
+                                noShow: t("status.noShow"),
                                 upcoming: t("status.upcoming"),
                                 cancelled: t("status.cancelled"),
                             }}
@@ -456,6 +457,7 @@ export default function HouseholdDetailsPage({
                                 <ParcelList
                                     parcels={deletedParcels as ParcelCardData[]}
                                     onParcelClick={handleParcelClick}
+                                    emptyMessage={t("noCancelledParcels")}
                                     getWeekdayName={getWeekdayName}
                                     formatDate={formatDate}
                                     formatTime={formatTime}
@@ -463,6 +465,8 @@ export default function HouseholdDetailsPage({
                                     statusLabels={{
                                         pickedUp: t("status.pickedUp"),
                                         notPickedUp: t("status.notPickedUp"),
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        noShow: (t as any)("status.noShow"),
                                         upcoming: t("status.upcoming"),
                                         cancelled: t("status.cancelled"),
                                     }}

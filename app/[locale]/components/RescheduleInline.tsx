@@ -17,6 +17,7 @@ import {
     isTimeAvailable,
     getAvailableTimeRange,
 } from "@/app/utils/schedule/location-availability";
+import { Time } from "@/app/utils/time-provider";
 
 interface RescheduleInlineProps {
     parcelId: string;
@@ -142,11 +143,11 @@ export default function RescheduleInline({
         setError(null);
 
         try {
-            const [hours, minutes] = selectedTime.split(":").map(Number);
+            // Use Time provider for proper Stockholm timezone handling
+            const baseDate = Time.fromDate(selectedDate).startOfDay();
+            const startDateTime = Time.parseTime(selectedTime, baseDate).toUTC();
 
-            const startDateTime = new Date(selectedDate);
-            startDateTime.setHours(hours, minutes, 0, 0);
-
+            // Calculate end time based on slot duration
             const endDateTime = new Date(startDateTime);
             endDateTime.setMinutes(endDateTime.getMinutes() + slotDuration);
 

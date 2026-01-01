@@ -1,5 +1,7 @@
 # SMS Delivery Status UI Implementation Plan
 
+> **Note**: This planning document is partially superseded. The separate `/sms-failures` page has been consolidated into a unified Issues Dashboard at `/`. The Issues Dashboard shows failed SMS alongside unresolved handouts and parcels scheduled outside opening hours. See `docs/user-manual.md#issues-dashboard` for current functionality.
+
 ## Overview
 
 This plan covers UI improvements to display SMS delivery status from HelloSMS callbacks and improve the SMS failure handling workflow.
