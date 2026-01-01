@@ -212,18 +212,13 @@ export async function GET() {
                 // Find the applicable schedule for this date
                 for (const schedule of scheduleInfo.schedules) {
                     // Check if schedule is active for this date
-                    // Normalize dates - schedule dates may come as strings from DB
-                    const parcelDateObj = parcel.pickupDateEarliest;
-                    const scheduleStart =
-                        schedule.startDate instanceof Date
-                            ? schedule.startDate
-                            : new Date(schedule.startDate);
-                    const scheduleEnd =
-                        schedule.endDate instanceof Date
-                            ? schedule.endDate
-                            : new Date(schedule.endDate);
-                    if (schedule.startDate && parcelDateObj < scheduleStart) continue;
-                    if (schedule.endDate && parcelDateObj > scheduleEnd) continue;
+                    // Use Stockholm timezone for proper day boundary comparison
+                    const parcelDateStart = parcelDate.startOfDay();
+                    const scheduleStart = Time.fromDate(new Date(schedule.startDate)).startOfDay();
+                    const scheduleEnd = Time.fromDate(new Date(schedule.endDate)).endOfDay();
+
+                    // Skip schedules that don't include this date
+                    if (!parcelDateStart.isBetween(scheduleStart, scheduleEnd)) continue;
 
                     const dayConfig = schedule.days.find(d => d.weekday === weekdayName);
                     if (dayConfig) {

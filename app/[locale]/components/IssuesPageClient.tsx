@@ -380,6 +380,13 @@ export default function IssuesPageClient() {
                 throw new Error(data.error || t("toast.retryError"));
             }
 
+            // Auto-dismiss the original failure after successful retry
+            // This prevents the same failure from reappearing on refresh
+            await fetch(`/api/admin/sms/${sms.id}/dismiss`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+            });
+
             notifications.show({
                 title: t("toast.success"),
                 message: t("toast.retry"),

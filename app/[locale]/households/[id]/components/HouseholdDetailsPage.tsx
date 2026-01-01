@@ -465,8 +465,7 @@ export default function HouseholdDetailsPage({
                                     statusLabels={{
                                         pickedUp: t("status.pickedUp"),
                                         notPickedUp: t("status.notPickedUp"),
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        noShow: (t as any)("status.noShow"),
+                                        noShow: t("status.noShow"),
                                         upcoming: t("status.upcoming"),
                                         cancelled: t("status.cancelled"),
                                     }}
