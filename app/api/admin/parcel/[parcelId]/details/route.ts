@@ -30,6 +30,8 @@ export interface ParcelDetails {
         isPickedUp: boolean;
         pickedUpAt: string | null;
         pickedUpBy: string | null;
+        noShowAt: string | null;
+        noShowBy: string | null;
         deletedAt: string | null;
         deletedBy: string | null;
     };
@@ -92,6 +94,8 @@ export async function GET(
                 isPickedUp: foodParcels.is_picked_up,
                 pickedUpAt: foodParcels.picked_up_at,
                 pickedUpBy: foodParcels.picked_up_by_user_id,
+                noShowAt: foodParcels.no_show_at,
+                noShowBy: foodParcels.no_show_by_user_id,
                 deletedAt: foodParcels.deleted_at,
                 deletedBy: foodParcels.deleted_by_user_id,
                 householdFirstName: households.first_name,
@@ -200,6 +204,8 @@ export async function GET(
                 isPickedUp: parcel.isPickedUp,
                 pickedUpAt: parcel.pickedUpAt?.toISOString() || null,
                 pickedUpBy: parcel.pickedUpBy,
+                noShowAt: parcel.noShowAt?.toISOString() || null,
+                noShowBy: parcel.noShowBy,
                 deletedAt: parcel.deletedAt?.toISOString() || null,
                 deletedBy: parcel.deletedBy,
             },

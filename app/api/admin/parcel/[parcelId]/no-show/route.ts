@@ -27,7 +27,7 @@ export async function PATCH(
         // Update the parcel - only if:
         // - Not deleted
         // - Not already picked up
-        // - Pickup date is in the past (Stockholm timezone)
+        // - Pickup date is today or in the past (Stockholm timezone)
         // The CHECK constraint will prevent setting no_show_at if is_picked_up is true
         const result = await db
             .update(foodParcels)
@@ -40,15 +40,15 @@ export async function PATCH(
                     eq(foodParcels.id, parcelId),
                     eq(foodParcels.is_picked_up, false), // Can't mark as no-show if already picked up
                     notDeleted(), // Can't mark deleted parcels as no-show
-                    // Pickup date must be in the past (Stockholm timezone)
-                    sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < (${nowIso}::timestamptz AT TIME ZONE 'Europe/Stockholm')::date`,
+                    // Pickup date must be today or in the past (Stockholm timezone)
+                    sql`(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')::date <= (${nowIso}::timestamptz AT TIME ZONE 'Europe/Stockholm')::date`,
                 ),
             )
             .returning({ id: foodParcels.id });
 
         if (result.length === 0) {
             return NextResponse.json(
-                { error: "Parcel not found, already picked up, or pickup date not yet passed" },
+                { error: "Parcel not found, already picked up, or pickup date is in the future" },
                 { status: 404 },
             );
         }
