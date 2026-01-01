@@ -2,7 +2,10 @@ name: Codex PR Review
 
 on:
     pull_request:
-        types: [opened, synchronize, reopened, ready_for_review]
+        types: [opened, reopened, ready_for_review]
+    # Manual trigger via PR comment: "/codex-review"
+    issue_comment:
+        types: [created]
 
 permissions:
     contents: read
@@ -10,14 +13,25 @@ permissions:
 
 jobs:
     codex-review:
-        # Skip draft PRs to reduce noise
-        if: github.event.pull_request.draft == false
+        # Run on PR events (non-draft) OR on "/codex-review" comment on a PR
+        if: |
+            (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+            (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/codex-review'))
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
+                  # For issue_comment, checkout the PR head
+                  ref: ${{ github.event.pull_request.head.sha || github.event.issue.pull_request.url && github.head_ref }}
+
+            - name: Checkout PR head (for comment trigger)
+              if: github.event_name == 'issue_comment'
+              run: gh pr checkout ${{ github.event.issue.number }}
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Run Codex Review
               uses: openai/codex-action@v1
@@ -25,6 +39,7 @@ jobs:
                   openai-api-key: ${{ secrets.OPENAI_API_KEY }}
                   model: gpt-5.2
                   effort: high
+                  sandbox: read-only
                   prompt: |
                       Review this pull request. Follow the review guidelines in AGENTS.md.
                       Focus on security issues, code quality, and adherence to project conventions.
