@@ -39,6 +39,7 @@
         "locations": "Utlämningsställen",
         "smsDashboard": "SMS-hantering",
         "newHousehold": "Nytt hushåll",
+        "statistics": "Statistik",
         "scanQrCode": "Skanna QR-kod",
         "navigation": "Navigation",
         "issues": "Behöver uppföljning"
@@ -1376,5 +1377,95 @@
         "moreHistory": "+{count} till",
         "cancel": "Avbryt",
         "confirm": "Skicka SMS"
+    },
+    "statistics": {
+        "title": "Statistik",
+        "description": "Översikt över tjänstestatistik och trender",
+        "periods": {
+            "7d": "Senaste 7 dagarna",
+            "30d": "Senaste 30 dagarna",
+            "90d": "Senaste 90 dagarna",
+            "year": "I år",
+            "all": "All tid"
+        },
+        "overview": {
+            "title": "Översikt",
+            "totalHouseholds": "Aktiva hushåll",
+            "newHouseholds": "Nya hushåll",
+            "removedHouseholds": "Borttagna hushåll",
+            "totalParcels": "Totalt antal kassar",
+            "pickedUpParcels": "Hämtade",
+            "pickupRate": "Hämtningsgrad",
+            "smsDeliveryRate": "SMS-leveransgrad",
+            "noData": "Inga data för vald period"
+        },
+        "households": {
+            "title": "Hushåll",
+            "total": "Totalt aktiva",
+            "new": "Nya",
+            "removed": "Borttagna",
+            "byLanguage": "Per språk",
+            "byPostalCode": "Per postnummer",
+            "ageDistribution": "Åldersfördelning",
+            "memberCountDistribution": "Hushållsstorlek",
+            "dietaryRestrictions": "Kostpreferenser",
+            "additionalNeeds": "Övriga behov",
+            "pets": "Husdjur",
+            "locales": {
+                "sv": "Svenska",
+                "en": "Engelska"
+            },
+            "members": "{count, plural, =0 {0 medlemmar} =1 {1 medlem} other {# medlemmar}}"
+        },
+        "parcels": {
+            "title": "Kassar",
+            "total": "Totalt",
+            "pickedUp": "Hämtade",
+            "notPickedUp": "Ej hämtade",
+            "cancelled": "Avbokade",
+            "byLocation": "Per plats",
+            "byWeekday": "Per veckodag",
+            "dailyTrend": "Daglig trend",
+            "avgPerHousehold": "Snitt per hushåll",
+            "weekdays": {
+                "Sunday": "Söndag",
+                "Monday": "Måndag",
+                "Tuesday": "Tisdag",
+                "Wednesday": "Onsdag",
+                "Thursday": "Torsdag",
+                "Friday": "Fredag",
+                "Saturday": "Lördag"
+            }
+        },
+        "locations": {
+            "title": "Platser",
+            "capacityUsage": "Kapacitetsutnyttjande",
+            "pickupRate": "Hämtningsgrad per plats",
+            "nearCapacityAlerts": "Nära kapacitetsgräns",
+            "scheduled": "Bokade",
+            "max": "Max",
+            "usagePercent": "Utnyttjande %",
+            "noMax": "Ingen gräns satt"
+        },
+        "sms": {
+            "title": "SMS",
+            "totalSent": "Totalt skickade",
+            "delivered": "Levererade",
+            "deliveryRate": "Leveransgrad",
+            "failedInternal": "Misslyckade (Internt)",
+            "failedProvider": "Misslyckade (Leverantör)",
+            "pending": "Väntande",
+            "byIntent": "Per syfte",
+            "dailyVolume": "Daglig volym",
+            "intents": {
+                "pickup_reminder": "Hämtningspåminnelse",
+                "pickup_updated": "Hämtning uppdaterad",
+                "pickup_cancelled": "Hämtning avbokad",
+                "consent_enrolment": "Samtycke anmälan",
+                "food_parcels_ended": "Matkassar avslutade"
+            }
+        },
+        "loading": "Laddar statistik...",
+        "error": "Kunde inte ladda statistik"
     }
 }

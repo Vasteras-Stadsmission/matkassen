@@ -84,6 +84,7 @@ export function HeaderSimple() {
                 : []),
             { link: "/households", label: t("navigation.households") },
             { link: "/schedule", label: t("navigation.schedule") },
+            { link: "/statistics", label: t("navigation.statistics") },
         ],
         [t, issuesCount],
     );

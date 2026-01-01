@@ -19,6 +19,7 @@
         "locations": "Pickup Locations",
         "smsDashboard": "SMS Management",
         "newHousehold": "New Household",
+        "statistics": "Statistics",
         "scanQrCode": "Scan QR Code",
         "navigation": "Navigation",
         "issues": "Needs Follow-up"
@@ -1376,5 +1377,95 @@
         "moreHistory": "+{count} more",
         "cancel": "Cancel",
         "confirm": "Send SMS"
+    },
+    "statistics": {
+        "title": "Statistics",
+        "description": "Overview of service statistics and trends",
+        "periods": {
+            "7d": "Last 7 days",
+            "30d": "Last 30 days",
+            "90d": "Last 90 days",
+            "year": "This year",
+            "all": "All time"
+        },
+        "overview": {
+            "title": "Overview",
+            "totalHouseholds": "Active Households",
+            "newHouseholds": "New Households",
+            "removedHouseholds": "Removed Households",
+            "totalParcels": "Total Parcels",
+            "pickedUpParcels": "Picked Up",
+            "pickupRate": "Pickup Rate",
+            "smsDeliveryRate": "SMS Delivery Rate",
+            "noData": "No data for selected period"
+        },
+        "households": {
+            "title": "Households",
+            "total": "Total Active",
+            "new": "New",
+            "removed": "Removed",
+            "byLanguage": "By Language",
+            "byPostalCode": "By Postal Code",
+            "ageDistribution": "Age Distribution",
+            "memberCountDistribution": "Household Size",
+            "dietaryRestrictions": "Dietary Restrictions",
+            "additionalNeeds": "Additional Needs",
+            "pets": "Pets",
+            "locales": {
+                "sv": "Swedish",
+                "en": "English"
+            },
+            "members": "{count, plural, =0 {0 members} =1 {1 member} other {# members}}"
+        },
+        "parcels": {
+            "title": "Parcels",
+            "total": "Total",
+            "pickedUp": "Picked Up",
+            "notPickedUp": "Not Picked Up",
+            "cancelled": "Cancelled",
+            "byLocation": "By Location",
+            "byWeekday": "By Weekday",
+            "dailyTrend": "Daily Trend",
+            "avgPerHousehold": "Avg per Household",
+            "weekdays": {
+                "Sunday": "Sunday",
+                "Monday": "Monday",
+                "Tuesday": "Tuesday",
+                "Wednesday": "Wednesday",
+                "Thursday": "Thursday",
+                "Friday": "Friday",
+                "Saturday": "Saturday"
+            }
+        },
+        "locations": {
+            "title": "Locations",
+            "capacityUsage": "Capacity Usage",
+            "pickupRate": "Pickup Rate by Location",
+            "nearCapacityAlerts": "Near Capacity Alerts",
+            "scheduled": "Scheduled",
+            "max": "Max",
+            "usagePercent": "Usage %",
+            "noMax": "No limit set"
+        },
+        "sms": {
+            "title": "SMS",
+            "totalSent": "Total Sent",
+            "delivered": "Delivered",
+            "deliveryRate": "Delivery Rate",
+            "failedInternal": "Failed (Internal)",
+            "failedProvider": "Failed (Provider)",
+            "pending": "Pending",
+            "byIntent": "By Intent",
+            "dailyVolume": "Daily Volume",
+            "intents": {
+                "pickup_reminder": "Pickup Reminder",
+                "pickup_updated": "Pickup Updated",
+                "pickup_cancelled": "Pickup Cancelled",
+                "consent_enrolment": "Consent Enrolment",
+                "food_parcels_ended": "Food Parcels Ended"
+            }
+        },
+        "loading": "Loading statistics...",
+        "error": "Failed to load statistics"
     }
 }
