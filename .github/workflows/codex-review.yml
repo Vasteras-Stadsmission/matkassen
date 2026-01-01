@@ -1,0 +1,25 @@
+name: Codex PR Review
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    codex-review:
+        # Skip draft PRs to reduce noise
+        if: github.event.pull_request.draft == false
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Run Codex Review
+              uses: openai/codex-action@v1
+              with:
+                  openai_api_key: ${{ secrets.OPENAI_API_KEY }}

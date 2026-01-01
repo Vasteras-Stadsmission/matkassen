@@ -276,3 +276,41 @@ This enforces:
 - API route security patterns (`scripts/validate-api-routes.mjs`)
 
 **CI/CD gate** - Deployment fails if validation fails.
+
+---
+
+## Code Review Guidelines
+
+When reviewing pull requests, prioritize these areas:
+
+### Security (Critical)
+
+- **Server actions MUST use `protectedAction()`** - Reject any server action without this wrapper
+- **Admin API routes MUST use `authenticateAdminRequest()`** - All `/api/admin/*` routes require this
+- **No exposed secrets** - Check for hardcoded API keys, passwords, or sensitive data
+- **Input validation** - Ensure user inputs are sanitized, especially for database queries
+- **OWASP top 10** - Watch for XSS, SQL injection, command injection vulnerabilities
+
+### Code Quality
+
+- **TypeScript strict mode compliance** - No `any` types without justification
+- **i18n for all user-facing text** - No hardcoded strings in UI components
+- **Server components by default** - `"use client"` only when necessary (hooks/browser APIs)
+- **Import from `@/app/i18n/navigation`** - Not `next/navigation` for locale-aware routing
+- **Use `nanoid(8)` from schema** - For generating IDs
+
+### Database
+
+- **Migrations via Drizzle only** - No manual SQL migration files
+- **Schema changes need `db:generate`** - Check if schema.ts changes have corresponding migrations
+
+### Testing
+
+- **Unit tests for business logic** - Complex functions should have test coverage
+- **Use `[data-testid]` selectors** - For E2E test stability
+
+### What NOT to flag
+
+- Minor style preferences already handled by Prettier/ESLint
+- SEO concerns (internal admin tool)
+- Performance micro-optimizations unless clearly problematic
