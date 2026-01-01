@@ -43,7 +43,7 @@ interface ParcelAdminDialogProps {
     parcelId: string | null;
     opened: boolean;
     onClose: () => void;
-    onParcelUpdated?: (action: "pickup" | "undo" | "delete") => void;
+    onParcelUpdated?: (action: "pickup" | "undo" | "delete" | "no-show") => void;
 }
 
 interface SmsRecord {
@@ -222,7 +222,7 @@ export function ParcelAdminDialog({
 
                     // Refresh data and notify parent
                     await fetchParcelDetails();
-                    onParcelUpdated?.("pickup"); // Reuse pickup callback to refresh parent
+                    onParcelUpdated?.("no-show");
                 } catch {
                     setState(prev => ({
                         ...prev,
@@ -890,6 +890,12 @@ export function ParcelAdminDialog({
                                             leftSection={<IconX size="0.9rem" />}
                                             onClick={handleUndoNoShow}
                                             loading={submitting}
+                                            aria-label={t(
+                                                "admin.parcelDialog.undoNoShowAriaLabel",
+                                                {
+                                                    name: `${data.household.firstName} ${data.household.lastName}`,
+                                                },
+                                            )}
                                         >
                                             {t("admin.parcelDialog.undoNoShow")}
                                         </Button>
@@ -900,6 +906,12 @@ export function ParcelAdminDialog({
                                             leftSection={<IconX size="0.9rem" />}
                                             onClick={handleUndoPickup}
                                             loading={submitting}
+                                            aria-label={t(
+                                                "admin.parcelDialog.undoPickupAriaLabel",
+                                                {
+                                                    name: `${data.household.firstName} ${data.household.lastName}`,
+                                                },
+                                            )}
                                         >
                                             {t("admin.parcelDialog.undoPickup")}
                                         </Button>
@@ -913,6 +925,12 @@ export function ParcelAdminDialog({
                                                     leftSection={<IconUserOff size="0.9rem" />}
                                                     onClick={handleMarkNoShow}
                                                     loading={submitting}
+                                                    aria-label={t(
+                                                        "admin.parcelDialog.markNoShowAriaLabel",
+                                                        {
+                                                            name: `${data.household.firstName} ${data.household.lastName}`,
+                                                        },
+                                                    )}
                                                 >
                                                     {t("admin.parcelDialog.markNoShow")}
                                                 </Button>
@@ -922,6 +940,12 @@ export function ParcelAdminDialog({
                                                 leftSection={<IconCheck size="0.9rem" />}
                                                 onClick={handleMarkPickedUp}
                                                 loading={submitting}
+                                                aria-label={t(
+                                                    "admin.parcelDialog.markPickedUpAriaLabel",
+                                                    {
+                                                        name: `${data.household.firstName} ${data.household.lastName}`,
+                                                    },
+                                                )}
                                             >
                                                 {t("admin.parcelDialog.markPickedUp")}
                                             </Button>

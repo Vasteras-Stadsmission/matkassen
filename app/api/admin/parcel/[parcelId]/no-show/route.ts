@@ -22,36 +22,65 @@ export async function PATCH(
         }
 
         const now = Time.now().toUTC();
-        const nowIso = now.toISOString(); // Convert to ISO string for SQL compatibility
+        const todayStockholm = Time.now().toDateString(); // YYYY-MM-DD in Stockholm timezone
 
-        // Update the parcel - only if:
-        // - Not deleted
-        // - Not already picked up
-        // - Pickup date is today or in the past (Stockholm timezone)
-        // The CHECK constraint will prevent setting no_show_at if is_picked_up is true
-        const result = await db
+        // First, fetch the parcel to check its state and provide specific error messages
+        const [parcel] = await db
+            .select({
+                id: foodParcels.id,
+                isPickedUp: foodParcels.is_picked_up,
+                deletedAt: foodParcels.deleted_at,
+                noShowAt: foodParcels.no_show_at,
+                pickupDateTimeEarliest: foodParcels.pickup_date_time_earliest,
+            })
+            .from(foodParcels)
+            .where(eq(foodParcels.id, parcelId))
+            .limit(1);
+
+        if (!parcel) {
+            return NextResponse.json(
+                { error: "Parcel not found", code: "NOT_FOUND" },
+                { status: 404 },
+            );
+        }
+
+        if (parcel.deletedAt) {
+            return NextResponse.json(
+                { error: "Cannot mark a cancelled parcel as no-show", code: "ALREADY_CANCELLED" },
+                { status: 400 },
+            );
+        }
+
+        if (parcel.isPickedUp) {
+            return NextResponse.json(
+                { error: "Cannot mark a picked up parcel as no-show", code: "ALREADY_PICKED_UP" },
+                { status: 400 },
+            );
+        }
+
+        if (parcel.noShowAt) {
+            return NextResponse.json(
+                { error: "Parcel is already marked as no-show", code: "ALREADY_NO_SHOW" },
+                { status: 400 },
+            );
+        }
+
+        const pickupDateStockholm = Time.fromDate(parcel.pickupDateTimeEarliest).toDateString();
+        if (pickupDateStockholm > todayStockholm) {
+            return NextResponse.json(
+                { error: "Cannot mark future parcel as no-show", code: "FUTURE_PARCEL" },
+                { status: 400 },
+            );
+        }
+
+        // Now update the parcel
+        await db
             .update(foodParcels)
             .set({
                 no_show_at: now,
                 no_show_by_user_id: authResult.session!.user.githubUsername,
             })
-            .where(
-                and(
-                    eq(foodParcels.id, parcelId),
-                    eq(foodParcels.is_picked_up, false), // Can't mark as no-show if already picked up
-                    notDeleted(), // Can't mark deleted parcels as no-show
-                    // Pickup date must be today or in the past (Stockholm timezone)
-                    sql`(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')::date <= (${nowIso}::timestamptz AT TIME ZONE 'Europe/Stockholm')::date`,
-                ),
-            )
-            .returning({ id: foodParcels.id });
-
-        if (result.length === 0) {
-            return NextResponse.json(
-                { error: "Parcel not found, already picked up, or pickup date is in the future" },
-                { status: 404 },
-            );
-        }
+            .where(eq(foodParcels.id, parcelId));
 
         return NextResponse.json({
             success: true,
