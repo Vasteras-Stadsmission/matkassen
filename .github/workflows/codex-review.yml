@@ -22,4 +22,9 @@ jobs:
             - name: Run Codex Review
               uses: openai/codex-action@v1
               with:
-                  openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+                  openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+                  model: gpt-5.2-high
+                  prompt: |
+                      Review this pull request. Follow the review guidelines in AGENTS.md.
+                      Focus on security issues, code quality, and adherence to project conventions.
+                      Post your review as a GitHub PR review with inline comments where appropriate.
