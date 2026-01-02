@@ -41,3 +41,13 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 - Gör plats- och schemaändringar på dator för bäst överblick.
 - Efter schemaändringar: kontrollera veckovyn i `Schema` så att tiderna ser rätt ut.
 - Lös ärenden på startsidan regelbundet (olösta utlämningar, fel i SMS osv.).
+
+## Felsökning
+
+**Kan inte ta bort plats** – Platsen har kommande bokningar. Flytta eller ta bort dem först.
+
+**Schemat sparades inte** – Klicka "Spara" innan du navigerar bort. Kontrollera att start/slutvecka inte överlappar annat schema.
+
+**Platsen syns inte i rullistan** – Uppdatera sidan eller rensa webbläsarens cache.
+
+**Kapacitetsvarning ignoreras** – Kapacitet är en mjuk gräns (varnar men blockerar inte). Personal måste själva respektera gränsen.

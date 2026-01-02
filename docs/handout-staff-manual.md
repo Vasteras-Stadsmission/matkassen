@@ -69,6 +69,18 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 ## Tips under utdelning
 
-- Håll dig i dagvyn för att undvika att missa sena ankomster; samma dag visas alltid som “kommande” tills du markerar hämtad.
+- Håll dig i dagvyn för att undvika att missa sena ankomster; samma dag visas alltid som "kommande" tills du markerar hämtad.
 - Lägg en kommentar i hushållskortet om något avviker (t.ex. fel nummer, bud hämtar).
 - Vid frågor om plats eller tider: öppna länken i SMS:et – den visar adress och karta.
+
+## Felsökning
+
+**Hittar inte hushållet** – Rensa sökfältet, uppdatera sidan, kontrollera stavning.
+
+**Telefonnummer godkänns inte** – Använd svenskt format: +46XXXXXXXXX eller 07XXXXXXXX (inga mellanslag).
+
+**Kan inte ta bort bokning** – Redan hämtad eller passerad tid kan inte tas bort.
+
+**Mottagaren fick inget SMS** – Kolla Ärenden (misslyckade SMS) eller hushållets SMS-historik. Dela annars länken direkt.
+
+**QR-kod skannar inte** – Höj skärmljusstyrkan, testa annan vinkel, eller sök fram bokningen manuellt.
