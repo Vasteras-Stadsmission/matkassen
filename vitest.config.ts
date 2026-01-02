@@ -62,7 +62,8 @@ export default defineConfig(({ mode }) => ({
                     include: ["__tests__/**/*.integration.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
                     exclude: ["node_modules", "dist", ".next"],
                     // Integration tests run serially to avoid PGlite conflicts
-                    // fileParallelism: false ensures test files run sequentially (Vitest 4)
+                    pool: "forks",
+                    // Use fileParallelism: false to ensure test files run sequentially (Vitest 4)
                     fileParallelism: false,
                     server: {
                         deps: {
