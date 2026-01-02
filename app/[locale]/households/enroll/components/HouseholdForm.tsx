@@ -112,10 +112,11 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             sms_consent: currentForm.values.sms_consent,
         };
 
+        // Strip +46 prefix from phone for display (same as initialValues)
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
-            phone_number: data.phone_number || "",
+            phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
             sms_consent: data.sms_consent || false,
@@ -136,10 +137,11 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
 
     // Update parent with debounced values
     useEffect(() => {
+        // Strip +46 prefix for comparison (form values don't have the prefix)
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
-            phone_number: data.phone_number || "",
+            phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
             sms_consent: data.sms_consent || false,
