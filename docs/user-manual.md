@@ -180,11 +180,11 @@ Parcels can be created from:
 - Household must have valid phone number
 
 **Automatic SMS**:
-When parcel created, SMS queues with **5-minute grace period**:
+When parcel created, reminder SMS is sent **48 hours before pickup**:
 
-- Sends 5 minutes before pickup start time
-- If you edit within grace period, old SMS cancelled, new one queued
-- Prevents sending incorrect information
+- If pickup is more than 48 hours away, SMS waits until then
+- If pickup is within 48 hours, SMS sends shortly after creation
+- Editing or deleting the parcel cancels any pending SMS and queues a new one
 
 ### Marking Parcels as Picked Up
 
@@ -249,8 +249,8 @@ For households that didn't collect their parcel:
 
 **SMS behavior**:
 
-- **Within grace period**: Old SMS cancelled, new SMS queued (one SMS total)
-- **After SMS sent**: Update SMS sent with new information (two SMS total)
+- **Before reminder sent**: Old SMS cancelled, new SMS queued (one SMS total)
+- **After reminder sent**: Update SMS sent with new information (two SMS total)
 
 **Constraints**:
 
@@ -267,8 +267,8 @@ For households that didn't collect their parcel:
 
 **SMS behavior**:
 
-- **Before SMS sent**: SMS cancelled, recipient never notified
-- **After SMS sent**: Cancellation SMS queued (1-minute grace period)
+- **Before reminder sent**: SMS cancelled, recipient never notified
+- **After reminder sent**: Cancellation SMS queued
 
 Cancellation SMS informs recipient not to come.
 
@@ -393,19 +393,17 @@ This shows the full history including successful deliveries, not just failures.
 **When parcel created**:
 
 - SMS queues with intent: `pickup_reminder`
-- 5-minute grace period before sending
-- Edits within grace period cancel old SMS, queue new one
+- Sent 48 hours before pickup time (or shortly after creation if pickup is sooner)
+- Editing the parcel cancels pending SMS and queues updated one
 
 **When parcel edited** (after SMS sent):
 
 - Update SMS queues with intent: `pickup_updated`
 - Informs recipient of changes
-- 5-minute grace period applies
 
 **When parcel deleted** (after SMS sent):
 
 - Cancellation SMS queues with intent: `pickup_cancelled`
-- 1-minute grace period (allows quick undo)
 - Informs recipient not to come
 
 **When food parcels end** (automatic):
@@ -419,9 +417,9 @@ This shows the full history including successful deliveries, not just failures.
 - Uses respectful, non-stigmatizing language
 - Only sent once per household (idempotent)
 
-**Multiple edits within grace period**:
+**Multiple edits before SMS sends**:
 
-- Each edit cancels previous SMS
+- Each edit cancels previous queued SMS
 - Only final version sends
 - Prevents SMS spam to recipients
 
@@ -766,9 +764,9 @@ Useful if primary recipient cannot attend pickup.
 
 **Want to prevent SMS from sending**
 
-- If still queued within grace period: Delete parcel
+- If still queued (before 48h window): Delete parcel
 - If already sent: Cannot recall SMS
-- Send cancellation by deleting parcel
+- Deleting parcel after SMS sent triggers cancellation SMS
 
 **Multiple SMS sent to same recipient**
 
@@ -850,7 +848,8 @@ Useful if primary recipient cannot attend pickup.
 **Need to undo action**
 
 - Mark pickup: Use "Undo Pickup" button
-- Delete parcel: Cannot undo easily (1-min grace period)
+- Mark no-show: Use "Undo No-Show" button
+- Delete parcel: Cannot undo (recreate the parcel instead)
 - Edit household: Make another edit to correct
 
 **Data appears incorrect**

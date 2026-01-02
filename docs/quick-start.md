@@ -84,7 +84,7 @@ Matkassen manages food parcel distribution across pickup locations. The workflow
 2. Select location and add date/time slots
 3. Click **Save Parcels**
 
-SMS queues automatically with 5-minute grace period (allows you to fix mistakes before it sends).
+SMS reminder is sent automatically 48 hours before pickup.
 
 ### Reschedule or Delete Parcel
 
@@ -94,9 +94,9 @@ SMS queues automatically with 5-minute grace period (allows you to fix mistakes 
 
 **SMS behavior**:
 
-- Reschedule within 5 minutes of creation: Old SMS cancelled, new one queued
-- Reschedule after SMS sent: Update SMS sent to recipient
-- Delete after SMS sent: Cancellation SMS sent (1-minute grace period)
+- Reschedule before reminder sent: Old SMS cancelled, new one queued
+- Reschedule after reminder sent: Update SMS sent to recipient
+- Delete after reminder sent: Cancellation SMS sent
 
 ### Switch Between Views
 
@@ -170,7 +170,7 @@ Schedule determines available time slots for new parcels.
 
 ### How Recipients Receive Parcels
 
-1. **SMS sent automatically** 5 minutes before parcel pickup time:
+1. **SMS sent automatically** 48 hours before parcel pickup time:
     - Contains date, time, location, and link
 2. **Recipient clicks link** in SMS
 3. **Public page opens** (no login required):
@@ -242,7 +242,7 @@ You may be trying to drag to a past date, different location, or parcel is alrea
 
 - **Set a favorite location** for fast access to today's handouts
 - **Use search** everywhere - faster than scrolling
-- **Grace periods protect you** from mistakes (5 min for new parcels, 1 min for cancellations)
+- **SMS sends 48h before pickup** - edit parcels anytime before to update the reminder
 - **Refresh regularly** in today's view to see real-time updates
 - **Add comments** to households for special circumstances or important notes
 - **Check SMS Failures badge** to catch any failed notifications
