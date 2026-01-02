@@ -217,10 +217,7 @@ describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
             const record1 = records1.find(r => r.id === sms1.id);
             await sendSmsRecord(record1!);
 
-            const [after1] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms1.id));
+            const [after1] = await db.select().from(outgoingSms).where(eq(outgoingSms.id, sms1.id));
 
             // First retry should be ~5 minutes from now
             const fiveMinutesMs = 5 * 60 * 1000;
@@ -239,10 +236,7 @@ describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
             const before2ndAttempt = new Date();
             await sendSmsRecord(record2!);
 
-            const [after2] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms1.id));
+            const [after2] = await db.select().from(outgoingSms).where(eq(outgoingSms.id, sms1.id));
 
             // Second retry should be ~30 minutes from now
             const thirtyMinutesMs = 30 * 60 * 1000;
