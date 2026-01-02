@@ -235,10 +235,12 @@ export default function IssuesPageClient() {
             weekday: "short",
             month: "short",
             day: "numeric",
+            timeZone: "Europe/Stockholm",
         };
         const timeOptions: Intl.DateTimeFormatOptions = {
             hour: "2-digit",
             minute: "2-digit",
+            timeZone: "Europe/Stockholm",
         };
 
         const dateStr = earliestDate.toLocaleDateString(locale, dateOptions);

@@ -618,8 +618,11 @@ export async function checkLocationAvailability(
         };
     } catch (error) {
         logError("Error checking location availability", error, { locationId, date });
-        // Default to available in case of error to prevent blocking users
-        return { isAvailable: true };
+        // Return unavailable on error - safer than potentially allowing invalid bookings
+        return {
+            isAvailable: false,
+            reason: "Unable to verify location availability",
+        };
     }
 }
 
