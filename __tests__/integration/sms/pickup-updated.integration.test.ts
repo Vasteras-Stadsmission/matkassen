@@ -1,11 +1,12 @@
 /**
  * Integration tests for pickup_updated SMS functionality.
  *
- * Tests the complete flow: parcel is rescheduled after reminder was sent → update SMS is queued.
- * Verifies the behavior matches real use cases, not implementation details.
+ * Tests the complete flow: parcel is rescheduled via updateFoodParcelSchedule action
+ * after reminder was sent → update SMS is queued.
+ * Verifies the behavior matches real use cases through the actual server action.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -20,15 +21,31 @@ import {
 import { daysFromTestNow } from "../../test-time";
 import { outgoingSms } from "@/app/db/schema";
 import { eq, and } from "drizzle-orm";
-import {
-    queuePickupUpdatedSms,
-    getSmsRecordsReadyForSending,
-    sendSmsRecord,
-} from "@/app/utils/sms/sms-service";
+import { getSmsRecordsReadyForSending, sendSmsRecord } from "@/app/utils/sms/sms-service";
 import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
 import { setSmsGateway } from "@/app/utils/sms/sms-gateway";
 
+const ADMIN_USERNAME = "test-admin";
+
+// Mock auth for protectedAction wrapper
+vi.mock("@/app/utils/auth/server-action-auth", () => ({
+    verifyServerActionAuth: vi.fn(() =>
+        Promise.resolve({
+            success: true,
+            data: { user: { githubUsername: ADMIN_USERNAME } },
+        }),
+    ),
+}));
+
+// Import action AFTER mocks are set up
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+let updateFoodParcelSchedule: typeof import("@/app/[locale]/schedule/actions").updateFoodParcelSchedule;
+
 describe("Pickup Updated SMS - Integration Tests", () => {
+    beforeAll(async () => {
+        ({ updateFoodParcelSchedule } = await import("@/app/[locale]/schedule/actions"));
+    });
+
     beforeEach(() => {
         resetHouseholdCounter();
         resetLocationCounter();
@@ -46,7 +63,7 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 15 * 60 * 1000),
             });
 
             // Reminder was already sent
@@ -56,14 +73,16 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 intent: "pickup_reminder",
             });
 
-            // Admin reschedules parcel to different date
-            // This triggers queuePickupUpdatedSms
-            const result = await queuePickupUpdatedSms(parcel.id);
+            // Admin reschedules parcel to a different time slot (1 hour later)
+            const newStartTime = new Date(tomorrow.getTime() + 60 * 60 * 1000);
+            const result = await updateFoodParcelSchedule(parcel.id, {
+                date: tomorrow,
+                startTime: newStartTime,
+                endTime: new Date(newStartTime.getTime() + 15 * 60 * 1000),
+            });
 
-            // Verify result
+            // Verify action succeeded
             expect(result.success).toBe(true);
-            expect(result.skipped).toBeFalsy();
-            expect(result.recordId).toBeDefined();
 
             // Verify pickup_updated SMS was queued
             const updateSms = await db
@@ -93,20 +112,23 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 15 * 60 * 1000),
             });
 
             // No reminder exists yet - parcel was just created
 
-            // Admin reschedules parcel before reminder was sent
-            const result = await queuePickupUpdatedSms(parcel.id);
+            // Admin reschedules parcel before reminder was sent (1 hour later)
+            const newStartTime = new Date(tomorrow.getTime() + 60 * 60 * 1000);
+            const result = await updateFoodParcelSchedule(parcel.id, {
+                date: tomorrow,
+                startTime: newStartTime,
+                endTime: new Date(newStartTime.getTime() + 15 * 60 * 1000),
+            });
 
-            // Verify result - should be skipped
+            // Verify action succeeded
             expect(result.success).toBe(true);
-            expect(result.skipped).toBe(true);
-            expect(result.reason).toBe("No sent pickup_reminder exists for this parcel");
 
-            // Verify NO pickup_updated SMS was created
+            // Verify NO pickup_updated SMS was created (no reminder was sent)
             const updateSms = await db
                 .select()
                 .from(outgoingSms)
@@ -130,7 +152,7 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 15 * 60 * 1000),
             });
 
             // Reminder was queued but not sent yet
@@ -140,14 +162,18 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 intent: "pickup_reminder",
             });
 
-            // Admin reschedules parcel while reminder is still queued
-            const result = await queuePickupUpdatedSms(parcel.id);
+            // Admin reschedules parcel while reminder is still queued (1 hour later)
+            const newStartTime = new Date(tomorrow.getTime() + 60 * 60 * 1000);
+            const result = await updateFoodParcelSchedule(parcel.id, {
+                date: tomorrow,
+                startTime: newStartTime,
+                endTime: new Date(newStartTime.getTime() + 15 * 60 * 1000),
+            });
 
-            // Verify result - should be skipped (only sent reminders trigger updates)
+            // Verify action succeeded
             expect(result.success).toBe(true);
-            expect(result.skipped).toBe(true);
 
-            // Verify NO pickup_updated SMS was created
+            // Verify NO pickup_updated SMS was created (only sent reminders trigger updates)
             const updateSms = await db
                 .select()
                 .from(outgoingSms)
@@ -173,7 +199,7 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 15 * 60 * 1000),
             });
 
             // Reminder was already sent
@@ -183,24 +209,34 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 intent: "pickup_reminder",
             });
 
-            // First reschedule
-            const result1 = await queuePickupUpdatedSms(parcel.id);
+            // First reschedule (1 hour later)
+            const newStartTime1 = new Date(tomorrow.getTime() + 60 * 60 * 1000);
+            const result1 = await updateFoodParcelSchedule(parcel.id, {
+                date: tomorrow,
+                startTime: newStartTime1,
+                endTime: new Date(newStartTime1.getTime() + 15 * 60 * 1000),
+            });
             expect(result1.success).toBe(true);
-            expect(result1.skipped).toBeFalsy();
-            const firstSmsId = result1.recordId;
 
-            // Second reschedule (admin changes mind again)
-            const result2 = await queuePickupUpdatedSms(parcel.id);
+            // Second reschedule (admin changes mind again - 2 hours later)
+            const newStartTime2 = new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000);
+            const result2 = await updateFoodParcelSchedule(parcel.id, {
+                date: tomorrow,
+                startTime: newStartTime2,
+                endTime: new Date(newStartTime2.getTime() + 15 * 60 * 1000),
+            });
             expect(result2.success).toBe(true);
-            // Second call should return same record due to idempotency
-            expect(result2.recordId).toBe(firstSmsId);
 
-            // Third reschedule
-            const result3 = await queuePickupUpdatedSms(parcel.id);
+            // Third reschedule (3 hours later)
+            const newStartTime3 = new Date(tomorrow.getTime() + 3 * 60 * 60 * 1000);
+            const result3 = await updateFoodParcelSchedule(parcel.id, {
+                date: tomorrow,
+                startTime: newStartTime3,
+                endTime: new Date(newStartTime3.getTime() + 15 * 60 * 1000),
+            });
             expect(result3.success).toBe(true);
-            expect(result3.recordId).toBe(firstSmsId);
 
-            // Verify only ONE pickup_updated SMS exists
+            // Verify only ONE pickup_updated SMS exists (due to idempotency)
             const updateSms = await db
                 .select()
                 .from(outgoingSms)
@@ -215,8 +251,8 @@ describe("Pickup Updated SMS - Integration Tests", () => {
         });
     });
 
-    describe("End-to-end: queue → process via sendSmsRecord", () => {
-        it("should queue and send pickup_updated SMS successfully", async () => {
+    describe("End-to-end: reschedule action → queue → send via sendSmsRecord", () => {
+        it("should reschedule parcel, queue update SMS, and send successfully", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold({
                 phone_number: "+46701234567",
@@ -228,7 +264,7 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 household_id: household.id,
                 pickup_location_id: location.id,
                 pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 15 * 60 * 1000),
             });
 
             // Reminder was already sent
@@ -238,16 +274,33 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 intent: "pickup_reminder",
             });
 
-            // Queue the pickup_updated SMS
-            const queueResult = await queuePickupUpdatedSms(parcel.id);
-            expect(queueResult.success).toBe(true);
-            expect(queueResult.recordId).toBeDefined();
+            // Admin reschedules parcel via the action (1 hour later)
+            const newStartTime = new Date(tomorrow.getTime() + 60 * 60 * 1000);
+            const result = await updateFoodParcelSchedule(parcel.id, {
+                date: tomorrow,
+                startTime: newStartTime,
+                endTime: new Date(newStartTime.getTime() + 15 * 60 * 1000),
+            });
+            expect(result.success).toBe(true);
+
+            // Find the queued pickup_updated SMS
+            const [queuedSms] = await db
+                .select()
+                .from(outgoingSms)
+                .where(
+                    and(
+                        eq(outgoingSms.parcel_id, parcel.id),
+                        eq(outgoingSms.intent, "pickup_updated"),
+                    ),
+                );
+            expect(queuedSms).toBeDefined();
+            expect(queuedSms.status).toBe("queued");
 
             // Set next_attempt_at to now so it's ready for sending
             await db
                 .update(outgoingSms)
                 .set({ next_attempt_at: new Date() })
-                .where(eq(outgoingSms.id, queueResult.recordId!));
+                .where(eq(outgoingSms.id, queuedSms.id));
 
             // Use mock gateway
             const mockGateway = new MockSmsGateway().alwaysSucceed();
@@ -255,7 +308,7 @@ describe("Pickup Updated SMS - Integration Tests", () => {
 
             // Get and send the queued record
             const readyRecords = await getSmsRecordsReadyForSending();
-            const record = readyRecords.find(r => r.id === queueResult.recordId);
+            const record = readyRecords.find(r => r.id === queuedSms.id);
             expect(record).toBeDefined();
 
             const sendResult = await sendSmsRecord(record!);
@@ -265,7 +318,7 @@ describe("Pickup Updated SMS - Integration Tests", () => {
             const [sentRecord] = await db
                 .select()
                 .from(outgoingSms)
-                .where(eq(outgoingSms.id, queueResult.recordId!));
+                .where(eq(outgoingSms.id, queuedSms.id));
 
             expect(sentRecord.status).toBe("sent");
             expect(sentRecord.provider_message_id).toBe("mock_1");
