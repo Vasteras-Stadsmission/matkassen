@@ -65,6 +65,9 @@ export async function PATCH(
             );
         }
 
+        // Only block future parcels - same-day no-show is intentionally allowed.
+        // Users may receive late "I won't come" notifications on pickup day itself,
+        // and staff need to be able to record these as no-shows immediately.
         const pickupDateStockholm = Time.fromDate(parcel.pickupDateTimeEarliest).toDateString();
         if (pickupDateStockholm > todayStockholm) {
             return NextResponse.json(
