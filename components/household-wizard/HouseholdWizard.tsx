@@ -36,7 +36,11 @@ import {
     checkHouseholdDuplicates,
     type DuplicateCheckResult,
 } from "@/app/[locale]/households/check-duplicates-action";
-import { validatePhoneInput, formatPhoneForDisplay, stripSwedishPrefix } from "@/app/utils/validation/phone-validation";
+import {
+    validatePhoneInput,
+    formatPhoneForDisplay,
+    stripSwedishPrefix,
+} from "@/app/utils/validation/phone-validation";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
