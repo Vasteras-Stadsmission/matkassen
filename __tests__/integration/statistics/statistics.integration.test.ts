@@ -9,10 +9,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import { households } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
-import { createTestHousehold, createTestHouseholdWithMembers } from "../../factories/household.factory";
+import {
+    createTestHousehold,
+    createTestHouseholdWithMembers,
+} from "../../factories/household.factory";
 import { createTestPickupLocation } from "../../factories/pickup-location.factory";
-import { createTestParcel, createTestPickedUpParcel, createTestDeletedParcel } from "../../factories/food-parcel.factory";
-import { createTestSentSms, createTestFailedSms, createTestQueuedSms } from "../../factories/sms.factory";
+import {
+    createTestParcel,
+    createTestPickedUpParcel,
+    createTestDeletedParcel,
+} from "../../factories/food-parcel.factory";
+import {
+    createTestSentSms,
+    createTestFailedSms,
+    createTestQueuedSms,
+} from "../../factories/sms.factory";
 import { daysFromTestNow } from "../../test-time";
 
 // Import the actions - must use dynamic import after mock setup
@@ -214,9 +225,7 @@ describe("Statistics Actions", () => {
                 ]);
 
                 // Household with elderly (65+)
-                await createTestHouseholdWithMembers({}, [
-                    { age: 70, sex: "male" },
-                ]);
+                await createTestHouseholdWithMembers({}, [{ age: 70, sex: "male" }]);
 
                 const { getAllStatistics } = await getActions();
                 const result = await getAllStatistics("all");
@@ -429,12 +438,16 @@ describe("Statistics Actions", () => {
                     parcels_max_per_day: 10,
                 });
 
-                // Schedule 5 parcels for tomorrow
-                await createTestParcel({
-                    household_id: household.id,
-                    pickup_location_id: location.id,
-                    pickup_date_time_earliest: daysFromTestNow(1),
-                });
+                // Schedule 3 parcels for tomorrow (30% capacity)
+                const tomorrow = daysFromTestNow(1);
+                for (let i = 0; i < 3; i++) {
+                    const h = await createTestHousehold();
+                    await createTestParcel({
+                        household_id: h.id,
+                        pickup_location_id: location.id,
+                        pickup_date_time_earliest: tomorrow,
+                    });
+                }
 
                 const { getAllStatistics } = await getActions();
                 const result = await getAllStatistics("7d");
@@ -448,8 +461,13 @@ describe("Statistics Actions", () => {
                 );
                 expect(locationCapacity.length).toBe(7);
 
-                // Tomorrow should have 1 scheduled, 50% usage (1/10 * 100 = 10%)
-                // Note: The exact date depends on TEST_NOW
+                // Find tomorrow's entry and verify usage percentage
+                const tomorrowStr = tomorrow.toISOString().split("T")[0];
+                const tomorrowCapacity = locationCapacity.find(c => c.date === tomorrowStr);
+                expect(tomorrowCapacity).toBeDefined();
+                expect(tomorrowCapacity?.scheduled).toBe(3);
+                expect(tomorrowCapacity?.max).toBe(10);
+                expect(tomorrowCapacity?.usagePercent).toBe(30); // 3/10 * 100 = 30%
             });
 
             it("should identify near-capacity alerts (>= 80%)", async () => {
@@ -554,60 +572,116 @@ describe("Statistics Actions", () => {
         });
 
         describe("Period Filtering", () => {
-            beforeEach(async () => {
-                // Create households at different times
-                // TEST_NOW = 2024-06-15T10:00:00Z
-                // These will be created "now" due to fake timers
+            it("should filter parcels by 7d period", async () => {
+                const household = await createTestHousehold();
+                const location = await createTestPickupLocation();
+
+                // Parcel within 7 days (3 days ago)
+                await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-3),
+                });
+
+                // Parcel outside 7 days (10 days ago)
+                await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-10),
+                });
+
+                const { getAllStatistics } = await getActions();
+
+                // With 7d filter, should only see the recent parcel
+                const result7d = await getAllStatistics("7d");
+                expect(result7d.success).toBe(true);
+                if (!result7d.success) return;
+                expect(result7d.data.period).toBe("7d");
+                expect(result7d.data.parcels.total).toBe(1);
+
+                // With 30d filter, should see both parcels
+                const result30d = await getAllStatistics("30d");
+                expect(result30d.success).toBe(true);
+                if (!result30d.success) return;
+                expect(result30d.data.period).toBe("30d");
+                expect(result30d.data.parcels.total).toBe(2);
             });
 
-            it("should respect 7d period filter", async () => {
+            it("should count SMS sent within period", async () => {
+                // Note: SMS filtering uses sent_at timestamp, not parcel pickup date.
+                // The test factory always creates SMS at TEST_NOW, so we test that
+                // SMS created "now" are counted in both 7d and 30d periods.
+                const household = await createTestHousehold();
+                const location = await createTestPickupLocation();
+                const parcel = await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-2),
+                });
+
+                // Create 2 SMS at TEST_NOW (within any period)
+                await createTestSentSms({
+                    household_id: household.id,
+                    parcel_id: parcel.id,
+                });
+                await createTestSentSms({
+                    household_id: household.id,
+                    parcel_id: parcel.id,
+                });
+
                 const { getAllStatistics } = await getActions();
-                const result = await getAllStatistics("7d");
 
-                expect(result.success).toBe(true);
-                if (!result.success) return;
+                // Both 7d and 30d should count SMS created at TEST_NOW
+                const result7d = await getAllStatistics("7d");
+                expect(result7d.success).toBe(true);
+                if (!result7d.success) return;
+                expect(result7d.data.sms.totalSent).toBe(2);
 
-                expect(result.data.period).toBe("7d");
+                const result30d = await getAllStatistics("30d");
+                expect(result30d.success).toBe(true);
+                if (!result30d.success) return;
+                expect(result30d.data.sms.totalSent).toBe(2);
             });
 
-            it("should respect 30d period filter", async () => {
+            it("should respect 90d and year period filters", async () => {
                 const { getAllStatistics } = await getActions();
-                const result = await getAllStatistics("30d");
 
-                expect(result.success).toBe(true);
-                if (!result.success) return;
+                const result90d = await getAllStatistics("90d");
+                expect(result90d.success).toBe(true);
+                if (!result90d.success) return;
+                expect(result90d.data.period).toBe("90d");
 
-                expect(result.data.period).toBe("30d");
+                const resultYear = await getAllStatistics("year");
+                expect(resultYear.success).toBe(true);
+                if (!resultYear.success) return;
+                expect(resultYear.data.period).toBe("year");
             });
 
-            it("should respect 90d period filter", async () => {
+            it("should include all data with 'all' period filter", async () => {
+                const household = await createTestHousehold();
+                const location = await createTestPickupLocation();
+
+                // Parcel from 100 days ago
+                await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-100),
+                });
+
                 const { getAllStatistics } = await getActions();
-                const result = await getAllStatistics("90d");
 
-                expect(result.success).toBe(true);
-                if (!result.success) return;
+                // 90d should not include it
+                const result90d = await getAllStatistics("90d");
+                expect(result90d.success).toBe(true);
+                if (!result90d.success) return;
+                expect(result90d.data.parcels.total).toBe(0);
 
-                expect(result.data.period).toBe("90d");
-            });
-
-            it("should respect year period filter", async () => {
-                const { getAllStatistics } = await getActions();
-                const result = await getAllStatistics("year");
-
-                expect(result.success).toBe(true);
-                if (!result.success) return;
-
-                expect(result.data.period).toBe("year");
-            });
-
-            it("should respect all period filter", async () => {
-                const { getAllStatistics } = await getActions();
-                const result = await getAllStatistics("all");
-
-                expect(result.success).toBe(true);
-                if (!result.success) return;
-
-                expect(result.data.period).toBe("all");
+                // 'all' should include it
+                const resultAll = await getAllStatistics("all");
+                expect(resultAll.success).toBe(true);
+                if (!resultAll.success) return;
+                expect(resultAll.data.period).toBe("all");
+                expect(resultAll.data.parcels.total).toBe(1);
             });
         });
     });

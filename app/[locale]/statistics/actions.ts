@@ -55,7 +55,7 @@ export interface ParcelStats {
     notPickedUp: number;
     cancelled: number;
     byLocation: { locationName: string; count: number }[];
-    byWeekday: { weekday: string; count: number }[];
+    byWeekday: { dayNum: number; count: number }[]; // dayNum: 0=Sunday, 1=Monday, etc.
     dailyTrend: { date: string; count: number }[];
     avgPerHousehold: number | null;
 }
@@ -69,8 +69,18 @@ export interface LocationStats {
         max: number | null;
         usagePercent: number | null;
     }[];
-    pickupRateByLocation: { locationId: string; locationName: string; rate: number; total: number }[];
-    nearCapacityAlerts: { locationId: string; locationName: string; date: string; usagePercent: number }[];
+    pickupRateByLocation: {
+        locationId: string;
+        locationName: string;
+        rate: number;
+        total: number;
+    }[];
+    nearCapacityAlerts: {
+        locationId: string;
+        locationName: string;
+        date: string;
+        usagePercent: number;
+    }[];
 }
 
 export interface SmsStats {
@@ -160,8 +170,8 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
             and(
                 isNull(households.anonymized_at),
                 gte(households.created_at, period.start),
-                lt(households.created_at, period.end)
-            )
+                lt(households.created_at, period.end),
+            ),
         );
     const newHouseholds = newResult?.count ?? 0;
 
@@ -180,8 +190,8 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
             and(
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         );
     const totalParcels = parcelsResult?.count ?? 0;
 
@@ -194,8 +204,8 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 notDeleted(),
                 eq(foodParcels.is_picked_up, true),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         );
     const pickedUpParcels = pickedUpResult?.count ?? 0;
 
@@ -209,8 +219,8 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
-                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`
-            )
+                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
+            ),
         );
     const eligibleParcels = eligibleResult?.count ?? 0;
 
@@ -224,8 +234,8 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 eq(foodParcels.is_picked_up, true),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
-                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`
-            )
+                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
+            ),
         );
     const pickedUpEligible = pickedUpEligibleResult?.count ?? 0;
 
@@ -242,8 +252,8 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
             and(
                 eq(outgoingSms.status, "sent"),
                 gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end)
-            )
+                lt(outgoingSms.sent_at, period.end),
+            ),
         );
 
     const smsDelivered = smsResult?.delivered ?? 0;
@@ -281,8 +291,8 @@ async function getHouseholdStats(period: StatisticsPeriod): Promise<HouseholdSta
             and(
                 isNull(households.anonymized_at),
                 gte(households.created_at, period.start),
-                lt(households.created_at, period.end)
-            )
+                lt(households.created_at, period.end),
+            ),
         );
     const newCount = newResult?.count ?? 0;
 
@@ -378,7 +388,10 @@ async function getHouseholdStats(period: StatisticsPeriod): Promise<HouseholdSta
             count: sql<number>`count(distinct ${householdDietaryRestrictions.household_id})::int`,
         })
         .from(householdDietaryRestrictions)
-        .innerJoin(dietaryRestrictions, eq(householdDietaryRestrictions.dietary_restriction_id, dietaryRestrictions.id))
+        .innerJoin(
+            dietaryRestrictions,
+            eq(householdDietaryRestrictions.dietary_restriction_id, dietaryRestrictions.id),
+        )
         .innerJoin(households, eq(householdDietaryRestrictions.household_id, households.id))
         .where(isNull(households.anonymized_at))
         .groupBy(dietaryRestrictions.name)
@@ -392,7 +405,10 @@ async function getHouseholdStats(period: StatisticsPeriod): Promise<HouseholdSta
             count: sql<number>`count(distinct ${householdAdditionalNeeds.household_id})::int`,
         })
         .from(householdAdditionalNeeds)
-        .innerJoin(additionalNeeds, eq(householdAdditionalNeeds.additional_need_id, additionalNeeds.id))
+        .innerJoin(
+            additionalNeeds,
+            eq(householdAdditionalNeeds.additional_need_id, additionalNeeds.id),
+        )
         .innerJoin(households, eq(householdAdditionalNeeds.household_id, households.id))
         .where(isNull(households.anonymized_at))
         .groupBy(additionalNeeds.need)
@@ -440,8 +456,8 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
             and(
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         );
     const total = totalResult?.count ?? 0;
 
@@ -454,8 +470,8 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 notDeleted(),
                 eq(foodParcels.is_picked_up, true),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         );
     const pickedUp = pickedUpResult?.count ?? 0;
 
@@ -469,8 +485,8 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 eq(foodParcels.is_picked_up, false),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
-                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`
-            )
+                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
+            ),
         );
     const notPickedUp = notPickedUpResult?.count ?? 0;
 
@@ -482,8 +498,8 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
             and(
                 isNotNull(foodParcels.deleted_at),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         );
     const cancelled = cancelledResult?.count ?? 0;
 
@@ -500,17 +516,19 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
             and(
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         )
         .groupBy(pickupLocations.id, pickupLocations.name)
         .orderBy(sql`count(*) desc`);
-    const byLocation = byLocationResult.map(r => ({ locationName: r.locationName, count: r.count }));
+    const byLocation = byLocationResult.map(r => ({
+        locationName: r.locationName,
+        count: r.count,
+    }));
 
-    // By weekday (Stockholm time)
+    // By weekday (Stockholm time) - return dayNum for client-side translation
     const byWeekdayResult = await db
         .select({
-            weekday: sql<string>`to_char(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}', 'Day')`,
             dayNum: sql<number>`extract(dow from ${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}')::int`,
             count: sql<number>`count(*)::int`,
         })
@@ -519,12 +537,12 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
             and(
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         )
-        .groupBy(sql`1, 2`)
-        .orderBy(sql`2`);
-    const byWeekday = byWeekdayResult.map(r => ({ weekday: r.weekday.trim(), count: r.count }));
+        .groupBy(sql`1`)
+        .orderBy(sql`1`);
+    const byWeekday = byWeekdayResult.map(r => ({ dayNum: r.dayNum, count: r.count }));
 
     // Daily trend (Stockholm time)
     const dailyTrendResult = await db
@@ -537,8 +555,8 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
             and(
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         )
         .groupBy(sql`1`)
         .orderBy(sql`1`);
@@ -558,8 +576,8 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 notDeleted(),
                 isNull(households.anonymized_at),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         )
         .groupBy(foodParcels.household_id);
 
@@ -601,8 +619,8 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
             and(
                 notDeleted(),
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') >= ${stockholmTodaySQL}`,
-                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL} + interval '7 days'`
-            )
+                sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL} + interval '7 days'`,
+            ),
         )
         .groupBy(sql`1, 2`);
 
@@ -679,8 +697,8 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
             and(
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end)
-            )
+                lt(foodParcels.pickup_date_time_earliest, period.end),
+            ),
         )
         .groupBy(pickupLocations.id, pickupLocations.name);
 
@@ -711,8 +729,8 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
             and(
                 eq(outgoingSms.status, "sent"),
                 gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end)
-            )
+                lt(outgoingSms.sent_at, period.end),
+            ),
         );
     const totalSent = totalSentResult?.count ?? 0;
 
@@ -727,8 +745,8 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
             and(
                 eq(outgoingSms.status, "sent"),
                 gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end)
-            )
+                lt(outgoingSms.sent_at, period.end),
+            ),
         );
     const delivered = deliveryResult?.delivered ?? 0;
     const confirmed = deliveryResult?.confirmed ?? 0;
@@ -742,8 +760,8 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
             and(
                 eq(outgoingSms.status, "failed"),
                 gte(outgoingSms.created_at, period.start),
-                lt(outgoingSms.created_at, period.end)
-            )
+                lt(outgoingSms.created_at, period.end),
+            ),
         );
     const failedInternal = failedInternalResult?.count ?? 0;
 
@@ -756,8 +774,8 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
                 eq(outgoingSms.status, "sent"),
                 sql`${outgoingSms.provider_status} in ('failed', 'not delivered')`,
                 gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end)
-            )
+                lt(outgoingSms.sent_at, period.end),
+            ),
         );
     const failedProvider = failedProviderResult?.count ?? 0;
 
@@ -765,9 +783,7 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
     const [pendingResult] = await db
         .select({ count: count() })
         .from(outgoingSms)
-        .where(
-            sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`
-        );
+        .where(sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`);
     const pending = pendingResult?.count ?? 0;
 
     // By intent
@@ -781,8 +797,8 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
             and(
                 eq(outgoingSms.status, "sent"),
                 gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end)
-            )
+                lt(outgoingSms.sent_at, period.end),
+            ),
         )
         .groupBy(outgoingSms.intent)
         .orderBy(sql`count(*) desc`);
@@ -799,8 +815,8 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
             and(
                 eq(outgoingSms.status, "sent"),
                 gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end)
-            )
+                lt(outgoingSms.sent_at, period.end),
+            ),
         )
         .groupBy(sql`1`)
         .orderBy(sql`1`);
@@ -854,5 +870,5 @@ export const getAllStatistics = protectedAction(
                 message: "Failed to load statistics. Please try again.",
             });
         }
-    }
+    },
 );
