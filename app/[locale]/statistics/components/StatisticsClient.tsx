@@ -92,6 +92,67 @@ function PercentageCard({
     );
 }
 
+// Type-safe locale name lookup
+function getLocaleName(
+    locale: string,
+    t: ReturnType<typeof useTranslations<"statistics">>,
+): string {
+    switch (locale) {
+        case "sv":
+            return t("households.locales.sv");
+        case "en":
+            return t("households.locales.en");
+        default:
+            return locale;
+    }
+}
+
+// Type-safe SMS intent name lookup
+function getIntentName(
+    intent: string,
+    t: ReturnType<typeof useTranslations<"statistics">>,
+): string {
+    switch (intent) {
+        case "pickup_reminder":
+            return t("sms.intents.pickup_reminder");
+        case "pickup_updated":
+            return t("sms.intents.pickup_updated");
+        case "pickup_cancelled":
+            return t("sms.intents.pickup_cancelled");
+        case "consent_enrolment":
+            return t("sms.intents.consent_enrolment");
+        case "food_parcels_ended":
+            return t("sms.intents.food_parcels_ended");
+        default:
+            return intent;
+    }
+}
+
+// Type-safe weekday name lookup (dayNum: 0=Sunday, 1=Monday, etc.)
+function getWeekdayName(
+    dayNum: number,
+    t: ReturnType<typeof useTranslations<"statistics">>,
+): string {
+    switch (dayNum) {
+        case 0:
+            return t("parcels.weekdays.Sunday");
+        case 1:
+            return t("parcels.weekdays.Monday");
+        case 2:
+            return t("parcels.weekdays.Tuesday");
+        case 3:
+            return t("parcels.weekdays.Wednesday");
+        case 4:
+            return t("parcels.weekdays.Thursday");
+        case 5:
+            return t("parcels.weekdays.Friday");
+        case 6:
+            return t("parcels.weekdays.Saturday");
+        default:
+            return String(dayNum);
+    }
+}
+
 export function StatisticsClient() {
     const t = useTranslations("statistics");
     const [period, setPeriod] = useState<PeriodOption>("30d");
@@ -231,19 +292,11 @@ export function StatisticsClient() {
                                                 {t("households.byLanguage")}
                                             </Title>
                                             <PieChart
-                                                data={stats.households.byLocale.map(l => {
-                                                    const key =
-                                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                        `households.locales.${l.locale}` as any;
-                                                    return {
-                                                        name: t.has(key) ? t(key) : l.locale,
-                                                        value: l.count,
-                                                        color:
-                                                            l.locale === "sv"
-                                                                ? "blue.6"
-                                                                : "green.6",
-                                                    };
-                                                })}
+                                                data={stats.households.byLocale.map(l => ({
+                                                    name: getLocaleName(l.locale, t),
+                                                    value: l.count,
+                                                    color: l.locale === "sv" ? "blue.6" : "green.6",
+                                                }))}
                                                 withLabelsLine
                                                 labelsPosition="outside"
                                                 labelsType="value"
@@ -357,25 +410,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.parcels.byWeekday.map(d => {
-                                                    // Map dayNum (0=Sunday, 1=Monday, ...) to translated weekday name
-                                                    const weekdayKeys = [
-                                                        "Sunday",
-                                                        "Monday",
-                                                        "Tuesday",
-                                                        "Wednesday",
-                                                        "Thursday",
-                                                        "Friday",
-                                                        "Saturday",
-                                                    ] as const;
-                                                    const key = weekdayKeys[d.dayNum] ?? "Sunday";
-                                                    return {
-                                                        weekday: t(
-                                                            `parcels.weekdays.${key}` as never,
-                                                        ),
-                                                        count: d.count,
-                                                    };
-                                                })}
+                                                data={stats.parcels.byWeekday.map(d => ({
+                                                    weekday: getWeekdayName(d.dayNum, t),
+                                                    count: d.count,
+                                                }))}
                                                 dataKey="weekday"
                                                 series={[{ name: "count", color: "grape.6" }]}
                                             />
@@ -506,14 +544,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.sms.byIntent.map(i => {
-                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                    const key = `sms.intents.${i.intent}` as any;
-                                                    return {
-                                                        intent: t.has(key) ? t(key) : i.intent,
-                                                        count: i.count,
-                                                    };
-                                                })}
+                                                data={stats.sms.byIntent.map(i => ({
+                                                    intent: getIntentName(i.intent, t),
+                                                    count: i.count,
+                                                }))}
                                                 dataKey="intent"
                                                 series={[{ name: "count", color: "pink.6" }]}
                                             />
