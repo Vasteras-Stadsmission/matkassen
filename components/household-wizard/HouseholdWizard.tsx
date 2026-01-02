@@ -237,6 +237,8 @@ export function HouseholdWizard({
     }, [mode, initialData]);
 
     // Auto-uncheck SMS consent when phone number changes in edit mode
+    // This runs only when phone_number changes, not when sms_consent changes,
+    // to avoid an infinite loop where checking consent triggers this effect again
     useEffect(() => {
         if (mode === "edit" && originalPhoneRef.current !== null) {
             const currentPhone = formData.household.phone_number;
@@ -253,7 +255,8 @@ export function HouseholdWizard({
                 }));
             }
         }
-    }, [mode, formData.household.phone_number, formData.household.sms_consent]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally exclude sms_consent to prevent infinite loop
+    }, [mode, formData.household.phone_number]);
 
     // Function to handle navigation between steps with appropriate validation
     const nextStep = async () => {
