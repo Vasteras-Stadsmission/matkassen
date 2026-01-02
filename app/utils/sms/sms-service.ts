@@ -645,9 +645,11 @@ export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
             await handleSmsFailure(record, result);
         }
     } catch (error) {
+        // Treat exceptions as transient errors (503) - network issues, timeouts, etc.
         await handleSmsFailure(record, {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",
+            httpStatus: 503,
         });
     }
 
@@ -1080,6 +1082,7 @@ async function handleJitFailure(
             .set({
                 status: "failed",
                 last_error_message: result.error || "Pickup time passed",
+                next_attempt_at: null, // Clear retry schedule on permanent failure
             })
             .where(eq(outgoingSms.id, smsId));
         return;
@@ -1688,6 +1691,7 @@ async function handleEndedSmsFailure(
             .set({
                 status: "failed",
                 last_error_message: result.error,
+                next_attempt_at: null, // Clear retry schedule on permanent failure
             })
             .where(eq(outgoingSms.id, smsId));
     }
