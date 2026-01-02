@@ -30,6 +30,9 @@ import { useTranslations } from "next-intl";
 import { BarChart, PieChart, LineChart } from "@mantine/charts";
 import { getAllStatistics, type PeriodOption, type AllStatistics } from "../actions";
 
+// Privacy threshold: suppress demographic data with fewer than this many entries
+const MIN_COUNT_THRESHOLD = 5;
+
 function StatCard({
     title,
     value,
@@ -318,7 +321,12 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.households.ageDistribution}
                                                 dataKey="bucket"
-                                                series={[{ name: "count", color: "violet.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "violet.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
@@ -333,74 +341,133 @@ export function StatisticsClient() {
                                                 data={stats.households.memberCountDistribution.map(
                                                     d => ({
                                                         memberCount: String(d.memberCount),
-                                                        households: d.households,
+                                                        [t("chartLabels.households")]: d.households,
                                                     }),
                                                 )}
                                                 dataKey="memberCount"
-                                                series={[{ name: "households", color: "cyan.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.households"),
+                                                        color: "cyan.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
 
-                                    {stats.households.byPostalCode.length > 0 && (
+                                    {stats.households.byPostalCode.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length > 0 && (
                                         <Card shadow="sm" padding="lg" withBorder>
                                             <Title order={4} mb="md">
                                                 {t("households.byPostalCode")}
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.byPostalCode}
+                                                data={stats.households.byPostalCode.filter(
+                                                    d => d.count >= MIN_COUNT_THRESHOLD,
+                                                )}
                                                 dataKey="postalCode"
-                                                series={[{ name: "count", color: "orange.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "orange.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
 
-                                    {stats.households.dietaryRestrictions.length > 0 && (
+                                    {stats.households.dietaryRestrictions.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length > 0 && (
                                         <Card shadow="sm" padding="lg" withBorder>
                                             <Title order={4} mb="md">
                                                 {t("households.dietaryRestrictions")}
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.dietaryRestrictions.slice(
-                                                    0,
-                                                    10,
-                                                )}
+                                                data={stats.households.dietaryRestrictions
+                                                    .filter(d => d.count >= MIN_COUNT_THRESHOLD)
+                                                    .slice(0, 10)}
                                                 dataKey="name"
-                                                series={[{ name: "count", color: "red.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "red.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
 
-                                    {stats.households.additionalNeeds.length > 0 && (
+                                    {stats.households.additionalNeeds.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length > 0 && (
                                         <Card shadow="sm" padding="lg" withBorder>
                                             <Title order={4} mb="md">
                                                 {t("households.additionalNeeds")}
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.additionalNeeds.slice(0, 10)}
+                                                data={stats.households.additionalNeeds
+                                                    .filter(d => d.count >= MIN_COUNT_THRESHOLD)
+                                                    .slice(0, 10)}
                                                 dataKey="name"
-                                                series={[{ name: "count", color: "violet.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "violet.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
 
-                                    {stats.households.pets.length > 0 && (
+                                    {stats.households.pets.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length > 0 && (
                                         <Card shadow="sm" padding="lg" withBorder>
                                             <Title order={4} mb="md">
                                                 {t("households.pets")}
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.pets.slice(0, 10)}
+                                                data={stats.households.pets
+                                                    .filter(d => d.count >= MIN_COUNT_THRESHOLD)
+                                                    .slice(0, 10)}
                                                 dataKey="species"
-                                                series={[{ name: "count", color: "lime.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "lime.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
                                 </SimpleGrid>
+
+                                {/* Empty state when no household charts have data */}
+                                {stats.households.byLocale.length === 0 &&
+                                    stats.households.ageDistribution.length === 0 &&
+                                    stats.households.memberCountDistribution.length === 0 &&
+                                    stats.households.byPostalCode.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length === 0 &&
+                                    stats.households.dietaryRestrictions.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length === 0 &&
+                                    stats.households.additionalNeeds.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length === 0 &&
+                                    stats.households.pets.filter(
+                                        d => d.count >= MIN_COUNT_THRESHOLD,
+                                    ).length === 0 && (
+                                        <Text c="dimmed" ta="center" py="xl">
+                                            {t("noData")}
+                                        </Text>
+                                    )}
                             </div>
 
                             <Divider />
@@ -454,7 +521,12 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.parcels.byLocation}
                                                 dataKey="locationName"
-                                                series={[{ name: "count", color: "blue.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "blue.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
@@ -468,10 +540,15 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.parcels.byWeekday.map(d => ({
                                                     weekday: getWeekdayName(d.dayNum, t),
-                                                    count: d.count,
+                                                    [t("chartLabels.count")]: d.count,
                                                 }))}
                                                 dataKey="weekday"
-                                                series={[{ name: "count", color: "grape.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "grape.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
@@ -490,7 +567,12 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.parcels.dailyTrend}
                                                 dataKey="date"
-                                                series={[{ name: "count", color: "indigo.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "indigo.6",
+                                                    },
+                                                ]}
                                                 curveType="linear"
                                             />
                                         </Card>
@@ -516,11 +598,16 @@ export function StatisticsClient() {
                                                 data={stats.locations.pickupRateByLocation.map(
                                                     l => ({
                                                         location: l.locationName,
-                                                        rate: Math.round(l.rate),
+                                                        [t("chartLabels.rate")]: Math.round(l.rate),
                                                     }),
                                                 )}
                                                 dataKey="location"
-                                                series={[{ name: "rate", color: "teal.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.rate"),
+                                                        color: "teal.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
@@ -688,10 +775,15 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.sms.byIntent.map(i => ({
                                                     intent: getIntentName(i.intent, t),
-                                                    count: i.count,
+                                                    [t("chartLabels.count")]: i.count,
                                                 }))}
                                                 dataKey="intent"
-                                                series={[{ name: "count", color: "pink.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "pink.6",
+                                                    },
+                                                ]}
                                             />
                                         </Card>
                                     )}
@@ -705,7 +797,12 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.sms.dailyVolume}
                                                 dataKey="date"
-                                                series={[{ name: "count", color: "lime.6" }]}
+                                                series={[
+                                                    {
+                                                        name: t("chartLabels.count"),
+                                                        color: "lime.6",
+                                                    },
+                                                ]}
                                                 curveType="linear"
                                             />
                                         </Card>

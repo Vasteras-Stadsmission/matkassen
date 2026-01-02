@@ -1400,7 +1400,7 @@
             "noData": "No data for selected period"
         },
         "households": {
-            "title": "Households (Active)",
+            "title": "Household Demographics",
             "total": "Total Active",
             "new": "New",
             "removed": "Removed",
@@ -1416,7 +1416,7 @@
                 "en": "English"
             },
             "members": "{count, plural, =0 {0 members} =1 {1 member} other {# members}}",
-            "description": "Demographics of currently active households"
+            "description": "Distribution data includes all registered households (active and historical)"
         },
         "parcels": {
             "title": "Parcels",
@@ -1470,6 +1470,12 @@
             "pendingLabel": "Pending (Current)"
         },
         "loading": "Loading statistics...",
-        "error": "Failed to load statistics"
+        "error": "Failed to load statistics",
+        "chartLabels": {
+            "count": "Count",
+            "rate": "Rate",
+            "households": "Households"
+        },
+        "noData": "No data available"
     }
 }

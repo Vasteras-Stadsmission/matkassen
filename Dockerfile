@@ -49,6 +49,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Auth.js requirements
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+# Timezone for consistent date handling
+ENV TZ=Europe/Stockholm
 
 # Copy standalone build with correct ownership
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
