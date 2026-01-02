@@ -28,7 +28,16 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 - Vid ändring eller borttagning visar systemet hur många bokningar som påverkas; flytta dem först vid behov.
 - Slot-längden för nya tider styrs av värdet från platsens grundflik.
 
+## Varningsgräns för matkassar
+
+- Gå till `Inställningar` → `Matkassar`.
+- Ange en gräns för antal kassar varefter systemet visar en varning.
+- När ett hushåll överskrider gränsen visas varning på hushållskortet och vid bokningar.
+- Hjälper till att identifiera hushåll som kan behöva extra stöd eller genomgång.
+- Lämna fältet tomt för att stänga av varningen.
+
 ## Rekommenderat arbetssätt
 
 - Gör plats- och schemaändringar på dator för bäst överblick.
 - Efter schemaändringar: kontrollera veckovyn i `Schema` så att tiderna ser rätt ut.
+- Lös ärenden på startsidan regelbundet (olösta utlämningar, fel i SMS osv.).

@@ -21,8 +21,24 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 - Gå till `Schema` → `Dagens utlämningar` för din favoritplats (eller välj plats i listan).
 - Visar bara dagens bokningar, grupperade per tidsfönster, med progressräknare.
 - Uppdatera vid behov (dra ner på mobil eller använd uppdatera-knappen).
-- Öppna en rad för att se detaljer och markera “Hämtad”.
+- Öppna en rad för att se detaljer och markera "Hämtad" eller "Ej hämtad" (no-show).
 - Bäst på mobil när du står i dörren.
+
+## Markera ej hämtad (no-show)
+
+- Om mottagaren inte dyker upp: öppna bokningen och markera "Ej hämtad".
+- Kan endast göras för dagens eller tidigare bokningar.
+- Hjälper till att hålla statistiken korrekt och rensa olösta utlämningar.
+
+## Ärenden (Issues)
+
+- Startsidan visar ärenden som behöver åtgärdas.
+- Röd siffra i navigationen visar antalet olösta ärenden.
+- Tre kategorier:
+  1. **Olösta utlämningar** – tidigare bokningar utan utfall (markera som hämtad eller ej hämtad)
+  2. **Utanför öppettider** – kommande bokningar på stängda tider (omboka)
+  3. **Misslyckade SMS** – sändningsfel att hantera
+- När alla ärenden är åtgärdade försvinner länken "Ärenden" från navigationen.
 
 ## Hitta hushåll och boka
 

@@ -143,8 +143,9 @@ Optimized for daily operations:
 
 - 🟢 **Upcoming**: Future parcel, not picked up
 - ✅ **Picked Up**: Collected (shows timestamp and admin who marked it)
+- ❌ **No-Show**: Recipient didn't collect (shows timestamp and admin who marked it)
 
-**Best for**: Daily pickup operations, marking parcels as picked up.
+**Best for**: Daily pickup operations, marking parcels as picked up or no-show.
 
 ### Weekly View
 
@@ -200,6 +201,37 @@ When parcel created, SMS queues with **5-minute grace period**:
 - Accurate statistics and reporting
 - Progress tracking in today's view
 - Historical record of completed distributions
+- Enables "food parcels ended" SMS notifications
+
+### Marking Parcels as No-Show
+
+For households that didn't collect their parcel:
+
+1. Open parcel details dialog (from Today's Handouts or Issues Dashboard)
+2. Click "No-Show"
+3. Records: timestamp, admin username
+4. Parcel marked as resolved but not collected
+
+**When to mark no-show**:
+
+- Recipient didn't arrive during pickup window
+- Recipient called to say they can't come (after pickup time passed)
+- End of day cleanup for uncollected parcels
+
+**Constraints**:
+
+- Can only mark same-day or past parcels as no-show
+- Cannot mark future parcels as no-show
+- Cannot mark already picked-up or cancelled parcels
+
+**To undo**: Click "Undo No-Show" in parcel dialog. Clears no-show status.
+
+**Why mark no-shows**:
+
+- Accurate completion statistics
+- Resolves unresolved handouts in Issues Dashboard
+- Enables "food parcels ended" SMS notifications
+- Identifies patterns for follow-up
 
 ### Rescheduling Parcels
 
@@ -312,11 +344,13 @@ The Issues link only appears when there are issues to resolve.
 
 ### Unresolved Handouts
 
-Parcels from past dates that weren't marked as picked up or no-show. To resolve:
+Parcels from past dates that weren't marked as picked up or no-show. These need resolution for accurate statistics and to trigger the "food parcels ended" SMS (see below). To resolve:
 
 1. Click the parcel card to open details
 2. Mark as **Handed out** if collected, or **No-show** if missed
 3. The issue is removed from the list
+
+**Important**: Resolving unresolved handouts promptly ensures households receive closure notifications when their program ends.
 
 ### Outside Opening Hours
 
@@ -373,6 +407,17 @@ This shows the full history including successful deliveries, not just failures.
 - Cancellation SMS queues with intent: `pickup_cancelled`
 - 1-minute grace period (allows quick undo)
 - Informs recipient not to come
+
+**When food parcels end** (automatic):
+
+- SMS with intent: `food_parcels_ended`
+- Sent automatically when:
+  - Household's last parcel is resolved (picked up or no-show) for 48+ hours
+  - No future parcels are scheduled
+  - No unresolved past parcels remain
+- Provides dignified closure notification to household
+- Uses respectful, non-stigmatizing language
+- Only sent once per household (idempotent)
 
 **Multiple edits within grace period**:
 
@@ -556,6 +601,7 @@ Language auto-detected from phone settings, can be manually changed.
 - 🟢 **Upcoming**: Ready for pickup at scheduled time
 - ✅ **Picked Up**: Already collected (shows timestamp)
 - ❌ **Cancelled**: Pickup cancelled, don't come
+- 🚫 **No-Show**: Marked as not collected
 - ⏰ **Expired**: Pickup time passed, contact organization
 
 ### QR Code Workflow
