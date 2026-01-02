@@ -8,6 +8,16 @@
  * public because CSP reports are sent automatically by browsers without authentication.
  */
 
+// Helper functions that are called from other protected actions, not directly from clients.
+// These don't need protectedAction wrapper because their callers are already protected.
+// Format: "relativePath:functionName"
+const ALLOWED_INTERNAL_HELPERS = [
+    // Transaction helper - takes tx as first param, called within db.transaction() from protected actions
+    "app/[locale]/parcels/actions.ts:softDeleteParcelInTransaction",
+    // Utility called from protected actions after schedule changes to update counts
+    "app/[locale]/schedule/actions.ts:recomputeOutsideHoursCount",
+];
+
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
@@ -107,40 +117,138 @@ function checkFile(filePath) {
         hasErrors = true;
     }
 
-    // Check for exported functions that might be server actions
-    const exportedFunctionPattern = /export\s+(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g;
-    const protectedActionPattern = /protectedAction\s*\(/g;
-    const protectedHouseholdActionPattern = /protectedHouseholdAction\s*\(/g;
+    // Check each exported function/const individually
+    const lines = content.split("\n");
+    const unprotectedExports = [];
 
-    const hasProtectedWrapper =
-        protectedActionPattern.test(content) || protectedHouseholdActionPattern.test(content);
+    // Pattern for exports wrapped with protectedAction variants
+    // e.g., export const foo = protectedAction(...)
+    const wrappedConstPattern =
+        /export\s+const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:protectedAction|protectedHouseholdAction|protectedReadAction)\s*\(/;
 
-    let match;
-    const exportedFunctions = [];
-    while ((match = exportedFunctionPattern.exec(content)) !== null) {
-        exportedFunctions.push(match[1]);
-    }
+    // Pattern for unwrapped arrow function exports
+    // e.g., export const foo = async (...) or export const foo = (...)
+    const unwrappedConstPattern =
+        /export\s+const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?\(/;
 
-    // Check for exported const/let arrow functions
-    const exportedConstPattern =
-        /export\s+const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?\(/g;
-    while ((match = exportedConstPattern.exec(content)) !== null) {
-        exportedFunctions.push(match[1]);
-    }
+    // Pattern for traditional function exports (always unwrapped)
+    // e.g., export async function foo(...) or export function foo(...)
+    const functionPattern = /export\s+(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/;
 
-    // If file has exported functions but no protected wrapper, flag it
-    if (exportedFunctions.length > 0 && !hasProtectedWrapper && content.includes('"use server"')) {
-        // Check if this is likely a server action file (has database operations, etc.)
-        const hasDbOperations = content.includes("db.") || content.includes("from(");
+    lines.forEach((line, index) => {
+        const lineNum = index + 1;
 
-        if (hasDbOperations) {
+        // Check for traditional function exports (these are never wrapped inline)
+        const funcMatch = line.match(functionPattern);
+        if (funcMatch) {
+            unprotectedExports.push({ name: funcMatch[1], line: lineNum });
+            return;
+        }
+
+        // Check for const exports - need to distinguish wrapped vs unwrapped
+        if (line.includes("export const") || line.includes("export let")) {
+            // First check if it's wrapped
+            if (wrappedConstPattern.test(line)) {
+                // This is properly wrapped, skip it
+                return;
+            }
+
+            // Check if it's an unwrapped arrow function
+            const unwrappedMatch = line.match(unwrappedConstPattern);
+            if (unwrappedMatch) {
+                unprotectedExports.push({ name: unwrappedMatch[1], line: lineNum });
+            }
+        }
+    });
+
+    // Check if file has mutation operations (insert, update, delete)
+    // Read-only functions (select only) don't strictly require protection wrapper,
+    // but mutation functions must always be protected
+    const hasMutations =
+        content.includes("db.insert") ||
+        content.includes("db.update") ||
+        content.includes("db.delete") ||
+        content.includes(".insert(") ||
+        content.includes(".update(") ||
+        content.includes(".delete(");
+
+    // Report unprotected exports if they exist and file has mutation operations
+    if (unprotectedExports.length > 0 && hasMutations) {
+        // For files with mutations, we need to check each function individually
+        // to see if IT does mutations (not just the file)
+        const functionsWithMutations = [];
+
+        for (const exp of unprotectedExports) {
+            // Find the function body by looking from the export line until the next export or end
+            const startLine = exp.line - 1;
+            let depth = 0;
+            let functionBody = "";
+            let started = false;
+
+            for (let i = startLine; i < lines.length; i++) {
+                const line = lines[i];
+                functionBody += line + "\n";
+
+                // Track brace depth to find function end
+                for (const char of line) {
+                    if (char === "{") {
+                        depth++;
+                        started = true;
+                    } else if (char === "}") {
+                        depth--;
+                    }
+                }
+
+                // Function ends when we close all braces
+                if (started && depth === 0) {
+                    break;
+                }
+
+                // Also stop at next export (safety check)
+                if (i > startLine && /^export\s/.test(line.trim())) {
+                    break;
+                }
+            }
+
+            // Check if this specific function has mutations
+            const funcHasMutation =
+                functionBody.includes("db.insert") ||
+                functionBody.includes("db.update") ||
+                functionBody.includes("db.delete") ||
+                functionBody.includes(".insert(") ||
+                functionBody.includes(".update(") ||
+                functionBody.includes(".delete(");
+
+            if (funcHasMutation) {
+                functionsWithMutations.push(exp);
+            }
+        }
+
+        // Filter out allowed internal helpers
+        const unexpectedMutations = functionsWithMutations.filter(exp => {
+            const key = `${relativePath}:${exp.name}`;
+            return !ALLOWED_INTERNAL_HELPERS.includes(key);
+        });
+
+        if (unexpectedMutations.length > 0) {
             violations.push({
                 file: relativePath,
-                type: "MISSING_PROTECTION",
-                message: `Server action file has ${exportedFunctions.length} exported function(s) but doesn't use protectedAction() wrapper.`,
-                functions: exportedFunctions,
+                type: "UNPROTECTED_MUTATIONS",
+                message: `Found ${unexpectedMutations.length} exported function(s) with DB mutations not wrapped with protectedAction/protectedHouseholdAction/protectedReadAction.`,
+                functions: unexpectedMutations.map(e => `${e.name} (line ${e.line})`),
             });
             hasErrors = true;
+        }
+
+        // Log allowed internal helpers as info
+        const allowedHelpers = functionsWithMutations.filter(exp => {
+            const key = `${relativePath}:${exp.name}`;
+            return ALLOWED_INTERNAL_HELPERS.includes(key);
+        });
+        if (allowedHelpers.length > 0) {
+            console.log(
+                `${colors.dim}Internal helpers (called by protected actions):${colors.reset} ${allowedHelpers.map(e => e.name).join(", ")}`,
+            );
         }
     }
 }

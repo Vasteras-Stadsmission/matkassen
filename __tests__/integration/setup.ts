@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { getTestDb, cleanupTestDb, closeTestDb } from "../db/test-db";
 import { TEST_NOW } from "../test-time";
+import { resetSmsGateway } from "@/app/utils/sms/sms-gateway";
 
 /**
  * Integration test setup for PGlite.
@@ -48,6 +49,8 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+    // Reset SMS gateway to production default (prevents test pollution)
+    resetSmsGateway();
     // Clean up data between tests while preserving lookup tables
     await cleanupTestDb();
 });

@@ -1,12 +1,12 @@
 import { Suspense } from "react";
-import HomePageClient from "./components/HomePageClient";
+import IssuesPageClient from "./components/IssuesPageClient";
 import { AuthProtection } from "@/components/AuthProtection";
 
 export default function HomePage() {
     return (
         <AuthProtection>
             <Suspense fallback={<div />}>
-                <HomePageClient />
+                <IssuesPageClient />
             </Suspense>
         </AuthProtection>
     );

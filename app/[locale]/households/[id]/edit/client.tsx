@@ -67,10 +67,11 @@ export default function EditHouseholdClient({ id }: { id: string }) {
             if (!comment.trim()) return;
 
             // Add comment and get response
-            const response = await addHouseholdComment(id, comment);
+            const result = await addHouseholdComment(id, comment);
 
-            if (!response) return undefined;
+            if (!result.success || !result.data) return undefined;
 
+            const response = result.data;
             const newComment: Comment = {
                 author_github_username: response.author_github_username || "anonymous",
                 comment: response.comment,

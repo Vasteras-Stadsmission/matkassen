@@ -8,6 +8,50 @@ import { type ActionResult } from "./action-result";
 import { logger } from "@/app/utils/logger";
 
 /**
+ * Higher-order function that wraps read-only server actions with automatic authentication.
+ * Unlike protectedAction, this returns data directly instead of ActionResult<T>.
+ * Use this for data fetching functions where callers expect the data directly.
+ *
+ * Throws an error if authentication fails (instead of returning ActionResult).
+ *
+ * @example
+ * ```typescript
+ * export const getSchedules = protectedReadAction(async (session, locationId: string): Promise<Schedule[]> => {
+ *   // session is automatically provided and verified
+ *   return await db.select().from(schedules).where(eq(schedules.locationId, locationId));
+ * });
+ * ```
+ *
+ * @param action - The server action function to protect. First parameter is the verified session.
+ * @returns A wrapped function that enforces authentication before execution
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedReadAction<T extends any[], R>(
+    action: (session: AuthSession, ...args: T) => Promise<R>,
+): (...args: T) => Promise<R> {
+    return async (...args: T): Promise<R> => {
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            // Throw error for read actions - callers expect data or error
+            throw new Error(authResult.error?.message || "Authentication required");
+        }
+
+        // Audit log for security monitoring (IDs only, no PII)
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                action: action.name || "anonymous",
+                type: "protected_read_action",
+            },
+            "Protected read action executed",
+        );
+
+        return action(authResult.data, ...args);
+    };
+}
+
+/**
  * Higher-order function that wraps server actions with automatic authentication.
  * This ensures all protected server actions have authentication enforced at runtime.
  *

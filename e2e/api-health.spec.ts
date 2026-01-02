@@ -24,8 +24,8 @@ test.describe("Admin API Health Checks", () => {
         await expect(page).not.toHaveURL(/\/auth\/signin/);
 
         const adminEndpoints = [
-            "/api/admin/sms/failures",
-            "/api/admin/sms/failure-count",
+            "/api/admin/issues",
+            "/api/admin/issues/count",
             "/api/pickup-locations", // Public endpoint but good to test
         ];
 
@@ -53,7 +53,7 @@ test.describe("Admin API Health Checks", () => {
 
         // Try some edge cases that might cause crashes
         const edgeCases = [
-            "/api/admin/sms/failures?date=invalid",
+            "/api/admin/sms/parcel/not-a-real-parcel-id",
             "/api/pickup-locations?limit=999999",
         ];
 
@@ -118,7 +118,7 @@ test.describe("Public API Health Checks", () => {
         // Clear auth state
         await page.context().clearCookies();
 
-        const protectedEndpoints = ["/api/admin/sms/failures"];
+        const protectedEndpoints = ["/api/admin/issues", "/api/admin/issues/count"];
 
         for (const endpoint of protectedEndpoints) {
             const response = await page.request.get(endpoint);
@@ -140,8 +140,8 @@ test.describe("API Response Integrity", () => {
 
         const jsonEndpoints = [
             {
-                path: "/api/admin/sms/failures",
-                extractArray: (d: { failures: unknown[] }) => d.failures,
+                path: "/api/admin/issues",
+                extractArray: (d: { unresolvedHandouts: unknown[] }) => d.unresolvedHandouts,
             },
             { path: "/api/pickup-locations", extractArray: (d: unknown[]) => d },
         ];
@@ -172,7 +172,7 @@ test.describe("API Response Integrity", () => {
     test("should include proper content-type headers", async ({ page }) => {
         await page.goto("/sv");
 
-        const response = await page.request.get("/api/admin/sms/failures");
+        const response = await page.request.get("/api/admin/issues");
 
         if (response.ok()) {
             const contentType = response.headers()["content-type"];
@@ -200,7 +200,7 @@ test.describe("API Error Handling", () => {
         await page.goto("/sv");
 
         // POST to a GET-only endpoint
-        const response = await page.request.post("/api/admin/sms/failures", {
+        const response = await page.request.post("/api/admin/issues", {
             data: {}, // Empty/invalid data
         });
 

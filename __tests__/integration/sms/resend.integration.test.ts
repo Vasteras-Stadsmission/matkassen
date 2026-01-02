@@ -5,7 +5,7 @@
  * Verifies the behavior matches real use cases, not implementation details.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -20,14 +20,25 @@ import {
 import { daysFromTestNow } from "../../test-time";
 import { outgoingSms } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
-import { createSmsRecord } from "@/app/utils/sms/sms-service";
+import {
+    createSmsRecord,
+    sendSmsRecord,
+    getSmsRecordsReadyForSending,
+} from "@/app/utils/sms/sms-service";
 import { nanoid } from "nanoid";
+import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
+import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
 
 describe("SMS Resend - Integration Tests", () => {
     beforeEach(() => {
         resetHouseholdCounter();
         resetLocationCounter();
         resetSmsCounter();
+        resetSmsGateway();
+    });
+
+    afterEach(() => {
+        resetSmsGateway();
     });
 
     describe("Admin clicks 'Try Again' on failed SMS", () => {
@@ -80,6 +91,66 @@ describe("SMS Resend - Integration Tests", () => {
             // New SMS should be queued
             const newSms = allSms.find(s => s.id === newSmsId);
             expect(newSms?.status).toBe("queued");
+        });
+
+        it("should send queued resend successfully via sendSmsRecord", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const tomorrow = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+
+            // Create initial failed SMS
+            await createTestFailedSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                error_message: "Provider temporarily unavailable",
+            });
+
+            // Admin clicks "Try Again" - creates new queued SMS
+            const newSmsId = await createSmsRecord({
+                intent: "pickup_reminder",
+                parcelId: parcel.id,
+                householdId: household.id,
+                toE164: "+46701234567",
+                text: "Test pickup reminder",
+                idempotencyKey: `pickup_reminder|${parcel.id}|manual|${nanoid(8)}`,
+            });
+
+            // Use mock gateway to actually send the queued SMS
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            // Get the queued record
+            const readyRecords = await getSmsRecordsReadyForSending();
+            const recordToSend = readyRecords.find(r => r.id === newSmsId);
+            expect(recordToSend).toBeDefined();
+
+            // Send it
+            const sendResult = await sendSmsRecord(recordToSend!);
+            expect(sendResult).toBe(true);
+
+            // Verify it's now sent
+            const [sentRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, newSmsId));
+
+            expect(sentRecord.status).toBe("sent");
+            expect(sentRecord.provider_message_id).toBe("mock_1");
+            expect(sentRecord.sent_at).not.toBeNull();
+
+            // Verify mock was called
+            expect(mockGateway.getCallCount()).toBe(1);
+            expect(mockGateway.getLastCall()?.request.to).toBe("+46701234567");
         });
 
         it("should NOT create new SMS when using send action (deduplication)", async () => {

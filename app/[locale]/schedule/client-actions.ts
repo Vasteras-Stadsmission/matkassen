@@ -19,13 +19,14 @@ export async function updateFoodParcelScheduleAction(
         startTime: Date;
         endTime: Date;
     },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; errorCode?: string }> {
     try {
         const result = await updateFoodParcelSchedule(parcelId, newTimeslot);
         if (!result.success) {
             return {
                 success: false,
                 error: result.error.message,
+                errorCode: result.error.code,
             };
         }
         return { success: true };
@@ -33,7 +34,9 @@ export async function updateFoodParcelScheduleAction(
         logError("Error calling updateFoodParcelSchedule", error, { parcelId });
         return {
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
+            // Return error code for i18n translation by caller
+            errorCode: "UNKNOWN_ERROR",
+            error: error instanceof Error ? error.message : undefined,
         };
     }
 }
@@ -45,7 +48,7 @@ export async function getPickupLocationSchedulesAction(
     locationId: string,
 ): Promise<LocationScheduleInfo> {
     try {
-        return getPickupLocationSchedules(locationId);
+        return await getPickupLocationSchedules(locationId);
     } catch (error) {
         logError("Error fetching location schedules", error, { locationId });
         return {
@@ -59,7 +62,7 @@ export async function getPickupLocationSchedulesAction(
  */
 export async function getLocationSlotDurationAction(locationId: string): Promise<number> {
     try {
-        return getLocationSlotDuration(locationId);
+        return await getLocationSlotDuration(locationId);
     } catch (error) {
         logError("Error fetching location slot duration", error, { locationId });
         // Default to 15 minutes in case of error
@@ -72,7 +75,7 @@ export async function getLocationSlotDurationAction(locationId: string): Promise
  */
 export async function recomputeOutsideHoursCountAction(locationId: string): Promise<number> {
     try {
-        return recomputeOutsideHoursCount(locationId);
+        return await recomputeOutsideHoursCount(locationId);
     } catch (error) {
         logError("Error recomputing outside-hours count", error, { locationId });
         return 0;
@@ -98,7 +101,7 @@ export async function checkParcelsAffectedByScheduleDeletionAction(
 ): Promise<number> {
     try {
         const { checkParcelsAffectedByScheduleDeletion } = await import("./actions");
-        return checkParcelsAffectedByScheduleDeletion(locationId, scheduleToDelete);
+        return await checkParcelsAffectedByScheduleDeletion(locationId, scheduleToDelete);
     } catch (error) {
         logError("Error checking parcels affected by schedule deletion", error, { locationId });
         return 0;

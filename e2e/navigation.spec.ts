@@ -19,11 +19,10 @@ import { expectAuthenticated } from "./test-helpers";
 
 test.describe("Core Navigation Flow", () => {
     const mainRoutes = [
-        { path: "/sv", name: "Dashboard" },
+        { path: "/sv", name: "Issues" },
         { path: "/sv/households", name: "Households" },
         { path: "/sv/schedule", name: "Schedule" },
         { path: "/sv/handout-locations", name: "Handout Locations" },
-        { path: "/sv/sms-failures", name: "SMS Failures" },
     ];
 
     test("should navigate through all main sections sequentially", async ({ page }) => {
@@ -57,7 +56,7 @@ test.describe("Core Navigation Flow", () => {
         await page.goto("/sv/households");
         await expectAuthenticated(page);
 
-        await page.goto("/sv/sms-failures");
+        await page.goto("/sv/handout-locations");
         await expectAuthenticated(page);
 
         await page.goto("/sv");
@@ -107,13 +106,7 @@ test.describe("Core Navigation Flow", () => {
 
 test.describe("English Locale Navigation", () => {
     test("should navigate through main sections in English locale", async ({ page }) => {
-        const englishRoutes = [
-            "/en",
-            "/en/households",
-            "/en/schedule",
-            "/en/handout-locations",
-            "/en/sms-failures",
-        ];
+        const englishRoutes = ["/en", "/en/households", "/en/schedule", "/en/handout-locations"];
 
         for (const route of englishRoutes) {
             await page.goto(route);

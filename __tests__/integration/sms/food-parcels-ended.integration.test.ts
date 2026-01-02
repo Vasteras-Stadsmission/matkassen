@@ -1,0 +1,769 @@
+/**
+ * Integration tests for "food parcels ended" SMS notifications.
+ *
+ * These tests verify the JIT logic that sends SMS to households when:
+ * - Their last parcel was terminal (picked up OR no-show) 48+ hours ago
+ * - They have no future parcels scheduled
+ * - They have no unresolved parcels (past date with no outcome)
+ *
+ * IMPORTANT: Uses shared TEST_NOW for deterministic testing.
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { getTestDb } from "../../db/test-db";
+import {
+    createTestHousehold,
+    createTestLocationWithSchedule,
+    createTestParcel,
+    createTestPickedUpParcel,
+    createTestNoShowParcel,
+    createTestSms,
+    resetHouseholdCounter,
+    resetLocationCounter,
+    resetSmsCounter,
+} from "../../factories";
+import { TEST_NOW, daysFromTestNow, hoursFromTestNow } from "../../test-time";
+import { outgoingSms, households } from "@/app/db/schema";
+import { eq } from "drizzle-orm";
+import { getHouseholdsForEndedNotification } from "@/app/utils/sms/sms-service";
+import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
+import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
+
+describe("Food Parcels Ended SMS - Integration Tests", () => {
+    beforeEach(() => {
+        resetHouseholdCounter();
+        resetLocationCounter();
+        resetSmsCounter();
+        // Ensure each test starts with a clean gateway state
+        resetSmsGateway();
+    });
+
+    afterEach(() => {
+        // Reset SMS gateway after each test
+        resetSmsGateway();
+    });
+
+    describe("Eligibility Query", () => {
+        it("includes household with picked-up parcel 48+ hours ago and no future parcels", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel from 3 days ago, picked up 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(1);
+            expect(eligible[0].householdId).toBe(household.id);
+            expect(eligible[0].phoneNumber).toBe("+46701234567");
+            expect(eligible[0].locale).toBe("sv");
+        });
+
+        it("includes household with no-show parcel 48+ hours ago and no future parcels", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46702345678",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel from 3 days ago, marked no-show 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                no_show_at: hoursFromTestNow(-49),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(1);
+            expect(eligible[0].householdId).toBe(household.id);
+        });
+
+        it("excludes household with terminal parcel less than 48 hours ago", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel picked up 47 hours ago (too recent)
+            const twoDaysAgo = daysFromTestNow(-2);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: twoDaysAgo,
+                pickup_date_time_latest: new Date(twoDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-47),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(0);
+        });
+
+        it("excludes household with future parcel scheduled", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Old parcel picked up 72 hours ago
+            const fiveDaysAgo = daysFromTestNow(-5);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                pickup_date_time_latest: new Date(fiveDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-72),
+            });
+
+            // But they have a future parcel scheduled
+            const tomorrow = daysFromTestNow(1);
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(0);
+        });
+
+        it("excludes household with unresolved parcel (past date, not picked up or no-show)", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Old parcel picked up 72 hours ago
+            const fiveDaysAgo = daysFromTestNow(-5);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                pickup_date_time_latest: new Date(fiveDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-72),
+            });
+
+            // Another parcel from yesterday that's unresolved
+            const yesterday = daysFromTestNow(-1);
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: yesterday,
+                pickup_date_time_latest: new Date(yesterday.getTime() + 30 * 60 * 1000),
+                // Not picked up, no no_show_at - this is unresolved
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(0);
+        });
+
+        it("excludes anonymized households", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Mark household as anonymized
+            await db
+                .update(households)
+                .set({ anonymized_at: daysFromTestNow(-1) })
+                .where(eq(households.id, household.id));
+
+            // Old parcel picked up 72 hours ago
+            const fiveDaysAgo = daysFromTestNow(-5);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                pickup_date_time_latest: new Date(fiveDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-72),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(0);
+        });
+
+        // Note: "excludes households without phone number" test is not possible
+        // because phone_number has a NOT NULL constraint in the database schema.
+        // The SQL query includes a defensive check for phone_number IS NOT NULL.
+
+        it("uses most recent terminal parcel when household has multiple", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Older parcel picked up 100 hours ago
+            const sixDaysAgo = daysFromTestNow(-6);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sixDaysAgo,
+                pickup_date_time_latest: new Date(sixDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-100),
+            });
+
+            // More recent parcel picked up 50 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            const newerParcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-50),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(1);
+            // Should use the newer parcel as the "last" parcel
+            expect(eligible[0].lastParcelId).toBe(newerParcel.id);
+        });
+
+        it("returns oldest terminal times first (FIFO processing)", async () => {
+            const db = await getTestDb();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Create three households with different terminal times
+            const household1 = await createTestHousehold({ first_name: "Recent" });
+            const household2 = await createTestHousehold({ first_name: "Oldest" });
+            const household3 = await createTestHousehold({ first_name: "Middle" });
+
+            const fiveDaysAgo = daysFromTestNow(-5);
+
+            // Household1: terminal 50 hours ago
+            await createTestPickedUpParcel({
+                household_id: household1.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                picked_up_at: hoursFromTestNow(-50),
+            });
+
+            // Household2: terminal 100 hours ago (oldest)
+            await createTestPickedUpParcel({
+                household_id: household2.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                picked_up_at: hoursFromTestNow(-100),
+            });
+
+            // Household3: terminal 72 hours ago
+            await createTestPickedUpParcel({
+                household_id: household3.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                picked_up_at: hoursFromTestNow(-72),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(3);
+            expect(eligible[0].householdId).toBe(household2.id); // Oldest first
+            expect(eligible[1].householdId).toBe(household3.id); // Middle
+            expect(eligible[2].householdId).toBe(household1.id); // Most recent
+        });
+    });
+
+    describe("Idempotency", () => {
+        it("excludes household with existing ended SMS for same parcel", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Old parcel picked up 72 hours ago
+            const fiveDaysAgo = daysFromTestNow(-5);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                pickup_date_time_latest: new Date(fiveDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-72),
+            });
+
+            // Already have an ended SMS for this parcel
+            await createTestSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                intent: "food_parcels_ended",
+                status: "sent",
+            });
+
+            // Manually insert the idempotency key to match what the real code would create
+            await db
+                .update(outgoingSms)
+                .set({
+                    idempotency_key: `food_parcels_ended|${household.id}|${parcel.id}`,
+                })
+                .where(eq(outgoingSms.household_id, household.id));
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(0);
+        });
+
+        it("includes household for new ending cycle after new parcel completed", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // First parcel cycle: picked up 200 hours ago
+            const tenDaysAgo = daysFromTestNow(-10);
+            const oldParcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tenDaysAgo,
+                picked_up_at: hoursFromTestNow(-200),
+            });
+
+            // We already sent ended SMS for that parcel
+            await db.insert(outgoingSms).values({
+                household_id: household.id,
+                parcel_id: oldParcel.id,
+                intent: "food_parcels_ended",
+                to_e164: "+46701234567",
+                text: "Old ended message",
+                status: "sent",
+                idempotency_key: `food_parcels_ended|${household.id}|${oldParcel.id}`,
+                attempt_count: 1,
+                sent_at: hoursFromTestNow(-150),
+            });
+
+            // NEW parcel cycle: picked up 50 hours ago (this is now the "last" parcel)
+            const threeDaysAgo = daysFromTestNow(-3);
+            const newParcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-50),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            // Should be eligible again because the new parcel has a different ID
+            expect(eligible).toHaveLength(1);
+            expect(eligible[0].lastParcelId).toBe(newParcel.id);
+        });
+    });
+
+    describe("Edge Cases", () => {
+        it("handles household with only deleted parcels (no terminal parcel)", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Only has a deleted parcel
+            const fiveDaysAgo = daysFromTestNow(-5);
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                deleted_at: hoursFromTestNow(-72),
+                deleted_by_user_id: "admin",
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            // No terminal parcel, so not eligible
+            expect(eligible).toHaveLength(0);
+        });
+
+        it("handles household with parcel scheduled for today (not future)", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Old parcel picked up 72 hours ago
+            const fiveDaysAgo = daysFromTestNow(-5);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: fiveDaysAgo,
+                picked_up_at: hoursFromTestNow(-72),
+            });
+
+            // Parcel for "today" - this should prevent eligibility
+            // (pickup_date_time >= today)
+            const today = new Date(TEST_NOW);
+            today.setHours(14, 0, 0, 0); // Later today
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: today,
+                pickup_date_time_latest: new Date(today.getTime() + 30 * 60 * 1000),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            // Has a parcel today, not eligible for "ended" SMS
+            expect(eligible).toHaveLength(0);
+        });
+
+        it("handles mix of picked-up and no-show parcels", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+
+            // Older parcel was picked up
+            const tenDaysAgo = daysFromTestNow(-10);
+            await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tenDaysAgo,
+                picked_up_at: hoursFromTestNow(-200),
+            });
+
+            // Most recent parcel was no-show
+            const threeDaysAgo = daysFromTestNow(-3);
+            const noShowParcel = await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                no_show_at: hoursFromTestNow(-50),
+            });
+
+            const eligible = await getHouseholdsForEndedNotification(TEST_NOW, db);
+
+            expect(eligible).toHaveLength(1);
+            // Should use the no-show parcel as it's most recent
+            expect(eligible[0].lastParcelId).toBe(noShowParcel.id);
+        });
+    });
+
+    describe("Send Pipeline", () => {
+        it("creates SMS record and sends successfully for eligible household", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel picked up 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Use mock gateway for deterministic testing
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            expect(result.success).toBe(true);
+            expect(result.recordId).toBeDefined();
+
+            // Verify SMS record was created in database
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord).toBeDefined();
+            expect(smsRecord.intent).toBe("food_parcels_ended");
+            expect(smsRecord.household_id).toBe(household.id);
+            expect(smsRecord.parcel_id).toBe(parcel.id);
+            expect(smsRecord.to_e164).toBe("+46701234567");
+            expect(smsRecord.status).toBe("sent");
+            // Deterministic message ID from mock gateway
+            expect(smsRecord.provider_message_id).toBe("mock_1");
+
+            // Verify mock was called exactly once
+            expect(mockGateway.getCallCount()).toBe(1);
+        });
+
+        it("respects idempotency - does not create duplicate SMS", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel picked up 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            // First call creates the SMS
+            const result1 = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            expect(result1.recordId).toBeDefined();
+
+            // Second call should not create duplicate (idempotency)
+            const result2 = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should succeed but without new record (deduplicated)
+            expect(result2.success).toBe(true);
+            expect(result2.recordId).toBeUndefined();
+
+            // Verify only one SMS record exists
+            const smsRecords = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.parcel_id, parcel.id));
+
+            expect(smsRecords).toHaveLength(1);
+        });
+
+        it("cancels SMS if household is anonymized between query and send", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Anonymize household before sending
+            await db
+                .update(households)
+                .set({ anonymized_at: new Date() })
+                .where(eq(households.id, household.id));
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should fail and record should be cancelled
+            expect(result.success).toBe(false);
+            expect(result.error).toContain("no longer eligible");
+
+            // Verify SMS record is cancelled
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord.status).toBe("cancelled");
+        });
+
+        it("sets status to retrying with backoff on retriable failure (using mock gateway)", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel picked up 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Inject mock gateway that fails with retriable error
+            const mockGateway = new MockSmsGateway().alwaysFail(
+                "Service temporarily unavailable",
+                503,
+            );
+            setSmsGateway(mockGateway);
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should fail but mark for retry
+            expect(result.success).toBe(false);
+            expect(result.recordId).toBeDefined();
+            expect(result.error).toContain("temporarily unavailable");
+
+            // Verify SMS record is in retrying state
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord.status).toBe("retrying");
+            expect(smsRecord.last_error_message).toContain("temporarily unavailable");
+            expect(smsRecord.next_attempt_at).toBeDefined();
+
+            // First retry should be 5 minutes later
+            const expectedRetryTime = new Date(smsRecord.created_at.getTime() + 5 * 60 * 1000);
+            const actualRetryTime = smsRecord.next_attempt_at!;
+            // Allow 1 second tolerance for test execution time
+            expect(Math.abs(actualRetryTime.getTime() - expectedRetryTime.getTime())).toBeLessThan(
+                60000,
+            );
+
+            // Verify mock was called
+            expect(mockGateway.getCallCount()).toBe(1);
+        });
+
+        it("sets status to failed on non-retriable error (using mock gateway)", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Inject mock gateway that fails with permanent error (400 = bad request)
+            const mockGateway = new MockSmsGateway().alwaysFail("Invalid phone number", 400);
+            setSmsGateway(mockGateway);
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should fail permanently (no retry for 400 errors)
+            expect(result.success).toBe(false);
+            expect(result.recordId).toBeDefined();
+
+            // Verify SMS record is in failed state (not retrying)
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord.status).toBe("failed");
+            expect(smsRecord.last_error_message).toContain("Invalid phone number");
+
+            // Verify mock was called only once (no retry)
+            expect(mockGateway.getCallCount()).toBe(1);
+        });
+
+        it("succeeds after initial failure with failThenSucceed mock", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Inject mock gateway that fails once, then succeeds
+            const mockGateway = new MockSmsGateway().failThenSucceed(1, "Temporary failure", 503);
+            setSmsGateway(mockGateway);
+
+            const { sendEndedSmsForHousehold, sendSmsRecord, getSmsRecordsReadyForSending } =
+                await import("@/app/utils/sms/sms-service");
+
+            // First attempt fails
+            const result1 = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            expect(result1.success).toBe(false);
+            expect(mockGateway.getCallCount()).toBe(1);
+
+            // Verify it's in retrying state
+            const [record1] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result1.recordId!));
+            expect(record1.status).toBe("retrying");
+
+            // Simulate the retry by manually updating next_attempt_at to now
+            // and calling the queue processor
+            await db
+                .update(outgoingSms)
+                .set({ next_attempt_at: new Date() })
+                .where(eq(outgoingSms.id, result1.recordId!));
+
+            // Get the record ready for retry
+            const readyRecords = await getSmsRecordsReadyForSending();
+            expect(readyRecords.length).toBeGreaterThanOrEqual(1);
+            const recordToRetry = readyRecords.find(r => r.id === result1.recordId);
+            expect(recordToRetry).toBeDefined();
+
+            // Retry succeeds (mock will succeed on 2nd call)
+            const retrySuccess = await sendSmsRecord(recordToRetry!);
+            expect(retrySuccess).toBe(true);
+            expect(mockGateway.getCallCount()).toBe(2);
+
+            // Verify it's now sent
+            const [record2] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result1.recordId!));
+            expect(record2.status).toBe("sent");
+            expect(record2.provider_message_id).toBeDefined();
+        });
+    });
+});

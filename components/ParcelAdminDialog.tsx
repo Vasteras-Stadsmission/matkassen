@@ -24,6 +24,7 @@ import {
     IconExternalLink,
     IconTrash,
     IconSend,
+    IconUserOff,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/app/i18n/navigation";
@@ -42,7 +43,7 @@ interface ParcelAdminDialogProps {
     parcelId: string | null;
     opened: boolean;
     onClose: () => void;
-    onParcelUpdated?: (action: "pickup" | "undo" | "delete") => void;
+    onParcelUpdated?: (action: "pickup" | "undo" | "delete" | "no-show") => void;
 }
 
 interface SmsRecord {
@@ -183,6 +184,79 @@ export function ParcelAdminDialog({
             setState(prev => ({
                 ...prev,
                 error: t("admin.parcelDialog.errors.undoPickupFailed"),
+            }));
+        } finally {
+            setState(prev => ({ ...prev, submitting: false }));
+        }
+    };
+
+    const handleMarkNoShow = () => {
+        if (!parcelId || !data) return;
+
+        modals.openConfirmModal({
+            title: t("admin.parcelDialog.noShowConfirmTitle"),
+            children: (
+                <Text size="sm">
+                    {t("admin.parcelDialog.noShowConfirmMessage", {
+                        name: `${data.household.firstName} ${data.household.lastName}`,
+                    })}
+                </Text>
+            ),
+            labels: {
+                confirm: t("admin.parcelDialog.confirmNoShow"),
+                cancel: t("admin.parcelDialog.cancelNoShow"),
+            },
+            confirmProps: { color: "orange" },
+            onConfirm: async () => {
+                setState(prev => ({ ...prev, submitting: true }));
+
+                try {
+                    const response = await fetch(`/api/admin/parcel/${parcelId}/no-show`, {
+                        method: "PATCH",
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP ${response.status}`);
+                    }
+
+                    // Refresh data and notify parent
+                    await fetchParcelDetails();
+                    onParcelUpdated?.("no-show");
+                } catch {
+                    setState(prev => ({
+                        ...prev,
+                        error: t("admin.parcelDialog.errors.markNoShowFailed"),
+                    }));
+                } finally {
+                    setState(prev => ({ ...prev, submitting: false }));
+                }
+            },
+        });
+    };
+
+    const handleUndoNoShow = async () => {
+        if (!parcelId) return;
+
+        setState(prev => ({ ...prev, submitting: true }));
+
+        try {
+            const response = await fetch(`/api/admin/parcel/${parcelId}/no-show`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            // Refresh data and notify parent
+            await fetchParcelDetails();
+            onParcelUpdated?.("undo");
+        } catch {
+            setState(prev => ({
+                ...prev,
+                error: t("admin.parcelDialog.errors.undoNoShowFailed"),
             }));
         } finally {
             setState(prev => ({ ...prev, submitting: false }));
@@ -363,6 +437,11 @@ export function ParcelAdminDialog({
             return { color: "gray", key: "cancelled" };
         }
 
+        // Check if marked as no-show
+        if (parcel.noShowAt) {
+            return { color: "orange", key: "noShow" };
+        }
+
         const now = Time.now();
         const pickupStart = Time.fromString(parcel.pickupDateTimeEarliest);
         const pickupEnd = Time.fromString(parcel.pickupDateTimeLatest);
@@ -378,6 +457,18 @@ export function ParcelAdminDialog({
             // Today but outside pickup window (early or late)
             return { color: "orange", key: "checkTime" };
         }
+    };
+
+    // Check if no-show button should be shown
+    // Conditions: not picked up, not cancelled, not already no-show, pickup date is today or past
+    const canMarkNoShow = (parcel: ParcelDetails["parcel"]) => {
+        if (parcel.isPickedUp || parcel.deletedAt || parcel.noShowAt) {
+            return false;
+        }
+        const now = Time.now();
+        const pickupDate = Time.fromString(parcel.pickupDateTimeEarliest);
+        // Allow no-show on same day or later
+        return pickupDate.toDateString() <= now.toDateString();
     };
 
     const getPickupTimeColor = (parcel: ParcelDetails["parcel"]) => {
@@ -478,7 +569,9 @@ export function ParcelAdminDialog({
                                             const status = getPickupStatus(data.parcel);
                                             switch (status.key) {
                                                 case "pickedUp":
-                                                    return t("admin.parcelDialog.status.handedOut");
+                                                    return t("admin.parcelDialog.status.pickedUp");
+                                                case "noShow":
+                                                    return t("admin.parcelDialog.status.noShow");
                                                 case "cancelled":
                                                     return t("admin.parcelDialog.status.cancelled");
                                                 case "wrongDay":
@@ -504,6 +597,19 @@ export function ParcelAdminDialog({
                                                 <Text size="xs" c="dimmed">
                                                     {t("admin.parcelDialog.by")}{" "}
                                                     {data.parcel.pickedUpBy}
+                                                </Text>
+                                            )}
+                                        </Stack>
+                                    )}
+                                    {data.parcel.noShowAt && (
+                                        <Stack gap={2} align="flex-end">
+                                            <Text size="xs" c="dimmed">
+                                                {formatDateTime(data.parcel.noShowAt)}
+                                            </Text>
+                                            {data.parcel.noShowBy && (
+                                                <Text size="xs" c="dimmed">
+                                                    {t("admin.parcelDialog.by")}{" "}
+                                                    {data.parcel.noShowBy}
                                                 </Text>
                                             )}
                                         </Stack>
@@ -763,8 +869,8 @@ export function ParcelAdminDialog({
                         {/* Actions - hide if cancelled */}
                         {!data.parcel.deletedAt && (
                             <Group justify="space-between">
-                                {/* Cancel button - only show if not picked up */}
-                                {!data.parcel.isPickedUp && (
+                                {/* Cancel button - only show if not picked up and not no-show */}
+                                {!data.parcel.isPickedUp && !data.parcel.noShowAt && (
                                     <Button
                                         color="red"
                                         variant="subtle"
@@ -776,25 +882,74 @@ export function ParcelAdminDialog({
                                     </Button>
                                 )}
 
-                                <Group ml="auto">
-                                    {data.parcel.isPickedUp ? (
+                                <Group ml="auto" gap="sm">
+                                    {data.parcel.noShowAt ? (
+                                        // If marked as no-show, show undo button
+                                        <Button
+                                            color="orange"
+                                            leftSection={<IconX size="0.9rem" />}
+                                            onClick={handleUndoNoShow}
+                                            loading={submitting}
+                                            aria-label={t(
+                                                "admin.parcelDialog.undoNoShowAriaLabel",
+                                                {
+                                                    name: `${data.household.firstName} ${data.household.lastName}`,
+                                                },
+                                            )}
+                                        >
+                                            {t("admin.parcelDialog.undoNoShow")}
+                                        </Button>
+                                    ) : data.parcel.isPickedUp ? (
+                                        // If picked up, show undo pickup button
                                         <Button
                                             color="orange"
                                             leftSection={<IconX size="0.9rem" />}
                                             onClick={handleUndoPickup}
                                             loading={submitting}
+                                            aria-label={t(
+                                                "admin.parcelDialog.undoPickupAriaLabel",
+                                                {
+                                                    name: `${data.household.firstName} ${data.household.lastName}`,
+                                                },
+                                            )}
                                         >
-                                            {t("admin.parcelDialog.undoHandout")}
+                                            {t("admin.parcelDialog.undoPickup")}
                                         </Button>
                                     ) : (
-                                        <Button
-                                            color="green"
-                                            leftSection={<IconCheck size="0.9rem" />}
-                                            onClick={handleMarkPickedUp}
-                                            loading={submitting}
-                                        >
-                                            {t("admin.parcelDialog.markHandedOut")}
-                                        </Button>
+                                        // Not picked up and not no-show: show action buttons
+                                        <>
+                                            {canMarkNoShow(data.parcel) && (
+                                                <Button
+                                                    color="orange"
+                                                    variant="light"
+                                                    leftSection={<IconUserOff size="0.9rem" />}
+                                                    onClick={handleMarkNoShow}
+                                                    loading={submitting}
+                                                    aria-label={t(
+                                                        "admin.parcelDialog.markNoShowAriaLabel",
+                                                        {
+                                                            name: `${data.household.firstName} ${data.household.lastName}`,
+                                                        },
+                                                    )}
+                                                >
+                                                    {t("admin.parcelDialog.markNoShow")}
+                                                </Button>
+                                            )}
+                                            <Button
+                                                color="green"
+                                                leftSection={<IconCheck size="0.9rem" />}
+                                                onClick={handleMarkPickedUp}
+                                                loading={submitting}
+                                                aria-label={t(
+                                                    "admin.parcelDialog.markPickedUpAriaLabel",
+                                                    {
+                                                        name: `${data.household.firstName} ${data.household.lastName}`,
+                                                    },
+                                                )}
+                                            >
+                                                {t("admin.parcelDialog.markPickedUp")}
+                                            </Button>
+                                        </>
                                     )}
                                 </Group>
                             </Group>

@@ -62,10 +62,8 @@ export default defineConfig(({ mode }) => ({
                     include: ["__tests__/**/*.integration.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
                     exclude: ["node_modules", "dist", ".next"],
                     // Integration tests run serially to avoid PGlite conflicts
-                    pool: "forks",
-                    poolOptions: {
-                        forks: { singleFork: true },
-                    },
+                    // fileParallelism: false ensures test files run sequentially (Vitest 4)
+                    fileParallelism: false,
                     server: {
                         deps: {
                             inline: ["next-auth", "next/server", "@auth/core"],

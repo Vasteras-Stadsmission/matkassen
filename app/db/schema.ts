@@ -275,6 +275,7 @@ export const smsIntentEnum = pgEnum("sms_intent", [
     "pickup_cancelled",
     "consent_enrolment", // Deprecated: use 'enrolment' instead
     "enrolment",
+    "food_parcels_ended",
 ]);
 
 // Define SMS status enum
@@ -307,11 +308,18 @@ export const foodParcels = pgTable(
         picked_up_by_user_id: varchar("picked_up_by_user_id", { length: 50 }), // GitHub username of admin who marked as picked up
         deleted_at: timestamp({ precision: 1, withTimezone: true }), // Soft delete timestamp
         deleted_by_user_id: varchar("deleted_by_user_id", { length: 50 }), // GitHub username of admin who deleted the parcel
+        no_show_at: timestamp({ precision: 1, withTimezone: true }), // When household was marked as no-show
+        no_show_by_user_id: varchar("no_show_by_user_id", { length: 50 }), // GitHub username of admin who marked no-show
     },
     table => [
         check(
             "pickup_time_range_check",
             sql`${table.pickup_date_time_earliest} <= ${table.pickup_date_time_latest}`,
+        ),
+        // Ensure mutual exclusivity: a parcel cannot be both picked up AND no-show
+        check(
+            "no_show_pickup_exclusivity_check",
+            sql`NOT (${table.no_show_at} IS NOT NULL AND ${table.is_picked_up} = true)`,
         ),
         // NOTE: The unique constraint for preventing duplicate active parcels is implemented as a
         // PARTIAL UNIQUE INDEX in migration 0022_fix-soft-delete-unique-constraint.sql

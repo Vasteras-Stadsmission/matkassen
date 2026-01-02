@@ -6,7 +6,7 @@ import { ParcelCard, type ParcelCardData } from "./ParcelCard";
 interface ParcelListProps {
     parcels: ParcelCardData[];
     onParcelClick?: (parcelId: string) => void;
-    emptyMessage?: string;
+    emptyMessage: string;
     getWeekdayName: (date: Date | string) => string;
     formatDate: (date: Date | string | null | undefined) => string;
     formatTime: (date: Date | string | null | undefined) => string;
@@ -14,6 +14,7 @@ interface ParcelListProps {
     statusLabels: {
         pickedUp: string;
         notPickedUp: string;
+        noShow: string;
         upcoming: string;
         cancelled: string;
     };
@@ -24,7 +25,7 @@ interface ParcelListProps {
 export function ParcelList({
     parcels,
     onParcelClick,
-    emptyMessage = "No parcels",
+    emptyMessage,
     getWeekdayName,
     formatDate,
     formatTime,
@@ -46,13 +47,16 @@ export function ParcelList({
             {parcels.map(parcel => {
                 const isPast = isDateInPast(parcel.pickupDate);
                 const isPickedUp = Boolean(parcel.isPickedUp);
+                const isNoShow = Boolean(parcel.noShowAt);
                 const isCancelled = Boolean(parcel.deletedAt);
 
-                let status: "upcoming" | "pickedUp" | "notPickedUp" | "cancelled";
+                let status: "upcoming" | "pickedUp" | "notPickedUp" | "noShow" | "cancelled";
                 if (isCancelled) {
                     status = "cancelled";
                 } else if (isPickedUp) {
                     status = "pickedUp";
+                } else if (isNoShow) {
+                    status = "noShow";
                 } else if (isPast) {
                     status = "notPickedUp";
                 } else {

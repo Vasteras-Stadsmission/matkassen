@@ -388,6 +388,67 @@ export function formatCancellationSms(data: SmsTemplateData, locale: SupportedLo
 }
 
 /**
+ * Generate SMS for when household has no more food parcels planned.
+ * Uses simple, dignity-preserving language.
+ *
+ * Character limits:
+ * - GSM-7 (Latin scripts): ≤120 chars
+ * - UCS-2 (non-Latin scripts): ≤70 chars
+ *
+ * All messages are kept short and clear with an invitation to contact if questions arise.
+ */
+export function formatFoodParcelsEndedSms(locale: SupportedLocale): string {
+    switch (locale) {
+        // GSM-7 languages (≤120 chars)
+        case "sv":
+            return "Inga fler matpaket planerade. Frågor? Kontakta oss.";
+        case "en":
+            return "No more food pickups planned. Questions? Contact us.";
+        case "es":
+            return "No hay más recogidas de comida. Preguntas? Contáctenos.";
+        case "fr":
+            return "Plus de collectes prevues. Questions? Contactez-nous.";
+        case "de":
+            return "Keine Abholungen mehr geplant. Fragen? Kontaktieren Sie uns.";
+        case "fi":
+            return "Ei ruokanoutoja. Kysymyksia? Ota yhteytta.";
+        case "it":
+            return "Nessun ritiro previsto. Domande? Contattateci.";
+        case "pl":
+            return "Brak kolejnych odbiorow. Pytania? Skontaktuj sie.";
+        case "ku":
+            return "Xwarin nemaye. Pirs? Peywendi bi me re.";
+        case "so":
+        case "so_so":
+            return "Cunto kale lama qorshaysan. Suaalo? Nala xiriir.";
+        case "sw":
+            return "Hakuna chakula kingine. Maswali? Wasiliana nasi.";
+
+        // UCS-2 languages (≤70 chars)
+        case "ar":
+            return "لا مواعيد استلام أخرى. أسئلة؟ اتصلوا بنا.";
+        case "fa":
+            return "برنامه دیگری نیست. سوال؟ تماس بگیرید.";
+        case "el":
+            return "Δεν υπάρχουν άλλες παραλαβές. Ερωτήσεις; Επικοινωνήστε.";
+        case "uk":
+            return "Видач більше немає. Питання? Зв'яжіться.";
+        case "ru":
+            return "Выдач больше нет. Вопросы? Свяжитесь.";
+        case "ka":
+            return "აღარ არის დაგეგმილი. კითხვები? დაგვიკავშირდით.";
+        case "th":
+            return "ไม่มีรับอาหารอีก คำถาม? ติดต่อเรา";
+        case "vi":
+            return "Không còn nhận thực phẩm. Hỏi? Liên hệ.";
+
+        default:
+            // Fallback to English
+            return "No more food pickups planned. Questions? Contact us.";
+    }
+}
+
+/**
  * Generate enrolment welcome SMS with privacy policy link
  * Sent when a new household is enrolled
  */

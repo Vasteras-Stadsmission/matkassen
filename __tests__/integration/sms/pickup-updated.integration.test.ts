@@ -20,7 +20,13 @@ import {
 import { daysFromTestNow } from "../../test-time";
 import { outgoingSms } from "@/app/db/schema";
 import { eq, and } from "drizzle-orm";
-import { queuePickupUpdatedSms } from "@/app/utils/sms/sms-service";
+import {
+    queuePickupUpdatedSms,
+    getSmsRecordsReadyForSending,
+    sendSmsRecord,
+} from "@/app/utils/sms/sms-service";
+import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
+import { setSmsGateway } from "@/app/utils/sms/sms-gateway";
 
 describe("Pickup Updated SMS - Integration Tests", () => {
     beforeEach(() => {
@@ -206,6 +212,68 @@ describe("Pickup Updated SMS - Integration Tests", () => {
                 );
 
             expect(updateSms).toHaveLength(1);
+        });
+    });
+
+    describe("End-to-end: queue → process via sendSmsRecord", () => {
+        it("should queue and send pickup_updated SMS successfully", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const tomorrow = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+
+            // Reminder was already sent
+            await createTestSentSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                intent: "pickup_reminder",
+            });
+
+            // Queue the pickup_updated SMS
+            const queueResult = await queuePickupUpdatedSms(parcel.id);
+            expect(queueResult.success).toBe(true);
+            expect(queueResult.recordId).toBeDefined();
+
+            // Set next_attempt_at to now so it's ready for sending
+            await db
+                .update(outgoingSms)
+                .set({ next_attempt_at: new Date() })
+                .where(eq(outgoingSms.id, queueResult.recordId!));
+
+            // Use mock gateway
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            // Get and send the queued record
+            const readyRecords = await getSmsRecordsReadyForSending();
+            const record = readyRecords.find(r => r.id === queueResult.recordId);
+            expect(record).toBeDefined();
+
+            const sendResult = await sendSmsRecord(record!);
+            expect(sendResult).toBe(true);
+
+            // Verify it's now sent
+            const [sentRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, queueResult.recordId!));
+
+            expect(sentRecord.status).toBe("sent");
+            expect(sentRecord.provider_message_id).toBe("mock_1");
+            expect(sentRecord.sent_at).not.toBeNull();
+
+            // Verify mock was called with correct data
+            expect(mockGateway.getCallCount()).toBe(1);
+            expect(mockGateway.getLastCall()?.request.to).toBe("+46701234567");
         });
     });
 });

@@ -17,18 +17,10 @@ export interface HelloSmsConfig {
     from?: string; // Optional sender name/number
 }
 
-export interface SendSmsRequest {
-    to: string; // E.164 format phone number
-    text: string;
-    from?: string;
-}
-
-export interface SendSmsResponse {
-    success: boolean;
-    messageId?: string;
-    error?: string;
-    httpStatus?: number;
-}
+// Import and re-export types from sms-gateway.ts to maintain backwards compatibility
+// and ensure type consistency across the SMS module
+import type { SendSmsRequest, SendSmsResponse } from "./sms-gateway";
+export type { SendSmsRequest, SendSmsResponse };
 
 export interface HelloSmsApiResponse {
     status?: string;

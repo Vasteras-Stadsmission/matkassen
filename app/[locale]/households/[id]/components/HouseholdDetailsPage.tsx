@@ -143,9 +143,9 @@ export default function HouseholdDetailsPage({
 
         try {
             setLoading(true);
-            const newComment = await addHouseholdComment(householdId, comment);
+            const result = await addHouseholdComment(householdId, comment);
             await refreshHouseholdData();
-            return newComment;
+            return result.success ? result.data : null;
         } catch {
             // Error adding comment
             return null;
@@ -418,8 +418,9 @@ export default function HouseholdDetailsPage({
                             formatTime={formatTime}
                             isDateInPast={isDateInPast}
                             statusLabels={{
-                                pickedUp: t("status.handedOut"),
-                                notPickedUp: t("status.notHandedOut"),
+                                pickedUp: t("status.pickedUp"),
+                                notPickedUp: t("status.notPickedUp"),
+                                noShow: t("status.noShow"),
                                 upcoming: t("status.upcoming"),
                                 cancelled: t("status.cancelled"),
                             }}
@@ -456,13 +457,15 @@ export default function HouseholdDetailsPage({
                                 <ParcelList
                                     parcels={deletedParcels as ParcelCardData[]}
                                     onParcelClick={handleParcelClick}
+                                    emptyMessage={t("noCancelledParcels")}
                                     getWeekdayName={getWeekdayName}
                                     formatDate={formatDate}
                                     formatTime={formatTime}
                                     isDateInPast={isDateInPast}
                                     statusLabels={{
-                                        pickedUp: t("status.handedOut"),
-                                        notPickedUp: t("status.notHandedOut"),
+                                        pickedUp: t("status.pickedUp"),
+                                        notPickedUp: t("status.notPickedUp"),
+                                        noShow: t("status.noShow"),
                                         upcoming: t("status.upcoming"),
                                         cancelled: t("status.cancelled"),
                                     }}
