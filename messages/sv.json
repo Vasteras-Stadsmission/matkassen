@@ -1329,6 +1329,15 @@
             "retryError": "Kunde inte skicka SMS igen",
             "dismissError": "Kunde inte ignorera"
         },
+        "errorCodes": {
+            "NOT_FOUND": "Kunde inte hitta objektet. Det kan ha tagits bort.",
+            "ALREADY_CANCELLED": "Detta paket har redan avbokats.",
+            "ALREADY_PICKED_UP": "Detta paket har redan lämnats ut.",
+            "ALREADY_NO_SHOW": "Detta paket är redan markerat som utebliven.",
+            "FUTURE_PARCEL": "Kan inte markera ett framtida paket som utebliven.",
+            "ALREADY_DELETED": "Detta paket har redan tagits bort.",
+            "PAST_PARCEL": "Kan inte avboka ett tidigare paket."
+        },
         "confirm": {
             "noShowTitle": "Markera som utebliven?",
             "noShowMessage": "Är du säker på att du vill markera {name} som utebliven?",

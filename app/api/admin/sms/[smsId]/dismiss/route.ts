@@ -100,7 +100,10 @@ export async function PATCH(
             .returning({ id: outgoingSms.id });
 
         if (!updated) {
-            return NextResponse.json({ error: "SMS record not found" }, { status: 404 });
+            return NextResponse.json(
+                { error: "SMS record not found", code: "NOT_FOUND" },
+                { status: 404 },
+            );
         }
 
         // Audit log

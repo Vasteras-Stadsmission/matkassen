@@ -1329,6 +1329,15 @@
             "retryError": "Failed to retry SMS",
             "dismissError": "Failed to dismiss"
         },
+        "errorCodes": {
+            "NOT_FOUND": "Could not find the item. It may have been deleted.",
+            "ALREADY_CANCELLED": "This parcel has already been cancelled.",
+            "ALREADY_PICKED_UP": "This parcel has already been handed out.",
+            "ALREADY_NO_SHOW": "This parcel is already marked as no-show.",
+            "FUTURE_PARCEL": "Cannot mark a future parcel as no-show.",
+            "ALREADY_DELETED": "This parcel has already been deleted.",
+            "PAST_PARCEL": "Cannot cancel a past parcel."
+        },
         "confirm": {
             "noShowTitle": "Mark as no-show?",
             "noShowMessage": "Are you sure you want to mark {name} as no-show?",

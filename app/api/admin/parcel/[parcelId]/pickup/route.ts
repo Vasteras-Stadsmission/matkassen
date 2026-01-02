@@ -37,7 +37,10 @@ export async function PATCH(
             .returning({ id: foodParcels.id });
 
         if (result.length === 0) {
-            return NextResponse.json({ error: "Parcel not found or deleted" }, { status: 404 });
+            return NextResponse.json(
+                { error: "Parcel not found or deleted", code: "NOT_FOUND" },
+                { status: 404 },
+            );
         }
 
         return NextResponse.json({
@@ -82,7 +85,10 @@ export async function DELETE(
             .returning({ id: foodParcels.id });
 
         if (result.length === 0) {
-            return NextResponse.json({ error: "Parcel not found or deleted" }, { status: 404 });
+            return NextResponse.json(
+                { error: "Parcel not found or deleted", code: "NOT_FOUND" },
+                { status: 404 },
+            );
         }
 
         return NextResponse.json({

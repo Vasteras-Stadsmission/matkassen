@@ -435,4 +435,145 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
             expect(eligible[0].lastParcelId).toBe(noShowParcel.id);
         });
     });
+
+    describe("Send Pipeline", () => {
+        it("creates SMS record and sends successfully for eligible household", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel picked up 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Import the function to test
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            // Call the send function directly
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should create a record (success depends on SMS_TEST_MODE)
+            expect(result.recordId).toBeDefined();
+
+            // Verify SMS record was created in database
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord).toBeDefined();
+            expect(smsRecord.intent).toBe("food_parcels_ended");
+            expect(smsRecord.household_id).toBe(household.id);
+            expect(smsRecord.parcel_id).toBe(parcel.id);
+            expect(smsRecord.to_e164).toBe("+46701234567");
+            // In test mode, status should be "sent"
+            expect(smsRecord.status).toBe("sent");
+        });
+
+        it("respects idempotency - does not create duplicate SMS", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel picked up 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            // First call creates the SMS
+            const result1 = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            expect(result1.recordId).toBeDefined();
+
+            // Second call should not create duplicate (idempotency)
+            const result2 = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should succeed but without new record (deduplicated)
+            expect(result2.success).toBe(true);
+            expect(result2.recordId).toBeUndefined();
+
+            // Verify only one SMS record exists
+            const smsRecords = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.parcel_id, parcel.id));
+
+            expect(smsRecords).toHaveLength(1);
+        });
+
+        it("cancels SMS if household is anonymized between query and send", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Anonymize household before sending
+            await db
+                .update(households)
+                .set({ anonymized_at: new Date() })
+                .where(eq(households.id, household.id));
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should fail and record should be cancelled
+            expect(result.success).toBe(false);
+            expect(result.error).toContain("no longer eligible");
+
+            // Verify SMS record is cancelled
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord.status).toBe("cancelled");
+        });
+    });
 });

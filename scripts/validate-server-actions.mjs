@@ -111,9 +111,12 @@ function checkFile(filePath) {
     const exportedFunctionPattern = /export\s+(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g;
     const protectedActionPattern = /protectedAction\s*\(/g;
     const protectedHouseholdActionPattern = /protectedHouseholdAction\s*\(/g;
+    const protectedReadActionPattern = /protectedReadAction\s*\(/g;
 
     const hasProtectedWrapper =
-        protectedActionPattern.test(content) || protectedHouseholdActionPattern.test(content);
+        protectedActionPattern.test(content) ||
+        protectedHouseholdActionPattern.test(content) ||
+        protectedReadActionPattern.test(content);
 
     let match;
     const exportedFunctions = [];

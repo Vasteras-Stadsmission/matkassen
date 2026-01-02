@@ -93,6 +93,28 @@ export default function IssuesPageClient() {
     const [rescheduleParcelId, setRescheduleParcelId] = useState<string | null>(null);
     const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
 
+    // Helper to get translated error message from API response
+    // Uses error code if available, falls back to generic error
+    const getErrorMessage = useCallback(
+        (data: { code?: string; error?: string }, fallbackMessage: string): string => {
+            // Map of API error codes to i18n keys
+            const errorCodeMessages: Record<string, string> = {
+                NOT_FOUND: t("errorCodes.NOT_FOUND"),
+                ALREADY_CANCELLED: t("errorCodes.ALREADY_CANCELLED"),
+                ALREADY_PICKED_UP: t("errorCodes.ALREADY_PICKED_UP"),
+                ALREADY_NO_SHOW: t("errorCodes.ALREADY_NO_SHOW"),
+                FUTURE_PARCEL: t("errorCodes.FUTURE_PARCEL"),
+                ALREADY_DELETED: t("errorCodes.ALREADY_DELETED"),
+                PAST_PARCEL: t("errorCodes.PAST_PARCEL"),
+            };
+            if (data.code && errorCodeMessages[data.code]) {
+                return errorCodeMessages[data.code];
+            }
+            return fallbackMessage;
+        },
+        [t],
+    );
+
     // Helper to optimistically remove a card with animation
     const removeCardWithAnimation = useCallback((cardKey: string) => {
         setRemovingItems(prev => new Set(prev).add(cardKey));
@@ -238,7 +260,7 @@ export default function IssuesPageClient() {
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || t("toast.handedOutError"));
+                throw new Error(getErrorMessage(data, t("toast.handedOutError")));
             }
 
             notifications.show({
@@ -286,7 +308,7 @@ export default function IssuesPageClient() {
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || t("toast.noShowError"));
+                throw new Error(getErrorMessage(data, t("toast.noShowError")));
             }
 
             notifications.show({
@@ -336,7 +358,7 @@ export default function IssuesPageClient() {
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || t("toast.cancelError"));
+                throw new Error(getErrorMessage(data, t("toast.cancelError")));
             }
 
             notifications.show({
@@ -377,7 +399,7 @@ export default function IssuesPageClient() {
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || t("toast.retryError"));
+                throw new Error(getErrorMessage(data, t("toast.retryError")));
             }
 
             // Auto-dismiss the original failure after successful retry
@@ -422,7 +444,7 @@ export default function IssuesPageClient() {
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || t("toast.dismissError"));
+                throw new Error(getErrorMessage(data, t("toast.dismissError")));
             }
 
             notifications.show({

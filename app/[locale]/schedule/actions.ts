@@ -17,7 +17,7 @@ import { getAvailableTimeRange } from "@/app/utils/schedule/location-availabilit
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { protectedAction } from "@/app/utils/auth/protected-action";
+import { protectedAction, protectedReadAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
@@ -514,26 +514,27 @@ export async function validateParcelAssignments(
 
 /**
  * Get all schedules for a pickup location
+ * Requires authentication - throws if not authenticated
  */
-export const getPickupLocationSchedules = async (
-    locationId: string,
-): Promise<LocationScheduleInfo> => {
-    // Create a cached function that will fetch the schedules
-    const cachedFetchSchedules = unstable_cache(
-        () => fetchPickupLocationSchedules(locationId),
-        // Use a key that includes the location ID for better caching
-        [`pickup-location-schedules-${locationId}`],
-        {
-            // Cache results for 1 minute (60 seconds) to reduce staleness
-            revalidate: 60,
-            // Add tags for more precise cache invalidation
-            tags: [`location-schedules`, `location-schedules-${locationId}`],
-        },
-    );
+export const getPickupLocationSchedules = protectedReadAction(
+    async (_session, locationId: string): Promise<LocationScheduleInfo> => {
+        // Create a cached function that will fetch the schedules
+        const cachedFetchSchedules = unstable_cache(
+            () => fetchPickupLocationSchedules(locationId),
+            // Use a key that includes the location ID for better caching
+            [`pickup-location-schedules-${locationId}`],
+            {
+                // Cache results for 1 minute (60 seconds) to reduce staleness
+                revalidate: 60,
+                // Add tags for more precise cache invalidation
+                tags: [`location-schedules`, `location-schedules-${locationId}`],
+            },
+        );
 
-    // IMPORTANT: We need to invoke the cached function, not just return it
-    return cachedFetchSchedules();
-};
+        // IMPORTANT: We need to invoke the cached function, not just return it
+        return cachedFetchSchedules();
+    },
+);
 
 /**
  * Clear the cache for a specific location's schedules
@@ -757,26 +758,29 @@ export async function getLocationWithSchedules(locationId: string): Promise<Loca
 
 /**
  * Get the default slot duration for a pickup location
+ * Requires authentication - throws if not authenticated
  */
-export async function getLocationSlotDuration(locationId: string): Promise<number> {
-    try {
-        // Fetch location settings to get the slot duration
-        const [locationSettings] = await db
-            .select({
-                slotDuration: pickupLocations.default_slot_duration_minutes,
-            })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, locationId))
-            .limit(1);
+export const getLocationSlotDuration = protectedReadAction(
+    async (_session, locationId: string): Promise<number> => {
+        try {
+            // Fetch location settings to get the slot duration
+            const [locationSettings] = await db
+                .select({
+                    slotDuration: pickupLocations.default_slot_duration_minutes,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, locationId))
+                .limit(1);
 
-        // Default to 15 minutes if setting is not found
-        return locationSettings?.slotDuration ?? 15;
-    } catch (error) {
-        logError("Error fetching location slot duration", error, { locationId });
-        // Default to 15 minutes in case of error
-        return 15;
-    }
-}
+            // Default to 15 minutes if setting is not found
+            return locationSettings?.slotDuration ?? 15;
+        } catch (error) {
+            logError("Error fetching location slot duration", error, { locationId });
+            // Default to 15 minutes in case of error
+            return 15;
+        }
+    },
+);
 
 /**
  * Check how many future parcels would be affected by a schedule change

@@ -112,7 +112,10 @@ export async function POST(
             .limit(1);
 
         if (result.length === 0) {
-            return NextResponse.json({ error: "Parcel not found" }, { status: 404 });
+            return NextResponse.json(
+                { error: "Parcel not found", code: "NOT_FOUND" },
+                { status: 404 },
+            );
         }
 
         const parcelData = result[0];
