@@ -36,7 +36,7 @@ import {
     checkHouseholdDuplicates,
     type DuplicateCheckResult,
 } from "@/app/[locale]/households/check-duplicates-action";
-import { validatePhoneInput, formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
+import { validatePhoneInput, formatPhoneForDisplay, stripSwedishPrefix } from "@/app/utils/validation/phone-validation";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
@@ -225,6 +225,7 @@ export function HouseholdWizard({
     }, [initialData]);
 
     // Track original phone number for edit mode (to detect changes)
+    // Store stripped version (without +46) to match form values format
     const originalPhoneRef = useRef<string | null>(null);
     useEffect(() => {
         if (
@@ -232,7 +233,7 @@ export function HouseholdWizard({
             initialData?.household?.phone_number &&
             originalPhoneRef.current === null
         ) {
-            originalPhoneRef.current = initialData.household.phone_number;
+            originalPhoneRef.current = stripSwedishPrefix(initialData.household.phone_number);
         }
     }, [mode, initialData]);
 
