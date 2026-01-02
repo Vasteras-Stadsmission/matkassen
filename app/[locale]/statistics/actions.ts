@@ -175,11 +175,17 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
         );
     const newHouseholds = newResult?.count ?? 0;
 
-    // Removed households
+    // Removed households in period (by anonymized_at date)
     const [removedResult] = await db
         .select({ count: count() })
         .from(households)
-        .where(isNotNull(households.anonymized_at));
+        .where(
+            and(
+                isNotNull(households.anonymized_at),
+                gte(households.anonymized_at, period.start),
+                lt(households.anonymized_at, period.end),
+            ),
+        );
     const removedHouseholds = removedResult?.count ?? 0;
 
     // Parcels in period (by pickup date)
@@ -296,11 +302,17 @@ async function getHouseholdStats(period: StatisticsPeriod): Promise<HouseholdSta
         );
     const newCount = newResult?.count ?? 0;
 
-    // Removed households
+    // Removed households in period (by anonymized_at date)
     const [removedResult] = await db
         .select({ count: count() })
         .from(households)
-        .where(isNotNull(households.anonymized_at));
+        .where(
+            and(
+                isNotNull(households.anonymized_at),
+                gte(households.anonymized_at, period.start),
+                lt(households.anonymized_at, period.end),
+            ),
+        );
     const removed = removedResult?.count ?? 0;
 
     // By locale (include removed - they preserve locale)
@@ -867,7 +879,7 @@ export const getAllStatistics = protectedAction(
             logError("Failed to fetch statistics", error, { periodOption });
             return failure({
                 code: "LOAD_ERROR",
-                message: "Failed to load statistics. Please try again.",
+                message: "LOAD_ERROR", // Client will translate using t("error")
             });
         }
     },

@@ -272,6 +272,46 @@ describe("Statistics Actions", () => {
                 expect(distribution.find(d => d.memberCount === 1)?.households).toBe(1);
                 expect(distribution.find(d => d.memberCount === 2)?.households).toBe(1);
             });
+
+            it("should filter removed households by period", async () => {
+                const db = await getTestDb();
+
+                // Create household removed within 7 days (3 days ago)
+                const recentlyRemoved = await createTestHousehold();
+                await db
+                    .update(households)
+                    .set({
+                        anonymized_at: daysFromTestNow(-3),
+                        anonymized_by: "system",
+                    })
+                    .where(eq(households.id, recentlyRemoved.id));
+
+                // Create household removed 15 days ago (outside 7d period)
+                const oldRemoved = await createTestHousehold();
+                await db
+                    .update(households)
+                    .set({
+                        anonymized_at: daysFromTestNow(-15),
+                        anonymized_by: "system",
+                    })
+                    .where(eq(households.id, oldRemoved.id));
+
+                const { getAllStatistics } = await getActions();
+
+                // 7d should only count recent removal
+                const result7d = await getAllStatistics("7d");
+                expect(result7d.success).toBe(true);
+                if (!result7d.success) return;
+                expect(result7d.data.overview.removedHouseholds).toBe(1);
+                expect(result7d.data.households.removed).toBe(1);
+
+                // 30d should count both
+                const result30d = await getAllStatistics("30d");
+                expect(result30d.success).toBe(true);
+                if (!result30d.success) return;
+                expect(result30d.data.overview.removedHouseholds).toBe(2);
+                expect(result30d.data.households.removed).toBe(2);
+            });
         });
 
         describe("Parcel Stats", () => {

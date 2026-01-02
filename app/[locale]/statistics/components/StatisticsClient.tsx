@@ -174,7 +174,7 @@ export function StatisticsClient() {
                 if (result.success) {
                     setStats(result.data);
                 } else {
-                    setError(result.error.message);
+                    setError(t("error")); // Translate error on client
                 }
             } catch {
                 if (!cancelled) {
@@ -352,6 +352,48 @@ export function StatisticsClient() {
                                             />
                                         </Card>
                                     )}
+
+                                    {stats.households.dietaryRestrictions.length > 0 && (
+                                        <Card shadow="sm" padding="lg" withBorder>
+                                            <Title order={4} mb="md">
+                                                {t("households.dietaryRestrictions")}
+                                            </Title>
+                                            <BarChart
+                                                h={200}
+                                                data={stats.households.dietaryRestrictions}
+                                                dataKey="name"
+                                                series={[{ name: "count", color: "red.6" }]}
+                                            />
+                                        </Card>
+                                    )}
+
+                                    {stats.households.additionalNeeds.length > 0 && (
+                                        <Card shadow="sm" padding="lg" withBorder>
+                                            <Title order={4} mb="md">
+                                                {t("households.additionalNeeds")}
+                                            </Title>
+                                            <BarChart
+                                                h={200}
+                                                data={stats.households.additionalNeeds}
+                                                dataKey="name"
+                                                series={[{ name: "count", color: "violet.6" }]}
+                                            />
+                                        </Card>
+                                    )}
+
+                                    {stats.households.pets.length > 0 && (
+                                        <Card shadow="sm" padding="lg" withBorder>
+                                            <Title order={4} mb="md">
+                                                {t("households.pets")}
+                                            </Title>
+                                            <BarChart
+                                                h={200}
+                                                data={stats.households.pets}
+                                                dataKey="species"
+                                                series={[{ name: "count", color: "lime.6" }]}
+                                            />
+                                        </Card>
+                                    )}
                                 </SimpleGrid>
                             </div>
 
@@ -386,6 +428,14 @@ export function StatisticsClient() {
                                         icon={<IconUserMinus size={20} />}
                                         color="gray"
                                     />
+                                    {stats.parcels.avgPerHousehold !== null && (
+                                        <StatCard
+                                            title={t("parcels.avgPerHousehold")}
+                                            value={stats.parcels.avgPerHousehold.toFixed(1)}
+                                            icon={<IconPackage size={20} />}
+                                            color="grape"
+                                        />
+                                    )}
                                 </SimpleGrid>
 
                                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
@@ -501,6 +551,59 @@ export function StatisticsClient() {
                                             </Stack>
                                         </Card>
                                     )}
+
+                                    {stats.locations.capacityUsage.length > 0 && (
+                                        <Card
+                                            shadow="sm"
+                                            padding="lg"
+                                            withBorder
+                                            style={{ gridColumn: "span 2" }}
+                                        >
+                                            <Title order={4} mb="md">
+                                                {t("locations.capacityUsage")}
+                                            </Title>
+                                            <Stack gap="xs">
+                                                {stats.locations.capacityUsage.map(c => (
+                                                    <Group
+                                                        key={`${c.locationId}-${c.date}`}
+                                                        justify="space-between"
+                                                    >
+                                                        <Text size="sm" style={{ flex: 2 }}>
+                                                            {c.locationName}
+                                                        </Text>
+                                                        <Text
+                                                            size="sm"
+                                                            c="dimmed"
+                                                            style={{ flex: 1 }}
+                                                        >
+                                                            {c.date}
+                                                        </Text>
+                                                        <Text size="sm" style={{ flex: 1 }}>
+                                                            {c.scheduled}/{c.max ?? "∞"}
+                                                        </Text>
+                                                        <Text
+                                                            size="sm"
+                                                            fw={700}
+                                                            c={
+                                                                c.usagePercent === null
+                                                                    ? "dimmed"
+                                                                    : c.usagePercent >= 100
+                                                                      ? "red"
+                                                                      : c.usagePercent >= 80
+                                                                        ? "orange"
+                                                                        : "green"
+                                                            }
+                                                            style={{ flex: 1, textAlign: "right" }}
+                                                        >
+                                                            {c.usagePercent !== null
+                                                                ? `${Math.round(c.usagePercent)}%`
+                                                                : "—"}
+                                                        </Text>
+                                                    </Group>
+                                                ))}
+                                            </Stack>
+                                        </Card>
+                                    )}
                                 </SimpleGrid>
                             </div>
 
@@ -533,6 +636,18 @@ export function StatisticsClient() {
                                         value={stats.sms.pending}
                                         icon={<IconAlertCircle size={20} />}
                                         color="yellow"
+                                    />
+                                    <StatCard
+                                        title={t("sms.failedInternal")}
+                                        value={stats.sms.failedInternal}
+                                        icon={<IconAlertCircle size={20} />}
+                                        color="red"
+                                    />
+                                    <StatCard
+                                        title={t("sms.failedProvider")}
+                                        value={stats.sms.failedProvider}
+                                        icon={<IconAlertCircle size={20} />}
+                                        color="orange"
                                     />
                                 </SimpleGrid>
 
