@@ -34,6 +34,8 @@ interface HouseholdFormProps {
     data: Household;
     updateData: (data: Household) => void;
     error?: ValidationError | null;
+    /** Original phone number (stripped, without +46) for edit mode - used to detect changes and reset SMS consent */
+    originalPhone?: string;
 }
 
 // Define a type for the form values
@@ -51,7 +53,12 @@ function objectsEqual<T>(a: T, b: T): boolean {
     return deepEqual(a, b);
 }
 
-export default function HouseholdForm({ data, updateData, error }: HouseholdFormProps) {
+export default function HouseholdForm({
+    data,
+    updateData,
+    error,
+    originalPhone,
+}: HouseholdFormProps) {
     const t = useTranslations("householdForm");
     const currentLocale = useLocale();
 
@@ -112,10 +119,11 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
             sms_consent: currentForm.values.sms_consent,
         };
 
+        // Strip +46 prefix from phone for display (same as initialValues)
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
-            phone_number: data.phone_number || "",
+            phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
             sms_consent: data.sms_consent || false,
@@ -136,10 +144,11 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
 
     // Update parent with debounced values
     useEffect(() => {
+        // Strip +46 prefix for comparison (form values don't have the prefix)
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
-            phone_number: data.phone_number || "",
+            phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             postal_code: data.postal_code || "",
             sms_consent: data.sms_consent || false,
@@ -163,6 +172,18 @@ export default function HouseholdForm({ data, updateData, error }: HouseholdForm
     const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const formatted = formatPhoneInputWithSpaces(e.target.value);
         form.setFieldValue("phone_number", formatted);
+
+        // In edit mode, auto-uncheck SMS consent when phone changes from original
+        // (user needs to re-consent for the new number)
+        if (originalPhone !== undefined) {
+            const digitsOnly = formatted.replace(/\D/g, "");
+            const originalDigits = originalPhone.replace(/\D/g, "");
+            const phoneChanged = digitsOnly !== originalDigits;
+
+            if (phoneChanged && form.values.sms_consent) {
+                form.setFieldValue("sms_consent", false);
+            }
+        }
     };
 
     return (

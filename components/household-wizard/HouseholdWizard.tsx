@@ -36,7 +36,11 @@ import {
     checkHouseholdDuplicates,
     type DuplicateCheckResult,
 } from "@/app/[locale]/households/check-duplicates-action";
-import { validatePhoneInput, formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
+import {
+    validatePhoneInput,
+    formatPhoneForDisplay,
+    stripSwedishPrefix,
+} from "@/app/utils/validation/phone-validation";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
@@ -225,6 +229,7 @@ export function HouseholdWizard({
     }, [initialData]);
 
     // Track original phone number for edit mode (to detect changes)
+    // Store stripped version (without +46) to match form values format
     const originalPhoneRef = useRef<string | null>(null);
     useEffect(() => {
         if (
@@ -232,28 +237,9 @@ export function HouseholdWizard({
             initialData?.household?.phone_number &&
             originalPhoneRef.current === null
         ) {
-            originalPhoneRef.current = initialData.household.phone_number;
+            originalPhoneRef.current = stripSwedishPrefix(initialData.household.phone_number);
         }
     }, [mode, initialData]);
-
-    // Auto-uncheck SMS consent when phone number changes in edit mode
-    useEffect(() => {
-        if (mode === "edit" && originalPhoneRef.current !== null) {
-            const currentPhone = formData.household.phone_number;
-            const phoneChanged = currentPhone !== originalPhoneRef.current;
-
-            // If phone changed and consent is still checked, uncheck it
-            if (phoneChanged && formData.household.sms_consent) {
-                setFormData(prev => ({
-                    ...prev,
-                    household: {
-                        ...prev.household,
-                        sms_consent: false,
-                    },
-                }));
-            }
-        }
-    }, [mode, formData.household.phone_number, formData.household.sms_consent]);
 
     // Function to handle navigation between steps with appropriate validation
     const nextStep = async () => {
@@ -731,6 +717,11 @@ export function HouseholdWizard({
                                 validationError?.field === "postal_code"
                                     ? validationError
                                     : null
+                            }
+                            originalPhone={
+                                mode === "edit"
+                                    ? (originalPhoneRef.current ?? undefined)
+                                    : undefined
                             }
                         />
                     </Stepper.Step>
