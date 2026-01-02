@@ -282,9 +282,12 @@ export function StatisticsClient() {
 
                             {/* Households Section */}
                             <div>
-                                <Title order={2} mb="md">
+                                <Title order={2} mb="xs">
                                     {t("households.title")}
                                 </Title>
+                                <Text c="dimmed" size="sm" mb="md">
+                                    {t("households.description")}
+                                </Text>
                                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                                     {stats.households.byLocale.length > 0 && (
                                         <Card shadow="sm" padding="lg" withBorder>
@@ -360,7 +363,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.dietaryRestrictions}
+                                                data={stats.households.dietaryRestrictions.slice(
+                                                    0,
+                                                    10,
+                                                )}
                                                 dataKey="name"
                                                 series={[{ name: "count", color: "red.6" }]}
                                             />
@@ -374,7 +380,7 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.additionalNeeds}
+                                                data={stats.households.additionalNeeds.slice(0, 10)}
                                                 dataKey="name"
                                                 series={[{ name: "count", color: "violet.6" }]}
                                             />
@@ -388,7 +394,7 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.pets}
+                                                data={stats.households.pets.slice(0, 10)}
                                                 dataKey="species"
                                                 series={[{ name: "count", color: "lime.6" }]}
                                             />
@@ -522,10 +528,16 @@ export function StatisticsClient() {
                                     {stats.locations.nearCapacityAlerts.length > 0 && (
                                         <Card shadow="sm" padding="lg" withBorder>
                                             <Title order={4} mb="md">
-                                                {t("locations.nearCapacityAlerts")}
+                                                {t("locations.nearCapacityAlertsTitle")}
                                             </Title>
                                             <Stack gap="xs">
-                                                {stats.locations.nearCapacityAlerts
+                                                {/* Sort by usage percent desc, then by date */}
+                                                {[...stats.locations.nearCapacityAlerts]
+                                                    .sort((a, b) => {
+                                                        if (b.usagePercent !== a.usagePercent)
+                                                            return b.usagePercent - a.usagePercent;
+                                                        return a.date.localeCompare(b.date);
+                                                    })
                                                     .slice(0, 5)
                                                     .map(alert => (
                                                         <Group
@@ -560,47 +572,62 @@ export function StatisticsClient() {
                                             style={{ gridColumn: "span 2" }}
                                         >
                                             <Title order={4} mb="md">
-                                                {t("locations.capacityUsage")}
+                                                {t("locations.capacityUsageTitle")}
                                             </Title>
                                             <Stack gap="xs">
-                                                {stats.locations.capacityUsage.map(c => (
-                                                    <Group
-                                                        key={`${c.locationId}-${c.date}`}
-                                                        justify="space-between"
-                                                    >
-                                                        <Text size="sm" style={{ flex: 2 }}>
-                                                            {c.locationName}
-                                                        </Text>
-                                                        <Text
-                                                            size="sm"
-                                                            c="dimmed"
-                                                            style={{ flex: 1 }}
+                                                {/* Sort by usage percent desc, then by date, limit to top 10 */}
+                                                {[...stats.locations.capacityUsage]
+                                                    .sort((a, b) => {
+                                                        // Sort by usage percent descending (nulls last)
+                                                        const aPercent = a.usagePercent ?? -1;
+                                                        const bPercent = b.usagePercent ?? -1;
+                                                        if (bPercent !== aPercent)
+                                                            return bPercent - aPercent;
+                                                        // Then by date ascending
+                                                        return a.date.localeCompare(b.date);
+                                                    })
+                                                    .slice(0, 10)
+                                                    .map(c => (
+                                                        <Group
+                                                            key={`${c.locationId}-${c.date}`}
+                                                            justify="space-between"
                                                         >
-                                                            {c.date}
-                                                        </Text>
-                                                        <Text size="sm" style={{ flex: 1 }}>
-                                                            {c.scheduled}/{c.max ?? "∞"}
-                                                        </Text>
-                                                        <Text
-                                                            size="sm"
-                                                            fw={700}
-                                                            c={
-                                                                c.usagePercent === null
-                                                                    ? "dimmed"
-                                                                    : c.usagePercent >= 100
-                                                                      ? "red"
-                                                                      : c.usagePercent >= 80
-                                                                        ? "orange"
-                                                                        : "green"
-                                                            }
-                                                            style={{ flex: 1, textAlign: "right" }}
-                                                        >
-                                                            {c.usagePercent !== null
-                                                                ? `${Math.round(c.usagePercent)}%`
-                                                                : "—"}
-                                                        </Text>
-                                                    </Group>
-                                                ))}
+                                                            <Text size="sm" style={{ flex: 2 }}>
+                                                                {c.locationName}
+                                                            </Text>
+                                                            <Text
+                                                                size="sm"
+                                                                c="dimmed"
+                                                                style={{ flex: 1 }}
+                                                            >
+                                                                {c.date}
+                                                            </Text>
+                                                            <Text size="sm" style={{ flex: 1 }}>
+                                                                {c.scheduled}/{c.max ?? "∞"}
+                                                            </Text>
+                                                            <Text
+                                                                size="sm"
+                                                                fw={700}
+                                                                c={
+                                                                    c.usagePercent === null
+                                                                        ? "dimmed"
+                                                                        : c.usagePercent >= 100
+                                                                          ? "red"
+                                                                          : c.usagePercent >= 80
+                                                                            ? "orange"
+                                                                            : "green"
+                                                                }
+                                                                style={{
+                                                                    flex: 1,
+                                                                    textAlign: "right",
+                                                                }}
+                                                            >
+                                                                {c.usagePercent !== null
+                                                                    ? `${Math.round(c.usagePercent)}%`
+                                                                    : "—"}
+                                                            </Text>
+                                                        </Group>
+                                                    ))}
                                             </Stack>
                                         </Card>
                                     )}
@@ -632,7 +659,7 @@ export function StatisticsClient() {
                                         icon={<IconPercentage size={20} />}
                                     />
                                     <StatCard
-                                        title={t("sms.pending")}
+                                        title={t("sms.pendingLabel")}
                                         value={stats.sms.pending}
                                         icon={<IconAlertCircle size={20} />}
                                         color="yellow"

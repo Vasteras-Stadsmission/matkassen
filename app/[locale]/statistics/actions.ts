@@ -19,6 +19,8 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
+import { setToStartOfDay, toStockholmTime } from "@/app/utils/date-utils";
+import { addDays } from "date-fns";
 
 // Types
 export interface StatisticsPeriod {
@@ -108,33 +110,29 @@ export type PeriodOption = "7d" | "30d" | "90d" | "year" | "all";
 
 function parsePeriod(period: PeriodOption): StatisticsPeriod {
     const now = new Date();
-    // End is start of tomorrow (exclusive)
-    const end = new Date(now);
-    end.setDate(end.getDate() + 1);
-    end.setHours(0, 0, 0, 0);
+    // End is start of tomorrow in Stockholm timezone (exclusive)
+    const end = setToStartOfDay(addDays(now, 1));
 
     let start: Date;
 
     switch (period) {
         case "7d":
-            // Last 7 days including today
-            start = new Date(now);
-            start.setDate(start.getDate() - 6);
-            start.setHours(0, 0, 0, 0);
+            // Last 7 days including today (Stockholm timezone)
+            start = setToStartOfDay(addDays(now, -6));
             break;
         case "30d":
-            start = new Date(now);
-            start.setDate(start.getDate() - 29);
-            start.setHours(0, 0, 0, 0);
+            start = setToStartOfDay(addDays(now, -29));
             break;
         case "90d":
-            start = new Date(now);
-            start.setDate(start.getDate() - 89);
-            start.setHours(0, 0, 0, 0);
+            start = setToStartOfDay(addDays(now, -89));
             break;
-        case "year":
-            start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        case "year": {
+            // Start of year in Stockholm timezone
+            const stockholmNow = toStockholmTime(now);
+            const yearStart = new Date(stockholmNow.getFullYear(), 0, 1, 0, 0, 0, 0);
+            start = setToStartOfDay(yearStart);
             break;
+        }
         case "all":
         default:
             start = new Date(0); // Unix epoch
@@ -373,9 +371,10 @@ async function getHouseholdStats(period: StatisticsPeriod): Promise<HouseholdSta
     const ageDistribution = ageDistributionResult.map(r => ({ bucket: r.bucket, count: r.count }));
 
     // Member count distribution (active households only)
+    // Count includes head of household (+1) plus additional members
     const memberCountResult = await db
         .select({
-            memberCount: sql<number>`count(${householdMembers.id})::int`,
+            memberCount: sql<number>`(count(${householdMembers.id}) + 1)::int`,
             households: sql<number>`1`,
         })
         .from(households)

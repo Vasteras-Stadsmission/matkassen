@@ -1400,7 +1400,7 @@
             "noData": "No data for selected period"
         },
         "households": {
-            "title": "Households",
+            "title": "Households (Active)",
             "total": "Total Active",
             "new": "New",
             "removed": "Removed",
@@ -1415,7 +1415,8 @@
                 "sv": "Swedish",
                 "en": "English"
             },
-            "members": "{count, plural, =0 {0 members} =1 {1 member} other {# members}}"
+            "members": "{count, plural, =0 {0 members} =1 {1 member} other {# members}}",
+            "description": "Demographics of currently active households"
         },
         "parcels": {
             "title": "Parcels",
@@ -1445,7 +1446,9 @@
             "scheduled": "Scheduled",
             "max": "Max",
             "usagePercent": "Usage %",
-            "noMax": "No limit set"
+            "noMax": "No limit set",
+            "capacityUsageTitle": "Capacity Usage (Next 7 Days)",
+            "nearCapacityAlertsTitle": "Near Capacity (Next 7 Days)"
         },
         "sms": {
             "title": "SMS",
@@ -1463,7 +1466,8 @@
                 "pickup_cancelled": "Pickup Cancelled",
                 "consent_enrolment": "Consent Enrolment",
                 "food_parcels_ended": "Food Parcels Ended"
-            }
+            },
+            "pendingLabel": "Pending (Current)"
         },
         "loading": "Loading statistics...",
         "error": "Failed to load statistics"

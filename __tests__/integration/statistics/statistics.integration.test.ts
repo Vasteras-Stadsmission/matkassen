@@ -255,10 +255,10 @@ describe("Statistics Actions", () => {
                     { age: 33, sex: "female" },
                 ]);
 
-                // Household with 1 member
+                // Household with 1 additional member (total: 2 with head)
                 await createTestHouseholdWithMembers({}, [{ age: 45, sex: "male" }]);
 
-                // Household with no members (just the primary)
+                // Household with no additional members (total: 1 - just the head)
                 await createTestHousehold();
 
                 const { getAllStatistics } = await getActions();
@@ -267,10 +267,14 @@ describe("Statistics Actions", () => {
                 expect(result.success).toBe(true);
                 if (!result.success) return;
 
+                // Member counts now include head of household (+1)
+                // - First household: 2 members + head = 3
+                // - Second household: 1 member + head = 2
+                // - Third household: 0 members + head = 1
                 const distribution = result.data.households.memberCountDistribution;
-                expect(distribution.find(d => d.memberCount === 0)?.households).toBe(1);
                 expect(distribution.find(d => d.memberCount === 1)?.households).toBe(1);
                 expect(distribution.find(d => d.memberCount === 2)?.households).toBe(1);
+                expect(distribution.find(d => d.memberCount === 3)?.households).toBe(1);
             });
 
             it("should filter removed households by period", async () => {
@@ -311,6 +315,46 @@ describe("Statistics Actions", () => {
                 if (!result30d.success) return;
                 expect(result30d.data.overview.removedHouseholds).toBe(2);
                 expect(result30d.data.households.removed).toBe(2);
+            });
+
+            it("should respect Stockholm timezone for period boundaries near midnight", async () => {
+                const db = await getTestDb();
+
+                // TEST_NOW is 2024-06-15T10:00:00Z (Saturday, summer)
+                // In Stockholm (CEST, UTC+2): 2024-06-15 12:00:00
+                // 7 days ago in Stockholm: 2024-06-09 00:00:00 CEST = 2024-06-08 22:00:00 UTC
+
+                // Create household at 23:00 UTC on 2024-06-08
+                // This is 01:00 Stockholm on 2024-06-09 (INSIDE 7d period)
+                const insidePeriod = await createTestHousehold();
+                await db
+                    .update(households)
+                    .set({
+                        // 2024-06-08 23:00:00 UTC = 2024-06-09 01:00:00 Stockholm
+                        created_at: new Date("2024-06-08T23:00:00Z"),
+                    })
+                    .where(eq(households.id, insidePeriod.id));
+
+                // Create household at 21:00 UTC on 2024-06-08
+                // This is 23:00 Stockholm on 2024-06-08 (OUTSIDE 7d period - before June 9)
+                const outsidePeriod = await createTestHousehold();
+                await db
+                    .update(households)
+                    .set({
+                        // 2024-06-08 21:00:00 UTC = 2024-06-08 23:00:00 Stockholm
+                        created_at: new Date("2024-06-08T21:00:00Z"),
+                    })
+                    .where(eq(households.id, outsidePeriod.id));
+
+                const { getAllStatistics } = await getActions();
+                const result = await getAllStatistics("7d");
+
+                expect(result.success).toBe(true);
+                if (!result.success) return;
+
+                // Only the household created at 01:00 Stockholm on June 9 should be counted
+                // The one created at 23:00 Stockholm on June 8 is outside the 7d period
+                expect(result.data.overview.newHouseholds).toBe(1);
             });
         });
 

@@ -1400,7 +1400,7 @@
             "noData": "Inga data för vald period"
         },
         "households": {
-            "title": "Hushåll",
+            "title": "Hushåll (Aktiva)",
             "total": "Totalt aktiva",
             "new": "Nya",
             "removed": "Borttagna",
@@ -1415,7 +1415,8 @@
                 "sv": "Svenska",
                 "en": "Engelska"
             },
-            "members": "{count, plural, =0 {0 medlemmar} =1 {1 medlem} other {# medlemmar}}"
+            "members": "{count, plural, =0 {0 medlemmar} =1 {1 medlem} other {# medlemmar}}",
+            "description": "Demografi för nuvarande aktiva hushåll"
         },
         "parcels": {
             "title": "Kassar",
@@ -1445,7 +1446,9 @@
             "scheduled": "Bokade",
             "max": "Max",
             "usagePercent": "Utnyttjande %",
-            "noMax": "Ingen gräns satt"
+            "noMax": "Ingen gräns satt",
+            "capacityUsageTitle": "Kapacitetsutnyttjande (Nästa 7 dagar)",
+            "nearCapacityAlertsTitle": "Nära kapacitet (Nästa 7 dagar)"
         },
         "sms": {
             "title": "SMS",
@@ -1463,7 +1466,8 @@
                 "pickup_cancelled": "Hämtning avbokad",
                 "consent_enrolment": "Samtycke anmälan",
                 "food_parcels_ended": "Matkassar avslutade"
-            }
+            },
+            "pendingLabel": "Väntande (Aktuellt)"
         },
         "loading": "Laddar statistik...",
         "error": "Kunde inte ladda statistik"
