@@ -232,8 +232,8 @@ export function StatisticsClient() {
                                             </Title>
                                             <PieChart
                                                 data={stats.households.byLocale.map(l => {
-                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                     const key =
+                                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                         `households.locales.${l.locale}` as any;
                                                     return {
                                                         name: t.has(key) ? t(key) : l.locale,
