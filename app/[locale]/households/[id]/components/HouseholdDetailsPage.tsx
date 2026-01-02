@@ -143,9 +143,9 @@ export default function HouseholdDetailsPage({
 
         try {
             setLoading(true);
-            const newComment = await addHouseholdComment(householdId, comment);
+            const result = await addHouseholdComment(householdId, comment);
             await refreshHouseholdData();
-            return newComment;
+            return result.success ? result.data : null;
         } catch {
             // Error adding comment
             return null;

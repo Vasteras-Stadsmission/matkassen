@@ -106,6 +106,12 @@ export default function IssuesPageClient() {
                 FUTURE_PARCEL: t("errorCodes.FUTURE_PARCEL"),
                 ALREADY_DELETED: t("errorCodes.ALREADY_DELETED"),
                 PAST_PARCEL: t("errorCodes.PAST_PARCEL"),
+                INVALID_ACTION: t("errorCodes.INVALID_ACTION"),
+                OUTSIDE_HOURS: t("errorCodes.OUTSIDE_HOURS"),
+                COOLDOWN_ACTIVE: t("errorCodes.COOLDOWN_ACTIVE"),
+                FETCH_ERROR: t("errorCodes.FETCH_ERROR"),
+                SEND_ERROR: t("errorCodes.SEND_ERROR"),
+                UNKNOWN_ERROR: t("errorCodes.UNKNOWN_ERROR"),
             };
             if (data.code && errorCodeMessages[data.code]) {
                 return errorCodeMessages[data.code];

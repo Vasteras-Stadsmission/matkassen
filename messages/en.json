@@ -1336,7 +1336,13 @@
             "ALREADY_NO_SHOW": "This parcel is already marked as no-show.",
             "FUTURE_PARCEL": "Cannot mark a future parcel as no-show.",
             "ALREADY_DELETED": "This parcel has already been deleted.",
-            "PAST_PARCEL": "Cannot cancel a past parcel."
+            "PAST_PARCEL": "Cannot cancel a past parcel.",
+            "INVALID_ACTION": "Invalid action requested.",
+            "OUTSIDE_HOURS": "Cannot send SMS for parcel scheduled outside opening hours.",
+            "COOLDOWN_ACTIVE": "Please wait before sending another SMS.",
+            "FETCH_ERROR": "Failed to load data. Please try again.",
+            "SEND_ERROR": "Failed to send SMS. Please try again.",
+            "UNKNOWN_ERROR": "An unexpected error occurred. Please try again."
         },
         "confirm": {
             "noShowTitle": "Mark as no-show?",

@@ -1336,7 +1336,13 @@
             "ALREADY_NO_SHOW": "Detta paket är redan markerat som utebliven.",
             "FUTURE_PARCEL": "Kan inte markera ett framtida paket som utebliven.",
             "ALREADY_DELETED": "Detta paket har redan tagits bort.",
-            "PAST_PARCEL": "Kan inte avboka ett tidigare paket."
+            "PAST_PARCEL": "Kan inte avboka ett tidigare paket.",
+            "INVALID_ACTION": "Ogiltig åtgärd begärd.",
+            "OUTSIDE_HOURS": "Kan inte skicka SMS för paket schemalagt utanför öppettider.",
+            "COOLDOWN_ACTIVE": "Vänta innan du skickar ett nytt SMS.",
+            "FETCH_ERROR": "Kunde inte ladda data. Försök igen.",
+            "SEND_ERROR": "Kunde inte skicka SMS. Försök igen.",
+            "UNKNOWN_ERROR": "Ett oväntat fel inträffade. Försök igen."
         },
         "confirm": {
             "noShowTitle": "Markera som utebliven?",

@@ -19,13 +19,14 @@ export async function updateFoodParcelScheduleAction(
         startTime: Date;
         endTime: Date;
     },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; errorCode?: string }> {
     try {
         const result = await updateFoodParcelSchedule(parcelId, newTimeslot);
         if (!result.success) {
             return {
                 success: false,
                 error: result.error.message,
+                errorCode: result.error.code,
             };
         }
         return { success: true };
@@ -33,7 +34,9 @@ export async function updateFoodParcelScheduleAction(
         logError("Error calling updateFoodParcelSchedule", error, { parcelId });
         return {
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
+            // Return error code for i18n translation by caller
+            errorCode: "UNKNOWN_ERROR",
+            error: error instanceof Error ? error.message : undefined,
         };
     }
 }

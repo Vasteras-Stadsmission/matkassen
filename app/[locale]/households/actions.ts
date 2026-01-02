@@ -17,7 +17,6 @@ import {
     outgoingSms,
 } from "@/app/db/schema";
 import { asc, desc, eq, and, isNull } from "drizzle-orm";
-import { auth } from "@/auth";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
@@ -292,87 +291,70 @@ export async function getHouseholdDetails(householdId: string) {
 }
 
 // Function to add a comment to a household
-export async function addHouseholdComment(
-    householdId: string,
-    comment: string,
-): Promise<Comment | null> {
-    if (!comment.trim()) {
-        return null;
-    }
-
-    try {
-        // Authorization: Verify user is authenticated and is an org member
-        const { validateOrganizationMembership } =
-            await import("@/app/utils/auth/organization-auth");
-
-        // Get the current user from the session
-        const session = await auth();
-        // Get the GitHub username from the githubUsername field (login, not display name)
-        const githubUsername = session?.user?.githubUsername || "anonymous";
-
-        // Check organization membership
-        if (githubUsername !== "anonymous") {
-            const orgCheck = await validateOrganizationMembership(githubUsername, "server-action");
-            if (!orgCheck.isValid) {
-                logError(
-                    "Unauthorized comment attempt",
-                    new Error(orgCheck.error || "Unknown error"),
-                    {
-                        action: "addHouseholdComment",
-                        githubUsername,
-                        householdId,
-                    },
-                );
-                return null;
-            }
+export const addHouseholdComment = protectedAction(
+    async (
+        session,
+        householdId: string,
+        comment: string,
+    ): Promise<ActionResult<Comment | null>> => {
+        if (!comment.trim()) {
+            return success(null);
         }
 
-        // Insert the comment with the github username
-        const [dbComment] = await db
-            .insert(householdComments)
-            .values({
-                household_id: householdId,
-                comment: comment.trim(),
-                author_github_username: githubUsername,
-            })
-            .returning();
+        try {
+            // Get the GitHub username from the session (auth already verified by protectedAction)
+            const githubUsername = session.user?.githubUsername || "anonymous";
 
-        // Create a properly typed Comment object
-        const newComment: Comment = {
-            id: dbComment.id,
-            created_at: dbComment.created_at,
-            author_github_username: dbComment.author_github_username,
-            comment: dbComment.comment,
-        };
-
-        // Fetch user data from database for the new comment
-        if (githubUsername && githubUsername !== "anonymous") {
-            const [user] = await db
-                .select({
-                    display_name: users.display_name,
-                    avatar_url: users.avatar_url,
+            // Insert the comment with the github username
+            const [dbComment] = await db
+                .insert(householdComments)
+                .values({
+                    household_id: householdId,
+                    comment: comment.trim(),
+                    author_github_username: githubUsername,
                 })
-                .from(users)
-                .where(eq(users.github_username, githubUsername))
-                .limit(1);
+                .returning();
 
-            if (user && (user.display_name || user.avatar_url)) {
-                newComment.githubUserData = {
-                    name: user.display_name || null,
-                    avatar_url: user.avatar_url || null,
-                };
+            // Create a properly typed Comment object
+            const newComment: Comment = {
+                id: dbComment.id,
+                created_at: dbComment.created_at,
+                author_github_username: dbComment.author_github_username,
+                comment: dbComment.comment,
+            };
+
+            // Fetch user data from database for the new comment
+            if (githubUsername && githubUsername !== "anonymous") {
+                const [user] = await db
+                    .select({
+                        display_name: users.display_name,
+                        avatar_url: users.avatar_url,
+                    })
+                    .from(users)
+                    .where(eq(users.github_username, githubUsername))
+                    .limit(1);
+
+                if (user && (user.display_name || user.avatar_url)) {
+                    newComment.githubUserData = {
+                        name: user.display_name || null,
+                        avatar_url: user.avatar_url || null,
+                    };
+                }
             }
-        }
 
-        return newComment;
-    } catch (error) {
-        logError("Error adding household comment", error, {
-            action: "addHouseholdComment",
-            householdId,
-        });
-        return null;
-    }
-}
+            return success(newComment);
+        } catch (error) {
+            logError("Error adding household comment", error, {
+                action: "addHouseholdComment",
+                householdId,
+            });
+            return failure({
+                code: "COMMENT_FAILED",
+                message: "Failed to add comment",
+            });
+        }
+    },
+);
 
 // Function to delete a comment
 export const deleteHouseholdComment = protectedAction(
