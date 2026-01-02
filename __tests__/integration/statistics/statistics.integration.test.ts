@@ -307,14 +307,12 @@ describe("Statistics Actions", () => {
                 expect(result7d.success).toBe(true);
                 if (!result7d.success) return;
                 expect(result7d.data.overview.removedHouseholds).toBe(1);
-                expect(result7d.data.households.removed).toBe(1);
 
                 // 30d should count both
                 const result30d = await getAllStatistics("30d");
                 expect(result30d.success).toBe(true);
                 if (!result30d.success) return;
                 expect(result30d.data.overview.removedHouseholds).toBe(2);
-                expect(result30d.data.households.removed).toBe(2);
             });
 
             it("should respect Stockholm timezone for period boundaries near midnight", async () => {

@@ -39,9 +39,6 @@ export interface OverviewStats {
 }
 
 export interface HouseholdStats {
-    total: number;
-    new: number;
-    removed: number;
     byLocale: { locale: string; count: number }[];
     byPostalCode: { postalCode: string; count: number }[];
     ageDistribution: { bucket: string; count: number }[];
@@ -110,25 +107,28 @@ export type PeriodOption = "7d" | "30d" | "90d" | "year" | "all";
 
 function parsePeriod(period: PeriodOption): StatisticsPeriod {
     const now = new Date();
+    // Convert to Stockholm time for date arithmetic to ensure consistent day boundaries
+    // regardless of server timezone (e.g., UTC in CI/prod)
+    const stockholmNow = toStockholmTime(now);
+
     // End is start of tomorrow in Stockholm timezone (exclusive)
-    const end = setToStartOfDay(addDays(now, 1));
+    const end = setToStartOfDay(addDays(stockholmNow, 1));
 
     let start: Date;
 
     switch (period) {
         case "7d":
             // Last 7 days including today (Stockholm timezone)
-            start = setToStartOfDay(addDays(now, -6));
+            start = setToStartOfDay(addDays(stockholmNow, -6));
             break;
         case "30d":
-            start = setToStartOfDay(addDays(now, -29));
+            start = setToStartOfDay(addDays(stockholmNow, -29));
             break;
         case "90d":
-            start = setToStartOfDay(addDays(now, -89));
+            start = setToStartOfDay(addDays(stockholmNow, -89));
             break;
         case "year": {
             // Start of year in Stockholm timezone
-            const stockholmNow = toStockholmTime(now);
             const yearStart = new Date(stockholmNow.getFullYear(), 0, 1, 0, 0, 0, 0);
             start = setToStartOfDay(yearStart);
             break;
@@ -279,39 +279,9 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
 // HOUSEHOLD STATS (internal)
 // ========================
 
-async function getHouseholdStats(period: StatisticsPeriod): Promise<HouseholdStats> {
-    // Total active households
-    const [totalResult] = await db
-        .select({ count: count() })
-        .from(households)
-        .where(isNull(households.anonymized_at));
-    const total = totalResult?.count ?? 0;
-
-    // New households in period
-    const [newResult] = await db
-        .select({ count: count() })
-        .from(households)
-        .where(
-            and(
-                isNull(households.anonymized_at),
-                gte(households.created_at, period.start),
-                lt(households.created_at, period.end),
-            ),
-        );
-    const newCount = newResult?.count ?? 0;
-
-    // Removed households in period (by anonymized_at date)
-    const [removedResult] = await db
-        .select({ count: count() })
-        .from(households)
-        .where(
-            and(
-                isNotNull(households.anonymized_at),
-                gte(households.anonymized_at, period.start),
-                lt(households.anonymized_at, period.end),
-            ),
-        );
-    const removed = removedResult?.count ?? 0;
+async function getHouseholdStats(_period: StatisticsPeriod): Promise<HouseholdStats> {
+    // Note: total/new/removed household counts are computed in getOverviewStats
+    // This function focuses on demographic distributions
 
     // By locale (include removed - they preserve locale)
     const byLocaleResult = await db
@@ -441,9 +411,6 @@ async function getHouseholdStats(period: StatisticsPeriod): Promise<HouseholdSta
     const petsStats = petsResult.map(r => ({ species: r.species, count: r.count }));
 
     return {
-        total,
-        new: newCount,
-        removed,
         byLocale,
         byPostalCode,
         ageDistribution,

@@ -578,6 +578,15 @@ export function StatisticsClient() {
                                         </Card>
                                     )}
                                 </SimpleGrid>
+
+                                {/* Empty state for parcels charts */}
+                                {stats.parcels.byLocation.length === 0 &&
+                                    stats.parcels.byWeekday.length === 0 &&
+                                    stats.parcels.dailyTrend.length === 0 && (
+                                        <Text c="dimmed" ta="center" py="xl">
+                                            {t("noData")}
+                                        </Text>
+                                    )}
                             </div>
 
                             <Divider />
@@ -719,6 +728,15 @@ export function StatisticsClient() {
                                         </Card>
                                     )}
                                 </SimpleGrid>
+
+                                {/* Empty state for locations charts */}
+                                {stats.locations.pickupRateByLocation.length === 0 &&
+                                    stats.locations.nearCapacityAlerts.length === 0 &&
+                                    stats.locations.capacityUsage.length === 0 && (
+                                        <Text c="dimmed" ta="center" py="xl">
+                                            {t("noData")}
+                                        </Text>
+                                    )}
                             </div>
 
                             <Divider />
@@ -808,6 +826,14 @@ export function StatisticsClient() {
                                         </Card>
                                     )}
                                 </SimpleGrid>
+
+                                {/* Empty state for SMS charts */}
+                                {stats.sms.byIntent.length === 0 &&
+                                    stats.sms.dailyVolume.length === 0 && (
+                                        <Text c="dimmed" ta="center" py="xl">
+                                            {t("noData")}
+                                        </Text>
+                                    )}
                             </div>
                         </Stack>
                     )}
