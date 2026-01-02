@@ -9,7 +9,7 @@
  * IMPORTANT: Uses shared TEST_NOW for deterministic testing.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -26,12 +26,21 @@ import { TEST_NOW, daysFromTestNow, hoursFromTestNow } from "../../test-time";
 import { outgoingSms, households } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { getHouseholdsForEndedNotification } from "@/app/utils/sms/sms-service";
+import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
+import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
 
 describe("Food Parcels Ended SMS - Integration Tests", () => {
     beforeEach(() => {
         resetHouseholdCounter();
         resetLocationCounter();
         resetSmsCounter();
+        // Ensure each test starts with a clean gateway state
+        resetSmsGateway();
+    });
+
+    afterEach(() => {
+        // Reset SMS gateway after each test
+        resetSmsGateway();
     });
 
     describe("Eligibility Query", () => {
@@ -455,10 +464,12 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
                 picked_up_at: hoursFromTestNow(-49),
             });
 
-            // Import the function to test
+            // Use mock gateway for deterministic testing
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
             const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
 
-            // Call the send function directly
             const result = await sendEndedSmsForHousehold({
                 householdId: household.id,
                 phoneNumber: "+46701234567",
@@ -466,7 +477,7 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
                 lastParcelId: parcel.id,
             });
 
-            // Should create a record (success depends on SMS_TEST_MODE)
+            expect(result.success).toBe(true);
             expect(result.recordId).toBeDefined();
 
             // Verify SMS record was created in database
@@ -480,8 +491,12 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
             expect(smsRecord.household_id).toBe(household.id);
             expect(smsRecord.parcel_id).toBe(parcel.id);
             expect(smsRecord.to_e164).toBe("+46701234567");
-            // In test mode, status should be "sent"
             expect(smsRecord.status).toBe("sent");
+            // Deterministic message ID from mock gateway
+            expect(smsRecord.provider_message_id).toBe("mock_1");
+
+            // Verify mock was called exactly once
+            expect(mockGateway.getCallCount()).toBe(1);
         });
 
         it("respects idempotency - does not create duplicate SMS", async () => {
@@ -574,6 +589,181 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
                 .where(eq(outgoingSms.id, result.recordId!));
 
             expect(smsRecord.status).toBe("cancelled");
+        });
+
+        it("sets status to retrying with backoff on retriable failure (using mock gateway)", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Parcel picked up 49 hours ago
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Inject mock gateway that fails with retriable error
+            const mockGateway = new MockSmsGateway().alwaysFail(
+                "Service temporarily unavailable",
+                503,
+            );
+            setSmsGateway(mockGateway);
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should fail but mark for retry
+            expect(result.success).toBe(false);
+            expect(result.recordId).toBeDefined();
+            expect(result.error).toContain("temporarily unavailable");
+
+            // Verify SMS record is in retrying state
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord.status).toBe("retrying");
+            expect(smsRecord.last_error_message).toContain("temporarily unavailable");
+            expect(smsRecord.next_attempt_at).toBeDefined();
+
+            // First retry should be 5 minutes later
+            const expectedRetryTime = new Date(smsRecord.created_at.getTime() + 5 * 60 * 1000);
+            const actualRetryTime = smsRecord.next_attempt_at!;
+            // Allow 1 second tolerance for test execution time
+            expect(Math.abs(actualRetryTime.getTime() - expectedRetryTime.getTime())).toBeLessThan(
+                60000,
+            );
+
+            // Verify mock was called
+            expect(mockGateway.getCallCount()).toBe(1);
+        });
+
+        it("sets status to failed on non-retriable error (using mock gateway)", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Inject mock gateway that fails with permanent error (400 = bad request)
+            const mockGateway = new MockSmsGateway().alwaysFail("Invalid phone number", 400);
+            setSmsGateway(mockGateway);
+
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            // Should fail permanently (no retry for 400 errors)
+            expect(result.success).toBe(false);
+            expect(result.recordId).toBeDefined();
+
+            // Verify SMS record is in failed state (not retrying)
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord.status).toBe("failed");
+            expect(smsRecord.last_error_message).toContain("Invalid phone number");
+
+            // Verify mock was called only once (no retry)
+            expect(mockGateway.getCallCount()).toBe(1);
+        });
+
+        it("succeeds after initial failure with failThenSucceed mock", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                picked_up_at: hoursFromTestNow(-49),
+            });
+
+            // Inject mock gateway that fails once, then succeeds
+            const mockGateway = new MockSmsGateway().failThenSucceed(1, "Temporary failure", 503);
+            setSmsGateway(mockGateway);
+
+            const { sendEndedSmsForHousehold, sendSmsRecord, getSmsRecordsReadyForSending } =
+                await import("@/app/utils/sms/sms-service");
+
+            // First attempt fails
+            const result1 = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: "+46701234567",
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            expect(result1.success).toBe(false);
+            expect(mockGateway.getCallCount()).toBe(1);
+
+            // Verify it's in retrying state
+            const [record1] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result1.recordId!));
+            expect(record1.status).toBe("retrying");
+
+            // Simulate the retry by manually updating next_attempt_at to now
+            // and calling the queue processor
+            await db
+                .update(outgoingSms)
+                .set({ next_attempt_at: new Date() })
+                .where(eq(outgoingSms.id, result1.recordId!));
+
+            // Get the record ready for retry
+            const readyRecords = await getSmsRecordsReadyForSending();
+            expect(readyRecords.length).toBeGreaterThanOrEqual(1);
+            const recordToRetry = readyRecords.find(r => r.id === result1.recordId);
+            expect(recordToRetry).toBeDefined();
+
+            // Retry succeeds (mock will succeed on 2nd call)
+            const retrySuccess = await sendSmsRecord(recordToRetry!);
+            expect(retrySuccess).toBe(true);
+            expect(mockGateway.getCallCount()).toBe(2);
+
+            // Verify it's now sent
+            const [record2] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result1.recordId!));
+            expect(record2.status).toBe("sent");
+            expect(record2.provider_message_id).toBeDefined();
         });
     });
 });

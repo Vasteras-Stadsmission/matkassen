@@ -9,7 +9,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
-import { sendSms, type SendSmsResponse } from "./hello-sms";
+import { sendSmsViaGateway, type SendSmsResponse } from "./sms-gateway";
 import { formatPickupSms, formatFoodParcelsEndedSms } from "./templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
@@ -338,6 +338,7 @@ export async function updateSmsStatus(
         updateData.last_error_message = options.errorMessage;
     } else if (status === "failed") {
         updateData.last_error_message = options.errorMessage;
+        updateData.next_attempt_at = null; // Clear retry schedule on permanent failure
     } else if (status === "sent") {
         updateData.sent_at = Time.now().toUTC();
         // Clear any error message from previous failed attempts
@@ -630,7 +631,7 @@ export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
     }
 
     try {
-        const result: SendSmsResponse = await sendSms({
+        const result: SendSmsResponse = await sendSmsViaGateway({
             to: record.toE164,
             text: record.text,
         });
@@ -905,7 +906,7 @@ export async function sendReminderForParcel(parcel: {
 }): Promise<{ success: boolean; recordId?: string; error?: string }> {
     const { formatPickupSms } = await import("./templates");
     const { generateUrl } = await import("@/app/config/branding");
-    const { sendSms } = await import("./hello-sms");
+    const { sendSmsViaGateway } = await import("./sms-gateway");
 
     const id = nanoid(16);
     const now = Time.now().toUTC();
@@ -1017,7 +1018,7 @@ export async function sendReminderForParcel(parcel: {
 
     // Step 2: Send SMS
     try {
-        const result = await sendSms({
+        const result = await sendSmsViaGateway({
             to: phoneToUse,
             text: textToUse,
         });
@@ -1132,6 +1133,7 @@ async function handleJitFailure(
             .set({
                 status: "failed",
                 last_error_message: result.error,
+                next_attempt_at: null, // Clear retry schedule on permanent failure
             })
             .where(eq(outgoingSms.id, smsId));
     }
@@ -1441,7 +1443,7 @@ export async function sendEndedSmsForHousehold(household: {
     locale: string;
     lastParcelId: string;
 }): Promise<{ success: boolean; recordId?: string; error?: string }> {
-    const { sendSms } = await import("./hello-sms");
+    const { sendSmsViaGateway } = await import("./sms-gateway");
 
     const id = nanoid(16);
     const now = Time.now().toUTC();
@@ -1579,7 +1581,7 @@ export async function sendEndedSmsForHousehold(household: {
 
     // Step 2: Send SMS
     try {
-        const result = await sendSms({
+        const result = await sendSmsViaGateway({
             to: phoneToUse,
             text: textToUse,
         });

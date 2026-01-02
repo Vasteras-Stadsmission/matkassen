@@ -59,7 +59,10 @@ export async function GET(
             path: "/api/admin/sms/parcel/[parcelId]",
             parcelId: (await params).parcelId,
         });
-        return NextResponse.json({ error: "Failed to fetch SMS records" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Failed to fetch SMS records", code: "FETCH_ERROR" },
+            { status: 500 },
+        );
     }
 }
 
@@ -84,7 +87,10 @@ export async function POST(
         const { action } = await request.json();
 
         if (action !== "send" && action !== "resend") {
-            return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+            return NextResponse.json(
+                { error: "Invalid action", code: "INVALID_ACTION" },
+                { status: 400 },
+            );
         }
 
         // Get complete parcel data with household and location
@@ -174,7 +180,10 @@ export async function POST(
 
             if (isParcelOutsideOpeningHours(parcelTimeInfo, locationScheduleInfo)) {
                 return NextResponse.json(
-                    { error: "Cannot send SMS for parcel scheduled outside opening hours" },
+                    {
+                        error: "Cannot send SMS for parcel scheduled outside opening hours",
+                        code: "OUTSIDE_HOURS",
+                    },
                     { status: 400 },
                 );
             }
@@ -193,6 +202,7 @@ export async function POST(
             return NextResponse.json(
                 {
                     error: "Please wait at least 5 minutes before sending another SMS",
+                    code: "COOLDOWN_ACTIVE",
                 },
                 { status: 429 },
             );
@@ -252,6 +262,9 @@ export async function POST(
             path: "/api/admin/sms/parcel/[parcelId]",
             parcelId: (await params).parcelId,
         });
-        return NextResponse.json({ error: "Failed to send SMS" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Failed to send SMS", code: "SEND_ERROR" },
+            { status: 500 },
+        );
     }
 }

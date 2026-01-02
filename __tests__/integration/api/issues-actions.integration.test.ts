@@ -5,7 +5,7 @@
  * `/api/admin/issues` reflects the updated state.
  */
 
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -20,6 +20,9 @@ import {
 import { TEST_NOW, daysFromTestNow } from "../../test-time";
 import { foodParcels, outgoingSms } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
+import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
+import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
+import { sendSmsRecord, getSmsRecordsReadyForSending } from "@/app/utils/sms/sms-service";
 import type { NextRequest } from "next/server";
 
 const ADMIN_USERNAME = "test-admin";
@@ -93,6 +96,11 @@ describe("Issues actions - Route handler integration", () => {
         resetHouseholdCounter();
         resetLocationCounter();
         resetSmsCounter();
+        resetSmsGateway();
+    });
+
+    afterEach(() => {
+        resetSmsGateway();
     });
 
     describe("Mark As Picked Up", () => {
@@ -430,6 +438,79 @@ describe("Issues actions - Route handler integration", () => {
             const after = await getIssues();
             expect(after.failedSms).toHaveLength(0);
             expect(after.counts.failedSms).toBe(0);
+        });
+
+        it("should process queued resend successfully via sendSmsRecord", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({ first_name: "RetryProcess" });
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: ["sunday"], openingTime: "09:00", closingTime: "17:00" },
+            );
+
+            const sunday = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sunday,
+                pickup_date_time_latest: new Date(sunday.getTime() + 30 * 60 * 1000),
+                is_picked_up: false,
+            });
+
+            // Existing failure older than the 5-minute cooldown
+            await createTestSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                status: "failed",
+                attempt_count: 3,
+                last_error_message: "Test error",
+                created_at: new Date(TEST_NOW.getTime() - 6 * 60 * 1000),
+            });
+
+            // Admin clicks resend - creates new queued SMS
+            const resendResponse = await parcelSmsPOST(
+                makeRequest(`http://localhost/api/admin/sms/parcel/${parcel.id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "resend" }),
+                }),
+                { params: Promise.resolve({ parcelId: parcel.id }) },
+            );
+
+            expect(resendResponse.status).toBe(200);
+            const resendPayload = await resendResponse.json();
+            const newSmsId = resendPayload.smsId;
+
+            // Verify new SMS is queued
+            const [queuedSms] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, newSmsId));
+            expect(queuedSms.status).toBe("queued");
+
+            // Use mock gateway to actually send the queued SMS
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            // Get the queued record and send it
+            const readyRecords = await getSmsRecordsReadyForSending();
+            const recordToSend = readyRecords.find(r => r.id === newSmsId);
+            expect(recordToSend).toBeDefined();
+
+            const sendResult = await sendSmsRecord(recordToSend!);
+            expect(sendResult).toBe(true);
+
+            // Verify it's now sent
+            const [sentSms] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, newSmsId));
+            expect(sentSms.status).toBe("sent");
+            expect(sentSms.provider_message_id).toBe("mock_1");
+            expect(sentSms.sent_at).not.toBeNull();
+
+            // Verify mock was called exactly once
+            expect(mockGateway.getCallCount()).toBe(1);
         });
     });
 });
