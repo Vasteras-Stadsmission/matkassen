@@ -321,7 +321,17 @@
             "favoriteUpdateFailed": "Det gick inte att uppdatera favoritplatsen",
             "cancelButton": "Avbryt",
             "tooltipSetFavorite": "Sätt {location} som favorit",
-            "tooltipRemoveFavorite": "Ta bort {location} som favorit"
+            "tooltipRemoveFavorite": "Ta bort {location} som favorit",
+            "noUpcomingSchedule": "Inga kommande öppettider"
+        },
+        "noUpcomingSchedule": {
+            "title": "Inga kommande öppettider",
+            "description": "Denna plats har inga öppettider schemalagda för framtida datum.",
+            "whatThisMeans": "Vad detta innebär:",
+            "consequence1": "Nya matkassar kan inte bokas på denna plats",
+            "consequence2": "Hushåll kan inte tilldelas upphämtningstider här",
+            "callToAction": "Om denna plats ska ta emot matkassar, vänligen kontakta den ansvarige för hantering av utlämningsplatsernas scheman.",
+            "understand": "Jag förstår"
         },
         "location": {
             "header": {

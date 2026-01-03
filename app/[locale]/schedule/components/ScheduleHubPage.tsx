@@ -23,6 +23,7 @@ import { getPickupLocations, getTodaysParcels, getParcelById } from "../actions"
 import { createLocationSlug } from "../utils/location-slugs";
 import { getUserFavoriteLocation } from "../utils/user-preferences";
 import { FavoriteStar } from "./FavoriteStar";
+import { NoUpcomingScheduleBadge } from "./NoUpcomingScheduleBadge";
 import type { PickupLocation, FoodParcel } from "../types";
 import type { TranslationFunction } from "../../types";
 
@@ -255,6 +256,13 @@ export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) 
                                                                 {t("hub.completed")}
                                                             </Text>
                                                         </Group>
+                                                    )}
+
+                                                    {/* No upcoming schedule warning */}
+                                                    {!summary.location.hasUpcomingSchedule && (
+                                                        <div style={{ marginTop: "8px" }}>
+                                                            <NoUpcomingScheduleBadge />
+                                                        </div>
                                                     )}
                                                 </div>
                                                 <Group gap="xs" align="flex-start">

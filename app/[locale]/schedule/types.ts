@@ -22,6 +22,7 @@ export interface PickupLocation {
     maxParcelsPerDay: number | null;
     maxParcelsPerSlot: number | null;
     outsideHoursCount: number;
+    hasUpcomingSchedule: boolean;
 }
 
 /**
