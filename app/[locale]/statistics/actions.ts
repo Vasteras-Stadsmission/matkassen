@@ -279,7 +279,7 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
 // HOUSEHOLD STATS (internal)
 // ========================
 
-async function getHouseholdStats(_period: StatisticsPeriod): Promise<HouseholdStats> {
+async function getHouseholdStats(): Promise<HouseholdStats> {
     // Note: total/new/removed household counts are computed in getOverviewStats
     // This function focuses on demographic distributions
 
@@ -827,7 +827,7 @@ export const getAllStatistics = protectedAction(
 
             const [overview, householdStats, parcels, locations, sms] = await Promise.all([
                 getOverviewStats(period),
-                getHouseholdStats(period),
+                getHouseholdStats(),
                 getParcelStats(period),
                 getLocationStats(period),
                 getSmsStats(period),
