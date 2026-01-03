@@ -45,6 +45,7 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 - `Hushåll`: sök på namn/telefon, öppna kortet och se historik och kommentarer.
 - Skapa nytt hushåll när någon är ny; fyll i namn, telefon och hämtningsplats.
 - Boka tider från hushållskortet (hantera bokningar) eller direkt i schemat.
+- Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konverteras det automatiskt – detta är avsett.
 
 ## Kommentarer
 
