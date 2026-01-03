@@ -1,6 +1,6 @@
 # Handbok för utlämningspersonal (sv)
 
-Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas som PDF.
+Kort guide för dig som lämnar ut matkassar.
 
 ## Snabbstart och utrustning
 
@@ -11,12 +11,16 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 ## Veckoplanering (veckovy)
 
+Översikt över kommande bokningar och beläggning.
+
 - Gå till `Schema` → veckovy för valt utlämningsställe.
 - Se beläggning per dag, hitta luckor och flytta tider vid behov (befintliga bokningar).
 - Nya bokningar lägger du via hushållskortet eller inskrivningen; använd veckovy för överblick och ombokning.
 - Använd veckovy när du planerar kommande dagar/veckor.
 
 ## Dagens utlämningar (dagvy)
+
+Arbetsvy för att hantera dagens hämtningar.
 
 - Gå till `Schema` → `Dagens utlämningar` för din favoritplats (eller välj plats i listan).
 - Visar bara dagens bokningar, grupperade per tidsfönster, med progressräknare.
@@ -26,13 +30,16 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 ## Markera ej hämtad (no-show)
 
+Registrera när mottagaren inte hämtar sin matkasse.
+
 - Om mottagaren inte dyker upp: öppna bokningen och markera "Ej hämtad".
 - Kan endast göras för dagens eller tidigare bokningar.
 - Hjälper till att hålla statistiken korrekt och rensa olösta utlämningar.
 
 ## Behöver uppföljning
 
-- Startsidan visar ärenden som behöver åtgärdas.
+Ärenden som kräver åtgärd visas på startsidan.
+
 - Röd siffra i navigationen visar antalet olösta ärenden.
 - Tre kategorier:
     1. **Olösta utlämningar** – tidigare bokningar utan utfall (markera som hämtad eller ej hämtad)
@@ -42,6 +49,8 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 ## Hitta hushåll och boka
 
+Sök upp hushåll och hantera deras bokningar.
+
 - `Hushåll`: sök på namn/telefon, öppna kortet och se historik och kommentarer.
 - Skapa nytt hushåll när någon är ny; fyll i namn, telefon och hämtningsplats.
 - Boka tider från hushållskortet (hantera bokningar) eller direkt i schemat.
@@ -49,11 +58,15 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 ## Kommentarer
 
+Intern information kopplad till hushållet.
+
 - Lägg till en kommentar i hushållskortet för extra info som inte passar i fälten (t.ex. bud hämtar, önskemål).
 - Alla inloggade kan lägga till och ta bort kommentarer.
 - **Skriv aldrig känslig information** – inga personnummer, hälsouppgifter, ekonomi eller orsaker till stödbehov.
 
 ## Hur SMS fungerar
+
+Automatiska påminnelser till mottagarna.
 
 - SMS skickas automatiskt – du behöver normalt inte göra något manuellt.
 - Påminnelsen går 48 timmar före bokad tid.
@@ -63,10 +76,12 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 ## QR-koder och incheckning
 
+Snabb identifiering av mottagare vid utlämning.
+
 - QR-kod är ett hjälpmedel, inte ett krav; du hittar alltid bokningen via `Dagens utlämningar` och kan markera hämtad där.
 - Snabbast: be mottagaren öppna QR-koden i sitt SMS på sin egen mobil och skanna med din mobilkamera.
 - Alternativ (t.ex. vid laptop): använd QR-scannersidan via länk i navigationen.
-- När du öppnar bokningen: kontrollera uppgifter och markera “Hämtad”.
+- När du öppnar bokningen: kontrollera uppgifter och markera "Hämtad".
 
 ## Tips under utdelning
 

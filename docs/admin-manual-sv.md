@@ -1,6 +1,6 @@
 # Adminhandbok – Inställningar (sv)
 
-Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och kan sparas som PDF.
+Kort översikt av kugghjulsmenyn. Avsedd för administratörer och koordinatorer.
 
 ## Verifieringschecklista
 

@@ -1,6 +1,6 @@
 # Handbok för handläggare (sv)
 
-Kort guide för dig som registrerar hushåll och schemalägger matkassar. Kan skrivas ut eller sparas som PDF.
+Kort guide för dig som registrerar hushåll och schemalägger matkassar.
 
 ## Snabbstart
 
@@ -37,6 +37,8 @@ Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konve
 
 ## Schemalägg matkassar
 
+Boka in hämtningstider för hushållet.
+
 **Från hushållskortet:**
 
 - Öppna hushållet → `Hantera matkassar`
@@ -50,6 +52,8 @@ Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konve
 
 ## Ändra eller ta bort matkassar
 
+Omboka eller avboka redan schemalagda hämtningar.
+
 - Öppna hushållet → `Hantera matkassar`
 - Ändra datum/tid eller ta bort raden
 - Spara ändringarna
@@ -57,6 +61,8 @@ Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konve
 Alternativt: öppna bokningen i schemat och välj `Omboka` eller `Ta bort`.
 
 ## Hur SMS fungerar
+
+Systemet skickar SMS automatiskt vid olika händelser.
 
 - **Välkomst-SMS** skickas vid inskrivning med länk till integritetspolicyn.
 - **Påminnelse** skickas automatiskt 48 timmar före bokad tid.
@@ -67,6 +73,8 @@ Alternativt: öppna bokningen i schemat och välj `Omboka` eller `Ta bort`.
 Om bokningen är inom 48 timmar skickas SMS vid nästa utskick (normalt inom några minuter).
 
 ## Kommentarer
+
+Intern information kopplad till hushållet.
 
 - Lägg till kommentarer i hushållskortet för extra info (t.ex. bud hämtar, önskemål).
 - Alla inloggade kan lägga till och ta bort kommentarer.
