@@ -14,8 +14,9 @@ Kort guide för dig som lämnar ut matkassar.
 Översikt över kommande bokningar och beläggning.
 
 - Gå till `Schema` → veckovy för valt utlämningsställe.
-- Se beläggning per dag, hitta luckor och flytta tider vid behov (befintliga bokningar).
-- Nya bokningar lägger du via hushållskortet eller inskrivningen; använd veckovy för överblick och ombokning.
+- Se beläggning per dag, hitta luckor och flytta tider vid behov.
+- Klicka på en ledig tid för att boka in ett hushåll direkt.
+- Veckovyn visar alla tider även veckor utan bokningar – bra för att se tillgängliga tider.
 - Använd veckovy när du planerar kommande dagar/veckor.
 
 ## Dagens utlämningar (dagvy)
@@ -53,8 +54,11 @@ Sök upp hushåll och hantera deras bokningar.
 
 - `Hushåll`: sök på namn/telefon, öppna kortet och se historik och kommentarer.
 - Skapa nytt hushåll när någon är ny; fyll i namn, telefon och hämtningsplats.
-- Boka tider från hushållskortet (hantera bokningar) eller direkt i schemat.
 - Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konverteras det automatiskt – detta är avsiktligt.
+
+**När du bokar från hushållskortet** – bra när du vill säkerställa att ett visst hushåll får matkasse.
+
+**När du bokar från veckovyn** – bra när du vill se lediga tider och fördela hushåll jämnt. Veckovyn visar alla tider och beläggning, även veckor utan bokningar.
 
 ## Kommentarer
 

@@ -37,18 +37,20 @@ Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konve
 
 ## Schemalägg matkassar
 
-Boka in hämtningstider för hushållet.
+Boka in hämtningstider för hushållet. Det finns två sätt att boka – välj det som passar situationen.
 
-**Från hushållskortet:**
+**Från hushållskortet** – när du vill säkerställa att ett visst hushåll får matkasse:
 
 - Öppna hushållet → `Hantera matkassar`
 - Välj hämtplats och lägg till datum/tider
 - Klicka `Spara matkassar`
 
-**Från schemat:**
+**Från veckovyn** – när du vill se lediga tider och fylla luckor:
 
 - Gå till `Schema` → välj utlämningsställe → veckovy
+- Veckovyn visar alla tider och beläggning, även veckor utan bokningar
 - Klicka på en ledig tid och välj hushåll
+- Bra när du vill fördela hushåll jämnt över tillgängliga tider
 
 ## Ändra eller ta bort matkassar
 
