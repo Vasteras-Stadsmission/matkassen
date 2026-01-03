@@ -6,7 +6,7 @@ Kort guide för dig som registrerar hushåll och schemalägger matkassar.
 
 - Logga in med GitHub-kontot (krävs för all personal).
 - Byt språk via språkknappen i menyn (sv/en).
-- Använd helst dator för inskrivning och schemaläggning.
+- Använd helst dator för inskrivning och schemaläggning – appen fungerar på mobil, men du får bättre överblick på dator.
 
 ## Skapa nytt hushåll
 
