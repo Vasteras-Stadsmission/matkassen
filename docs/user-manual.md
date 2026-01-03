@@ -652,9 +652,9 @@ Useful if primary recipient cannot attend pickup.
 
 **Phone number validation fails**
 
-- Use Swedish format: +46XXXXXXXXX or 07XXXXXXXX
-- Remove spaces or dashes
-- System adds formatting automatically
+- Use Swedish format: 07XXXXXXXX or 7XXXXXXXX (without +46 prefix)
+- The +46 prefix is shown automatically in the form
+- Remove spaces or dashes if copy-pasting
 
 **Cannot delete household**
 
@@ -735,29 +735,18 @@ Useful if primary recipient cannot attend pickup.
 
 ### Location Issues
 
-**Can't delete location**
-
-- Location has upcoming parcels
-- Must reschedule or delete all parcels first
-- Then try deletion again
-
 **Location doesn't appear in dropdown**
 
 - Refresh page
 - Clear browser cache
-- Verify location was created successfully
-
-**Schedule configuration lost**
-
-- Must save before navigating away
-- Click "Save Schedule" button
-- If lost, reconfigure and save again
+- Contact admin to verify location was created
 
 **Capacity warnings ignored**
 
 - Capacity is soft limit (warning only)
-- Currently by design
-- Admins should respect warnings manually
+- This is by design - staff can override if needed
+
+> **Note**: Location creation, deletion, and schedule configuration are administrator tasks. See the [Admin Manual](./admin-manual.md) for those issues.
 
 ### Public Page Issues
 
