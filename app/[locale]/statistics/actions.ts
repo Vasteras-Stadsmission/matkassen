@@ -14,7 +14,7 @@ import {
     pickupLocations,
     outgoingSms,
 } from "@/app/db/schema";
-import { sql, eq, and, isNull, isNotNull, gte, lt, count } from "drizzle-orm";
+import { sql, eq, and, or, isNull, isNotNull, gte, lt, count } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
@@ -71,7 +71,7 @@ export interface LocationStats {
     pickupRateByLocation: {
         locationId: string;
         locationName: string;
-        rate: number;
+        rate: number | null;
         total: number;
     }[];
     nearCapacityAlerts: {
@@ -213,9 +213,9 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
         );
     const pickedUpParcels = pickedUpResult?.count ?? 0;
 
-    // Eligible parcels for pickup rate (past parcels, excluding same-day)
+    // Eligible parcels for pickup rate (past parcels, excluding same-day, resolved outcome only)
     // Use SQL for today comparison to avoid timezone issues
-    const [eligibleResult] = await db
+    const [eligibleResolvedResult] = await db
         .select({ count: count() })
         .from(foodParcels)
         .where(
@@ -224,9 +224,11 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
+                // Exclude unresolved handouts: require a resolved outcome (picked up OR no-show)
+                or(eq(foodParcels.is_picked_up, true), isNotNull(foodParcels.no_show_at)),
             ),
         );
-    const eligibleParcels = eligibleResult?.count ?? 0;
+    const eligibleResolvedParcels = eligibleResolvedResult?.count ?? 0;
 
     // Picked up among eligible
     const [pickedUpEligibleResult] = await db
@@ -243,7 +245,8 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
         );
     const pickedUpEligible = pickedUpEligibleResult?.count ?? 0;
 
-    const pickupRate = eligibleParcels > 0 ? (pickedUpEligible / eligibleParcels) * 100 : null;
+    const pickupRate =
+        eligibleResolvedParcels > 0 ? (pickedUpEligible / eligibleResolvedParcels) * 100 : null;
 
     // SMS delivery rate
     const [smsResult] = await db
@@ -453,7 +456,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
         );
     const pickedUp = pickedUpResult?.count ?? 0;
 
-    // Not picked up (past only, excluding same-day)
+    // Not picked up (confirmed no-show, past only, excluding same-day)
     const [notPickedUpResult] = await db
         .select({ count: count() })
         .from(foodParcels)
@@ -461,6 +464,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
             and(
                 notDeleted(),
                 eq(foodParcels.is_picked_up, false),
+                isNotNull(foodParcels.no_show_at),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
@@ -666,6 +670,7 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
             )::int`,
             eligible: sql<number>`count(*) filter (
                 where DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}
+                AND (${foodParcels.is_picked_up} = true OR ${foodParcels.no_show_at} IS NOT NULL)
             )::int`,
             total: sql<number>`count(*)::int`,
         })
@@ -683,7 +688,7 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
     const pickupRateByLocation = pickupRateResult.map(r => ({
         locationId: r.locationId,
         locationName: r.locationName,
-        rate: r.eligible > 0 ? (r.pickedUpEligible / r.eligible) * 100 : 0,
+        rate: r.eligible > 0 ? (r.pickedUpEligible / r.eligible) * 100 : null,
         total: r.total,
     }));
 

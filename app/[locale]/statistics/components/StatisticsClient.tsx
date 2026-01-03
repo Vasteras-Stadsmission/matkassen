@@ -124,6 +124,8 @@ function getIntentName(
             return t("sms.intents.pickup_cancelled");
         case "consent_enrolment":
             return t("sms.intents.consent_enrolment");
+        case "enrolment":
+            return t("sms.intents.enrolment");
         case "food_parcels_ended":
             return t("sms.intents.food_parcels_ended");
         default:
@@ -602,22 +604,43 @@ export function StatisticsClient() {
                                             <Title order={4} mb="md">
                                                 {t("locations.pickupRate")}
                                             </Title>
-                                            <BarChart
-                                                h={200}
-                                                data={stats.locations.pickupRateByLocation.map(
-                                                    l => ({
-                                                        location: l.locationName,
-                                                        [t("chartLabels.rate")]: Math.round(l.rate),
-                                                    }),
-                                                )}
-                                                dataKey="location"
-                                                series={[
-                                                    {
-                                                        name: t("chartLabels.rate"),
-                                                        color: "teal.6",
-                                                    },
-                                                ]}
-                                            />
+                                            <Stack gap="xs">
+                                                {[...stats.locations.pickupRateByLocation]
+                                                    .sort((a, b) => {
+                                                        const aRate = a.rate ?? -1;
+                                                        const bRate = b.rate ?? -1;
+                                                        if (bRate !== aRate) return bRate - aRate;
+                                                        return b.total - a.total;
+                                                    })
+                                                    .slice(0, 10)
+                                                    .map(location => (
+                                                        <Group
+                                                            key={location.locationId}
+                                                            justify="space-between"
+                                                        >
+                                                            <Text size="sm">
+                                                                {location.locationName}
+                                                            </Text>
+                                                            <Text
+                                                                size="sm"
+                                                                fw={700}
+                                                                c={
+                                                                    location.rate === null
+                                                                        ? "dimmed"
+                                                                        : location.rate >= 80
+                                                                          ? "green"
+                                                                          : location.rate >= 50
+                                                                            ? "orange"
+                                                                            : "red"
+                                                                }
+                                                            >
+                                                                {location.rate !== null
+                                                                    ? `${Math.round(location.rate)}%`
+                                                                    : "—"}
+                                                            </Text>
+                                                        </Group>
+                                                    ))}
+                                            </Stack>
                                         </Card>
                                     )}
 

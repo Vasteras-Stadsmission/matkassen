@@ -1465,6 +1465,7 @@
                 "pickup_updated": "Hämtning uppdaterad",
                 "pickup_cancelled": "Hämtning avbokad",
                 "consent_enrolment": "Samtycke anmälan",
+                "enrolment": "Välkomstmeddelande",
                 "food_parcels_ended": "Matkassar avslutade"
             },
             "pendingLabel": "Väntande (Aktuellt)"

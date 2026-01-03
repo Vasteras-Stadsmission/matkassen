@@ -1465,6 +1465,7 @@
                 "pickup_updated": "Pickup Updated",
                 "pickup_cancelled": "Pickup Cancelled",
                 "consent_enrolment": "Consent Enrolment",
+                "enrolment": "Welcome message",
                 "food_parcels_ended": "Food Parcels Ended"
             },
             "pendingLabel": "Pending (Current)"

@@ -18,6 +18,7 @@ import {
     createTestParcel,
     createTestPickedUpParcel,
     createTestDeletedParcel,
+    createTestNoShowParcel,
 } from "../../factories/food-parcel.factory";
 import {
     createTestSentSms,
@@ -155,11 +156,11 @@ describe("Statistics Actions", () => {
                     pickup_location_id: location.id,
                     pickup_date_time_earliest: daysFromTestNow(-1),
                 });
-                await createTestParcel({
+                await createTestNoShowParcel({
                     household_id: household.id,
                     pickup_location_id: location.id,
                     pickup_date_time_earliest: daysFromTestNow(-3),
-                    is_picked_up: false,
+                    no_show_at: daysFromTestNow(-3),
                 });
 
                 // Same-day parcel (should not affect pickup rate)
@@ -178,6 +179,36 @@ describe("Statistics Actions", () => {
 
                 // 2 picked up out of 3 eligible (same-day excluded)
                 expect(result.data.overview.pickupRate).toBeCloseTo(66.67, 1);
+            });
+
+            it("should exclude unresolved handouts from pickup rate", async () => {
+                const household = await createTestHousehold();
+                const location = await createTestPickupLocation();
+
+                // Resolved: picked up
+                await createTestPickedUpParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-2),
+                });
+
+                // Unresolved: past date, not picked up, no no-show marker
+                await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-1),
+                    is_picked_up: false,
+                });
+
+                const { getAllStatistics } = await getActions();
+                const result = await getAllStatistics("7d");
+
+                expect(result.success).toBe(true);
+                if (!result.success) return;
+
+                // Only resolved outcomes (picked up OR no-show) should count toward pickup rate.
+                // Here: 1 resolved eligible (picked up), 0 resolved misses => 100%.
+                expect(result.data.overview.pickupRate).toBeCloseTo(100, 1);
             });
         });
 
@@ -463,6 +494,35 @@ describe("Statistics Actions", () => {
                 // (3 + 1) / 2 = 2
                 expect(result.data.parcels.avgPerHousehold).toBeCloseTo(2, 1);
             });
+
+            it("should count not picked up parcels as confirmed no-shows only (exclude unresolved)", async () => {
+                const household = await createTestHousehold();
+                const location = await createTestPickupLocation();
+
+                // Confirmed no-show (counts as not picked up)
+                await createTestNoShowParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-2),
+                    no_show_at: daysFromTestNow(-1),
+                });
+
+                // Unresolved (past date, no outcome) - should not be counted as notPickedUp in stats
+                await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-3),
+                    is_picked_up: false,
+                });
+
+                const { getAllStatistics } = await getActions();
+                const result = await getAllStatistics("7d");
+
+                expect(result.success).toBe(true);
+                if (!result.success) return;
+
+                expect(result.data.parcels.notPickedUp).toBe(1);
+            });
         });
 
         describe("Location Stats", () => {
@@ -489,11 +549,11 @@ describe("Statistics Actions", () => {
                     pickup_location_id: location2.id,
                     pickup_date_time_earliest: daysFromTestNow(-1),
                 });
-                await createTestParcel({
+                await createTestNoShowParcel({
                     household_id: household.id,
                     pickup_location_id: location2.id,
                     pickup_date_time_earliest: daysFromTestNow(-2),
-                    is_picked_up: false,
+                    no_show_at: daysFromTestNow(-1),
                 });
 
                 const { getAllStatistics } = await getActions();
@@ -511,6 +571,30 @@ describe("Statistics Actions", () => {
 
                 expect(highPickup?.rate).toBe(100);
                 expect(lowPickup?.rate).toBe(50);
+            });
+
+            it("should return null pickup rate when there are no eligible resolved parcels", async () => {
+                const household = await createTestHousehold();
+                const location = await createTestPickupLocation({ name: "No Eligible" });
+
+                // Same-day (not eligible) and unresolved (no outcome)
+                await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(0),
+                    is_picked_up: false,
+                });
+
+                const { getAllStatistics } = await getActions();
+                const result = await getAllStatistics("7d");
+
+                expect(result.success).toBe(true);
+                if (!result.success) return;
+
+                const locationRate = result.data.locations.pickupRateByLocation.find(
+                    l => l.locationName === "No Eligible",
+                );
+                expect(locationRate?.rate).toBeNull();
             });
 
             it("should generate capacity usage for next 7 days", async () => {
@@ -650,6 +734,38 @@ describe("Statistics Actions", () => {
 
                 expect(reminderIntent?.count).toBe(2);
                 expect(updatedIntent?.count).toBe(1);
+            });
+
+            it("should include enrolment intent in SMS statistics", async () => {
+                const household = await createTestHousehold();
+                const location = await createTestPickupLocation();
+                const parcel = await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: daysFromTestNow(-1),
+                });
+
+                await createTestSentSms({
+                    household_id: household.id,
+                    parcel_id: parcel.id,
+                    intent: "enrolment",
+                });
+                await createTestSentSms({
+                    household_id: household.id,
+                    parcel_id: parcel.id,
+                    intent: "enrolment",
+                });
+
+                const { getAllStatistics } = await getActions();
+                const result = await getAllStatistics("7d");
+
+                expect(result.success).toBe(true);
+                if (!result.success) return;
+
+                const enrolmentIntent = result.data.sms.byIntent.find(
+                    i => i.intent === "enrolment",
+                );
+                expect(enrolmentIntent?.count).toBe(2);
             });
         });
 
