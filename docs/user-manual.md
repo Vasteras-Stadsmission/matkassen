@@ -25,45 +25,42 @@ Households are the central registry of families/individuals receiving food parce
 
 ### Creating Households
 
-The enrollment wizard has 6 steps (or 7 if verification questions are configured):
+The enrollment wizard has 7 steps:
 
 1. **Basics**
-    - First name, last name (required, minimum 2 characters each)
-    - Phone number in Swedish format: 07XXXXXXXX or 7XXXXXXXX (required)
-    - Postal code: 5 digits, e.g. 123 45 (optional)
-    - Language preference (optional, defaults to Swedish)
-    - SMS consent checkbox (required for new enrollments)
-    - **Note**: Upon enrollment, an SMS is sent containing a link to the privacy policy
+    - First name, last name (required)
+    - Phone number in Swedish format: +46XXXXXXXXX or 07XXXXXXXX (required)
+    - Street address, postal code, city (optional but recommended)
+    - Pickup location (required - determines where parcels can be scheduled)
 
 2. **Members**
-    - Add household members with age and gender (male/female/other)
+    - Add household members with names and birthdates
     - Helps with parcel planning and statistics
     - All fields optional
 
 3. **Diet**
-    - Select from predefined list or add custom dietary restrictions
+    - Select from: Vegetarian, Vegan, Lactose-free, Gluten-free, Halal, Kosher, etc.
     - Multiple selections allowed
     - Used for food parcel planning
 
 4. **Pets**
-    - Select species from predefined list or add custom
-    - Set count for each species
-    - Relevant for certain food items
+    - Add pets with species and names
+    - Relevant for certain food items or allergen considerations
 
 5. **Needs**
-    - Special requirements from predefined list or add custom
+    - Special requirements: Wheelchair access, Interpreter needed, etc.
     - Multiple selections allowed
     - Helps staff prepare for pickup
 
-6. **Verification** (only in create mode, if configured)
-    - Answer verification questions set by administrators
-    - All required questions must be checked before proceeding
+6. **Parcels** (optional)
+    - Schedule initial food parcels directly from wizard
+    - Or skip and schedule later from schedule page
 
 7. **Review**
     - Confirm all information before submitting
     - Validation errors shown in red
 
-After submission, household appears in the households list. Food parcels are scheduled separately from the schedule page or household details.
+After submission, household appears in the households list and is immediately available for parcel scheduling.
 
 ### Viewing and Editing Households
 
@@ -94,8 +91,8 @@ Add notes to household records for communication tracking:
 
 - Type comment → Click "Add Comment"
 - Shows your username and timestamp
-- Visible to all logged-in users
-- Any logged-in user can add or delete comments (not edit)
+- Visible to all admin staff
+- Can be deleted but not edited
 
 **Use comments for**:
 
@@ -652,9 +649,9 @@ Useful if primary recipient cannot attend pickup.
 
 **Phone number validation fails**
 
-- Use Swedish format: 07XXXXXXXX or 7XXXXXXXX (without +46 prefix)
-- The +46 prefix is shown automatically in the form
-- Remove spaces or dashes if copy-pasting
+- Use Swedish format: +46XXXXXXXXX or 07XXXXXXXX
+- Remove spaces or dashes
+- System adds formatting automatically
 
 **Cannot delete household**
 
@@ -735,18 +732,29 @@ Useful if primary recipient cannot attend pickup.
 
 ### Location Issues
 
+**Can't delete location**
+
+- Location has upcoming parcels
+- Must reschedule or delete all parcels first
+- Then try deletion again
+
 **Location doesn't appear in dropdown**
 
 - Refresh page
 - Clear browser cache
-- Contact admin to verify location was created
+- Verify location was created successfully
+
+**Schedule configuration lost**
+
+- Must save before navigating away
+- Click "Save Schedule" button
+- If lost, reconfigure and save again
 
 **Capacity warnings ignored**
 
 - Capacity is soft limit (warning only)
-- This is by design - staff can override if needed
-
-> **Note**: Location creation, deletion, and schedule configuration are administrator tasks. See the [Admin Manual](./admin-manual.md) for those issues.
+- Currently by design
+- Admins should respect warnings manually
 
 ### Public Page Issues
 
