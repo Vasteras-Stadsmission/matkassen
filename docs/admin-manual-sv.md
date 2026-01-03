@@ -4,6 +4,8 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 
 ## Verifieringschecklista
 
+Kontrollpunkter som personal måste bekräfta vid inskrivning av nya hushåll.
+
 - Gå till `Inställningar` → `Allmänna inställningar`.
 - Checklistan visas för personalen i inskrivningsflödet som "Jag har säkerställt att...".
 - Lägg till punkt: fyll i text på svenska och engelska, markera om den är obligatorisk och lägg till ev. hjälptext.
@@ -11,6 +13,8 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 - Redigering eller borttagning påverkar nya inskrivningar. Befintliga anteckningar ligger kvar.
 
 ## Utlämningsställen
+
+Fysiska platser där matkassar lämnas ut.
 
 - Gå till `Inställningar` → `Utlämningsställen`.
 - Skapa eller öppna en platsflik och fyll i:
@@ -22,6 +26,8 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 
 ## Scheman och öppettider (per plats)
 
+Styr vilka dagar och tider bokningar kan göras på varje utlämningsställe.
+
 - Efter att platsen är sparad: öppna fliken `Scheman`.
 - Skapa scheman med namn, start- och slutvecka och markera vilka veckodagar som är öppna samt tidsintervall.
 - Överlapp är inte tillåtet. Vid specialveckor: gör ett schema fram till veckan före, ett separat schema för specialveckan, och därefter ett nytt schema för efterföljande veckor.
@@ -29,6 +35,8 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 - Slot-längden för nya tider styrs av värdet från platsens grundflik.
 
 ## Matkassegränser
+
+Varningssystem för att identifiera hushåll med högt antal matkassar.
 
 - Gå till `Inställningar` → `Matkassegränser`.
 - Ange en gräns för antal kassar varefter systemet visar en varning.
