@@ -50,7 +50,7 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 - Lägg till en kommentar i hushållskortet för extra info som inte passar i fälten (t.ex. bud hämtar, önskemål).
 - Kommentarer visar vem som skrev och när; alla inloggade kan ta bort dem.
-- Skriv inte känslig information.
+- **Skriv aldrig känslig information** – inga personnummer, hälsouppgifter, ekonomi eller orsaker till stödbehov.
 
 ## Hur SMS fungerar
 
