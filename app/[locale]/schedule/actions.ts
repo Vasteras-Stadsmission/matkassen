@@ -81,6 +81,9 @@ export async function getParcelById(parcelId: string): Promise<FoodParcel | null
 }
 export async function getPickupLocations(): Promise<PickupLocation[]> {
     try {
+        // Get current date for schedule comparison
+        const currentDateStr = Time.now().toDateString();
+
         const locations = await db
             .select({
                 id: pickupLocations.id,
@@ -89,6 +92,12 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
                 maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                 maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 outsideHoursCount: pickupLocations.outside_hours_count,
+                // Check if location has any schedule with end_date >= today
+                hasUpcomingSchedule: sql<boolean>`EXISTS (
+                    SELECT 1 FROM ${pickupLocationSchedules}
+                    WHERE ${pickupLocationSchedules.pickup_location_id} = ${pickupLocations.id}
+                    AND ${pickupLocationSchedules.end_date} >= ${currentDateStr}::date
+                )`,
             })
             .from(pickupLocations);
 

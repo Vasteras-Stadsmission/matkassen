@@ -34,6 +34,7 @@ import { getTodaysParcels, getPickupLocations, getParcelById } from "../../../ac
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { findLocationBySlug } from "../../../utils/location-slugs";
 import { FavoriteStar } from "../../../components/FavoriteStar";
+import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
 import { getUserFavoriteLocation } from "../../../utils/user-preferences";
 import type { FoodParcel, PickupLocation } from "../../../types";
 import type { TranslationFunction } from "../../../../types";
@@ -419,6 +420,11 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                             </Tabs>
                         </Stack>
                     </Paper>
+
+                    {/* No upcoming schedule warning */}
+                    {currentLocation && !currentLocation.hasUpcomingSchedule && (
+                        <NoUpcomingScheduleAlert />
+                    )}
 
                     {/* Food Parcels List */}
                     {totalParcels === 0 ? (
