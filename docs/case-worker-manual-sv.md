@@ -66,8 +66,8 @@ Systemet skickar SMS automatiskt vid olika händelser.
 
 - **Välkomst-SMS** skickas vid inskrivning med länk till integritetspolicyn.
 - **Påminnelse** skickas automatiskt 48 timmar före bokad tid.
-- **Uppdatering** skickas om du ändrar en bokning efter att påminnelsen gått ut.
-- **Avbokning** skickas om du tar bort en bokning efter att påminnelsen gått ut.
+- **Uppdatering** skickas om du ändrar en bokning efter att påminnelsen redan skickats.
+- **Avbokning** skickas om du tar bort en bokning efter att påminnelsen redan skickats.
 - **Avslutsmeddelande** skickas automatiskt när hushållet inte har fler bokningar (48 timmar efter sista hämtning).
 
 Om bokningen är inom 48 timmar skickas SMS vid nästa utskick (normalt inom några minuter).
