@@ -25,7 +25,6 @@ import {
     IconChevronLeft,
     IconChevronRight,
     IconCalendarDue,
-    IconClock,
     IconExclamationCircle,
 } from "@tabler/icons-react";
 import { getFoodParcelsForWeek, getPickupLocations } from "../../../actions";
@@ -345,24 +344,6 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                             <Stack align="center" gap="xs">
                                 <Loader size="md" />
                                 <Text c="dimmed">{t("schedule.loading")}</Text>
-                            </Stack>
-                        </Center>
-                    ) : foodParcels.length === 0 && !isLoadingParcels ? (
-                        <Center style={{ height: 400 }}>
-                            <Stack align="center" gap="xs">
-                                <IconClock
-                                    size="3rem"
-                                    stroke={1.5}
-                                    color="var(--mantine-color-gray-5)"
-                                />
-                                <Text c="dimmed">{t("schedule.noFoodSupport")}</Text>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleParcelRescheduled}
-                                >
-                                    {t("schedule.refresh")}
-                                </Button>
                             </Stack>
                         </Center>
                     ) : (
