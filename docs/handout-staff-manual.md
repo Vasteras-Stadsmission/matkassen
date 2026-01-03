@@ -11,7 +11,7 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 ## Veckoplanering (veckovy)
 
-- Gå till `Schema` → veckovy för vald utlämningsplats.
+- Gå till `Schema` → veckovy för valt utlämningsställe.
 - Se beläggning per dag, hitta luckor och flytta tider vid behov (befintliga bokningar).
 - Nya bokningar lägger du via hushållskortet eller inskrivningen; använd veckovy för överblick och ombokning.
 - Använd veckovy när du planerar kommande dagar/veckor.
@@ -30,15 +30,15 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 - Kan endast göras för dagens eller tidigare bokningar.
 - Hjälper till att hålla statistiken korrekt och rensa olösta utlämningar.
 
-## Ärenden (Issues)
+## Behöver uppföljning
 
 - Startsidan visar ärenden som behöver åtgärdas.
 - Röd siffra i navigationen visar antalet olösta ärenden.
 - Tre kategorier:
   1. **Olösta utlämningar** – tidigare bokningar utan utfall (markera som hämtad eller ej hämtad)
-  2. **Utanför öppettider** – kommande bokningar på stängda tider (omboka)
+  2. **Utanför öppettiderna** – kommande bokningar utanför platsens öppettider (omboka)
   3. **Misslyckade SMS** – sändningsfel att hantera
-- När alla ärenden är åtgärdade försvinner länken "Ärenden" från navigationen.
+- När alla ärenden är åtgärdade försvinner länken från navigationen.
 
 ## Hitta hushåll och boka
 

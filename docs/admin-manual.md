@@ -2,17 +2,17 @@
 
 Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och kan sparas som PDF.
 
-## Inskrivningschecklista (Allmänt)
+## Verifieringschecklista
 
-- Gå till `Inställningar` → `Allmänt`.
-- Checklistan visas för personalen i inskrivningsflödet som “Jag har säkerställt att...”.
-- Lägg till punkt: fyll i text på svenska och engelska, markera om den är obligatorisk och lägg till ev. hjälptråd.
+- Gå till `Inställningar` → `Allmänna inställningar`.
+- Checklistan visas för personalen i inskrivningsflödet som "Jag har säkerställt att...".
+- Lägg till punkt: fyll i text på svenska och engelska, markera om den är obligatorisk och lägg till ev. hjälptext.
 - Ändra ordning genom att dra punkterna; sparas direkt.
 - Redigering eller borttagning påverkar nya inskrivningar. Befintliga anteckningar ligger kvar.
 
-## Utlämningsplatser (platsflikar)
+## Utlämningsställen
 
-- Gå till `Inställningar` → `Utlämningsplatser`.
+- Gå till `Inställningar` → `Utlämningsställen`.
 - Skapa eller öppna en platsflik och fyll i:
     - Namn, gata och postnummer (5 siffror)
     - Max antal kassar per dag (frivilligt)
@@ -28,9 +28,9 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 - Vid ändring eller borttagning visar systemet hur många bokningar som påverkas; flytta dem först vid behov.
 - Slot-längden för nya tider styrs av värdet från platsens grundflik.
 
-## Varningsgräns för matkassar
+## Matkassegränser
 
-- Gå till `Inställningar` → `Matkassar`.
+- Gå till `Inställningar` → `Matkassegränser`.
 - Ange en gräns för antal kassar varefter systemet visar en varning.
 - När ett hushåll överskrider gränsen visas varning på hushållskortet och vid bokningar.
 - Hjälper till att identifiera hushåll som kan behöva extra stöd eller genomgång.
