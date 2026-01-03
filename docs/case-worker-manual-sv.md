@@ -12,14 +12,26 @@ Kort guide för dig som registrerar hushåll och schemalägger matkassar. Kan sk
 
 Gå till `Hushåll` → `Nytt hushåll`. Guiden har följande steg:
 
-1. **Grunduppgifter** – Förnamn, efternamn, telefonnummer (obligatoriskt), adress, hämtplats.
+1. **Grunduppgifter**
+    - Förnamn (obligatoriskt)
+    - Efternamn (obligatoriskt)
+    - Telefonnummer (obligatoriskt, endast svenska mobilnummer)
+    - SMS-samtycke (obligatoriskt för att kunna skicka påminnelser)
+    - Språk (standard: svenska)
+    - Postnummer (valfritt)
 2. **Medlemmar** – Lägg till hushållsmedlemmar med ålder och kön.
 3. **Matrestriktioner** – Välj från lista eller lägg till egna.
-4. **Husdjur** – Ange eventuella husdjur.
+4. **Husdjur** – Välj från lista eller lägg till egna.
 5. **Ytterligare behov** – Rullstolsanpassning, tolk, etc.
-6. **Verifiering** – Bekräfta obligatoriska kontroller (konfigureras av admin).
-7. **Matkassar** – Schemalägg första matkassarna direkt (valfritt).
-8. **Sammanfattning** – Granska och spara.
+6. **Verifiering** – Bekräfta obligatoriska kontroller (visas endast om admin har konfigurerat frågor).
+7. **Sammanfattning** – Granska och spara.
+
+Innan hushållet sparas visas en bekräftelsedialog om att du har informerat hushållet om hur deras personuppgifter behandlas.
+
+**Efter att hushållet sparats:**
+
+- Ett välkomst-SMS med länk till integritetspolicyn skickas automatiskt (om SMS-samtycke gavs).
+- En dialog frågar om du vill schemalägga matkassar direkt eller göra det senare.
 
 Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konverteras det automatiskt – detta är avsiktligt.
 
@@ -46,6 +58,7 @@ Alternativt: öppna bokningen i schemat och välj `Omboka` eller `Ta bort`.
 
 ## Hur SMS fungerar
 
+- **Välkomst-SMS** skickas vid inskrivning med länk till integritetspolicyn.
 - **Påminnelse** skickas automatiskt 48 timmar före bokad tid.
 - **Uppdatering** skickas om du ändrar en bokning efter att påminnelsen gått ut.
 - **Avbokning** skickas om du tar bort en bokning efter att påminnelsen gått ut.
@@ -56,7 +69,7 @@ Om bokningen är inom 48 timmar skickas SMS vid nästa utskick (normalt inom nå
 ## Kommentarer
 
 - Lägg till kommentarer i hushållskortet för extra info (t.ex. bud hämtar, önskemål).
-- Kommentarer syns för all personal och visar vem som skrev.
+- Alla inloggade kan lägga till och ta bort kommentarer.
 - **Skriv aldrig känslig information** – inga personnummer, hälsouppgifter, ekonomi eller orsaker till stödbehov.
 
 ## Behöver uppföljning
@@ -69,10 +82,10 @@ Startsidan visar ärenden som behöver åtgärdas:
 
 ## Felsökning
 
-**Telefonnummer godkänns inte** – Använd svenskt format: +46XXXXXXXXX eller 07XXXXXXXX (inga mellanslag).
+**Telefonnummer godkänns inte** – Endast svenska mobilnummer stöds. Ange utan landskod eller med +46.
 
 **Hushållet finns redan** – Systemet varnar om liknande namn eller samma telefonnummer redan finns.
 
-**Kan inte boka på viss tid** – Kontrollera att utlämningsstället har öppet den dagen/tiden.
+**Kan inte boka på viss tid** – Kontrollera att utlämningsstället har öppet den dagen/tiden i `Schema`.
 
-**SMS skickades inte** – Kolla `Behöver uppföljning` på startsidan eller hushållets SMS-historik.
+**SMS skickades inte** – Kontrollera att SMS-samtycke är markerat. Kolla `Behöver uppföljning` på startsidan.

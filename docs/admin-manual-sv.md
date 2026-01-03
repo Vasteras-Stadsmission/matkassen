@@ -14,10 +14,10 @@ Kort översikt av kugghjulsmenyn. Avsedd för administratörer/koordinatorer och
 
 - Gå till `Inställningar` → `Utlämningsställen`.
 - Skapa eller öppna en platsflik och fyll i:
-    - Namn, gata och postnummer (5 siffror)
-    - Max antal kassar per dag (frivilligt)
-    - Standardlängd för tidsluckor (15-minuterssteg – används i schemat)
-    - Kontaktperson (namn, e-post, telefon) som syns internt
+    - Namn, gatuadress och postnummer (obligatoriska)
+    - Max antal kassar per dag och per tidsslot (valfritt)
+    - Slotlängd i minuter (15-minutersintervall)
+    - Kontaktperson (namn, e-post, telefon) – syns endast internt
 - Spara platsen innan du går vidare till scheman. Radering kräver bekräftelse – säkerställ att bokningar har flyttats.
 
 ## Scheman och öppettider (per plats)

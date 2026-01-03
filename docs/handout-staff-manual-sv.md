@@ -50,7 +50,7 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 ## Kommentarer
 
 - Lägg till en kommentar i hushållskortet för extra info som inte passar i fälten (t.ex. bud hämtar, önskemål).
-- Kommentarer visar vem som skrev och när; alla inloggade kan ta bort dem.
+- Alla inloggade kan lägga till och ta bort kommentarer.
 - **Skriv aldrig känslig information** – inga personnummer, hälsouppgifter, ekonomi eller orsaker till stödbehov.
 
 ## Hur SMS fungerar
@@ -78,10 +78,8 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 
 **Hittar inte hushållet** – Rensa sökfältet, uppdatera sidan, kontrollera stavning.
 
-**Telefonnummer godkänns inte** – Använd svenskt format: +46XXXXXXXXX eller 07XXXXXXXX (inga mellanslag).
+**Kan inte markera hämtad** – Kontrollera att bokningen inte redan är markerad eller borttagen.
 
-**Kan inte ta bort bokning** – Redan hämtad eller passerad tid kan inte tas bort.
+**Mottagaren fick inget SMS** – Kolla `Behöver uppföljning` eller hushållets SMS-historik. Dela annars länken direkt.
 
-**Mottagaren fick inget SMS** – Kolla Ärenden (misslyckade SMS) eller hushållets SMS-historik. Dela annars länken direkt.
-
-**QR-kod skannar inte** – Höj skärmljusstyrkan, testa annan vinkel, eller sök fram bokningen manuellt.
+**QR-kod skannar inte** – Höj skärmljusstyrkan, testa annan vinkel, eller sök fram bokningen manuellt i `Dagens utlämningar`.
