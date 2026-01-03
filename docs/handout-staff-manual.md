@@ -27,8 +27,9 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 ## Hitta hushåll och boka
 
 - `Hushåll`: sök på namn/telefon, öppna kortet och se historik och kommentarer.
-- Skapa nytt hushåll när någon är ny; fyll i namn, telefon och hämtningsplats.
-- Boka tider från hushållskortet (hantera bokningar) eller direkt i schemat.
+- Skapa nytt hushåll när någon är ny. Obligatoriska fält: förnamn, efternamn, telefonnummer och SMS-samtycke. Valfria fält: postnummer och språk.
+- Vid inskrivning skickas ett SMS med länk till integritetspolicyn.
+- Matkassar bokas separat från schemaöversikten eller hushållskortet (hantera bokningar).
 
 ## Kommentarer
 

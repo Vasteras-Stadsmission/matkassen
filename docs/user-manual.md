@@ -25,42 +25,45 @@ Households are the central registry of families/individuals receiving food parce
 
 ### Creating Households
 
-The enrollment wizard has 7 steps:
+The enrollment wizard has 6 steps (or 7 if verification questions are configured):
 
 1. **Basics**
-    - First name, last name (required)
-    - Phone number in Swedish format: +46XXXXXXXXX or 07XXXXXXXX (required)
-    - Street address, postal code, city (optional but recommended)
-    - Pickup location (required - determines where parcels can be scheduled)
+    - First name, last name (required, minimum 2 characters each)
+    - Phone number in Swedish format: 07XXXXXXXX or 7XXXXXXXX (required)
+    - Postal code: 5 digits, e.g. 123 45 (optional)
+    - Language preference (optional, defaults to Swedish)
+    - SMS consent checkbox (required for new enrollments)
+    - **Note**: Upon enrollment, an SMS is sent containing a link to the privacy policy
 
 2. **Members**
-    - Add household members with names and birthdates
+    - Add household members with age and gender (male/female/other)
     - Helps with parcel planning and statistics
     - All fields optional
 
 3. **Diet**
-    - Select from: Vegetarian, Vegan, Lactose-free, Gluten-free, Halal, Kosher, etc.
+    - Select from predefined list or add custom dietary restrictions
     - Multiple selections allowed
     - Used for food parcel planning
 
 4. **Pets**
-    - Add pets with species and names
-    - Relevant for certain food items or allergen considerations
+    - Select species from predefined list or add custom
+    - Set count for each species
+    - Relevant for certain food items
 
 5. **Needs**
-    - Special requirements: Wheelchair access, Interpreter needed, etc.
+    - Special requirements from predefined list or add custom
     - Multiple selections allowed
     - Helps staff prepare for pickup
 
-6. **Parcels** (optional)
-    - Schedule initial food parcels directly from wizard
-    - Or skip and schedule later from schedule page
+6. **Verification** (only in create mode, if configured)
+    - Answer verification questions set by administrators
+    - All required questions must be checked before proceeding
 
 7. **Review**
     - Confirm all information before submitting
     - Validation errors shown in red
 
-After submission, household appears in the households list and is immediately available for parcel scheduling.
+After submission, household appears in the households list. Food parcels are scheduled separately from the schedule page or household details.
 
 ### Viewing and Editing Households
 
@@ -91,8 +94,8 @@ Add notes to household records for communication tracking:
 
 - Type comment → Click "Add Comment"
 - Shows your username and timestamp
-- Visible to all admin staff
-- Can be deleted but not edited
+- Visible to all logged-in users
+- Any logged-in user can add or delete comments (not edit)
 
 **Use comments for**:
 
