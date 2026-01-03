@@ -67,11 +67,13 @@ jobs:
             - name: Run unit tests
               env:
                   NODE_ENV: test
+                  TZ: Europe/Stockholm
               run: pnpm test:unit
 
             - name: Run integration tests
               env:
                   NODE_ENV: test
+                  TZ: Europe/Stockholm
               run: pnpm test:integration
 
     # Job 3: Build application (with Next.js cache)
