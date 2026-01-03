@@ -35,9 +35,9 @@ Kort guide för dig som lämnar ut matkassar. Den kan skrivas ut eller sparas so
 - Startsidan visar ärenden som behöver åtgärdas.
 - Röd siffra i navigationen visar antalet olösta ärenden.
 - Tre kategorier:
-  1. **Olösta utlämningar** – tidigare bokningar utan utfall (markera som hämtad eller ej hämtad)
-  2. **Utanför öppettiderna** – kommande bokningar utanför platsens öppettider (omboka)
-  3. **Misslyckade SMS** – sändningsfel att hantera
+    1. **Olösta utlämningar** – tidigare bokningar utan utfall (markera som hämtad eller ej hämtad)
+    2. **Utanför öppettiderna** – kommande bokningar utanför platsens öppettider (omboka)
+    3. **Misslyckade SMS** – sändningsfel att hantera
 - När alla ärenden är åtgärdade försvinner länken från navigationen.
 
 ## Hitta hushåll och boka

@@ -26,11 +26,13 @@ Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konve
 ## Schemalägg matkassar
 
 **Från hushållskortet:**
+
 - Öppna hushållet → `Hantera matkassar`
 - Välj hämtplats och lägg till datum/tider
 - Klicka `Spara matkassar`
 
 **Från schemat:**
+
 - Gå till `Schema` → välj utlämningsställe → veckovy
 - Klicka på en ledig tid och välj hushåll
 
