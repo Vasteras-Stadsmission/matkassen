@@ -322,7 +322,17 @@
             "favoriteUpdateFailed": "Failed to update favorite location",
             "cancelButton": "Cancel",
             "tooltipSetFavorite": "Set {location} as favorite",
-            "tooltipRemoveFavorite": "Remove {location} as favorite"
+            "tooltipRemoveFavorite": "Remove {location} as favorite",
+            "noUpcomingSchedule": "No upcoming opening hours"
+        },
+        "noUpcomingSchedule": {
+            "title": "No Upcoming Opening Hours",
+            "description": "This location has no opening hours scheduled for future dates.",
+            "whatThisMeans": "What this means:",
+            "consequence1": "New food parcels cannot be booked at this location",
+            "consequence2": "Households cannot be assigned pickup times here",
+            "callToAction": "If this location should be accepting food parcels, please contact the person responsible for managing handout location schedules.",
+            "understand": "I Understand"
         },
         "location": {
             "header": {

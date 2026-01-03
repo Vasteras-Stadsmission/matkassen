@@ -34,6 +34,7 @@ import WeeklyScheduleGrid from "../../../components/WeeklyScheduleGrid";
 import { getISOWeekNumber, getWeekDates } from "../../../../../utils/date-utils";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { LocationHeader } from "../../../components/LocationHeader";
+import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
 import type { FoodParcel, PickupLocation } from "../../../types";
 
 interface WeeklySchedulePageProps {
@@ -287,6 +288,11 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                         </Tabs.Tab>
                     </Tabs.List>
                 </Tabs>
+
+                {/* No upcoming schedule warning */}
+                {currentLocation && !currentLocation.hasUpcomingSchedule && (
+                    <NoUpcomingScheduleAlert />
+                )}
 
                 {/* Controls */}
                 <Paper p="md" withBorder>
