@@ -141,7 +141,12 @@ describe("Opening Hours Display", () => {
                     startDate: pastStartStr,
                     endDate: pastEndStr,
                     days: [
-                        { weekday: "monday", is_open: true, opening_time: "09:00", closing_time: "17:00" },
+                        {
+                            weekday: "monday",
+                            is_open: true,
+                            opening_time: "09:00",
+                            closing_time: "17:00",
+                        },
                     ],
                 },
             );
@@ -166,7 +171,12 @@ describe("Opening Hours Display", () => {
                     days: [
                         { weekday: "monday", is_open: false },
                         { weekday: "tuesday", is_open: false },
-                        { weekday: "wednesday", is_open: true, opening_time: "10:00", closing_time: "14:00" },
+                        {
+                            weekday: "wednesday",
+                            is_open: true,
+                            opening_time: "10:00",
+                            closing_time: "14:00",
+                        },
                         { weekday: "thursday", is_open: false },
                         { weekday: "friday", is_open: false },
                         { weekday: "saturday", is_open: false },
@@ -183,7 +193,9 @@ describe("Opening Hours Display", () => {
 
         it("should return true when there are multiple schedules and at least one has open days", async () => {
             const db = await getTestDb();
-            const location = await createTestPickupLocation({ name: "Multiple Schedules Location" });
+            const location = await createTestPickupLocation({
+                name: "Multiple Schedules Location",
+            });
 
             const startDateStr = FUTURE_START.toISOString().split("T")[0];
             const midDateStr = daysFromTestNow(30).toISOString().split("T")[0];
@@ -217,7 +229,13 @@ describe("Opening Hours Display", () => {
                 .returning();
 
             await db.insert(pickupLocationScheduleDays).values([
-                { schedule_id: openSchedule.id, weekday: "monday", is_open: true, opening_time: "09:00", closing_time: "17:00" },
+                {
+                    schedule_id: openSchedule.id,
+                    weekday: "monday",
+                    is_open: true,
+                    opening_time: "09:00",
+                    closing_time: "17:00",
+                },
             ]);
 
             const result = await queryLocationsWithScheduleStatus(TEST_DATE_STR);
