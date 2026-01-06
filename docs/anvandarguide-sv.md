@@ -2,8 +2,6 @@
 
 Den här guiden visar hur Matcentralen fungerar för personal och mottagare.
 
-> Tips: Installera "Markdown Preview Mermaid Support" i VS Code för att se diagrammen.
-
 ---
 
 ## Navigationsöversikt
@@ -185,7 +183,7 @@ Så här ser det ut för den som får matkassen.
 ```mermaid
 flowchart TD
     subgraph Mottagarens upplevelse
-        R1["📱 Får SMS<br/>'Din matkasse är redo'"]
+        R1["📱 Får SMS ca 48h innan<br/>med länk till sin sida"]
         R2["Klickar på länken"]
         R3["Ser sin matpaket-sida"]
 
@@ -251,13 +249,11 @@ Mottagaren kan välja bland många språk: svenska, engelska, arabiska, somalisk
 
 ### Under utdelningen
 - [ ] Skanna eller klicka på varje matkasse
-- [ ] Kolla matrestriktioner innan du packar
 - [ ] Markera som utlämnad direkt
 
 ### Efter utdelningen
-- [ ] Kolla att alla är markerade
 - [ ] Hantera eventuella uteblivna
-- [ ] Rapportera problem till ansvarig
+- [ ] Kolla "Uppföljning" nästa dag för missade registreringar
 
 ---
 
