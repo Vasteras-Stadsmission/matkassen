@@ -116,6 +116,7 @@ export interface HouseholdCreateData {
         pickupLocationId: string;
         parcels: FoodParcelCreateData[];
     };
+    comments?: string[]; // Comment text to add during enrollment
 }
 
 export interface HouseholdMemberData {

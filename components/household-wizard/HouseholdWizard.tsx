@@ -605,12 +605,45 @@ export function HouseholdWizard({
         }
     };
 
-    // Function to handle adding comments through the parent handler if provided
-    const handleAddComment = async (comment: string) => {
+    // Function to handle adding comments
+    // In edit mode: calls parent handler to persist immediately
+    // In create mode: stores locally in formData, persisted when household is saved
+    const handleAddComment = async (comment: string): Promise<Comment | undefined> => {
         if (onAddComment) {
+            // Edit mode: persist immediately via parent handler
             return await onAddComment(comment);
         }
-        return undefined;
+
+        // Create mode: store locally in formData
+        // The comment will be saved when the household is created
+        const newComment: Comment = {
+            // No id - will be assigned when saved to database
+            comment: comment.trim(),
+            author_github_username: "pending", // Will be set by server action
+            created_at: new Date(),
+        };
+
+        setFormData(prev => ({
+            ...prev,
+            comments: [...(prev.comments || []), newComment],
+        }));
+
+        return newComment;
+    };
+
+    // Function to handle deleting comments locally in create mode
+    const handleDeleteComment = async (commentId: string): Promise<void> => {
+        if (onDeleteComment) {
+            // Edit mode: delete via parent handler
+            return await onDeleteComment(commentId);
+        }
+
+        // Create mode: remove from local formData
+        // For local comments, we use the comment text as identifier since they don't have IDs yet
+        setFormData(prev => ({
+            ...prev,
+            comments: (prev.comments || []).filter(c => c.id !== commentId),
+        }));
     };
 
     // Handle initial loading and error states
@@ -793,7 +826,7 @@ export function HouseholdWizard({
                             formData={formData}
                             isEditing={mode === "edit"}
                             onAddComment={handleAddComment}
-                            onDeleteComment={onDeleteComment}
+                            onDeleteComment={handleDeleteComment}
                         />
                     </Stepper.Step>
                 </Stepper>
