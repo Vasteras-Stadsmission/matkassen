@@ -173,6 +173,45 @@ describe("Enrollment Comments Bug Fix", () => {
         });
     });
 
+    describe("Server-side comment filtering", () => {
+        it("should filter out whitespace-only comments before database insert", () => {
+            // Simulate the server action filtering logic
+            const inputComments = ["Valid comment", "  ", "", "Another valid one", "   "];
+
+            const validComments = inputComments
+                .filter(comment => comment.trim().length > 0)
+                .map(comment => ({
+                    household_id: "test-id",
+                    comment: comment.trim(),
+                    author_github_username: "testuser",
+                }));
+
+            expect(validComments).toHaveLength(2);
+            expect(validComments[0].comment).toBe("Valid comment");
+            expect(validComments[1].comment).toBe("Another valid one");
+        });
+
+        it("should result in empty array when all comments are whitespace", () => {
+            // Edge case: all comments are empty or whitespace
+            const inputComments = ["  ", "", "   "];
+
+            const validComments = inputComments
+                .filter(comment => comment.trim().length > 0)
+                .map(comment => ({
+                    household_id: "test-id",
+                    comment: comment.trim(),
+                    author_github_username: "testuser",
+                }));
+
+            // This is why we need the second length check before inserting
+            expect(validComments).toHaveLength(0);
+
+            // The code should NOT call values([]) - it should skip the insert
+            const shouldInsert = validComments.length > 0;
+            expect(shouldInsert).toBe(false);
+        });
+    });
+
     describe("Local comment deletion in create mode", () => {
         it("should remove comments by ID from local state", () => {
             let formDataComments: Comment[] = [

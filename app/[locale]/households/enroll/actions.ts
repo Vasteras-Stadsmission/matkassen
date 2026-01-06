@@ -272,15 +272,17 @@ export const enrollHousehold = protectedAction(
 
                 // 7. Add comments if provided
                 if (data.comments && data.comments.length > 0) {
-                    await tx.insert(householdComments).values(
-                        data.comments
-                            .filter(comment => comment.trim().length > 0)
-                            .map(comment => ({
-                                household_id: household.id,
-                                comment: comment.trim(),
-                                author_github_username: session.user?.githubUsername ?? "anonymous",
-                            })),
-                    );
+                    const validComments = data.comments
+                        .filter(comment => comment.trim().length > 0)
+                        .map(comment => ({
+                            household_id: household.id,
+                            comment: comment.trim(),
+                            author_github_username: session.user?.githubUsername ?? "anonymous",
+                        }));
+
+                    if (validComments.length > 0) {
+                        await tx.insert(householdComments).values(validComments);
+                    }
                 }
 
                 return { householdId: household.id };
