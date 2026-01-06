@@ -92,11 +92,16 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
                 maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                 maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 outsideHoursCount: pickupLocations.outside_hours_count,
-                // Check if location has any schedule with end_date >= today
+                // Check if location has any schedule with end_date >= today AND at least one open day
                 hasUpcomingSchedule: sql<boolean>`EXISTS (
-                    SELECT 1 FROM ${pickupLocationSchedules}
-                    WHERE ${pickupLocationSchedules.pickup_location_id} = ${pickupLocations.id}
-                    AND ${pickupLocationSchedules.end_date} >= ${currentDateStr}::date
+                    SELECT 1 FROM ${pickupLocationSchedules} pls
+                    WHERE pls.pickup_location_id = ${pickupLocations.id}
+                    AND pls.end_date >= ${currentDateStr}::date
+                    AND EXISTS (
+                        SELECT 1 FROM ${pickupLocationScheduleDays} plsd
+                        WHERE plsd.schedule_id = pls.id
+                        AND plsd.is_open = true
+                    )
                 )`,
             })
             .from(pickupLocations);
