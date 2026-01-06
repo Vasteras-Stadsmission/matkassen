@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Stack, Paper, Text, LoadingOverlay } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { notifications } from "@mantine/notifications";
-import type { ActionResult } from "@/app/utils/auth/action-result";
+import type { ActionResult, ActionError } from "@/app/utils/auth/action-result";
 import {
     PickupLocationWithAllData,
     ScheduleInput,
@@ -20,6 +20,9 @@ interface SchedulesTabProps {
     onLocationUpdated?: (id: string, updatedLocation: Partial<PickupLocationWithAllData>) => void;
 }
 
+// Valid error message keys for schedule operations
+type ScheduleErrorKey = "scheduleCreateError" | "scheduleUpdateError" | "scheduleDeleteError";
+
 export function SchedulesTab({ location, onUpdated, onLocationUpdated }: SchedulesTabProps) {
     const t = useTranslations("handoutLocations");
     const [schedules, setSchedules] = useState<PickupLocationScheduleWithDays[]>(
@@ -27,6 +30,13 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
     );
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const getScheduleOperationErrorMessage = (actionError: ActionError, fallbackKey: ScheduleErrorKey) => {
+        if (actionError.code === "NO_OPEN_DAYS") {
+            return t("days.atLeastOneRequired");
+        }
+        return t(fallbackKey);
+    };
 
     // Sync with server state when location changes, but only if schedules actually changed
     // This prevents overwriting optimistic updates when the location object is re-created
@@ -48,7 +58,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             result: T,
             prev: PickupLocationScheduleWithDays[],
         ) => PickupLocationScheduleWithDays[],
-        errorMessageKey: string,
+        errorMessageKey: ScheduleErrorKey,
         operationType?: "create" | "update" | "delete",
     ) => {
         setIsLoading(true);
@@ -58,7 +68,8 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             const actionResult = await operation();
 
             if (!actionResult.success) {
-                throw new Error(actionResult.error.message);
+                setError(getScheduleOperationErrorMessage(actionResult.error, errorMessageKey));
+                return;
             }
 
             const result = actionResult.data;
@@ -104,17 +115,9 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
                     color: "green",
                 });
             }
-        } catch (err) {
+        } catch {
             // Error in schedule operation
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : errorMessageKey === "scheduleCreateError" ||
-                        errorMessageKey === "scheduleUpdateError" ||
-                        errorMessageKey === "scheduleDeleteError"
-                      ? t(errorMessageKey)
-                      : t("scheduleCreateError");
-            setError(errorMessage);
+            setError(t(errorMessageKey));
         } finally {
             setIsLoading(false);
         }
@@ -153,7 +156,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             <LoadingOverlay visible={isLoading} />
 
             {error && (
-                <Paper p="md" withBorder bg="red.0">
+                <Paper p="md" withBorder bg="red.0" role="alert">
                     <Text c="red">{error}</Text>
                 </Paper>
             )}

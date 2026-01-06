@@ -92,11 +92,16 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
                 maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                 maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 outsideHoursCount: pickupLocations.outside_hours_count,
-                // Check if location has any schedule with end_date >= today
+                // Check if location has any active or future schedule with at least one open day
+                // Note: Uses explicit table names because Drizzle sql template doesn't qualify columns in subqueries
                 hasUpcomingSchedule: sql<boolean>`EXISTS (
-                    SELECT 1 FROM ${pickupLocationSchedules}
-                    WHERE ${pickupLocationSchedules.pickup_location_id} = ${pickupLocations.id}
-                    AND ${pickupLocationSchedules.end_date} >= ${currentDateStr}::date
+                    SELECT 1
+                    FROM pickup_location_schedules pls
+                    INNER JOIN pickup_location_schedule_days plsd
+                        ON plsd.schedule_id = pls.id
+                    WHERE pls.pickup_location_id = pickup_locations.id
+                        AND pls.end_date >= ${currentDateStr}::date
+                        AND plsd.is_open = true
                 )`,
             })
             .from(pickupLocations);

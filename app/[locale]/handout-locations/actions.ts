@@ -19,6 +19,10 @@ import {
 } from "./types";
 import { logError } from "@/app/utils/logger";
 
+function hasAtLeastOneOpenDay(scheduleData: ScheduleInput): boolean {
+    return scheduleData.days.some(day => day.is_open);
+}
+
 // Get all locations with their schedules
 export const getLocations = protectedAction(
     async (): Promise<ActionResult<PickupLocationWithAllData[]>> => {
@@ -268,6 +272,14 @@ export const createSchedule = protectedAction(
         // Auth already verified by protectedAction wrapper
 
         try {
+            if (!hasAtLeastOneOpenDay(scheduleData)) {
+                return failure({
+                    code: "NO_OPEN_DAYS",
+                    field: "days",
+                    message: "Schedule must have at least one open day",
+                });
+            }
+
             // Validate schedule overlap using shared utility
             const { validateScheduleOverlap } =
                 await import("@/app/utils/schedule/overlap-validation");
@@ -382,6 +394,14 @@ export const updateSchedule = protectedAction(
             }
 
             const locationId = currentSchedule[0].pickup_location_id;
+
+            if (!hasAtLeastOneOpenDay(scheduleData)) {
+                return failure({
+                    code: "NO_OPEN_DAYS",
+                    field: "days",
+                    message: "Schedule must have at least one open day",
+                });
+            }
 
             // Validate schedule overlap using shared utility (excluding current schedule)
             const { validateScheduleOverlap } =

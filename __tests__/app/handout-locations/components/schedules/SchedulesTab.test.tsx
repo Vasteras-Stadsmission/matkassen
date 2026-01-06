@@ -202,9 +202,10 @@ describe("SchedulesTab", () => {
         expect(createButton).toBeTruthy();
         fireEvent.click(createButton);
 
-        // Wait for error to appear
+        // Wait for error to appear - the error message is now translated via t(fallbackKey)
+        // which returns the key itself due to our mock
         await waitFor(() => {
-            expect(container.textContent).toContain("Creation failed");
+            expect(container.textContent).toContain("scheduleCreateError");
         });
 
         // Verify no success notification was shown
