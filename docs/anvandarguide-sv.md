@@ -81,19 +81,19 @@ flowchart TD
 
 ### Vad du ser på skärmen
 
-| Steg | Vad du ser |
-|------|------------|
-| Dagens utlämningar | Lista med alla matkassar för dagen, visar namn och tid |
-| Matkassedialog | Hushållets kontaktinfo, medlemmar, matrestriktioner, husdjur |
-| Efter utlämning | Grön bock visar att matkassen är utlämnad |
+| Steg               | Vad du ser                                                   |
+| ------------------ | ------------------------------------------------------------ |
+| Dagens utlämningar | Lista med alla matkassar för dagen, visar namn och tid       |
+| Matkassedialog     | Hushållets kontaktinfo, medlemmar, matrestriktioner, husdjur |
+| Efter utlämning    | Grön bock visar att matkassen är utlämnad                    |
 
 ### Om något går fel
 
-| Situation | Vad du gör |
-|-----------|------------|
-| Mottagare kommer inte | Klicka "Utebliven" |
-| Fel person? | Kontrollera namn och telefonnummer |
-| Klickade fel? | Klicka "Ångra utlämning" |
+| Situation             | Vad du gör                         |
+| --------------------- | ---------------------------------- |
+| Mottagare kommer inte | Klicka "Utebliven"                 |
+| Fel person?           | Kontrollera namn och telefonnummer |
+| Klickade fel?         | Klicka "Ångra utlämning"           |
 
 ---
 
@@ -168,11 +168,11 @@ flowchart TD
 
 ### Problemtyper i korthet
 
-| Typ | Vad det betyder | Vanlig lösning |
-|-----|-----------------|----------------|
-| 🟣 Oregistrerad utlämning | En matkasse från igår är inte markerad | Markera som utlämnad eller utebliven |
-| 🔵 Utanför öppettider | Matkasse bokad på stängd dag/tid | Omboka till annan tid |
-| 🟤 Misslyckat SMS | Meddelandet nådde inte fram | Försök igen eller kontrollera telefonnummer |
+| Typ                       | Vad det betyder                        | Vanlig lösning                              |
+| ------------------------- | -------------------------------------- | ------------------------------------------- |
+| 🟣 Oregistrerad utlämning | En matkasse från igår är inte markerad | Markera som utlämnad eller utebliven        |
+| 🔵 Utanför öppettider     | Matkasse bokad på stängd dag/tid       | Omboka till annan tid                       |
+| 🟤 Misslyckat SMS         | Meddelandet nådde inte fram            | Försök igen eller kontrollera telefonnummer |
 
 ---
 
@@ -210,13 +210,13 @@ flowchart TD
 
 ### Statusar som mottagaren kan se
 
-| Status | Färg | Betydelse |
-|--------|------|-----------|
-| Planerad | Grå | Väntar på hämtningsdagen |
-| Redo för upphämtning | Grön | Dags att hämta! |
-| Upphämtad | Blå | Redan hämtad |
-| Förfallen | Orange | Tiden har gått ut |
-| Inställd | Röd | Avbokad |
+| Status               | Färg   | Betydelse                |
+| -------------------- | ------ | ------------------------ |
+| Planerad             | Grå    | Väntar på hämtningsdagen |
+| Redo för upphämtning | Grön   | Dags att hämta!          |
+| Upphämtad            | Blå    | Redan hämtad             |
+| Förfallen            | Orange | Tiden har gått ut        |
+| Inställd             | Röd    | Avbokad                  |
 
 ### Språkstöd
 
@@ -226,35 +226,38 @@ Mottagaren kan välja bland många språk: svenska, engelska, arabiska, somalisk
 
 ## Snabbreferens: Alla sidor
 
-| Sida | Vad du gör där |
-|------|----------------|
-| **Uppföljning** (Startsida) | Se och åtgärda problem |
-| **Schema** | Välj utlämningsställe |
-| **Dagens utlämningar** | Lämna ut matkassar, skanna QR |
-| **Veckoschema** | Se hela veckans bokningar, omboka |
-| **Hushåll** | Sök och visa alla hushåll |
-| **Nytt hushåll** | Registrera nytt hushåll |
-| **Hushållsdetaljer** | Se all info om ett hushåll |
-| **Statistik** | Se diagram och siffror |
-| **Inställningar** | Ändra systemkonfiguration |
+| Sida                        | Vad du gör där                    |
+| --------------------------- | --------------------------------- |
+| **Uppföljning** (Startsida) | Se och åtgärda problem            |
+| **Schema**                  | Välj utlämningsställe             |
+| **Dagens utlämningar**      | Lämna ut matkassar, skanna QR     |
+| **Veckoschema**             | Se hela veckans bokningar, omboka |
+| **Hushåll**                 | Sök och visa alla hushåll         |
+| **Nytt hushåll**            | Registrera nytt hushåll           |
+| **Hushållsdetaljer**        | Se all info om ett hushåll        |
+| **Statistik**               | Se diagram och siffror            |
+| **Inställningar**           | Ändra systemkonfiguration         |
 
 ---
 
 ## Tips för vardagen
 
 ### Före utdelningen
+
 - [ ] Logga in och gå till "Dagens utlämningar"
 - [ ] Kolla om det finns något under "Uppföljning"
 - [ ] Ha mobilen redo för QR-skanning
 
 ### Under utdelningen
+
 - [ ] Skanna eller klicka på varje matkasse
 - [ ] Markera som utlämnad direkt
 
 ### Efter utdelningen
+
 - [ ] Hantera eventuella uteblivna
 - [ ] Kolla "Uppföljning" nästa dag för missade registreringar
 
 ---
 
-*Dokumentet uppdaterat: 2025*
+_Dokumentet uppdaterat: 2025_
