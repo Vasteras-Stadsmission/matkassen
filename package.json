@@ -50,7 +50,6 @@
         "@tabler/icons-react": "^3.36.0",
         "date-fns": "^4.1.0",
         "date-fns-tz": "^3.2.0",
-        "dayjs": "^1.11.19",
         "drizzle-kit": "^0.31.8",
         "drizzle-orm": "^0.45.1",
         "fast-deep-equal": "^3.1.3",
