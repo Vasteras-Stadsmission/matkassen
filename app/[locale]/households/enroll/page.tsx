@@ -32,6 +32,8 @@ export default function EnrollHouseholdPage() {
                     pickupLocationId: formData.foodParcels.pickupLocationId,
                     parcels: formData.foodParcels.parcels,
                 },
+                // Extract comment text from Comment objects for enrollment
+                comments: formData.comments?.map(c => c.comment) || [],
             };
 
             const result = await enrollHousehold(householdData);

@@ -14,6 +14,7 @@ import {
     pickupLocations as pickupLocationsTable,
     pickupLocationSchedules as pickupLocationSchedulesTable,
     pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
+    householdComments,
 } from "@/app/db/schema";
 import { eq, and, sql, gte, lte, count } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
@@ -268,6 +269,22 @@ export const enrollHousehold = protectedAction(
                     const { insertParcels } = await import("@/app/db/insert-parcels");
                     await insertParcels(tx, parcelsToInsert);
                 }
+
+                // 7. Add comments if provided
+                if (data.comments && data.comments.length > 0) {
+                    const validComments = data.comments
+                        .filter(comment => comment.trim().length > 0)
+                        .map(comment => ({
+                            household_id: household.id,
+                            comment: comment.trim(),
+                            author_github_username: session.user?.githubUsername ?? "anonymous",
+                        }));
+
+                    if (validComments.length > 0) {
+                        await tx.insert(householdComments).values(validComments);
+                    }
+                }
+
                 return { householdId: household.id };
             });
 
