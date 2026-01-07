@@ -92,19 +92,33 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
                 maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                 maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 outsideHoursCount: pickupLocations.outside_hours_count,
-                // Check if location has any schedule with end_date >= today AND at least one open day
-                hasUpcomingSchedule: sql<boolean>`EXISTS (
-                    SELECT 1 FROM ${pickupLocationSchedules} pls
-                    WHERE pls.pickup_location_id = ${pickupLocations.id}
-                    AND pls.end_date >= ${currentDateStr}::date
-                    AND EXISTS (
-                        SELECT 1 FROM ${pickupLocationScheduleDays} plsd
-                        WHERE plsd.schedule_id = pls.id
-                        AND plsd.is_open = true
-                    )
-                )`,
+                // Avoid correlated subqueries here; some drivers/dialects can mis-handle outer column references.
+                // Instead, join upcoming schedules + open days and count matches.
+                hasUpcomingSchedule: sql<boolean>`COUNT(${pickupLocationScheduleDays.id}) > 0`,
             })
-            .from(pickupLocations);
+            .from(pickupLocations)
+            .leftJoin(
+                pickupLocationSchedules,
+                and(
+                    eq(pickupLocationSchedules.pickup_location_id, pickupLocations.id),
+                    sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
+                ),
+            )
+            .leftJoin(
+                pickupLocationScheduleDays,
+                and(
+                    eq(pickupLocationScheduleDays.schedule_id, pickupLocationSchedules.id),
+                    eq(pickupLocationScheduleDays.is_open, true),
+                ),
+            )
+            .groupBy(
+                pickupLocations.id,
+                pickupLocations.name,
+                pickupLocations.street_address,
+                pickupLocations.parcels_max_per_day,
+                pickupLocations.max_parcels_per_slot,
+                pickupLocations.outside_hours_count,
+            );
 
         return locations;
     } catch (error) {

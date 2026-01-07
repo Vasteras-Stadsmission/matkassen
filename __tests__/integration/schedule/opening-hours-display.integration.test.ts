@@ -52,17 +52,15 @@ describe("Opening Hours Display", () => {
             SELECT
                 pl.id,
                 pl.name,
-                EXISTS (
-                    SELECT 1 FROM pickup_location_schedules pls
-                    WHERE pls.pickup_location_id = pl.id
-                    AND pls.end_date >= '${currentDateStr}'::date
-                    AND EXISTS (
-                        SELECT 1 FROM pickup_location_schedule_days plsd
-                        WHERE plsd.schedule_id = pls.id
-                        AND plsd.is_open = true
-                    )
-                ) as "hasUpcomingSchedule"
+                COUNT(plsd.id) > 0 as "hasUpcomingSchedule"
             FROM pickup_locations pl
+            LEFT JOIN pickup_location_schedules pls
+                ON pls.pickup_location_id = pl.id
+                AND pls.end_date >= '${currentDateStr}'::date
+            LEFT JOIN pickup_location_schedule_days plsd
+                ON plsd.schedule_id = pls.id
+                AND plsd.is_open = true
+            GROUP BY pl.id, pl.name
         `);
 
         return (result?.rows || []) as Array<{
