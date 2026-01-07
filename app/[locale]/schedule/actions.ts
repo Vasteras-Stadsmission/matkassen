@@ -93,9 +93,10 @@ export async function getPickupLocations(): Promise<PickupLocation[]> {
                 maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 outsideHoursCount: pickupLocations.outside_hours_count,
                 // Check if location has any schedule with end_date >= today AND at least one open day
+                // Note: Use raw table name "pickup_locations"."id" to properly correlate with outer query
                 hasUpcomingSchedule: sql<boolean>`EXISTS (
                     SELECT 1 FROM ${pickupLocationSchedules} pls
-                    WHERE pls.pickup_location_id = ${pickupLocations.id}
+                    WHERE pls.pickup_location_id = "pickup_locations"."id"
                     AND pls.end_date >= ${currentDateStr}::date
                     AND EXISTS (
                         SELECT 1 FROM ${pickupLocationScheduleDays} plsd
