@@ -152,10 +152,7 @@ describe("Enrollment Comments Bug Fix", () => {
             // Simulate what happens in the enrollment page handleSubmit
             const extractedComments = formDataComments.map(c => c.comment);
 
-            expect(extractedComments).toEqual([
-                "First note about this household",
-                "Second note",
-            ]);
+            expect(extractedComments).toEqual(["First note about this household", "Second note"]);
         });
 
         it("should handle empty comments array", () => {
@@ -166,8 +163,10 @@ describe("Enrollment Comments Bug Fix", () => {
         });
 
         it("should handle undefined comments", () => {
-            const formDataComments: Comment[] | undefined = undefined;
-            const extractedComments = formDataComments?.map(c => c.comment) || [];
+            // Use a function to prevent TypeScript from narrowing the type
+            const getComments = (): Comment[] | undefined => undefined;
+            const formDataComments = getComments();
+            const extractedComments = formDataComments?.map((c: Comment) => c.comment) || [];
 
             expect(extractedComments).toEqual([]);
         });
@@ -227,10 +226,7 @@ describe("Enrollment Comments Bug Fix", () => {
             handleDeleteComment("temp-2");
 
             expect(formDataComments).toHaveLength(2);
-            expect(formDataComments.map(c => c.comment)).toEqual([
-                "Comment 1",
-                "Comment 3",
-            ]);
+            expect(formDataComments.map(c => c.comment)).toEqual(["Comment 1", "Comment 3"]);
         });
     });
 });
