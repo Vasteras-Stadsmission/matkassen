@@ -71,5 +71,5 @@ nginx/local.conf
 server-build/
 .claude/settings.local.json
 
-// Use AGENTS.md instead
+# Use AGENTS.md instead
 CLAUDE.md
