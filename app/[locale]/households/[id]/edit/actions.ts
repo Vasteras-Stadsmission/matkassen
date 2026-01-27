@@ -225,6 +225,9 @@ async function getHouseholdEditData(householdId: string) {
             phone_number: household.phone_number,
             locale: household.locale,
             postal_code: household.postal_code,
+            // SMS consent defaults to true in edit mode since consent was required at enrollment.
+            // Re-consent is only required if the phone number changes (handled by wizard validation).
+            sms_consent: true,
         },
         members: members.map(member => ({
             id: member.id,
