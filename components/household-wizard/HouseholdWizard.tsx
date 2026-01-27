@@ -309,15 +309,8 @@ export function HouseholdWizard({
                 }
             }
 
-            // Check SMS consent:
-            // - Required for new enrollments (create mode)
-            // - Required when phone number changes in edit mode (re-consent for new number)
-            const phoneChanged =
-                mode === "edit" &&
-                originalPhoneRef.current !== null &&
-                phone_number !== originalPhoneRef.current;
-
-            if ((mode === "create" || phoneChanged) && !sms_consent) {
+            // Check SMS consent - always required (consent can be withdrawn, so must always validate)
+            if (!sms_consent) {
                 setValidationError({
                     field: "sms_consent",
                     message: t("validation.smsConsentRequired"),
