@@ -53,6 +53,8 @@ export const households = pgTable(
         postal_code: varchar("postal_code", { length: 5 }),
         anonymized_at: timestamp({ precision: 1, withTimezone: true }), // Timestamp when household was anonymized (NULL = active)
         anonymized_by: varchar("anonymized_by", { length: 50 }), // GitHub username of admin who anonymized
+        noshow_followup_dismissed_at: timestamp({ precision: 1, withTimezone: true }), // When no-show follow-up was dismissed
+        noshow_followup_dismissed_by: varchar("noshow_followup_dismissed_by", { length: 50 }), // GitHub username of admin who dismissed
     },
     table => [
         check(
@@ -496,23 +498,3 @@ export const users = pgTable("users", {
     ),
 });
 
-// No-show follow-up dismissals table
-// Tracks when a no-show follow-up was dismissed for a household
-export const noshowFollowupDismissals = pgTable(
-    "noshow_followup_dismissals",
-    {
-        id: text("id")
-            .primaryKey()
-            .notNull()
-            .$defaultFn(() => nanoid(8)),
-        household_id: text("household_id")
-            .notNull()
-            .references(() => households.id, { onDelete: "cascade" }),
-        dismissed_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
-        dismissed_by_user_id: varchar("dismissed_by_user_id", { length: 50 }),
-    },
-    table => [
-        // Index for efficient lookup by household
-        index("idx_noshow_followup_dismissals_household").on(table.household_id),
-    ],
-);

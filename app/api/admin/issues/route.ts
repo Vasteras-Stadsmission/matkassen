@@ -6,7 +6,6 @@ import {
     households,
     pickupLocations,
     globalSettings,
-    noshowFollowupDismissals,
 } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { eq, and, gte, lt, asc, isNull, or, sql, desc, inArray } from "drizzle-orm";
@@ -409,6 +408,7 @@ export async function GET() {
                         h.id AS household_id,
                         h.first_name,
                         h.last_name,
+                        h.noshow_followup_dismissed_at,
                         COUNT(fp.id) FILTER (WHERE fp.no_show_at IS NOT NULL) AS total_no_shows,
                         MAX(fp.no_show_at) AS last_no_show_at,
                         -- Count consecutive no-shows from the most recent parcels
@@ -455,7 +455,7 @@ export async function GET() {
                     INNER JOIN food_parcels fp ON fp.household_id = h.id
                     WHERE h.anonymized_at IS NULL
                       AND fp.deleted_at IS NULL
-                    GROUP BY h.id, h.first_name, h.last_name
+                    GROUP BY h.id, h.first_name, h.last_name, h.noshow_followup_dismissed_at
                     HAVING COUNT(fp.id) FILTER (WHERE fp.no_show_at IS NOT NULL) >= ${totalThreshold}
                        OR (
                            SELECT COUNT(*)
@@ -470,23 +470,18 @@ export async function GET() {
                            WHERE recent.no_show_at IS NOT NULL
                              AND recent.rn <= ${consecutiveThreshold}
                        ) >= ${consecutiveThreshold}
-                ),
-                dismissals AS (
-                    SELECT household_id, dismissed_at
-                    FROM noshow_followup_dismissals
                 )
                 SELECT
-                    ns.household_id,
-                    ns.first_name,
-                    ns.last_name,
-                    ns.total_no_shows::int,
-                    ns.consecutive_no_shows::int,
-                    ns.last_no_show_at
-                FROM no_show_stats ns
-                LEFT JOIN dismissals d ON d.household_id = ns.household_id
-                WHERE d.dismissed_at IS NULL
-                   OR ns.last_no_show_at > d.dismissed_at
-                ORDER BY ns.last_no_show_at DESC
+                    household_id,
+                    first_name,
+                    last_name,
+                    total_no_shows::int,
+                    consecutive_no_shows::int,
+                    last_no_show_at
+                FROM no_show_stats
+                WHERE noshow_followup_dismissed_at IS NULL
+                   OR last_no_show_at > noshow_followup_dismissed_at
+                ORDER BY last_no_show_at DESC
                 LIMIT 100
             `);
 

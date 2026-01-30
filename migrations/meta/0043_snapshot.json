@@ -1,5 +1,5 @@
 {
-  "id": "aa785072-29c2-4b1c-8785-d1b2b067162b",
+  "id": "74dc02d8-86df-4929-96d1-708fd855288d",
   "prevId": "7ca6e183-cfc3-425c-a035-9f321d6ce5a5",
   "version": "7",
   "dialect": "postgresql",
@@ -764,6 +764,18 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
+        },
+        "noshow_followup_dismissed_at": {
+          "name": "noshow_followup_dismissed_at",
+          "type": "timestamp (1) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "noshow_followup_dismissed_by": {
+          "name": "noshow_followup_dismissed_by",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -794,74 +806,6 @@
           "value": "\"households\".\"postal_code\" IS NULL OR (LENGTH(\"households\".\"postal_code\") = 5 AND \"households\".\"postal_code\" ~ '^[0-9]{5}$')"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.noshow_followup_dismissals": {
-      "name": "noshow_followup_dismissals",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "household_id": {
-          "name": "household_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "dismissed_at": {
-          "name": "dismissed_at",
-          "type": "timestamp (1) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "dismissed_by_user_id": {
-          "name": "dismissed_by_user_id",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "idx_noshow_followup_dismissals_household": {
-          "name": "idx_noshow_followup_dismissals_household",
-          "columns": [
-            {
-              "expression": "household_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "noshow_followup_dismissals_household_id_households_id_fk": {
-          "name": "noshow_followup_dismissals_household_id_households_id_fk",
-          "tableFrom": "noshow_followup_dismissals",
-          "tableTo": "households",
-          "columnsFrom": [
-            "household_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.outgoing_sms": {
