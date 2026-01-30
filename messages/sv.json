@@ -366,8 +366,8 @@
             "parcels": "matkassar",
             "noTimeSpecified": "Ingen tid angiven",
             "parcel": {
-                "scheduled": "Schemalagd",
-                "completed": "Slutförd",
+                "upcoming": "Schemalagd",
+                "pickedUp": "Uthämtad",
                 "noShow": "Utebliven"
             }
         },

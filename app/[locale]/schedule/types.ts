@@ -3,6 +3,16 @@
  * This file contains types that can be imported by both client and server components
  */
 
+/**
+ * Unified parcel display status used across the application.
+ * - upcoming: Future parcel, not yet picked up
+ * - pickedUp: Parcel has been collected
+ * - notPickedUp: Past parcel that was never picked up (and not marked as no-show)
+ * - noShow: Household was marked as no-show
+ * - cancelled: Parcel was cancelled/deleted
+ */
+export type ParcelDisplayStatus = "upcoming" | "pickedUp" | "notPickedUp" | "noShow" | "cancelled";
+
 export interface FoodParcel {
     id: string;
     householdId: string;

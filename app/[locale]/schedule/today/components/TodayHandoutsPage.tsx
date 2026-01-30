@@ -25,14 +25,14 @@ import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { getTodaysParcels, getPickupLocations, getParcelById } from "../../actions";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
-import type { FoodParcel, PickupLocation } from "../../types";
+import type { FoodParcel, PickupLocation, ParcelDisplayStatus } from "../../types";
 import type { TranslationFunction } from "../../../types";
 
 // Enhanced type for today's view with additional computed fields
 interface TodayParcel extends FoodParcel {
     locationName?: string;
     timeSlot?: string;
-    status?: "scheduled" | "completed" | "noShow";
+    status?: ParcelDisplayStatus;
 }
 
 interface GroupedParcels {
@@ -115,14 +115,14 @@ export function TodayHandoutsPage() {
             // Only use today's parcels for display
             const enhancedParcels = parcelsData.map((parcel): TodayParcel => {
                 const location = locationsData.find(l => l.id === parcel.pickup_location_id);
-                // Determine status: completed > noShow > scheduled
-                let status: "completed" | "noShow" | "scheduled";
+                // Determine status: pickedUp > noShow > upcoming
+                let status: ParcelDisplayStatus;
                 if (parcel.isPickedUp) {
-                    status = "completed";
+                    status = "pickedUp";
                 } else if (parcel.noShowAt) {
                     status = "noShow";
                 } else {
-                    status = "scheduled";
+                    status = "upcoming";
                 }
                 return {
                     ...parcel,
@@ -364,7 +364,7 @@ export function TodayHandoutsPage() {
                                                             </div>
                                                             <Badge
                                                                 color={
-                                                                    parcel.status === "completed"
+                                                                    parcel.status === "pickedUp"
                                                                         ? "green"
                                                                         : parcel.status === "noShow"
                                                                           ? "orange"
@@ -373,16 +373,16 @@ export function TodayHandoutsPage() {
                                                                 variant="light"
                                                                 size="sm"
                                                             >
-                                                                {parcel.status === "completed"
+                                                                {parcel.status === "pickedUp"
                                                                     ? t(
-                                                                          "todayHandouts.parcel.completed",
+                                                                          "todayHandouts.parcel.pickedUp",
                                                                       )
                                                                     : parcel.status === "noShow"
                                                                       ? t(
                                                                             "todayHandouts.parcel.noShow",
                                                                         )
                                                                       : t(
-                                                                            "todayHandouts.parcel.scheduled",
+                                                                            "todayHandouts.parcel.upcoming",
                                                                         )}
                                                             </Badge>
                                                         </Group>
