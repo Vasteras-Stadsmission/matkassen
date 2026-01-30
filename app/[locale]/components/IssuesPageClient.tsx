@@ -25,6 +25,7 @@ import {
     IconClock,
     IconMessage,
     IconX,
+    IconUserExclamation,
 } from "@tabler/icons-react";
 import { Link } from "@/app/i18n/navigation";
 import RescheduleInline from "./RescheduleInline";
@@ -67,19 +68,31 @@ interface FailedSms {
     createdAt: string;
 }
 
+interface NoShowFollowup {
+    householdId: string;
+    householdFirstName: string;
+    householdLastName: string;
+    consecutiveNoShows: number;
+    totalNoShows: number;
+    lastNoShowAt: string;
+    triggerType: "consecutive" | "total" | "both";
+}
+
 interface IssuesData {
     unresolvedHandouts: UnresolvedHandout[];
     outsideHours: OutsideHoursParcel[];
     failedSms: FailedSms[];
+    noShowFollowups: NoShowFollowup[];
     counts: {
         total: number;
         unresolvedHandouts: number;
         outsideHours: number;
         failedSms: number;
+        noShowFollowups: number;
     };
 }
 
-type FilterType = "all" | "unresolvedHandouts" | "outsideHours" | "failedSms";
+type FilterType = "all" | "unresolvedHandouts" | "outsideHours" | "failedSms" | "noShowFollowups";
 
 export default function IssuesPageClient() {
     const t = useTranslations("issues");
@@ -137,15 +150,20 @@ export default function IssuesPageClient() {
                     p => `outside-${p.parcelId}` !== cardKey,
                 );
                 const newFailedSms = prev.failedSms.filter(s => `sms-${s.id}` !== cardKey);
+                const newNoShowFollowups = prev.noShowFollowups.filter(
+                    f => `noshow-followup-${f.householdId}` !== cardKey,
+                );
 
                 // Only decrement counts if item was actually removed
                 const handoutRemoved =
                     newUnresolvedHandouts.length < prev.unresolvedHandouts.length;
                 const outsideRemoved = newOutsideHours.length < prev.outsideHours.length;
                 const smsRemoved = newFailedSms.length < prev.failedSms.length;
+                const noShowFollowupRemoved =
+                    newNoShowFollowups.length < prev.noShowFollowups.length;
 
                 // If nothing was removed, return unchanged state
-                if (!handoutRemoved && !outsideRemoved && !smsRemoved) {
+                if (!handoutRemoved && !outsideRemoved && !smsRemoved && !noShowFollowupRemoved) {
                     return prev;
                 }
 
@@ -154,13 +172,14 @@ export default function IssuesPageClient() {
                     unresolvedHandouts: newUnresolvedHandouts,
                     outsideHours: newOutsideHours,
                     failedSms: newFailedSms,
+                    noShowFollowups: newNoShowFollowups,
                     counts: {
                         ...prev.counts,
                         // Clamp counts at 0 to prevent negative values from race conditions
                         total: Math.max(
                             0,
                             prev.counts.total -
-                                (handoutRemoved || outsideRemoved || smsRemoved ? 1 : 0),
+                                (handoutRemoved || outsideRemoved || smsRemoved || noShowFollowupRemoved ? 1 : 0),
                         ),
                         unresolvedHandouts: handoutRemoved
                             ? Math.max(0, prev.counts.unresolvedHandouts - 1)
@@ -171,6 +190,9 @@ export default function IssuesPageClient() {
                         failedSms: smsRemoved
                             ? Math.max(0, prev.counts.failedSms - 1)
                             : prev.counts.failedSms,
+                        noShowFollowups: noShowFollowupRemoved
+                            ? Math.max(0, prev.counts.noShowFollowups - 1)
+                            : prev.counts.noShowFollowups,
                     },
                 };
             });
@@ -475,6 +497,41 @@ export default function IssuesPageClient() {
         }
     };
 
+    // Action handler: Dismiss no-show follow-up
+    const handleDismissNoShowFollowup = async (householdId: string) => {
+        const key = `dismiss-noshow-${householdId}`;
+        setActionLoading(prev => ({ ...prev, [key]: true }));
+
+        try {
+            const response = await fetch(`/api/admin/noshow-followup/${householdId}/dismiss`, {
+                method: "PATCH",
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(getErrorMessage(data, t("toast.dismissError")));
+            }
+
+            notifications.show({
+                title: t("toast.success"),
+                message: t("toast.noShowFollowupDismissed"),
+                color: "green",
+                icon: <IconCheck size="1rem" />,
+            });
+
+            removeCardWithAnimation(`noshow-followup-${householdId}`);
+        } catch (err) {
+            notifications.show({
+                title: t("toast.actionError"),
+                message: err instanceof Error ? err.message : t("error"),
+                color: "red",
+                icon: <IconX size="1rem" />,
+            });
+        } finally {
+            setActionLoading(prev => ({ ...prev, [key]: false }));
+        }
+    };
+
     if (loading) {
         return (
             <Center style={{ minHeight: "40vh" }}>
@@ -486,6 +543,7 @@ export default function IssuesPageClient() {
     const showUnresolvedHandouts = activeFilter === "all" || activeFilter === "unresolvedHandouts";
     const showOutsideHours = activeFilter === "all" || activeFilter === "outsideHours";
     const showFailedSms = activeFilter === "all" || activeFilter === "failedSms";
+    const showNoShowFollowups = activeFilter === "all" || activeFilter === "noShowFollowups";
 
     const hasNoIssues = issues && issues.counts.total === 0;
 
@@ -519,6 +577,11 @@ export default function IssuesPageClient() {
                             {(issues?.counts.failedSms ?? 0) > 0 && (
                                 <Chip value="failedSms" variant="filled">
                                     {t("filters.failedSms")} ({issues?.counts.failedSms})
+                                </Chip>
+                            )}
+                            {(issues?.counts.noShowFollowups ?? 0) > 0 && (
+                                <Chip value="noShowFollowups" variant="filled">
+                                    {t("filters.noShowFollowups")} ({issues?.counts.noShowFollowups})
                                 </Chip>
                             )}
                         </Group>
@@ -836,6 +899,92 @@ export default function IssuesPageClient() {
                                                 }[sms.failureType]
                                             }
                                             {sms.errorMessage && `: ${sms.errorMessage}`}
+                                        </Text>
+                                    </Stack>
+                                </Paper>
+                            ))}
+
+                        {/* No-Show Follow-ups */}
+                        {showNoShowFollowups &&
+                            issues.noShowFollowups.map(followup => (
+                                <Paper
+                                    key={`noshow-followup-${followup.householdId}`}
+                                    p="xs"
+                                    withBorder
+                                    style={{
+                                        borderLeft: "3px solid var(--mantine-color-orange-5)",
+                                        opacity: removingItems.has(
+                                            `noshow-followup-${followup.householdId}`,
+                                        )
+                                            ? 0
+                                            : 1,
+                                        transform: removingItems.has(
+                                            `noshow-followup-${followup.householdId}`,
+                                        )
+                                            ? "translateX(-20px)"
+                                            : "translateX(0)",
+                                        transition:
+                                            "opacity 300ms ease-out, transform 300ms ease-out",
+                                    }}
+                                >
+                                    <Stack gap={2}>
+                                        <Group gap={6}>
+                                            <IconUserExclamation
+                                                size={16}
+                                                color="var(--mantine-color-orange-5)"
+                                            />
+                                            <Text size="sm" c="dark.5" fw={500}>
+                                                {t("cardType.noShowFollowup")}
+                                            </Text>
+                                        </Group>
+                                        <Group gap="xs" wrap="wrap">
+                                            <Text
+                                                fw={600}
+                                                component={Link}
+                                                href={`/households/${followup.householdId}`}
+                                                style={{ textDecoration: "none" }}
+                                                c="inherit"
+                                            >
+                                                {followup.householdFirstName}{" "}
+                                                {followup.householdLastName}
+                                            </Text>
+                                            <Button
+                                                variant="light"
+                                                color="gray"
+                                                size="compact-sm"
+                                                loading={
+                                                    actionLoading[
+                                                        `dismiss-noshow-${followup.householdId}`
+                                                    ]
+                                                }
+                                                onClick={() =>
+                                                    handleDismissNoShowFollowup(followup.householdId)
+                                                }
+                                            >
+                                                {t("actions.dismiss")}
+                                            </Button>
+                                            <Button
+                                                component={Link}
+                                                href={`/households/${followup.householdId}`}
+                                                variant="light"
+                                                size="compact-sm"
+                                            >
+                                                {t("actions.viewHousehold")} →
+                                            </Button>
+                                        </Group>
+                                        <Text size="sm" c="dark.4">
+                                            {followup.triggerType === "both"
+                                                ? t("noShowFollowup.triggerBoth", {
+                                                      consecutive: followup.consecutiveNoShows,
+                                                      total: followup.totalNoShows,
+                                                  })
+                                                : followup.triggerType === "consecutive"
+                                                  ? t("noShowFollowup.triggerConsecutive", {
+                                                        count: followup.consecutiveNoShows,
+                                                    })
+                                                  : t("noShowFollowup.triggerTotal", {
+                                                        count: followup.totalNoShows,
+                                                    })}
                                         </Text>
                                     </Stack>
                                 </Paper>
