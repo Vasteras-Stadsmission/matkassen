@@ -47,6 +47,7 @@ export async function getParcelById(parcelId: string): Promise<FoodParcel | null
                 pickupEarliestTime: foodParcels.pickup_date_time_earliest,
                 pickupLatestTime: foodParcels.pickup_date_time_latest,
                 isPickedUp: foodParcels.is_picked_up,
+                noShowAt: foodParcels.no_show_at,
                 pickupLocationId: foodParcels.pickup_location_id,
             })
             .from(foodParcels)
@@ -72,6 +73,7 @@ export async function getParcelById(parcelId: string): Promise<FoodParcel | null
             pickupEarliestTime: new Date(parcel.pickupEarliestTime),
             pickupLatestTime: new Date(parcel.pickupLatestTime),
             isPickedUp: parcel.isPickedUp,
+            noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
             pickup_location_id: parcel.pickupLocationId,
         };
     } catch (error) {
@@ -152,6 +154,7 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 pickupEarliestTime: foodParcels.pickup_date_time_earliest,
                 pickupLatestTime: foodParcels.pickup_date_time_latest,
                 isPickedUp: foodParcels.is_picked_up,
+                noShowAt: foodParcels.no_show_at,
                 pickupLocationId: foodParcels.pickup_location_id,
             })
             .from(foodParcels)
@@ -179,6 +182,7 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 pickupEarliestTime: new Date(parcel.pickupEarliestTime),
                 pickupLatestTime: new Date(parcel.pickupLatestTime),
                 isPickedUp: parcel.isPickedUp,
+                noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
                 pickup_location_id: parcel.pickupLocationId,
             };
         });

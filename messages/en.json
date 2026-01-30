@@ -366,8 +366,9 @@
             "parcels": "packages",
             "noTimeSpecified": "No time specified",
             "parcel": {
-                "scheduled": "Scheduled",
-                "completed": "Completed"
+                "upcoming": "Scheduled",
+                "pickedUp": "Picked up",
+                "noShow": "No-show"
             }
         },
         "currentWeek": "Current Week",

@@ -36,14 +36,14 @@ import { findLocationBySlug } from "../../../utils/location-slugs";
 import { FavoriteStar } from "../../../components/FavoriteStar";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
 import { getUserFavoriteLocation } from "../../../utils/user-preferences";
-import type { FoodParcel, PickupLocation } from "../../../types";
+import type { FoodParcel, PickupLocation, ParcelDisplayStatus } from "../../../types";
 import type { TranslationFunction } from "../../../../types";
 
 // Enhanced type for today's view with additional computed fields
 interface TodayParcel extends FoodParcel {
     locationName?: string;
     timeSlot?: string;
-    status?: "scheduled" | "completed";
+    status?: ParcelDisplayStatus;
 }
 
 interface TodayHandoutsPageProps {
@@ -131,6 +131,15 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             // Filter parcels for the current location and enhance them
             const locationParcels = parcelsData.filter(p => p.pickup_location_id === location.id);
             const enhancedParcels = locationParcels.map((parcel): TodayParcel => {
+                // Determine status: pickedUp > noShow > upcoming
+                let status: ParcelDisplayStatus;
+                if (parcel.isPickedUp) {
+                    status = "pickedUp";
+                } else if (parcel.noShowAt) {
+                    status = "noShow";
+                } else {
+                    status = "upcoming";
+                }
                 return {
                     ...parcel,
                     locationName: location.name,
@@ -138,7 +147,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                         format(parcel.pickupEarliestTime, "HH:mm") +
                         "-" +
                         format(parcel.pickupLatestTime, "HH:mm"),
-                    status: parcel.isPickedUp ? "completed" : "scheduled",
+                    status,
                 };
             });
 
@@ -262,7 +271,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     // Calculate progress for current location
     const totalParcels = parcels.length;
-    const completedParcels = parcels.filter(p => p.status === "completed").length;
+    const completedParcels = parcels.filter(p => p.status === "pickedUp").length;
 
     return (
         <div
@@ -455,9 +464,11 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                         onClick={() => handleParcelClick(parcel)}
                                         onMouseEnter={e => {
                                             e.currentTarget.style.backgroundColor =
-                                                parcel.status === "completed"
+                                                parcel.status === "pickedUp"
                                                     ? "var(--mantine-color-green-0)"
-                                                    : "var(--mantine-color-blue-0)";
+                                                    : parcel.status === "noShow"
+                                                      ? "var(--mantine-color-orange-0)"
+                                                      : "var(--mantine-color-blue-0)";
                                             e.currentTarget.style.transform = "translateY(-1px)";
                                             e.currentTarget.style.boxShadow =
                                                 "var(--mantine-shadow-sm)";
@@ -484,17 +495,21 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                             <div style={{ flexShrink: 0 }}>
                                                 <Badge
                                                     color={
-                                                        parcel.status === "completed"
+                                                        parcel.status === "pickedUp"
                                                             ? "green"
-                                                            : "blue"
+                                                            : parcel.status === "noShow"
+                                                              ? "orange"
+                                                              : "blue"
                                                     }
                                                     variant="filled"
                                                     size="md"
                                                     radius="md"
                                                 >
-                                                    {parcel.status === "completed"
-                                                        ? t("todayHandouts.parcel.completed")
-                                                        : t("todayHandouts.parcel.scheduled")}
+                                                    {parcel.status === "pickedUp"
+                                                        ? t("todayHandouts.parcel.pickedUp")
+                                                        : parcel.status === "noShow"
+                                                          ? t("todayHandouts.parcel.noShow")
+                                                          : t("todayHandouts.parcel.upcoming")}
                                                 </Badge>
                                             </div>
                                         </Group>
