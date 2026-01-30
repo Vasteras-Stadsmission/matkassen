@@ -11,6 +11,7 @@ export interface FoodParcel {
     pickupEarliestTime: Date;
     pickupLatestTime: Date;
     isPickedUp: boolean;
+    noShowAt?: Date | null; // Timestamp when parcel was marked as no-show
     pickup_location_id?: string; // Database column name (snake_case)
     locationId?: string; // Alternative naming for the location ID
 }

@@ -367,7 +367,8 @@
             "noTimeSpecified": "No time specified",
             "parcel": {
                 "scheduled": "Scheduled",
-                "completed": "Completed"
+                "completed": "Completed",
+                "noShow": "No-show"
             }
         },
         "currentWeek": "Current Week",

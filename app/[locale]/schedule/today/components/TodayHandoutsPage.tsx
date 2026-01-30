@@ -32,7 +32,7 @@ import type { TranslationFunction } from "../../../types";
 interface TodayParcel extends FoodParcel {
     locationName?: string;
     timeSlot?: string;
-    status?: "scheduled" | "completed";
+    status?: "scheduled" | "completed" | "noShow";
 }
 
 interface GroupedParcels {
@@ -115,6 +115,15 @@ export function TodayHandoutsPage() {
             // Only use today's parcels for display
             const enhancedParcels = parcelsData.map((parcel): TodayParcel => {
                 const location = locationsData.find(l => l.id === parcel.pickup_location_id);
+                // Determine status: completed > noShow > scheduled
+                let status: "completed" | "noShow" | "scheduled";
+                if (parcel.isPickedUp) {
+                    status = "completed";
+                } else if (parcel.noShowAt) {
+                    status = "noShow";
+                } else {
+                    status = "scheduled";
+                }
                 return {
                     ...parcel,
                     locationName: location?.name,
@@ -122,7 +131,7 @@ export function TodayHandoutsPage() {
                         format(parcel.pickupEarliestTime, "HH:mm") +
                         "-" +
                         format(parcel.pickupLatestTime, "HH:mm"),
-                    status: parcel.isPickedUp ? "completed" : "scheduled",
+                    status,
                 };
             });
 
@@ -357,7 +366,9 @@ export function TodayHandoutsPage() {
                                                                 color={
                                                                     parcel.status === "completed"
                                                                         ? "green"
-                                                                        : "blue"
+                                                                        : parcel.status === "noShow"
+                                                                          ? "orange"
+                                                                          : "blue"
                                                                 }
                                                                 variant="light"
                                                                 size="sm"
@@ -366,9 +377,13 @@ export function TodayHandoutsPage() {
                                                                     ? t(
                                                                           "todayHandouts.parcel.completed",
                                                                       )
-                                                                    : t(
-                                                                          "todayHandouts.parcel.scheduled",
-                                                                      )}
+                                                                    : parcel.status === "noShow"
+                                                                      ? t(
+                                                                            "todayHandouts.parcel.noShow",
+                                                                        )
+                                                                      : t(
+                                                                            "todayHandouts.parcel.scheduled",
+                                                                        )}
                                                             </Badge>
                                                         </Group>
                                                     </Paper>

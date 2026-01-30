@@ -367,7 +367,8 @@
             "noTimeSpecified": "Ingen tid angiven",
             "parcel": {
                 "scheduled": "Schemalagd",
-                "completed": "Slutförd"
+                "completed": "Slutförd",
+                "noShow": "Utebliven"
             }
         },
         "currentWeek": "Aktuell vecka",
