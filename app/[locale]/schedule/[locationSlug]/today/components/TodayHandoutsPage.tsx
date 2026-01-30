@@ -271,7 +271,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     // Calculate progress for current location
     const totalParcels = parcels.length;
-    const completedParcels = parcels.filter(p => p.status === "completed").length;
+    const completedParcels = parcels.filter(p => p.status === "pickedUp").length;
 
     return (
         <div
