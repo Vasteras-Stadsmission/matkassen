@@ -31,40 +31,58 @@ export function ParcelThresholdSettings() {
     useEffect(() => {
         async function loadThreshold() {
             setLoading(true);
-            const result = await getParcelWarningThreshold();
-            if (result.success) {
-                setThreshold(result.data.threshold ?? "");
-            } else {
+            try {
+                const result = await getParcelWarningThreshold();
+                if (result.success) {
+                    setThreshold(result.data.threshold ?? "");
+                } else {
+                    notifications.show({
+                        title: t("errors.loadFailedTitle"),
+                        message: t("errors.loadFailedMessage"),
+                        color: "red",
+                    });
+                }
+            } catch {
                 notifications.show({
                     title: t("errors.loadFailedTitle"),
                     message: t("errors.loadFailedMessage"),
                     color: "red",
                 });
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }
         loadThreshold();
     }, [t]);
 
     const handleSave = async () => {
         setSaving(true);
-        const thresholdValue = threshold === "" ? null : Number(threshold);
+        try {
+            const thresholdValue = threshold === "" ? null : Number(threshold);
 
-        const result = await updateParcelWarningThreshold(thresholdValue);
-        if (result.success) {
-            notifications.show({
-                title: t("success.savedTitle"),
-                message: t("success.savedMessage"),
-                color: "green",
-            });
-        } else {
+            const result = await updateParcelWarningThreshold(thresholdValue);
+            if (result.success) {
+                notifications.show({
+                    title: t("success.savedTitle"),
+                    message: t("success.savedMessage"),
+                    color: "green",
+                });
+            } else {
+                notifications.show({
+                    title: t("errors.saveFailedTitle"),
+                    message: t("errors.saveFailedMessage"),
+                    color: "red",
+                });
+            }
+        } catch {
             notifications.show({
                 title: t("errors.saveFailedTitle"),
-                message: result.error?.message || t("errors.saveFailedMessage"),
+                message: t("errors.saveFailedMessage"),
                 color: "red",
             });
+        } finally {
+            setSaving(false);
         }
-        setSaving(false);
     };
 
     const handleClear = () => {

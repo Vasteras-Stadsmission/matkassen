@@ -5,6 +5,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 import { Time } from "@/app/utils/time-provider";
+import { HOUSEHOLD_ID_REGEX } from "@/app/constants/noshow-settings";
 
 // PATCH /api/admin/noshow-followup/[householdId]/dismiss - Dismiss a no-show follow-up
 export async function PATCH(
@@ -12,6 +13,14 @@ export async function PATCH(
     { params }: { params: Promise<{ householdId: string }> },
 ) {
     const { householdId } = await params;
+
+    // Validate householdId format (8-character alphanumeric nanoid)
+    if (!householdId || !HOUSEHOLD_ID_REGEX.test(householdId)) {
+        return NextResponse.json(
+            { error: "Invalid household ID format", code: "INVALID_ID" },
+            { status: 400 },
+        );
+    }
 
     try {
         // Validate authentication
@@ -21,7 +30,7 @@ export async function PATCH(
         }
 
         const now = Time.now().toUTC();
-        const dismissedBy = authResult.session!.user.githubUsername;
+        const dismissedBy = authResult.session?.user?.githubUsername ?? null;
 
         // Update household with dismissal timestamp (atomic operation)
         const [updated] = await db

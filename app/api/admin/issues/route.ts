@@ -17,11 +17,18 @@ import {
     type ParcelTimeInfo,
 } from "@/app/utils/schedule/outside-hours-filter";
 import { getLocationSchedulesMap } from "@/app/utils/schedule/location-schedules-map";
-
-// Setting keys for no-show follow-up
-const NOSHOW_FOLLOWUP_ENABLED_KEY = "noshow_followup_enabled";
-const NOSHOW_CONSECUTIVE_THRESHOLD_KEY = "noshow_consecutive_threshold";
-const NOSHOW_TOTAL_THRESHOLD_KEY = "noshow_total_threshold";
+import {
+    NOSHOW_FOLLOWUP_ENABLED_KEY,
+    NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
+    NOSHOW_TOTAL_THRESHOLD_KEY,
+    NOSHOW_CONSECUTIVE_MIN,
+    NOSHOW_CONSECUTIVE_MAX,
+    NOSHOW_CONSECUTIVE_DEFAULT,
+    NOSHOW_TOTAL_MIN,
+    NOSHOW_TOTAL_MAX,
+    NOSHOW_TOTAL_DEFAULT,
+    parseThreshold,
+} from "@/app/constants/noshow-settings";
 
 // 24 hours in milliseconds - threshold for stale SMS
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -394,25 +401,18 @@ export async function GET() {
         const noshowEnabled =
             enabledValue === null || enabledValue === undefined ? true : enabledValue === "true";
 
-        // Safely parse threshold values with validation and fallback to defaults
-        const parseThreshold = (value: string | null | undefined, defaultValue: number, min: number, max: number): number => {
-            if (!value) return defaultValue;
-            const parsed = parseInt(value, 10);
-            if (isNaN(parsed) || parsed < min || parsed > max) return defaultValue;
-            return parsed;
-        };
-
+        // Parse thresholds using shared helper with shared constants
         const consecutiveThreshold = parseThreshold(
             settingsMap.get(NOSHOW_CONSECUTIVE_THRESHOLD_KEY),
-            2,  // default
-            1,  // min
-            10, // max
+            NOSHOW_CONSECUTIVE_DEFAULT,
+            NOSHOW_CONSECUTIVE_MIN,
+            NOSHOW_CONSECUTIVE_MAX,
         );
         const totalThreshold = parseThreshold(
             settingsMap.get(NOSHOW_TOTAL_THRESHOLD_KEY),
-            4,  // default
-            1,  // min
-            50, // max
+            NOSHOW_TOTAL_DEFAULT,
+            NOSHOW_TOTAL_MIN,
+            NOSHOW_TOTAL_MAX,
         );
 
         if (noshowEnabled) {
@@ -493,7 +493,8 @@ export async function GET() {
                     last_name,
                     total_no_shows::int,
                     consecutive_no_shows::int,
-                    last_no_show_at
+                    last_no_show_at,
+                    COUNT(*) OVER() AS total_count
                 FROM no_show_stats
                 WHERE noshow_followup_dismissed_at IS NULL
                    OR last_no_show_at > noshow_followup_dismissed_at
@@ -501,15 +502,21 @@ export async function GET() {
                 LIMIT 100
             `);
 
-            // Process the results
-            noShowFollowups = (noShowStatsRaw as unknown as Array<{
+            // Process the results - extract accurate count from first row
+            const rows = noShowStatsRaw as unknown as Array<{
                 household_id: string;
                 first_name: string;
                 last_name: string;
                 total_no_shows: number;
                 consecutive_no_shows: number;
                 last_no_show_at: Date;
-            }>).map(row => {
+                total_count: number;
+            }>;
+
+            // Get accurate count from first row (COUNT(*) OVER() returns same value for all rows)
+            noShowFollowupsCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
+
+            noShowFollowups = rows.map(row => {
                 const meetsConsecutive = row.consecutive_no_shows >= consecutiveThreshold;
                 const meetsTotal = row.total_no_shows >= totalThreshold;
                 let triggerType: "consecutive" | "total" | "both" = "total";
@@ -529,8 +536,6 @@ export async function GET() {
                     triggerType,
                 };
             });
-
-            noShowFollowupsCount = noShowFollowups.length;
         }
 
         // Use accurate counts from count queries (not limited array lengths)

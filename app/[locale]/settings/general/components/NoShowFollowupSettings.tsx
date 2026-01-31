@@ -31,49 +31,67 @@ export function NoShowFollowupSettings() {
     useEffect(() => {
         async function loadSettings() {
             setLoading(true);
-            const result = await getNoShowFollowupSettings();
-            if (result.success) {
-                setEnabled(result.data.enabled);
-                setConsecutiveThreshold(result.data.consecutiveThreshold ?? 2);
-                setTotalThreshold(result.data.totalThreshold ?? 4);
-            } else {
+            try {
+                const result = await getNoShowFollowupSettings();
+                if (result.success) {
+                    setEnabled(result.data.enabled);
+                    setConsecutiveThreshold(result.data.consecutiveThreshold ?? 2);
+                    setTotalThreshold(result.data.totalThreshold ?? 4);
+                } else {
+                    notifications.show({
+                        title: t("errors.loadFailedTitle"),
+                        message: t("errors.loadFailedMessage"),
+                        color: "red",
+                    });
+                }
+            } catch {
                 notifications.show({
                     title: t("errors.loadFailedTitle"),
                     message: t("errors.loadFailedMessage"),
                     color: "red",
                 });
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }
         loadSettings();
     }, [t]);
 
     const handleSave = async () => {
         setSaving(true);
-        const consecutiveValue =
-            consecutiveThreshold === "" ? null : Number(consecutiveThreshold);
-        const totalValue = totalThreshold === "" ? null : Number(totalThreshold);
+        try {
+            const consecutiveValue =
+                consecutiveThreshold === "" ? null : Number(consecutiveThreshold);
+            const totalValue = totalThreshold === "" ? null : Number(totalThreshold);
 
-        const result = await updateNoShowFollowupSettings({
-            enabled,
-            consecutiveThreshold: consecutiveValue,
-            totalThreshold: totalValue,
-        });
-
-        if (result.success) {
-            notifications.show({
-                title: t("success.savedTitle"),
-                message: t("success.savedMessage"),
-                color: "green",
+            const result = await updateNoShowFollowupSettings({
+                enabled,
+                consecutiveThreshold: consecutiveValue,
+                totalThreshold: totalValue,
             });
-        } else {
+
+            if (result.success) {
+                notifications.show({
+                    title: t("success.savedTitle"),
+                    message: t("success.savedMessage"),
+                    color: "green",
+                });
+            } else {
+                notifications.show({
+                    title: t("errors.saveFailedTitle"),
+                    message: t("errors.saveFailedMessage"),
+                    color: "red",
+                });
+            }
+        } catch {
             notifications.show({
                 title: t("errors.saveFailedTitle"),
-                message: result.error?.message || t("errors.saveFailedMessage"),
+                message: t("errors.saveFailedMessage"),
                 color: "red",
             });
+        } finally {
+            setSaving(false);
         }
-        setSaving(false);
     };
 
     return (
