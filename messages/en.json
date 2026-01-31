@@ -1141,10 +1141,17 @@
     "settings": {
         "settings": "Settings",
         "general": "General Settings",
+        "generalDescription": "Configure privacy policy, enrollment checklist, parcel limits, and follow-up settings.",
         "locations": "Handout Location Settings",
         "parcels": "Parcel Limits",
         "aria": {
             "settingsMenu": "Settings menu"
+        },
+        "nav": {
+            "privacyPolicy": "Privacy Policy",
+            "enrollmentChecklist": "Enrollment Checklist",
+            "parcelThreshold": "Parcel Limits",
+            "noshowFollowup": "No-Show Follow-up"
         },
         "enrollmentChecklist": {
             "title": "Enrollment Checklist",
@@ -1262,6 +1269,31 @@
                 "saveFailedMessage": "Failed to save parcel warning threshold"
             }
         },
+        "noshowFollowup": {
+            "title": "No-Show Follow-up",
+            "description": "Configure automatic follow-up item creation when households have repeated no-shows",
+            "infoMessage": "When enabled, a follow-up item will be automatically created on the Issues page when a household reaches the specified no-show thresholds. This helps identify households that may need additional outreach or support.",
+            "enabledLabel": "Enable No-Show Follow-up",
+            "enabledDescription": "Automatically create follow-up items for households with repeated no-shows",
+            "consecutiveLabel": "Consecutive No-Shows",
+            "consecutiveDescription": "Number of consecutive (in a row) no-shows to trigger follow-up",
+            "consecutivePlaceholder": "e.g., 2",
+            "totalLabel": "Total No-Shows",
+            "totalDescription": "Total number of no-shows (all time) to trigger follow-up",
+            "totalPlaceholder": "e.g., 4",
+            "preview": "A follow-up item will be created when a household has {consecutive} consecutive no-shows OR {total} total no-shows",
+            "saveButton": "Save",
+            "success": {
+                "savedTitle": "Saved",
+                "savedMessage": "No-show follow-up settings have been updated"
+            },
+            "errors": {
+                "loadFailedTitle": "Error",
+                "loadFailedMessage": "Failed to load no-show follow-up settings",
+                "saveFailedTitle": "Error",
+                "saveFailedMessage": "Failed to save no-show follow-up settings"
+            }
+        },
         "smsTemplates": {
             "title": "Default SMS Templates",
             "description": "Customize the text messages sent to households",
@@ -1288,7 +1320,8 @@
             "all": "All",
             "unresolvedHandouts": "Unresolved handouts",
             "outsideOpeningHours": "Outside opening hours",
-            "failedSms": "Failed SMS"
+            "failedSms": "Failed SMS",
+            "noShowFollowups": "No-show follow-ups"
         },
         "sections": {
             "unresolvedHandouts": "Unresolved handouts",
@@ -1298,7 +1331,8 @@
         "cardType": {
             "unresolvedHandout": "Unresolved handout",
             "outsideHours": "Outside opening hours",
-            "failedSms": "SMS delivery failed"
+            "failedSms": "SMS delivery failed",
+            "noShowFollowup": "No-show follow-up needed"
         },
         "actions": {
             "handedOut": "Handed out",
@@ -1308,6 +1342,7 @@
             "retry": "Retry",
             "dismiss": "Dismiss",
             "editHousehold": "Edit household",
+            "viewHousehold": "View household",
             "cancel": "Cancel",
             "save": "Save"
         },
@@ -1339,7 +1374,13 @@
             "noShowError": "Failed to mark as no-show",
             "cancelError": "Failed to cancel parcel",
             "retryError": "Failed to retry SMS",
-            "dismissError": "Failed to dismiss"
+            "dismissError": "Failed to dismiss",
+            "noShowFollowupDismissed": "No-show follow-up dismissed"
+        },
+        "noShowFollowup": {
+            "triggerConsecutive": "{count} consecutive no-shows",
+            "triggerTotal": "{count} total no-shows",
+            "triggerBoth": "{consecutive} consecutive, {total} total no-shows"
         },
         "errorCodes": {
             "NOT_FOUND": "Could not find the item. It may have been deleted.",
@@ -1363,6 +1404,12 @@
             "cancelParcelTitle": "Cancel parcel?",
             "cancelParcelMessage": "Are you sure you want to cancel the food parcel for {name}? This action cannot be undone.",
             "cancelParcelConfirm": "Yes, cancel parcel",
+            "dismissFailedSmsTitle": "Dismiss SMS failure?",
+            "dismissFailedSmsMessage": "Are you sure you want to dismiss the failed SMS for {name}?",
+            "dismissFailedSmsConfirm": "Yes, dismiss",
+            "dismissNoShowFollowupTitle": "Dismiss follow-up?",
+            "dismissNoShowFollowupMessage": "Are you sure you want to dismiss the no-show follow-up for {name}? It will reappear if they have another no-show.",
+            "dismissNoShowFollowupConfirm": "Yes, dismiss",
             "cancel": "Cancel"
         },
         "confirmCancelTitle": "Cancel parcel?",

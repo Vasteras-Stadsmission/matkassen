@@ -53,6 +53,8 @@ export const households = pgTable(
         postal_code: varchar("postal_code", { length: 5 }),
         anonymized_at: timestamp({ precision: 1, withTimezone: true }), // Timestamp when household was anonymized (NULL = active)
         anonymized_by: varchar("anonymized_by", { length: 50 }), // GitHub username of admin who anonymized
+        noshow_followup_dismissed_at: timestamp({ precision: 1, withTimezone: true }), // When no-show follow-up was dismissed
+        noshow_followup_dismissed_by: varchar("noshow_followup_dismissed_by", { length: 50 }), // GitHub username of admin who dismissed
     },
     table => [
         check(

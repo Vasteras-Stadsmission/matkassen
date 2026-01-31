@@ -3,12 +3,23 @@
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
-import { verificationQuestions, privacyPolicies } from "@/app/db/schema";
+import { verificationQuestions, privacyPolicies, globalSettings } from "@/app/db/schema";
 import { eq, and, asc, max, sql, inArray, desc } from "drizzle-orm";
 import { nanoid } from "@/app/db/schema";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
+import {
+    NOSHOW_FOLLOWUP_ENABLED_KEY,
+    NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
+    NOSHOW_TOTAL_THRESHOLD_KEY,
+    NOSHOW_CONSECUTIVE_MIN,
+    NOSHOW_CONSECUTIVE_MAX,
+    NOSHOW_CONSECUTIVE_DEFAULT,
+    NOSHOW_TOTAL_MIN,
+    NOSHOW_TOTAL_MAX,
+    NOSHOW_TOTAL_DEFAULT,
+} from "@/app/constants/noshow-settings";
 
 /**
  * Revalidates the settings/general page for all supported locales.
@@ -369,6 +380,167 @@ export const savePrivacyPolicy = protectedAction(
             return failure({
                 code: "SAVE_FAILED",
                 message: "Failed to save privacy policy",
+            });
+        }
+    },
+);
+
+// ============================================================================
+// No-Show Follow-up Settings Actions
+// ============================================================================
+
+export interface NoShowFollowupSettings {
+    enabled: boolean;
+    consecutiveThreshold: number | null;
+    totalThreshold: number | null;
+}
+
+/**
+ * Get the current no-show follow-up settings.
+ */
+export const getNoShowFollowupSettings = protectedAction(
+    async (): Promise<ActionResult<NoShowFollowupSettings>> => {
+        try {
+            const settings = await db
+                .select()
+                .from(globalSettings)
+                .where(
+                    inArray(globalSettings.key, [
+                        NOSHOW_FOLLOWUP_ENABLED_KEY,
+                        NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
+                        NOSHOW_TOTAL_THRESHOLD_KEY,
+                    ]),
+                );
+
+            const settingsMap = new Map(settings.map(s => [s.key, s.value]));
+
+            // Parse with defaults from shared constants
+            const enabledValue = settingsMap.get(NOSHOW_FOLLOWUP_ENABLED_KEY);
+            const enabled =
+                enabledValue === null || enabledValue === undefined
+                    ? true
+                    : enabledValue === "true";
+
+            const consecutiveValue = settingsMap.get(NOSHOW_CONSECUTIVE_THRESHOLD_KEY);
+            const consecutiveThreshold = consecutiveValue
+                ? parseInt(consecutiveValue, 10)
+                : NOSHOW_CONSECUTIVE_DEFAULT;
+
+            const totalValue = settingsMap.get(NOSHOW_TOTAL_THRESHOLD_KEY);
+            const totalThreshold = totalValue ? parseInt(totalValue, 10) : NOSHOW_TOTAL_DEFAULT;
+
+            return success({
+                enabled,
+                consecutiveThreshold: isNaN(consecutiveThreshold)
+                    ? NOSHOW_CONSECUTIVE_DEFAULT
+                    : consecutiveThreshold,
+                totalThreshold: isNaN(totalThreshold) ? NOSHOW_TOTAL_DEFAULT : totalThreshold,
+            });
+        } catch (error) {
+            logError("Error fetching no-show follow-up settings", error);
+            return failure({
+                code: "FETCH_FAILED",
+                message: "Failed to fetch no-show follow-up settings",
+            });
+        }
+    },
+);
+
+export interface UpdateNoShowFollowupData {
+    enabled: boolean;
+    consecutiveThreshold: number | null;
+    totalThreshold: number | null;
+}
+
+/**
+ * Update no-show follow-up settings.
+ */
+export const updateNoShowFollowupSettings = protectedAction(
+    async (
+        session,
+        data: UpdateNoShowFollowupData,
+    ): Promise<ActionResult<NoShowFollowupSettings>> => {
+        try {
+            // Validate thresholds if provided (using shared constants)
+            if (data.consecutiveThreshold !== null) {
+                if (
+                    !Number.isInteger(data.consecutiveThreshold) ||
+                    data.consecutiveThreshold < NOSHOW_CONSECUTIVE_MIN ||
+                    data.consecutiveThreshold > NOSHOW_CONSECUTIVE_MAX
+                ) {
+                    return failure({
+                        code: "VALIDATION_ERROR_CONSECUTIVE",
+                        message: "", // Error message handled via translation on client
+                    });
+                }
+            }
+
+            if (data.totalThreshold !== null) {
+                if (
+                    !Number.isInteger(data.totalThreshold) ||
+                    data.totalThreshold < NOSHOW_TOTAL_MIN ||
+                    data.totalThreshold > NOSHOW_TOTAL_MAX
+                ) {
+                    return failure({
+                        code: "VALIDATION_ERROR_TOTAL",
+                        message: "", // Error message handled via translation on client
+                    });
+                }
+            }
+
+            const updatedBy = session.user?.githubUsername ?? null;
+            const now = new Date();
+
+            // Upsert all settings atomically in a transaction
+            const settingsToUpdate = [
+                { key: NOSHOW_FOLLOWUP_ENABLED_KEY, value: data.enabled.toString() },
+                {
+                    key: NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
+                    value: data.consecutiveThreshold?.toString() ?? null,
+                },
+                {
+                    key: NOSHOW_TOTAL_THRESHOLD_KEY,
+                    value: data.totalThreshold?.toString() ?? null,
+                },
+            ];
+
+            await db.transaction(async tx => {
+                // Use ON CONFLICT DO UPDATE for atomic upserts
+                await Promise.all(
+                    settingsToUpdate.map(setting =>
+                        tx
+                            .insert(globalSettings)
+                            .values({
+                                id: nanoid(8),
+                                key: setting.key,
+                                value: setting.value,
+                                updated_at: now,
+                                updated_by: updatedBy,
+                            })
+                            .onConflictDoUpdate({
+                                target: globalSettings.key,
+                                set: {
+                                    value: setting.value,
+                                    updated_at: now,
+                                    updated_by: updatedBy,
+                                },
+                            }),
+                    ),
+                );
+            });
+
+            revalidateSettingsPage();
+
+            return success({
+                enabled: data.enabled,
+                consecutiveThreshold: data.consecutiveThreshold,
+                totalThreshold: data.totalThreshold,
+            });
+        } catch (error) {
+            logError("Error updating no-show follow-up settings", error);
+            return failure({
+                code: "UPDATE_FAILED",
+                message: "", // Error message handled via translation on client
             });
         }
     },

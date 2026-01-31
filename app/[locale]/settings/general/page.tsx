@@ -1,16 +1,10 @@
 import { AuthProtection } from "@/components/AuthProtection";
-import { EnrollmentChecklist } from "./components/EnrollmentChecklist";
-import { PrivacyPolicyEditor } from "./components/PrivacyPolicyEditor";
-import { Divider, Stack } from "@mantine/core";
+import { SettingsPageClient } from "./components/SettingsPageClient";
 
 export default async function GeneralSettingsPage() {
     return (
         <AuthProtection>
-            <Stack gap="xl">
-                <PrivacyPolicyEditor />
-                <Divider />
-                <EnrollmentChecklist />
-            </Stack>
+            <SettingsPageClient />
         </AuthProtection>
     );
 }

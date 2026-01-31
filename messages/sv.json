@@ -1141,10 +1141,17 @@
     "settings": {
         "settings": "Inställningar",
         "general": "Allmänna inställningar",
+        "generalDescription": "Konfigurera integritetspolicy, registreringsformulär, matkassegränser och uppföljningsinställningar.",
         "locations": "Utlämningsställen",
         "parcels": "Matkassegränser",
         "aria": {
             "settingsMenu": "Inställningsmeny"
+        },
+        "nav": {
+            "privacyPolicy": "Integritetspolicy",
+            "enrollmentChecklist": "Registreringsformulär",
+            "parcelThreshold": "Matkassegränser",
+            "noshowFollowup": "Uppföljning vid uteblivna"
         },
         "enrollmentChecklist": {
             "title": "Registreringsformulär",
@@ -1262,6 +1269,31 @@
                 "saveFailedMessage": "Kunde inte spara varningsgräns för matkassar"
             }
         },
+        "noshowFollowup": {
+            "title": "Uppföljning vid uteblivna",
+            "description": "Konfigurera automatiskt skapande av uppföljningsärenden när hushåll har upprepade uteblivna hämtningar",
+            "infoMessage": "När aktiverad skapas ett uppföljningsärende automatiskt på ärendesidan när ett hushåll når de angivna tröskelvärdena för uteblivna hämtningar. Detta hjälper till att identifiera hushåll som kan behöva ytterligare kontakt eller stöd.",
+            "enabledLabel": "Aktivera uppföljning vid uteblivna",
+            "enabledDescription": "Skapa automatiskt uppföljningsärenden för hushåll med upprepade uteblivna hämtningar",
+            "consecutiveLabel": "Uteblivna i rad",
+            "consecutiveDescription": "Antal uteblivna i rad för att skapa uppföljning",
+            "consecutivePlaceholder": "t.ex. 2",
+            "totalLabel": "Totalt uteblivna",
+            "totalDescription": "Totalt antal uteblivna (all tid) för att skapa uppföljning",
+            "totalPlaceholder": "t.ex. 4",
+            "preview": "Ett uppföljningsärende skapas när ett hushåll har {consecutive} uteblivna i rad ELLER {total} uteblivna totalt",
+            "saveButton": "Spara",
+            "success": {
+                "savedTitle": "Sparat",
+                "savedMessage": "Inställningar för uppföljning vid uteblivna har uppdaterats"
+            },
+            "errors": {
+                "loadFailedTitle": "Fel",
+                "loadFailedMessage": "Kunde inte ladda inställningar för uppföljning vid uteblivna",
+                "saveFailedTitle": "Fel",
+                "saveFailedMessage": "Kunde inte spara inställningar för uppföljning vid uteblivna"
+            }
+        },
         "smsTemplates": {
             "title": "Standard SMS-mallar",
             "description": "Anpassa textmeddelanden som skickas till hushåll",
@@ -1288,7 +1320,8 @@
             "all": "Alla",
             "unresolvedHandouts": "Oregistrerade utlämningar",
             "outsideOpeningHours": "Utanför öppettider",
-            "failedSms": "Misslyckade SMS"
+            "failedSms": "Misslyckade SMS",
+            "noShowFollowups": "Uppföljning uteblivna"
         },
         "sections": {
             "unresolvedHandouts": "Oregistrerade utlämningar",
@@ -1298,7 +1331,8 @@
         "cardType": {
             "unresolvedHandout": "Oregistrerad utlämning",
             "outsideHours": "Utanför öppettider",
-            "failedSms": "SMS-leverans misslyckades"
+            "failedSms": "SMS-leverans misslyckades",
+            "noShowFollowup": "Uppföljning behövs"
         },
         "actions": {
             "handedOut": "Utlämnad",
@@ -1308,6 +1342,7 @@
             "retry": "Försök igen",
             "dismiss": "Ignorera",
             "editHousehold": "Redigera hushåll",
+            "viewHousehold": "Visa hushåll",
             "cancel": "Avbryt",
             "save": "Spara"
         },
@@ -1339,7 +1374,13 @@
             "noShowError": "Kunde inte markera som utebliven",
             "cancelError": "Kunde inte avboka paket",
             "retryError": "Kunde inte skicka SMS igen",
-            "dismissError": "Kunde inte ignorera"
+            "dismissError": "Kunde inte ignorera",
+            "noShowFollowupDismissed": "Uppföljning ignorerad"
+        },
+        "noShowFollowup": {
+            "triggerConsecutive": "{count} uteblivna i rad",
+            "triggerTotal": "{count} uteblivna totalt",
+            "triggerBoth": "{consecutive} i rad, {total} totalt uteblivna"
         },
         "errorCodes": {
             "NOT_FOUND": "Kunde inte hitta objektet. Det kan ha tagits bort.",
@@ -1363,6 +1404,12 @@
             "cancelParcelTitle": "Avboka paket?",
             "cancelParcelMessage": "Är du säker på att du vill avboka matpaketet för {name}? Denna åtgärd kan inte ångras.",
             "cancelParcelConfirm": "Ja, avboka paket",
+            "dismissFailedSmsTitle": "Ignorera SMS-fel?",
+            "dismissFailedSmsMessage": "Är du säker på att du vill ignorera det misslyckade SMS:et för {name}?",
+            "dismissFailedSmsConfirm": "Ja, ignorera",
+            "dismissNoShowFollowupTitle": "Ignorera uppföljning?",
+            "dismissNoShowFollowupMessage": "Är du säker på att du vill ignorera uppföljningen för {name}? Den visas igen om de uteblir igen.",
+            "dismissNoShowFollowupConfirm": "Ja, ignorera",
             "cancel": "Avbryt"
         },
         "confirmCancelTitle": "Avboka paket?",
