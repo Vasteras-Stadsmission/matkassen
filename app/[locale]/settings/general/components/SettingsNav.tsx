@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { NavLink, Stack, ScrollArea, Box } from "@mantine/core";
-import {
-    IconFileText,
-    IconChecklist,
-    IconPackage,
-    IconAlertTriangle,
-} from "@tabler/icons-react";
+import { IconFileText, IconChecklist, IconPackage, IconAlertTriangle } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 
 export type SettingsSection =

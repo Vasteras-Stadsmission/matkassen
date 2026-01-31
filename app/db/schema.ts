@@ -497,4 +497,3 @@ export const users = pgTable("users", {
         { onDelete: "set null" },
     ),
 });
-

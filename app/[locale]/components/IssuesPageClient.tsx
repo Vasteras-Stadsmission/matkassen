@@ -179,7 +179,12 @@ export default function IssuesPageClient() {
                         total: Math.max(
                             0,
                             prev.counts.total -
-                                (handoutRemoved || outsideRemoved || smsRemoved || noShowFollowupRemoved ? 1 : 0),
+                                (handoutRemoved ||
+                                outsideRemoved ||
+                                smsRemoved ||
+                                noShowFollowupRemoved
+                                    ? 1
+                                    : 0),
                         ),
                         unresolvedHandouts: handoutRemoved
                             ? Math.max(0, prev.counts.unresolvedHandouts - 1)
@@ -636,7 +641,8 @@ export default function IssuesPageClient() {
                             )}
                             {(issues?.counts.noShowFollowups ?? 0) > 0 && (
                                 <Chip value="noShowFollowups" variant="filled">
-                                    {t("filters.noShowFollowups")} ({issues?.counts.noShowFollowups})
+                                    {t("filters.noShowFollowups")} ({issues?.counts.noShowFollowups}
+                                    )
                                 </Chip>
                             )}
                         </Group>
@@ -1038,7 +1044,9 @@ export default function IssuesPageClient() {
                                         <Text size="sm" c="dark.4">
                                             {followup.triggerType === "both"
                                                 ? t("noShowFollowup.triggerBoth", {
-                                                      consecutive: String(followup.consecutiveNoShows),
+                                                      consecutive: String(
+                                                          followup.consecutiveNoShows,
+                                                      ),
                                                       total: String(followup.totalNoShows),
                                                   })
                                                 : followup.triggerType === "consecutive"

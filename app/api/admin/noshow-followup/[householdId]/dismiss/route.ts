@@ -61,9 +61,6 @@ export async function PATCH(
             path: "/api/admin/noshow-followup/[householdId]/dismiss",
             householdId,
         });
-        return NextResponse.json(
-            { error: "Failed to dismiss no-show follow-up" },
-            { status: 500 },
-        );
+        return NextResponse.json({ error: "Failed to dismiss no-show follow-up" }, { status: 500 });
     }
 }

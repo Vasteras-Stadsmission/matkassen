@@ -503,7 +503,8 @@ export async function GET() {
             `);
 
             // Process the results - extract accurate count from first row
-            const rows = noShowStatsRaw as unknown as Array<{
+            // Handle both PGlite (returns { rows: [...] }) and postgres-js (returns [...]) formats
+            type NoShowRow = {
                 household_id: string;
                 first_name: string;
                 last_name: string;
@@ -511,7 +512,9 @@ export async function GET() {
                 consecutive_no_shows: number;
                 last_no_show_at: Date;
                 total_count: number;
-            }>;
+            };
+            const rawResult = noShowStatsRaw as unknown as NoShowRow[] | { rows: NoShowRow[] };
+            const rows: NoShowRow[] = Array.isArray(rawResult) ? rawResult : rawResult.rows;
 
             // Get accurate count from first row (COUNT(*) OVER() returns same value for all rows)
             noShowFollowupsCount = rows.length > 0 ? Number(rows[0].total_count) : 0;

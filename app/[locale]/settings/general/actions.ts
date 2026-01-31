@@ -416,9 +416,10 @@ export const getNoShowFollowupSettings = protectedAction(
 
             // Parse with defaults from shared constants
             const enabledValue = settingsMap.get(NOSHOW_FOLLOWUP_ENABLED_KEY);
-            const enabled = enabledValue === null || enabledValue === undefined
-                ? true
-                : enabledValue === "true";
+            const enabled =
+                enabledValue === null || enabledValue === undefined
+                    ? true
+                    : enabledValue === "true";
 
             const consecutiveValue = settingsMap.get(NOSHOW_CONSECUTIVE_THRESHOLD_KEY);
             const consecutiveThreshold = consecutiveValue
@@ -430,7 +431,9 @@ export const getNoShowFollowupSettings = protectedAction(
 
             return success({
                 enabled,
-                consecutiveThreshold: isNaN(consecutiveThreshold) ? NOSHOW_CONSECUTIVE_DEFAULT : consecutiveThreshold,
+                consecutiveThreshold: isNaN(consecutiveThreshold)
+                    ? NOSHOW_CONSECUTIVE_DEFAULT
+                    : consecutiveThreshold,
                 totalThreshold: isNaN(totalThreshold) ? NOSHOW_TOTAL_DEFAULT : totalThreshold,
             });
         } catch (error) {
