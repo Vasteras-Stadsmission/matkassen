@@ -393,11 +393,27 @@ export async function GET() {
         const enabledValue = settingsMap.get(NOSHOW_FOLLOWUP_ENABLED_KEY);
         const noshowEnabled =
             enabledValue === null || enabledValue === undefined ? true : enabledValue === "true";
-        const consecutiveThreshold = parseInt(
-            settingsMap.get(NOSHOW_CONSECUTIVE_THRESHOLD_KEY) || "2",
-            10,
+
+        // Safely parse threshold values with validation and fallback to defaults
+        const parseThreshold = (value: string | null | undefined, defaultValue: number, min: number, max: number): number => {
+            if (!value) return defaultValue;
+            const parsed = parseInt(value, 10);
+            if (isNaN(parsed) || parsed < min || parsed > max) return defaultValue;
+            return parsed;
+        };
+
+        const consecutiveThreshold = parseThreshold(
+            settingsMap.get(NOSHOW_CONSECUTIVE_THRESHOLD_KEY),
+            2,  // default
+            1,  // min
+            10, // max
         );
-        const totalThreshold = parseInt(settingsMap.get(NOSHOW_TOTAL_THRESHOLD_KEY) || "4", 10);
+        const totalThreshold = parseThreshold(
+            settingsMap.get(NOSHOW_TOTAL_THRESHOLD_KEY),
+            4,  // default
+            1,  // min
+            50, // max
+        );
 
         if (noshowEnabled) {
             // Query households with no-show counts that exceed thresholds

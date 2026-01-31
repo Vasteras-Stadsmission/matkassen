@@ -23,32 +23,44 @@ interface SettingsNavProps {
 
 interface NavItem {
     section: SettingsSection;
-    labelKey: string;
     icon: React.ReactNode;
 }
 
 const NAV_ITEMS: NavItem[] = [
     {
         section: "privacy-policy",
-        labelKey: "nav.privacyPolicy",
         icon: <IconFileText size={18} stroke={1.5} />,
     },
     {
         section: "enrollment-checklist",
-        labelKey: "nav.enrollmentChecklist",
         icon: <IconChecklist size={18} stroke={1.5} />,
     },
     {
         section: "parcel-threshold",
-        labelKey: "nav.parcelThreshold",
         icon: <IconPackage size={18} stroke={1.5} />,
     },
     {
         section: "noshow-followup",
-        labelKey: "nav.noshowFollowup",
         icon: <IconAlertTriangle size={18} stroke={1.5} />,
     },
 ];
+
+// Use explicit translation keys to satisfy TypeScript's strict type checking
+function getNavLabel(
+    t: ReturnType<typeof useTranslations<"settings">>,
+    section: SettingsSection,
+): string {
+    switch (section) {
+        case "privacy-policy":
+            return t("nav.privacyPolicy");
+        case "enrollment-checklist":
+            return t("nav.enrollmentChecklist");
+        case "parcel-threshold":
+            return t("nav.parcelThreshold");
+        case "noshow-followup":
+            return t("nav.noshowFollowup");
+    }
+}
 
 export function SettingsNav({ activeSection, onSectionChange }: SettingsNavProps) {
     const t = useTranslations("settings");
@@ -67,7 +79,7 @@ export function SettingsNav({ activeSection, onSectionChange }: SettingsNavProps
                         {NAV_ITEMS.map(item => (
                             <NavLink
                                 key={item.section}
-                                label={t(item.labelKey)}
+                                label={getNavLabel(t, item.section)}
                                 leftSection={item.icon}
                             />
                         ))}
@@ -84,7 +96,7 @@ export function SettingsNav({ activeSection, onSectionChange }: SettingsNavProps
                     {NAV_ITEMS.map(item => (
                         <NavLink
                             key={item.section}
-                            label={t(item.labelKey)}
+                            label={getNavLabel(t, item.section)}
                             leftSection={item.icon}
                             active={activeSection === item.section}
                             onClick={() => onSectionChange(item.section)}

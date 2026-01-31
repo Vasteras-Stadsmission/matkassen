@@ -462,10 +462,6 @@ export default function IssuesPageClient() {
 
     // Reusable confirmation dialog for dismiss actions
     type DismissType = "failedSms" | "noShowFollowup";
-    const dismissTypeKeys: Record<DismissType, string> = {
-        failedSms: "FailedSms",
-        noShowFollowup: "NoShowFollowup",
-    };
 
     const confirmDismiss = (options: {
         type: DismissType;
@@ -473,12 +469,29 @@ export default function IssuesPageClient() {
         onConfirm: () => void;
     }) => {
         const { type, name, onConfirm } = options;
-        const key = dismissTypeKeys[type];
+
+        // Use explicit translation keys to satisfy TypeScript's strict type checking
+        const getTranslations = () => {
+            if (type === "failedSms") {
+                return {
+                    title: t("confirm.dismissFailedSmsTitle"),
+                    message: t("confirm.dismissFailedSmsMessage", { name }),
+                    confirm: t("confirm.dismissFailedSmsConfirm"),
+                };
+            }
+            return {
+                title: t("confirm.dismissNoShowFollowupTitle"),
+                message: t("confirm.dismissNoShowFollowupMessage", { name }),
+                confirm: t("confirm.dismissNoShowFollowupConfirm"),
+            };
+        };
+
+        const translations = getTranslations();
         modals.openConfirmModal({
-            title: t(`confirm.dismiss${key}Title`),
-            children: <Text size="sm">{t(`confirm.dismiss${key}Message`, { name })}</Text>,
+            title: translations.title,
+            children: <Text size="sm">{translations.message}</Text>,
             labels: {
-                confirm: t(`confirm.dismiss${key}Confirm`),
+                confirm: translations.confirm,
                 cancel: t("confirm.cancel"),
             },
             confirmProps: { color: "orange" },
