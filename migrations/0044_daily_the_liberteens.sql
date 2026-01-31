@@ -1,0 +1,2 @@
+ALTER TABLE "additional_needs" ADD CONSTRAINT "additional_needs_need_unique" UNIQUE("need");--> statement-breakpoint
+ALTER TABLE "dietary_restrictions" ADD CONSTRAINT "dietary_restrictions_name_unique" UNIQUE("name");
