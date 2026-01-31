@@ -220,10 +220,8 @@ export const verificationQuestions = pgTable(
             .primaryKey()
             .notNull()
             .$defaultFn(() => nanoid(8)),
-        question_text_sv: text("question_text_sv").notNull(), // Swedish question text
-        question_text_en: text("question_text_en").notNull(), // English question text
-        help_text_sv: text("help_text_sv"), // Optional Swedish help/tooltip text
-        help_text_en: text("help_text_en"), // Optional English help/tooltip text
+        question_text: text("question_text").notNull(), // Question text
+        help_text: text("help_text"), // Optional help/tooltip text
         is_required: boolean("is_required").default(true).notNull(), // Must be checked to proceed
         display_order: integer("display_order").notNull().default(0), // Sort order (lower = first)
         is_active: boolean("is_active").default(true).notNull(), // Soft delete flag

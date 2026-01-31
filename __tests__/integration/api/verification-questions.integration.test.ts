@@ -37,18 +37,15 @@ describe("GET /api/admin/verification-questions - Integration Tests", () => {
     it("should return only active questions", async () => {
         // Create mix of active and inactive questions
         const activeQ1 = await createTestVerificationQuestion({
-            question_text_sv: "Aktiv fråga 1",
-            question_text_en: "Active question 1",
+            question_text: "Aktiv fråga 1",
             display_order: 1,
         });
         const activeQ2 = await createTestVerificationQuestion({
-            question_text_sv: "Aktiv fråga 2",
-            question_text_en: "Active question 2",
+            question_text: "Aktiv fråga 2",
             display_order: 2,
         });
         await createTestInactiveQuestion({
-            question_text_sv: "Inaktiv fråga",
-            question_text_en: "Inactive question",
+            question_text: "Inaktiv fråga",
             display_order: 3,
         });
 
@@ -64,15 +61,15 @@ describe("GET /api/admin/verification-questions - Integration Tests", () => {
     it("should order questions by display_order ascending", async () => {
         // Create questions out of order
         const q3 = await createTestVerificationQuestion({
-            question_text_sv: "Fråga tre",
+            question_text: "Fråga tre",
             display_order: 30,
         });
         const q1 = await createTestVerificationQuestion({
-            question_text_sv: "Fråga ett",
+            question_text: "Fråga ett",
             display_order: 10,
         });
         const q2 = await createTestVerificationQuestion({
-            question_text_sv: "Fråga två",
+            question_text: "Fråga två",
             display_order: 20,
         });
 
@@ -92,10 +89,8 @@ describe("GET /api/admin/verification-questions - Integration Tests", () => {
 
     it("should handle optional fields (null help text, non-required)", async () => {
         await createTestVerificationQuestion({
-            question_text_sv: "Valfri fråga",
-            question_text_en: "Optional question",
-            help_text_sv: null,
-            help_text_en: null,
+            question_text: "Valfri fråga",
+            help_text: null,
             is_required: false,
             display_order: 1,
         });
@@ -105,18 +100,17 @@ describe("GET /api/admin/verification-questions - Integration Tests", () => {
 
         expect(response.status).toBe(200);
         expect(data).toHaveLength(1);
-        expect(data[0].help_text_sv).toBeNull();
-        expect(data[0].help_text_en).toBeNull();
+        expect(data[0].help_text).toBeNull();
         expect(data[0].is_required).toBe(false);
     });
 
     it("should return empty array when no active questions exist", async () => {
         // Create only inactive questions
         await createTestInactiveQuestion({
-            question_text_sv: "Inaktiv fråga 1",
+            question_text: "Inaktiv fråga 1",
         });
         await createTestInactiveQuestion({
-            question_text_sv: "Inaktiv fråga 2",
+            question_text: "Inaktiv fråga 2",
         });
 
         const response = await GET();
@@ -137,10 +131,8 @@ describe("GET /api/admin/verification-questions - Integration Tests", () => {
 
     it("should return all fields for each question", async () => {
         await createTestVerificationQuestion({
-            question_text_sv: "Svensk fråga",
-            question_text_en: "English question",
-            help_text_sv: "Svensk hjälp",
-            help_text_en: "English help",
+            question_text: "Svensk fråga",
+            help_text: "Svensk hjälp",
             is_required: true,
             display_order: 1,
         });
@@ -153,10 +145,8 @@ describe("GET /api/admin/verification-questions - Integration Tests", () => {
 
         const question = data[0];
         expect(question).toHaveProperty("id");
-        expect(question).toHaveProperty("question_text_sv", "Svensk fråga");
-        expect(question).toHaveProperty("question_text_en", "English question");
-        expect(question).toHaveProperty("help_text_sv", "Svensk hjälp");
-        expect(question).toHaveProperty("help_text_en", "English help");
+        expect(question).toHaveProperty("question_text", "Svensk fråga");
+        expect(question).toHaveProperty("help_text", "Svensk hjälp");
         expect(question).toHaveProperty("is_required", true);
         expect(question).toHaveProperty("display_order", 1);
         expect(question).toHaveProperty("is_active", true);
@@ -168,14 +158,14 @@ describe("GET /api/admin/verification-questions - Integration Tests", () => {
         // Create many inactive questions
         for (let i = 0; i < 10; i++) {
             await createTestInactiveQuestion({
-                question_text_sv: `Inaktiv ${i}`,
+                question_text: `Inaktiv ${i}`,
                 display_order: i,
             });
         }
 
         // Create one active question
         const activeQ = await createTestVerificationQuestion({
-            question_text_sv: "Den enda aktiva",
+            question_text: "Den enda aktiva",
             display_order: 100,
         });
 

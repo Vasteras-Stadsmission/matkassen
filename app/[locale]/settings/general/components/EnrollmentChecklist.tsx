@@ -85,17 +85,14 @@ function SortableQuestionItem({ question, onEdit, onDelete }: SortableQuestionIt
 
                     <div style={{ flex: 1 }}>
                         <Group gap="xs" mb="xs">
-                            <Text fw={500}>{question.question_text_sv}</Text>
+                            <Text fw={500}>{question.question_text}</Text>
                             {question.is_required && (
                                 <Badge size="sm" color="red" variant="light">
                                     {t("badges.required")}
                                 </Badge>
                             )}
                         </Group>
-                        <Text size="sm" c="dimmed">
-                            {question.question_text_en}
-                        </Text>
-                        {(question.help_text_sv || question.help_text_en) && (
+                        {question.help_text && (
                             <Group gap="xs" mt="xs">
                                 <IconInfoCircle size={14} />
                                 <Text size="xs" c="dimmed">
@@ -120,18 +117,14 @@ function SortableQuestionItem({ question, onEdit, onDelete }: SortableQuestionIt
 }
 
 interface QuestionFormData {
-    question_text_sv: string;
-    question_text_en: string;
-    help_text_sv: string;
-    help_text_en: string;
+    question_text: string;
+    help_text: string;
     is_required: boolean;
 }
 
 const ERROR_TRANSLATIONS = {
     FETCH_FAILED: "notifications.errors.FETCH_FAILED",
     VALIDATION_ERROR: "notifications.errors.VALIDATION_ERROR",
-    VALIDATION_ERROR_SV_EMPTY: "notifications.errors.VALIDATION_ERROR_SV_EMPTY",
-    VALIDATION_ERROR_EN_EMPTY: "notifications.errors.VALIDATION_ERROR_EN_EMPTY",
     CREATE_FAILED: "notifications.errors.CREATE_FAILED",
     UPDATE_FAILED: "notifications.errors.UPDATE_FAILED",
     NOT_FOUND: "notifications.errors.NOT_FOUND",
@@ -170,10 +163,8 @@ export function EnrollmentChecklist() {
     const [editingQuestion, setEditingQuestion] = useState<VerificationQuestion | null>(null);
     const [deletingQuestion, setDeletingQuestion] = useState<VerificationQuestion | null>(null);
     const [formData, setFormData] = useState<QuestionFormData>({
-        question_text_sv: "",
-        question_text_en: "",
-        help_text_sv: "",
-        help_text_en: "",
+        question_text: "",
+        help_text: "",
         is_required: true,
     });
 
@@ -216,10 +207,8 @@ export function EnrollmentChecklist() {
     const handleAddQuestion = () => {
         setEditingQuestion(null);
         setFormData({
-            question_text_sv: "",
-            question_text_en: "",
-            help_text_sv: "",
-            help_text_en: "",
+            question_text: "",
+            help_text: "",
             is_required: true,
         });
         openModal();
@@ -228,10 +217,8 @@ export function EnrollmentChecklist() {
     const handleEditQuestion = (question: VerificationQuestion) => {
         setEditingQuestion(question);
         setFormData({
-            question_text_sv: question.question_text_sv,
-            question_text_en: question.question_text_en,
-            help_text_sv: question.help_text_sv || "",
-            help_text_en: question.help_text_en || "",
+            question_text: question.question_text,
+            help_text: question.help_text || "",
             is_required: question.is_required,
         });
         openModal();
@@ -243,11 +230,9 @@ export function EnrollmentChecklist() {
 
         try {
             const data = {
-                question_text_sv: formData.question_text_sv,
-                question_text_en: formData.question_text_en,
+                question_text: formData.question_text,
                 // Send empty strings explicitly so server can clear help text
-                help_text_sv: formData.help_text_sv,
-                help_text_en: formData.help_text_en,
+                help_text: formData.help_text,
                 is_required: formData.is_required,
             };
 
@@ -389,7 +374,7 @@ export function EnrollmentChecklist() {
                         <Stack gap="xs">
                             {questions.map(question => (
                                 <Text key={question.id} size="sm">
-                                    • {question.question_text_sv}
+                                    • {question.question_text}
                                 </Text>
                             ))}
                         </Stack>
@@ -460,42 +445,23 @@ export function EnrollmentChecklist() {
                 <form onSubmit={handleSubmit}>
                     <Stack gap="md">
                         <TextInput
-                            label={t("form.checklistTextSv")}
+                            label={t("form.checklistText")}
                             placeholder={t("form.placeholder")}
                             required
-                            value={formData.question_text_sv}
+                            value={formData.question_text}
                             onChange={e =>
-                                setFormData(prev => ({ ...prev, question_text_sv: e.target.value }))
-                            }
-                        />
-
-                        <TextInput
-                            label={t("form.checklistTextEn")}
-                            placeholder={t("form.placeholder")}
-                            required
-                            value={formData.question_text_en}
-                            onChange={e =>
-                                setFormData(prev => ({ ...prev, question_text_en: e.target.value }))
+                                setFormData(prev => ({ ...prev, question_text: e.target.value }))
                             }
                         />
 
                         <Divider />
 
                         <Textarea
-                            label={t("form.helpTextSv")}
-                            placeholder={t("form.helpTextPlaceholderSv")}
-                            value={formData.help_text_sv}
+                            label={t("form.helpText")}
+                            placeholder={t("form.helpTextPlaceholder")}
+                            value={formData.help_text}
                             onChange={e =>
-                                setFormData(prev => ({ ...prev, help_text_sv: e.target.value }))
-                            }
-                        />
-
-                        <Textarea
-                            label={t("form.helpTextEn")}
-                            placeholder={t("form.helpTextPlaceholderEn")}
-                            value={formData.help_text_en}
-                            onChange={e =>
-                                setFormData(prev => ({ ...prev, help_text_en: e.target.value }))
+                                setFormData(prev => ({ ...prev, help_text: e.target.value }))
                             }
                         />
 
@@ -535,10 +501,7 @@ export function EnrollmentChecklist() {
                     {deletingQuestion && (
                         <Card withBorder padding="sm" bg="gray.0">
                             <Text fw={500} size="sm">
-                                {deletingQuestion.question_text_sv}
-                            </Text>
-                            <Text size="xs" c="dimmed" mt={4}>
-                                {deletingQuestion.question_text_en}
+                                {deletingQuestion.question_text}
                             </Text>
                         </Card>
                     )}

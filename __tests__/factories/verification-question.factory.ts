@@ -20,10 +20,8 @@ export async function createTestVerificationQuestion(
     questionCounter++;
 
     const defaults: typeof verificationQuestions.$inferInsert = {
-        question_text_sv: `Testfråga ${questionCounter}`,
-        question_text_en: `Test Question ${questionCounter}`,
-        help_text_sv: `Hjälptext ${questionCounter}`,
-        help_text_en: `Help text ${questionCounter}`,
+        question_text: `Testfråga ${questionCounter}`,
+        help_text: `Hjälptext ${questionCounter}`,
         is_required: true,
         display_order: questionCounter,
         is_active: true,

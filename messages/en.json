@@ -1144,6 +1144,7 @@
         "generalDescription": "Configure privacy policy, enrollment checklist, parcel limits, and follow-up settings.",
         "locations": "Handout Location Settings",
         "parcels": "Parcel Limits",
+        "householdOptions": "Household Options",
         "aria": {
             "settingsMenu": "Settings menu"
         },
@@ -1174,15 +1175,12 @@
                 "delete": "Delete"
             },
             "form": {
-                "checklistTextSv": "Checklist Item (Swedish)",
-                "checklistTextEn": "Checklist Item (English)",
-                "helpTextSv": "Help Text (Swedish)",
-                "helpTextEn": "Help Text (English)",
+                "checklistText": "Checklist Item",
+                "helpText": "Help Text",
                 "isRequired": "Required",
                 "requiredHint": "Staff must check this box",
                 "placeholder": "They have been told about...",
-                "helpTextPlaceholderSv": "Optional help text in Swedish...",
-                "helpTextPlaceholderEn": "Optional help text in English..."
+                "helpTextPlaceholder": "Optional help text..."
             },
             "examples": {
                 "title": "Example checklist items:",
@@ -1192,7 +1190,7 @@
                 "item4": "They have been informed about dietary restriction options"
             },
             "validation": {
-                "bothLanguagesRequired": "Both languages are required",
+                "textRequired": "Checklist text is required",
                 "textTooShort": "Checklist item must be at least 10 characters"
             },
             "notifications": {
@@ -1208,14 +1206,84 @@
                 "reorderError": "Failed to reorder questions",
                 "errors": {
                     "FETCH_FAILED": "Failed to load checklist items",
-                    "VALIDATION_ERROR": "Both Swedish and English text are required",
-                    "VALIDATION_ERROR_SV_EMPTY": "Swedish checklist text cannot be empty",
-                    "VALIDATION_ERROR_EN_EMPTY": "English checklist text cannot be empty",
+                    "VALIDATION_ERROR": "Checklist text cannot be empty",
                     "CREATE_FAILED": "Failed to create checklist item",
                     "UPDATE_FAILED": "Failed to update checklist item",
                     "NOT_FOUND": "Checklist item not found",
                     "DELETE_FAILED": "Failed to delete checklist item",
                     "REORDER_FAILED": "Failed to reorder checklist items",
+                    "UNKNOWN": "An unexpected error occurred"
+                }
+            }
+        },
+        "householdOptions": {
+            "title": "Household Options",
+            "description": "Manage dietary restrictions, pet types, and additional needs that appear during household enrollment.",
+            "tabs": {
+                "dietaryRestrictions": "Dietary Restrictions",
+                "petTypes": "Pet Types",
+                "additionalNeeds": "Additional Needs"
+            },
+            "addButton": "Add",
+            "usageCount": "{count, plural, =0 {Not used} =1 {1 household} other {# households}}",
+            "emptyState": {
+                "dietaryRestrictions": "No dietary restrictions yet. Add common restrictions like \"Gluten-free\" or \"Halal\".",
+                "petTypes": "No pet types yet. Add common pets like \"Dog\" or \"Cat\".",
+                "additionalNeeds": "No additional needs yet. Add needs like \"Diapers\" or \"Bus pass\"."
+            },
+            "infoAlert": "These options appear in the household enrollment form. Changes affect all households using these options.",
+            "form": {
+                "nameLabel": "Name",
+                "namePlaceholder": {
+                    "dietaryRestrictions": "E.g., Gluten-free, Halal, Vegan...",
+                    "petTypes": "E.g., Dog, Cat, Rabbit...",
+                    "additionalNeeds": "E.g., Diapers, Bus pass, Cleaning supplies..."
+                },
+                "addTitle": {
+                    "dietaryRestrictions": "Add Dietary Restriction",
+                    "petTypes": "Add Pet Type",
+                    "additionalNeeds": "Add Additional Need"
+                },
+                "editTitle": {
+                    "dietaryRestrictions": "Edit Dietary Restriction",
+                    "petTypes": "Edit Pet Type",
+                    "additionalNeeds": "Edit Additional Need"
+                },
+                "editWarning": "Used by {count} households - changes will affect all of them"
+            },
+            "delete": {
+                "title": {
+                    "dietaryRestrictions": "Delete Dietary Restriction",
+                    "petTypes": "Delete Pet Type",
+                    "additionalNeeds": "Delete Additional Need"
+                },
+                "confirmMessage": "Are you sure you want to delete \"{name}\"?",
+                "cannotDelete": "Cannot delete - used by {count} households",
+                "cannotDeleteTooltip": "Remove this option from all households before deleting"
+            },
+            "buttons": {
+                "cancel": "Cancel",
+                "save": "Save",
+                "delete": "Delete"
+            },
+            "notifications": {
+                "created": "Option created",
+                "updated": "Option updated",
+                "deleted": "Option deleted",
+                "error": "Error",
+                "success": "Success",
+                "loadError": "Failed to load options",
+                "saveError": "Failed to save option",
+                "deleteError": "Failed to delete option",
+                "errors": {
+                    "FETCH_FAILED": "Failed to load options",
+                    "CREATE_FAILED": "Failed to create option",
+                    "UPDATE_FAILED": "Failed to update option",
+                    "DELETE_FAILED": "Failed to delete option",
+                    "OPTION_IN_USE": "Cannot delete option that is in use by households",
+                    "DUPLICATE_NAME": "An option with this name already exists",
+                    "VALIDATION_ERROR": "Name is required",
+                    "NOT_FOUND": "Option not found",
                     "UNKNOWN": "An unexpected error occurred"
                 }
             }
