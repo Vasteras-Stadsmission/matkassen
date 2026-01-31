@@ -21,8 +21,7 @@ describe("EnrollmentChecklist - Help Text Clearing", () => {
     it("should NOT coerce empty help text to undefined", () => {
         // Regression: Must not use || undefined for help text fields
         // This prevents clearing help text (server skips undefined values)
-        expect(componentSource).not.toContain("help_text_sv: formData.help_text_sv || undefined");
-        expect(componentSource).not.toContain("help_text_en: formData.help_text_en || undefined");
+        expect(componentSource).not.toContain("help_text: formData.help_text || undefined");
     });
 
     it("should send help text fields directly to server", () => {
@@ -35,8 +34,7 @@ describe("EnrollmentChecklist - Help Text Clearing", () => {
         const dataObject = handleSubmitMatch![0];
 
         // Should send help text fields as-is (empty strings are valid)
-        expect(dataObject).toMatch(/help_text_sv:\s*formData\.help_text_sv/);
-        expect(dataObject).toMatch(/help_text_en:\s*formData\.help_text_en/);
+        expect(dataObject).toMatch(/help_text:\s*formData\.help_text/);
     });
 });
 
@@ -52,8 +50,7 @@ describe("Settings Actions - Help Text Handling", () => {
         );
 
         // Server should handle empty strings by converting to null
-        expect(updateSection).toContain("data.help_text_sv?.trim() || null");
-        expect(updateSection).toContain("data.help_text_en?.trim() || null");
+        expect(updateSection).toContain("data.help_text?.trim() || null");
     });
 
     it("should update help text when defined (including empty strings)", () => {
@@ -63,7 +60,6 @@ describe("Settings Actions - Help Text Handling", () => {
         );
 
         // Should check !== undefined (allows empty strings through)
-        expect(updateSection).toContain("if (data.help_text_sv !== undefined)");
-        expect(updateSection).toContain("if (data.help_text_en !== undefined)");
+        expect(updateSection).toContain("if (data.help_text !== undefined)");
     });
 });

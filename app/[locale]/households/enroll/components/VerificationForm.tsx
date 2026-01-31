@@ -3,14 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Stack, Title, Text, Paper, Checkbox, Alert, Loader, Center } from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 interface VerificationQuestion {
     id: string;
-    question_text_sv: string;
-    question_text_en: string;
-    help_text_sv: string | null;
-    help_text_en: string | null;
+    question_text: string;
+    help_text: string | null;
     is_required: boolean;
     is_active: boolean;
     display_order: number;
@@ -25,7 +23,6 @@ export default function VerificationForm({
     checkedQuestions,
     onUpdateChecked,
 }: VerificationFormProps) {
-    const locale = useLocale() as "en" | "sv";
     const t = useTranslations("wizard.verification");
     const tChecklist = useTranslations("settings.enrollmentChecklist");
 
@@ -122,13 +119,13 @@ export default function VerificationForm({
         );
     }
 
-    // Get question text based on current locale
+    // Get question text
     const getQuestionText = (q: VerificationQuestion) => {
-        return locale === "sv" ? q.question_text_sv : q.question_text_en;
+        return q.question_text;
     };
 
     const getHelpText = (q: VerificationQuestion) => {
-        return locale === "sv" ? q.help_text_sv : q.help_text_en;
+        return q.help_text;
     };
 
     return (

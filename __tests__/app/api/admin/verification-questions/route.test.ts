@@ -24,8 +24,8 @@ vi.mock("@/app/db/drizzle", () => ({
 vi.mock("@/app/db/schema", () => ({
     verificationQuestions: {
         id: "id",
-        question_text_sv: "question_text_sv",
-        question_text_en: "question_text_en",
+        question_text: "question_text",
+        help_text: "help_text",
         is_active: "is_active",
         display_order: "display_order",
     },
@@ -58,14 +58,12 @@ describe("GET /api/admin/verification-questions", () => {
                 Promise.resolve([
                     {
                         id: "q1",
-                        question_text_sv: "Fråga 1",
-                        question_text_en: "Question 1",
+                        question_text: "Fråga 1",
                         is_active: true,
                     },
                     {
                         id: "q2",
-                        question_text_sv: "Fråga 2",
-                        question_text_en: "Question 2",
+                        question_text: "Fråga 2",
                         is_active: true,
                     },
                 ]),
@@ -105,8 +103,7 @@ describe("GET /api/admin/verification-questions", () => {
                 Promise.resolve([
                     {
                         id: "q1",
-                        question_text_sv: "Active Question",
-                        question_text_en: "Active Question",
+                        question_text: "Active Question",
                         is_active: true,
                     },
                     // Inactive question filtered out by where() clause

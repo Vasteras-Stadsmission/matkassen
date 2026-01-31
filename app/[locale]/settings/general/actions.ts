@@ -22,10 +22,8 @@ function revalidateSettingsPage() {
 
 export interface VerificationQuestion {
     id: string;
-    question_text_sv: string;
-    question_text_en: string;
-    help_text_sv: string | null;
-    help_text_en: string | null;
+    question_text: string;
+    help_text: string | null;
     is_required: boolean;
     display_order: number;
     is_active: boolean;
@@ -34,18 +32,14 @@ export interface VerificationQuestion {
 }
 
 export interface CreateQuestionData {
-    question_text_sv: string;
-    question_text_en: string;
-    help_text_sv?: string;
-    help_text_en?: string;
+    question_text: string;
+    help_text?: string;
     is_required?: boolean;
 }
 
 export interface UpdateQuestionData {
-    question_text_sv?: string;
-    question_text_en?: string;
-    help_text_sv?: string;
-    help_text_en?: string;
+    question_text?: string;
+    help_text?: string;
     is_required?: boolean;
 }
 
@@ -73,16 +67,10 @@ export const createVerificationQuestion = protectedAction(
     async (session, data: CreateQuestionData): Promise<ActionResult<VerificationQuestion>> => {
         try {
             // Validate required fields
-            if (!data.question_text_sv?.trim()) {
+            if (!data.question_text?.trim()) {
                 return failure({
-                    code: "VALIDATION_ERROR_SV_EMPTY",
-                    message: "Swedish question text cannot be empty",
-                });
-            }
-            if (!data.question_text_en?.trim()) {
-                return failure({
-                    code: "VALIDATION_ERROR_EN_EMPTY",
-                    message: "English question text cannot be empty",
+                    code: "VALIDATION_ERROR",
+                    message: "Question text cannot be empty",
                 });
             }
 
@@ -98,10 +86,8 @@ export const createVerificationQuestion = protectedAction(
                 .insert(verificationQuestions)
                 .values({
                     id: nanoid(8),
-                    question_text_sv: data.question_text_sv.trim(),
-                    question_text_en: data.question_text_en.trim(),
-                    help_text_sv: data.help_text_sv?.trim() || null,
-                    help_text_en: data.help_text_en?.trim() || null,
+                    question_text: data.question_text.trim(),
+                    help_text: data.help_text?.trim() || null,
                     is_required: data.is_required ?? true,
                     display_order: nextOrder,
                     is_active: true,
@@ -131,32 +117,18 @@ export const updateVerificationQuestion = protectedAction(
                 updated_at: new Date(),
             };
 
-            if (data.question_text_sv !== undefined) {
-                if (!data.question_text_sv.trim()) {
+            if (data.question_text !== undefined) {
+                if (!data.question_text.trim()) {
                     return failure({
-                        code: "VALIDATION_ERROR_SV_EMPTY",
-                        message: "Swedish question text cannot be empty",
+                        code: "VALIDATION_ERROR",
+                        message: "Question text cannot be empty",
                     });
                 }
-                updateData.question_text_sv = data.question_text_sv.trim();
+                updateData.question_text = data.question_text.trim();
             }
 
-            if (data.question_text_en !== undefined) {
-                if (!data.question_text_en.trim()) {
-                    return failure({
-                        code: "VALIDATION_ERROR_EN_EMPTY",
-                        message: "English question text cannot be empty",
-                    });
-                }
-                updateData.question_text_en = data.question_text_en.trim();
-            }
-
-            if (data.help_text_sv !== undefined) {
-                updateData.help_text_sv = data.help_text_sv?.trim() || null;
-            }
-
-            if (data.help_text_en !== undefined) {
-                updateData.help_text_en = data.help_text_en?.trim() || null;
+            if (data.help_text !== undefined) {
+                updateData.help_text = data.help_text?.trim() || null;
             }
 
             if (data.is_required !== undefined) {
