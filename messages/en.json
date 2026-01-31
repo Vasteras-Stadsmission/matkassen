@@ -1404,6 +1404,9 @@
             "cancelParcelTitle": "Cancel parcel?",
             "cancelParcelMessage": "Are you sure you want to cancel the food parcel for {name}? This action cannot be undone.",
             "cancelParcelConfirm": "Yes, cancel parcel",
+            "dismissNoShowTitle": "Dismiss follow-up?",
+            "dismissNoShowMessage": "Are you sure you want to dismiss the no-show follow-up for {name}? It will reappear if they have another no-show.",
+            "dismissNoShowConfirm": "Yes, dismiss",
             "cancel": "Cancel"
         },
         "confirmCancelTitle": "Cancel parcel?",

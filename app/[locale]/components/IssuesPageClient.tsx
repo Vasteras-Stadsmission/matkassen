@@ -497,8 +497,23 @@ export default function IssuesPageClient() {
         }
     };
 
-    // Action handler: Dismiss no-show follow-up
-    const handleDismissNoShowFollowup = async (householdId: string) => {
+    // Action handler: Dismiss no-show follow-up (with confirmation)
+    const handleDismissNoShowFollowup = (householdId: string, householdName: string) => {
+        modals.openConfirmModal({
+            title: t("confirm.dismissNoShowTitle"),
+            children: (
+                <Text size="sm">{t("confirm.dismissNoShowMessage", { name: householdName })}</Text>
+            ),
+            labels: {
+                confirm: t("confirm.dismissNoShowConfirm"),
+                cancel: t("confirm.cancel"),
+            },
+            confirmProps: { color: "orange" },
+            onConfirm: () => executeDismissNoShowFollowup(householdId),
+        });
+    };
+
+    const executeDismissNoShowFollowup = async (householdId: string) => {
         const key = `dismiss-noshow-${householdId}`;
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
@@ -958,7 +973,10 @@ export default function IssuesPageClient() {
                                                     ]
                                                 }
                                                 onClick={() =>
-                                                    handleDismissNoShowFollowup(followup.householdId)
+                                                    handleDismissNoShowFollowup(
+                                                        followup.householdId,
+                                                        `${followup.householdFirstName} ${followup.householdLastName}`,
+                                                    )
                                                 }
                                             >
                                                 {t("actions.dismiss")}
