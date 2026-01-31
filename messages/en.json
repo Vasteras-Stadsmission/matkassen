@@ -1144,7 +1144,6 @@
         "generalDescription": "Configure privacy policy, enrollment checklist, parcel limits, and follow-up settings.",
         "locations": "Handout Location Settings",
         "parcels": "Parcel Limits",
-        "householdOptions": "Household Options",
         "aria": {
             "settingsMenu": "Settings menu"
         },

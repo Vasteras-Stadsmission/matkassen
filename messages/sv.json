@@ -1144,7 +1144,6 @@
         "generalDescription": "Konfigurera integritetspolicy, registreringsformulär, matkassegränser och uppföljningsinställningar.",
         "locations": "Utlämningsställen",
         "parcels": "Matkassegränser",
-        "householdOptions": "Hushållsalternativ",
         "aria": {
             "settingsMenu": "Inställningsmeny"
         },
