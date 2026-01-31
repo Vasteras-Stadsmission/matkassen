@@ -460,8 +460,39 @@ export default function IssuesPageClient() {
         }
     };
 
-    // Action handler: Dismiss failed SMS
-    const handleDismiss = async (smsId: string) => {
+    // Reusable confirmation dialog for dismiss actions
+    const confirmDismiss = (options: {
+        type: "sms" | "noshow";
+        name: string;
+        onConfirm: () => void;
+    }) => {
+        const { type, name, onConfirm } = options;
+        modals.openConfirmModal({
+            title: t(`confirm.dismiss${type === "sms" ? "Sms" : "NoShow"}Title`),
+            children: (
+                <Text size="sm">
+                    {t(`confirm.dismiss${type === "sms" ? "Sms" : "NoShow"}Message`, { name })}
+                </Text>
+            ),
+            labels: {
+                confirm: t(`confirm.dismiss${type === "sms" ? "Sms" : "NoShow"}Confirm`),
+                cancel: t("confirm.cancel"),
+            },
+            confirmProps: { color: "orange" },
+            onConfirm,
+        });
+    };
+
+    // Action handler: Dismiss failed SMS (with confirmation)
+    const handleDismissSms = (smsId: string, householdName: string) => {
+        confirmDismiss({
+            type: "sms",
+            name: householdName,
+            onConfirm: () => executeDismissSms(smsId),
+        });
+    };
+
+    const executeDismissSms = async (smsId: string) => {
         const key = `dismiss-${smsId}`;
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
@@ -499,16 +530,9 @@ export default function IssuesPageClient() {
 
     // Action handler: Dismiss no-show follow-up (with confirmation)
     const handleDismissNoShowFollowup = (householdId: string, householdName: string) => {
-        modals.openConfirmModal({
-            title: t("confirm.dismissNoShowTitle"),
-            children: (
-                <Text size="sm">{t("confirm.dismissNoShowMessage", { name: householdName })}</Text>
-            ),
-            labels: {
-                confirm: t("confirm.dismissNoShowConfirm"),
-                cancel: t("confirm.cancel"),
-            },
-            confirmProps: { color: "orange" },
+        confirmDismiss({
+            type: "noshow",
+            name: householdName,
             onConfirm: () => executeDismissNoShowFollowup(householdId),
         });
     };
@@ -874,7 +898,12 @@ export default function IssuesPageClient() {
                                                 color="gray"
                                                 size="compact-sm"
                                                 loading={actionLoading[`dismiss-${sms.id}`]}
-                                                onClick={() => handleDismiss(sms.id)}
+                                                onClick={() =>
+                                                    handleDismissSms(
+                                                        sms.id,
+                                                        `${sms.householdFirstName} ${sms.householdLastName}`,
+                                                    )
+                                                }
                                             >
                                                 {t("actions.dismiss")}
                                             </Button>
