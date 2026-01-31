@@ -8,7 +8,7 @@ import {
     globalSettings,
 } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, lt, asc, isNull, or, sql, desc, inArray } from "drizzle-orm";
+import { eq, and, gte, lt, asc, isNull, or, sql, inArray } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 import { Time } from "@/app/utils/time-provider";

@@ -1038,15 +1038,15 @@ export default function IssuesPageClient() {
                                         <Text size="sm" c="dark.4">
                                             {followup.triggerType === "both"
                                                 ? t("noShowFollowup.triggerBoth", {
-                                                      consecutive: followup.consecutiveNoShows,
-                                                      total: followup.totalNoShows,
+                                                      consecutive: String(followup.consecutiveNoShows),
+                                                      total: String(followup.totalNoShows),
                                                   })
                                                 : followup.triggerType === "consecutive"
                                                   ? t("noShowFollowup.triggerConsecutive", {
-                                                        count: followup.consecutiveNoShows,
+                                                        count: String(followup.consecutiveNoShows),
                                                     })
                                                   : t("noShowFollowup.triggerTotal", {
-                                                        count: followup.totalNoShows,
+                                                        count: String(followup.totalNoShows),
                                                     })}
                                         </Text>
                                     </Stack>

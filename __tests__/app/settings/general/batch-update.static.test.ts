@@ -15,9 +15,15 @@ describe("ReorderVerificationQuestions - Performance Pattern", () => {
     const actionsPath = join(process.cwd(), "app/[locale]/settings/general/actions.ts");
     const source = readFileSync(actionsPath, "utf-8");
 
-    const reorderSection = source.substring(
-        source.indexOf("export const reorderVerificationQuestions"),
-    );
+    // Extract only the reorderVerificationQuestions function, not subsequent functions
+    const startIndex = source.indexOf("export const reorderVerificationQuestions");
+    const endPattern = /^export const \w+/m;
+    const afterStart = source.substring(startIndex + 1);
+    const nextExportMatch = afterStart.match(endPattern);
+    const endIndex = nextExportMatch
+        ? startIndex + 1 + afterStart.indexOf(nextExportMatch[0])
+        : source.length;
+    const reorderSection = source.substring(startIndex, endIndex);
 
     it("should NOT use a for loop for updates", () => {
         // Regression: Must not loop through IDs with sequential updates
