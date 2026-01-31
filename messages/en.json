@@ -1143,7 +1143,6 @@
         "general": "General Settings",
         "locations": "Handout Location Settings",
         "parcels": "Parcel Limits",
-        "householdOptions": "Household Options",
         "aria": {
             "settingsMenu": "Settings menu"
         },

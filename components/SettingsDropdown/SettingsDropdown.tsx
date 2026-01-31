@@ -79,7 +79,7 @@ export function SettingsDropdown() {
                     component={Link}
                     href="/settings/options"
                 >
-                    {t("householdOptions")}
+                    {t("householdOptions.title")}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>
