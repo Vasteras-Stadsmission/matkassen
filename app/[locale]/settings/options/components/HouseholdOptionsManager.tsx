@@ -144,8 +144,45 @@ export function HouseholdOptionsManager() {
         openModal();
     };
 
-    const handleDeleteOption = (option: OptionWithUsage) => {
-        setDeletingOption(option);
+    const handleDeleteOption = async (option: OptionWithUsage) => {
+        // Refresh the option's usage count to handle concurrent changes
+        // (another admin may have added this option to a household since page load)
+        let freshOption: OptionWithUsage | undefined = option;
+
+        try {
+            let result;
+            switch (activeTab) {
+                case "dietaryRestrictions":
+                    result = await listDietaryRestrictions();
+                    break;
+                case "petTypes":
+                    result = await listPetSpecies();
+                    break;
+                case "additionalNeeds":
+                    result = await listAdditionalNeeds();
+                    break;
+            }
+
+            if (result?.success && result.data) {
+                freshOption = result.data.find(o => o.id === option.id);
+                // Update the local state with fresh data
+                switch (activeTab) {
+                    case "dietaryRestrictions":
+                        setDietaryOptions(result.data);
+                        break;
+                    case "petTypes":
+                        setPetOptions(result.data);
+                        break;
+                    case "additionalNeeds":
+                        setNeedsOptions(result.data);
+                        break;
+                }
+            }
+        } catch {
+            // If refresh fails, proceed with existing data
+        }
+
+        setDeletingOption(freshOption ?? option);
         openDeleteModal();
     };
 
@@ -366,13 +403,14 @@ export function HouseholdOptionsManager() {
                             label={t("form.nameLabel")}
                             placeholder={t(`form.namePlaceholder.${activeTab}`)}
                             required
+                            maxLength={100}
                             value={formData.name}
                             onChange={e => setFormData({ name: e.target.value })}
                         />
 
                         {editingOption && editingOption.usageCount > 0 && (
                             <Alert color="yellow" variant="light">
-                                {t("form.editWarning", { count: editingOption.usageCount })}
+                                {t("form.editWarning", { count: String(editingOption.usageCount) })}
                             </Alert>
                         )}
 
@@ -406,7 +444,7 @@ export function HouseholdOptionsManager() {
                     )}
                     {deletingOption && deletingOption.usageCount > 0 && (
                         <Alert color="red" variant="light">
-                            {t("delete.cannotDelete", { count: deletingOption.usageCount })}
+                            {t("delete.cannotDelete", { count: String(deletingOption.usageCount) })}
                         </Alert>
                     )}
                     <Group justify="flex-end" gap="sm">

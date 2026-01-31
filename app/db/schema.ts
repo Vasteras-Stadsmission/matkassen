@@ -407,7 +407,7 @@ export const dietaryRestrictions = pgTable("dietary_restrictions", {
         .primaryKey()
         .notNull()
         .$defaultFn(() => nanoid(8)),
-    name: text("name").notNull(), // e.g., gluten, lactose, pork...
+    name: text("name").notNull().unique(), // e.g., gluten, lactose, pork...
 });
 
 export const householdAdditionalNeeds = pgTable(
@@ -430,7 +430,7 @@ export const additionalNeeds = pgTable("additional_needs", {
         .primaryKey()
         .notNull()
         .$defaultFn(() => nanoid(8)),
-    need: text("need").notNull(), // e.g., diapers, bus pass, cleaning supplies...
+    need: text("need").notNull().unique(), // e.g., diapers, bus pass, cleaning supplies...
 });
 
 // CSP violation reports table for security monitoring
