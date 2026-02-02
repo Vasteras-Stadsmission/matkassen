@@ -27,7 +27,9 @@ describe("Household Options - Delete Button Protection", () => {
         // The delete button uses ternary: if usageCount > 0, show disabled button
         expect(componentSource).toContain("option.usageCount > 0 ?");
         // The disabled button should be truly disabled
-        expect(componentSource).toMatch(/Tooltip[\s\S]*?ActionIcon[\s\S]*?disabled[\s\S]*?IconTrash/);
+        expect(componentSource).toMatch(
+            /Tooltip[\s\S]*?ActionIcon[\s\S]*?disabled[\s\S]*?IconTrash/,
+        );
     });
 
     it("should show tooltip explaining why delete is disabled", () => {

@@ -123,11 +123,7 @@ export const createDietaryRestriction = protectedAction(
 );
 
 export const updateDietaryRestriction = protectedAction(
-    async (
-        session,
-        id: string,
-        data: UpdateOptionData,
-    ): Promise<ActionResult<OptionWithUsage>> => {
+    async (session, id: string, data: UpdateOptionData): Promise<ActionResult<OptionWithUsage>> => {
         try {
             if (!data.name?.trim()) {
                 return failure({

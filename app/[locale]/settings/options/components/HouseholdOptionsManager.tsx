@@ -227,7 +227,9 @@ export function HouseholdOptionsManager() {
             if (result.success) {
                 notifications.show({
                     title: t("notifications.success"),
-                    message: editingOption ? t("notifications.updated") : t("notifications.created"),
+                    message: editingOption
+                        ? t("notifications.updated")
+                        : t("notifications.created"),
                     color: "green",
                 });
                 closeModal();
@@ -312,10 +314,7 @@ export function HouseholdOptionsManager() {
                     </Button>
                 </Group>
 
-                <Tabs
-                    value={activeTab}
-                    onChange={value => setActiveTab(value as OptionType)}
-                >
+                <Tabs value={activeTab} onChange={value => setActiveTab(value as OptionType)}>
                     <Tabs.List>
                         <Tabs.Tab value="dietaryRestrictions">
                             {t("tabs.dietaryRestrictions")}
