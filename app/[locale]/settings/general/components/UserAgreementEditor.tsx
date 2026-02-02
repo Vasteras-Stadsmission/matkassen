@@ -127,7 +127,7 @@ export function UserAgreementEditor() {
                             {t("currentVersion", { version: String(currentAgreement.version) })}
                         </Badge>
                         <Badge variant="light" color="green">
-                            {t("acceptedBy", { count: String(currentAgreement.acceptance_count) })}
+                            {t("acceptedBy", { count: String(currentAgreement.acceptanceCount) })}
                         </Badge>
                     </Group>
                 )}
@@ -226,12 +226,12 @@ export function UserAgreementEditor() {
                                             </Badge>
                                         </Table.Td>
                                         <Table.Td>
-                                            {new Date(agreement.created_at).toLocaleDateString(
+                                            {new Date(agreement.createdAt).toLocaleDateString(
                                                 "sv-SE",
                                             )}
                                         </Table.Td>
-                                        <Table.Td>{agreement.created_by || "-"}</Table.Td>
-                                        <Table.Td>{agreement.acceptance_count}</Table.Td>
+                                        <Table.Td>{agreement.createdBy || "-"}</Table.Td>
+                                        <Table.Td>{agreement.acceptanceCount}</Table.Td>
                                     </Table.Tr>
                                 ))}
                             </Table.Tbody>

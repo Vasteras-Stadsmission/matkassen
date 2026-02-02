@@ -40,22 +40,36 @@ export async function AgreementProtection({
     const currentAgreement = await getCurrentAgreement();
 
     if (currentAgreement) {
+        const locale = await getLocale();
         const githubUsername = session.user?.githubUsername;
 
-        if (githubUsername) {
-            const userId = await getUserIdByGithubUsername(githubUsername);
+        // If we can't identify the user, redirect to agreement page
+        // This prevents bypassing the agreement check
+        if (!githubUsername) {
+            return redirect({
+                href: "/agreement",
+                locale,
+            });
+        }
 
-            if (userId) {
-                const hasAccepted = await hasUserAcceptedCurrentAgreement(userId);
+        const userId = await getUserIdByGithubUsername(githubUsername);
 
-                if (!hasAccepted) {
-                    const locale = await getLocale();
-                    redirect({
-                        href: "/agreement",
-                        locale,
-                    });
-                }
-            }
+        // If user doesn't exist in DB yet, redirect to agreement page
+        // They'll need to accept before they can access protected content
+        if (!userId) {
+            return redirect({
+                href: "/agreement",
+                locale,
+            });
+        }
+
+        const hasAccepted = await hasUserAcceptedCurrentAgreement(userId);
+
+        if (!hasAccepted) {
+            return redirect({
+                href: "/agreement",
+                locale,
+            });
         }
     }
 

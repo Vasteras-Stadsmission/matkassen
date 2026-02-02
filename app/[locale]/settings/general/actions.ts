@@ -528,17 +528,13 @@ export const updateNoShowFollowupSettings = protectedAction(
 // User Agreement Actions (PuB - Personuppgiftsbiträdesavtal)
 // ============================================================================
 
-export interface UserAgreement {
-    id: string;
-    content: string;
-    version: number;
-    effective_from: Date;
-    created_at: Date;
-    created_by: string | null;
-}
+import { type UserAgreement, getAgreementAcceptanceCount } from "@/app/utils/user-agreement";
+
+// Re-export UserAgreement for consumers
+export type { UserAgreement };
 
 export interface UserAgreementWithStats extends UserAgreement {
-    acceptance_count: number;
+    acceptanceCount: number;
 }
 
 /**
@@ -560,15 +556,17 @@ export const getCurrentUserAgreement = protectedAction(
                 return success(null);
             }
 
-            // Get acceptance count for this agreement
-            const [countResult] = await db
-                .select({ count: sql<number>`count(*)::int` })
-                .from(userAgreementAcceptances)
-                .where(eq(userAgreementAcceptances.agreement_id, agreement.id));
+            // Get acceptance count using shared utility function
+            const acceptanceCount = await getAgreementAcceptanceCount(agreement.id);
 
             return success({
-                ...agreement,
-                acceptance_count: countResult?.count ?? 0,
+                id: agreement.id,
+                content: agreement.content,
+                version: agreement.version,
+                effectiveFrom: agreement.effective_from,
+                createdAt: agreement.created_at,
+                createdBy: agreement.created_by,
+                acceptanceCount,
             });
         } catch (error) {
             logError("Error fetching current user agreement", error);
@@ -611,8 +609,13 @@ export const getAllUserAgreements = protectedAction(
 
             return success(
                 agreements.map(a => ({
-                    ...a,
-                    acceptance_count: countMap.get(a.id) ?? 0,
+                    id: a.id,
+                    content: a.content,
+                    version: a.version,
+                    effectiveFrom: a.effective_from,
+                    createdAt: a.created_at,
+                    createdBy: a.created_by,
+                    acceptanceCount: countMap.get(a.id) ?? 0,
                 })),
             );
         } catch (error) {
@@ -664,7 +667,14 @@ export const saveUserAgreement = protectedAction(
 
             revalidateSettingsPage();
 
-            return success(newAgreement);
+            return success({
+                id: newAgreement.id,
+                content: newAgreement.content,
+                version: newAgreement.version,
+                effectiveFrom: newAgreement.effective_from,
+                createdAt: newAgreement.created_at,
+                createdBy: newAgreement.created_by,
+            });
         } catch (error) {
             logError("Error saving user agreement", error);
             return failure({
