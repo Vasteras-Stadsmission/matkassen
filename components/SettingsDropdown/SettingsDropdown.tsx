@@ -1,7 +1,13 @@
 "use client";
 
 import { Menu, ActionIcon, rem } from "@mantine/core";
-import { IconSettings, IconAdjustments, IconMapPin } from "@tabler/icons-react";
+import {
+    IconSettings,
+    IconAdjustments,
+    IconMapPin,
+    IconPackage,
+    IconListDetails,
+} from "@tabler/icons-react";
 import { Link } from "@/app/i18n/navigation";
 import { useTranslations } from "next-intl";
 
@@ -48,6 +54,32 @@ export function SettingsDropdown() {
                     href="/settings/locations"
                 >
                     {t("locations")}
+                </Menu.Item>
+
+                <Menu.Item
+                    leftSection={
+                        <IconPackage
+                            style={{ width: rem(14), height: rem(14) }}
+                            aria-hidden="true"
+                        />
+                    }
+                    component={Link}
+                    href="/settings/parcels"
+                >
+                    {t("parcels")}
+                </Menu.Item>
+
+                <Menu.Item
+                    leftSection={
+                        <IconListDetails
+                            style={{ width: rem(14), height: rem(14) }}
+                            aria-hidden="true"
+                        />
+                    }
+                    component={Link}
+                    href="/settings/options"
+                >
+                    {t("householdOptions.title")}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

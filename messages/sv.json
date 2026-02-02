@@ -1174,15 +1174,12 @@
                 "delete": "Ta bort"
             },
             "form": {
-                "checklistTextSv": "Kontrollpunkt (svenska)",
-                "checklistTextEn": "Kontrollpunkt (engelska)",
-                "helpTextSv": "Hjälptext (svenska)",
-                "helpTextEn": "Hjälptext (engelska)",
+                "checklistText": "Kontrollpunkt",
+                "helpText": "Hjälptext",
                 "isRequired": "Obligatorisk",
                 "requiredHint": "Personal måste kryssa i denna ruta",
                 "placeholder": "De har informerats om...",
-                "helpTextPlaceholderSv": "Valfri hjälptext på svenska...",
-                "helpTextPlaceholderEn": "Valfri hjälptext på engelska..."
+                "helpTextPlaceholder": "Valfri hjälptext..."
             },
             "examples": {
                 "title": "Exempel på kontrollpunkter:",
@@ -1192,7 +1189,7 @@
                 "item4": "De har informerats om alternativ för kostbegränsningar"
             },
             "validation": {
-                "bothLanguagesRequired": "Båda språken krävs",
+                "textRequired": "Kontrollpunktstext krävs",
                 "textTooShort": "Kontrollpunkten måste vara minst 10 tecken"
             },
             "notifications": {
@@ -1208,14 +1205,84 @@
                 "reorderError": "Kunde inte omordna frågor",
                 "errors": {
                     "FETCH_FAILED": "Kunde inte ladda kontrollpunkter",
-                    "VALIDATION_ERROR": "Både svensk och engelsk text krävs",
-                    "VALIDATION_ERROR_SV_EMPTY": "Svensk kontrollpunktstext kan inte vara tom",
-                    "VALIDATION_ERROR_EN_EMPTY": "Engelsk kontrollpunktstext kan inte vara tom",
+                    "VALIDATION_ERROR": "Kontrollpunktstext kan inte vara tom",
                     "CREATE_FAILED": "Kunde inte skapa kontrollpunkt",
                     "UPDATE_FAILED": "Kunde inte uppdatera kontrollpunkt",
                     "NOT_FOUND": "Kontrollpunkt hittades inte",
                     "DELETE_FAILED": "Kunde inte ta bort kontrollpunkt",
                     "REORDER_FAILED": "Kunde inte omordna kontrollpunkter",
+                    "UNKNOWN": "Ett oväntat fel inträffade"
+                }
+            }
+        },
+        "householdOptions": {
+            "title": "Hushållsalternativ",
+            "description": "Hantera kostbegränsningar, djurtyper och övriga behov som visas vid registrering av hushåll.",
+            "tabs": {
+                "dietaryRestrictions": "Kostbegränsningar",
+                "petTypes": "Djurtyper",
+                "additionalNeeds": "Övriga behov"
+            },
+            "addButton": "Lägg till",
+            "usageCount": "{count, plural, =0 {Används inte} =1 {1 hushåll} other {# hushåll}}",
+            "emptyState": {
+                "dietaryRestrictions": "Inga kostbegränsningar än. Lägg till vanliga begränsningar som \"Glutenfri\" eller \"Halal\".",
+                "petTypes": "Inga djurtyper än. Lägg till vanliga djur som \"Hund\" eller \"Katt\".",
+                "additionalNeeds": "Inga övriga behov än. Lägg till behov som \"Blöjor\" eller \"Busskort\"."
+            },
+            "infoAlert": "Dessa alternativ visas i formuläret för registrering av hushåll. Ändringar påverkar alla hushåll som använder dessa alternativ.",
+            "form": {
+                "nameLabel": "Namn",
+                "namePlaceholder": {
+                    "dietaryRestrictions": "T.ex. Glutenfri, Halal, Vegan...",
+                    "petTypes": "T.ex. Hund, Katt, Kanin...",
+                    "additionalNeeds": "T.ex. Blöjor, Busskort, Rengöringsmedel..."
+                },
+                "addTitle": {
+                    "dietaryRestrictions": "Lägg till kostbegränsning",
+                    "petTypes": "Lägg till djurtyp",
+                    "additionalNeeds": "Lägg till övrigt behov"
+                },
+                "editTitle": {
+                    "dietaryRestrictions": "Redigera kostbegränsning",
+                    "petTypes": "Redigera djurtyp",
+                    "additionalNeeds": "Redigera övrigt behov"
+                },
+                "editWarning": "Används av {count} hushåll - ändringar påverkar alla"
+            },
+            "delete": {
+                "title": {
+                    "dietaryRestrictions": "Ta bort kostbegränsning",
+                    "petTypes": "Ta bort djurtyp",
+                    "additionalNeeds": "Ta bort övrigt behov"
+                },
+                "confirmMessage": "Är du säker på att du vill ta bort \"{name}\"?",
+                "cannotDelete": "Kan inte ta bort - används av {count} hushåll",
+                "cannotDeleteTooltip": "Ta bort detta alternativ från alla hushåll innan du tar bort det"
+            },
+            "buttons": {
+                "cancel": "Avbryt",
+                "save": "Spara",
+                "delete": "Ta bort"
+            },
+            "notifications": {
+                "created": "Alternativ skapat",
+                "updated": "Alternativ uppdaterat",
+                "deleted": "Alternativ borttaget",
+                "error": "Fel",
+                "success": "Lyckades",
+                "loadError": "Kunde inte ladda alternativ",
+                "saveError": "Kunde inte spara alternativ",
+                "deleteError": "Kunde inte ta bort alternativ",
+                "errors": {
+                    "FETCH_FAILED": "Kunde inte ladda alternativ",
+                    "CREATE_FAILED": "Kunde inte skapa alternativ",
+                    "UPDATE_FAILED": "Kunde inte uppdatera alternativ",
+                    "DELETE_FAILED": "Kunde inte ta bort alternativ",
+                    "OPTION_IN_USE": "Kan inte ta bort alternativ som används av hushåll",
+                    "DUPLICATE_NAME": "Ett alternativ med detta namn finns redan",
+                    "VALIDATION_ERROR": "Namn krävs",
+                    "NOT_FOUND": "Alternativ hittades inte",
                     "UNKNOWN": "Ett oväntat fel inträffade"
                 }
             }

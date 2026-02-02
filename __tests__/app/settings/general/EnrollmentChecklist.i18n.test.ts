@@ -76,10 +76,7 @@ describe("EnrollmentChecklist - i18n Coverage", () => {
 
     it("should not contain hardcoded placeholder text", () => {
         // These were the regression - hardcoded textarea placeholders
-        const hardcodedPlaceholders = [
-            "Optional help text in Swedish...",
-            "Optional help text in English...",
-        ];
+        const hardcodedPlaceholders = ["Optional help text..."];
 
         hardcodedPlaceholders.forEach(text => {
             // Should not appear as literal strings
@@ -87,9 +84,8 @@ describe("EnrollmentChecklist - i18n Coverage", () => {
             expect(componentSource).not.toContain(`'${text}'`);
         });
 
-        // Should use translation keys instead
-        expect(componentSource).toContain('t("form.helpTextPlaceholderSv")');
-        expect(componentSource).toContain('t("form.helpTextPlaceholderEn")');
+        // Should use translation keys instead (simplified to single language)
+        expect(componentSource).toContain('t("form.helpTextPlaceholder")');
     });
 
     it("should use useTranslations hook", () => {
