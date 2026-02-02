@@ -220,7 +220,7 @@ export const listPetSpecies = protectedAction(
                 .select({
                     id: petSpecies.id,
                     name: petSpecies.name,
-                    usageCount: sql<number>`count(${pets.id})::int`,
+                    usageCount: sql<number>`count(distinct ${pets.household_id})::int`,
                 })
                 .from(petSpecies)
                 .leftJoin(pets, eq(petSpecies.id, pets.pet_species_id))

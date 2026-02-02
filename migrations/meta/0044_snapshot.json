@@ -1,6 +1,6 @@
 {
-  "id": "e3bedff9-a5c5-4be7-b829-d0943c85e0a8",
-  "prevId": "e6320a74-ff52-46a1-8863-2ab92eab4015",
+  "id": "c5b4c35d-672c-41bf-bcd0-9c170a15bebc",
+  "prevId": "74dc02d8-86df-4929-96d1-708fd855288d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -777,6 +777,18 @@
         },
         "anonymized_by": {
           "name": "anonymized_by",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "noshow_followup_dismissed_at": {
+          "name": "noshow_followup_dismissed_at",
+          "type": "timestamp (1) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "noshow_followup_dismissed_by": {
+          "name": "noshow_followup_dismissed_by",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false

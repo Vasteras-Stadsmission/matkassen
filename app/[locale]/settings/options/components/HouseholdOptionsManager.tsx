@@ -129,6 +129,8 @@ export function HouseholdOptionsManager() {
                 return petOptions;
             case "additionalNeeds":
                 return needsOptions;
+            default:
+                return [];
         }
     };
 
