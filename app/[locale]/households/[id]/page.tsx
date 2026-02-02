@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { getHouseholdDetails } from "../actions";
 import HouseholdDetailsPage from "./components/HouseholdDetailsPage";
 import { HouseholdDetailsPageSkeleton } from "./components/HouseholdDetailsPageSkeleton";
@@ -53,9 +53,9 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
     // If household is anonymized, show special page
     if (householdDetails.household.anonymized_at) {
         return (
-            <AuthProtection>
+            <AgreementProtection>
                 <AnonymizedHouseholdPage anonymizedAt={householdDetails.household.anonymized_at} />
-            </AuthProtection>
+            </AgreementProtection>
         );
     }
 
@@ -63,7 +63,7 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
     const warningData = await shouldShowParcelWarning(id);
 
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <Suspense fallback={<HouseholdDetailsPageSkeleton />}>
                 <HouseholdDetailsPage
                     householdId={id}
@@ -72,6 +72,6 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
                     warningData={warningData}
                 />
             </Suspense>
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

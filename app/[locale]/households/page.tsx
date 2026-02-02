@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Container, Title, Text, Center, Loader } from "@mantine/core";
 import { getTranslations } from "next-intl/server";
 import HouseholdsPageClient from "./components/HouseholdsPageClient";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { getHouseholds } from "./actions";
 
 export default async function HouseholdsPage() {
@@ -11,7 +11,7 @@ export default async function HouseholdsPage() {
     const households = await getHouseholds();
 
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <Container size="xl" py="xl">
                 <Title order={2} mb="xs">
                     {t("title")}
@@ -30,6 +30,6 @@ export default async function HouseholdsPage() {
                     <HouseholdsPageClient initialHouseholds={households} />
                 </Suspense>
             </Container>
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

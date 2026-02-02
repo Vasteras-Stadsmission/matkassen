@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { TodayRedirectPage } from "./components/TodayRedirectPage";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -10,8 +10,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function TodaySchedulePage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <TodayRedirectPage />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

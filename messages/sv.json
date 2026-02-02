@@ -76,6 +76,26 @@
             "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
         }
     },
+    "agreement": {
+        "title": "Användaravtal för behandling av personuppgifter",
+        "subtitle": "Läs igenom och acceptera avtalet för att fortsätta använda systemet",
+        "version": "Version {version}",
+        "effectiveFrom": "Gäller från {date}",
+        "acceptedAt": "Du accepterade detta avtal {date}",
+        "checkbox": "Jag har läst och förstår mitt ansvar för att hantera personuppgifter enligt detta avtal",
+        "accept": "Acceptera och fortsätt",
+        "loading": "Laddar avtal...",
+        "errors": {
+            "title": "Fel",
+            "loadFailed": "Kunde inte ladda användaravtalet",
+            "acceptFailed": "Kunde inte acceptera avtalet. Försök igen."
+        },
+        "notifications": {
+            "success": "Klart",
+            "error": "Fel",
+            "accepted": "Du har accepterat användaravtalet"
+        }
+    },
     "navigation": {
         "brandName": "Matcentralen",
         "households": "Hushåll",
@@ -1194,6 +1214,7 @@
         },
         "nav": {
             "privacyPolicy": "Integritetspolicy",
+            "userAgreement": "Användaravtal (PuB)",
             "enrollmentChecklist": "Registreringsformulär",
             "parcelThreshold": "Matkassegränser",
             "noshowFollowup": "Uppföljning vid uteblivna"
@@ -1357,6 +1378,40 @@
                 "saveError": "Kunde inte spara integritetspolicyn",
                 "emptyContent": "Integritetspolicyn kan inte vara tom",
                 "cannotRemoveSaved": "Kan inte ta bort ett språk med sparat innehåll"
+            }
+        },
+        "userAgreement": {
+            "title": "Användaravtal (PuB)",
+            "description": "Hantera användaravtalet som alla administratörer måste acceptera innan de kan använda systemet. Avtalet beskriver ansvar för hantering av personuppgifter.",
+            "currentVersion": "Nuvarande version: {version}",
+            "acceptedBy": "{count} användare har accepterat",
+            "noAgreement": "Inget användaravtal har skapats ännu. Skapa ett avtal för att kräva att alla användare accepterar det innan de kan använda systemet.",
+            "publishWarning": "Att publicera en ny version kräver att alla användare accepterar avtalet igen innan de kan fortsätta använda systemet.",
+            "markdownHint": "Använd Markdown-formatering för rubriker, listor och betoning.",
+            "placeholder": "Skriv användaravtalet här...",
+            "preview": "Förhandsgranskning",
+            "versionHistory": "Versionshistorik",
+            "table": {
+                "version": "Version",
+                "createdAt": "Skapad",
+                "createdBy": "Skapad av",
+                "acceptedBy": "Accepterat av"
+            },
+            "buttons": {
+                "edit": "Redigera",
+                "preview": "Förhandsgranska",
+                "showHistory": "Visa historik",
+                "hideHistory": "Dölj historik",
+                "publish": "Publicera ny version",
+                "create": "Skapa avtal"
+            },
+            "notifications": {
+                "success": "Klart",
+                "error": "Fel",
+                "saved": "Användaravtalet har sparats. Alla användare måste nu acceptera det igen.",
+                "loadError": "Kunde inte ladda användaravtalet",
+                "saveError": "Kunde inte spara användaravtalet",
+                "emptyContent": "Användaravtalet kan inte vara tomt"
             }
         },
         "parcelThreshold": {

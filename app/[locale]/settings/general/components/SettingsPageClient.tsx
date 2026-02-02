@@ -6,6 +6,7 @@ import { useMediaQuery } from "@mantine/hooks";
 import { useTranslations } from "next-intl";
 import { SettingsNav, type SettingsSection } from "./SettingsNav";
 import { PrivacyPolicyEditor } from "./PrivacyPolicyEditor";
+import { UserAgreementEditor } from "./UserAgreementEditor";
 import { EnrollmentChecklist } from "./EnrollmentChecklist";
 import { ParcelThresholdSettings } from "./ParcelThresholdSettings";
 import { NoShowFollowupSettings } from "./NoShowFollowupSettings";
@@ -23,6 +24,7 @@ export function SettingsPageClient() {
         const hash = window.location.hash.slice(1);
         if (
             hash === "privacy-policy" ||
+            hash === "user-agreement" ||
             hash === "enrollment-checklist" ||
             hash === "parcel-threshold" ||
             hash === "noshow-followup"
@@ -56,6 +58,7 @@ export function SettingsPageClient() {
             const hash = window.location.hash.slice(1);
             if (
                 hash === "privacy-policy" ||
+                hash === "user-agreement" ||
                 hash === "enrollment-checklist" ||
                 hash === "parcel-threshold" ||
                 hash === "noshow-followup"
@@ -72,6 +75,8 @@ export function SettingsPageClient() {
         switch (activeSection) {
             case "privacy-policy":
                 return <PrivacyPolicyEditor />;
+            case "user-agreement":
+                return <UserAgreementEditor />;
             case "enrollment-checklist":
                 return <EnrollmentChecklist />;
             case "parcel-threshold":

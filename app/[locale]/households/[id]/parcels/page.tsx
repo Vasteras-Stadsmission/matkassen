@@ -1,5 +1,5 @@
 import { getHouseholdFormData } from "../edit/actions";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { ParcelManagementClient } from "./ParcelManagementClient";
 import { getTranslations } from "next-intl/server";
 import { Alert } from "@mantine/core";
@@ -22,7 +22,7 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
 
     if (!result.success) {
         return (
-            <AuthProtection>
+            <AgreementProtection>
                 <Alert
                     icon={<IconAlertCircle size="1rem" />}
                     title={t("title")}
@@ -31,7 +31,7 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
                 >
                     {t("householdNotFound")}
                 </Alert>
-            </AuthProtection>
+            </AgreementProtection>
         );
     }
 
@@ -42,13 +42,13 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
     const warningData = await shouldShowParcelWarning(householdId);
 
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <ParcelManagementClient
                 householdId={householdId}
                 householdName={householdName}
                 initialData={householdData.foodParcels}
                 warningData={warningData}
             />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

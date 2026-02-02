@@ -3,7 +3,13 @@
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
-import { verificationQuestions, privacyPolicies, globalSettings } from "@/app/db/schema";
+import {
+    verificationQuestions,
+    privacyPolicies,
+    globalSettings,
+    userAgreements,
+    userAgreementAcceptances,
+} from "@/app/db/schema";
 import { eq, and, asc, max, sql, inArray, desc } from "drizzle-orm";
 import { nanoid } from "@/app/db/schema";
 import { revalidatePath } from "next/cache";
@@ -513,6 +519,157 @@ export const updateNoShowFollowupSettings = protectedAction(
             return failure({
                 code: "UPDATE_FAILED",
                 message: "", // Error message handled via translation on client
+            });
+        }
+    },
+);
+
+// ============================================================================
+// User Agreement Actions (PuB - Personuppgiftsbiträdesavtal)
+// ============================================================================
+
+export interface UserAgreement {
+    id: string;
+    content: string;
+    version: number;
+    effective_from: Date;
+    created_at: Date;
+    created_by: string | null;
+}
+
+export interface UserAgreementWithStats extends UserAgreement {
+    acceptance_count: number;
+}
+
+/**
+ * Get the current (latest effective) user agreement
+ */
+export const getCurrentUserAgreement = protectedAction(
+    async (): Promise<ActionResult<UserAgreementWithStats | null>> => {
+        try {
+            const now = new Date();
+
+            const [agreement] = await db
+                .select()
+                .from(userAgreements)
+                .where(sql`${userAgreements.effective_from} <= ${now}`)
+                .orderBy(desc(userAgreements.effective_from), desc(userAgreements.created_at))
+                .limit(1);
+
+            if (!agreement) {
+                return success(null);
+            }
+
+            // Get acceptance count for this agreement
+            const [countResult] = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(userAgreementAcceptances)
+                .where(eq(userAgreementAcceptances.agreement_id, agreement.id));
+
+            return success({
+                ...agreement,
+                acceptance_count: countResult?.count ?? 0,
+            });
+        } catch (error) {
+            logError("Error fetching current user agreement", error);
+            return failure({
+                code: "FETCH_FAILED",
+                message: "Failed to fetch user agreement",
+            });
+        }
+    },
+);
+
+/**
+ * Get all user agreement versions (for version history)
+ */
+export const getAllUserAgreements = protectedAction(
+    async (): Promise<ActionResult<UserAgreementWithStats[]>> => {
+        try {
+            const agreements = await db
+                .select()
+                .from(userAgreements)
+                .orderBy(desc(userAgreements.version));
+
+            // Get acceptance counts for all agreements
+            const agreementIds = agreements.map(a => a.id);
+
+            if (agreementIds.length === 0) {
+                return success([]);
+            }
+
+            const counts = await db
+                .select({
+                    agreement_id: userAgreementAcceptances.agreement_id,
+                    count: sql<number>`count(*)::int`,
+                })
+                .from(userAgreementAcceptances)
+                .where(inArray(userAgreementAcceptances.agreement_id, agreementIds))
+                .groupBy(userAgreementAcceptances.agreement_id);
+
+            const countMap = new Map(counts.map(c => [c.agreement_id, c.count]));
+
+            return success(
+                agreements.map(a => ({
+                    ...a,
+                    acceptance_count: countMap.get(a.id) ?? 0,
+                })),
+            );
+        } catch (error) {
+            logError("Error fetching all user agreements", error);
+            return failure({
+                code: "FETCH_FAILED",
+                message: "Failed to fetch user agreements",
+            });
+        }
+    },
+);
+
+export interface SaveUserAgreementData {
+    content: string;
+}
+
+/**
+ * Save a user agreement (creates a new version)
+ * This will require all users to re-accept the agreement
+ */
+export const saveUserAgreement = protectedAction(
+    async (session, data: SaveUserAgreementData): Promise<ActionResult<UserAgreement>> => {
+        try {
+            if (!data.content?.trim()) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Content is required",
+                });
+            }
+
+            // Get next version number
+            const [latestVersion] = await db
+                .select({ version: userAgreements.version })
+                .from(userAgreements)
+                .orderBy(desc(userAgreements.version))
+                .limit(1);
+
+            const nextVersion = (latestVersion?.version ?? 0) + 1;
+
+            const [newAgreement] = await db
+                .insert(userAgreements)
+                .values({
+                    content: data.content.trim(),
+                    version: nextVersion,
+                    effective_from: new Date(),
+                    created_by: session.user?.githubUsername ?? null,
+                })
+                .returning();
+
+            revalidateSettingsPage();
+
+            return success(newAgreement);
+        } catch (error) {
+            logError("Error saving user agreement", error);
+            return failure({
+                code: "SAVE_FAILED",
+                message: "Failed to save user agreement",
             });
         }
     },

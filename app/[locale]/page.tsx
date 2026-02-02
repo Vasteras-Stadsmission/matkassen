@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import IssuesPageClient from "./components/IssuesPageClient";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 
 export default function HomePage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <Suspense fallback={<div />}>
                 <IssuesPageClient />
             </Suspense>
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

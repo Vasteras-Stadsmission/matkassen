@@ -21,3 +21,4 @@ export * from "./sms.factory";
 export * from "./verification-question.factory";
 export * from "./privacy-policy.factory";
 export * from "./global-settings.factory";
+export * from "./user-agreement.factory";

@@ -1,10 +1,10 @@
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { StatisticsClient } from "./components/StatisticsClient";
 
 export default async function StatisticsPage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <StatisticsClient />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

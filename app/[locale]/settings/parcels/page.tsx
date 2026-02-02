@@ -1,10 +1,10 @@
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { ParcelThresholdSettings } from "./components/ParcelThresholdSettings";
 
 export default async function ParcelSettingsPage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <ParcelThresholdSettings />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

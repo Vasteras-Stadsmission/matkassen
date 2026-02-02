@@ -81,6 +81,8 @@ export async function cleanupTestDb() {
             pickup_location_schedule_days,
             pickup_location_schedules,
             pickup_locations,
+            user_agreement_acceptances,
+            user_agreements,
             users,
             global_settings,
             csp_violations,

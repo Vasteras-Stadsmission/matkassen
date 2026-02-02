@@ -89,6 +89,26 @@
             "support": "Still having trouble? Contact your organization administrator."
         }
     },
+    "agreement": {
+        "title": "User Agreement for Personal Data Processing",
+        "subtitle": "Read and accept the agreement to continue using the system",
+        "version": "Version {version}",
+        "effectiveFrom": "Effective from {date}",
+        "acceptedAt": "You accepted this agreement {date}",
+        "checkbox": "I have read and understand my responsibility for handling personal data according to this agreement",
+        "accept": "Accept and continue",
+        "loading": "Loading agreement...",
+        "errors": {
+            "title": "Error",
+            "loadFailed": "Could not load the user agreement",
+            "acceptFailed": "Could not accept the agreement. Please try again."
+        },
+        "notifications": {
+            "success": "Done",
+            "error": "Error",
+            "accepted": "You have accepted the user agreement"
+        }
+    },
     "households": {
         "title": "Households",
         "description": "Manage households and their information",
@@ -1194,6 +1214,7 @@
         },
         "nav": {
             "privacyPolicy": "Privacy Policy",
+            "userAgreement": "User Agreement (PuB)",
             "enrollmentChecklist": "Enrollment Checklist",
             "parcelThreshold": "Parcel Limits",
             "noshowFollowup": "No-Show Follow-up"
@@ -1357,6 +1378,40 @@
                 "saveError": "Failed to save privacy policy",
                 "emptyContent": "Privacy policy content cannot be empty",
                 "cannotRemoveSaved": "Cannot remove a language with saved content"
+            }
+        },
+        "userAgreement": {
+            "title": "User Agreement (PuB)",
+            "description": "Manage the user agreement that all administrators must accept before using the system. The agreement describes responsibilities for handling personal data.",
+            "currentVersion": "Current version: {version}",
+            "acceptedBy": "{count} users have accepted",
+            "noAgreement": "No user agreement has been created yet. Create an agreement to require all users to accept it before using the system.",
+            "publishWarning": "Publishing a new version will require all users to accept the agreement again before they can continue using the system.",
+            "markdownHint": "Use Markdown formatting for headers, lists, and emphasis.",
+            "placeholder": "Enter the user agreement content here...",
+            "preview": "Preview",
+            "versionHistory": "Version History",
+            "table": {
+                "version": "Version",
+                "createdAt": "Created",
+                "createdBy": "Created by",
+                "acceptedBy": "Accepted by"
+            },
+            "buttons": {
+                "edit": "Edit",
+                "preview": "Preview",
+                "showHistory": "Show History",
+                "hideHistory": "Hide History",
+                "publish": "Publish New Version",
+                "create": "Create Agreement"
+            },
+            "notifications": {
+                "success": "Success",
+                "error": "Error",
+                "saved": "User agreement saved. All users must now accept it again.",
+                "loadError": "Failed to load user agreement",
+                "saveError": "Failed to save user agreement",
+                "emptyContent": "User agreement content cannot be empty"
             }
         },
         "parcelThreshold": {

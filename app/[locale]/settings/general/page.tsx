@@ -1,10 +1,10 @@
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { SettingsPageClient } from "./components/SettingsPageClient";
 
 export default async function GeneralSettingsPage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <SettingsPageClient />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }
