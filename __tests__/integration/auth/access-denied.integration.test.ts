@@ -101,7 +101,9 @@ describe("Access Denied - Integration Tests", () => {
             });
 
             it("should allow URL-encoded characters in paths", () => {
-                expect(sanitizeCallbackUrl("/search?q=hello%20world")).toBe("/search?q=hello%20world");
+                expect(sanitizeCallbackUrl("/search?q=hello%20world")).toBe(
+                    "/search?q=hello%20world",
+                );
             });
         });
 

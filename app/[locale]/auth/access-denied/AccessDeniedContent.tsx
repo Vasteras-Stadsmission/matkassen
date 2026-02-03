@@ -66,11 +66,7 @@ export default function AccessDeniedContent() {
                         </Title>
 
                         {/* Subtitle / Explanation */}
-                        <Alert
-                            icon={<IconAlertCircle size={20} />}
-                            color="blue"
-                            variant="light"
-                        >
+                        <Alert icon={<IconAlertCircle size={20} />} color="blue" variant="light">
                             {t("accessDenied.subtitle")}
                         </Alert>
 
