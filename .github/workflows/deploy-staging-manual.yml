@@ -123,12 +123,11 @@ jobs:
                       APP_DIR=~/matkassen
                       cd "$APP_DIR"
 
-                      echo "Fetching latest refs..."
-                      git fetch origin
+                      echo "Fetching branch: $DEPLOY_BRANCH"
+                      git fetch origin "$DEPLOY_BRANCH"
 
                       echo "Checking out branch: $DEPLOY_BRANCH"
-                      git checkout "$DEPLOY_BRANCH" 2>/dev/null || git checkout -b "$DEPLOY_BRANCH" "origin/$DEPLOY_BRANCH"
-                      git reset --hard "origin/$DEPLOY_BRANCH"
+                      git checkout -B "$DEPLOY_BRANCH" "FETCH_HEAD"
 
                       echo "Pulling image: ghcr.io/vasteras-stadsmission/matkassen:sha-$DEPLOY_SHA"
                       docker compose pull app
