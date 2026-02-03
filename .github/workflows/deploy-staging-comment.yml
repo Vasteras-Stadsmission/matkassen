@@ -1,0 +1,170 @@
+name: Deploy to Staging (Comment Trigger)
+
+on:
+    issue_comment:
+        types: [created]
+
+permissions:
+    contents: read
+    packages: write
+    pull-requests: read
+    issues: write
+
+# Prevent concurrent deployments to staging
+concurrency:
+    group: staging-deploy
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        # Only run on PR comments with /deploy-staging from authorized users
+        # - Must be a PR (not an issue)
+        # - Comment must start with /deploy-staging
+        # - Commenter must be OWNER, MEMBER, or COLLABORATOR
+        if: |
+            github.event.issue.pull_request &&
+            startsWith(github.event.comment.body, '/deploy-staging') &&
+            contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment:
+            name: staging
+            url: https://staging.matcentralen.com
+        steps:
+            - name: Get PR details
+              id: pr
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const pr = await github.rest.pulls.get({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        pull_number: context.issue.number
+                      });
+
+                      // Block fork PRs for security (they could run arbitrary code)
+                      if (pr.data.head.repo.fork) {
+                        core.setFailed('Cannot deploy fork PRs to staging for security reasons');
+                        return;
+                      }
+
+                      core.setOutput('branch', pr.data.head.ref);
+                      core.setOutput('sha', pr.data.head.sha);
+                      core.setOutput('short_sha', pr.data.head.sha.substring(0, 12));
+
+            - name: Add reaction to comment
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      await github.rest.reactions.createForIssueComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        comment_id: context.payload.comment.id,
+                        content: 'rocket'
+                      });
+
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ steps.pr.outputs.sha }}
+
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Build and push
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  file: Dockerfile
+                  push: true
+                  tags: |
+                      ghcr.io/vasteras-stadsmission/matkassen:staging-test
+                      ghcr.io/vasteras-stadsmission/matkassen:sha-${{ steps.pr.outputs.short_sha }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            - name: Deploy to staging
+              uses: appleboy/ssh-action@v1.2.2
+              env:
+                  DEPLOY_BRANCH: ${{ steps.pr.outputs.branch }}
+                  DEPLOY_SHA: ${{ steps.pr.outputs.short_sha }}
+              with:
+                  host: ${{ secrets.SERVER_HOST_STAGING }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  command_timeout: 10m
+                  envs: DEPLOY_BRANCH,DEPLOY_SHA
+                  script: |
+                      set -euo pipefail
+
+                      echo "Deploying branch: $DEPLOY_BRANCH (sha: $DEPLOY_SHA)"
+
+                      export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_STAGING }}"
+                      export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
+                      export POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
+                      export EMAIL="${{ secrets.EMAIL }}"
+                      export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
+                      export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
+                      export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
+                      export AUTH_GITHUB_APP_ID="${{ secrets.AUTH_GITHUB_APP_ID }}"
+                      export AUTH_GITHUB_APP_PRIVATE_KEY="${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}"
+                      export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
+                      export GITHUB_ORG="vasteras-stadsmission"
+                      export DOMAIN_NAME="staging.matcentralen.com"
+                      export BRAND_NAME="Matcentralen"
+                      export ENV_NAME="staging"
+                      export LOG_LEVEL="debug"
+                      export HELLO_SMS_TEST_MODE="true"
+                      export SMS_SEND_INTERVAL="30 seconds"
+                      export ANONYMIZATION_SCHEDULE="*/15 * * * *"
+                      export ANONYMIZATION_INACTIVE_DURATION="5 minutes"
+                      export SWIFT_PREFIX="backups/${ENV_NAME}"
+
+                      APP_DIR=~/matkassen
+                      cd "$APP_DIR"
+
+                      echo "Fetching branch: $DEPLOY_BRANCH"
+                      git fetch origin "$DEPLOY_BRANCH"
+
+                      echo "Checking out branch: $DEPLOY_BRANCH"
+                      git checkout -B "$DEPLOY_BRANCH" "FETCH_HEAD"
+
+                      echo "Pulling image: ghcr.io/vasteras-stadsmission/matkassen:sha-$DEPLOY_SHA"
+                      docker compose pull app
+
+                      chmod +x update.sh
+                      ./update.sh
+
+                      echo "✅ Successfully deployed branch '$DEPLOY_BRANCH' to staging"
+                      echo "🌐 Test at: https://staging.matcentralen.com"
+
+            - name: Comment success
+              if: success()
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: context.issue.number,
+                        body: `✅ Deployed to staging!\n\n🌐 **Test at:** https://staging.matcentralen.com\n📦 **Branch:** \`${{ steps.pr.outputs.branch }}\`\n🔖 **SHA:** \`${{ steps.pr.outputs.short_sha }}\``
+                      });
+
+            - name: Comment failure
+              if: failure()
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: context.issue.number,
+                        body: `❌ Staging deployment failed!\n\nSee [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`
+                      });
