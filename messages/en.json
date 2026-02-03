@@ -35,13 +35,51 @@
         "account": "Account",
         "profile": "Profile",
         "user": "User",
+        "protection": {
+            "signInRequired": "Please sign in to access this page."
+        },
         "errors": {
-            "notOrgMember": "You must be a member of the authorized organization to sign in.",
+            "notOrgMember": "You must be a member of the authorized organization and comply with its security policies (secure 2FA required) to access this app.",
             "invalidProvider": "Invalid account provider. Please use GitHub.",
             "configuration": "There is a problem with the authentication configuration. Please contact support.",
             "accessDenied": "Access denied. You don't have permission to sign in.",
             "verification": "Verification failed. Please try signing in again.",
             "default": "An error occurred while signing in. Please try again."
+        },
+        "accessDenied": {
+            "title": "Access Denied",
+            "subtitle": "We couldn't log you in. This is usually because your GitHub account needs additional security setup.",
+            "reasons": {
+                "title": "Why am I seeing this?",
+                "preamble": "One or more of the following may apply:",
+                "notMember": "You are not a member of the authorized GitHub organization",
+                "insecure2fa": "Your GitHub account needs a more secure login method (not just SMS)"
+            },
+            "acceptedMethods": {
+                "title": "Accepted Login Methods",
+                "authenticatorApp": "Authenticator app (Google Authenticator, Authy, Microsoft Authenticator)",
+                "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
+                "securityKey": "Security key (YubiKey, Titan Key)",
+                "githubMobile": "GitHub Mobile app"
+            },
+            "notAccepted": {
+                "title": "Not Accepted (must add one above)",
+                "sms": "SMS text messages alone are not secure enough"
+            },
+            "howToFix": {
+                "title": "How to Fix This",
+                "step1": "Go to your GitHub Security Settings",
+                "step1Aria": "Go to your GitHub Security Settings (opens in new tab)",
+                "step2": "Find \"Password and authentication\" in the menu",
+                "step3": "Add one of the accepted methods listed above",
+                "step4": "Come back here and sign in again"
+            },
+            "buttons": {
+                "githubSettings": "Open GitHub Security Settings",
+                "githubSettingsAria": "Open GitHub Security Settings (opens in new tab)",
+                "signOutAndRetry": "Sign Out and Try Again"
+            },
+            "support": "Still having trouble? Contact your organization administrator."
         }
     },
     "households": {

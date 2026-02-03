@@ -12,6 +12,31 @@ export interface OrganizationCheckResult {
     details?: string;
 }
 
+const MEMBERSHIP_CACHE_MS = 10 * 60 * 1000; // 10 minutes
+const membershipCache = new Map<string, { isMember: boolean; checkedAt: number }>();
+
+function getCachedMembership(cacheKey: string): boolean | null {
+    const cached = membershipCache.get(cacheKey);
+    if (!cached) return null;
+    if (Date.now() - cached.checkedAt > MEMBERSHIP_CACHE_MS) {
+        membershipCache.delete(cacheKey);
+        return null;
+    }
+    return cached.isMember;
+}
+
+function setCachedMembership(cacheKey: string, isMember: boolean) {
+    // Prevent unbounded growth in long-lived processes
+    if (membershipCache.size > 2000) {
+        membershipCache.clear();
+    }
+    membershipCache.set(cacheKey, { isMember, checkedAt: Date.now() });
+}
+
+export function clearOrganizationMembershipCache() {
+    membershipCache.clear();
+}
+
 /**
  * Validates if a user is a member of the required GitHub organization
  * Handles all error cases and environment validation consistently
@@ -56,6 +81,18 @@ export async function validateOrganizationMembership(
         };
     }
 
+    const cacheKey = `${organization}:${username}`;
+    const cached = getCachedMembership(cacheKey);
+    if (cached !== null) {
+        return cached
+            ? { isValid: true }
+            : {
+                  isValid: false,
+                  error: "Access denied: Organization membership required",
+                  details: `User is not a member of ${organization}`,
+              };
+    }
+
     try {
         logger.info(
             {
@@ -67,6 +104,7 @@ export async function validateOrganizationMembership(
         );
 
         const isMember = await checkOrganizationMembership(username, organization);
+        setCachedMembership(cacheKey, isMember);
 
         if (isMember) {
             logger.info(

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { auth } from "@/auth";
 import { Container } from "@mantine/core";
+import { getTranslations } from "next-intl/server";
 
 interface AuthProtectionProps {
     children: ReactNode;
@@ -12,20 +13,32 @@ interface AuthProtectionProps {
  * Renders the unauthorized content if the user is not authenticated
  * Works alongside the middleware protection for defense in depth
  */
-export async function AuthProtection({
-    children,
-    unauthorized = (
-        <Container size="xl" py="xl">
-            <div className="flex justify-center items-center h-[calc(100vh-180px)]">
-                <p className="text-xl font-medium">Please sign in to access this page</p>
-            </div>
-        </Container>
-    ),
-}: AuthProtectionProps) {
+export async function AuthProtection({ children, unauthorized }: AuthProtectionProps) {
+    const t = await getTranslations("auth");
     const session = await auth();
 
-    if (!session) {
-        return unauthorized;
+    if (!session?.user?.githubUsername) {
+        return (
+            unauthorized ?? (
+                <Container size="xl" py="xl">
+                    <div className="flex justify-center items-center h-[calc(100vh-180px)]">
+                        <p className="text-xl font-medium">{t("protection.signInRequired")}</p>
+                    </div>
+                </Container>
+            )
+        );
+    }
+
+    if (!session.user.orgEligibility?.ok) {
+        return (
+            unauthorized ?? (
+                <Container size="xl" py="xl">
+                    <div className="flex justify-center items-center h-[calc(100vh-180px)]">
+                        <p className="text-xl font-medium">{t("errors.notOrgMember")}</p>
+                    </div>
+                </Container>
+            )
+        );
     }
 
     return <>{children}</>;

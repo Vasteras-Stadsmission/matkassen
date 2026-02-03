@@ -17,14 +17,15 @@ export function SignInClient({
     const t = useTranslations("auth");
     const [isLoading, setIsLoading] = useState(false);
 
-    // Error messages for different error types
-    const errorMessages: Record<string, string> = {
-        "not-org-member": t("errors.notOrgMember"),
-        "invalid-account-provider": t("errors.invalidProvider"),
-        "default": t("errors.default"),
-    };
+    const errorMessages = new Map<string, string>([
+        ["not-org-member", t("errors.notOrgMember")],
+        ["invalid-account-provider", t("errors.invalidProvider")],
+        ["default", t("errors.default")],
+    ]);
 
-    const errorMessage = errorType ? errorMessages[errorType] || errorMessages.default : null;
+    const errorMessage = errorType
+        ? (errorMessages.get(errorType) ?? errorMessages.get("default"))
+        : null;
 
     // Handle GitHub sign-in
     const handleGitHubSignIn = async () => {
@@ -33,8 +34,15 @@ export function SignInClient({
         setIsLoading(true);
         try {
             // Using absolute path to make sure we don't have pathname prefixing issues
+            const safeCallbackUrl =
+                callbackUrl.startsWith("/") &&
+                !callbackUrl.startsWith("//") &&
+                !callbackUrl.includes("\\")
+                    ? callbackUrl
+                    : "/";
+
             await signIn("github", {
-                callbackUrl: callbackUrl.startsWith("/") ? callbackUrl : "/",
+                callbackUrl: safeCallbackUrl,
             });
         } catch {
             setIsLoading(false);

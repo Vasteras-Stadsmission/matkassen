@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { validateOrganizationMembership } from "../../../app/utils/auth/organization-auth";
+import {
+    clearOrganizationMembershipCache,
+    validateOrganizationMembership,
+} from "../../../app/utils/auth/organization-auth";
 
 // Mock the github-app module
 vi.mock("../../../app/utils/github-app", () => ({
@@ -19,6 +22,7 @@ describe("validateOrganizationMembership", () => {
             GITHUB_ORG: "test-org",
         };
         vi.clearAllMocks();
+        clearOrganizationMembershipCache();
     });
 
     afterEach(() => {

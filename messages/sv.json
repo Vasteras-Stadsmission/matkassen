@@ -22,13 +22,51 @@
         "account": "Konto",
         "profile": "Profil",
         "user": "Användare",
+        "protection": {
+            "signInRequired": "Logga in för att komma åt den här sidan."
+        },
         "errors": {
-            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen för att logga in.",
+            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen och följa dess säkerhetspolicy (säker tvåfaktorsautentisering krävs) för att få åtkomst till appen.",
             "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
             "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
             "accessDenied": "Åtkomst nekad. Du har inte behörighet att logga in.",
             "verification": "Verifiering misslyckades. Försök logga in igen.",
             "default": "Ett fel uppstod vid inloggningen. Försök igen."
+        },
+        "accessDenied": {
+            "title": "Åtkomst nekad",
+            "subtitle": "Vi kunde inte logga in dig. Detta beror vanligtvis på att ditt GitHub-konto behöver ytterligare säkerhetsinställningar.",
+            "reasons": {
+                "title": "Varför ser jag detta?",
+                "preamble": "En eller flera av följande kan gälla:",
+                "notMember": "Du är inte medlem i den auktoriserade GitHub-organisationen",
+                "insecure2fa": "Ditt GitHub-konto behöver en säkrare inloggningsmetod (inte bara SMS)"
+            },
+            "acceptedMethods": {
+                "title": "Godkända inloggningsmetoder",
+                "authenticatorApp": "Autentiseringsapp (Google Authenticator, Authy, Microsoft Authenticator)",
+                "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
+                "securityKey": "Säkerhetsnyckel (YubiKey, Titan Key)",
+                "githubMobile": "GitHub Mobile-appen"
+            },
+            "notAccepted": {
+                "title": "Ej godkänt (lägg till en metod ovan)",
+                "sms": "Endast SMS-meddelanden är inte tillräckligt säkert"
+            },
+            "howToFix": {
+                "title": "Så här åtgärdar du detta",
+                "step1": "Gå till dina GitHub-säkerhetsinställningar",
+                "step1Aria": "Gå till dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
+                "step2": "Hitta \"Password and authentication\" i menyn",
+                "step3": "Lägg till en av de godkända metoderna ovan",
+                "step4": "Kom tillbaka hit och logga in igen"
+            },
+            "buttons": {
+                "githubSettings": "Öppna GitHub-säkerhetsinställningar",
+                "githubSettingsAria": "Öppna GitHub-säkerhetsinställningar (öppnas i ny flik)",
+                "signOutAndRetry": "Logga ut och försök igen"
+            },
+            "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
         }
     },
     "navigation": {
