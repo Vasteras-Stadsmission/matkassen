@@ -137,7 +137,7 @@ jobs:
                       git checkout -B "$DEPLOY_BRANCH" "FETCH_HEAD"
 
                       echo "Pulling image: ghcr.io/vasteras-stadsmission/matkassen:sha-$DEPLOY_SHA"
-                      docker compose pull app
+                      docker compose pull web
 
                       chmod +x update.sh
                       ./update.sh
