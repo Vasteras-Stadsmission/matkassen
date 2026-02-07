@@ -13,40 +13,23 @@ vi.mock("@/auth", () => ({
     auth: () => mockAuth(),
 }));
 
-// Mock the organization auth module
-const mockValidateOrganizationMembership = vi.fn();
-vi.mock("@/app/utils/auth/organization-auth", () => ({
-    validateOrganizationMembership: (username: string, context: string) =>
-        mockValidateOrganizationMembership(username, context),
-}));
-
 describe("Server Action Authentication", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
     describe("verifyServerActionAuth", () => {
-        it("should use githubUsername for organization check, not display name", async () => {
+        it("should allow users with display names when eligible", async () => {
             // Import after mocks are set up
             const { verifyServerActionAuth } = await import("@/app/utils/auth/server-action-auth");
 
             // User with display name different from login
             const mockSession = createMockSessionWithDisplayName();
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await verifyServerActionAuth();
 
             expect(result.success).toBe(true);
-            // CRITICAL: Should use githubUsername, NOT name
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith(
-                "johndoe123",
-                "server-action",
-            );
-            expect(mockValidateOrganizationMembership).not.toHaveBeenCalledWith(
-                "John Doe",
-                "server-action",
-            );
         });
 
         it("REGRESSION: user with display name should authenticate successfully", async () => {
@@ -60,7 +43,6 @@ describe("Server Action Authentication", () => {
             });
 
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await verifyServerActionAuth();
 
@@ -69,12 +51,6 @@ describe("Server Action Authentication", () => {
             if (result.success) {
                 expect(result.data).toEqual(mockSession);
             }
-
-            // Should check membership with githubUsername, not display name
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith(
-                "johndoe123",
-                "server-action",
-            );
         });
 
         it("should fail when githubUsername is missing", async () => {
@@ -97,15 +73,12 @@ describe("Server Action Authentication", () => {
             expect((result as any).error.code).toBe("UNAUTHORIZED");
         });
 
-        it("should fail when organization membership check fails", async () => {
+        it("should fail when organization eligibility is missing", async () => {
             const { verifyServerActionAuth } = await import("@/app/utils/auth/server-action-auth");
 
             const mockSession = createMockSession();
+            (mockSession.user as any).orgEligibility = undefined;
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({
-                isValid: false,
-                error: "User is not a member",
-            });
 
             const result = await verifyServerActionAuth();
 
@@ -113,15 +86,35 @@ describe("Server Action Authentication", () => {
             expect((result as any).error.code).toBe("FORBIDDEN");
         });
 
-        it("should return configuration error when membership check has config issue", async () => {
+        it("should fail when organization eligibility is not ok", async () => {
+            const { verifyServerActionAuth } = await import("@/app/utils/auth/server-action-auth");
+
+            const mockSession = createMockSession();
+            (mockSession.user as any).orgEligibility = {
+                ok: false,
+                status: "not_member",
+                checkedAt: 1,
+                nextCheckAt: Number.MAX_SAFE_INTEGER,
+            };
+            mockAuth.mockResolvedValue(mockSession);
+
+            const result = await verifyServerActionAuth();
+
+            expect(result.success).toBe(false);
+            expect((result as any).error.code).toBe("FORBIDDEN");
+        });
+
+        it("should return configuration error when eligibility has config issue", async () => {
             const { verifyServerActionAuth } = await import("@/app/utils/auth/server-action-auth");
 
             const mockSession = createMockSession();
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({
-                isValid: false,
-                error: "Server configuration error",
-            });
+            (mockSession.user as any).orgEligibility = {
+                ok: false,
+                status: "configuration_error",
+                checkedAt: 1,
+                nextCheckAt: Number.MAX_SAFE_INTEGER,
+            };
 
             const result = await verifyServerActionAuth();
 
@@ -139,15 +132,10 @@ describe("Server Action Authentication", () => {
             });
 
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await verifyServerActionAuth();
 
             expect(result.success).toBe(true);
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith(
-                "johndoe123",
-                "server-action",
-            );
         });
 
         it("should handle special characters in display name correctly", async () => {
@@ -160,16 +148,10 @@ describe("Server Action Authentication", () => {
             });
 
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await verifyServerActionAuth();
 
             expect(result.success).toBe(true);
-            // Should still use githubUsername
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith(
-                "user123",
-                "server-action",
-            );
         });
 
         it("should handle display name equal to username", async () => {
@@ -182,15 +164,10 @@ describe("Server Action Authentication", () => {
             });
 
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await verifyServerActionAuth();
 
             expect(result.success).toBe(true);
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith(
-                "johndoe",
-                "server-action",
-            );
         });
     });
 });

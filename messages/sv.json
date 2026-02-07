@@ -22,13 +22,58 @@
         "account": "Konto",
         "profile": "Profil",
         "user": "Användare",
+        "protection": {
+            "signInRequired": "Logga in för att komma åt den här sidan."
+        },
         "errors": {
-            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen för att logga in.",
+            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen och följa dess säkerhetspolicy (säker tvåfaktorsautentisering krävs) för att få åtkomst till appen.",
             "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
             "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
             "accessDenied": "Åtkomst nekad. Du har inte behörighet att logga in.",
             "verification": "Verifiering misslyckades. Försök logga in igen.",
             "default": "Ett fel uppstod vid inloggningen. Försök igen."
+        },
+        "accessDenied": {
+            "title": "Åtkomst nekad",
+            "subtitle": "Vi kunde inte logga in dig. Detta beror vanligtvis på att ditt GitHub-konto behöver ytterligare säkerhetsinställningar.",
+            "explanations": {
+                "notMember": "Ditt GitHub-konto är inte medlem i organisationen. Be din administratör att skicka en inbjudan till dig.",
+                "membershipInactive": "Du har en väntande inbjudan till organisationen. Kolla din e-post eller GitHub-notiser och acceptera inbjudan.",
+                "insecure2fa": "Ditt GitHub-konto använder SMS för tvåfaktorsautentisering. Organisationen kräver en säkrare metod. Följ stegen nedan för att åtgärda detta.",
+                "unauthenticated": "Din inloggning är inte längre giltig. Logga ut och logga in igen.",
+                "temporaryError": "Vi kunde inte verifiera ditt konto på grund av ett tillfälligt problem hos GitHub. Försök igen om några minuter.",
+                "membershipHelp": "Om du anser att du borde ha åtkomst, kontakta din organisationsadministratör för att få en inbjudan."
+            },
+            "reasons": {
+                "title": "Varför ser jag detta?",
+                "preamble": "En eller flera av följande kan gälla:",
+                "notMember": "Du är inte medlem i den auktoriserade GitHub-organisationen",
+                "insecure2fa": "Ditt GitHub-konto behöver en säkrare inloggningsmetod (inte bara SMS)"
+            },
+            "acceptedMethods": {
+                "title": "Godkända inloggningsmetoder",
+                "githubMobile": "GitHub Mobile-appen — enklaste alternativet, godkänn bara en notis",
+                "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
+                "authenticatorApp": "Autentiseringsapp (Google Authenticator, Authy, Microsoft Authenticator)"
+            },
+            "notAccepted": {
+                "title": "Ej godkänt (lägg till en metod ovan)",
+                "sms": "Endast SMS-meddelanden är inte tillräckligt säkert"
+            },
+            "howToFix": {
+                "title": "Så här åtgärdar du detta",
+                "step1": "Gå till dina GitHub-säkerhetsinställningar",
+                "step1Aria": "Gå till dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
+                "step2": "Hitta \"Password and authentication\" i menyn",
+                "step3": "Lägg till en av de godkända metoderna ovan",
+                "step4": "Kom tillbaka hit och logga in igen"
+            },
+            "buttons": {
+                "githubSettings": "Öppna GitHub-säkerhetsinställningar",
+                "githubSettingsAria": "Öppna GitHub-säkerhetsinställningar (öppnas i ny flik)",
+                "signOutAndRetry": "Logga ut och försök igen"
+            },
+            "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
         }
     },
     "navigation": {

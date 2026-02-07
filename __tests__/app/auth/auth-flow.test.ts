@@ -4,23 +4,26 @@ import { createMockGitHubProfile } from "../../test-helpers";
 // Create a mock for the auth configuration
 // We'll test the signIn callback logic separately since testing NextAuth directly is complex
 const createMockSignInCallback = () => {
-    // Mock the validateOrganizationMembership function
-    const mockValidateOrganization = vi.fn();
+    // Mock the org eligibility check
+    const mockCheckEligibility = vi.fn();
 
     // Simulate the signIn callback logic from auth.ts
     const signInCallback = async ({ account, profile }: { account?: any; profile?: any }) => {
         if (account?.provider === "github") {
             const username = profile?.login as string;
+            const accessToken = account?.access_token as string | undefined;
 
-            // Use centralized organization membership validation
-            const orgCheck = await mockValidateOrganization(username, "signin");
+            if (!username || !accessToken) {
+                return `/auth/error?error=configuration`;
+            }
 
-            if (!orgCheck.isValid) {
-                if (orgCheck.error?.includes("configuration")) {
+            const eligibility = await mockCheckEligibility(accessToken);
+            if (!eligibility.ok) {
+                if (eligibility.status === "configuration_error") {
                     return `/auth/error?error=configuration`;
                 }
-                // Access denied - return false to trigger AccessDenied error
-                return false;
+                // Redirect to access-denied page with specific reason
+                return `/auth/access-denied?reason=${eligibility.status}`;
             }
 
             return true;
@@ -28,7 +31,7 @@ const createMockSignInCallback = () => {
         return `/auth/error?error=invalid-provider`;
     };
 
-    return { signInCallback, mockValidateOrganization };
+    return { signInCallback, mockCheckEligibility };
 };
 
 describe("Authentication Flow", () => {
@@ -59,11 +62,8 @@ describe("Authentication Flow", () => {
         });
 
         it("should return configuration error when organization is missing", async () => {
-            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
-            mockValidateOrganization.mockResolvedValue({
-                isValid: false,
-                error: "Server configuration error",
-            });
+            const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
+            mockCheckEligibility.mockResolvedValue({ ok: false, status: "configuration_error" });
 
             const result = await signInCallback({
                 account: { provider: "github" },
@@ -74,14 +74,10 @@ describe("Authentication Flow", () => {
         });
 
         it("should return configuration error when username is missing", async () => {
-            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
-            mockValidateOrganization.mockResolvedValue({
-                isValid: false,
-                error: "Server configuration error",
-            });
+            const { signInCallback } = createMockSignInCallback();
 
             const result = await signInCallback({
-                account: { provider: "github" },
+                account: { provider: "github", access_token: "token" },
                 profile: { login: undefined },
             });
 
@@ -89,55 +85,49 @@ describe("Authentication Flow", () => {
         });
 
         it("should return true for valid organization member", async () => {
-            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
-            mockValidateOrganization.mockResolvedValue({ isValid: true });
+            const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
+            mockCheckEligibility.mockResolvedValue({ ok: true });
 
             const result = await signInCallback({
-                account: { provider: "github" },
+                account: { provider: "github", access_token: "token" },
                 profile: { login: "validuser" },
             });
 
             expect(result).toBe(true);
-            expect(mockValidateOrganization).toHaveBeenCalledWith("validuser", "signin");
+            expect(mockCheckEligibility).toHaveBeenCalledWith("token");
         });
 
-        it("should return false for non-organization member (AccessDenied)", async () => {
-            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
-            mockValidateOrganization.mockResolvedValue({
-                isValid: false,
-                error: "Access denied: Organization membership required",
-            });
+        it("should redirect non-organization member to access-denied page", async () => {
+            const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
+            mockCheckEligibility.mockResolvedValue({ ok: false, status: "not_member" });
 
             const result = await signInCallback({
-                account: { provider: "github" },
+                account: { provider: "github", access_token: "token" },
                 profile: { login: "nonmember" },
             });
 
-            expect(result).toBe(false); // This triggers Auth.js AccessDenied error
-            expect(mockValidateOrganization).toHaveBeenCalledWith("nonmember", "signin");
+            expect(result).toBe("/auth/access-denied?reason=not_member");
+            expect(mockCheckEligibility).toHaveBeenCalledWith("token");
         });
 
         it("should return configuration error when membership check fails", async () => {
-            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
-            mockValidateOrganization.mockResolvedValue({
-                isValid: false,
-                error: "Server configuration error",
-            });
+            const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
+            mockCheckEligibility.mockResolvedValue({ ok: false, status: "configuration_error" });
 
             const result = await signInCallback({
-                account: { provider: "github" },
+                account: { provider: "github", access_token: "token" },
                 profile: { login: "testuser" },
             });
 
             expect(result).toBe("/auth/error?error=configuration");
-            expect(mockValidateOrganization).toHaveBeenCalledWith("testuser", "signin");
+            expect(mockCheckEligibility).toHaveBeenCalledWith("token");
         });
     });
 
     describe("Full authentication flow with GitHub username preservation", () => {
         it("should preserve GitHub login through sign-in", async () => {
-            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
-            mockValidateOrganization.mockResolvedValue({ isValid: true });
+            const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
+            mockCheckEligibility.mockResolvedValue({ ok: true });
 
             const mockProfile = createMockGitHubProfile({
                 login: "johndoe123",
@@ -145,18 +135,16 @@ describe("Authentication Flow", () => {
             });
 
             const result = await signInCallback({
-                account: { provider: "github" },
+                account: { provider: "github", access_token: "token" },
                 profile: mockProfile,
             });
 
             expect(result).toBe(true);
-            // Verify that the actual GitHub login was used, not the display name
-            expect(mockValidateOrganization).toHaveBeenCalledWith("johndoe123", "signin");
         });
 
         it("REGRESSION: users with display names should sign in successfully", async () => {
-            const { signInCallback, mockValidateOrganization } = createMockSignInCallback();
-            mockValidateOrganization.mockResolvedValue({ isValid: true });
+            const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
+            mockCheckEligibility.mockResolvedValue({ ok: true });
 
             // User with display name different from login
             const mockProfile = createMockGitHubProfile({
@@ -165,14 +153,11 @@ describe("Authentication Flow", () => {
             });
 
             const result = await signInCallback({
-                account: { provider: "github" },
+                account: { provider: "github", access_token: "token" },
                 profile: mockProfile,
             });
 
             expect(result).toBe(true);
-            // Critical: Should use login, not name
-            expect(mockValidateOrganization).toHaveBeenCalledWith("johndoe123", "signin");
-            expect(mockValidateOrganization).not.toHaveBeenCalledWith("John Doe", "signin");
         });
     });
 });

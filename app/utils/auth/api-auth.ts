@@ -5,7 +5,6 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { validateOrganizationMembership } from "@/app/utils/auth/organization-auth";
 import { checkRateLimit, getSmsRateLimitKey } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
 
@@ -39,18 +38,23 @@ export async function authenticateAdminRequest(rateLimitConfig?: {
             };
         }
 
-        // Check organization membership using GitHub username (not display name)
         const username = session.user.githubUsername;
-        const orgCheck = await validateOrganizationMembership(username, "api");
-
-        if (!orgCheck.isValid) {
-            const statusCode = orgCheck.error?.includes("configuration") ? 500 : 403;
+        const eligibility = session.user.orgEligibility;
+        if (!eligibility) {
             return {
                 success: false,
                 response: NextResponse.json(
-                    { error: orgCheck.error || "Access denied" },
-                    { status: statusCode },
+                    { error: "Re-authentication required" },
+                    { status: 403 },
                 ),
+            };
+        }
+
+        if (!eligibility.ok) {
+            const statusCode = eligibility.status === "configuration_error" ? 500 : 403;
+            return {
+                success: false,
+                response: NextResponse.json({ error: "Access denied" }, { status: statusCode }),
             };
         }
 

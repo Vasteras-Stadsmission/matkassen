@@ -18,6 +18,12 @@ export function createMockSession(options?: {
     return {
         user: {
             githubUsername: options?.githubUsername ?? "testuser",
+            orgEligibility: {
+                ok: true,
+                status: "ok",
+                checkedAt: 1,
+                nextCheckAt: Number.MAX_SAFE_INTEGER,
+            },
             name: options?.name ?? options?.githubUsername ?? "testuser",
             email: options?.email ?? "test@example.com",
             image: options?.image ?? null,

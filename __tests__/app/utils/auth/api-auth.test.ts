@@ -12,13 +12,6 @@ vi.mock("@/auth", () => ({
     auth: () => mockAuth(),
 }));
 
-// Mock the organization auth module
-const mockValidateOrganizationMembership = vi.fn();
-vi.mock("@/app/utils/auth/organization-auth", () => ({
-    validateOrganizationMembership: (username: string, context: string) =>
-        mockValidateOrganizationMembership(username, context),
-}));
-
 // Mock rate limiting
 vi.mock("@/app/utils/rate-limit", () => ({
     checkRateLimit: vi.fn(() => ({ allowed: true, remaining: 10, resetTime: Date.now() + 60000 })),
@@ -31,18 +24,15 @@ describe("API Authentication", () => {
     });
 
     describe("authenticateAdminRequest", () => {
-        it("should use githubUsername for organization check, not display name", async () => {
+        it("should allow users with display names when eligible", async () => {
             const { authenticateAdminRequest } = await import("@/app/utils/auth/api-auth");
 
             const mockSession = createMockSessionWithDisplayName();
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await authenticateAdminRequest();
 
             expect(result.success).toBe(true);
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith("johndoe123", "api");
-            expect(mockValidateOrganizationMembership).not.toHaveBeenCalledWith("John Doe", "api");
         });
 
         it("REGRESSION: user with display name should access API successfully", async () => {
@@ -55,13 +45,11 @@ describe("API Authentication", () => {
             });
 
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await authenticateAdminRequest();
 
             expect(result.success).toBe(true);
             expect(result.session).toEqual(mockSession);
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith("johndoe123", "api");
         });
 
         it("should fail when githubUsername is missing", async () => {
@@ -82,15 +70,30 @@ describe("API Authentication", () => {
             expect(result.response?.status).toBe(401);
         });
 
-        it("should return 403 when organization membership check fails", async () => {
+        it("should return 403 when organization eligibility is missing", async () => {
             const { authenticateAdminRequest } = await import("@/app/utils/auth/api-auth");
 
             const mockSession = createMockSession();
+            (mockSession.user as any).orgEligibility = undefined;
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({
-                isValid: false,
-                error: "User is not a member",
-            });
+
+            const result = await authenticateAdminRequest();
+
+            expect(result.success).toBe(false);
+            expect(result.response?.status).toBe(403);
+        });
+
+        it("should return 403 when organization eligibility is not ok", async () => {
+            const { authenticateAdminRequest } = await import("@/app/utils/auth/api-auth");
+
+            const mockSession = createMockSession();
+            (mockSession.user as any).orgEligibility = {
+                ok: false,
+                status: "not_member",
+                checkedAt: 1,
+                nextCheckAt: Number.MAX_SAFE_INTEGER,
+            };
+            mockAuth.mockResolvedValue(mockSession);
 
             const result = await authenticateAdminRequest();
 
@@ -103,10 +106,12 @@ describe("API Authentication", () => {
 
             const mockSession = createMockSession();
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({
-                isValid: false,
-                error: "Server configuration error",
-            });
+            (mockSession.user as any).orgEligibility = {
+                ok: false,
+                status: "configuration_error",
+                checkedAt: 1,
+                nextCheckAt: Number.MAX_SAFE_INTEGER,
+            };
 
             const result = await authenticateAdminRequest();
 
@@ -124,12 +129,27 @@ describe("API Authentication", () => {
             });
 
             mockAuth.mockResolvedValue(mockSession);
-            mockValidateOrganizationMembership.mockResolvedValue({ isValid: true });
 
             const result = await authenticateAdminRequest();
 
             expect(result.success).toBe(true);
-            expect(mockValidateOrganizationMembership).toHaveBeenCalledWith("johndoe123", "api");
+        });
+
+        it("should use githubUsername for rate limiting (not display name)", async () => {
+            const { getSmsRateLimitKey } = await import("@/app/utils/rate-limit");
+            const mockGetSmsRateLimitKey = vi.mocked(getSmsRateLimitKey);
+
+            const { authenticateAdminRequest } = await import("@/app/utils/auth/api-auth");
+
+            const mockSession = createMockSessionWithDisplayName();
+            mockAuth.mockResolvedValue(mockSession);
+
+            await authenticateAdminRequest({
+                endpoint: "sms",
+                config: { maxRequests: 10, windowMs: 60_000 },
+            });
+
+            expect(mockGetSmsRateLimitKey).toHaveBeenCalledWith("sms", "johndoe123", undefined);
         });
     });
 });

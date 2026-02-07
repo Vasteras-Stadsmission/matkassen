@@ -4,7 +4,6 @@
  */
 
 import { auth } from "@/auth";
-import { validateOrganizationMembership } from "@/app/utils/auth/organization-auth";
 import { db } from "@/app/db/drizzle";
 import { households } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
@@ -17,6 +16,12 @@ import { logError } from "@/app/utils/logger";
 export interface AuthSession {
     user?: {
         githubUsername?: string;
+        orgEligibility?: {
+            ok: boolean;
+            status: string;
+            checkedAt: number;
+            nextCheckAt: number;
+        };
         name?: string | null;
         email?: string | null;
         image?: string | null;
@@ -62,17 +67,25 @@ export async function verifyServerActionAuth(): Promise<ServerActionAuthResult> 
             });
         }
 
-        // Check organization membership using GitHub username (not display name)
-        const username = session.user.githubUsername;
-        const orgCheck = await validateOrganizationMembership(username, "server-action");
-
-        if (!orgCheck.isValid) {
-            const isConfigError = orgCheck.error?.includes("configuration");
+        const eligibility = session.user.orgEligibility;
+        if (!eligibility) {
             return failure({
-                code: isConfigError ? "CONFIGURATION_ERROR" : "FORBIDDEN",
-                message: isConfigError
-                    ? "Server configuration error. Please contact support."
-                    : "You don't have permission to perform this action",
+                code: "FORBIDDEN",
+                message: "Re-authentication required",
+                field: "auth",
+            });
+        }
+
+        if (!eligibility.ok) {
+            return failure({
+                code:
+                    eligibility.status === "configuration_error"
+                        ? "CONFIGURATION_ERROR"
+                        : "FORBIDDEN",
+                message:
+                    eligibility.status === "configuration_error"
+                        ? "Server configuration error. Please contact support."
+                        : "You don't have permission to perform this action",
                 field: "auth",
             });
         }
