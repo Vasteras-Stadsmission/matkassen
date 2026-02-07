@@ -560,7 +560,9 @@ describe("Access Denied - Integration Tests", () => {
             };
 
             const result = determineRedirect(session, "/admin");
-            expect(result).toEqual({ redirect: "/auth/access-denied?reason=org_resource_forbidden" });
+            expect(result).toEqual({
+                redirect: "/auth/access-denied?reason=org_resource_forbidden",
+            });
         });
     });
 });

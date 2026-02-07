@@ -59,8 +59,7 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
     const is2faIssue = denialReason === "org_resource_forbidden";
     const isMembershipIssue =
         denialReason === "not_member" || denialReason === "membership_inactive";
-    const isTransientError =
-        denialReason === "rate_limited" || denialReason === "github_error";
+    const isTransientError = denialReason === "rate_limited" || denialReason === "github_error";
     const isUnauthenticated = denialReason === "unauthenticated";
 
     return (
@@ -133,9 +132,7 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                             }
                                         >
                                             <Text size="sm" fw={600}>
-                                                {t(
-                                                    "accessDenied.acceptedMethods.githubMobile",
-                                                )}
+                                                {t("accessDenied.acceptedMethods.githubMobile")}
                                             </Text>
                                         </List.Item>
                                         <List.Item
@@ -146,10 +143,7 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                                     radius="xl"
                                                     variant="light"
                                                 >
-                                                    <IconFingerprint
-                                                        size={14}
-                                                        aria-hidden="true"
-                                                    />
+                                                    <IconFingerprint size={14} aria-hidden="true" />
                                                 </ThemeIcon>
                                             }
                                         >
@@ -163,10 +157,7 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                                     radius="xl"
                                                     variant="light"
                                                 >
-                                                    <IconShieldCheck
-                                                        size={14}
-                                                        aria-hidden="true"
-                                                    />
+                                                    <IconShieldCheck size={14} aria-hidden="true" />
                                                 </ThemeIcon>
                                             }
                                         >
@@ -211,9 +202,7 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                                 href={GITHUB_SECURITY_URL}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                aria-label={t(
-                                                    "accessDenied.howToFix.step1Aria",
-                                                )}
+                                                aria-label={t("accessDenied.howToFix.step1Aria")}
                                             >
                                                 {t("accessDenied.howToFix.step1")}
                                                 <IconExternalLink
@@ -226,15 +215,9 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                                 />
                                             </Anchor>
                                         </List.Item>
-                                        <List.Item>
-                                            {t("accessDenied.howToFix.step2")}
-                                        </List.Item>
-                                        <List.Item>
-                                            {t("accessDenied.howToFix.step3")}
-                                        </List.Item>
-                                        <List.Item>
-                                            {t("accessDenied.howToFix.step4")}
-                                        </List.Item>
+                                        <List.Item>{t("accessDenied.howToFix.step2")}</List.Item>
+                                        <List.Item>{t("accessDenied.howToFix.step3")}</List.Item>
+                                        <List.Item>{t("accessDenied.howToFix.step4")}</List.Item>
                                     </List>
                                 </Stack>
                             </>
@@ -255,14 +238,10 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                     href={GITHUB_SECURITY_URL}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    leftSection={
-                                        <IconExternalLink size={16} aria-hidden="true" />
-                                    }
+                                    leftSection={<IconExternalLink size={16} aria-hidden="true" />}
                                     variant="filled"
                                     fullWidth
-                                    aria-label={t(
-                                        "accessDenied.buttons.githubSettingsAria",
-                                    )}
+                                    aria-label={t("accessDenied.buttons.githubSettingsAria")}
                                 >
                                     {t("accessDenied.buttons.githubSettings")}
                                 </Button>
