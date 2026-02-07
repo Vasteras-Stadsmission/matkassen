@@ -87,10 +87,11 @@ export default async function SignInPage({
 
     const isEligible = !!session?.user?.githubUsername && session.user.orgEligibility?.ok === true;
 
-    // If user is logged in but not eligible, redirect to the access-denied page
+    // If user is logged in but not eligible, redirect to the access-denied page with reason
     if (session?.user?.githubUsername && !isEligible) {
+        const reason = session.user.orgEligibility?.status ?? "unknown";
         redirect({
-            href: "/auth/access-denied",
+            href: `/auth/access-denied?reason=${encodeURIComponent(reason)}`,
             locale,
         });
     }

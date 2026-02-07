@@ -350,8 +350,8 @@ describe("Access Denied - Integration Tests", () => {
                         if (eligibility.status === "configuration_error") {
                             return `/auth/error?error=configuration`;
                         }
-                        // Redirect to access-denied page for ineligible users
-                        return `/auth/access-denied`;
+                        // Redirect to access-denied page with specific reason
+                        return `/auth/access-denied?reason=${eligibility.status}`;
                     }
 
                     return true;
@@ -362,7 +362,7 @@ describe("Access Denied - Integration Tests", () => {
             return { signInCallback, mockCheckEligibility };
         };
 
-        it("should redirect ineligible users to /auth/access-denied", async () => {
+        it("should redirect ineligible users to /auth/access-denied with reason", async () => {
             const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
             mockCheckEligibility.mockResolvedValue({ ok: false, status: "not_member" });
 
@@ -371,10 +371,10 @@ describe("Access Denied - Integration Tests", () => {
                 profile: { login: "nonmember" },
             });
 
-            expect(result).toBe("/auth/access-denied");
+            expect(result).toBe("/auth/access-denied?reason=not_member");
         });
 
-        it("should redirect users with inactive membership to /auth/access-denied", async () => {
+        it("should redirect users with inactive membership to /auth/access-denied with reason", async () => {
             const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
             mockCheckEligibility.mockResolvedValue({ ok: false, status: "membership_inactive" });
 
@@ -383,10 +383,10 @@ describe("Access Denied - Integration Tests", () => {
                 profile: { login: "inactivemember" },
             });
 
-            expect(result).toBe("/auth/access-denied");
+            expect(result).toBe("/auth/access-denied?reason=membership_inactive");
         });
 
-        it("should redirect users with insecure 2FA to /auth/access-denied", async () => {
+        it("should redirect users with insecure 2FA to /auth/access-denied with reason", async () => {
             const { signInCallback, mockCheckEligibility } = createMockSignInCallback();
             mockCheckEligibility.mockResolvedValue({ ok: false, status: "org_resource_forbidden" });
 
@@ -395,7 +395,7 @@ describe("Access Denied - Integration Tests", () => {
                 profile: { login: "smsonly2fa" },
             });
 
-            expect(result).toBe("/auth/access-denied");
+            expect(result).toBe("/auth/access-denied?reason=org_resource_forbidden");
         });
 
         it("should allow eligible users to proceed", async () => {
@@ -480,9 +480,10 @@ describe("Access Denied - Integration Tests", () => {
             const isEligible =
                 !!session?.user?.githubUsername && session.user.orgEligibility?.ok === true;
 
-            // If user is logged in but not eligible, redirect to access-denied
+            // If user is logged in but not eligible, redirect to access-denied with reason
             if (session?.user?.githubUsername && !isEligible) {
-                return { redirect: "/auth/access-denied" };
+                const reason = session.user.orgEligibility?.status ?? "unknown";
+                return { redirect: `/auth/access-denied?reason=${reason}` };
             }
 
             // If eligible, redirect to callback URL
@@ -508,7 +509,7 @@ describe("Access Denied - Integration Tests", () => {
             };
 
             const result = determineRedirect(session, "/");
-            expect(result).toEqual({ redirect: "/auth/access-denied" });
+            expect(result).toEqual({ redirect: "/auth/access-denied?reason=not_member" });
         });
 
         it("should redirect eligible user to callback URL", () => {
@@ -542,7 +543,7 @@ describe("Access Denied - Integration Tests", () => {
             };
 
             const result = determineRedirect(session, "/");
-            expect(result).toEqual({ redirect: "/auth/access-denied" });
+            expect(result).toEqual({ redirect: "/auth/access-denied?reason=unknown" });
         });
 
         it("should redirect to access-denied when eligibility.ok is false", () => {
@@ -559,7 +560,7 @@ describe("Access Denied - Integration Tests", () => {
             };
 
             const result = determineRedirect(session, "/admin");
-            expect(result).toEqual({ redirect: "/auth/access-denied" });
+            expect(result).toEqual({ redirect: "/auth/access-denied?reason=org_resource_forbidden" });
         });
     });
 });

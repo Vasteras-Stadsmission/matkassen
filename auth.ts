@@ -81,8 +81,8 @@ const authConfig: NextAuthConfig = {
                     if (eligibility.status === "configuration_error") {
                         return `/auth/error?error=configuration`;
                     }
-                    // Redirect to access-denied page for ineligible users
-                    return `/auth/access-denied`;
+                    // Redirect to access-denied page with specific reason
+                    return `/auth/access-denied?reason=${encodeURIComponent(eligibility.status)}`;
                 }
 
                 // Update user record with latest GitHub profile data

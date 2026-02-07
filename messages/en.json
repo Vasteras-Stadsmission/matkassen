@@ -49,6 +49,14 @@
         "accessDenied": {
             "title": "Access Denied",
             "subtitle": "We couldn't log you in. This is usually because your GitHub account needs additional security setup.",
+            "explanations": {
+                "notMember": "Your GitHub account is not a member of the organization. Ask your administrator to send you an invitation.",
+                "membershipInactive": "You have a pending invitation to the organization. Check your email or GitHub notifications and accept the invitation.",
+                "insecure2fa": "Your GitHub account uses SMS for two-factor authentication. The organization requires a more secure method. Follow the steps below to fix this.",
+                "unauthenticated": "Your login is no longer valid. Please sign out and sign in again.",
+                "temporaryError": "We could not verify your account due to a temporary problem with GitHub. Please try again in a few minutes.",
+                "membershipHelp": "If you believe you should have access, contact your organization administrator to get an invitation."
+            },
             "reasons": {
                 "title": "Why am I seeing this?",
                 "preamble": "One or more of the following may apply:",
@@ -57,10 +65,9 @@
             },
             "acceptedMethods": {
                 "title": "Accepted Login Methods",
-                "authenticatorApp": "Authenticator app (Google Authenticator, Authy, Microsoft Authenticator)",
+                "githubMobile": "GitHub Mobile app — easiest option, just approve a notification",
                 "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
-                "securityKey": "Security key (YubiKey, Titan Key)",
-                "githubMobile": "GitHub Mobile app"
+                "authenticatorApp": "Authenticator app (Google Authenticator, Authy, Microsoft Authenticator)"
             },
             "notAccepted": {
                 "title": "Not Accepted (must add one above)",

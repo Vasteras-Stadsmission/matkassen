@@ -22,8 +22,8 @@ const createMockSignInCallback = () => {
                 if (eligibility.status === "configuration_error") {
                     return `/auth/error?error=configuration`;
                 }
-                // Redirect to access-denied page for ineligible users
-                return `/auth/access-denied`;
+                // Redirect to access-denied page with specific reason
+                return `/auth/access-denied?reason=${eligibility.status}`;
             }
 
             return true;
@@ -106,7 +106,7 @@ describe("Authentication Flow", () => {
                 profile: { login: "nonmember" },
             });
 
-            expect(result).toBe("/auth/access-denied");
+            expect(result).toBe("/auth/access-denied?reason=not_member");
             expect(mockCheckEligibility).toHaveBeenCalledWith("token");
         });
 
