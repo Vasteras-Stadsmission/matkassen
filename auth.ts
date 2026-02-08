@@ -34,7 +34,7 @@ const authConfig: NextAuthConfig = {
     },
     cookies: {
         sessionToken: {
-            name: `next-auth.session-token.v3`,
+            name: `next-auth.session-token.v4`,
             options: {
                 httpOnly: true,
                 sameSite: "lax",
