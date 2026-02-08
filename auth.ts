@@ -3,6 +3,7 @@ import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig } from "next-auth";
 import { checkGitHubOrgEligibility } from "./app/utils/auth/org-eligibility";
 import { logger } from "./app/utils/logger";
+import { SESSION_COOKIE_NAME } from "./app/utils/auth/session-cookie";
 
 // GitHub profile type from OAuth provider
 interface GitHubProfile {
@@ -34,7 +35,7 @@ const authConfig: NextAuthConfig = {
     },
     cookies: {
         sessionToken: {
-            name: `next-auth.session-token.v3`,
+            name: SESSION_COOKIE_NAME,
             options: {
                 httpOnly: true,
                 sameSite: "lax",
