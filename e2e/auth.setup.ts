@@ -42,8 +42,8 @@ setup("authenticate", async ({ page, context }) => {
     // Check for session cookie
     const hasSessionCookie = authState.cookies.some(
         (cookie: any) =>
-            cookie.name === "next-auth.session-token.v3" ||
-            cookie.name === "__Secure-next-auth.session-token.v3",
+            cookie.name === "next-auth.session-token.v4" ||
+            cookie.name === "__Secure-next-auth.session-token.v4",
     );
 
     if (!hasSessionCookie) {
