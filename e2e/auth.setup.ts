@@ -1,6 +1,7 @@
 import { test as setup, expect } from "@playwright/test";
 import path from "path";
 import fs from "fs";
+import { SESSION_COOKIE_NAME, SESSION_COOKIE_NAME_SECURE } from "../app/utils/auth/session-cookie";
 
 /**
  * Authentication setup for Playwright tests
@@ -42,8 +43,7 @@ setup("authenticate", async ({ page, context }) => {
     // Check for session cookie
     const hasSessionCookie = authState.cookies.some(
         (cookie: any) =>
-            cookie.name === "next-auth.session-token.v4" ||
-            cookie.name === "__Secure-next-auth.session-token.v4",
+            cookie.name === SESSION_COOKIE_NAME || cookie.name === SESSION_COOKIE_NAME_SECURE,
     );
 
     if (!hasSessionCookie) {
