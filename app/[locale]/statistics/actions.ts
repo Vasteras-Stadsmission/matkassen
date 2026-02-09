@@ -16,7 +16,7 @@ import {
 } from "@/app/db/schema";
 import { sql, eq, and, or, isNull, isNotNull, gte, lt, count } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
-import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { setToStartOfDay, toStockholmTime } from "@/app/utils/date-utils";
@@ -825,7 +825,7 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
  * Get all statistics for the given period.
  * Protected action that requires authentication.
  */
-export const getAllStatistics = protectedAgreementAction(
+export const getAllStatistics = protectedAction(
     async (_session, periodOption: PeriodOption): Promise<ActionResult<AllStatistics>> => {
         try {
             const period = parsePeriod(periodOption);

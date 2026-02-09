@@ -626,14 +626,15 @@ export interface SaveUserAgreementData {
 export const saveUserAgreement = protectedAction(
     async (session, data: SaveUserAgreementData): Promise<ActionResult<UserAgreement>> => {
         try {
-            if (!data.content?.trim()) {
+            const trimmedContent = data.content?.trim();
+            if (!trimmedContent) {
                 return failure({
                     code: "VALIDATION_ERROR",
                     message: "Content is required",
                 });
             }
 
-            if (data.content.length > MAX_AGREEMENT_CONTENT_LENGTH) {
+            if (trimmedContent.length > MAX_AGREEMENT_CONTENT_LENGTH) {
                 return failure({
                     code: "VALIDATION_ERROR",
                     message: `Content exceeds maximum length of ${MAX_AGREEMENT_CONTENT_LENGTH} characters`,
@@ -641,7 +642,7 @@ export const saveUserAgreement = protectedAction(
             }
 
             const newAgreement = await createAgreement(
-                data.content.trim(),
+                trimmedContent,
                 session.user?.githubUsername ?? "unknown",
             );
 

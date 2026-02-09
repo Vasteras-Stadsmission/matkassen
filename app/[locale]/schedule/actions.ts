@@ -17,7 +17,7 @@ import { getAvailableTimeRange } from "@/app/utils/schedule/location-availabilit
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { protectedAction, protectedReadAction } from "@/app/utils/auth/protected-action";
+import { protectedAction, protectedReadAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
@@ -329,7 +329,7 @@ export async function getTimeslotCounts(
 /**
  * Update a food parcel's schedule (used when dragging to a new timeslot)
  */
-export const updateFoodParcelSchedule = protectedAction(
+export const updateFoodParcelSchedule = protectedAgreementAction(
     async (
         session,
         parcelId: string,

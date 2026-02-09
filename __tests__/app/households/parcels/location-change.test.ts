@@ -1,16 +1,7 @@
 /**
- * Tests for household parcel location chang        insert: vi.fn((table: any) => ({
-            values: vi.fn((values: any) => {
-                // Store the inserted parcels for verification
-                insertedParcels.push(...values);
-                // Return an object with onConflictDoNothing method for upsert support
-                return {
-                    onConflictDoNothing: vi.fn(() => ({
-                        returning: vi.fn(() => Promise.resolve([])),
-                    })),
-                };
-            }),
-        })),hese tests verify that changing a parcel's location while keeping the same time window
+ * Tests for household parcel location changes.
+ *
+ * These tests verify that changing a parcel's location while keeping the same time window
  * works correctly. This was a bug where the upsert would skip the insert (due to time conflict)
  * and the deletion logic wouldn't remove the old location parcel (only checked times, not location).
  *

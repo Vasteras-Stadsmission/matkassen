@@ -5,6 +5,7 @@ import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
 import { getHouseholdFormData, updateHousehold } from "./actions";
 import { FormData, Comment } from "../../enroll/types";
 import { addHouseholdComment, deleteHouseholdComment } from "../../actions";
+import { isAgreementRequired } from "@/app/utils/auth/action-result";
 
 export default function EditHouseholdClient({ id }: { id: string }) {
     const [initialData, setInitialData] = useState<FormData | undefined>(undefined);
@@ -21,6 +22,10 @@ export default function EditHouseholdClient({ id }: { id: string }) {
                 const result = await getHouseholdFormData(id);
 
                 if (!result.success) {
+                    if (isAgreementRequired(result)) {
+                        window.location.href = "/agreement";
+                        return;
+                    }
                     setLoadError(result.error.message);
                     return;
                 }
@@ -44,6 +49,10 @@ export default function EditHouseholdClient({ id }: { id: string }) {
         try {
             const result = await updateHousehold(id, formData);
             if (!result.success) {
+                if (isAgreementRequired(result)) {
+                    window.location.href = "/agreement";
+                    return { success: false, error: "Agreement required" };
+                }
                 return {
                     success: false,
                     error: result.error.message,

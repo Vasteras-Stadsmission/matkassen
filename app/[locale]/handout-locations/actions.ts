@@ -9,7 +9,7 @@ import {
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import {
     LocationFormInput,
@@ -20,7 +20,7 @@ import {
 import { logError } from "@/app/utils/logger";
 
 // Get all locations with their schedules
-export const getLocations = protectedAgreementAction(
+export const getLocations = protectedAction(
     async (): Promise<ActionResult<PickupLocationWithAllData[]>> => {
         try {
             // Auth already verified by protectedAction wrapper
@@ -73,7 +73,7 @@ export const getLocations = protectedAgreementAction(
 );
 
 // Get a single location with schedules by ID
-export const getLocation = protectedAgreementAction(
+export const getLocation = protectedAction(
     async (_: unknown, id: string): Promise<ActionResult<PickupLocationWithAllData | null>> => {
         try {
             // Auth already verified by protectedAction wrapper

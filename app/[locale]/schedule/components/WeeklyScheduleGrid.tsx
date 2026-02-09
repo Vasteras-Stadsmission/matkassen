@@ -717,12 +717,15 @@ export default function WeeklyScheduleGrid({
                 let errorMessage = result.error || t("reschedule.genericError", {});
 
                 // Check for specific error codes to provide better messages
-                if (!result.success && result.error) {
-                    const firstError = { message: result.error, code: "UNKNOWN" };
-                    switch (firstError.code) {
+                if (!result.success && result.errorCode) {
+                    if (result.errorCode === "AGREEMENT_REQUIRED" || result.errorCode === "AGREEMENT_CHECK_FAILED") {
+                        window.location.href = "/agreement";
+                        return;
+                    }
+                    switch (result.errorCode) {
                         case "MAX_DAILY_CAPACITY_REACHED":
                             errorMessage = t("reschedule.capacityError", {
-                                default: firstError.message,
+                                default: result.error,
                             });
                             break;
                         case "MAX_SLOT_CAPACITY_REACHED":
@@ -737,11 +740,9 @@ export default function WeeklyScheduleGrid({
                             break;
                         case "OUTSIDE_OPERATING_HOURS":
                             errorMessage = t("reschedule.operatingHoursError", {
-                                default: firstError.message,
+                                default: result.error,
                             });
                             break;
-                        default:
-                            errorMessage = firstError.message;
                     }
                 }
 

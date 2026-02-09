@@ -163,26 +163,32 @@ export function protectedHouseholdAction<T extends [string, ...any[]], R>(
  * Returns a failure ActionResult if not accepted, or null if OK.
  */
 async function verifyAgreementAcceptance(session: AuthSession): Promise<ActionResult<never> | null> {
-    const currentAgreement = await getCurrentAgreement();
-    if (!currentAgreement) return null; // No agreement = no restriction
+    try {
+        const currentAgreement = await getCurrentAgreement();
+        if (!currentAgreement) return null; // No agreement = no restriction
 
-    const githubUsername = session.user?.githubUsername;
-    if (!githubUsername) {
-        return failure({ code: "AGREEMENT_REQUIRED", message: "Agreement acceptance required" });
-    }
+        const githubUsername = session.user?.githubUsername;
+        if (!githubUsername) {
+            return failure({ code: "AGREEMENT_REQUIRED", message: "Agreement acceptance required" });
+        }
 
-    const userId = await getUserIdByGithubUsername(githubUsername);
-    if (!userId) {
-        // User not in DB yet — let them through (provisioning happens elsewhere)
+        const userId = await getUserIdByGithubUsername(githubUsername);
+        if (!userId) {
+            // User not in DB yet — block server actions (unlike AgreementProtection which lets them through
+            // for page rendering, server actions that mutate data should require a known user)
+            return failure({ code: "AGREEMENT_REQUIRED", message: "Agreement acceptance required" });
+        }
+
+        const accepted = await hasUserAcceptedAgreement(userId, currentAgreement.id);
+        if (!accepted) {
+            return failure({ code: "AGREEMENT_REQUIRED", message: "You must accept the current agreement before performing this action" });
+        }
+
         return null;
+    } catch (error) {
+        logger.error({ error, type: "agreement_check_failed" }, "Failed to verify agreement acceptance");
+        return failure({ code: "AGREEMENT_CHECK_FAILED", message: "Failed to verify agreement status" });
     }
-
-    const accepted = await hasUserAcceptedAgreement(userId, currentAgreement.id);
-    if (!accepted) {
-        return failure({ code: "AGREEMENT_REQUIRED", message: "You must accept the current agreement before performing this action" });
-    }
-
-    return null;
 }
 
 /**

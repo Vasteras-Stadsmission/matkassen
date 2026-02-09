@@ -123,9 +123,13 @@ export function AgreementClient({ callbackUrl = "/" }: AgreementClientProps) {
         );
     }
 
+    useEffect(() => {
+        if (!loading && !agreement) {
+            router.push(callbackUrl);
+        }
+    }, [loading, agreement, callbackUrl, router]);
+
     if (!agreement) {
-        // No agreement configured yet - allow access
-        router.push(callbackUrl);
         return null;
     }
 
