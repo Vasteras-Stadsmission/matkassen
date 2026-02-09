@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storeCspViolationAction } from "@/app/db/actions";
 import { logError } from "@/app/utils/logger";
+import { checkRateLimit } from "@/app/utils/rate-limit";
 
 // CORS headers for CSP report endpoint
 const corsHeaders = {
@@ -17,9 +18,31 @@ export async function OPTIONS() {
     });
 }
 
+// Max body size for CSP reports (10KB)
+const MAX_BODY_SIZE = 10 * 1024;
+
 // Handle CSP violation reports
 export async function POST(request: NextRequest) {
     try {
+        // Rate limit: 20 reports per minute per IP
+        const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+        const rateLimit = checkRateLimit(`csp:${ip}`, { maxRequests: 20, windowMs: 60 * 1000 });
+        if (!rateLimit.allowed) {
+            return NextResponse.json(
+                { status: "rate_limited" },
+                { status: 429, headers: corsHeaders },
+            );
+        }
+
+        // Reject oversized bodies
+        const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10);
+        if (contentLength > MAX_BODY_SIZE) {
+            return NextResponse.json(
+                { error: "Payload too large" },
+                { status: 413, headers: corsHeaders },
+            );
+        }
+
         // Parse the JSON body
         const body = await request.json();
 

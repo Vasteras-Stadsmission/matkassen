@@ -191,7 +191,8 @@ export async function GET(request: NextRequest) {
                 ...(schedulerDetails && { schedulerDetails }),
                 ...(diskDetails && { diskDetails }),
             },
-            ...(process.env.NODE_ENV !== "production" && {
+            // Debug info only in local development (not staging or production)
+            ...(process.env.NODE_ENV === "development" && {
                 debug: {
                     headers: {
                         "host": request.headers.get("host"),
