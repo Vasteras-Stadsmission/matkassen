@@ -5,7 +5,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { userAgreements, userAgreementAcceptances, users } from "@/app/db/schema";
-import { eq, desc, and, lte, sql, count } from "drizzle-orm";
+import { eq, desc, and, lte, count } from "drizzle-orm";
 
 export interface UserAgreement {
     id: string;

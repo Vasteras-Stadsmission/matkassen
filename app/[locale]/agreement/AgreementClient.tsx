@@ -59,6 +59,14 @@ export function AgreementClient({ callbackUrl = "/" }: AgreementClientProps) {
         loadAgreement();
     }, [callbackUrl, router, t]);
 
+    // Redirect if no agreement after loading completes (covers edge case where
+    // agreement is cleared between renders)
+    useEffect(() => {
+        if (!loading && !agreement && !error) {
+            router.push(callbackUrl);
+        }
+    }, [loading, agreement, error, callbackUrl, router]);
+
     const handleAccept = async () => {
         if (!agreement || !accepted) return;
 
@@ -122,12 +130,6 @@ export function AgreementClient({ callbackUrl = "/" }: AgreementClientProps) {
             </Container>
         );
     }
-
-    useEffect(() => {
-        if (!loading && !agreement) {
-            router.push(callbackUrl);
-        }
-    }, [loading, agreement, callbackUrl, router]);
 
     if (!agreement) {
         return null;
