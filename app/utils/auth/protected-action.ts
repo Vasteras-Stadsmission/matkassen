@@ -4,8 +4,13 @@ import {
     type AuthSession,
     type HouseholdData,
 } from "./server-action-auth";
-import { type ActionResult } from "./action-result";
+import { type ActionResult, failure } from "./action-result";
 import { logger } from "@/app/utils/logger";
+import {
+    getCurrentAgreement,
+    getUserIdByGithubUsername,
+    hasUserAcceptedAgreement,
+} from "@/app/utils/user-agreement";
 
 /**
  * Higher-order function that wraps read-only server actions with automatic authentication.
@@ -146,6 +151,137 @@ export function protectedHouseholdAction<T extends [string, ...any[]], R>(
                 type: "protected_household_action",
             },
             "Protected household action executed",
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return action(authResult.data, householdResult.data, ...(restArgs as any));
+    };
+}
+
+/**
+ * Verify that the user has accepted the current agreement.
+ * Returns a failure ActionResult if not accepted, or null if OK.
+ */
+async function verifyAgreementAcceptance(
+    session: AuthSession,
+): Promise<ActionResult<never> | null> {
+    try {
+        const currentAgreement = await getCurrentAgreement();
+        if (!currentAgreement) return null; // No agreement = no restriction
+
+        const githubUsername = session.user?.githubUsername;
+        if (!githubUsername) {
+            return failure({
+                code: "AGREEMENT_REQUIRED",
+                message: "Agreement acceptance required",
+            });
+        }
+
+        const userId = await getUserIdByGithubUsername(githubUsername);
+        if (!userId) {
+            // User not in DB yet — block server actions (unlike AgreementProtection which lets them through
+            // for page rendering, server actions that mutate data should require a known user)
+            return failure({
+                code: "AGREEMENT_REQUIRED",
+                message: "Agreement acceptance required",
+            });
+        }
+
+        const accepted = await hasUserAcceptedAgreement(userId, currentAgreement.id);
+        if (!accepted) {
+            return failure({
+                code: "AGREEMENT_REQUIRED",
+                message: "You must accept the current agreement before performing this action",
+            });
+        }
+
+        return null;
+    } catch (error) {
+        logger.error(
+            { error, type: "agreement_check_failed" },
+            "Failed to verify agreement acceptance",
+        );
+        return failure({
+            code: "AGREEMENT_CHECK_FAILED",
+            message: "Failed to verify agreement status",
+        });
+    }
+}
+
+/**
+ * Like protectedAction but also requires the user to have accepted the current agreement.
+ * Use this for actions that handle personal/household data (GDPR compliance).
+ * Do NOT use for agreement-related or admin settings actions.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedAgreementAction<T extends any[], R>(
+    action: (session: AuthSession, ...args: T) => Promise<ActionResult<R>>,
+): (...args: T) => Promise<ActionResult<R>> {
+    return async (...args: T): Promise<ActionResult<R>> => {
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            return authResult;
+        }
+
+        const agreementCheck = await verifyAgreementAcceptance(authResult.data);
+        if (agreementCheck) {
+            return agreementCheck;
+        }
+
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                action: action.name || "anonymous",
+                type: "protected_agreement_action",
+            },
+            "Protected agreement action executed",
+        );
+
+        return action(authResult.data, ...args);
+    };
+}
+
+/**
+ * Like protectedHouseholdAction but also requires agreement acceptance.
+ * Use this for household data mutations (GDPR compliance).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedAgreementHouseholdAction<T extends [string, ...any[]], R>(
+    action: (
+        session: AuthSession,
+        household: HouseholdData,
+        ...args: T extends [string, ...infer Rest] ? Rest : never
+    ) => Promise<ActionResult<R>>,
+): (...args: T) => Promise<ActionResult<R>> {
+    return async (...args: T): Promise<ActionResult<R>> => {
+        const [householdId, ...restArgs] = args;
+
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            return authResult;
+        }
+
+        const agreementCheck = await verifyAgreementAcceptance(authResult.data);
+        if (agreementCheck) {
+            return agreementCheck;
+        }
+
+        const householdResult = await verifyHouseholdAccess(householdId as string);
+
+        if (!householdResult.success) {
+            return householdResult;
+        }
+
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                householdId: householdResult.data.id,
+                action: action.name || "anonymous",
+                type: "protected_agreement_household_action",
+            },
+            "Protected agreement household action executed",
         );
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

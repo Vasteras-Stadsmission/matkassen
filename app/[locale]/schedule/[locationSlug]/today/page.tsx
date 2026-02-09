@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { TodayHandoutsPage } from "./components/TodayHandoutsPage";
 
 interface Props {
@@ -19,8 +19,8 @@ export default async function LocationTodayPage({ params }: Props) {
     const { locationSlug } = await params;
 
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <TodayHandoutsPage locationSlug={locationSlug} />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

@@ -1,0 +1,67 @@
+"use client";
+
+import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
+import { enrollHousehold } from "./actions";
+import { FormData, HouseholdCreateData } from "./types";
+import { useTranslations } from "next-intl";
+
+export function EnrollClient() {
+    const t = useTranslations("wizard");
+
+    const handleSubmit = async (formData: FormData) => {
+        try {
+            // Transform FormData to HouseholdCreateData format
+            const householdData: HouseholdCreateData = {
+                headOfHousehold: {
+                    firstName: formData.household.first_name,
+                    lastName: formData.household.last_name,
+                    phoneNumber: formData.household.phone_number,
+                    postalCode: formData.household.postal_code,
+                    locale: formData.household.locale,
+                },
+                smsConsent: formData.household.sms_consent ?? false, // Default false, requires explicit opt-in
+                members: formData.members.map(member => ({
+                    age: member.age,
+                    sex: member.sex,
+                })),
+                dietaryRestrictions: formData.dietaryRestrictions,
+                additionalNeeds: formData.additionalNeeds,
+                pets: formData.pets,
+                foodParcels: {
+                    pickupLocationId: formData.foodParcels.pickupLocationId,
+                    parcels: formData.foodParcels.parcels,
+                },
+                // Extract comment text from Comment objects for enrollment
+                comments: formData.comments?.map(c => c.comment) || [],
+            };
+
+            const result = await enrollHousehold(householdData);
+            if (result.success) {
+                return {
+                    success: true,
+                    householdId: result.data.householdId,
+                };
+            } else {
+                return {
+                    success: false,
+                    error: result.error.message,
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error occurred",
+            };
+        }
+    };
+
+    return (
+        <HouseholdWizard
+            mode="create"
+            title={t("createHousehold")}
+            onSubmit={handleSubmit}
+            submitButtonColor="green"
+            submitButtonText={t("saveHousehold")}
+        />
+    );
+}

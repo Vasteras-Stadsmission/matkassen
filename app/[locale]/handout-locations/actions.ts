@@ -9,7 +9,7 @@ import {
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { protectedAction } from "@/app/utils/auth/protected-action";
+import { protectedAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import {
     LocationFormInput,
@@ -128,7 +128,7 @@ export const getLocation = protectedAction(
 );
 
 // Create a new location
-export const createLocation = protectedAction(
+export const createLocation = protectedAgreementAction(
     async (
         _: unknown,
         locationData: LocationFormInput,
@@ -183,7 +183,7 @@ export const createLocation = protectedAction(
 );
 
 // Update an existing location
-export const updateLocation = protectedAction(
+export const updateLocation = protectedAgreementAction(
     async (
         _: unknown,
         id: string,
@@ -231,7 +231,7 @@ export const updateLocation = protectedAction(
 );
 
 // Delete a location
-export const deleteLocation = protectedAction(
+export const deleteLocation = protectedAgreementAction(
     async (_: unknown, id: string): Promise<ActionResult<void>> => {
         // Auth already verified by protectedAction wrapper
 
@@ -259,7 +259,7 @@ export const deleteLocation = protectedAction(
 );
 
 // Create a new schedule for a location
-export const createSchedule = protectedAction(
+export const createSchedule = protectedAgreementAction(
     async (
         _: unknown,
         locationId: string,
@@ -358,7 +358,7 @@ export const createSchedule = protectedAction(
 );
 
 // Update an existing schedule
-export const updateSchedule = protectedAction(
+export const updateSchedule = protectedAgreementAction(
     async (
         _: unknown,
         scheduleId: string,
@@ -480,7 +480,7 @@ export const updateSchedule = protectedAction(
 
 // Delete a schedule
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const deleteSchedule = protectedAction(
+export const deleteSchedule = protectedAgreementAction(
     async (_session, scheduleId: string): Promise<ActionResult<void>> => {
         // Auth already verified by protectedAction wrapper
 

@@ -16,7 +16,10 @@ import {
 } from "@/app/db/schema";
 import { eq, and, gt, ne, isNull } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
-import { protectedHouseholdAction, protectedAction } from "@/app/utils/auth/protected-action";
+import {
+    protectedAgreementHouseholdAction,
+    protectedAgreementAction,
+} from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
@@ -32,7 +35,7 @@ export interface HouseholdUpdateResult {
 }
 
 // Function to format household details from DB format to form format for editing
-export const getHouseholdFormData = protectedAction(
+export const getHouseholdFormData = protectedAgreementAction(
     async (session: AuthSession, householdId: string): Promise<ActionResult<FormData>> => {
         try {
             // Auth already verified by protectedAction wrapper
@@ -243,7 +246,7 @@ async function getHouseholdEditData(householdId: string) {
 }
 
 // Function to update an existing household
-export const updateHousehold = protectedHouseholdAction(
+export const updateHousehold = protectedAgreementHouseholdAction(
     async (session, household, data: FormData): Promise<ActionResult<{ householdId: string }>> => {
         try {
             // Auth and household access already verified by protectedHouseholdAction wrapper
@@ -600,7 +603,7 @@ export async function recomputeOutsideHoursForLocation(locationId: string) {
 }
 
 // Add comment to a household (for edit page)
-export const addComment = protectedHouseholdAction(
+export const addComment = protectedAgreementHouseholdAction(
     async (
         session,
         household,

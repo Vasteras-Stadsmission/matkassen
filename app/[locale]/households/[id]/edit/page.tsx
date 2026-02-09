@@ -1,5 +1,5 @@
 import EditHouseholdClient from "./client";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 
 // Force dynamic rendering for this page since household IDs are dynamic
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ type Params = {
 export default async function EditHouseholdPage({ params }: { params: Params | Promise<Params> }) {
     const { id } = await params;
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <EditHouseholdClient id={id} />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

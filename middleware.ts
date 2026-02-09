@@ -150,6 +150,8 @@ export default async function middleware(request: NextRequest) {
 
     // Apply the intl middleware for authenticated requests
     const response = intlMiddleware(request);
+    // Set x-next-url so server components can read the current URL path
+    response.headers.set("x-next-url", request.nextUrl.pathname + request.nextUrl.search);
     return addCSPHeaders(response);
 }
 

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { LocationLandingPage } from "./components/LocationLandingPage";
 
 interface Props {
@@ -19,8 +19,8 @@ export default async function LocationPage({ params }: Props) {
     const { locationSlug } = await params;
 
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <LocationLandingPage locationSlug={locationSlug} />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

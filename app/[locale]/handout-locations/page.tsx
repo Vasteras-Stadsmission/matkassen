@@ -3,7 +3,7 @@ import { Skeleton } from "@mantine/core";
 import { HandoutLocationsContent } from "./components/HandoutLocationsContent";
 import { HandoutLocationsPageLayout } from "./components/HandoutLocationsPageLayout";
 import { getLocations } from "./actions";
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 
 // This needs to be dynamic to avoid build time issues in CI
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export default async function HandoutLocationsPage() {
     const locations = result.data;
 
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <HandoutLocationsPageLayout>
                 <Suspense
                     fallback={
@@ -34,6 +34,6 @@ export default async function HandoutLocationsPage() {
                     <HandoutLocationsContent initialLocations={locations} />
                 </Suspense>
             </HandoutLocationsPageLayout>
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

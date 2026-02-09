@@ -3,7 +3,13 @@
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
-import { verificationQuestions, privacyPolicies, globalSettings } from "@/app/db/schema";
+import {
+    verificationQuestions,
+    privacyPolicies,
+    globalSettings,
+    userAgreements,
+    userAgreementAcceptances,
+} from "@/app/db/schema";
 import { eq, and, asc, max, sql, inArray, desc } from "drizzle-orm";
 import { nanoid } from "@/app/db/schema";
 import { revalidatePath } from "next/cache";
@@ -513,6 +519,147 @@ export const updateNoShowFollowupSettings = protectedAction(
             return failure({
                 code: "UPDATE_FAILED",
                 message: "", // Error message handled via translation on client
+            });
+        }
+    },
+);
+
+// ============================================================================
+// User Agreement Actions (PuB - Personuppgiftsbiträdesavtal)
+// ============================================================================
+
+import {
+    type UserAgreement,
+    getAgreementAcceptanceCount,
+    getCurrentAgreement,
+    createAgreement,
+    MAX_AGREEMENT_CONTENT_LENGTH,
+} from "@/app/utils/user-agreement";
+
+// Re-export UserAgreement for consumers
+export type { UserAgreement };
+
+export interface UserAgreementWithStats extends UserAgreement {
+    acceptanceCount: number;
+}
+
+/**
+ * Get the current (latest effective) user agreement
+ */
+export const getCurrentUserAgreement = protectedAction(
+    async (): Promise<ActionResult<UserAgreementWithStats | null>> => {
+        try {
+            const agreement = await getCurrentAgreement();
+
+            if (!agreement) {
+                return success(null);
+            }
+
+            const acceptanceCount = await getAgreementAcceptanceCount(agreement.id);
+
+            return success({
+                ...agreement,
+                acceptanceCount,
+            });
+        } catch (error) {
+            logError("Error fetching current user agreement", error);
+            return failure({
+                code: "FETCH_FAILED",
+                message: "Failed to fetch user agreement",
+            });
+        }
+    },
+);
+
+/**
+ * Get all user agreement versions (for version history)
+ */
+export const getAllUserAgreements = protectedAction(
+    async (): Promise<ActionResult<UserAgreementWithStats[]>> => {
+        try {
+            const agreements = await db
+                .select()
+                .from(userAgreements)
+                .orderBy(desc(userAgreements.version));
+
+            // Get acceptance counts for all agreements
+            const agreementIds = agreements.map(a => a.id);
+
+            if (agreementIds.length === 0) {
+                return success([]);
+            }
+
+            const counts = await db
+                .select({
+                    agreement_id: userAgreementAcceptances.agreement_id,
+                    count: sql<number>`count(*)::int`,
+                })
+                .from(userAgreementAcceptances)
+                .where(inArray(userAgreementAcceptances.agreement_id, agreementIds))
+                .groupBy(userAgreementAcceptances.agreement_id);
+
+            const countMap = new Map(counts.map(c => [c.agreement_id, c.count]));
+
+            return success(
+                agreements.map(a => ({
+                    id: a.id,
+                    content: a.content,
+                    version: a.version,
+                    effectiveFrom: a.effective_from,
+                    createdAt: a.created_at,
+                    createdBy: a.created_by,
+                    acceptanceCount: countMap.get(a.id) ?? 0,
+                })),
+            );
+        } catch (error) {
+            logError("Error fetching all user agreements", error);
+            return failure({
+                code: "FETCH_FAILED",
+                message: "Failed to fetch user agreements",
+            });
+        }
+    },
+);
+
+export interface SaveUserAgreementData {
+    content: string;
+}
+
+/**
+ * Save a user agreement (creates a new version)
+ * This will require all users to re-accept the agreement
+ */
+export const saveUserAgreement = protectedAction(
+    async (session, data: SaveUserAgreementData): Promise<ActionResult<UserAgreement>> => {
+        try {
+            const trimmedContent = data.content?.trim();
+            if (!trimmedContent) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Content is required",
+                });
+            }
+
+            if (trimmedContent.length > MAX_AGREEMENT_CONTENT_LENGTH) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: `Content exceeds maximum length of ${MAX_AGREEMENT_CONTENT_LENGTH} characters`,
+                });
+            }
+
+            const newAgreement = await createAgreement(
+                trimmedContent,
+                session.user?.githubUsername ?? "unknown",
+            );
+
+            revalidateSettingsPage();
+
+            return success(newAgreement);
+        } catch (error) {
+            logError("Error saving user agreement", error);
+            return failure({
+                code: "SAVE_FAILED",
+                message: "Failed to save user agreement",
             });
         }
     },

@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { NavLink, Stack, ScrollArea, Box } from "@mantine/core";
-import { IconFileText, IconChecklist, IconPackage, IconAlertTriangle } from "@tabler/icons-react";
+import {
+    IconFileText,
+    IconChecklist,
+    IconPackage,
+    IconAlertTriangle,
+    IconUserCheck,
+} from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 
 export type SettingsSection =
     | "privacy-policy"
+    | "user-agreement"
     | "enrollment-checklist"
     | "parcel-threshold"
     | "noshow-followup";
@@ -25,6 +32,10 @@ const NAV_ITEMS: NavItem[] = [
     {
         section: "privacy-policy",
         icon: <IconFileText size={18} stroke={1.5} />,
+    },
+    {
+        section: "user-agreement",
+        icon: <IconUserCheck size={18} stroke={1.5} />,
     },
     {
         section: "enrollment-checklist",
@@ -48,6 +59,8 @@ function getNavLabel(
     switch (section) {
         case "privacy-policy":
             return t("nav.privacyPolicy");
+        case "user-agreement":
+            return t("nav.userAgreement");
         case "enrollment-checklist":
             return t("nav.enrollmentChecklist");
         case "parcel-threshold":

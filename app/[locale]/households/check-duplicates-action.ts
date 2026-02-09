@@ -3,7 +3,7 @@
 import { db } from "@/app/db/drizzle";
 import { households } from "@/app/db/schema";
 import { and, isNull, sql } from "drizzle-orm";
-import { protectedAction } from "@/app/utils/auth/protected-action";
+import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { normalizePhoneToE164 } from "@/app/utils/validation/phone-validation";
@@ -31,7 +31,7 @@ export interface DuplicateCheckResult {
  *
  * This is a separate server action file so it can be imported by client components
  */
-export const checkHouseholdDuplicates = protectedAction(
+export const checkHouseholdDuplicates = protectedAgreementAction(
     async (
         session,
         data: {

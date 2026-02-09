@@ -1,10 +1,10 @@
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 import { HouseholdOptionsManager } from "./components/HouseholdOptionsManager";
 
 export default async function HouseholdOptionsPage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <HouseholdOptionsManager />
-        </AuthProtection>
+        </AgreementProtection>
     );
 }

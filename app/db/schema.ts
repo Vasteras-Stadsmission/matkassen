@@ -495,3 +495,48 @@ export const users = pgTable("users", {
         { onDelete: "set null" },
     ),
 });
+
+// User agreements for GDPR compliance (PuB - Personuppgiftsbiträdesavtal)
+// Stores agreement versions with history (each edit creates a new row)
+// Single language (Swedish) - all admins understand Swedish
+export const userAgreements = pgTable(
+    "user_agreements",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        content: text("content").notNull(), // Markdown content
+        version: integer("version").notNull().unique(), // Auto-incrementing version number
+        effective_from: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        // Use precision 6 (microseconds) to avoid primary key collisions on rapid saves
+        created_at: timestamp({ precision: 6, withTimezone: true }).defaultNow().notNull(),
+        created_by: varchar("created_by", { length: 50 }), // GitHub username who created this version
+    },
+    table => [
+        // Index for efficiently finding the current (latest effective) agreement
+        index("idx_user_agreements_effective_from").on(table.effective_from),
+    ],
+);
+
+// Tracks which users have accepted which agreement version
+export const userAgreementAcceptances = pgTable(
+    "user_agreement_acceptances",
+    {
+        user_id: text("user_id")
+            .notNull()
+            .references(() => users.id, { onDelete: "cascade" }),
+        agreement_id: text("agreement_id")
+            .notNull()
+            .references(() => userAgreements.id, { onDelete: "restrict" }),
+        accepted_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+    },
+    table => [
+        // Composite primary key: each user can only accept each agreement version once
+        primaryKey({ columns: [table.user_id, table.agreement_id] }),
+        // Index for efficient lookup by user
+        index("idx_user_agreement_acceptances_user").on(table.user_id),
+        // Index for efficient acceptance count queries by agreement
+        index("idx_user_agreement_acceptances_agreement").on(table.agreement_id),
+    ],
+);
