@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { logger, logError } from "@/app/utils/logger";
 
 export type OrgEligibilityStatus =
@@ -27,7 +28,8 @@ const CACHE_MAX_ENTRIES = 2000;
 const eligibilityCache = new Map<string, { value: OrgEligibility; expiresAt: number }>();
 
 function getCacheKey(organization: string, accessToken: string) {
-    return `${organization}:${accessToken.slice(0, 12)}`;
+    const hash = createHash("sha256").update(accessToken).digest("hex").slice(0, 16);
+    return `${organization}:${hash}`;
 }
 
 function cacheGet(cacheKey: string): OrgEligibility | null {

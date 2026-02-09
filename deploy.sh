@@ -201,7 +201,9 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
 # Create the .env file inside the app directory (~/matkassen/.env)
+# Set restrictive permissions before writing secrets
 echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" > "$APP_DIR/.env"
+chmod 600 "$APP_DIR/.env"
 echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
 echo "AUTH_GITHUB_APP_ID=\"$AUTH_GITHUB_APP_ID\"" >> "$APP_DIR/.env"
 echo "AUTH_GITHUB_APP_PRIVATE_KEY=\"$AUTH_GITHUB_APP_PRIVATE_KEY\"" >> "$APP_DIR/.env"

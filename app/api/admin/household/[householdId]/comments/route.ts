@@ -3,6 +3,7 @@ import { db } from "@/app/db/drizzle";
 import { householdComments } from "@/app/db/schema";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
+import { HOUSEHOLD_ID_REGEX } from "@/app/constants/noshow-settings";
 
 interface AddCommentRequest {
     comment: string;
@@ -21,10 +22,19 @@ export async function POST(
         }
 
         const { householdId } = await params;
+
+        if (!HOUSEHOLD_ID_REGEX.test(householdId)) {
+            return NextResponse.json({ error: "Invalid household ID" }, { status: 400 });
+        }
+
         const body: AddCommentRequest = await request.json();
 
         if (!body.comment || !body.comment.trim()) {
             return NextResponse.json({ error: "Comment is required" }, { status: 400 });
+        }
+
+        if (body.comment.trim().length > 5000) {
+            return NextResponse.json({ error: "Comment too long" }, { status: 400 });
         }
 
         // Insert the comment
