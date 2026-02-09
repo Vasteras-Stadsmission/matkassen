@@ -33,7 +33,8 @@ function createCSP(nonce: string): string {
         // In development on http://localhost, forcing upgrade can break same-origin fetches
         // with "TypeError: Failed to fetch". Only enable in non-dev environments.
         ...(isDev ? [] : ["upgrade-insecure-requests"]),
-        "report-uri /api/csp-report",
+        "report-uri /api/csp-report", // deprecated but still needed for Safari
+        "report-to csp-endpoint",
     ];
 
     return csp.join("; ");
@@ -52,6 +53,7 @@ export default async function middleware(request: NextRequest) {
     const addCSPHeaders = (response: NextResponse) => {
         response.headers.set("Content-Security-Policy", createCSP(nonce));
         response.headers.set("x-nonce", nonce);
+        response.headers.set("Reporting-Endpoints", 'csp-endpoint="/api/csp-report"');
         return response;
     };
 
