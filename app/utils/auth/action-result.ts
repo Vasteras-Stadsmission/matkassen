@@ -98,5 +98,9 @@ export function validationFailure<T>(
  * Use this in client components to detect when a user needs to accept the agreement.
  */
 export function isAgreementRequired<T>(result: ActionResult<T>): boolean {
-    return !result.success && (result.error.code === "AGREEMENT_REQUIRED" || result.error.code === "AGREEMENT_CHECK_FAILED");
+    return (
+        !result.success &&
+        (result.error.code === "AGREEMENT_REQUIRED" ||
+            result.error.code === "AGREEMENT_CHECK_FAILED")
+    );
 }

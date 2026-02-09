@@ -156,9 +156,8 @@ describe("Protected Agreement Actions", () => {
 
     describe("protectedAgreementHouseholdAction", () => {
         it("should block when agreement not accepted, before household check", async () => {
-            const { protectedAgreementHouseholdAction } = await import(
-                "@/app/utils/auth/protected-action"
-            );
+            const { protectedAgreementHouseholdAction } =
+                await import("@/app/utils/auth/protected-action");
 
             const session = createMockSession();
             mockAuth.mockResolvedValue(session);

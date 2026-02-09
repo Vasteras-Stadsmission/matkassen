@@ -163,7 +163,7 @@ export async function createAgreement(
     createdBy: string,
     effectiveFrom?: Date,
 ): Promise<UserAgreement> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async tx => {
         const [latest] = await tx
             .select({ version: userAgreements.version })
             .from(userAgreements)
@@ -197,7 +197,10 @@ export async function createAgreement(
  * Check if a user has accepted a specific agreement by ID
  * Unlike hasUserAcceptedCurrentAgreement, this doesn't re-fetch the current agreement
  */
-export async function hasUserAcceptedAgreement(userId: string, agreementId: string): Promise<boolean> {
+export async function hasUserAcceptedAgreement(
+    userId: string,
+    agreementId: string,
+): Promise<boolean> {
     const [acceptance] = await db
         .select()
         .from(userAgreementAcceptances)

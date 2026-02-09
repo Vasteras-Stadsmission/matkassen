@@ -718,7 +718,10 @@ export default function WeeklyScheduleGrid({
 
                 // Check for specific error codes to provide better messages
                 if (!result.success && result.errorCode) {
-                    if (result.errorCode === "AGREEMENT_REQUIRED" || result.errorCode === "AGREEMENT_CHECK_FAILED") {
+                    if (
+                        result.errorCode === "AGREEMENT_REQUIRED" ||
+                        result.errorCode === "AGREEMENT_CHECK_FAILED"
+                    ) {
                         window.location.href = "/agreement";
                         return;
                     }

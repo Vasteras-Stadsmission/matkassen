@@ -182,7 +182,9 @@ export function UserAgreementEditor() {
                                     variant="subtle"
                                     onClick={() => setShowHistory(!showHistory)}
                                 >
-                                    {showHistory ? t("buttons.hideHistory") : t("buttons.showHistory")}
+                                    {showHistory
+                                        ? t("buttons.hideHistory")
+                                        : t("buttons.showHistory")}
                                 </Button>
                             )}
                         </Group>

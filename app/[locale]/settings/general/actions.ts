@@ -528,7 +528,13 @@ export const updateNoShowFollowupSettings = protectedAction(
 // User Agreement Actions (PuB - Personuppgiftsbiträdesavtal)
 // ============================================================================
 
-import { type UserAgreement, getAgreementAcceptanceCount, getCurrentAgreement, createAgreement, MAX_AGREEMENT_CONTENT_LENGTH } from "@/app/utils/user-agreement";
+import {
+    type UserAgreement,
+    getAgreementAcceptanceCount,
+    getCurrentAgreement,
+    createAgreement,
+    MAX_AGREEMENT_CONTENT_LENGTH,
+} from "@/app/utils/user-agreement";
 
 // Re-export UserAgreement for consumers
 export type { UserAgreement };

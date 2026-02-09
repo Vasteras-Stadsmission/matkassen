@@ -69,7 +69,8 @@ describe("User Agreement - Real World Scenarios", () => {
         it("should block new user until they accept the agreement", async () => {
             // Given: Organization has an active agreement
             const agreement = await createTestAgreement({
-                content: "# Volunteer Agreement\n\nBy accepting, you agree to handle recipient data with care.",
+                content:
+                    "# Volunteer Agreement\n\nBy accepting, you agree to handle recipient data with care.",
             });
 
             // When: A new volunteer joins

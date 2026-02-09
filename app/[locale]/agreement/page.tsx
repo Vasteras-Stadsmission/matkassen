@@ -34,7 +34,8 @@ export default async function AgreementPage({
     }
 
     const { callbackUrl = "/" } = await searchParams;
-    const safeCallbackUrl = callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/";
+    const safeCallbackUrl =
+        callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/";
 
     return <AgreementClient callbackUrl={safeCallbackUrl} />;
 }

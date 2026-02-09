@@ -16,7 +16,10 @@ import {
 } from "@/app/db/schema";
 import { eq, and, gt, ne, isNull } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
-import { protectedAgreementHouseholdAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import {
+    protectedAgreementHouseholdAction,
+    protectedAgreementAction,
+} from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
