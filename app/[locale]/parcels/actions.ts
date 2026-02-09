@@ -4,7 +4,7 @@ import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, households } from "@/app/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
-import { protectedAction } from "@/app/utils/auth/protected-action";
+import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { formatCancellationSms } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
@@ -154,7 +154,7 @@ export async function softDeleteParcelInTransaction(
  * @param parcelId - ID of the parcel to soft delete
  * @returns Result containing SMS handling information
  */
-export const softDeleteParcel = protectedAction(
+export const softDeleteParcel = protectedAgreementAction(
     async (session, parcelId: string): Promise<ActionResult<SoftDeleteParcelResult>> => {
         try {
             const result = await db.transaction(async tx => {

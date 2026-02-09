@@ -5,7 +5,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { userAgreements, userAgreementAcceptances, users } from "@/app/db/schema";
-import { eq, desc, and, lte } from "drizzle-orm";
+import { eq, desc, and, lte, sql, count } from "drizzle-orm";
 
 export interface UserAgreement {
     id: string;
@@ -150,62 +150,76 @@ export async function getNextAgreementVersion(): Promise<number> {
 }
 
 /**
+ * Maximum allowed content length for agreements (100KB)
+ */
+export const MAX_AGREEMENT_CONTENT_LENGTH = 100_000;
+
+/**
  * Create a new agreement version
+ * Uses a transaction to prevent race conditions in version numbering
  */
 export async function createAgreement(
     content: string,
     createdBy: string,
     effectiveFrom?: Date,
 ): Promise<UserAgreement> {
-    const version = await getNextAgreementVersion();
+    return await db.transaction(async (tx) => {
+        const [latest] = await tx
+            .select({ version: userAgreements.version })
+            .from(userAgreements)
+            .orderBy(desc(userAgreements.version))
+            .limit(1);
 
-    const [agreement] = await db
-        .insert(userAgreements)
-        .values({
-            content,
-            version,
-            effective_from: effectiveFrom ?? new Date(),
-            created_by: createdBy,
-        })
-        .returning();
+        const version = (latest?.version ?? 0) + 1;
 
-    return {
-        id: agreement.id,
-        content: agreement.content,
-        version: agreement.version,
-        effectiveFrom: agreement.effective_from,
-        createdAt: agreement.created_at,
-        createdBy: agreement.created_by,
-    };
+        const [agreement] = await tx
+            .insert(userAgreements)
+            .values({
+                content,
+                version,
+                effective_from: effectiveFrom ?? new Date(),
+                created_by: createdBy,
+            })
+            .returning();
+
+        return {
+            id: agreement.id,
+            content: agreement.content,
+            version: agreement.version,
+            effectiveFrom: agreement.effective_from,
+            createdAt: agreement.created_at,
+            createdBy: agreement.created_by,
+        };
+    });
 }
 
 /**
- * Get all agreement versions (for admin viewing history)
+ * Check if a user has accepted a specific agreement by ID
+ * Unlike hasUserAcceptedCurrentAgreement, this doesn't re-fetch the current agreement
  */
-export async function getAllAgreementVersions(): Promise<UserAgreement[]> {
-    const agreements = await db
+export async function hasUserAcceptedAgreement(userId: string, agreementId: string): Promise<boolean> {
+    const [acceptance] = await db
         .select()
-        .from(userAgreements)
-        .orderBy(desc(userAgreements.version));
+        .from(userAgreementAcceptances)
+        .where(
+            and(
+                eq(userAgreementAcceptances.user_id, userId),
+                eq(userAgreementAcceptances.agreement_id, agreementId),
+            ),
+        )
+        .limit(1);
 
-    return agreements.map(a => ({
-        id: a.id,
-        content: a.content,
-        version: a.version,
-        effectiveFrom: a.effective_from,
-        createdAt: a.created_at,
-        createdBy: a.created_by,
-    }));
+    return !!acceptance;
 }
 
 /**
  * Get acceptance count for an agreement (for admin stats)
  */
 export async function getAgreementAcceptanceCount(agreementId: string): Promise<number> {
-    const result = await db
-        .select({ user_id: userAgreementAcceptances.user_id })
+    const [result] = await db
+        .select({ value: count() })
         .from(userAgreementAcceptances)
         .where(eq(userAgreementAcceptances.agreement_id, agreementId));
 
-    return result.length;
+    return result?.value ?? 0;
 }

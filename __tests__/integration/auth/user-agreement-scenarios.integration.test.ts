@@ -43,9 +43,9 @@ describe("User Agreement - Real World Scenarios", () => {
 
         it("should require all existing users to accept when first agreement is published", async () => {
             // Given: Three users already exist in the system
-            const alice = await createTestUser({ githubUsername: "alice" });
-            const bob = await createTestUser({ githubUsername: "bob" });
-            const charlie = await createTestUser({ githubUsername: "charlie" });
+            const alice = await createTestUser({ github_username: "alice" });
+            const bob = await createTestUser({ github_username: "bob" });
+            const charlie = await createTestUser({ github_username: "charlie" });
 
             // All have access before agreement exists
             expect(await hasUserAcceptedCurrentAgreement(alice.id)).toBe(true);
@@ -73,7 +73,7 @@ describe("User Agreement - Real World Scenarios", () => {
             });
 
             // When: A new volunteer joins
-            const newVolunteer = await createTestUser({ githubUsername: "new_volunteer" });
+            const newVolunteer = await createTestUser({ github_username: "new_volunteer" });
 
             // Then: They cannot access protected content until they accept
             const status = await getUserAgreementStatus(newVolunteer.id);
@@ -95,9 +95,9 @@ describe("User Agreement - Real World Scenarios", () => {
                 content: "# Original Terms v1\n\nBasic data handling requirements.",
             });
 
-            const user1 = await createTestUser({ githubUsername: "user1" });
-            const user2 = await createTestUser({ githubUsername: "user2" });
-            const user3 = await createTestUser({ githubUsername: "user3" });
+            const user1 = await createTestUser({ github_username: "user1" });
+            const user2 = await createTestUser({ github_username: "user2" });
+            const user3 = await createTestUser({ github_username: "user3" });
 
             await recordAgreementAcceptance(user1.id, originalAgreement.id);
             await recordAgreementAcceptance(user2.id, originalAgreement.id);
@@ -140,11 +140,11 @@ describe("User Agreement - Real World Scenarios", () => {
 
             // Phase 1: Initial rollout - 5 users accept v1
             const users = await Promise.all([
-                createTestUser({ githubUsername: "user_a" }),
-                createTestUser({ githubUsername: "user_b" }),
-                createTestUser({ githubUsername: "user_c" }),
-                createTestUser({ githubUsername: "user_d" }),
-                createTestUser({ githubUsername: "user_e" }),
+                createTestUser({ github_username: "user_a" }),
+                createTestUser({ github_username: "user_b" }),
+                createTestUser({ github_username: "user_c" }),
+                createTestUser({ github_username: "user_d" }),
+                createTestUser({ github_username: "user_e" }),
             ]);
 
             for (const user of users) {
@@ -179,7 +179,7 @@ describe("User Agreement - Real World Scenarios", () => {
         it("should grant access immediately after acceptance", async () => {
             // Given: A user who has been blocked from accessing recipient data
             const agreement = await createTestAgreement();
-            const user = await createTestUser({ githubUsername: "blocked_user" });
+            const user = await createTestUser({ github_username: "blocked_user" });
 
             // Verify blocked state
             let status = await getUserAgreementStatus(user.id);
@@ -221,7 +221,7 @@ describe("User Agreement - Real World Scenarios", () => {
 
         it("should maintain acceptance history when multiple versions exist", async () => {
             // Given: A user who has accepted multiple versions over time
-            const user = await createTestUser({ githubUsername: "longtime_user" });
+            const user = await createTestUser({ github_username: "longtime_user" });
 
             const v1 = await createAgreement("Initial terms", "admin");
             await recordAgreementAcceptance(user.id, v1.id);
@@ -264,8 +264,8 @@ describe("User Agreement - Real World Scenarios", () => {
 
             // Some active users who have accepted
             const acceptedUsers = await Promise.all([
-                createTestUser({ githubUsername: "compliant_1" }),
-                createTestUser({ githubUsername: "compliant_2" }),
+                createTestUser({ github_username: "compliant_1" }),
+                createTestUser({ github_username: "compliant_2" }),
             ]);
 
             for (const user of acceptedUsers) {
@@ -274,9 +274,9 @@ describe("User Agreement - Real World Scenarios", () => {
 
             // Some users who haven't accepted yet
             const pendingUsers = await Promise.all([
-                createTestUser({ githubUsername: "pending_1" }),
-                createTestUser({ githubUsername: "pending_2" }),
-                createTestUser({ githubUsername: "pending_3" }),
+                createTestUser({ github_username: "pending_1" }),
+                createTestUser({ github_username: "pending_2" }),
+                createTestUser({ github_username: "pending_3" }),
             ]);
 
             // When: Admin checks compliance

@@ -4,7 +4,7 @@ import { db } from "@/app/db/drizzle";
 import { foodParcels } from "@/app/db/schema";
 import { eq, gt, and } from "drizzle-orm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
-import { protectedHouseholdAction } from "@/app/utils/auth/protected-action";
+import { protectedAgreementHouseholdAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
     success,
@@ -15,7 +15,7 @@ import {
 import { notDeleted } from "@/app/db/query-helpers";
 import { logError } from "@/app/utils/logger";
 
-export const updateHouseholdParcels = protectedHouseholdAction(
+export const updateHouseholdParcels = protectedAgreementHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
         try {
             // Auth and household verification already done by protectedHouseholdAction

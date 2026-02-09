@@ -73,6 +73,18 @@ export function AgreementClient({ callbackUrl = "/" }: AgreementClientProps) {
                     icon: <IconCheck size={16} />,
                 });
                 router.push(callbackUrl);
+            } else if (result.error?.code === "INVALID_AGREEMENT") {
+                // A newer version was published while viewing — re-fetch
+                setAccepted(false);
+                const refreshed = await getAgreementForAcceptance();
+                if (refreshed.success && refreshed.data) {
+                    setAgreement(refreshed.data);
+                    notifications.show({
+                        title: t("notifications.error"),
+                        message: t("errors.newerVersion"),
+                        color: "orange",
+                    });
+                }
             } else {
                 notifications.show({
                     title: t("notifications.error"),

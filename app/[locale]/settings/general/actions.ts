@@ -528,7 +528,7 @@ export const updateNoShowFollowupSettings = protectedAction(
 // User Agreement Actions (PuB - Personuppgiftsbiträdesavtal)
 // ============================================================================
 
-import { type UserAgreement, getAgreementAcceptanceCount } from "@/app/utils/user-agreement";
+import { type UserAgreement, getAgreementAcceptanceCount, getCurrentAgreement, createAgreement, MAX_AGREEMENT_CONTENT_LENGTH } from "@/app/utils/user-agreement";
 
 // Re-export UserAgreement for consumers
 export type { UserAgreement };
@@ -543,29 +543,16 @@ export interface UserAgreementWithStats extends UserAgreement {
 export const getCurrentUserAgreement = protectedAction(
     async (): Promise<ActionResult<UserAgreementWithStats | null>> => {
         try {
-            const now = new Date();
-
-            const [agreement] = await db
-                .select()
-                .from(userAgreements)
-                .where(sql`${userAgreements.effective_from} <= ${now}`)
-                .orderBy(desc(userAgreements.effective_from), desc(userAgreements.created_at))
-                .limit(1);
+            const agreement = await getCurrentAgreement();
 
             if (!agreement) {
                 return success(null);
             }
 
-            // Get acceptance count using shared utility function
             const acceptanceCount = await getAgreementAcceptanceCount(agreement.id);
 
             return success({
-                id: agreement.id,
-                content: agreement.content,
-                version: agreement.version,
-                effectiveFrom: agreement.effective_from,
-                createdAt: agreement.created_at,
-                createdBy: agreement.created_by,
+                ...agreement,
                 acceptanceCount,
             });
         } catch (error) {
@@ -646,35 +633,21 @@ export const saveUserAgreement = protectedAction(
                 });
             }
 
-            // Get next version number
-            const [latestVersion] = await db
-                .select({ version: userAgreements.version })
-                .from(userAgreements)
-                .orderBy(desc(userAgreements.version))
-                .limit(1);
+            if (data.content.length > MAX_AGREEMENT_CONTENT_LENGTH) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: `Content exceeds maximum length of ${MAX_AGREEMENT_CONTENT_LENGTH} characters`,
+                });
+            }
 
-            const nextVersion = (latestVersion?.version ?? 0) + 1;
-
-            const [newAgreement] = await db
-                .insert(userAgreements)
-                .values({
-                    content: data.content.trim(),
-                    version: nextVersion,
-                    effective_from: new Date(),
-                    created_by: session.user?.githubUsername ?? null,
-                })
-                .returning();
+            const newAgreement = await createAgreement(
+                data.content.trim(),
+                session.user?.githubUsername ?? "unknown",
+            );
 
             revalidateSettingsPage();
 
-            return success({
-                id: newAgreement.id,
-                content: newAgreement.content,
-                version: newAgreement.version,
-                effectiveFrom: newAgreement.effective_from,
-                createdAt: newAgreement.created_at,
-                createdBy: newAgreement.created_by,
-            });
+            return success(newAgreement);
         } catch (error) {
             logError("Error saving user agreement", error);
             return failure({

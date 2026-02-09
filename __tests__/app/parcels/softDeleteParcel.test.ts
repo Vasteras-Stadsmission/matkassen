@@ -169,6 +169,19 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
             return fn(mockSession, ...args);
         };
     },
+    protectedAgreementAction: (fn: any) => {
+        return async (...args: any[]) => {
+            const mockSession: Session = {
+                user: {
+                    githubUsername: "test-admin",
+                    name: "Test Admin",
+                    email: "admin@example.com",
+                },
+                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            };
+            return fn(mockSession, ...args);
+        };
+    },
 }));
 
 describe("softDeleteParcel", () => {

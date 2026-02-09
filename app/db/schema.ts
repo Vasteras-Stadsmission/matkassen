@@ -507,7 +507,7 @@ export const userAgreements = pgTable(
             .notNull()
             .$defaultFn(() => nanoid(8)),
         content: text("content").notNull(), // Markdown content
-        version: integer("version").notNull(), // Auto-incrementing version number
+        version: integer("version").notNull().unique(), // Auto-incrementing version number
         effective_from: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
         // Use precision 6 (microseconds) to avoid primary key collisions on rapid saves
         created_at: timestamp({ precision: 6, withTimezone: true }).defaultNow().notNull(),
@@ -536,5 +536,7 @@ export const userAgreementAcceptances = pgTable(
         primaryKey({ columns: [table.user_id, table.agreement_id] }),
         // Index for efficient lookup by user
         index("idx_user_agreement_acceptances_user").on(table.user_id),
+        // Index for efficient acceptance count queries by agreement
+        index("idx_user_agreement_acceptances_agreement").on(table.agreement_id),
     ],
 );

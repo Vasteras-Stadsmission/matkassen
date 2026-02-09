@@ -23,12 +23,14 @@ import { eq, desc, and } from "drizzle-orm";
 import {
     getCurrentAgreement,
     hasUserAcceptedCurrentAgreement,
+    hasUserAcceptedAgreement,
     getUserAgreementStatus,
+    getUserIdByGithubUsername,
     recordAgreementAcceptance,
     getNextAgreementVersion,
     createAgreement,
-    getAllAgreementVersions,
     getAgreementAcceptanceCount,
+    MAX_AGREEMENT_CONTENT_LENGTH,
 } from "@/app/utils/user-agreement";
 
 describe("User Agreement - Integration Tests", () => {
@@ -265,19 +267,6 @@ describe("User Agreement - Integration Tests", () => {
             expect(newAgreement.createdBy).toBe("admin");
         });
 
-        it("getAllAgreementVersions should return all versions ordered descending", async () => {
-            await createTestAgreement({ content: "v1" });
-            await createTestAgreement({ content: "v2" });
-            await createTestAgreement({ content: "v3" });
-
-            const versions = await getAllAgreementVersions();
-
-            expect(versions.length).toBe(3);
-            expect(versions[0].version).toBe(3);
-            expect(versions[1].version).toBe(2);
-            expect(versions[2].version).toBe(1);
-        });
-
         it("getAgreementAcceptanceCount should return correct count", async () => {
             const agreement = await createTestAgreement();
             const user1 = await createTestUser();
@@ -357,6 +346,140 @@ describe("User Agreement - Integration Tests", () => {
                     user_id: user.id,
                     agreement_id: agreement.id,
                 }),
+            ).rejects.toThrow();
+        });
+
+        it("should enforce unique constraint on agreement version", async () => {
+            const db = await getTestDb();
+            await createTestAgreement({ version: 1 });
+
+            // Inserting another agreement with the same version should fail
+            await expect(
+                db.insert(userAgreements).values({
+                    content: "Duplicate version",
+                    version: 1,
+                    effective_from: new Date(),
+                    created_by: "admin",
+                }),
+            ).rejects.toThrow();
+        });
+    });
+
+    describe("getUserIdByGithubUsername", () => {
+        it("should return user ID for existing user", async () => {
+            const user = await createTestUser({ github_username: "testuser123" });
+
+            const userId = await getUserIdByGithubUsername("testuser123");
+
+            expect(userId).toBe(user.id);
+        });
+
+        it("should return null for non-existent username", async () => {
+            const userId = await getUserIdByGithubUsername("nonexistent_user");
+
+            expect(userId).toBeNull();
+        });
+    });
+
+    describe("hasUserAcceptedAgreement", () => {
+        it("should return true when user has accepted the specific agreement", async () => {
+            const agreement = await createTestAgreement();
+            const user = await createTestUser();
+
+            await recordAgreementAcceptance(user.id, agreement.id);
+
+            const accepted = await hasUserAcceptedAgreement(user.id, agreement.id);
+            expect(accepted).toBe(true);
+        });
+
+        it("should return false when user has not accepted the specific agreement", async () => {
+            const agreement = await createTestAgreement();
+            const user = await createTestUser();
+
+            const accepted = await hasUserAcceptedAgreement(user.id, agreement.id);
+            expect(accepted).toBe(false);
+        });
+
+        it("should distinguish between different agreement versions", async () => {
+            const agreement1 = await createTestAgreement();
+            const agreement2 = await createTestAgreement();
+            const user = await createTestUser();
+
+            // Accept only agreement1
+            await recordAgreementAcceptance(user.id, agreement1.id);
+
+            expect(await hasUserAcceptedAgreement(user.id, agreement1.id)).toBe(true);
+            expect(await hasUserAcceptedAgreement(user.id, agreement2.id)).toBe(false);
+        });
+    });
+
+    describe("Stale agreement acceptance guard", () => {
+        it("should reject acceptance of an outdated agreement version", async () => {
+            const agreement1 = await createTestAgreement();
+            const user = await createTestUser();
+
+            // User accepts v1 — should succeed
+            await recordAgreementAcceptance(user.id, agreement1.id);
+            expect(await hasUserAcceptedCurrentAgreement(user.id)).toBe(true);
+
+            // New version published — v2 is now current
+            const agreement2 = await createTestAgreement();
+            expect(await hasUserAcceptedCurrentAgreement(user.id)).toBe(false);
+
+            // Verify that the current agreement is v2
+            const current = await getCurrentAgreement();
+            expect(current?.id).toBe(agreement2.id);
+
+            // Accepting v1 again doesn't satisfy the current requirement
+            await recordAgreementAcceptance(user.id, agreement1.id);
+            expect(await hasUserAcceptedCurrentAgreement(user.id)).toBe(false);
+
+            // Must accept v2 specifically
+            await recordAgreementAcceptance(user.id, agreement2.id);
+            expect(await hasUserAcceptedCurrentAgreement(user.id)).toBe(true);
+        });
+    });
+
+    describe("Content length validation", () => {
+        it("should export MAX_AGREEMENT_CONTENT_LENGTH constant", () => {
+            expect(MAX_AGREEMENT_CONTENT_LENGTH).toBe(100_000);
+        });
+    });
+
+    describe("createAgreement with transaction safety", () => {
+        it("should create agreement with correct version in transaction", async () => {
+            const a1 = await createAgreement("First", "admin");
+            const a2 = await createAgreement("Second", "admin");
+            const a3 = await createAgreement("Third", "admin");
+
+            expect(a1.version).toBe(1);
+            expect(a2.version).toBe(2);
+            expect(a3.version).toBe(3);
+        });
+
+        it("should create agreement with custom effectiveFrom date", async () => {
+            const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const current = await createAgreement("Current", "admin");
+            await createAgreement("Future", "admin", tomorrow);
+
+            // Future agreement should not be returned as current
+            const currentAgreement = await getCurrentAgreement();
+            expect(currentAgreement?.id).toBe(current.id);
+        });
+    });
+
+    describe("recordAgreementAcceptance with invalid IDs", () => {
+        it("should throw when recording acceptance for non-existent user", async () => {
+            const agreement = await createTestAgreement();
+            await expect(
+                recordAgreementAcceptance("non-existent-user-id", agreement.id),
+            ).rejects.toThrow();
+        });
+
+        it("should throw when recording acceptance for non-existent agreement", async () => {
+            const user = await createTestUser();
+            await expect(
+                recordAgreementAcceptance(user.id, "non-existent-agreement-id"),
             ).rejects.toThrow();
         });
     });

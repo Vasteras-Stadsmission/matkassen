@@ -88,7 +88,8 @@
         "errors": {
             "title": "Fel",
             "loadFailed": "Kunde inte ladda användaravtalet",
-            "acceptFailed": "Kunde inte acceptera avtalet. Försök igen."
+            "acceptFailed": "Kunde inte acceptera avtalet. Försök igen.",
+            "newerVersion": "En nyare version av avtalet har publicerats. Vänligen granska och acceptera den."
         },
         "notifications": {
             "success": "Klart",

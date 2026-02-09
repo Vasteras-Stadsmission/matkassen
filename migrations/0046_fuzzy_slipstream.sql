@@ -1,0 +1,2 @@
+CREATE INDEX "idx_user_agreement_acceptances_agreement" ON "user_agreement_acceptances" USING btree ("agreement_id");--> statement-breakpoint
+ALTER TABLE "user_agreements" ADD CONSTRAINT "user_agreements_version_unique" UNIQUE("version");

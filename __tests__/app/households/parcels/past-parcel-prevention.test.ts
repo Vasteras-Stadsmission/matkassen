@@ -72,6 +72,19 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
             return fn(mockSession, mockHousehold, ...args);
         };
     },
+    protectedAgreementHouseholdAction: (fn: any) => {
+        return async (householdId: string, ...args: any[]) => {
+            const mockSession = {
+                user: { githubUsername: "test-user" },
+            };
+            const mockHousehold = {
+                id: householdId,
+                first_name: "Test",
+                last_name: "Household",
+            };
+            return fn(mockSession, mockHousehold, ...args);
+        };
+    },
 }));
 
 // Mock validation

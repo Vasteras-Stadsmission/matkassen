@@ -101,7 +101,8 @@
         "errors": {
             "title": "Error",
             "loadFailed": "Could not load the user agreement",
-            "acceptFailed": "Could not accept the agreement. Please try again."
+            "acceptFailed": "Could not accept the agreement. Please try again.",
+            "newerVersion": "A newer version of the agreement has been published. Please review and accept it."
         },
         "notifications": {
             "success": "Done",
