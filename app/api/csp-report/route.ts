@@ -25,7 +25,8 @@ const MAX_BODY_SIZE = 10 * 1024;
 export async function POST(request: NextRequest) {
     try {
         // Rate limit: 20 reports per minute per IP
-        const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+        // Use x-real-ip (set by nginx from $remote_addr) — not spoofable like x-forwarded-for first hop
+        const ip = request.headers.get("x-real-ip") ?? "unknown";
         const rateLimit = checkRateLimit(`csp:${ip}`, { maxRequests: 20, windowMs: 60 * 1000 });
         if (!rateLimit.allowed) {
             return NextResponse.json(
@@ -34,9 +35,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Reject oversized bodies
-        const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10);
-        if (contentLength > MAX_BODY_SIZE) {
+        // Read body and reject oversized payloads
+        const bodyText = await request.text();
+        if (bodyText.length > MAX_BODY_SIZE) {
             return NextResponse.json(
                 { error: "Payload too large" },
                 { status: 413, headers: corsHeaders },
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Parse the JSON body
-        const body = await request.json();
+        const body = JSON.parse(bodyText);
 
         // Extract CSP report (handle both wrapped and direct formats)
         const report = body["csp-report"] || body;
