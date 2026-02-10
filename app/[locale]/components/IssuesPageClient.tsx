@@ -225,13 +225,11 @@ export default function IssuesPageClient() {
                 signal: abortControllerRef.current.signal,
             });
 
-            if (response.status === 401) {
+            if (response.status === 401 || response.status === 403) {
+                // 401 = no session, 403 = stale session or not a member.
+                // In both cases, re-authenticating is the right action.
                 const callbackUrl = encodeURIComponent(window.location.pathname);
                 window.location.href = `/api/auth/signin?callbackUrl=${callbackUrl}`;
-                return;
-            }
-            if (response.status === 403) {
-                setError(t("accessDenied"));
                 return;
             }
 
