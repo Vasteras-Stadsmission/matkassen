@@ -9,7 +9,7 @@ import { logError } from "@/app/utils/logger";
  *
  * Returns the current SMS balance status including:
  * - Current credit balance from HelloSMS (live check)
- * - Whether there are recent balance-related failures in the database
+ * - Whether there are undismissed balance-related failures in the database
  *
  * Used by the admin UI to show a warning banner when SMS credits are depleted.
  */
@@ -35,10 +35,7 @@ export async function GET() {
                 hasInsufficientBalance,
                 credits: balanceResult.success ? balanceResult.credits : null,
                 balanceCheckError: balanceResult.success ? null : balanceResult.error,
-                recentFailures: {
-                    failed: failureStatus.failureCount,
-                    retrying: failureStatus.retryingCount,
-                },
+                failedCount: failureStatus.failureCount,
             },
             {
                 headers: {
