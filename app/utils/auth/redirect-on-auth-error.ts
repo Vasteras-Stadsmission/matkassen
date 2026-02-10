@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Wrapper around fetch that redirects to sign-in on 401/403.
  *

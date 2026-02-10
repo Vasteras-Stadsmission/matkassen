@@ -90,8 +90,8 @@ export function ParcelAdminDialog({
         try {
             // Fetch parcel details and SMS records in parallel
             const [parcelResponse, smsResponse] = await Promise.all([
-                fetch(`/api/admin/parcel/${parcelId}/details`),
-                fetch(`/api/admin/sms/parcel/${parcelId}`),
+                adminFetch(`/api/admin/parcel/${parcelId}/details`),
+                adminFetch(`/api/admin/sms/parcel/${parcelId}`),
             ]);
 
             if (!parcelResponse.ok) {

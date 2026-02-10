@@ -372,7 +372,7 @@ export function HouseholdWizard({
         // Validate verification step (step 5, only in create mode with questions)
         if (active === 5 && mode === "create" && hasVerificationQuestions) {
             // Fetch required questions and check if all are checked
-            fetch(`/api/admin/verification-questions`)
+            adminFetch(`/api/admin/verification-questions`)
                 .then(res => res.json())
                 .then(questions => {
                     // Single-pass filter: get active AND required questions in one iteration

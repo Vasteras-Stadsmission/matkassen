@@ -17,6 +17,7 @@ import { IconSend, IconAlertTriangle, IconPhone, IconCheck } from "@tabler/icons
 import { useTranslations, useLocale } from "next-intl";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
+import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 
 interface SmsRecord {
     id: string;
@@ -71,7 +72,7 @@ export function SmsConfirmDialog({
         const fetchRecords = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`/api/admin/sms/parcel/${parcelId}`);
+                const response = await adminFetch(`/api/admin/sms/parcel/${parcelId}`);
                 if (response.ok) {
                     const data = await response.json();
                     setSmsRecords(data.smsRecords || []);

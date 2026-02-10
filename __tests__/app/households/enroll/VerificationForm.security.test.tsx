@@ -26,6 +26,7 @@ describe("VerificationForm - Client-Side Defensive Filtering", () => {
         // Mock API returning both active and inactive questions
         vi.mocked(global.fetch).mockResolvedValueOnce({
             ok: true,
+            status: 200,
             json: async () => [
                 {
                     id: "q1",
@@ -74,6 +75,7 @@ describe("VerificationForm - Client-Side Defensive Filtering", () => {
         // Mock API returning only inactive questions
         vi.mocked(global.fetch).mockResolvedValueOnce({
             ok: true,
+            status: 200,
             json: async () => [
                 {
                     id: "q1",
@@ -119,6 +121,7 @@ describe("VerificationForm - Client-Side Defensive Filtering", () => {
         // Mock API returning only active questions (correct behavior)
         vi.mocked(global.fetch).mockResolvedValueOnce({
             ok: true,
+            status: 200,
             json: async () => [
                 {
                     id: "q1",
