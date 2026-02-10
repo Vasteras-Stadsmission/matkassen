@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { auth } from "@/auth";
 import { redirect } from "@/app/i18n/navigation";
-import { routing } from "@/app/i18n/routing";
+import { stripLocalePrefix } from "@/app/i18n/routing";
 import { getLocale } from "next-intl/server";
 import { headers } from "next/headers";
 import { Container } from "@mantine/core";
@@ -101,17 +101,4 @@ async function getCurrentPathname(): Promise<string | null> {
         // Headers not available (e.g., during static generation)
     }
     return null;
-}
-
-/**
- * Strip locale prefix from a pathname (e.g. /sv/households → /households).
- * next-intl's router.push and redirect add the locale automatically,
- * so callbackUrl must not include it.
- */
-function stripLocalePrefix(pathname: string): string {
-    for (const locale of routing.locales) {
-        if (pathname === `/${locale}`) return "/";
-        if (pathname.startsWith(`/${locale}/`)) return pathname.slice(locale.length + 1);
-    }
-    return pathname;
 }
