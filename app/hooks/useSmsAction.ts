@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { notifications } from "@mantine/notifications";
 import { useTranslations } from "next-intl";
 import type { TranslationFunction } from "@/app/[locale]/types";
+import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 
 export type SmsActionType = "send" | "resend";
 
@@ -28,7 +29,7 @@ export function useSmsAction(): UseSmsActionResult {
             setError(null);
 
             try {
-                const response = await fetch(`/api/admin/sms/parcel/${parcelId}`, {
+                const response = await adminFetch(`/api/admin/sms/parcel/${parcelId}`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

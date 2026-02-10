@@ -32,6 +32,7 @@ import { ParcelDetails } from "@/app/api/admin/parcel/[parcelId]/details/route";
 import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
 import { SmsActionButton } from "./SmsActionButton";
+import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { getLanguageName } from "@/app/constants/languages";
 import { Time } from "@/app/utils/time-provider";
@@ -141,7 +142,7 @@ export function ParcelAdminDialog({
         setState(prev => ({ ...prev, submitting: true }));
 
         try {
-            const response = await fetch(`/api/admin/parcel/${parcelId}/pickup`, {
+            const response = await adminFetch(`/api/admin/parcel/${parcelId}/pickup`, {
                 method: "PATCH",
             });
 
@@ -168,7 +169,7 @@ export function ParcelAdminDialog({
         setState(prev => ({ ...prev, submitting: true }));
 
         try {
-            const response = await fetch(`/api/admin/parcel/${parcelId}/pickup`, {
+            const response = await adminFetch(`/api/admin/parcel/${parcelId}/pickup`, {
                 method: "DELETE",
             });
 
@@ -211,7 +212,7 @@ export function ParcelAdminDialog({
                 setState(prev => ({ ...prev, submitting: true }));
 
                 try {
-                    const response = await fetch(`/api/admin/parcel/${parcelId}/no-show`, {
+                    const response = await adminFetch(`/api/admin/parcel/${parcelId}/no-show`, {
                         method: "PATCH",
                     });
 
@@ -241,7 +242,7 @@ export function ParcelAdminDialog({
         setState(prev => ({ ...prev, submitting: true }));
 
         try {
-            const response = await fetch(`/api/admin/parcel/${parcelId}/no-show`, {
+            const response = await adminFetch(`/api/admin/parcel/${parcelId}/no-show`, {
                 method: "DELETE",
             });
 
@@ -269,7 +270,7 @@ export function ParcelAdminDialog({
         setState(prev => ({ ...prev, submitting: true }));
 
         try {
-            const response = await fetch(
+            const response = await adminFetch(
                 `/api/admin/household/${state.data?.household.id}/comments`,
                 {
                     method: "POST",
@@ -352,7 +353,7 @@ export function ParcelAdminDialog({
                 setState(prev => ({ ...prev, submitting: true }));
 
                 try {
-                    const response = await fetch(`/api/admin/parcel/${parcelId}`, {
+                    const response = await adminFetch(`/api/admin/parcel/${parcelId}`, {
                         method: "DELETE",
                     });
 

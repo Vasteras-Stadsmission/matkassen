@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Stack, Title, Text, Paper, Checkbox, Alert, Loader, Center } from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
+import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 
 interface VerificationQuestion {
     id: string;
@@ -46,7 +47,7 @@ export default function VerificationForm({
             setError(null);
 
             try {
-                const response = await fetch(`/api/admin/verification-questions`, {
+                const response = await adminFetch(`/api/admin/verification-questions`, {
                     signal: abortControllerRef.current!.signal,
                 });
 
