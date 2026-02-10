@@ -165,4 +165,34 @@ describe("adminFetch", () => {
         // Should NOT redirect on abort
         expect(window.location.href).toBe("");
     });
+
+    // --- Scenario: Network failure (Wi-Fi drops, DNS error) ---
+    // Should propagate to callers, NOT redirect to sign-in
+
+    it("propagates network errors without redirecting", async () => {
+        vi.mocked(global.fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+        await expect(adminFetch("/api/admin/issues")).rejects.toThrow("Failed to fetch");
+        // Should NOT redirect on network error
+        expect(window.location.href).toBe("");
+    });
+
+    // --- Scenario: User is on a page with unicode or encoded characters in path ---
+
+    it("correctly encodes special characters in the callback URL", async () => {
+        window.location.pathname = "/households/söderström/edit";
+
+        vi.mocked(global.fetch).mockResolvedValueOnce({
+            ok: false,
+            status: 401,
+        } as Response);
+
+        adminFetch("/api/admin/issues");
+
+        await vi.waitFor(() => {
+            expect(window.location.href).toBe(
+                `/api/auth/signin?callbackUrl=${encodeURIComponent("/households/söderström/edit")}`,
+            );
+        });
+    });
 });

@@ -20,7 +20,10 @@ export function AuthProtectionClient({ children, unauthorized }: AuthProtectionC
     >("loading");
 
     useEffect(() => {
-        // Check authentication status
+        // Check authentication status.
+        // NOTE: Intentionally uses bare fetch() instead of adminFetch() here.
+        // This component gates access — using adminFetch would redirect on 401/403
+        // instead of rendering the "sign in required" / "not org member" UI.
         async function checkAuth() {
             try {
                 const response = await fetch("/api/admin/auth-check");

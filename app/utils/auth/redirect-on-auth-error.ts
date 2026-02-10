@@ -14,8 +14,12 @@ export async function adminFetch(input: RequestInfo | URL, init?: RequestInit): 
     if (response.status === 401 || response.status === 403) {
         const callbackUrl = encodeURIComponent(window.location.pathname);
         window.location.href = `/api/auth/signin?callbackUrl=${callbackUrl}`;
-        // Return a never-resolving promise so callers don't continue processing
-        return new Promise(() => {});
+        // Return a long-pending promise so callers don't continue processing.
+        // The page will unload when the redirect fires. If something blocks
+        // navigation (e.g. a browser extension), reload as a fallback.
+        return new Promise(() => {
+            setTimeout(() => window.location.reload(), 3000);
+        });
     }
 
     return response;
