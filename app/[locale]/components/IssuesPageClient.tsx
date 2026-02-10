@@ -28,6 +28,7 @@ import {
     IconUserExclamation,
 } from "@tabler/icons-react";
 import { Link } from "@/app/i18n/navigation";
+import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 import RescheduleInline from "./RescheduleInline";
 
 // Issue types from the API
@@ -221,17 +222,9 @@ export default function IssuesPageClient() {
         setError(null);
 
         try {
-            const response = await fetch("/api/admin/issues", {
+            const response = await adminFetch("/api/admin/issues", {
                 signal: abortControllerRef.current.signal,
             });
-
-            if (response.status === 401 || response.status === 403) {
-                // 401 = no session, 403 = stale session or not a member.
-                // In both cases, re-authenticating is the right action.
-                const callbackUrl = encodeURIComponent(window.location.pathname);
-                window.location.href = `/api/auth/signin?callbackUrl=${callbackUrl}`;
-                return;
-            }
 
             if (!response.ok) {
                 throw new Error(t("error"));
@@ -287,7 +280,7 @@ export default function IssuesPageClient() {
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
         try {
-            const response = await fetch(`/api/admin/parcel/${parcelId}/pickup`, {
+            const response = await adminFetch(`/api/admin/parcel/${parcelId}/pickup`, {
                 method: "PATCH",
             });
 
@@ -335,7 +328,7 @@ export default function IssuesPageClient() {
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
         try {
-            const response = await fetch(`/api/admin/parcel/${parcelId}/no-show`, {
+            const response = await adminFetch(`/api/admin/parcel/${parcelId}/no-show`, {
                 method: "PATCH",
             });
 
@@ -385,7 +378,7 @@ export default function IssuesPageClient() {
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
         try {
-            const response = await fetch(`/api/admin/parcel/${parcelId}`, {
+            const response = await adminFetch(`/api/admin/parcel/${parcelId}`, {
                 method: "DELETE",
             });
 
@@ -424,7 +417,7 @@ export default function IssuesPageClient() {
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
         try {
-            const response = await fetch(`/api/admin/sms/parcel/${sms.parcelId}`, {
+            const response = await adminFetch(`/api/admin/sms/parcel/${sms.parcelId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "resend" }),
@@ -437,7 +430,7 @@ export default function IssuesPageClient() {
 
             // Auto-dismiss the original failure after successful retry
             // This prevents the same failure from reappearing on refresh
-            await fetch(`/api/admin/sms/${sms.id}/dismiss`, {
+            await adminFetch(`/api/admin/sms/${sms.id}/dismiss`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ dismissed: true }),
@@ -516,7 +509,7 @@ export default function IssuesPageClient() {
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
         try {
-            const response = await fetch(`/api/admin/sms/${smsId}/dismiss`, {
+            const response = await adminFetch(`/api/admin/sms/${smsId}/dismiss`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ dismissed: true }),
@@ -561,7 +554,7 @@ export default function IssuesPageClient() {
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
         try {
-            const response = await fetch(`/api/admin/noshow-followup/${householdId}/dismiss`, {
+            const response = await adminFetch(`/api/admin/noshow-followup/${householdId}/dismiss`, {
                 method: "PATCH",
             });
 

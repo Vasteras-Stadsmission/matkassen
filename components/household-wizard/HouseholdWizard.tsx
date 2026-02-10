@@ -41,11 +41,12 @@ import {
     formatPhoneForDisplay,
     stripSwedishPrefix,
 } from "@/app/utils/validation/phone-validation";
+import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
     try {
-        const response = await fetch(
+        const response = await adminFetch(
             `/api/admin/parcels/upcoming?householdId=${encodeURIComponent(householdId)}`,
         );
 
@@ -371,7 +372,7 @@ export function HouseholdWizard({
         // Validate verification step (step 5, only in create mode with questions)
         if (active === 5 && mode === "create" && hasVerificationQuestions) {
             // Fetch required questions and check if all are checked
-            fetch(`/api/admin/verification-questions`)
+            adminFetch(`/api/admin/verification-questions`)
                 .then(res => res.json())
                 .then(questions => {
                     // Single-pass filter: get active AND required questions in one iteration
@@ -445,7 +446,7 @@ export function HouseholdWizard({
 
         const fetchQuestions = async () => {
             try {
-                const response = await fetch(`/api/admin/verification-questions`, {
+                const response = await adminFetch(`/api/admin/verification-questions`, {
                     signal: abortControllerRef.current!.signal,
                 });
                 if (!response.ok) {
@@ -501,7 +502,7 @@ export function HouseholdWizard({
         // Defense-in-depth: Verify all required verification questions are checked before submit
         if (mode === "create" && hasVerificationQuestions) {
             try {
-                const response = await fetch(`/api/admin/verification-questions`);
+                const response = await adminFetch(`/api/admin/verification-questions`);
                 const questions = await response.json();
                 // Single-pass filter: get active AND required questions in one iteration
                 const requiredActiveQuestions = questions.filter(

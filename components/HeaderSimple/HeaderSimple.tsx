@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { IconQrcode } from "@tabler/icons-react";
+import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 
 import classes from "./HeaderSimple.module.css";
 
@@ -54,7 +55,7 @@ export function HeaderSimple() {
     useEffect(() => {
         const fetchIssuesCount = async () => {
             try {
-                const response = await fetch("/api/admin/issues/count");
+                const response = await adminFetch("/api/admin/issues/count");
                 if (response.ok) {
                     const data = await response.json();
                     if (typeof data.total === "number") {
