@@ -1716,8 +1716,8 @@
     "smsBanner": {
         "title": "SMS-tjänsten tillfälligt avaktiverad",
         "description": "SMS-aviseringar kan inte skickas eftersom HelloSMS-kontot har slut på saldo. Organisationen behöver förskottsbetala för mer SMS-saldo.",
-        "affectedCount": "{count, plural, one {# SMS-meddelande} other {# SMS-meddelanden}} kunde inte skickas.",
-        "retryButton": "Skicka om alla",
+        "affectedCount": "{count, plural, one {# SMS-meddelande} other {# SMS-meddelanden}} kunde inte skickas på grund av lågt saldo.",
+        "retryButton": "Skicka om saldofel",
         "retrySuccess": "{count, plural, one {# meddelande har} other {# meddelanden har}} lagts i kö för att skickas."
     }
 }
