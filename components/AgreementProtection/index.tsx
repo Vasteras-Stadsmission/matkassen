@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { auth } from "@/auth";
 import { redirect } from "@/app/i18n/navigation";
+import { stripLocalePrefix } from "@/app/i18n/routing";
 import { getLocale } from "next-intl/server";
 import { headers } from "next/headers";
 import { Container } from "@mantine/core";
@@ -79,22 +80,22 @@ export async function AgreementProtection({
 
 /**
  * Get the current pathname from request headers.
- * Returns the path portion (without locale prefix since next-intl handles that).
+ * Returns the path portion without locale prefix since next-intl handles that.
  */
 async function getCurrentPathname(): Promise<string | null> {
     try {
         const headersList = await headers();
-        // next-url is set by Next.js middleware and contains the full URL path
+        // x-next-url is set by our middleware and contains the full URL path
         const nextUrl = headersList.get("x-next-url") ?? headersList.get("next-url");
         if (nextUrl) {
             const url = new URL(nextUrl, "http://localhost");
-            return url.pathname;
+            return stripLocalePrefix(url.pathname);
         }
         // Fallback: try referer header
         const referer = headersList.get("referer");
         if (referer) {
             const url = new URL(referer);
-            return url.pathname;
+            return stripLocalePrefix(url.pathname);
         }
     } catch {
         // Headers not available (e.g., during static generation)

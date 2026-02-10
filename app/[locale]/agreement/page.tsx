@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "@/app/i18n/navigation";
+import { stripLocalePrefix } from "@/app/i18n/routing";
 import { AgreementClient } from "./AgreementClient";
 
 type SearchParams = {
@@ -34,8 +35,11 @@ export default async function AgreementPage({
     }
 
     const { callbackUrl = "/" } = await searchParams;
+    // Sanitize: must be a relative path, and strip any locale prefix since next-intl adds it
     const safeCallbackUrl =
-        callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/";
+        callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+            ? stripLocalePrefix(callbackUrl)
+            : "/";
 
     return <AgreementClient callbackUrl={safeCallbackUrl} />;
 }
