@@ -19,11 +19,12 @@ const originalLocation = window.location;
 let adminFetch: typeof import("@/app/utils/auth/redirect-on-auth-error").adminFetch;
 
 beforeEach(async () => {
+    vi.useFakeTimers();
     global.fetch = vi.fn();
 
     // Mock window.location (not writable by default)
     Object.defineProperty(window, "location", {
-        value: { pathname: "/households", href: "" },
+        value: { pathname: "/households", href: "", reload: vi.fn() },
         writable: true,
         configurable: true,
     });
@@ -34,6 +35,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+    vi.useRealTimers();
     global.fetch = originalFetch;
     Object.defineProperty(window, "location", {
         value: originalLocation,
@@ -102,20 +104,19 @@ describe("adminFetch", () => {
             json: async () => ({ error: "Re-authentication required" }),
         } as Response);
 
-        // adminFetch should redirect and return a never-resolving promise
+        // adminFetch should redirect and return a pending promise
         const result = adminFetch("/api/admin/issues");
 
-        // Give the redirect a tick to fire
-        await vi.waitFor(() => {
-            expect(window.location.href).toBe("/api/auth/signin?callbackUrl=%2Fhouseholds");
-        });
+        // Flush microtasks so the async function body completes
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(window.location.href).toBe("/api/auth/signin?callbackUrl=%2Fhouseholds");
 
         // The promise should not resolve (caller stops processing)
-        const resolved = await Promise.race([
-            result.then(() => "resolved"),
-            new Promise(r => setTimeout(() => r("pending"), 50)),
-        ]);
-        expect(resolved).toBe("pending");
+        let settled = false;
+        result.then(() => { settled = true; }, () => { settled = true; });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(settled).toBe(false);
     });
 
     // --- Scenario: Session expired / cookie deleted ---
@@ -129,9 +130,8 @@ describe("adminFetch", () => {
 
         adminFetch("/api/admin/issues");
 
-        await vi.waitFor(() => {
-            expect(window.location.href).toBe("/api/auth/signin?callbackUrl=%2Fhouseholds");
-        });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(window.location.href).toBe("/api/auth/signin?callbackUrl=%2Fhouseholds");
     });
 
     // --- Scenario: User is on a deep page when session expires ---
@@ -147,11 +147,10 @@ describe("adminFetch", () => {
 
         adminFetch("/api/admin/parcel/xyz/pickup");
 
-        await vi.waitFor(() => {
-            expect(window.location.href).toBe(
-                "/api/auth/signin?callbackUrl=%2Fhouseholds%2Fabc123%2Fedit",
-            );
-        });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(window.location.href).toBe(
+            "/api/auth/signin?callbackUrl=%2Fhouseholds%2Fabc123%2Fedit",
+        );
     });
 
     // --- Scenario: AbortController cancels a fetch ---
@@ -189,10 +188,9 @@ describe("adminFetch", () => {
 
         adminFetch("/api/admin/issues");
 
-        await vi.waitFor(() => {
-            expect(window.location.href).toBe(
-                `/api/auth/signin?callbackUrl=${encodeURIComponent("/households/söderström/edit")}`,
-            );
-        });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(window.location.href).toBe(
+            `/api/auth/signin?callbackUrl=${encodeURIComponent("/households/söderström/edit")}`,
+        );
     });
 });
