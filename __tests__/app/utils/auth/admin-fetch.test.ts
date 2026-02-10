@@ -114,7 +114,14 @@ describe("adminFetch", () => {
 
         // The promise should not resolve (caller stops processing)
         let settled = false;
-        result.then(() => { settled = true; }, () => { settled = true; });
+        result.then(
+            () => {
+                settled = true;
+            },
+            () => {
+                settled = true;
+            },
+        );
         await vi.advanceTimersByTimeAsync(0);
         expect(settled).toBe(false);
     });
