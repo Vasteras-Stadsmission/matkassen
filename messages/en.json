@@ -1215,7 +1215,7 @@
         },
         "nav": {
             "privacyPolicy": "Privacy Policy",
-            "userAgreement": "User Agreement (PuB)",
+            "userAgreement": "User Agreement",
             "enrollmentChecklist": "Enrollment Checklist",
             "parcelThreshold": "Parcel Limits",
             "noshowFollowup": "No-Show Follow-up"
@@ -1382,7 +1382,7 @@
             }
         },
         "userAgreement": {
-            "title": "User Agreement (PuB)",
+            "title": "User Agreement",
             "description": "Manage the user agreement that all administrators must accept before using the system. The agreement describes responsibilities for handling personal data.",
             "currentVersion": "Current version: {version}",
             "acceptedBy": "{count} users have accepted",

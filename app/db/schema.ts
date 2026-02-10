@@ -496,7 +496,7 @@ export const users = pgTable("users", {
     ),
 });
 
-// User agreements for GDPR compliance (PuB - Personuppgiftsbiträdesavtal)
+// User agreements for GDPR compliance (confidentiality commitment / sekretessförbindelse)
 // Stores agreement versions with history (each edit creates a new row)
 // Single language (Swedish) - all admins understand Swedish
 export const userAgreements = pgTable(

@@ -1,5 +1,5 @@
 /**
- * Scenario-based integration tests for user agreement (PuB) system.
+ * Scenario-based integration tests for user agreement system.
  *
  * These tests describe real user journeys and business use cases rather than
  * testing individual functions in isolation.

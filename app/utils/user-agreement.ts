@@ -1,5 +1,5 @@
 /**
- * User agreement utilities for GDPR compliance (PuB - Personuppgiftsbiträdesavtal)
+ * User agreement utilities for GDPR compliance
  * Handles checking and recording user agreement acceptance
  */
 

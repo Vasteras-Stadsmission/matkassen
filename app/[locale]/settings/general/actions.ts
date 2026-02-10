@@ -525,7 +525,7 @@ export const updateNoShowFollowupSettings = protectedAction(
 );
 
 // ============================================================================
-// User Agreement Actions (PuB - Personuppgiftsbiträdesavtal)
+// User Agreement Actions
 // ============================================================================
 
 import {
