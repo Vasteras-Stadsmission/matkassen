@@ -259,3 +259,85 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
 export function isValidE164(phone: string): boolean {
     return /^\+[1-9]\d{1,14}$/.test(phone);
 }
+
+/**
+ * HTTP status code returned by HelloSMS when account has insufficient credits.
+ * This is the standard HTTP 402 Payment Required status.
+ */
+export const HTTP_INSUFFICIENT_CREDITS = 402;
+
+/**
+ * Check if an SMS send failure was caused by insufficient account balance.
+ * Matches HTTP 402 status or known error message patterns from HelloSMS.
+ */
+export function isInsufficientBalanceError(httpStatus?: number, errorMessage?: string): boolean {
+    if (httpStatus === HTTP_INSUFFICIENT_CREDITS) {
+        return true;
+    }
+    if (errorMessage) {
+        const lower = errorMessage.toLowerCase();
+        return (
+            lower.includes("insufficient") ||
+            lower.includes("no credits") ||
+            lower.includes("out of credits") ||
+            lower.includes("balance") ||
+            lower.includes("saldo") ||
+            lower.includes("payment required")
+        );
+    }
+    return false;
+}
+
+export interface BalanceResult {
+    success: boolean;
+    credits?: number;
+    error?: string;
+}
+
+/**
+ * Check the current SMS credit balance from HelloSMS.
+ *
+ * GET https://api.hellosms.se/api/v1/account/balance
+ * Returns { credits: number }
+ */
+export async function checkBalance(): Promise<BalanceResult> {
+    const config = getHelloSmsConfig();
+
+    if (config.testMode) {
+        // In test mode, report unlimited credits
+        return { success: true, credits: 999 };
+    }
+
+    if (!config.username || !config.password) {
+        return { success: false, error: "HelloSMS credentials not configured" };
+    }
+
+    // Derive the balance URL from the configured API URL
+    // Default send URL: https://api.hellosms.se/api/v1/sms/send
+    // Balance URL:      https://api.hellosms.se/api/v1/account/balance
+    const baseUrl = config.apiUrl.replace(/\/sms\/send\/?$/, "");
+    const balanceUrl = `${baseUrl}/account/balance`;
+
+    try {
+        const response = await fetch(balanceUrl, {
+            method: "GET",
+            headers: {
+                "Authorization": `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`,
+            },
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            const statusText = (body as { statusText?: string }).statusText || `HTTP ${response.status}`;
+            return { success: false, error: statusText };
+        }
+
+        const data = (await response.json()) as { credits?: number };
+        return { success: true, credits: data.credits ?? 0 };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error checking balance",
+        };
+    }
+}

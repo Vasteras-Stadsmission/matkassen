@@ -8,6 +8,7 @@ import { HeaderSimple } from "@/components/HeaderSimple/HeaderSimple";
 import { AppShell, Box } from "@mantine/core";
 import { Suspense } from "react";
 import { PageTransitionSkeleton } from "@/components/PageTransitionSkeleton";
+import { SmsBalanceBanner } from "@/components/SmsBalanceBanner";
 
 // This is a specialized component to handle client-side navigation
 // related hooks like useSearchParams
@@ -27,6 +28,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
                             <HeaderSimple />
                         </AppShell.Header>
                         <AppShell.Main>
+                            <SmsBalanceBanner />
                             <Box style={{ position: "relative" }}>
                                 <SearchParamsProvider>{children}</SearchParamsProvider>
                             </Box>

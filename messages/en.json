@@ -1712,5 +1712,10 @@
             "households": "Households"
         },
         "noData": "No data available"
+    },
+    "smsBanner": {
+        "title": "SMS service temporarily disabled",
+        "description": "SMS notifications cannot be sent because the HelloSMS account has run out of credits. The organisation needs to pre-pay for more SMS credits. Messages are being held and will be sent automatically once credits are restored.",
+        "affectedCount": "{count, plural, one {# SMS message is} other {# SMS messages are}} waiting to be sent."
     }
 }

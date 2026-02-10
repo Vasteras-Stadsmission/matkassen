@@ -1712,5 +1712,10 @@
             "households": "Hushåll"
         },
         "noData": "Ingen data tillgänglig"
+    },
+    "smsBanner": {
+        "title": "SMS-tjänsten tillfälligt avaktiverad",
+        "description": "SMS-aviseringar kan inte skickas eftersom HelloSMS-kontot har slut på saldo. Organisationen behöver förskottsbetala för mer SMS-saldo. Meddelanden sparas och skickas automatiskt när saldot har fyllts på.",
+        "affectedCount": "{count, plural, one {# SMS-meddelande väntar} other {# SMS-meddelanden väntar}} på att skickas."
     }
 }
