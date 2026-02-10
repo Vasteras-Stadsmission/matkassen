@@ -510,7 +510,7 @@ export async function GET() {
                 last_name: string;
                 total_no_shows: number;
                 consecutive_no_shows: number;
-                last_no_show_at: Date;
+                last_no_show_at: Date | string; // db.execute returns string in postgres-js, Date in PGlite
                 total_count: number;
             };
             const rawResult = noShowStatsRaw as unknown as NoShowRow[] | { rows: NoShowRow[] };
@@ -535,7 +535,10 @@ export async function GET() {
                     householdLastName: row.last_name,
                     consecutiveNoShows: row.consecutive_no_shows,
                     totalNoShows: row.total_no_shows,
-                    lastNoShowAt: row.last_no_show_at.toISOString(),
+                    lastNoShowAt:
+                        row.last_no_show_at instanceof Date
+                            ? row.last_no_show_at.toISOString()
+                            : new Date(row.last_no_show_at).toISOString(),
                     triggerType,
                 };
             });
