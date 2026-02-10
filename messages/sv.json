@@ -1215,7 +1215,7 @@
         },
         "nav": {
             "privacyPolicy": "Integritetspolicy",
-            "userAgreement": "Användaravtal (PuB)",
+            "userAgreement": "Användaravtal",
             "enrollmentChecklist": "Registreringsformulär",
             "parcelThreshold": "Matkassegränser",
             "noshowFollowup": "Uppföljning vid uteblivna"
@@ -1382,7 +1382,7 @@
             }
         },
         "userAgreement": {
-            "title": "Användaravtal (PuB)",
+            "title": "Användaravtal",
             "description": "Hantera användaravtalet som alla administratörer måste acceptera innan de kan använda systemet. Avtalet beskriver ansvar för hantering av personuppgifter.",
             "currentVersion": "Nuvarande version: {version}",
             "acceptedBy": "{count} användare har accepterat",

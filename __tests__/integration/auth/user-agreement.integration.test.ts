@@ -1,5 +1,5 @@
 /**
- * Integration tests for user agreement (PuB) functionality.
+ * Integration tests for user agreement functionality.
  *
  * Tests the complete flow of:
  * - Creating and versioning agreements
