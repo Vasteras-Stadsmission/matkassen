@@ -5,7 +5,7 @@
  * for testing various success and failure scenarios.
  */
 
-import type { SmsGateway, SendSmsRequest, SendSmsResponse } from "./sms-gateway";
+import type { SmsGateway, SendSmsRequest, SendSmsResponse, BalanceResult } from "./sms-gateway";
 
 export interface MockSmsCall {
     request: SendSmsRequest;
@@ -23,6 +23,35 @@ export class MockSmsGateway implements SmsGateway {
     private callCount = 0;
     private calls: MockSmsCall[] = [];
     private messageIdCounter = 0;
+    private balanceCredits: number = 999;
+    private balanceError: string | null = null;
+
+    /**
+     * Configure the balance check to return a specific credit count
+     */
+    mockBalance(credits: number): this {
+        this.balanceCredits = credits;
+        this.balanceError = null;
+        return this;
+    }
+
+    /**
+     * Configure the balance check to return an error
+     */
+    mockBalanceError(error: string): this {
+        this.balanceError = error;
+        return this;
+    }
+
+    /**
+     * Check balance (mock implementation)
+     */
+    async checkBalance(): Promise<BalanceResult> {
+        if (this.balanceError) {
+            return { success: false, error: this.balanceError };
+        }
+        return { success: true, credits: this.balanceCredits };
+    }
 
     /**
      * Configure the gateway to always succeed
@@ -57,6 +86,8 @@ export class MockSmsGateway implements SmsGateway {
         this.calls = [];
         this.behavior = { type: "success" };
         this.messageIdCounter = 0;
+        this.balanceCredits = 999;
+        this.balanceError = null;
         return this;
     }
 

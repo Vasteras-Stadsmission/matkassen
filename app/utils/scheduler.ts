@@ -11,6 +11,7 @@ import {
     sendSmsRecord,
     processQueuedSms,
     getSmsHealthStats,
+    checkBalanceBeforeBatch,
 } from "@/app/utils/sms/sms-service";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { parseDuration } from "@/app/utils/duration-parser";
@@ -103,6 +104,10 @@ const SMS_SEND_BATCH_SIZE = 5;
  * 3. Send loop for other intents: process queued SMS (enrollment, etc.)
  */
 async function processSmsJIT(): Promise<{ processed: number }> {
+    // Pre-batch balance check: skip entire batch if balance is known to be zero
+    const shouldProceed = await checkBalanceBeforeBatch();
+    if (!shouldProceed) return { processed: 0 };
+
     // Process pickup reminders using pure JIT
     const jitResult = await processRemindersJIT();
 

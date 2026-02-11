@@ -42,6 +42,7 @@ export async function createTestSms(overrides: {
     dismissed_by_user_id?: string;
     created_at?: Date;
     error_message?: string;
+    balance_failure?: boolean;
 }) {
     const db = await getTestDb();
     smsCounter++;
@@ -72,6 +73,7 @@ export async function createTestSms(overrides: {
             provider_message_id: overrides.provider_message_id,
             provider_status: overrides.provider_status,
             provider_status_updated_at: overrides.provider_status_updated_at,
+            balance_failure: overrides.balance_failure ?? false,
             dismissed_at: overrides.dismissed_at,
             dismissed_by_user_id: overrides.dismissed_by_user_id,
             // Allow explicit created_at for time-sensitive tests (defaults to DB now() if not provided)
@@ -209,5 +211,25 @@ export async function createTestProviderFailedSms(overrides: {
         provider_message_id: `msg_${Date.now()}`,
         provider_status: overrides.provider_status ?? "failed",
         provider_status_updated_at: new Date(TEST_NOW.getTime() + 60000), // 1 min after send
+    });
+}
+
+/**
+ * Create a failed SMS due to insufficient balance (balance_failure=true).
+ */
+export async function createTestBalanceFailedSms(overrides: {
+    household_id: string;
+    parcel_id?: string;
+    intent?: SmsIntent;
+    to_e164?: string;
+    text?: string;
+    error_message?: string;
+}) {
+    return createTestSms({
+        ...overrides,
+        status: "failed",
+        attempt_count: 1,
+        last_error_message: overrides.error_message ?? "HTTP 402",
+        balance_failure: true,
     });
 }

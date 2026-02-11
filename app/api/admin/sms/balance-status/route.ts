@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { getInsufficientBalanceStatus } from "@/app/utils/sms/sms-service";
-import { checkBalance } from "@/app/utils/sms/hello-sms";
+import { checkBalanceViaGateway } from "@/app/utils/sms/sms-gateway";
 import { logError } from "@/app/utils/logger";
 
 /**
@@ -22,7 +22,7 @@ export async function GET() {
 
         // Run balance check and failure status check in parallel
         const [balanceResult, failureStatus] = await Promise.all([
-            checkBalance(),
+            checkBalanceViaGateway(),
             getInsufficientBalanceStatus(),
         ]);
 

@@ -1,0 +1,1 @@
+ALTER TABLE "outgoing_sms" ADD COLUMN "balance_failure" boolean DEFAULT false NOT NULL;

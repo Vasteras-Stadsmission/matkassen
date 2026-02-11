@@ -1,5 +1,5 @@
 {
-  "id": "a5262736-0f5c-41e0-8a30-63964ce09d5c",
+  "id": "d9f53b10-a917-4396-b1ac-ae5c5bf04c2b",
   "prevId": "812727dd-3c92-49a9-b5eb-10112c22cf52",
   "version": "7",
   "dialect": "postgresql",
@@ -19,25 +19,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "deactivated_at": {
-          "name": "deactivated_at",
-          "type": "timestamp (1) with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deactivated_by": {
-          "name": "deactivated_by",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -163,25 +144,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "deactivated_at": {
-          "name": "deactivated_at",
-          "type": "timestamp (1) with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deactivated_by": {
-          "name": "deactivated_by",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -954,6 +916,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "balance_failure": {
+          "name": "balance_failure",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "dismissed_at": {
           "name": "dismissed_at",
           "type": "timestamp (1) with time zone",
@@ -1142,25 +1111,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "deactivated_at": {
-          "name": "deactivated_at",
-          "type": "timestamp (1) with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deactivated_by": {
-          "name": "deactivated_by",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},

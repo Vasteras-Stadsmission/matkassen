@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Alert, Button, Group, Text } from "@mantine/core";
 import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
 import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 import type { TranslationFunction } from "@/app/[locale]/types";
 
@@ -26,6 +27,7 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000;
  */
 export function SmsBalanceBanner() {
     const t = useTranslations() as TranslationFunction;
+    const { data: session } = useSession();
     const [status, setStatus] = useState<BalanceStatus | null>(null);
     const [retrying, setRetrying] = useState(false);
     const [retryResult, setRetryResult] = useState<{ count: number } | null>(null);
@@ -47,6 +49,9 @@ export function SmsBalanceBanner() {
     }, []);
 
     useEffect(() => {
+        // Only poll when user has an active session to avoid 401 errors
+        if (!session) return;
+
         let mounted = true;
 
         const check = async () => {
@@ -60,7 +65,7 @@ export function SmsBalanceBanner() {
             mounted = false;
             clearInterval(interval);
         };
-    }, [checkStatus]);
+    }, [checkStatus, session]);
 
     const handleRetry = async () => {
         setRetrying(true);

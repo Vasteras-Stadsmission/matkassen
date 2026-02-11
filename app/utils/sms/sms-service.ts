@@ -9,7 +9,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
-import { sendSmsViaGateway, type SendSmsResponse } from "./sms-gateway";
+import { sendSmsViaGateway, checkBalanceViaGateway, type SendSmsResponse } from "./sms-gateway";
 import { formatPickupSms, formatFoodParcelsEndedSms } from "./templates";
 import { isInsufficientBalanceError } from "./hello-sms";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
@@ -327,6 +327,7 @@ export async function updateSmsStatus(
         nextAttemptAt?: Date;
         incrementAttempt?: boolean;
         providerMessageId?: string;
+        balanceFailure?: boolean;
     } = {},
 ): Promise<void> {
     const updateData: Record<string, unknown> = {
@@ -344,6 +345,9 @@ export async function updateSmsStatus(
     } else if (status === "failed") {
         updateData.last_error_message = options.errorMessage;
         updateData.next_attempt_at = null; // Clear retry schedule on permanent failure
+        if (options.balanceFailure) {
+            updateData.balance_failure = true;
+        }
     } else if (status === "sent") {
         updateData.sent_at = Time.now().toUTC();
         // Clear any error message from previous failed attempts
@@ -663,7 +667,7 @@ export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
 
 // Handle SMS sending failures with simple retry logic
 async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Promise<void> {
-    const isBalanceError = isInsufficientBalanceError(result.httpStatus, result.error);
+    const isBalanceError = isInsufficientBalanceError(result.httpStatus);
     const currentAttempt = record.attemptCount + 1; // This is the attempt we just made
 
     // Balance errors fail immediately - they require human action (top up credits)
@@ -677,6 +681,7 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
         await updateSmsStatus(record.id, "failed", {
             errorMessage: result.error,
             incrementAttempt: true,
+            balanceFailure: true,
         });
 
         sendInsufficientBalanceSlackAlert().catch(err =>
@@ -1097,7 +1102,7 @@ async function handleJitFailure(
     pickupLatest: Date,
     result: SendSmsResponse,
 ): Promise<void> {
-    const isBalanceError = isInsufficientBalanceError(result.httpStatus, result.error);
+    const isBalanceError = isInsufficientBalanceError(result.httpStatus);
 
     // Balance errors fail immediately - manual retry via admin UI after topping up
     if (isBalanceError) {
@@ -1111,6 +1116,7 @@ async function handleJitFailure(
                 status: "failed",
                 last_error_message: result.error,
                 next_attempt_at: null,
+                balance_failure: true,
             })
             .where(eq(outgoingSms.id, smsId));
 
@@ -1688,7 +1694,7 @@ async function handleEndedSmsFailure(
     householdId: string,
     result: SendSmsResponse,
 ): Promise<void> {
-    const isBalanceError = isInsufficientBalanceError(result.httpStatus, result.error);
+    const isBalanceError = isInsufficientBalanceError(result.httpStatus);
 
     // Balance errors fail immediately - manual retry via admin UI after topping up
     if (isBalanceError) {
@@ -1702,6 +1708,7 @@ async function handleEndedSmsFailure(
                 status: "failed",
                 last_error_message: result.error,
                 next_attempt_at: null,
+                balance_failure: true,
             })
             .where(eq(outgoingSms.id, smsId));
 
@@ -1817,24 +1824,10 @@ export async function processFoodParcelsEndedJIT(): Promise<{ processed: number 
 }
 
 /**
- * SQL condition fragment matching balance-related error messages.
- * Reused by both the status query and the re-queue function.
- */
-const BALANCE_ERROR_SQL_CONDITION = sql`(
-    ${outgoingSms.last_error_message} ILIKE '%insufficient%'
-    OR ${outgoingSms.last_error_message} ILIKE '%no credits%'
-    OR ${outgoingSms.last_error_message} ILIKE '%out of credits%'
-    OR ${outgoingSms.last_error_message} ILIKE '%balance%'
-    OR ${outgoingSms.last_error_message} ILIKE '%saldo%'
-    OR ${outgoingSms.last_error_message} ILIKE '%payment required%'
-    OR ${outgoingSms.last_error_message} ILIKE '%402%'
-)`;
-
-/**
  * Check if there are recent SMS failures caused by insufficient balance.
  *
- * Looks for failed SMS records where the error message matches known balance-related
- * patterns and that have not been dismissed. Used by the admin API to show a warning banner.
+ * Uses the balance_failure boolean column set when a 402 is detected during send.
+ * Used by the admin API to show a warning banner.
  */
 export async function getInsufficientBalanceStatus(): Promise<{
     hasBalanceFailures: boolean;
@@ -1849,7 +1842,7 @@ export async function getInsufficientBalanceStatus(): Promise<{
             and(
                 eq(outgoingSms.status, "failed"),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
-                BALANCE_ERROR_SQL_CONDITION,
+                eq(outgoingSms.balance_failure, true),
             ),
         );
 
@@ -1866,23 +1859,26 @@ export async function getInsufficientBalanceStatus(): Promise<{
  *
  * Called manually by an admin after the organisation has topped up SMS credits.
  * Resets the records to "queued" so the scheduler picks them up on the next run.
+ * Also clears the balance_failure flag so they don't show up as balance failures again.
  *
  * @returns The number of SMS records that were re-queued
  */
 export async function requeueBalanceFailures(): Promise<number> {
+    const now = Time.now().toUTC();
     const result = await db
         .update(outgoingSms)
         .set({
             status: "queued",
             attempt_count: 0,
-            next_attempt_at: null,
+            next_attempt_at: now,
             last_error_message: null,
+            balance_failure: false,
         })
         .where(
             and(
                 eq(outgoingSms.status, "failed"),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
-                BALANCE_ERROR_SQL_CONDITION,
+                eq(outgoingSms.balance_failure, true),
             ),
         )
         .returning({ id: outgoingSms.id });
@@ -1895,9 +1891,49 @@ export async function requeueBalanceFailures(): Promise<number> {
 }
 
 /**
- * Send Slack alert when SMS sending fails due to insufficient balance.
+ * Pre-batch balance check. Returns false if balance is known to be zero,
+ * signalling the caller to skip the batch entirely.
+ *
+ * Fail-open: if the balance check errors or the response is malformed,
+ * we proceed with sends (individual 402s will still be caught).
  */
+export async function checkBalanceBeforeBatch(): Promise<boolean> {
+    try {
+        const result = await checkBalanceViaGateway();
+        if (result.success && typeof result.credits === "number" && result.credits <= 0) {
+            logger.warn({ credits: result.credits }, "SMS batch skipped - insufficient balance");
+            sendInsufficientBalanceSlackAlert().catch(err =>
+                logError("Failed to send balance Slack alert", err),
+            );
+            return false; // skip batch
+        }
+    } catch (error) {
+        // Fail-open: if balance check throws, proceed with sends
+        logger.debug({ error }, "Balance check threw, proceeding with SMS batch");
+    }
+    return true; // proceed
+}
+
+/**
+ * Send Slack alert when SMS sending fails due to insufficient balance.
+ * Rate-limited to at most once per 10 minutes to avoid spam when
+ * multiple SMS fail in the same batch.
+ */
+let lastBalanceAlertAt = 0;
+const BALANCE_ALERT_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+
+/** Reset Slack alert cooldown. Used by tests. */
+export function resetBalanceAlertCooldown(): void {
+    lastBalanceAlertAt = 0;
+}
+
 async function sendInsufficientBalanceSlackAlert(): Promise<void> {
+    const now = Date.now();
+    if (now - lastBalanceAlertAt < BALANCE_ALERT_COOLDOWN_MS) {
+        return; // Already alerted recently
+    }
+    lastBalanceAlertAt = now;
+
     const { sendSlackAlert } = await import("@/app/utils/notifications/slack");
 
     await sendSlackAlert({

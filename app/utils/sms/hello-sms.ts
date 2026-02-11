@@ -268,31 +268,16 @@ export const HTTP_INSUFFICIENT_CREDITS = 402;
 
 /**
  * Check if an SMS send failure was caused by insufficient account balance.
- * Matches HTTP 402 status or known error message patterns from HelloSMS.
+ * Only checks HTTP 402 status — the primary detection is the pre-batch
+ * balance check via checkBalance(). This is a safety net for per-send failures.
  */
-export function isInsufficientBalanceError(httpStatus?: number, errorMessage?: string): boolean {
-    if (httpStatus === HTTP_INSUFFICIENT_CREDITS) {
-        return true;
-    }
-    if (errorMessage) {
-        const lower = errorMessage.toLowerCase();
-        return (
-            lower.includes("insufficient") ||
-            lower.includes("no credits") ||
-            lower.includes("out of credits") ||
-            lower.includes("balance") ||
-            lower.includes("saldo") ||
-            lower.includes("payment required")
-        );
-    }
-    return false;
+export function isInsufficientBalanceError(httpStatus?: number): boolean {
+    return httpStatus === HTTP_INSUFFICIENT_CREDITS;
 }
 
-export interface BalanceResult {
-    success: boolean;
-    credits?: number;
-    error?: string;
-}
+// Re-export BalanceResult from sms-gateway.ts for backwards compatibility
+import type { BalanceResult } from "./sms-gateway";
+export type { BalanceResult };
 
 /**
  * Check the current SMS credit balance from HelloSMS.
@@ -332,8 +317,12 @@ export async function checkBalance(): Promise<BalanceResult> {
             return { success: false, error: statusText };
         }
 
-        const data = (await response.json()) as { credits?: number };
-        return { success: true, credits: data.credits ?? 0 };
+        const data = (await response.json()) as { credits?: unknown };
+        // Validate credits is actually a number — if not, treat as check failure (fail-open)
+        if (typeof data.credits === "number") {
+            return { success: true, credits: data.credits };
+        }
+        return { success: false, error: "Invalid balance response: missing credits field" };
     } catch (error) {
         return {
             success: false,
