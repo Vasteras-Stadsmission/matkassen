@@ -11,10 +11,7 @@ import {
     type ParcelTimeInfo,
 } from "@/app/utils/schedule/outside-hours-filter";
 import { getLocationSchedulesMap } from "@/app/utils/schedule/location-schedules-map";
-import {
-    getNoShowFollowupConfig,
-    queryNoShowFollowups,
-} from "@/app/db/queries/noshow-followups";
+import { getNoShowFollowupConfig, queryNoShowFollowups } from "@/app/db/queries/noshow-followups";
 
 // 24 hours in milliseconds - threshold for stale SMS
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
