@@ -466,6 +466,7 @@ describe("Issues API - Integration Tests", () => {
                 unresolvedHandouts: mainData.counts.unresolvedHandouts,
                 outsideHours: mainData.counts.outsideHours,
                 failedSms: mainData.counts.failedSms,
+                noShowFollowups: mainData.counts.noShowFollowups,
             });
         });
     });
