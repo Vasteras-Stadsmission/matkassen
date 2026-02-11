@@ -1106,10 +1106,14 @@ async function handleJitFailure(
 
     // Balance errors fail immediately - manual retry via admin UI after topping up
     if (isBalanceError) {
-        logError("SMS failed - insufficient balance (JIT)", new Error(result.error || "No credits"), {
-            smsId,
-            parcelId,
-        });
+        logError(
+            "SMS failed - insufficient balance (JIT)",
+            new Error(result.error || "No credits"),
+            {
+                smsId,
+                parcelId,
+            },
+        );
         await db
             .update(outgoingSms)
             .set({
@@ -1698,10 +1702,14 @@ async function handleEndedSmsFailure(
 
     // Balance errors fail immediately - manual retry via admin UI after topping up
     if (isBalanceError) {
-        logError("Food parcels ended SMS failed - insufficient balance", new Error(result.error || "No credits"), {
-            smsId,
-            householdId,
-        });
+        logError(
+            "Food parcels ended SMS failed - insufficient balance",
+            new Error(result.error || "No credits"),
+            {
+                smsId,
+                householdId,
+            },
+        );
         await db
             .update(outgoingSms)
             .set({

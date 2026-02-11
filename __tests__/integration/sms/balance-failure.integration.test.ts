@@ -122,7 +122,10 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
             });
 
             // Provider returns 200 with "Insufficient credits" in message — no longer triggers balance detection
-            const mockGateway = new MockSmsGateway().alwaysFail("Insufficient credits on account", 200);
+            const mockGateway = new MockSmsGateway().alwaysFail(
+                "Insufficient credits on account",
+                200,
+            );
             setSmsGateway(mockGateway);
 
             const readyRecords = await getSmsRecordsReadyForSending();
@@ -210,7 +213,9 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
         it("proceeds (fail-open) when balance check returns success but no credits field", async () => {
             // MockSmsGateway defaults to 999 credits, but test the error path
             // by configuring a balance error (simulates malformed response)
-            const mockGateway = new MockSmsGateway().mockBalanceError("Invalid balance response: missing credits field");
+            const mockGateway = new MockSmsGateway().mockBalanceError(
+                "Invalid balance response: missing credits field",
+            );
             setSmsGateway(mockGateway);
 
             const shouldProceed = await checkBalanceBeforeBatch();

@@ -307,13 +307,14 @@ export async function checkBalance(): Promise<BalanceResult> {
         const response = await fetch(balanceUrl, {
             method: "GET",
             headers: {
-                "Authorization": `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`,
+                Authorization: `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`,
             },
         });
 
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
-            const statusText = (body as { statusText?: string }).statusText || `HTTP ${response.status}`;
+            const statusText =
+                (body as { statusText?: string }).statusText || `HTTP ${response.status}`;
             return { success: false, error: statusText };
         }
 

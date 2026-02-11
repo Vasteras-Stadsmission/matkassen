@@ -29,9 +29,6 @@ export async function POST() {
         return NextResponse.json({ requeuedCount });
     } catch (error) {
         logError("Error retrying balance failures", error);
-        return NextResponse.json(
-            { error: "Failed to retry balance failures" },
-            { status: 500 },
-        );
+        return NextResponse.json({ error: "Failed to retry balance failures" }, { status: 500 });
     }
 }

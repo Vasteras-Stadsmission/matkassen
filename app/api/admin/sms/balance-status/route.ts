@@ -27,7 +27,9 @@ export async function GET() {
         ]);
 
         const hasInsufficientBalance =
-            (balanceResult.success && balanceResult.credits !== undefined && balanceResult.credits <= 0) ||
+            (balanceResult.success &&
+                balanceResult.credits !== undefined &&
+                balanceResult.credits <= 0) ||
             failureStatus.hasBalanceFailures;
 
         return NextResponse.json(
@@ -46,9 +48,6 @@ export async function GET() {
         );
     } catch (error) {
         logError("Error checking SMS balance status", error);
-        return NextResponse.json(
-            { error: "Failed to check SMS balance status" },
-            { status: 500 },
-        );
+        return NextResponse.json({ error: "Failed to check SMS balance status" }, { status: 500 });
     }
 }

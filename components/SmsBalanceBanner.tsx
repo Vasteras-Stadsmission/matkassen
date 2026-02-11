@@ -114,16 +114,10 @@ export function SmsBalanceBanner() {
                     <Text size="sm">
                         {t("smsBanner.description")}
                         {status.failedCount > 0 && (
-                            <>
-                                {" "}
-                                {t("smsBanner.affectedCount", { count: status.failedCount })}
-                            </>
+                            <> {t("smsBanner.affectedCount", { count: status.failedCount })}</>
                         )}
                         {retryResult && retryResult.count > 0 && (
-                            <>
-                                {" "}
-                                {t("smsBanner.retrySuccess", { count: retryResult.count })}
-                            </>
+                            <> {t("smsBanner.retrySuccess", { count: retryResult.count })}</>
                         )}
                     </Text>
                 </div>
