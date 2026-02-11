@@ -95,7 +95,54 @@ describe("Middleware API Authentication", () => {
     });
 
     /**
-     * TEST 3: Critical - CSP headers MUST be added to all API responses
+     * TEST 3: Regression - /api/admin/issues/count MUST return 401, not redirect
+     *
+     * HeaderSimple (the global nav bar) fetches this endpoint on every page,
+     * including the sign-in page. If this returned a redirect instead of 401,
+     * or if HeaderSimple used adminFetch (which converts 401 → window redirect),
+     * unauthenticated users hit an infinite redirect loop that overwhelms the
+     * server and triggers nginx 503 errors.
+     *
+     * See: fix/staging-503-redirect-loop
+     */
+    it("should return 401 (not redirect) for unauthenticated /api/admin/issues/count", async () => {
+        const request = new NextRequest("http://localhost:3000/api/admin/issues/count", {
+            method: "GET",
+        });
+
+        const response = await middleware(request);
+
+        // Must be a clean 401 JSON response, NOT a 3xx redirect
+        expect(response.status).toBe(401);
+        expect(response.headers.get("Content-Type")).toContain("application/json");
+        const body = await response.json();
+        expect(body.error).toBe("Unauthorized");
+    });
+
+    /**
+     * TEST 4: Callback URL must preserve query params after auth redirect
+     *
+     * When middleware redirects unauthenticated page requests to sign-in,
+     * query params (filters, page number, etc.) must survive the round-trip
+     * so users don't lose state after re-authenticating.
+     */
+    it("should preserve query params in callback URL when redirecting to sign-in", async () => {
+        const request = new NextRequest(
+            "http://localhost:3000/sv/households?status=active&page=3",
+            { method: "GET" },
+        );
+
+        const response = await middleware(request);
+
+        expect(response.status).toBe(307);
+        const location = response.headers.get("Location")!;
+        const redirectUrl = new URL(location);
+        const callbackUrl = redirectUrl.searchParams.get("callbackUrl")!;
+        expect(callbackUrl).toBe("/households?status=active&page=3");
+    });
+
+    /**
+     * TEST 5: Critical - CSP headers MUST be added to all API responses
      * This ensures security headers are always present, preventing XSS attacks
      */
     it("should add CSP headers to all API responses", async () => {

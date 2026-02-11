@@ -135,14 +135,16 @@ export default async function middleware(request: NextRequest) {
         // Create sign-in URL with the current URL as callbackUrl
         const signInUrl = new URL(`/${locale}/auth/signin`, request.nextUrl.origin);
 
-        // Strip the locale prefix from the callback URL to prevent duplication
-        let callbackUrl = new URL(request.url).pathname;
+        // Strip the locale prefix from the callback URL to prevent duplication,
+        // but preserve query params so users don't lose filter/page state after re-auth
+        const requestUrl = new URL(request.url);
+        let callbackPath = requestUrl.pathname;
         if (segments[1] && routing.locales.includes(segments[1] as any)) {
             // Remove the locale prefix (e.g., /sv/households → /households)
-            callbackUrl = "/" + segments.slice(2).join("/");
+            callbackPath = "/" + segments.slice(2).join("/");
         }
 
-        signInUrl.searchParams.set("callbackUrl", callbackUrl);
+        signInUrl.searchParams.set("callbackUrl", callbackPath + requestUrl.search);
 
         const redirectResponse = NextResponse.redirect(signInUrl);
         return addCSPHeaders(redirectResponse);

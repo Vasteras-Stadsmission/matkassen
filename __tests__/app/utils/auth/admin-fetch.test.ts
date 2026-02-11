@@ -24,7 +24,7 @@ beforeEach(async () => {
 
     // Mock window.location (not writable by default)
     Object.defineProperty(window, "location", {
-        value: { pathname: "/households", href: "", reload: vi.fn() },
+        value: { pathname: "/households", search: "", href: "", reload: vi.fn() },
         writable: true,
         configurable: true,
     });
@@ -146,6 +146,7 @@ describe("adminFetch", () => {
 
     it("preserves the current page path in the callback URL", async () => {
         window.location.pathname = "/households/abc123/edit";
+        window.location.search = "";
 
         vi.mocked(global.fetch).mockResolvedValueOnce({
             ok: false,
@@ -187,6 +188,7 @@ describe("adminFetch", () => {
 
     it("correctly encodes special characters in the callback URL", async () => {
         window.location.pathname = "/households/söderström/edit";
+        window.location.search = "";
 
         vi.mocked(global.fetch).mockResolvedValueOnce({
             ok: false,
@@ -198,6 +200,26 @@ describe("adminFetch", () => {
         await vi.advanceTimersByTimeAsync(0);
         expect(window.location.href).toBe(
             `/api/auth/signin?callbackUrl=${encodeURIComponent("/households/söderström/edit")}`,
+        );
+    });
+
+    // --- Scenario: User is on a filtered/paginated view when session expires ---
+    // Query params must survive the sign-in round-trip so they don't lose their filters
+
+    it("preserves query params in the callback URL", async () => {
+        window.location.pathname = "/households";
+        window.location.search = "?status=active&page=3";
+
+        vi.mocked(global.fetch).mockResolvedValueOnce({
+            ok: false,
+            status: 401,
+        } as Response);
+
+        adminFetch("/api/admin/issues");
+
+        await vi.advanceTimersByTimeAsync(0);
+        expect(window.location.href).toBe(
+            `/api/auth/signin?callbackUrl=${encodeURIComponent("/households?status=active&page=3")}`,
         );
     });
 });
