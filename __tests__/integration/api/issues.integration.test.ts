@@ -18,8 +18,11 @@ import {
     createTestHousehold,
     createTestLocationWithSchedule,
     createTestParcel,
+    createTestNoShowParcel,
+    createTestPickedUpParcel,
     createTestFailedSms,
     createTestSms,
+    createTestGlobalSetting,
     resetHouseholdCounter,
     resetLocationCounter,
     resetSmsCounter,
@@ -427,6 +430,7 @@ describe("Issues API - Integration Tests", () => {
 
         it("should match the lightweight count endpoint", async () => {
             const household = await createTestHousehold({ first_name: "Badge" });
+            const noshowHousehold = await createTestHousehold({ first_name: "NoShow" });
             const { location } = await createTestLocationWithSchedule(
                 {},
                 { weekdays: ["monday"], openingTime: "09:00", closingTime: "17:00" },
@@ -455,12 +459,27 @@ describe("Issues API - Integration Tests", () => {
             // failedSms
             await createTestFailedSms({ household_id: household.id, parcel_id: outsideParcel.id });
 
+            // noShowFollowups - 2 consecutive no-shows (meets default threshold of 2)
+            await createTestNoShowParcel({
+                household_id: noshowHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-3),
+                no_show_at: daysFromTestNow(-3),
+            });
+            await createTestNoShowParcel({
+                household_id: noshowHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-2),
+                no_show_at: daysFromTestNow(-2),
+            });
+
             const mainResponse = await GET();
             const mainData = await mainResponse.json();
 
             const countResponse = await GET_COUNT();
             const countData = await countResponse.json();
 
+            expect(mainData.counts.noShowFollowups).toBeGreaterThan(0);
             expect(countData).toEqual({
                 total: mainData.counts.total,
                 unresolvedHandouts: mainData.counts.unresolvedHandouts,
@@ -468,6 +487,140 @@ describe("Issues API - Integration Tests", () => {
                 failedSms: mainData.counts.failedSms,
                 noShowFollowups: mainData.counts.noShowFollowups,
             });
+        });
+    });
+
+    describe("No-Show Followups", () => {
+        it("should count no-show followups exceeding consecutive threshold", async () => {
+            const household = await createTestHousehold({ first_name: "ConsecNS" });
+            const { location } = await createTestLocationWithSchedule();
+
+            // 2 consecutive no-shows (default consecutive threshold = 2)
+            await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-3),
+                no_show_at: daysFromTestNow(-3),
+            });
+            await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-2),
+                no_show_at: daysFromTestNow(-2),
+            });
+
+            const response = await GET();
+            const data = await response.json();
+            expect(data.noShowFollowups).toHaveLength(1);
+            expect(data.noShowFollowups[0].householdFirstName).toBe("ConsecNS");
+            expect(data.counts.noShowFollowups).toBe(1);
+
+            // Count endpoint should agree
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+            expect(countData.noShowFollowups).toBe(1);
+        });
+
+        it("should count no-show followups exceeding total threshold", async () => {
+            const household = await createTestHousehold({ first_name: "TotalNS" });
+            const { location } = await createTestLocationWithSchedule();
+
+            // 4 no-shows interspersed with pickups (breaks consecutive, hits total threshold = 4)
+            // Pattern: noshow, pickup, noshow, pickup, noshow, pickup, noshow
+            for (let i = 0; i < 7; i++) {
+                const date = daysFromTestNow(-8 + i);
+                if (i % 2 === 0) {
+                    // no-show
+                    await createTestNoShowParcel({
+                        household_id: household.id,
+                        pickup_location_id: location.id,
+                        pickup_date_time_earliest: date,
+                        no_show_at: date,
+                    });
+                } else {
+                    // pickup (breaks consecutive streak)
+                    await createTestPickedUpParcel({
+                        household_id: household.id,
+                        pickup_location_id: location.id,
+                        pickup_date_time_earliest: date,
+                        picked_up_at: date,
+                    });
+                }
+            }
+
+            const response = await GET();
+            const data = await response.json();
+            expect(data.noShowFollowups).toHaveLength(1);
+            expect(data.noShowFollowups[0].householdFirstName).toBe("TotalNS");
+            expect(data.noShowFollowups[0].totalNoShows).toBe(4);
+            expect(data.counts.noShowFollowups).toBe(1);
+
+            // Count endpoint should agree
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+            expect(countData.noShowFollowups).toBe(1);
+        });
+
+        it("should return 0 when noshow followup is disabled", async () => {
+            await createTestGlobalSetting("noshow_followup_enabled", "false");
+
+            const household = await createTestHousehold({ first_name: "Disabled" });
+            const { location } = await createTestLocationWithSchedule();
+
+            // Create qualifying no-show data (2 consecutive)
+            await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-3),
+                no_show_at: daysFromTestNow(-3),
+            });
+            await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-2),
+                no_show_at: daysFromTestNow(-2),
+            });
+
+            const response = await GET();
+            const data = await response.json();
+            expect(data.noShowFollowups).toHaveLength(0);
+            expect(data.counts.noShowFollowups).toBe(0);
+
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+            expect(countData.noShowFollowups).toBe(0);
+        });
+
+        it("should exclude dismissed followups", async () => {
+            const household = await createTestHousehold({
+                first_name: "Dismissed",
+                // Dismissed AFTER the last no-show
+                noshow_followup_dismissed_at: daysFromTestNow(-1),
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            // 2 consecutive no-shows at day -3 and -2 (before dismissal at day -1)
+            await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-3),
+                no_show_at: daysFromTestNow(-3),
+            });
+            await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: daysFromTestNow(-2),
+                no_show_at: daysFromTestNow(-2),
+            });
+
+            const response = await GET();
+            const data = await response.json();
+            expect(data.noShowFollowups).toHaveLength(0);
+            expect(data.counts.noShowFollowups).toBe(0);
+
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+            expect(countData.noShowFollowups).toBe(0);
         });
     });
 
