@@ -26,7 +26,6 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { IconQrcode } from "@tabler/icons-react";
-import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 
 import classes from "./HeaderSimple.module.css";
 
@@ -55,7 +54,11 @@ export function HeaderSimple() {
     useEffect(() => {
         const fetchIssuesCount = async () => {
             try {
-                const response = await adminFetch("/api/admin/issues/count");
+                // NOTE: Use plain fetch() here, NOT adminFetch(). The header renders
+                // on every page including the sign-in page. Using adminFetch would
+                // redirect unauthenticated users on 401, causing an infinite redirect
+                // loop that overwhelms the server and triggers nginx 503 errors.
+                const response = await fetch("/api/admin/issues/count");
                 if (response.ok) {
                     const data = await response.json();
                     if (typeof data.total === "number") {
