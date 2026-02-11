@@ -18,7 +18,7 @@ const ELIGIBILITY_GRACE_MS = 30 * 60 * 1000; // 30 minutes
 const authConfig: NextAuthConfig = {
     session: {
         strategy: "jwt",
-        maxAge: 12 * 60 * 60, // 12 hours
+        maxAge: 90 * 24 * 60 * 60, // 90 days — org membership is re-checked every 10 min regardless
     },
     providers: [
         GitHub({
