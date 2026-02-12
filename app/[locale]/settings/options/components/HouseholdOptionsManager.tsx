@@ -399,15 +399,6 @@ export function HouseholdOptionsManager() {
                                                 >
                                                     {t("usageCount", { count: option.usageCount })}
                                                 </Badge>
-                                                <Badge
-                                                    size="sm"
-                                                    color={option.isActive ? "green" : "orange"}
-                                                    variant="light"
-                                                >
-                                                    {option.isActive
-                                                        ? t("status.active")
-                                                        : t("status.disabled")}
-                                                </Badge>
                                             </Group>
 
                                             <Group gap="xs" align="center">
@@ -420,7 +411,11 @@ export function HouseholdOptionsManager() {
                                                             event.currentTarget.checked,
                                                         )
                                                     }
-                                                    label={t("statusToggle")}
+                                                    label={
+                                                        option.isActive
+                                                            ? t("status.active")
+                                                            : t("status.disabled")
+                                                    }
                                                     disabled={togglingOptionId === option.id}
                                                 />
                                                 <ActionIcon
