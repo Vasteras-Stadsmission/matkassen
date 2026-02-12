@@ -10,6 +10,8 @@ interface CounterInputProps {
     size?: "xs" | "sm" | "md" | "lg" | "xl";
     inputWidth?: string | number;
     disabled?: boolean;
+    disableIncrement?: boolean;
+    disableDirectInput?: boolean;
 }
 
 export function CounterInput({
@@ -20,6 +22,8 @@ export function CounterInput({
     size = "md",
     inputWidth = "60px",
     disabled = false,
+    disableIncrement = false,
+    disableDirectInput = false,
 }: CounterInputProps) {
     // Use a ref to track the latest value to ensure proper sequential updates
     const valueRef = React.useRef(value);
@@ -67,7 +71,7 @@ export function CounterInput({
                 min={min}
                 max={max}
                 hideControls
-                disabled={disabled}
+                disabled={disabled || disableDirectInput}
                 styles={{
                     input: {
                         width: inputWidth,
@@ -83,7 +87,7 @@ export function CounterInput({
                 onClick={increment}
                 size={actionIconSize}
                 radius="md"
-                disabled={disabled || value >= max}
+                disabled={disabled || disableIncrement || value >= max}
             >
                 <IconPlus size={iconSize} />
             </ActionIcon>

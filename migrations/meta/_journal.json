@@ -330,6 +330,13 @@
       "when": 1770661534000,
       "tag": "0046_fuzzy_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1770889282566,
+      "tag": "0047_bitter_thor",
+      "breakpoints": true
     }
   ]
 }

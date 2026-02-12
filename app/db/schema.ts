@@ -101,6 +101,9 @@ export const petSpecies = pgTable("pet_species_types", {
         .notNull()
         .$defaultFn(() => nanoid(8)),
     name: text("name").notNull().unique(), // e.g., dog, cat, bunny, bird...
+    is_active: boolean("is_active").notNull().default(true),
+    deactivated_at: timestamp({ precision: 1, withTimezone: true }),
+    deactivated_by: varchar("deactivated_by", { length: 50 }),
 });
 
 export const pets = pgTable("pets", {
@@ -408,6 +411,9 @@ export const dietaryRestrictions = pgTable("dietary_restrictions", {
         .notNull()
         .$defaultFn(() => nanoid(8)),
     name: text("name").notNull().unique(), // e.g., gluten, lactose, pork...
+    is_active: boolean("is_active").notNull().default(true),
+    deactivated_at: timestamp({ precision: 1, withTimezone: true }),
+    deactivated_by: varchar("deactivated_by", { length: 50 }),
 });
 
 export const householdAdditionalNeeds = pgTable(
@@ -431,6 +437,9 @@ export const additionalNeeds = pgTable("additional_needs", {
         .notNull()
         .$defaultFn(() => nanoid(8)),
     need: text("need").notNull().unique(), // e.g., diapers, bus pass, cleaning supplies...
+    is_active: boolean("is_active").notNull().default(true),
+    deactivated_at: timestamp({ precision: 1, withTimezone: true }),
+    deactivated_by: varchar("deactivated_by", { length: 50 }),
 });
 
 // CSP violation reports table for security monitoring

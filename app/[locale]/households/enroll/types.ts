@@ -19,18 +19,21 @@ export interface DietaryRestriction {
     id: string;
     name: string;
     isCustom?: boolean;
+    isActive?: boolean;
 }
 
 export interface AdditionalNeed {
     id: string;
     need: string;
     isCustom?: boolean;
+    isActive?: boolean;
 }
 
 export interface PetSpecies {
     id: string;
     name: string;
     isCustom?: boolean;
+    isActive?: boolean;
 }
 
 export interface Pet {

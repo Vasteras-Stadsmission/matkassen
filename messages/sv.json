@@ -247,7 +247,7 @@
     },
     "dietaryRestrictions": {
         "title": "Matrestriktioner",
-        "description": "Välj matrestriktioner som gäller för hushållet. Du kan välja från listan eller lägga till egna restriktioner.",
+        "description": "Välj matrestriktioner som gäller för hushållet.",
         "loading": "Laddar matrestriktioner...",
         "noRestrictions": "Inga matrestriktioner tillagda",
         "addNew": "Lägg till ny restriktion",
@@ -260,6 +260,7 @@
         "removeConfirmQuestion": "Vill du ta bort följande matrestriktion från din ansökan?",
         "cancel": "Avbryt",
         "remove": "Ta bort",
+        "disabledLabel": "Inaktiv",
         "validation": {
             "minLength": "Matrestriktion måste vara minst 2 tecken"
         }
@@ -279,6 +280,7 @@
         "removeConfirmQuestion": "Vill du ta bort följande husdjurstyp från din ansökan?",
         "cancel": "Avbryt",
         "remove": "Ta bort",
+        "disabledLabel": "Inaktiv",
         "defaultPetType": "Husdjurstyp {index}",
         "unknownPetType": "Okänd",
         "validation": {
@@ -287,13 +289,14 @@
     },
     "additionalNeeds": {
         "title": "Ytterligare behov",
-        "description": "Välj ytterligare behov som hushållet kan ha. Du kan välja från listan eller lägga till egna behov.",
+        "description": "Välj ytterligare behov som hushållet kan ha.",
         "noNeeds": "Inga ytterligare behov tillagda",
         "loading": "Laddar ytterligare behov...",
         "addNew": "Lägg till nytt behov",
         "newNeed": "Nytt behov",
         "placeholderExample": "T.ex. Rakhyvlar, Schampo, etc.",
         "add": "Lägg till",
+        "disabledLabel": "Inaktiv",
         "validation": {
             "minLength": "Behov måste vara minst 2 tecken"
         }
@@ -726,6 +729,7 @@
             "unknown": "Okänt fel",
             "create": "Ett fel uppstod vid skapande av hushåll",
             "update": "Ett fel uppstod vid uppdatering av hushåll",
+            "optionNotAvailable": "Ett eller flera valda alternativ är inte längre tillgängliga. Granska valen och försök igen.",
             "verificationQuestionsLoadFailed": "Kunde inte ladda verifieringsfrågor. Kan inte fortsätta utan att slutföra obligatoriska kontroller.",
             "retry": "Försök igen"
         },
@@ -1284,20 +1288,28 @@
         },
         "householdOptions": {
             "title": "Hushållsalternativ",
-            "description": "Hantera kostbegränsningar, djurtyper och övriga behov som visas vid registrering av hushåll.",
+            "description": "Hantera kostbegränsningar, djurtyper och övriga behov som visas i skapa/redigera hushåll.",
             "tabs": {
                 "dietaryRestrictions": "Kostbegränsningar",
                 "petTypes": "Djurtyper",
                 "additionalNeeds": "Övriga behov"
             },
             "addButton": "Lägg till",
+            "statusToggle": "Aktiv",
+            "status": {
+                "active": "Aktiv",
+                "disabled": "Inaktiv"
+            },
+            "linkedHouseholds": {
+                "title": "Kopplade hushåll"
+            },
             "usageCount": "{count, plural, =0 {Används inte} =1 {1 hushåll} other {# hushåll}}",
             "emptyState": {
                 "dietaryRestrictions": "Inga kostbegränsningar än. Lägg till vanliga begränsningar som \"Glutenfri\" eller \"Halal\".",
                 "petTypes": "Inga djurtyper än. Lägg till vanliga djur som \"Hund\" eller \"Katt\".",
                 "additionalNeeds": "Inga övriga behov än. Lägg till behov som \"Blöjor\" eller \"Busskort\"."
             },
-            "infoAlert": "Dessa alternativ visas i formuläret för registrering av hushåll. Ändringar påverkar alla hushåll som använder dessa alternativ.",
+            "infoAlert": "Använd reglaget för att inaktivera alternativ utan att ta bort dem. Inaktiva alternativ syns i guiden men kan inte väljas på nytt.",
             "form": {
                 "nameLabel": "Namn",
                 "namePlaceholder": {
@@ -1336,6 +1348,8 @@
                 "created": "Alternativ skapat",
                 "updated": "Alternativ uppdaterat",
                 "deleted": "Alternativ borttaget",
+                "activated": "Alternativ aktiverat",
+                "deactivated": "Alternativ inaktiverat",
                 "error": "Fel",
                 "success": "Lyckades",
                 "loadError": "Kunde inte ladda alternativ",

@@ -247,7 +247,7 @@
     },
     "dietaryRestrictions": {
         "title": "Dietary Restrictions",
-        "description": "Select dietary restrictions that apply to the household. You can choose from the list or add your own restrictions.",
+        "description": "Select dietary restrictions that apply to the household.",
         "loading": "Loading dietary restrictions...",
         "noRestrictions": "No dietary restrictions added",
         "addNew": "Add new restriction",
@@ -260,6 +260,7 @@
         "removeConfirmQuestion": "Do you want to remove the following dietary restriction from your application?",
         "cancel": "Cancel",
         "remove": "Remove",
+        "disabledLabel": "Disabled",
         "validation": {
             "minLength": "Dietary restriction must be at least 2 characters"
         }
@@ -279,6 +280,7 @@
         "removeConfirmQuestion": "Do you want to remove the following pet type from your application?",
         "cancel": "Cancel",
         "remove": "Remove",
+        "disabledLabel": "Disabled",
         "defaultPetType": "Pet type {index}",
         "unknownPetType": "Unknown",
         "validation": {
@@ -287,13 +289,14 @@
     },
     "additionalNeeds": {
         "title": "Additional Needs",
-        "description": "Select additional needs that the household may have. You can choose from the list or add your own needs.",
+        "description": "Select additional needs that the household may have.",
         "noNeeds": "No additional needs added",
         "loading": "Loading additional needs...",
         "addNew": "Add new need",
         "newNeed": "New need",
         "placeholderExample": "E.g. Razors, Shampoo, etc.",
         "add": "Add",
+        "disabledLabel": "Disabled",
         "validation": {
             "minLength": "Need must be at least 2 characters"
         }
@@ -726,6 +729,7 @@
             "unknown": "Unknown error",
             "create": "An error occurred while creating the household",
             "update": "An error occurred while updating the household",
+            "optionNotAvailable": "One or more selected options are no longer available. Please review and try again.",
             "verificationQuestionsLoadFailed": "Failed to load verification questions. Cannot proceed without completing required checks.",
             "retry": "Retry"
         },
@@ -1284,20 +1288,28 @@
         },
         "householdOptions": {
             "title": "Household Options",
-            "description": "Manage dietary restrictions, pet types, and additional needs that appear during household enrollment.",
+            "description": "Manage dietary restrictions, pet types, and additional needs that appear in household create/edit flows.",
             "tabs": {
                 "dietaryRestrictions": "Dietary Restrictions",
                 "petTypes": "Pet Types",
                 "additionalNeeds": "Additional Needs"
             },
             "addButton": "Add",
+            "statusToggle": "Enabled",
+            "status": {
+                "active": "Active",
+                "disabled": "Disabled"
+            },
+            "linkedHouseholds": {
+                "title": "Linked households"
+            },
             "usageCount": "{count, plural, =0 {Not used} =1 {1 household} other {# households}}",
             "emptyState": {
                 "dietaryRestrictions": "No dietary restrictions yet. Add common restrictions like \"Gluten-free\" or \"Halal\".",
                 "petTypes": "No pet types yet. Add common pets like \"Dog\" or \"Cat\".",
                 "additionalNeeds": "No additional needs yet. Add needs like \"Diapers\" or \"Bus pass\"."
             },
-            "infoAlert": "These options appear in the household enrollment form. Changes affect all households using these options.",
+            "infoAlert": "Use the toggle to disable options without deleting them. Disabled options stay visible in the wizard but cannot be newly selected.",
             "form": {
                 "nameLabel": "Name",
                 "namePlaceholder": {
@@ -1336,6 +1348,8 @@
                 "created": "Option created",
                 "updated": "Option updated",
                 "deleted": "Option deleted",
+                "activated": "Option enabled",
+                "deactivated": "Option disabled",
                 "error": "Error",
                 "success": "Success",
                 "loadError": "Failed to load options",
