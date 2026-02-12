@@ -8,7 +8,15 @@
  */
 
 import { db } from "@/app/db/drizzle";
-import { households, householdComments, outgoingSms, foodParcels } from "@/app/db/schema";
+import {
+    households,
+    householdComments,
+    outgoingSms,
+    foodParcels,
+    householdDietaryRestrictions,
+    householdAdditionalNeeds,
+    pets,
+} from "@/app/db/schema";
 import { eq, and, gte, isNull, sql, desc } from "drizzle-orm";
 import { logger, logError } from "@/app/utils/logger";
 
@@ -102,10 +110,19 @@ async function anonymizeHousehold(
             })
             .where(eq(households.id, householdId));
 
-        // 2. Delete comments (hard delete)
+        // 2. Remove option/pet links so anonymized households never block option pruning
+        await tx
+            .delete(householdDietaryRestrictions)
+            .where(eq(householdDietaryRestrictions.household_id, householdId));
+        await tx
+            .delete(householdAdditionalNeeds)
+            .where(eq(householdAdditionalNeeds.household_id, householdId));
+        await tx.delete(pets).where(eq(pets.household_id, householdId));
+
+        // 3. Delete comments (hard delete)
         await tx.delete(householdComments).where(eq(householdComments.household_id, householdId));
 
-        // 3. Delete SMS records (hard delete)
+        // 4. Delete SMS records (hard delete)
         await tx.delete(outgoingSms).where(eq(outgoingSms.household_id, householdId));
     });
 

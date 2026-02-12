@@ -14,7 +14,7 @@ import {
     householdComments,
     users,
 } from "@/app/db/schema";
-import { eq, and, gt, ne, isNull } from "drizzle-orm";
+import { eq, and, gt, ne, isNull, inArray } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
 import {
     protectedAgreementHouseholdAction,
@@ -32,6 +32,113 @@ export interface HouseholdUpdateResult {
     success: boolean;
     householdId?: string;
     error?: string;
+}
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+class OptionNotAvailableError extends Error {
+    readonly code = "OPTION_NOT_AVAILABLE";
+
+    constructor() {
+        super("error.optionNotAvailable");
+    }
+}
+
+function dedupeIds(ids: string[]): string[] {
+    return [...new Set(ids.filter(Boolean))];
+}
+
+async function ensureSelectableDietaryRestrictions(
+    tx: DbTransaction,
+    householdId: string,
+    selectedRestrictions: FormData["dietaryRestrictions"],
+) {
+    const selectedIds = dedupeIds(selectedRestrictions.map(restriction => restriction.id));
+    if (selectedIds.length === 0) return;
+
+    const existingLinks = await tx
+        .select({ id: householdDietaryRestrictions.dietary_restriction_id })
+        .from(householdDietaryRestrictions)
+        .where(eq(householdDietaryRestrictions.household_id, householdId));
+    const existingIds = new Set(existingLinks.map(link => link.id));
+
+    const options = await tx
+        .select({ id: dietaryRestrictions.id, isActive: dietaryRestrictions.is_active })
+        .from(dietaryRestrictions)
+        .where(inArray(dietaryRestrictions.id, selectedIds));
+
+    const optionById = new Map(options.map(option => [option.id, option]));
+    const invalid = selectedRestrictions.find(restriction => {
+        const option = optionById.get(restriction.id);
+        if (!option) return true;
+        return !option.isActive && !existingIds.has(restriction.id);
+    });
+
+    if (invalid) {
+        throw new OptionNotAvailableError();
+    }
+}
+
+async function ensureSelectablePetSpecies(
+    tx: DbTransaction,
+    householdId: string,
+    selectedPets: FormData["pets"],
+) {
+    const selectedSpeciesIds = dedupeIds(selectedPets.map(pet => pet.species));
+    if (selectedSpeciesIds.length === 0) return;
+
+    const existingSpecies = await tx
+        .select({ id: pets.pet_species_id })
+        .from(pets)
+        .where(eq(pets.household_id, householdId));
+    const existingIds = new Set(existingSpecies.map(pet => pet.id));
+
+    const options = await tx
+        .select({ id: petSpecies.id, isActive: petSpecies.is_active })
+        .from(petSpecies)
+        .where(inArray(petSpecies.id, selectedSpeciesIds));
+
+    const optionById = new Map(options.map(option => [option.id, option]));
+    const invalid = selectedPets.find(pet => {
+        const option = optionById.get(pet.species);
+        if (!option) return true;
+        return !option.isActive && !existingIds.has(pet.species);
+    });
+
+    if (invalid) {
+        throw new OptionNotAvailableError();
+    }
+}
+
+async function ensureSelectableAdditionalNeeds(
+    tx: DbTransaction,
+    householdId: string,
+    selectedNeeds: FormData["additionalNeeds"],
+) {
+    const selectedIds = dedupeIds(selectedNeeds.map(need => need.id));
+    if (selectedIds.length === 0) return;
+
+    const existingLinks = await tx
+        .select({ id: householdAdditionalNeeds.additional_need_id })
+        .from(householdAdditionalNeeds)
+        .where(eq(householdAdditionalNeeds.household_id, householdId));
+    const existingIds = new Set(existingLinks.map(link => link.id));
+
+    const options = await tx
+        .select({ id: additionalNeeds.id, isActive: additionalNeeds.is_active })
+        .from(additionalNeeds)
+        .where(inArray(additionalNeeds.id, selectedIds));
+
+    const optionById = new Map(options.map(option => [option.id, option]));
+    const invalid = selectedNeeds.find(need => {
+        const option = optionById.get(need.id);
+        if (!option) return true;
+        return !option.isActive && !existingIds.has(need.id);
+    });
+
+    if (invalid) {
+        throw new OptionNotAvailableError();
+    }
 }
 
 // Function to format household details from DB format to form format for editing
@@ -327,85 +434,36 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                 }
 
                 // 3. Handle dietary restrictions - first delete existing restrictions
+                await ensureSelectableDietaryRestrictions(
+                    tx,
+                    household.id,
+                    data.dietaryRestrictions,
+                );
+
                 await tx
                     .delete(householdDietaryRestrictions)
                     .where(eq(householdDietaryRestrictions.household_id, household.id));
 
                 // Then add updated restrictions
                 if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
-                    // First, ensure all dietary restrictions exist in the database
-                    for (const restriction of data.dietaryRestrictions) {
-                        // Check if the restriction exists
-                        const [existingRestriction] = await tx
-                            .select()
-                            .from(dietaryRestrictions)
-                            .where(eq(dietaryRestrictions.id, restriction.id))
-                            .limit(1);
-
-                        // If not found, create it
-                        if (!existingRestriction) {
-                            const [newRestriction] = await tx
-                                .insert(dietaryRestrictions)
-                                .values({
-                                    name: restriction.name,
-                                })
-                                .returning();
-                            restriction.id = newRestriction.id;
-                        }
-                    }
-
                     // Then link restrictions to the household
                     await tx.insert(householdDietaryRestrictions).values(
-                        data.dietaryRestrictions.map(restriction => ({
-                            household_id: household.id,
-                            dietary_restriction_id: restriction.id,
-                        })),
+                        dedupeIds(data.dietaryRestrictions.map(restriction => restriction.id)).map(
+                            restrictionId => ({
+                                household_id: household.id,
+                                dietary_restriction_id: restrictionId,
+                            }),
+                        ),
                     );
                 }
 
                 // 4. Handle pets - first delete existing pets
+                await ensureSelectablePetSpecies(tx, household.id, data.pets);
+
                 await tx.delete(pets).where(eq(pets.household_id, household.id));
 
                 // Then add updated pets
                 if (data.pets && data.pets.length > 0) {
-                    // First, ensure all pet species exist in the database
-                    for (const pet of data.pets) {
-                        // Check if the species exists
-                        let existingPetSpecies: { id: string; name: string } | undefined;
-
-                        if (pet.species) {
-                            [existingPetSpecies] = await tx
-                                .select()
-                                .from(petSpecies)
-                                .where(eq(petSpecies.id, pet.species))
-                                .limit(1);
-                        }
-
-                        // If not found and we have a species name, create it
-                        if (!existingPetSpecies && pet.speciesName) {
-                            const [existingByName] = await tx
-                                .select()
-                                .from(petSpecies)
-                                .where(eq(petSpecies.name, pet.speciesName))
-                                .limit(1);
-
-                            if (existingByName) {
-                                pet.species = existingByName.id;
-                            } else {
-                                // Create the pet species without specifying id (let DB generate it)
-                                const [newSpecies] = await tx
-                                    .insert(petSpecies)
-                                    .values({
-                                        name: pet.speciesName,
-                                    })
-                                    .returning();
-
-                                // Assign the generated id to pet.species
-                                pet.species = newSpecies.id;
-                            }
-                        }
-                    }
-
                     // Then add pets to the database
                     await tx.insert(pets).values(
                         data.pets.map(pet => ({
@@ -416,42 +474,19 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                 }
 
                 // 5. Handle additional needs - first delete existing needs
+                await ensureSelectableAdditionalNeeds(tx, household.id, data.additionalNeeds);
+
                 await tx
                     .delete(householdAdditionalNeeds)
                     .where(eq(householdAdditionalNeeds.household_id, household.id));
 
                 // Then add updated needs
                 if (data.additionalNeeds && data.additionalNeeds.length > 0) {
-                    // First, ensure all additional needs exist in the database
-                    const customNeeds = data.additionalNeeds.filter(n => n.isCustom);
-
-                    for (const need of customNeeds) {
-                        const [existingNeed] = await tx
-                            .select()
-                            .from(additionalNeeds)
-                            .where(eq(additionalNeeds.need, need.need))
-                            .limit(1);
-
-                        // If not found, create it
-                        if (!existingNeed) {
-                            // Create without specifying id
-                            const [newNeed] = await tx
-                                .insert(additionalNeeds)
-                                .values({
-                                    need: need.need,
-                                })
-                                .returning();
-
-                            // Use the generated id
-                            need.id = newNeed.id;
-                        }
-                    }
-
                     // Then link needs to the household
                     await tx.insert(householdAdditionalNeeds).values(
-                        data.additionalNeeds.map(need => ({
+                        dedupeIds(data.additionalNeeds.map(need => need.id)).map(needId => ({
                             household_id: household.id,
-                            additional_need_id: need.id,
+                            additional_need_id: needId,
                         })),
                     );
                 }
@@ -576,6 +611,13 @@ export const updateHousehold = protectedAgreementHouseholdAction(
 
             return success({ householdId: household.id });
         } catch (error: unknown) {
+            if (error instanceof OptionNotAvailableError) {
+                return failure({
+                    code: error.code,
+                    message: error.message,
+                });
+            }
+
             logError("Error updating household", error, {
                 action: "updateHousehold",
                 householdId: household.id,

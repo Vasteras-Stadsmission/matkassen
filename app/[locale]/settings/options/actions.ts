@@ -10,9 +10,10 @@ import {
     pets,
     additionalNeeds,
     householdAdditionalNeeds,
+    households,
     nanoid,
 } from "@/app/db/schema";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, and, isNull, isNotNull, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
@@ -30,10 +31,17 @@ function revalidateOptionsPage() {
 // Types
 // ============================================================================
 
+interface LinkedHousehold {
+    id: string;
+    name: string;
+}
+
 export interface OptionWithUsage {
     id: string;
     name: string;
+    isActive: boolean;
     usageCount: number;
+    linkedHouseholds: LinkedHousehold[];
 }
 
 export interface CreateOptionData {
@@ -44,6 +52,130 @@ export interface UpdateOptionData {
     name: string;
 }
 
+interface OptionRow {
+    id: string;
+    name: string;
+    isActive: boolean;
+}
+
+interface OptionLinkRow {
+    optionId: string;
+    householdId: string;
+    firstName: string;
+    lastName: string;
+}
+
+function toOptionWithUsage(options: OptionRow[], links: OptionLinkRow[]): OptionWithUsage[] {
+    const linksByOptionId = new Map<string, Map<string, LinkedHousehold>>();
+
+    for (const link of links) {
+        const optionLinks =
+            linksByOptionId.get(link.optionId) ?? new Map<string, LinkedHousehold>();
+
+        if (!optionLinks.has(link.householdId)) {
+            optionLinks.set(link.householdId, {
+                id: link.householdId,
+                name: `${link.firstName} ${link.lastName}`.trim(),
+            });
+        }
+
+        linksByOptionId.set(link.optionId, optionLinks);
+    }
+
+    return options.map(option => {
+        const linkedHouseholds = Array.from(linksByOptionId.get(option.id)?.values() ?? []).sort(
+            (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+        );
+
+        return {
+            ...option,
+            usageCount: linkedHouseholds.length,
+            linkedHouseholds,
+        };
+    });
+}
+
+async function getAnonymizedHouseholdIds(): Promise<string[]> {
+    const rows = await db
+        .select({ id: households.id })
+        .from(households)
+        .where(isNotNull(households.anonymized_at));
+
+    return rows.map(row => row.id);
+}
+
+async function listDietaryRestrictionsWithUsage(): Promise<OptionWithUsage[]> {
+    const options = await db
+        .select({
+            id: dietaryRestrictions.id,
+            name: dietaryRestrictions.name,
+            isActive: dietaryRestrictions.is_active,
+        })
+        .from(dietaryRestrictions)
+        .orderBy(asc(dietaryRestrictions.name));
+
+    const links = await db
+        .select({
+            optionId: householdDietaryRestrictions.dietary_restriction_id,
+            householdId: households.id,
+            firstName: households.first_name,
+            lastName: households.last_name,
+        })
+        .from(householdDietaryRestrictions)
+        .innerJoin(households, eq(householdDietaryRestrictions.household_id, households.id))
+        .where(isNull(households.anonymized_at));
+
+    return toOptionWithUsage(options, links);
+}
+
+async function listPetSpeciesWithUsage(): Promise<OptionWithUsage[]> {
+    const options = await db
+        .select({
+            id: petSpecies.id,
+            name: petSpecies.name,
+            isActive: petSpecies.is_active,
+        })
+        .from(petSpecies)
+        .orderBy(asc(petSpecies.name));
+
+    const links = await db
+        .select({
+            optionId: pets.pet_species_id,
+            householdId: households.id,
+            firstName: households.first_name,
+            lastName: households.last_name,
+        })
+        .from(pets)
+        .innerJoin(households, eq(pets.household_id, households.id))
+        .where(isNull(households.anonymized_at));
+
+    return toOptionWithUsage(options, links);
+}
+
+async function listAdditionalNeedsWithUsage(): Promise<OptionWithUsage[]> {
+    const options = await db
+        .select({
+            id: additionalNeeds.id,
+            name: additionalNeeds.need,
+            isActive: additionalNeeds.is_active,
+        })
+        .from(additionalNeeds)
+        .orderBy(asc(additionalNeeds.need));
+
+    const links = await db
+        .select({
+            optionId: householdAdditionalNeeds.additional_need_id,
+            householdId: households.id,
+            firstName: households.first_name,
+            lastName: households.last_name,
+        })
+        .from(householdAdditionalNeeds)
+        .innerJoin(households, eq(householdAdditionalNeeds.household_id, households.id))
+        .where(isNull(households.anonymized_at));
+
+    return toOptionWithUsage(options, links);
+}
+
 // ============================================================================
 // Dietary Restrictions
 // ============================================================================
@@ -51,21 +183,7 @@ export interface UpdateOptionData {
 export const listDietaryRestrictions = protectedAction(
     async (): Promise<ActionResult<OptionWithUsage[]>> => {
         try {
-            const restrictions = await db
-                .select({
-                    id: dietaryRestrictions.id,
-                    name: dietaryRestrictions.name,
-                    usageCount: sql<number>`count(${householdDietaryRestrictions.household_id})::int`,
-                })
-                .from(dietaryRestrictions)
-                .leftJoin(
-                    householdDietaryRestrictions,
-                    eq(dietaryRestrictions.id, householdDietaryRestrictions.dietary_restriction_id),
-                )
-                .groupBy(dietaryRestrictions.id, dietaryRestrictions.name)
-                .orderBy(asc(dietaryRestrictions.name));
-
-            return success(restrictions);
+            return success(await listDietaryRestrictionsWithUsage());
         } catch (error) {
             logError("Error fetching dietary restrictions", error);
             return failure({
@@ -88,7 +206,6 @@ export const createDietaryRestriction = protectedAction(
 
             const trimmedName = data.name.trim();
 
-            // Check for duplicate name
             const existing = await db
                 .select()
                 .from(dietaryRestrictions)
@@ -111,7 +228,13 @@ export const createDietaryRestriction = protectedAction(
                 .returning();
 
             revalidateOptionsPage();
-            return success({ ...newRestriction, usageCount: 0 });
+            return success({
+                id: newRestriction.id,
+                name: newRestriction.name,
+                isActive: newRestriction.is_active,
+                usageCount: 0,
+                linkedHouseholds: [],
+            });
         } catch (error) {
             logError("Error creating dietary restriction", error);
             return failure({
@@ -134,7 +257,6 @@ export const updateDietaryRestriction = protectedAction(
 
             const trimmedName = data.name.trim();
 
-            // Check for duplicate name (excluding current item)
             const existing = await db
                 .select()
                 .from(dietaryRestrictions)
@@ -161,16 +283,18 @@ export const updateDietaryRestriction = protectedAction(
                 });
             }
 
-            // Get usage count
-            const [usage] = await db
-                .select({
-                    count: sql<number>`count(*)::int`,
-                })
-                .from(householdDietaryRestrictions)
-                .where(eq(householdDietaryRestrictions.dietary_restriction_id, id));
+            const options = await listDietaryRestrictionsWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Dietary restriction not found",
+                });
+            }
 
             revalidateOptionsPage();
-            return success({ ...updated, usageCount: usage?.count ?? 0 });
+            return success(option);
         } catch (error) {
             logError("Error updating dietary restriction", error);
             return failure({
@@ -181,15 +305,88 @@ export const updateDietaryRestriction = protectedAction(
     },
 );
 
+export const setDietaryRestrictionActiveStatus = protectedAction(
+    async (session, id: string, isActive: boolean): Promise<ActionResult<OptionWithUsage>> => {
+        try {
+            const [updated] = await db
+                .update(dietaryRestrictions)
+                .set({
+                    is_active: isActive,
+                    deactivated_at: isActive ? null : new Date(),
+                    deactivated_by: isActive ? null : (session.user?.githubUsername ?? null),
+                })
+                .where(eq(dietaryRestrictions.id, id))
+                .returning();
+
+            if (!updated) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Dietary restriction not found",
+                });
+            }
+
+            const options = await listDietaryRestrictionsWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Dietary restriction not found",
+                });
+            }
+
+            revalidateOptionsPage();
+            return success(option);
+        } catch (error) {
+            logError("Error updating dietary restriction status", error);
+            return failure({
+                code: "UPDATE_FAILED",
+                message: "Failed to update dietary restriction status",
+            });
+        }
+    },
+);
+
 export const deleteDietaryRestriction = protectedAction(
     async (session, id: string): Promise<ActionResult<void>> => {
         try {
+            const options = await listDietaryRestrictionsWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Dietary restriction not found",
+                });
+            }
+
+            if (option.usageCount > 0) {
+                return failure({
+                    code: "OPTION_IN_USE",
+                    message: "Cannot delete dietary restriction that is in use by households",
+                });
+            }
+
+            const anonymizedHouseholdIds = await getAnonymizedHouseholdIds();
+            if (anonymizedHouseholdIds.length > 0) {
+                await db
+                    .delete(householdDietaryRestrictions)
+                    .where(
+                        and(
+                            eq(householdDietaryRestrictions.dietary_restriction_id, id),
+                            inArray(
+                                householdDietaryRestrictions.household_id,
+                                anonymizedHouseholdIds,
+                            ),
+                        ),
+                    );
+            }
+
             await db.delete(dietaryRestrictions).where(eq(dietaryRestrictions.id, id));
 
             revalidateOptionsPage();
             return success(undefined);
         } catch (error: unknown) {
-            // PostgreSQL foreign key violation
             if (error instanceof Error && "code" in error && error.code === "23503") {
                 return failure({
                     code: "OPTION_IN_USE",
@@ -212,18 +409,7 @@ export const deleteDietaryRestriction = protectedAction(
 export const listPetSpecies = protectedAction(
     async (): Promise<ActionResult<OptionWithUsage[]>> => {
         try {
-            const species = await db
-                .select({
-                    id: petSpecies.id,
-                    name: petSpecies.name,
-                    usageCount: sql<number>`count(distinct ${pets.household_id})::int`,
-                })
-                .from(petSpecies)
-                .leftJoin(pets, eq(petSpecies.id, pets.pet_species_id))
-                .groupBy(petSpecies.id, petSpecies.name)
-                .orderBy(asc(petSpecies.name));
-
-            return success(species);
+            return success(await listPetSpeciesWithUsage());
         } catch (error) {
             logError("Error fetching pet species", error);
             return failure({
@@ -246,7 +432,6 @@ export const createPetSpecies = protectedAction(
 
             const trimmedName = data.name.trim();
 
-            // Check for duplicate name
             const existing = await db
                 .select()
                 .from(petSpecies)
@@ -269,7 +454,13 @@ export const createPetSpecies = protectedAction(
                 .returning();
 
             revalidateOptionsPage();
-            return success({ ...newSpecies, usageCount: 0 });
+            return success({
+                id: newSpecies.id,
+                name: newSpecies.name,
+                isActive: newSpecies.is_active,
+                usageCount: 0,
+                linkedHouseholds: [],
+            });
         } catch (error) {
             logError("Error creating pet species", error);
             return failure({
@@ -292,7 +483,6 @@ export const updatePetSpecies = protectedAction(
 
             const trimmedName = data.name.trim();
 
-            // Check for duplicate name (excluding current item)
             const existing = await db
                 .select()
                 .from(petSpecies)
@@ -319,16 +509,18 @@ export const updatePetSpecies = protectedAction(
                 });
             }
 
-            // Get usage count
-            const [usage] = await db
-                .select({
-                    count: sql<number>`count(*)::int`,
-                })
-                .from(pets)
-                .where(eq(pets.pet_species_id, id));
+            const options = await listPetSpeciesWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Pet type not found",
+                });
+            }
 
             revalidateOptionsPage();
-            return success({ ...updated, usageCount: usage?.count ?? 0 });
+            return success(option);
         } catch (error) {
             logError("Error updating pet species", error);
             return failure({
@@ -339,15 +531,85 @@ export const updatePetSpecies = protectedAction(
     },
 );
 
+export const setPetSpeciesActiveStatus = protectedAction(
+    async (session, id: string, isActive: boolean): Promise<ActionResult<OptionWithUsage>> => {
+        try {
+            const [updated] = await db
+                .update(petSpecies)
+                .set({
+                    is_active: isActive,
+                    deactivated_at: isActive ? null : new Date(),
+                    deactivated_by: isActive ? null : (session.user?.githubUsername ?? null),
+                })
+                .where(eq(petSpecies.id, id))
+                .returning();
+
+            if (!updated) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Pet type not found",
+                });
+            }
+
+            const options = await listPetSpeciesWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Pet type not found",
+                });
+            }
+
+            revalidateOptionsPage();
+            return success(option);
+        } catch (error) {
+            logError("Error updating pet species status", error);
+            return failure({
+                code: "UPDATE_FAILED",
+                message: "Failed to update pet type status",
+            });
+        }
+    },
+);
+
 export const deletePetSpecies = protectedAction(
     async (session, id: string): Promise<ActionResult<void>> => {
         try {
+            const options = await listPetSpeciesWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Pet type not found",
+                });
+            }
+
+            if (option.usageCount > 0) {
+                return failure({
+                    code: "OPTION_IN_USE",
+                    message: "Cannot delete pet type that is in use by households",
+                });
+            }
+
+            const anonymizedHouseholdIds = await getAnonymizedHouseholdIds();
+            if (anonymizedHouseholdIds.length > 0) {
+                await db
+                    .delete(pets)
+                    .where(
+                        and(
+                            eq(pets.pet_species_id, id),
+                            inArray(pets.household_id, anonymizedHouseholdIds),
+                        ),
+                    );
+            }
+
             await db.delete(petSpecies).where(eq(petSpecies.id, id));
 
             revalidateOptionsPage();
             return success(undefined);
         } catch (error: unknown) {
-            // PostgreSQL foreign key violation
             if (error instanceof Error && "code" in error && error.code === "23503") {
                 return failure({
                     code: "OPTION_IN_USE",
@@ -370,21 +632,7 @@ export const deletePetSpecies = protectedAction(
 export const listAdditionalNeeds = protectedAction(
     async (): Promise<ActionResult<OptionWithUsage[]>> => {
         try {
-            const needs = await db
-                .select({
-                    id: additionalNeeds.id,
-                    name: additionalNeeds.need,
-                    usageCount: sql<number>`count(${householdAdditionalNeeds.household_id})::int`,
-                })
-                .from(additionalNeeds)
-                .leftJoin(
-                    householdAdditionalNeeds,
-                    eq(additionalNeeds.id, householdAdditionalNeeds.additional_need_id),
-                )
-                .groupBy(additionalNeeds.id, additionalNeeds.need)
-                .orderBy(asc(additionalNeeds.need));
-
-            return success(needs);
+            return success(await listAdditionalNeedsWithUsage());
         } catch (error) {
             logError("Error fetching additional needs", error);
             return failure({
@@ -407,7 +655,6 @@ export const createAdditionalNeed = protectedAction(
 
             const trimmedName = data.name.trim();
 
-            // Check for duplicate name
             const existing = await db
                 .select()
                 .from(additionalNeeds)
@@ -430,7 +677,13 @@ export const createAdditionalNeed = protectedAction(
                 .returning();
 
             revalidateOptionsPage();
-            return success({ id: newNeed.id, name: newNeed.need, usageCount: 0 });
+            return success({
+                id: newNeed.id,
+                name: newNeed.need,
+                isActive: newNeed.is_active,
+                usageCount: 0,
+                linkedHouseholds: [],
+            });
         } catch (error) {
             logError("Error creating additional need", error);
             return failure({
@@ -453,7 +706,6 @@ export const updateAdditionalNeed = protectedAction(
 
             const trimmedName = data.name.trim();
 
-            // Check for duplicate name (excluding current item)
             const existing = await db
                 .select()
                 .from(additionalNeeds)
@@ -480,16 +732,18 @@ export const updateAdditionalNeed = protectedAction(
                 });
             }
 
-            // Get usage count
-            const [usage] = await db
-                .select({
-                    count: sql<number>`count(*)::int`,
-                })
-                .from(householdAdditionalNeeds)
-                .where(eq(householdAdditionalNeeds.additional_need_id, id));
+            const options = await listAdditionalNeedsWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Additional need not found",
+                });
+            }
 
             revalidateOptionsPage();
-            return success({ id: updated.id, name: updated.need, usageCount: usage?.count ?? 0 });
+            return success(option);
         } catch (error) {
             logError("Error updating additional need", error);
             return failure({
@@ -500,15 +754,85 @@ export const updateAdditionalNeed = protectedAction(
     },
 );
 
+export const setAdditionalNeedActiveStatus = protectedAction(
+    async (session, id: string, isActive: boolean): Promise<ActionResult<OptionWithUsage>> => {
+        try {
+            const [updated] = await db
+                .update(additionalNeeds)
+                .set({
+                    is_active: isActive,
+                    deactivated_at: isActive ? null : new Date(),
+                    deactivated_by: isActive ? null : (session.user?.githubUsername ?? null),
+                })
+                .where(eq(additionalNeeds.id, id))
+                .returning();
+
+            if (!updated) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Additional need not found",
+                });
+            }
+
+            const options = await listAdditionalNeedsWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Additional need not found",
+                });
+            }
+
+            revalidateOptionsPage();
+            return success(option);
+        } catch (error) {
+            logError("Error updating additional need status", error);
+            return failure({
+                code: "UPDATE_FAILED",
+                message: "Failed to update additional need status",
+            });
+        }
+    },
+);
+
 export const deleteAdditionalNeed = protectedAction(
     async (session, id: string): Promise<ActionResult<void>> => {
         try {
+            const options = await listAdditionalNeedsWithUsage();
+            const option = options.find(item => item.id === id);
+
+            if (!option) {
+                return failure({
+                    code: "NOT_FOUND",
+                    message: "Additional need not found",
+                });
+            }
+
+            if (option.usageCount > 0) {
+                return failure({
+                    code: "OPTION_IN_USE",
+                    message: "Cannot delete additional need that is in use by households",
+                });
+            }
+
+            const anonymizedHouseholdIds = await getAnonymizedHouseholdIds();
+            if (anonymizedHouseholdIds.length > 0) {
+                await db
+                    .delete(householdAdditionalNeeds)
+                    .where(
+                        and(
+                            eq(householdAdditionalNeeds.additional_need_id, id),
+                            inArray(householdAdditionalNeeds.household_id, anonymizedHouseholdIds),
+                        ),
+                    );
+            }
+
             await db.delete(additionalNeeds).where(eq(additionalNeeds.id, id));
 
             revalidateOptionsPage();
             return success(undefined);
         } catch (error: unknown) {
-            // PostgreSQL foreign key violation
             if (error instanceof Error && "code" in error && error.code === "23503") {
                 return failure({
                     code: "OPTION_IN_USE",

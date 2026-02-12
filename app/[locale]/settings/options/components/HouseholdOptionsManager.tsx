@@ -17,24 +17,29 @@ import {
     Alert,
     Tabs,
     Tooltip,
+    Switch,
 } from "@mantine/core";
 import { IconPlus, IconEdit, IconTrash, IconInfoCircle } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { useTranslations } from "next-intl";
+import { Link } from "@/app/i18n/navigation";
 import {
     listDietaryRestrictions,
     createDietaryRestriction,
     updateDietaryRestriction,
     deleteDietaryRestriction,
+    setDietaryRestrictionActiveStatus,
     listPetSpecies,
     createPetSpecies,
     updatePetSpecies,
     deletePetSpecies,
+    setPetSpeciesActiveStatus,
     listAdditionalNeeds,
     createAdditionalNeed,
     updateAdditionalNeed,
     deleteAdditionalNeed,
+    setAdditionalNeedActiveStatus,
     type OptionWithUsage,
 } from "../actions";
 
@@ -79,6 +84,7 @@ export function HouseholdOptionsManager() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [togglingOptionId, setTogglingOptionId] = useState<string | null>(null);
     const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
     const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] =
         useDisclosure(false);
@@ -134,6 +140,38 @@ export function HouseholdOptionsManager() {
         }
     };
 
+    const refreshCurrentTab = async (): Promise<OptionWithUsage[] | null> => {
+        try {
+            let result;
+            switch (activeTab) {
+                case "dietaryRestrictions":
+                    result = await listDietaryRestrictions();
+                    if (result.success) {
+                        setDietaryOptions(result.data);
+                        return result.data;
+                    }
+                    break;
+                case "petTypes":
+                    result = await listPetSpecies();
+                    if (result.success) {
+                        setPetOptions(result.data);
+                        return result.data;
+                    }
+                    break;
+                case "additionalNeeds":
+                    result = await listAdditionalNeeds();
+                    if (result.success) {
+                        setNeedsOptions(result.data);
+                        return result.data;
+                    }
+                    break;
+            }
+        } catch {
+            // Ignore refresh errors - we still show the current stale snapshot
+        }
+        return null;
+    };
+
     const handleAddOption = () => {
         setEditingOption(null);
         setFormData({ name: "" });
@@ -147,45 +185,54 @@ export function HouseholdOptionsManager() {
     };
 
     const handleDeleteOption = async (option: OptionWithUsage) => {
-        // Refresh the option's usage count to handle concurrent changes
-        // (another admin may have added this option to a household since page load)
-        let freshOption: OptionWithUsage | undefined = option;
+        const refreshedOptions = await refreshCurrentTab();
+        const freshOption = refreshedOptions?.find(o => o.id === option.id);
+        setDeletingOption(freshOption ?? option);
+        openDeleteModal();
+    };
+
+    const handleToggleOption = async (option: OptionWithUsage, nextIsActive: boolean) => {
+        setTogglingOptionId(option.id);
 
         try {
             let result;
             switch (activeTab) {
                 case "dietaryRestrictions":
-                    result = await listDietaryRestrictions();
+                    result = await setDietaryRestrictionActiveStatus(option.id, nextIsActive);
                     break;
                 case "petTypes":
-                    result = await listPetSpecies();
+                    result = await setPetSpeciesActiveStatus(option.id, nextIsActive);
                     break;
                 case "additionalNeeds":
-                    result = await listAdditionalNeeds();
+                    result = await setAdditionalNeedActiveStatus(option.id, nextIsActive);
                     break;
             }
 
-            if (result?.success && result.data) {
-                freshOption = result.data.find(o => o.id === option.id);
-                // Update the local state with fresh data
-                switch (activeTab) {
-                    case "dietaryRestrictions":
-                        setDietaryOptions(result.data);
-                        break;
-                    case "petTypes":
-                        setPetOptions(result.data);
-                        break;
-                    case "additionalNeeds":
-                        setNeedsOptions(result.data);
-                        break;
-                }
+            if (result.success) {
+                notifications.show({
+                    title: t("notifications.success"),
+                    message: nextIsActive
+                        ? t("notifications.activated")
+                        : t("notifications.deactivated"),
+                    color: "green",
+                });
+                await loadAllOptions();
+            } else {
+                notifications.show({
+                    title: t("notifications.error"),
+                    message: getErrorMessage(result.error),
+                    color: "red",
+                });
             }
         } catch {
-            // If refresh fails, proceed with existing data
+            notifications.show({
+                title: t("notifications.error"),
+                message: t("notifications.saveError"),
+                color: "red",
+            });
+        } finally {
+            setTogglingOptionId(null);
         }
-
-        setDeletingOption(freshOption ?? option);
-        openDeleteModal();
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -197,7 +244,6 @@ export function HouseholdOptionsManager() {
             const data = { name: formData.name };
 
             if (editingOption) {
-                // Update
                 switch (activeTab) {
                     case "dietaryRestrictions":
                         result = await updateDietaryRestriction(editingOption.id, data);
@@ -210,7 +256,6 @@ export function HouseholdOptionsManager() {
                         break;
                 }
             } else {
-                // Create
                 switch (activeTab) {
                     case "dietaryRestrictions":
                         result = await createDietaryRestriction(data);
@@ -233,7 +278,7 @@ export function HouseholdOptionsManager() {
                     color: "green",
                 });
                 closeModal();
-                loadAllOptions();
+                await loadAllOptions();
             } else {
                 notifications.show({
                     title: t("notifications.error"),
@@ -278,7 +323,7 @@ export function HouseholdOptionsManager() {
                 });
                 closeDeleteModal();
                 setDeletingOption(null);
-                loadAllOptions();
+                await loadAllOptions();
             } else {
                 notifications.show({
                     title: t("notifications.error"),
@@ -339,47 +384,98 @@ export function HouseholdOptionsManager() {
                         <Stack gap="md">
                             {currentOptions.map(option => (
                                 <Card key={option.id} shadow="sm" padding="md" withBorder>
-                                    <Group justify="space-between" wrap="nowrap">
-                                        <Group gap="md" style={{ flex: 1 }}>
-                                            <Text fw={500}>{option.name}</Text>
-                                            <Badge
-                                                size="sm"
-                                                color={option.usageCount > 0 ? "blue" : "gray"}
-                                                variant="light"
-                                            >
-                                                {t("usageCount", { count: option.usageCount })}
-                                            </Badge>
-                                        </Group>
+                                    <Stack gap="sm">
+                                        <Group
+                                            justify="space-between"
+                                            align="flex-start"
+                                            wrap="nowrap"
+                                        >
+                                            <Group gap="md" style={{ flex: 1 }}>
+                                                <Text fw={500}>{option.name}</Text>
+                                                <Badge
+                                                    size="sm"
+                                                    color={option.usageCount > 0 ? "blue" : "gray"}
+                                                    variant="light"
+                                                >
+                                                    {t("usageCount", { count: option.usageCount })}
+                                                </Badge>
+                                                <Badge
+                                                    size="sm"
+                                                    color={option.isActive ? "green" : "orange"}
+                                                    variant="light"
+                                                >
+                                                    {option.isActive
+                                                        ? t("status.active")
+                                                        : t("status.disabled")}
+                                                </Badge>
+                                            </Group>
 
-                                        <Group gap="xs">
-                                            <ActionIcon
-                                                variant="subtle"
-                                                color="blue"
-                                                onClick={() => handleEditOption(option)}
-                                            >
-                                                <IconEdit size={16} />
-                                            </ActionIcon>
-                                            {option.usageCount > 0 ? (
-                                                <Tooltip label={t("delete.cannotDeleteTooltip")}>
+                                            <Group gap="xs" align="center">
+                                                <Switch
+                                                    size="sm"
+                                                    checked={option.isActive}
+                                                    onChange={event =>
+                                                        handleToggleOption(
+                                                            option,
+                                                            event.currentTarget.checked,
+                                                        )
+                                                    }
+                                                    label={t("statusToggle")}
+                                                    disabled={togglingOptionId === option.id}
+                                                />
+                                                <ActionIcon
+                                                    variant="subtle"
+                                                    color="blue"
+                                                    onClick={() => handleEditOption(option)}
+                                                >
+                                                    <IconEdit size={16} />
+                                                </ActionIcon>
+                                                {option.usageCount > 0 ? (
+                                                    <Tooltip
+                                                        label={t("delete.cannotDeleteTooltip")}
+                                                    >
+                                                        <ActionIcon
+                                                            variant="subtle"
+                                                            color="gray"
+                                                            disabled
+                                                        >
+                                                            <IconTrash size={16} />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                ) : (
                                                     <ActionIcon
                                                         variant="subtle"
-                                                        color="gray"
-                                                        disabled
+                                                        color="red"
+                                                        onClick={() => handleDeleteOption(option)}
                                                     >
                                                         <IconTrash size={16} />
                                                     </ActionIcon>
-                                                </Tooltip>
-                                            ) : (
-                                                <ActionIcon
-                                                    variant="subtle"
-                                                    color="red"
-                                                    onClick={() => handleDeleteOption(option)}
-                                                >
-                                                    <IconTrash size={16} />
-                                                </ActionIcon>
-                                            )}
+                                                )}
+                                            </Group>
                                         </Group>
-                                    </Group>
+
+                                        {option.linkedHouseholds.length > 0 && (
+                                            <Stack gap={4}>
+                                                <Text size="xs" c="dimmed">
+                                                    {t("linkedHouseholds.title")}
+                                                </Text>
+                                                <Group gap="xs">
+                                                    {option.linkedHouseholds.map(household => (
+                                                        <Badge
+                                                            key={household.id}
+                                                            component={Link}
+                                                            href={`/households/${household.id}`}
+                                                            variant="outline"
+                                                            color="gray"
+                                                            style={{ cursor: "pointer" }}
+                                                        >
+                                                            {household.name}
+                                                        </Badge>
+                                                    ))}
+                                                </Group>
+                                            </Stack>
+                                        )}
+                                    </Stack>
                                 </Card>
                             ))}
                         </Stack>
@@ -387,7 +483,6 @@ export function HouseholdOptionsManager() {
                 </div>
             </Stack>
 
-            {/* Add/Edit Modal */}
             <Modal
                 opened={modalOpened}
                 onClose={closeModal}
@@ -427,7 +522,6 @@ export function HouseholdOptionsManager() {
                 </form>
             </Modal>
 
-            {/* Delete Confirmation Modal */}
             <Modal
                 opened={deleteModalOpened}
                 onClose={closeDeleteModal}

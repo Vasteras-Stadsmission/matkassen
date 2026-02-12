@@ -16,7 +16,7 @@ import {
     pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
     householdComments,
 } from "@/app/db/schema";
-import { eq, and, sql, gte, lte, count } from "drizzle-orm";
+import { eq, and, sql, gte, lte, count, inArray, asc, desc } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { getStockholmDayUtcRange, getStockholmDateKey } from "@/app/utils/date-utils";
 import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
@@ -41,6 +41,83 @@ import {
     DietaryRestrictionData,
     AdditionalNeedData,
 } from "./types";
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+class OptionNotAvailableError extends Error {
+    readonly code = "OPTION_NOT_AVAILABLE";
+
+    constructor() {
+        super("error.optionNotAvailable");
+    }
+}
+
+function dedupeIds(ids: string[]): string[] {
+    return [...new Set(ids.filter(Boolean))];
+}
+
+async function ensureActiveDietaryRestrictions(
+    tx: DbTransaction,
+    restrictions: DietaryRestrictionData[],
+) {
+    const ids = dedupeIds(restrictions.map(restriction => restriction.id));
+    if (ids.length === 0) return;
+
+    const existing = await tx
+        .select({
+            id: dietaryRestrictionsTable.id,
+            isActive: dietaryRestrictionsTable.is_active,
+        })
+        .from(dietaryRestrictionsTable)
+        .where(inArray(dietaryRestrictionsTable.id, ids));
+
+    const activeIds = new Set(existing.filter(item => item.isActive).map(item => item.id));
+    const invalid = restrictions.find(restriction => !activeIds.has(restriction.id));
+    if (invalid) {
+        throw new OptionNotAvailableError();
+    }
+}
+
+async function ensureActivePetSpecies(
+    tx: DbTransaction,
+    pets: { species: string; speciesName?: string; count?: number }[],
+) {
+    const speciesIds = dedupeIds(pets.map(pet => pet.species));
+    if (speciesIds.length === 0) return;
+
+    const existing = await tx
+        .select({
+            id: petSpeciesTable.id,
+            isActive: petSpeciesTable.is_active,
+        })
+        .from(petSpeciesTable)
+        .where(inArray(petSpeciesTable.id, speciesIds));
+
+    const activeIds = new Set(existing.filter(item => item.isActive).map(item => item.id));
+    const invalid = pets.find(pet => !activeIds.has(pet.species));
+    if (invalid) {
+        throw new OptionNotAvailableError();
+    }
+}
+
+async function ensureActiveAdditionalNeeds(tx: DbTransaction, needs: AdditionalNeedData[]) {
+    const ids = dedupeIds(needs.map(need => need.id));
+    if (ids.length === 0) return;
+
+    const existing = await tx
+        .select({
+            id: additionalNeedsTable.id,
+            isActive: additionalNeedsTable.is_active,
+        })
+        .from(additionalNeedsTable)
+        .where(inArray(additionalNeedsTable.id, ids));
+
+    const activeIds = new Set(existing.filter(item => item.isActive).map(item => item.id));
+    const invalid = needs.find(need => !activeIds.has(need.id));
+    if (invalid) {
+        throw new OptionNotAvailableError();
+    }
+}
 
 export const enrollHousehold = protectedAgreementAction(
     async (session, data: HouseholdCreateData): Promise<ActionResult<{ householdId: string }>> => {
@@ -87,88 +164,22 @@ export const enrollHousehold = protectedAgreementAction(
 
                 // 3. Add dietary restrictions
                 if (data.dietaryRestrictions && data.dietaryRestrictions.length > 0) {
-                    // First, ensure all dietary restrictions exist in the database
-                    for (const restriction of data.dietaryRestrictions) {
-                        // Check if the dietary restriction already exists
-                        const [existingRestriction] = await tx
-                            .select()
-                            .from(dietaryRestrictionsTable)
-                            .where(eq(dietaryRestrictionsTable.id, restriction.id))
-                            .limit(1);
-
-                        // If not found by ID, check by name (for dummy data with r1, r2, etc.)
-                        if (!existingRestriction) {
-                            const [existingByName] = await tx
-                                .select()
-                                .from(dietaryRestrictionsTable)
-                                .where(eq(dietaryRestrictionsTable.name, restriction.name))
-                                .limit(1);
-
-                            // If found by name, use its ID instead
-                            if (existingByName) {
-                                restriction.id = existingByName.id;
-                            } else {
-                                // If not found at all, insert a new entry
-                                const [newRestriction] = await tx
-                                    .insert(dietaryRestrictionsTable)
-                                    .values({
-                                        name: restriction.name,
-                                    })
-                                    .returning();
-                                restriction.id = newRestriction.id;
-                            }
-                        }
-                    }
+                    await ensureActiveDietaryRestrictions(tx, data.dietaryRestrictions);
 
                     // Then link all restrictions to the household
                     await tx.insert(householdDietaryRestrictionsTable).values(
-                        data.dietaryRestrictions.map((restriction: DietaryRestrictionData) => ({
-                            household_id: household.id,
-                            dietary_restriction_id: restriction.id,
-                        })),
+                        dedupeIds(data.dietaryRestrictions.map(restriction => restriction.id)).map(
+                            restrictionId => ({
+                                household_id: household.id,
+                                dietary_restriction_id: restrictionId,
+                            }),
+                        ),
                     );
                 }
 
                 // 4. Add pets
                 if (data.pets && data.pets.length > 0) {
-                    // First, ensure all pet species exist in the database
-                    for (const pet of data.pets) {
-                        // Check if the pet species already exists
-                        let existingPetSpecies: { id: string; name: string } | undefined;
-
-                        if (pet.species) {
-                            [existingPetSpecies] = await tx
-                                .select()
-                                .from(petSpeciesTable)
-                                .where(eq(petSpeciesTable.id, pet.species))
-                                .limit(1);
-                        }
-
-                        // If not found by ID, check by name (in case it's a new species)
-                        if (!existingPetSpecies && pet.speciesName) {
-                            const [existingByName] = await tx
-                                .select()
-                                .from(petSpeciesTable)
-                                .where(eq(petSpeciesTable.name, pet.speciesName))
-                                .limit(1);
-
-                            // If found by name, use its ID instead
-                            if (existingByName) {
-                                pet.species = existingByName.id;
-                            } else {
-                                // If not found at all, insert a new entry
-                                const [newSpecies] = await tx
-                                    .insert(petSpeciesTable)
-                                    .values({
-                                        name: pet.speciesName,
-                                    })
-                                    .returning();
-
-                                // Update the species ID to the newly inserted ID
-                                pet.species = newSpecies.id;
-                            }
-                        }
-                    }
+                    await ensureActivePetSpecies(tx, data.pets);
 
                     // Then add all pets to the database
                     await tx.insert(petsTable).values(
@@ -183,37 +194,13 @@ export const enrollHousehold = protectedAgreementAction(
 
                 // 5. Add additional needs
                 if (data.additionalNeeds && data.additionalNeeds.length > 0) {
-                    // First, create any new additional needs that don't exist yet and update their IDs
-                    for (const need of data.additionalNeeds) {
-                        if (need.isCustom) {
-                            const [existingNeed] = await tx
-                                .select()
-                                .from(additionalNeedsTable)
-                                .where(eq(additionalNeedsTable.need, need.need))
-                                .limit(1);
-
-                            if (!existingNeed) {
-                                const [newNeed] = await tx
-                                    .insert(additionalNeedsTable)
-                                    .values({
-                                        need: need.need,
-                                    })
-                                    .returning();
-
-                                // Update the need ID to the newly inserted ID
-                                need.id = newNeed.id;
-                            } else {
-                                // Use the existing need's ID
-                                need.id = existingNeed.id;
-                            }
-                        }
-                    }
+                    await ensureActiveAdditionalNeeds(tx, data.additionalNeeds);
 
                     // Then link all needs to the household
                     await tx.insert(householdAdditionalNeedsTable).values(
-                        data.additionalNeeds.map((need: AdditionalNeedData) => ({
+                        dedupeIds(data.additionalNeeds.map(need => need.id)).map(needId => ({
                             household_id: household.id,
-                            additional_need_id: need.id,
+                            additional_need_id: needId,
                         })),
                     );
                 }
@@ -359,6 +346,12 @@ export const enrollHousehold = protectedAgreementAction(
             if (error instanceof ParcelValidationError) {
                 return validationFailure(error.message, error.validationErrors);
             }
+            if (error instanceof OptionNotAvailableError) {
+                return failure({
+                    code: error.code,
+                    message: error.message,
+                });
+            }
 
             logError("Error enrolling household", error, {
                 action: "enrollHousehold",
@@ -375,7 +368,14 @@ export const enrollHousehold = protectedAgreementAction(
 // Helper function to get all dietary restrictions
 export async function getDietaryRestrictions() {
     try {
-        return await db.select().from(dietaryRestrictionsTable);
+        return await db
+            .select({
+                id: dietaryRestrictionsTable.id,
+                name: dietaryRestrictionsTable.name,
+                isActive: dietaryRestrictionsTable.is_active,
+            })
+            .from(dietaryRestrictionsTable)
+            .orderBy(desc(dietaryRestrictionsTable.is_active), asc(dietaryRestrictionsTable.name));
     } catch (error) {
         logError("Error fetching dietary restrictions", error, {
             action: "getDietaryRestrictions",
@@ -387,7 +387,14 @@ export async function getDietaryRestrictions() {
 // Helper function to get all additional needs
 export async function getAdditionalNeeds() {
     try {
-        return await db.select().from(additionalNeedsTable);
+        return await db
+            .select({
+                id: additionalNeedsTable.id,
+                need: additionalNeedsTable.need,
+                isActive: additionalNeedsTable.is_active,
+            })
+            .from(additionalNeedsTable)
+            .orderBy(desc(additionalNeedsTable.is_active), asc(additionalNeedsTable.need));
     } catch (error) {
         logError("Error fetching additional needs", error, {
             action: "getAdditionalNeeds",
@@ -414,7 +421,14 @@ export async function getPickupLocations() {
  */
 export async function getPetSpecies() {
     try {
-        return await db.select().from(petSpeciesTable);
+        return await db
+            .select({
+                id: petSpeciesTable.id,
+                name: petSpeciesTable.name,
+                isActive: petSpeciesTable.is_active,
+            })
+            .from(petSpeciesTable)
+            .orderBy(desc(petSpeciesTable.is_active), asc(petSpeciesTable.name));
     } catch (error) {
         logError("Error fetching pet species", error, {
             action: "getPetSpecies",
