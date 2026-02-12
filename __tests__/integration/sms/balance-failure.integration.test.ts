@@ -2,14 +2,16 @@
  * Integration tests for SMS balance failure handling.
  *
  * Tests the full workflow:
- * - Pre-batch balance check skips batch when credits=0
- * - HTTP 402 during send sets balance_failure=true
+ * - Pre-batch balance check returns credit count (or null for fail-open)
+ * - Credit budget: credits=0 → fail-fast all as balance failures
+ * - Credit budget: credits=N → send N, fail-fast the rest
+ * - HTTP 402 during send sets balance_failure=true (safety net)
  * - getInsufficientBalanceStatus() uses boolean column
  * - requeueBalanceFailures() resets balance_failure flag
  * - Dismissed balance failures are excluded from requeue
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -24,6 +26,17 @@ import {
     resetSmsCounter,
 } from "../../factories";
 import { daysFromTestNow } from "../../test-time";
+
+// All 7 days so tests work regardless of which weekday TEST_NOW falls on
+const ALL_WEEKDAYS = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+] as const;
 import { outgoingSms } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
@@ -34,7 +47,8 @@ import {
     getInsufficientBalanceStatus,
     requeueBalanceFailures,
     resetBalanceAlertCooldown,
-    checkBalanceBeforeBatch,
+    getAvailableCredits,
+    processRemindersJIT,
 } from "@/app/utils/sms/sms-service";
 
 describe("SMS Balance Failure Handling - Integration Tests", () => {
@@ -185,41 +199,176 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
         });
     });
 
-    describe("Pre-batch balance check", () => {
-        it("skips batch when credits=0", async () => {
+    describe("Pre-batch balance check (getAvailableCredits)", () => {
+        it("returns 0 when credits=0", async () => {
             const mockGateway = new MockSmsGateway().mockBalance(0);
             setSmsGateway(mockGateway);
 
-            const shouldProceed = await checkBalanceBeforeBatch();
-            expect(shouldProceed).toBe(false);
+            const credits = await getAvailableCredits();
+            expect(credits).toBe(0);
         });
 
-        it("proceeds when credits > 0", async () => {
+        it("returns credit count when credits > 0", async () => {
             const mockGateway = new MockSmsGateway().mockBalance(100);
             setSmsGateway(mockGateway);
 
-            const shouldProceed = await checkBalanceBeforeBatch();
-            expect(shouldProceed).toBe(true);
+            const credits = await getAvailableCredits();
+            expect(credits).toBe(100);
         });
 
-        it("proceeds (fail-open) when balance check returns network error", async () => {
+        it("returns null (fail-open) when balance check returns network error", async () => {
             const mockGateway = new MockSmsGateway().mockBalanceError("Network timeout");
             setSmsGateway(mockGateway);
 
-            const shouldProceed = await checkBalanceBeforeBatch();
-            expect(shouldProceed).toBe(true);
+            const credits = await getAvailableCredits();
+            expect(credits).toBeNull();
         });
 
-        it("proceeds (fail-open) when balance check returns success but no credits field", async () => {
-            // MockSmsGateway defaults to 999 credits, but test the error path
-            // by configuring a balance error (simulates malformed response)
+        it("returns null (fail-open) when balance check returns malformed response", async () => {
             const mockGateway = new MockSmsGateway().mockBalanceError(
                 "Invalid balance response: missing credits field",
             );
             setSmsGateway(mockGateway);
 
-            const shouldProceed = await checkBalanceBeforeBatch();
-            expect(shouldProceed).toBe(true);
+            const credits = await getAvailableCredits();
+            expect(credits).toBeNull();
+        });
+    });
+
+    describe("Credit budget: fail-fast when credits exhausted", () => {
+        it("credits=0 fail-fasts all eligible parcels as balance failures", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: [...ALL_WEEKDAYS] },
+            );
+
+            // Create two eligible parcels
+            const tomorrow = daysFromTestNow(1);
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+            });
+
+            const household2 = await createTestHousehold();
+            await createTestParcel({
+                household_id: household2.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+            });
+
+            // Gateway should never be called
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            // Process with creditBudget=0
+            const result = await processRemindersJIT(0);
+
+            expect(result.sent).toBe(0);
+            expect(result.failedForBalance).toBe(2);
+            expect(result.processed).toBe(2);
+
+            // Gateway was never called
+            expect(mockGateway.getCallCount()).toBe(0);
+
+            // Both records should be failed with balance_failure=true
+            const allSms = await db.select().from(outgoingSms);
+            expect(allSms.length).toBe(2);
+            for (const sms of allSms) {
+                expect(sms.status).toBe("failed");
+                expect(sms.balance_failure).toBe(true);
+                expect(sms.last_error_message).toBe("Insufficient SMS credits");
+            }
+        });
+
+        it("credits=1 sends first SMS and fail-fasts the rest", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: [...ALL_WEEKDAYS] },
+            );
+
+            const tomorrow = daysFromTestNow(1);
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+            });
+
+            const household2 = await createTestHousehold();
+            await createTestParcel({
+                household_id: household2.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+            });
+
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            // processRemindersJIT uses setTimeout(1000) between sends.
+            // Integration tests run with vi.useFakeTimers(), so we must
+            // advance fake timers to unblock the delays.
+            const promise = processRemindersJIT(1);
+            await vi.runAllTimersAsync();
+            const result = await promise;
+
+            expect(result.sent).toBe(1);
+            expect(result.failedForBalance).toBe(1);
+            expect(result.processed).toBe(2);
+
+            // Gateway called exactly once
+            expect(mockGateway.getCallCount()).toBe(1);
+
+            // One sent, one failed for balance
+            const allSms = await db.select().from(outgoingSms);
+            const sentSms = allSms.filter(s => s.status === "sent");
+            const failedSms = allSms.filter(s => s.status === "failed");
+            expect(sentSms.length).toBe(1);
+            expect(failedSms.length).toBe(1);
+            expect(failedSms[0].balance_failure).toBe(true);
+        });
+
+        it("credits=undefined (fail-open) sends all SMS without limit", async () => {
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: [...ALL_WEEKDAYS] },
+            );
+
+            const tomorrow = daysFromTestNow(1);
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+            });
+
+            const household2 = await createTestHousehold();
+            await createTestParcel({
+                household_id: household2.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+            });
+
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            // Advance fake timers to unblock setTimeout delays in processRemindersJIT
+            const promise = processRemindersJIT(undefined);
+            await vi.runAllTimersAsync();
+            const result = await promise;
+
+            expect(result.sent).toBe(2);
+            expect(result.failedForBalance).toBe(0);
+            expect(mockGateway.getCallCount()).toBe(2);
         });
     });
 
@@ -355,9 +504,7 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
         it("requeue skips dismissed balance failures", async () => {
             const household = await createTestHousehold();
 
-            // Dismissed balance failure — note: createTestDismissedFailedSms doesn't set
-            // balance_failure=true by default, so this tests that dismissed records with
-            // balance_failure=false are correctly excluded
+            // Dismissed balance failure
             await createTestSms({
                 household_id: household.id,
                 status: "failed",
@@ -464,6 +611,54 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
             expect(sentRecord.status).toBe("sent");
             expect(sentRecord.sent_at).not.toBeNull();
             expect(sentRecord.attempt_count).toBe(1);
+        });
+    });
+
+    describe("Fail-fast lifecycle: balance=0 → fail-fast → requeue → send", () => {
+        it("fail-fasted SMS can be requeued and sent after credits restored", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { weekdays: [...ALL_WEEKDAYS] },
+            );
+
+            const tomorrow = daysFromTestNow(1);
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+            });
+
+            // Phase 1: Fail-fast with creditBudget=0
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            const result = await processRemindersJIT(0);
+            expect(result.failedForBalance).toBe(1);
+            expect(mockGateway.getCallCount()).toBe(0);
+
+            // Record exists as failed balance failure
+            const statusBefore = await getInsufficientBalanceStatus();
+            expect(statusBefore.failureCount).toBe(1);
+
+            // Phase 2: Admin requeues
+            const requeuedCount = await requeueBalanceFailures();
+            expect(requeuedCount).toBe(1);
+
+            // Phase 3: Send succeeds
+            const readyRecords = await getSmsRecordsReadyForSending();
+            expect(readyRecords.length).toBe(1);
+
+            for (const record of readyRecords) {
+                await sendSmsRecord(record);
+            }
+
+            const allSms = await db.select().from(outgoingSms);
+            expect(allSms.length).toBe(1);
+            expect(allSms[0].status).toBe("sent");
+            expect(allSms[0].balance_failure).toBe(false); // Cleared by requeue
         });
     });
 });

@@ -11,7 +11,8 @@ import {
     sendSmsRecord,
     processQueuedSms,
     getSmsHealthStats,
-    checkBalanceBeforeBatch,
+    getAvailableCredits,
+    sendInsufficientBalanceSlackAlert,
 } from "@/app/utils/sms/sms-service";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { parseDuration } from "@/app/utils/duration-parser";
@@ -99,24 +100,55 @@ const SMS_SEND_BATCH_SIZE = 5;
 /**
  * Process SMS: Pure JIT for reminders + ended notifications + queued SMS for other intents
  *
- * 1. Pure JIT for pickup_reminder: find parcels → render → send → create record
- * 2. Pure JIT for food_parcels_ended: find households → render → send → create record
+ * Pre-batch balance check determines the credit budget:
+ * - credits=0: JIT pipelines fail-fast all eligible SMS as balance failures (visible in Issues)
+ * - credits>0: send up to N, fail-fast remaining; queued SMS limited to remaining credits
+ * - credits=null (API error): fail-open, send without limit
+ *
+ * 1. Pure JIT for pickup_reminder: find parcels → render → send/fail-fast → create record
+ * 2. Pure JIT for food_parcels_ended: find households → render → send/fail-fast → create record
  * 3. Send loop for other intents: process queued SMS (enrollment, etc.)
  */
 async function processSmsJIT(): Promise<{ processed: number }> {
-    // Pre-batch balance check: skip entire batch if balance is known to be zero
-    const shouldProceed = await checkBalanceBeforeBatch();
-    if (!shouldProceed) return { processed: 0 };
+    // Check balance once for the entire batch
+    const credits = await getAvailableCredits();
+
+    if (credits === 0) {
+        logger.warn("SMS balance is zero - fail-fasting all eligible SMS as balance failures");
+        sendInsufficientBalanceSlackAlert().catch(err =>
+            logError("Failed to send balance Slack alert", err),
+        );
+    }
+
+    // Pass credit budget to JIT pipelines
+    // credits=null → undefined (fail-open, no limit)
+    // credits=0 → 0 (all eligible SMS will be fail-fasted)
+    let remainingCredits = credits;
 
     // Process pickup reminders using pure JIT
-    const jitResult = await processRemindersJIT();
+    const jitResult = await processRemindersJIT(remainingCredits ?? undefined);
+    if (remainingCredits !== null) {
+        remainingCredits = Math.max(0, remainingCredits - jitResult.sent);
+    }
 
     // Process "food parcels ended" notifications using pure JIT
-    const endedResult = await processFoodParcelsEndedJIT();
+    const endedResult = await processFoodParcelsEndedJIT(remainingCredits ?? undefined);
+    if (remainingCredits !== null) {
+        remainingCredits = Math.max(0, remainingCredits - endedResult.sent);
+    }
 
-    // Also process any queued SMS (enrollment, etc.)
+    // Process queued SMS (enrollment, etc.)
+    // Queued SMS already have records, so when credits=0 we just skip them
+    // (they'll be retried next run when credits are restored)
+    const queueBatchSize =
+        remainingCredits !== null
+            ? Math.min(SMS_SEND_BATCH_SIZE, remainingCredits)
+            : SMS_SEND_BATCH_SIZE;
+
     const queueResult = await processQueuedSms(async () => {
-        const records = await getSmsRecordsReadyForSending(SMS_SEND_BATCH_SIZE);
+        if (queueBatchSize === 0) return 0;
+
+        const records = await getSmsRecordsReadyForSending(queueBatchSize);
 
         let sentCount = 0;
         for (const record of records) {

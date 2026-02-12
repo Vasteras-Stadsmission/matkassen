@@ -1299,6 +1299,72 @@ export async function getSmsHealthStats(): Promise<{
 }
 
 /**
+ * Create a "failed" SMS record for a parcel when balance is insufficient.
+ * Unlike sendReminderForParcel, this does NOT call the gateway.
+ * The record is immediately visible in the admin Issues page.
+ */
+async function failReminderForBalance(parcel: {
+    parcelId: string;
+    householdId: string;
+    phone: string;
+    locale: string;
+    pickupDate: Date;
+}): Promise<{ recordId?: string }> {
+    const { formatPickupSms } = await import("./templates");
+    const { generateUrl } = await import("@/app/config/branding");
+
+    const id = nanoid(16);
+    const now = Time.now().toUTC();
+    const idempotencyKey = `pickup_reminder|${parcel.parcelId}`;
+
+    const publicUrl = generateUrl(`/p/${parcel.parcelId}`);
+    const smsText = formatPickupSms(
+        { pickupDate: parcel.pickupDate, publicUrl },
+        parcel.locale as SupportedLocale,
+    );
+
+    try {
+        await db.insert(outgoingSms).values({
+            id,
+            intent: "pickup_reminder",
+            parcel_id: parcel.parcelId,
+            household_id: parcel.householdId,
+            to_e164: parcel.phone,
+            text: smsText,
+            status: "failed",
+            attempt_count: 1,
+            next_attempt_at: null,
+            idempotency_key: idempotencyKey,
+            created_at: now,
+            last_error_message: "Insufficient SMS credits",
+            balance_failure: true,
+        });
+
+        logger.info(
+            { smsId: id, parcelId: parcel.parcelId },
+            "SMS failed for balance - record created for admin visibility",
+        );
+        return { recordId: id };
+    } catch (dbError: unknown) {
+        const errorObj = dbError as DbErrorShape;
+        const err = errorObj?.cause || errorObj;
+        const constraintName =
+            err?.constraint ||
+            err?.constraint_name ||
+            (err?.detail?.includes(SMS_IDEMPOTENCY_CONSTRAINT)
+                ? SMS_IDEMPOTENCY_CONSTRAINT
+                : undefined);
+        if (
+            err?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
+            constraintName === SMS_IDEMPOTENCY_CONSTRAINT
+        ) {
+            return {}; // Already exists
+        }
+        throw dbError;
+    }
+}
+
+/**
  * Pure JIT SMS processing for pickup reminders
  *
  * This is the main scheduler function for pure JIT:
@@ -1306,29 +1372,52 @@ export async function getSmsHealthStats(): Promise<{
  * 2. Finds all eligible parcels (within 48h, no existing SMS)
  * 3. For each: insert "sending" → send → update to "sent/failed"
  *
+ * When creditBudget is provided, only that many SMS are sent through the
+ * gateway. Any remaining eligible parcels get fail-fasted as balance
+ * failures (immediately visible in the Issues page).
+ *
  * Concurrency is handled by idempotency constraint on insert - if two
  * processes try the same parcel, the second insert fails and skips.
  *
- * @returns Count of SMS processed
+ * @param creditBudget - Max SMS to send. undefined = no limit (fail-open).
+ * @returns Count of SMS processed and credits consumed
  */
-export async function processRemindersJIT(): Promise<{ processed: number }> {
+export async function processRemindersJIT(
+    creditBudget?: number,
+): Promise<{ processed: number; sent: number; failedForBalance: number }> {
     // Recover any stale "sending" records from crashed processes
     await recoverStaleSendingRecords();
 
     const parcels = await getParcelsNeedingReminder();
 
     if (parcels.length === 0) {
-        return { processed: 0 };
+        return { processed: 0, sent: 0, failedForBalance: 0 };
     }
 
-    logger.info({ count: parcels.length }, "Processing eligible parcels for SMS (pure JIT)");
+    logger.info(
+        { count: parcels.length, creditBudget },
+        "Processing eligible parcels for SMS (pure JIT)",
+    );
 
     let processedCount = 0;
+    let sentCount = 0;
+    let failedForBalanceCount = 0;
 
     for (const parcel of parcels) {
+        // Budget exhausted - fail-fast remaining as balance failures
+        if (creditBudget !== undefined && sentCount >= creditBudget) {
+            const result = await failReminderForBalance(parcel);
+            if (result.recordId) {
+                processedCount++;
+                failedForBalanceCount++;
+            }
+            continue;
+        }
+
         const result = await sendReminderForParcel(parcel);
         if (result.recordId) {
             processedCount++;
+            sentCount++; // Gateway was called, count as credit consumed
         }
 
         // Small delay between sends to avoid rate limiting
@@ -1337,12 +1426,17 @@ export async function processRemindersJIT(): Promise<{ processed: number }> {
 
     if (processedCount > 0) {
         logger.info(
-            { processed: processedCount, total: parcels.length },
+            {
+                processed: processedCount,
+                sent: sentCount,
+                failedForBalance: failedForBalanceCount,
+                total: parcels.length,
+            },
             "SMS batch completed (pure JIT)",
         );
     }
 
-    return { processed: processedCount };
+    return { processed: processedCount, sent: sentCount, failedForBalance: failedForBalanceCount };
 }
 
 /**
@@ -1783,38 +1877,116 @@ async function handleEndedSmsFailure(
 }
 
 /**
+ * Create a "failed" SMS record for a household when balance is insufficient.
+ * Unlike sendEndedSmsForHousehold, this does NOT call the gateway.
+ * The record is immediately visible in the admin Issues page.
+ */
+async function failEndedSmsForBalance(household: {
+    householdId: string;
+    phoneNumber: string;
+    locale: string;
+    lastParcelId: string;
+}): Promise<{ recordId?: string }> {
+    const id = nanoid(16);
+    const now = Time.now().toUTC();
+    const idempotencyKey = `food_parcels_ended|${household.householdId}|${household.lastParcelId}`;
+
+    const smsText = formatFoodParcelsEndedSms(household.locale as SupportedLocale);
+
+    try {
+        await db.insert(outgoingSms).values({
+            id,
+            intent: "food_parcels_ended",
+            parcel_id: household.lastParcelId,
+            household_id: household.householdId,
+            to_e164: household.phoneNumber,
+            text: smsText,
+            status: "failed",
+            attempt_count: 1,
+            next_attempt_at: null,
+            idempotency_key: idempotencyKey,
+            created_at: now,
+            last_error_message: "Insufficient SMS credits",
+            balance_failure: true,
+        });
+
+        logger.info(
+            { smsId: id, householdId: household.householdId },
+            "Food parcels ended SMS failed for balance - record created for admin visibility",
+        );
+        return { recordId: id };
+    } catch (dbError: unknown) {
+        const errorObj = dbError as DbErrorShape;
+        const err = errorObj?.cause || errorObj;
+        const constraintName =
+            err?.constraint ||
+            err?.constraint_name ||
+            (err?.detail?.includes(SMS_IDEMPOTENCY_CONSTRAINT)
+                ? SMS_IDEMPOTENCY_CONSTRAINT
+                : undefined);
+        if (
+            err?.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION &&
+            constraintName === SMS_IDEMPOTENCY_CONSTRAINT
+        ) {
+            return {}; // Already exists
+        }
+        throw dbError;
+    }
+}
+
+/**
  * Pure JIT SMS processing for "food parcels ended" notifications
  *
  * This is called by the scheduler to:
  * 1. Find all eligible households (48h after terminal parcel, no future parcels)
  * 2. For each: insert "sending" → send → update to "sent/failed"
  *
+ * When creditBudget is provided, only that many SMS are sent through the
+ * gateway. Any remaining eligible households get fail-fasted as balance
+ * failures (immediately visible in the Issues page).
+ *
  * Concurrency is handled by idempotency constraint on insert - if two
  * processes try the same household/parcel combo, the second insert fails and skips.
  *
- * @returns Count of SMS processed
+ * @param creditBudget - Max SMS to send. undefined = no limit (fail-open).
+ * @returns Count of SMS processed and credits consumed
  */
-export async function processFoodParcelsEndedJIT(): Promise<{ processed: number }> {
+export async function processFoodParcelsEndedJIT(
+    creditBudget?: number,
+): Promise<{ processed: number; sent: number; failedForBalance: number }> {
     // Recover any stale "sending" records from crashed processes
     await recoverStaleSendingRecords();
 
-    const households = await getHouseholdsForEndedNotification();
+    const eligibleHouseholds = await getHouseholdsForEndedNotification();
 
-    if (households.length === 0) {
-        return { processed: 0 };
+    if (eligibleHouseholds.length === 0) {
+        return { processed: 0, sent: 0, failedForBalance: 0 };
     }
 
     logger.info(
-        { count: households.length },
+        { count: eligibleHouseholds.length, creditBudget },
         "Processing eligible households for food parcels ended SMS",
     );
 
     let processedCount = 0;
+    let sentCount = 0;
+    let failedForBalanceCount = 0;
 
-    for (const household of households) {
+    for (const household of eligibleHouseholds) {
+        // Budget exhausted - fail-fast remaining as balance failures
+        if (creditBudget !== undefined && sentCount >= creditBudget) {
+            const result = await failEndedSmsForBalance(household);
+            if (result.recordId) {
+                processedCount++;
+                failedForBalanceCount++;
+            }
+            continue;
+        }
+
         const result = await sendEndedSmsForHousehold(household);
         if (result.recordId) {
             processedCount++;
+            sentCount++; // Gateway was called, count as credit consumed
         }
 
         // Small delay between sends to avoid rate limiting
@@ -1823,12 +1995,17 @@ export async function processFoodParcelsEndedJIT(): Promise<{ processed: number 
 
     if (processedCount > 0) {
         logger.info(
-            { processed: processedCount, total: households.length },
+            {
+                processed: processedCount,
+                sent: sentCount,
+                failedForBalance: failedForBalanceCount,
+                total: eligibleHouseholds.length,
+            },
             "Food parcels ended SMS batch completed",
         );
     }
 
-    return { processed: processedCount };
+    return { processed: processedCount, sent: sentCount, failedForBalance: failedForBalanceCount };
 }
 
 /**
@@ -1899,27 +2076,25 @@ export async function requeueBalanceFailures(): Promise<number> {
 }
 
 /**
- * Pre-batch balance check. Returns false if balance is known to be zero,
- * signalling the caller to skip the batch entirely.
+ * Check the SMS provider balance and return available credits.
  *
- * Fail-open: if the balance check errors or the response is malformed,
- * we proceed with sends (individual 402s will still be caught).
+ * Returns null if the check fails or the response is malformed (fail-open:
+ * proceed without credit limit). Returns 0 when the provider explicitly
+ * reports zero credits.
+ *
+ * The caller uses the credit count to decide how many SMS to send vs
+ * how many to fail-fast as balance failures.
  */
-export async function checkBalanceBeforeBatch(): Promise<boolean> {
+export async function getAvailableCredits(): Promise<number | null> {
     try {
         const result = await checkBalanceViaGateway();
-        if (result.success && typeof result.credits === "number" && result.credits <= 0) {
-            logger.warn({ credits: result.credits }, "SMS batch skipped - insufficient balance");
-            sendInsufficientBalanceSlackAlert().catch(err =>
-                logError("Failed to send balance Slack alert", err),
-            );
-            return false; // skip batch
+        if (result.success && typeof result.credits === "number") {
+            return result.credits;
         }
     } catch (error) {
-        // Fail-open: if balance check throws, proceed with sends
-        logger.debug({ error }, "Balance check threw, proceeding with SMS batch");
+        logger.debug({ error }, "Balance check failed, proceeding without credit limit");
     }
-    return true; // proceed
+    return null; // fail-open
 }
 
 /**
@@ -1935,7 +2110,7 @@ export function resetBalanceAlertCooldown(): void {
     lastBalanceAlertAt = 0;
 }
 
-async function sendInsufficientBalanceSlackAlert(): Promise<void> {
+export async function sendInsufficientBalanceSlackAlert(): Promise<void> {
     const now = Date.now();
     if (now - lastBalanceAlertAt < BALANCE_ALERT_COOLDOWN_MS) {
         return; // Already alerted recently
