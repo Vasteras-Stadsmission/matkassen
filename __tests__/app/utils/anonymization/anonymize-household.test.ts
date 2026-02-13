@@ -126,7 +126,6 @@ describe("anonymize-household utilities", () => {
              * ✅ Household members (age, sex - no PII)
              * ✅ Pets (species info)
              * ✅ Dietary restrictions (types)
-             * ✅ Postal code (demographics)
              * ✅ Locale (language preference)
              * ✅ Created timestamp
              * ✅ Anonymization metadata (when, by whom)
