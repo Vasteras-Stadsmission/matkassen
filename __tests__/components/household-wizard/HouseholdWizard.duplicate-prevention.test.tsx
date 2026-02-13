@@ -218,7 +218,6 @@ describe("HouseholdWizard Duplicate Prevention - Logic", () => {
             // 4. Phone format validation
             // 5. Phone duplicate check (blocking)
             // 6. Similar name check (confirmation dialog)
-            // 7. Postal code validation
 
             const validationSteps = [
                 "first_name",
