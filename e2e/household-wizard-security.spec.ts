@@ -25,7 +25,6 @@ test.describe("HouseholdWizard - Stepper Security", () => {
         await page.fill('[name="first_name"]', "Test");
         await page.fill('[name="last_name"]', "User");
         await page.fill('[name="phone_number"]', "0701234567");
-        await page.fill('[name="postal_code"]', "72345");
 
         // Try to click on the "Review" step header (should not be clickable)
         const reviewStepHeader = page.locator('button:has-text("Review")').first();
@@ -46,7 +45,6 @@ test.describe("HouseholdWizard - Stepper Security", () => {
         await page.fill('[name="first_name"]', "Test");
         await page.fill('[name="last_name"]', "User");
         await page.fill('[name="phone_number"]', "0701234567");
-        await page.fill('[name="postal_code"]', "72345");
 
         // Click Next to go to step 2
         await page.click('button:has-text("Next")');
@@ -86,7 +84,6 @@ test.describe("HouseholdWizard - Stepper Security", () => {
         await page.fill('[name="first_name"]', "Test");
         await page.fill('[name="last_name"]', "User");
         await page.fill('[name="phone_number"]', "0701234567");
-        await page.fill('[name="postal_code"]', "72345");
         await page.click('button:has-text("Next")');
 
         // Members step - skip
@@ -126,7 +123,6 @@ test.describe("HouseholdWizard - Stepper Security", () => {
         await page.fill('[name="first_name"]', "Test");
         await page.fill('[name="last_name"]', "User");
         await page.fill('[name="phone_number"]', "0701234567");
-        await page.fill('[name="postal_code"]', "72345");
 
         // Click through steps
         for (let i = 0; i < 5; i++) {
@@ -158,7 +154,6 @@ test.describe("HouseholdWizard - Stepper Normal Flow", () => {
         await page.fill('[name="first_name"]', "John");
         await page.fill('[name="last_name"]', "Doe");
         await page.fill('[name="phone_number"]', "0701234567");
-        await page.fill('[name="postal_code"]', "72345");
         await page.click('button:has-text("Next")');
 
         // Step 2: Members

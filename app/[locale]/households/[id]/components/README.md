@@ -12,11 +12,11 @@ This directory contains the refactored household detail page with reusable compo
 
 #### HouseholdInfoCard.tsx
 
-Displays basic household information (name, phone, postal code, language).
+Displays basic household information (name, phone, language).
 
 **Props:**
 
-- `firstName`, `lastName`, `phoneNumber`, `postalCode`, `locale`
+- `firstName`, `lastName`, `phoneNumber`, `locale`
 - `getLanguageName`: Function to translate locale codes to language names
 
 **Usage:**
@@ -26,7 +26,6 @@ Displays basic household information (name, phone, postal code, language).
     firstName={household.first_name}
     lastName={household.last_name}
     phoneNumber={household.phone_number}
-    postalCode={household.postal_code}
     locale={household.locale}
     getLanguageName={getLanguageName}
 />

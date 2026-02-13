@@ -36,7 +36,6 @@ describe("Household Edit Actions", () => {
             last_name: "Person",
             phone_number: "0701234567",
             locale: "sv",
-            postal_code: "12345",
         },
         members: [],
         dietaryRestrictions: [],

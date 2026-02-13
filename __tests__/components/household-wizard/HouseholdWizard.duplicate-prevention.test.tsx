@@ -227,7 +227,6 @@ describe("HouseholdWizard Duplicate Prevention - Logic", () => {
                 "phone_format",
                 "phone_duplicate",
                 "similar_names",
-                "postal_code",
             ];
 
             expect(validationSteps.indexOf("phone_duplicate")).toBeLessThan(

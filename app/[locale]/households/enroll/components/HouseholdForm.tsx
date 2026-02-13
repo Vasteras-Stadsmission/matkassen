@@ -18,7 +18,6 @@ import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
 import { getLanguageSelectOptions } from "@/app/constants/languages";
 import { useTranslations, useLocale } from "next-intl";
-import { formatPostalCode } from "@/app/utils/validation/household-validation";
 import {
     validatePhoneInput,
     stripSwedishPrefix,
@@ -44,7 +43,6 @@ interface FormValues {
     last_name: string;
     phone_number: string;
     locale: string;
-    postal_code: string;
     sms_consent: boolean;
 }
 
@@ -74,7 +72,6 @@ export default function HouseholdForm({
             last_name: data.last_name || "",
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
-            postal_code: data.postal_code || "",
             sms_consent: data.sms_consent || false,
         },
         validate: {
@@ -85,11 +82,6 @@ export default function HouseholdForm({
                 const error = validatePhoneInput(value);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 return error ? t(error as any) : null;
-            },
-            postal_code: value => {
-                if (!value || value.trim().length === 0) return null;
-                const stripped = value.replace(/\s/g, "");
-                return !/^\d{5}$/.test(stripped) ? t("validation.postalCodeFormat") : null;
             },
         },
         validateInputOnBlur: true,
@@ -115,7 +107,6 @@ export default function HouseholdForm({
             last_name: currentForm.values.last_name,
             phone_number: currentForm.values.phone_number,
             locale: currentForm.values.locale,
-            postal_code: currentForm.values.postal_code,
             sms_consent: currentForm.values.sms_consent,
         };
 
@@ -125,7 +116,6 @@ export default function HouseholdForm({
             last_name: data.last_name || "",
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
-            postal_code: data.postal_code || "",
             sms_consent: data.sms_consent || false,
         };
 
@@ -150,7 +140,6 @@ export default function HouseholdForm({
             last_name: data.last_name || "",
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
-            postal_code: data.postal_code || "",
             sms_consent: data.sms_consent || false,
         };
 
@@ -159,13 +148,6 @@ export default function HouseholdForm({
             updateData(debouncedValues);
         }
     }, [debouncedValues, updateData, data]);
-
-    // Handle postal code special formatting
-    const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/\D/g, ""); // Extract only digits
-        if (value.length > 5) value = value.slice(0, 5); // Limit to 5 digits
-        form.setFieldValue("postal_code", value);
-    };
 
     // Handle phone number input with live formatting
     // Format: 0712 34 56 78 (with leading 0) or 712 34 56 78 (without)
@@ -244,18 +226,6 @@ export default function HouseholdForm({
                                 {...form.getInputProps("sms_consent", { type: "checkbox" })}
                             />
                         </Stack>
-                    </Box>
-
-                    <Box style={fieldContainerStyle}>
-                        <TextInput
-                            label={t("postalCode")}
-                            placeholder="123 45"
-                            {...form.getInputProps("postal_code", { withFocus: true })}
-                            value={formatPostalCode(form.values.postal_code)}
-                            onChange={handlePostalCodeChange}
-                            inputMode="numeric"
-                            maxLength={6}
-                        />
                     </Box>
 
                     <Box style={fieldContainerStyle}>

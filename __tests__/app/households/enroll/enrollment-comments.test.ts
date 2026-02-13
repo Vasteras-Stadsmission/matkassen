@@ -29,7 +29,6 @@ describe("Enrollment Comments Bug Fix", () => {
                     firstName: "Test",
                     lastName: "User",
                     phoneNumber: "0701234567",
-                    postalCode: "12345",
                     locale: "sv",
                 },
                 smsConsent: true,

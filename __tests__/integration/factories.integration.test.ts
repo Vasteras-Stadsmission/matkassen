@@ -55,7 +55,6 @@ describe("Test Data Factories", () => {
             expect(household.last_name).toBe("User1");
             expect(household.phone_number).toBe("+46700000001");
             expect(household.locale).toBe("sv");
-            expect(household.postal_code).toBe("72345");
         });
 
         it("should create households with unique phone numbers", async () => {

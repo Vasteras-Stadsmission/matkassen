@@ -282,7 +282,7 @@ console.error("Browser error", { context });
 - `firstName`, `lastName`, `name` - Real names
 - `phone`, `phoneNumber` - Phone numbers
 - `email` - Email addresses
-- `address`, `postalCode` - Location data
+- `address` - Location data
 - `age`, `sex` - Demographics
 - Any raw household/member objects
 

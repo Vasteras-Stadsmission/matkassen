@@ -107,7 +107,7 @@ flowchart TD
     H2["2. Klicka 'Nytt hushåll'"]
 
     subgraph Steg för steg
-        S1["Steg 1: Grunduppgifter<br/>Namn, telefon, postnummer, språk"]
+        S1["Steg 1: Grunduppgifter<br/>Namn, telefon, språk"]
         S2["Steg 2: Medlemmar<br/>Ålder och kön för alla i hushållet"]
         S3["Steg 3: Matrestriktioner<br/>Halal, vegetariskt, allergier..."]
         S4["Steg 4: Husdjur<br/>Hund, katt, annat"]

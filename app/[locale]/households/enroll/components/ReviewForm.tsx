@@ -17,7 +17,6 @@ import { useState, useEffect } from "react";
 import {
     IconUser,
     IconPhone,
-    IconMailbox,
     IconMars,
     IconVenus,
     IconGenderBigender,
@@ -70,17 +69,6 @@ export default function ReviewForm({
             minute: "2-digit",
             hour12: false,
         });
-    };
-
-    // Format postal code as XXX XX
-    const formatPostalCode = (postalCode?: string | null) => {
-        if (!postalCode) return "";
-        // Remove any non-digits
-        const digits = postalCode.replace(/\D/g, "");
-        if (digits.length === 5) {
-            return `${digits.substring(0, 3)} ${digits.substring(3)}`;
-        }
-        return postalCode; // Return original if not 5 digits
     };
 
     // Get weekday name
@@ -167,12 +155,6 @@ export default function ReviewForm({
                                 <IconPhone size={16} />
                             </ThemeIcon>
                             <Text>{formatPhoneForDisplay(formData.household.phone_number)}</Text>
-                        </Group>
-                        <Group gap="xs">
-                            <ThemeIcon size="md" variant="light" color="blue">
-                                <IconMailbox size={16} />
-                            </ThemeIcon>
-                            <Text>{formatPostalCode(formData.household.postal_code)}</Text>
                         </Group>
                     </Paper>
 

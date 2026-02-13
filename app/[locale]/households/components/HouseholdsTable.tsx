@@ -33,7 +33,6 @@ interface Household {
     last_name: string;
     phone_number: string;
     locale: string;
-    postal_code: string | null;
     created_by: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
@@ -47,7 +46,6 @@ type ColumnKey =
     | "last_name"
     | "phone_number"
     | "locale"
-    | "postal_code"
     | "created_by"
     | "firstParcelDate"
     | "lastParcelDate"
@@ -72,7 +70,6 @@ export default function HouseholdsTable({ households }: { households: Household[
             last_name: true,
             phone_number: true,
             locale: true,
-            postal_code: true,
             created_by: false, // Hidden by default
             firstParcelDate: true,
             lastParcelDate: true,
@@ -143,17 +140,6 @@ export default function HouseholdsTable({ households }: { households: Household[
         [formatDate, formatTime],
     );
 
-    // Format postal code as XXX XX
-    const formatPostalCode = (postalCode: string | null) => {
-        if (!postalCode) return "";
-        // Remove any non-digits
-        const digits = postalCode.replace(/\D/g, "");
-        if (digits.length === 5) {
-            return `${digits.substring(0, 3)} ${digits.substring(3)}`;
-        }
-        return postalCode; // Return original if not 5 digits
-    };
-
     // Function to get language name from locale code
     const getLanguageName = (locale: string): string => {
         // Use the proper getLanguageName function from constants
@@ -194,8 +180,6 @@ export default function HouseholdsTable({ households }: { households: Household[
                 household.first_name.toLowerCase().includes(searchLower) ||
                 household.last_name.toLowerCase().includes(searchLower) ||
                 household.phone_number.toLowerCase().includes(searchLower) ||
-                (household.postal_code &&
-                    household.postal_code.toLowerCase().includes(searchLower)) ||
                 household.locale.toLowerCase().includes(searchLower) ||
                 (household.nextParcelDate &&
                     formatDateTime(household.nextParcelDate).toLowerCase().includes(searchLower)) ||
@@ -298,11 +282,6 @@ export default function HouseholdsTable({ households }: { households: Household[
                                     label={t("table.language")}
                                     checked={visibleColumns.locale}
                                     onChange={() => toggleColumn("locale")}
-                                />
-                                <Checkbox
-                                    label={t("table.postalCode")}
-                                    checked={visibleColumns.postal_code}
-                                    onChange={() => toggleColumn("postal_code")}
                                 />
                                 <Checkbox
                                     label={t("table.createdBy")}
@@ -422,17 +401,6 @@ export default function HouseholdsTable({ households }: { households: Household[
                                   sortable: true,
                                   render: (household: Household) =>
                                       getLanguageName(household.locale),
-                              },
-                          ]
-                        : []),
-                    ...(visibleColumns.postal_code
-                        ? [
-                              {
-                                  accessor: "postal_code",
-                                  title: t("table.postalCode"),
-                                  sortable: true,
-                                  render: (household: Household) =>
-                                      formatPostalCode(household.postal_code),
                               },
                           ]
                         : []),

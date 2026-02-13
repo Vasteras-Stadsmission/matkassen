@@ -18,7 +18,6 @@ type ColumnKey =
     | "last_name"
     | "phone_number"
     | "locale"
-    | "postal_code"
     | "created_by"
     | "firstParcelDate"
     | "lastParcelDate"
@@ -32,7 +31,6 @@ function useColumnVisibilityWithStorage() {
             last_name: true,
             phone_number: true,
             locale: true,
-            postal_code: true,
             created_by: false, // Hidden by default
             firstParcelDate: true,
             lastParcelDate: true,
@@ -103,7 +101,6 @@ describe("HouseholdsTable localStorage error handling", () => {
         last_name: true,
         phone_number: true,
         locale: true,
-        postal_code: true,
         created_by: false,
         firstParcelDate: true,
         lastParcelDate: true,
@@ -188,7 +185,6 @@ describe("HouseholdsTable localStorage error handling", () => {
                 last_name: false, // From saved (overrides default)
                 phone_number: true, // From defaults (new column)
                 locale: true,
-                postal_code: true,
                 created_by: false, // From defaults (new column)
                 firstParcelDate: true,
                 lastParcelDate: true,
@@ -220,7 +216,6 @@ describe("HouseholdsTable localStorage error handling", () => {
                 last_name: true,
                 phone_number: false,
                 locale: true,
-                postal_code: false,
                 created_by: true, // User enabled this column
                 firstParcelDate: false,
                 lastParcelDate: true,

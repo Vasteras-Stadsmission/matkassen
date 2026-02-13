@@ -28,7 +28,6 @@ import {
     type ActionResult,
 } from "@/app/utils/auth/action-result";
 import { logger, logError } from "@/app/utils/logger";
-import { normalizePostalCode } from "@/app/utils/validation/household-validation";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 import { createSmsRecord } from "@/app/utils/sms/sms-service";
 import { formatEnrolmentSms } from "@/app/utils/sms/templates";
@@ -146,7 +145,6 @@ export const enrollHousehold = protectedAgreementAction(
                         last_name: data.headOfHousehold.lastName,
                         phone_number: normalizePhoneToE164(data.headOfHousehold.phoneNumber),
                         locale: data.headOfHousehold.locale || "sv",
-                        postal_code: normalizePostalCode(data.headOfHousehold.postalCode),
                         created_by: session.user?.githubUsername ?? null,
                     })
                     .returning();

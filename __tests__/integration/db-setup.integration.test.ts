@@ -30,7 +30,6 @@ describe("PGlite Test Database Setup", () => {
                 last_name: "User",
                 phone_number: "+46701234567",
                 locale: "sv",
-                postal_code: "72345",
             })
             .returning();
 
@@ -70,21 +69,6 @@ describe("PGlite Test Database Setup", () => {
         // Similarity should be between 0 and 1
         expect(result.rows[0].similarity).toBeGreaterThan(0);
         expect(result.rows[0].similarity).toBeLessThanOrEqual(1);
-    });
-
-    it("should enforce postal code format check constraint", async () => {
-        const db = await getTestDb();
-
-        // Try to insert a household with invalid postal code
-        await expect(
-            db.insert(households).values({
-                first_name: "Test",
-                last_name: "User",
-                phone_number: "+46701234568",
-                locale: "sv",
-                postal_code: "1234", // Invalid - must be 5 digits
-            }),
-        ).rejects.toThrow();
     });
 
     it("should cleanup data between tests", async () => {

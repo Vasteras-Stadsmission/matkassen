@@ -15,7 +15,6 @@ const mockHouseholdData = {
         last_name: "Person",
         phone_number: "0701234567",
         locale: "sv",
-        postal_code: "12345",
     },
     members: [
         { id: "member1", age: 30, sex: "male" },

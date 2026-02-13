@@ -132,7 +132,6 @@
             "lastName": "Last Name",
             "phoneNumber": "Phone Number",
             "language": "Language",
-            "postalCode": "Postal Code",
             "createdBy": "Created By",
             "firstParcel": "First Food Parcel",
             "lastParcel": "Last Food Parcel",
@@ -200,7 +199,6 @@
         "enterPhoneNumber": "Enter phone number",
         "smsConsent": "Household consents to SMS contact",
         "smsConsentDescription": "Required to send pickup reminders and updates",
-        "postalCode": "Postal Code",
         "language": "Language",
         "selectLanguage": "Select language",
         "validation": {
@@ -208,7 +206,6 @@
             "lastNameLength": "Last name must be at least 2 characters",
             "phoneNumberFormat": "Enter a valid Swedish phone number (7-10 digits)",
             "swedishNumbersOnly": "Only Swedish phone numbers (+46) are supported",
-            "postalCodeFormat": "Postal code must be 5 digits",
             "phoneNumberInUse": "This phone number is already registered with another household"
         },
         "duplicatePhone": {
@@ -695,7 +692,6 @@
             "phoneNumberFormat": "Enter a valid mobile number (9-10 digits)",
             "phoneDuplicate": "This phone number is already registered to another household",
             "phoneDuplicateWithInfo": "This phone number belongs to: {name} - {phone} (ID: {id})",
-            "postalCodeFormat": "Postal code must be 5 digits",
             "pickupLocation": "Select a pickup location",
             "verificationIncomplete": "All required verifications must be checked before proceeding",
             "smsConsentRequired": "SMS consent is required to proceed"
@@ -1059,7 +1055,6 @@
             "householdDetails": "Household Details",
             "viewDetails": "View Details",
             "contactInfo": "Contact Information",
-            "postalCode": "Postal Code",
             "language": "Language",
             "householdComposition": "Household Composition",
             "members": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
@@ -1645,7 +1640,6 @@
             "new": "New",
             "removed": "Removed",
             "byLanguage": "By Language",
-            "byPostalCode": "By Postal Code",
             "ageDistribution": "Age Distribution",
             "memberCountDistribution": "Household Size",
             "dietaryRestrictions": "Dietary Restrictions",
