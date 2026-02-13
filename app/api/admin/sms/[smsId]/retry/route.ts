@@ -184,24 +184,29 @@ export async function POST(
             );
         }
 
-        // Create new SMS record with same intent and text, fresh phone number
-        const newSmsId = await createSmsRecord({
-            intent: originalSms.intent,
-            parcelId: originalSms.parcelId,
-            householdId: parcel.householdId,
-            toE164: normalizePhoneToE164(household.phoneNumber),
-            text: originalSms.text,
-            idempotencyKey: `${originalSms.intent}|${originalSms.parcelId}|retry|${nanoid(8)}`,
-        });
+        // Create new SMS record and auto-dismiss the original in one transaction
+        // to prevent double-click races from creating duplicate retries
+        const newSmsId = await db.transaction(async tx => {
+            const id = await createSmsRecord({
+                intent: originalSms.intent,
+                parcelId: originalSms.parcelId!,
+                householdId: parcel.householdId,
+                toE164: normalizePhoneToE164(household.phoneNumber),
+                text: originalSms.text,
+                idempotencyKey: `${originalSms.intent}|${originalSms.parcelId}|retry|${nanoid(8)}`,
+                tx,
+            });
 
-        // Auto-dismiss the original failure
-        await db
-            .update(outgoingSms)
-            .set({
-                dismissed_at: now,
-                dismissed_by_user_id: authResult.session!.user.githubUsername,
-            })
-            .where(eq(outgoingSms.id, smsId));
+            await tx
+                .update(outgoingSms)
+                .set({
+                    dismissed_at: now,
+                    dismissed_by_user_id: authResult.session!.user.githubUsername,
+                })
+                .where(eq(outgoingSms.id, smsId!));
+
+            return id;
+        });
 
         logger.info(
             {
