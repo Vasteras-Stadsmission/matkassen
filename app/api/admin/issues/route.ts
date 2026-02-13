@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
-import {
-    foodParcels,
-    outgoingSms,
-    households,
-    pickupLocations,
-    globalSettings,
-} from "@/app/db/schema";
+import { foodParcels, outgoingSms, households, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, lt, asc, isNull, or, sql, inArray } from "drizzle-orm";
+import { eq, and, gte, lt, asc, isNull, or, sql } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 import { Time } from "@/app/utils/time-provider";
@@ -17,18 +11,7 @@ import {
     type ParcelTimeInfo,
 } from "@/app/utils/schedule/outside-hours-filter";
 import { getLocationSchedulesMap } from "@/app/utils/schedule/location-schedules-map";
-import {
-    NOSHOW_FOLLOWUP_ENABLED_KEY,
-    NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
-    NOSHOW_TOTAL_THRESHOLD_KEY,
-    NOSHOW_CONSECUTIVE_MIN,
-    NOSHOW_CONSECUTIVE_MAX,
-    NOSHOW_CONSECUTIVE_DEFAULT,
-    NOSHOW_TOTAL_MIN,
-    NOSHOW_TOTAL_MAX,
-    NOSHOW_TOTAL_DEFAULT,
-    parseThreshold,
-} from "@/app/constants/noshow-settings";
+import { getNoShowFollowupConfig, queryNoShowFollowups } from "@/app/db/queries/noshow-followups";
 
 // 24 hours in milliseconds - threshold for stale SMS
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -384,144 +367,20 @@ export async function GET() {
         }[] = [];
         let noShowFollowupsCount = 0;
 
-        // Get no-show follow-up settings
-        const noshowSettings = await db
-            .select()
-            .from(globalSettings)
-            .where(
-                inArray(globalSettings.key, [
-                    NOSHOW_FOLLOWUP_ENABLED_KEY,
-                    NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
-                    NOSHOW_TOTAL_THRESHOLD_KEY,
-                ]),
+        const noShowConfig = await getNoShowFollowupConfig();
+
+        if (noShowConfig.enabled) {
+            const { rows, totalCount } = await queryNoShowFollowups(
+                noShowConfig.consecutiveThreshold,
+                noShowConfig.totalThreshold,
             );
 
-        const settingsMap = new Map(noshowSettings.map(s => [s.key, s.value]));
-        const enabledValue = settingsMap.get(NOSHOW_FOLLOWUP_ENABLED_KEY);
-        const noshowEnabled =
-            enabledValue === null || enabledValue === undefined ? true : enabledValue === "true";
-
-        // Parse thresholds using shared helper with shared constants
-        const consecutiveThreshold = parseThreshold(
-            settingsMap.get(NOSHOW_CONSECUTIVE_THRESHOLD_KEY),
-            NOSHOW_CONSECUTIVE_DEFAULT,
-            NOSHOW_CONSECUTIVE_MIN,
-            NOSHOW_CONSECUTIVE_MAX,
-        );
-        const totalThreshold = parseThreshold(
-            settingsMap.get(NOSHOW_TOTAL_THRESHOLD_KEY),
-            NOSHOW_TOTAL_DEFAULT,
-            NOSHOW_TOTAL_MIN,
-            NOSHOW_TOTAL_MAX,
-        );
-
-        if (noshowEnabled) {
-            // Query households with no-show counts that exceed thresholds
-            // Using raw SQL for the complex aggregation
-            const noShowStatsRaw = await db.execute(sql`
-                WITH no_show_stats AS (
-                    SELECT
-                        h.id AS household_id,
-                        h.first_name,
-                        h.last_name,
-                        h.noshow_followup_dismissed_at,
-                        COUNT(fp.id) FILTER (WHERE fp.no_show_at IS NOT NULL) AS total_no_shows,
-                        MAX(fp.no_show_at) AS last_no_show_at,
-                        -- Count consecutive no-shows from the most recent parcels
-                        (
-                            SELECT COUNT(*)
-                            FROM (
-                                SELECT fp2.no_show_at,
-                                       ROW_NUMBER() OVER (ORDER BY fp2.pickup_date_time_earliest DESC) AS rn
-                                FROM food_parcels fp2
-                                WHERE fp2.household_id = h.id
-                                  AND fp2.deleted_at IS NULL
-                                  AND (fp2.is_picked_up = true OR fp2.no_show_at IS NOT NULL)
-                                ORDER BY fp2.pickup_date_time_earliest DESC
-                            ) recent_parcels
-                            WHERE recent_parcels.no_show_at IS NOT NULL
-                              AND recent_parcels.rn <= (
-                                  SELECT COUNT(*)
-                                  FROM (
-                                      SELECT fp3.no_show_at
-                                      FROM food_parcels fp3
-                                      WHERE fp3.household_id = h.id
-                                        AND fp3.deleted_at IS NULL
-                                        AND (fp3.is_picked_up = true OR fp3.no_show_at IS NOT NULL)
-                                      ORDER BY fp3.pickup_date_time_earliest DESC
-                                  ) sub
-                                  WHERE sub.no_show_at IS NOT NULL
-                              )
-                              AND NOT EXISTS (
-                                  SELECT 1
-                                  FROM (
-                                      SELECT fp4.no_show_at,
-                                             ROW_NUMBER() OVER (ORDER BY fp4.pickup_date_time_earliest DESC) AS rn2
-                                      FROM food_parcels fp4
-                                      WHERE fp4.household_id = h.id
-                                        AND fp4.deleted_at IS NULL
-                                        AND (fp4.is_picked_up = true OR fp4.no_show_at IS NOT NULL)
-                                      ORDER BY fp4.pickup_date_time_earliest DESC
-                                  ) check_parcels
-                                  WHERE check_parcels.rn2 < recent_parcels.rn
-                                    AND check_parcels.no_show_at IS NULL
-                              )
-                        ) AS consecutive_no_shows
-                    FROM households h
-                    INNER JOIN food_parcels fp ON fp.household_id = h.id
-                    WHERE h.anonymized_at IS NULL
-                      AND fp.deleted_at IS NULL
-                    GROUP BY h.id, h.first_name, h.last_name, h.noshow_followup_dismissed_at
-                    HAVING COUNT(fp.id) FILTER (WHERE fp.no_show_at IS NOT NULL) >= ${totalThreshold}
-                       OR (
-                           SELECT COUNT(*)
-                           FROM (
-                               SELECT fp2.no_show_at,
-                                      ROW_NUMBER() OVER (ORDER BY fp2.pickup_date_time_earliest DESC) AS rn
-                               FROM food_parcels fp2
-                               WHERE fp2.household_id = h.id
-                                 AND fp2.deleted_at IS NULL
-                                 AND (fp2.is_picked_up = true OR fp2.no_show_at IS NOT NULL)
-                           ) recent
-                           WHERE recent.no_show_at IS NOT NULL
-                             AND recent.rn <= ${consecutiveThreshold}
-                       ) >= ${consecutiveThreshold}
-                )
-                SELECT
-                    household_id,
-                    first_name,
-                    last_name,
-                    total_no_shows::int,
-                    consecutive_no_shows::int,
-                    last_no_show_at,
-                    COUNT(*) OVER() AS total_count
-                FROM no_show_stats
-                WHERE noshow_followup_dismissed_at IS NULL
-                   OR last_no_show_at > noshow_followup_dismissed_at
-                ORDER BY last_no_show_at DESC
-                LIMIT 100
-            `);
-
-            // Process the results - extract accurate count from first row
-            // Handle both PGlite (returns { rows: [...] }) and postgres-js (returns [...]) formats
-            type NoShowRow = {
-                household_id: string;
-                first_name: string;
-                last_name: string;
-                total_no_shows: number;
-                consecutive_no_shows: number;
-                last_no_show_at: Date | string; // db.execute returns string in postgres-js, Date in PGlite
-                total_count: number;
-            };
-            const rawResult = noShowStatsRaw as unknown as NoShowRow[] | { rows: NoShowRow[] };
-            const rows: NoShowRow[] = Array.isArray(rawResult) ? rawResult : rawResult.rows;
-
-            // Get accurate count from first row (COUNT(*) OVER() returns same value for all rows)
-            noShowFollowupsCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
+            noShowFollowupsCount = totalCount;
 
             noShowFollowups = rows.map(row => {
-                const meetsConsecutive = row.consecutive_no_shows >= consecutiveThreshold;
-                const meetsTotal = row.total_no_shows >= totalThreshold;
+                const meetsConsecutive =
+                    row.consecutive_no_shows >= noShowConfig.consecutiveThreshold;
+                const meetsTotal = row.total_no_shows >= noShowConfig.totalThreshold;
                 let triggerType: "consecutive" | "total" | "both" = "total";
                 if (meetsConsecutive && meetsTotal) {
                     triggerType = "both";
