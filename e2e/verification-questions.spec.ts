@@ -28,7 +28,6 @@ test.describe("Verification Questions - Smoke Tests", () => {
         await page.getByLabel("Förnamn").fill("Test");
         await page.getByLabel("Efternamn").fill("Person");
         await page.getByLabel("Telefonnummer").fill("0701234567");
-        await page.getByLabel("Postnummer").fill("12345");
 
         // Select a pickup location (triggers verification question fetch)
         const pickupSelect = page.locator('input[name="favorite_pickup_location_id"]').first();
@@ -89,7 +88,6 @@ test.describe("Verification Questions - Smoke Tests", () => {
         await page.getByLabel("Förnamn").fill("Test");
         await page.getByLabel("Efternamn").fill("Person");
         await page.getByLabel("Telefonnummer").fill("0701234567");
-        await page.getByLabel("Postnummer").fill("12345");
 
         // Select pickup location
         const pickupSelect = page.locator('input[name="favorite_pickup_location_id"]').first();

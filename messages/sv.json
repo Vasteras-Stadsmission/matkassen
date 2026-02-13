@@ -132,7 +132,6 @@
             "lastName": "Efternamn",
             "phoneNumber": "Telefonnummer",
             "language": "Språk",
-            "postalCode": "Postnummer",
             "createdBy": "Skapad av",
             "firstParcel": "Första matkasse",
             "lastParcel": "Sista matkasse",
@@ -200,7 +199,6 @@
         "enterPhoneNumber": "Ange telefonnummer",
         "smsConsent": "Hushållet samtycker till SMS-kontakt",
         "smsConsentDescription": "Krävs för att skicka påminnelser och uppdateringar",
-        "postalCode": "Postnummer",
         "language": "Språk",
         "selectLanguage": "Välj språk",
         "validation": {
@@ -208,7 +206,6 @@
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
             "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
-            "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
             "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll"
         },
         "duplicatePhone": {
@@ -695,7 +692,6 @@
             "phoneNumberFormat": "Ange ett giltigt mobilnummer (9-10 siffror)",
             "phoneDuplicate": "Detta telefonnummer är redan registrerat till ett annat hushåll",
             "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} - {phone} (ID: {id})",
-            "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
             "pickupLocation": "Välj en hämtplats",
             "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta",
             "smsConsentRequired": "SMS-samtycke krävs för att fortsätta"
@@ -1059,7 +1055,6 @@
             "householdDetails": "Hushållsdetaljer",
             "viewDetails": "Visa detaljer",
             "contactInfo": "Kontaktinformation",
-            "postalCode": "Postnummer",
             "language": "Språk",
             "householdComposition": "Hushållssammansättning",
             "members": "{count, plural, =0 {Inga medlemmar} =1 {1 medlem} other {# medlemmar}}",
@@ -1645,7 +1640,6 @@
             "new": "Nya",
             "removed": "Borttagna",
             "byLanguage": "Per språk",
-            "byPostalCode": "Per postnummer",
             "ageDistribution": "Åldersfördelning",
             "memberCountDistribution": "Hushållsstorlek",
             "dietaryRestrictions": "Kostpreferenser",

@@ -50,17 +50,12 @@ export const households = pgTable(
         last_name: varchar("last_name", { length: 50 }).notNull(),
         phone_number: varchar("phone_number", { length: 20 }).notNull(), // E.164 format (e.g., +46701234567), unique per active household
         locale: varchar("locale", { length: 2 }).notNull(),
-        postal_code: varchar("postal_code", { length: 5 }),
         anonymized_at: timestamp({ precision: 1, withTimezone: true }), // Timestamp when household was anonymized (NULL = active)
         anonymized_by: varchar("anonymized_by", { length: 50 }), // GitHub username of admin who anonymized
         noshow_followup_dismissed_at: timestamp({ precision: 1, withTimezone: true }), // When no-show follow-up was dismissed
         noshow_followup_dismissed_by: varchar("noshow_followup_dismissed_by", { length: 50 }), // GitHub username of admin who dismissed
     },
     table => [
-        check(
-            "households_postal_code_check",
-            sql`${table.postal_code} IS NULL OR (LENGTH(${table.postal_code}) = 5 AND ${table.postal_code} ~ '^[0-9]{5}$')`,
-        ),
         // Unique phone number per active (non-anonymized) household
         // Allows phone reuse after anonymization
         uniqueIndex("idx_households_phone_unique")

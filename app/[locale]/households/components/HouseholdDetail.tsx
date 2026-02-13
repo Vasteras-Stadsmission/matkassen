@@ -7,7 +7,6 @@ import {
     IconCalendarEvent,
     IconClock,
     IconBuilding,
-    IconMailbox,
     IconMars,
     IconVenus,
     IconGenderBigender,
@@ -27,7 +26,6 @@ interface HouseholdDetailProps {
             last_name: string;
             phone_number: string;
             locale: string;
-            postal_code: string;
             created_by: string | null;
         };
         members: Array<{
@@ -92,17 +90,6 @@ export default function InternationalizedHouseholdDetail({
             minute: "2-digit",
             hour12: false,
         });
-    };
-
-    // Format postal code as XXX XX
-    const formatPostalCode = (postalCode: string) => {
-        if (!postalCode) return "";
-        // Remove any non-digits
-        const digits = postalCode.replace(/\D/g, "");
-        if (digits.length === 5) {
-            return `${digits.substring(0, 3)} ${digits.substring(3)}`;
-        }
-        return postalCode; // Return original if not 5 digits
     };
 
     // Get weekday name
@@ -191,12 +178,6 @@ export default function InternationalizedHouseholdDetail({
                             <Text>
                                 {formatPhoneForDisplay(householdDetail.household.phone_number)}
                             </Text>
-                        </Group>
-                        <Group gap="xs" mb="xs">
-                            <ThemeIcon size="md" variant="light" color="blue">
-                                <IconMailbox size={16} />
-                            </ThemeIcon>
-                            <Text>{formatPostalCode(householdDetail.household.postal_code)}</Text>
                         </Group>
                         <Group gap="xs" mb="xs">
                             <ThemeIcon size="md" variant="light" color="blue">

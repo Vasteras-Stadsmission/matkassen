@@ -231,23 +231,6 @@ describe("Statistics Actions", () => {
                 expect(enLocale?.count).toBe(1);
             });
 
-            it("should group households by postal code", async () => {
-                await createTestHousehold({ postal_code: "12345" });
-                await createTestHousehold({ postal_code: "12345" });
-                await createTestHousehold({ postal_code: "67890" });
-
-                const { getAllStatistics } = await getActions();
-                const result = await getAllStatistics("all");
-
-                expect(result.success).toBe(true);
-                if (!result.success) return;
-
-                const postalCode12345 = result.data.households.byPostalCode.find(
-                    p => p.postalCode === "12345",
-                );
-                expect(postalCode12345?.count).toBe(2);
-            });
-
             it("should calculate age distribution correctly", async () => {
                 // Household with a child (6-12) and an adult (18-64)
                 await createTestHouseholdWithMembers({}, [

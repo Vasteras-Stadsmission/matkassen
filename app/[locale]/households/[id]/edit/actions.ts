@@ -25,7 +25,6 @@ import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
-import { normalizePostalCode } from "@/app/utils/validation/household-validation";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 
 export interface HouseholdUpdateResult {
@@ -334,7 +333,6 @@ async function getHouseholdEditData(householdId: string) {
             last_name: household.last_name,
             phone_number: household.phone_number,
             locale: household.locale,
-            postal_code: household.postal_code,
             // SMS consent defaults to true in edit mode since consent was required at enrollment.
             // Re-consent is only required if the phone number changes (handled by wizard validation).
             sms_consent: true,
@@ -410,7 +408,6 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                         last_name: data.household.last_name,
                         phone_number: newPhoneE164,
                         locale: data.household.locale,
-                        postal_code: normalizePostalCode(data.household.postal_code),
                     })
                     .where(eq(households.id, household.id));
 

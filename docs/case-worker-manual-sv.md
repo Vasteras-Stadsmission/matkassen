@@ -18,7 +18,6 @@ Gå till `Hushåll` → `Nytt hushåll`. Guiden har följande steg:
     - Telefonnummer (obligatoriskt, endast svenska mobilnummer)
     - SMS-samtycke (obligatoriskt för att kunna skicka påminnelser)
     - Språk (standard: svenska)
-    - Postnummer (valfritt)
 2. **Medlemmar** – Lägg till hushållsmedlemmar med ålder och kön.
 3. **Matrestriktioner** – Välj från lista eller lägg till egna.
 4. **Husdjur** – Välj från lista eller lägg till egna.

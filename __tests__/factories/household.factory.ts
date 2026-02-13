@@ -23,7 +23,6 @@ export async function createTestHousehold(overrides: Partial<typeof households.$
         last_name: `User${householdCounter}`,
         phone_number: `+4670000${String(householdCounter).padStart(4, "0")}`,
         locale: "sv",
-        postal_code: "72345",
     };
 
     const [household] = await db

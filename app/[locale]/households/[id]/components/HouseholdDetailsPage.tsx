@@ -303,7 +303,6 @@ export default function HouseholdDetailsPage({
                         firstName={householdData.household.first_name}
                         lastName={householdData.household.last_name}
                         phoneNumber={householdData.household.phone_number}
-                        postalCode={householdData.household.postal_code}
                         locale={householdData.household.locale}
                         createdBy={householdData.household.created_by}
                         createdAt={householdData.household.created_at}

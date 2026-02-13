@@ -40,7 +40,6 @@ export interface OverviewStats {
 
 export interface HouseholdStats {
     byLocale: { locale: string; count: number }[];
-    byPostalCode: { postalCode: string; count: number }[];
     ageDistribution: { bucket: string; count: number }[];
     memberCountDistribution: { memberCount: number; households: number }[];
     dietaryRestrictions: { name: string; count: number }[];
@@ -297,22 +296,6 @@ async function getHouseholdStats(): Promise<HouseholdStats> {
         .orderBy(sql`count(*) desc`);
     const byLocale = byLocaleResult.map(r => ({ locale: r.locale, count: r.count }));
 
-    // By postal code (include removed - they preserve postal_code, top 10)
-    const byPostalCodeResult = await db
-        .select({
-            postalCode: households.postal_code,
-            count: sql<number>`count(*)::int`,
-        })
-        .from(households)
-        .where(isNotNull(households.postal_code))
-        .groupBy(households.postal_code)
-        .orderBy(sql`count(*) desc`)
-        .limit(10);
-    const byPostalCode = byPostalCodeResult.map(r => ({
-        postalCode: r.postalCode ?? "",
-        count: r.count,
-    }));
-
     // Age distribution (active households only) - with numeric sort key
     const ageDistributionResult = await db
         .select({
@@ -415,7 +398,6 @@ async function getHouseholdStats(): Promise<HouseholdStats> {
 
     return {
         byLocale,
-        byPostalCode,
         ageDistribution,
         memberCountDistribution,
         dietaryRestrictions: dietaryRestrictionsStats,

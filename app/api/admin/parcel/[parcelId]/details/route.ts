@@ -41,7 +41,6 @@ export interface ParcelDetails {
         lastName: string;
         phoneNumber: string;
         locale: string;
-        postalCode: string | null;
         createdAt: string;
         members: Array<{
             id: string;
@@ -102,7 +101,6 @@ export async function GET(
                 householdLastName: households.last_name,
                 householdPhoneNumber: households.phone_number,
                 householdLocale: households.locale,
-                householdPostalCode: households.postal_code,
                 householdCreatedAt: households.created_at,
             })
             .from(foodParcels)
@@ -215,7 +213,6 @@ export async function GET(
                 lastName: parcel.householdLastName,
                 phoneNumber: parcel.householdPhoneNumber,
                 locale: parcel.householdLocale,
-                postalCode: parcel.householdPostalCode,
                 createdAt: parcel.householdCreatedAt.toISOString(),
                 members: members.map(member => ({
                     id: member.id,

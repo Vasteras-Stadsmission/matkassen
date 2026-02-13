@@ -16,7 +16,6 @@ export function EnrollClient() {
                     firstName: formData.household.first_name,
                     lastName: formData.household.last_name,
                     phoneNumber: formData.household.phone_number,
-                    postalCode: formData.household.postal_code,
                     locale: formData.household.locale,
                 },
                 smsConsent: formData.household.sms_consent ?? false, // Default false, requires explicit opt-in

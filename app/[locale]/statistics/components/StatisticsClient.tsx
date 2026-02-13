@@ -357,29 +357,6 @@ export function StatisticsClient() {
                                         </Card>
                                     )}
 
-                                    {stats.households.byPostalCode.filter(
-                                        d => d.count >= MIN_COUNT_THRESHOLD,
-                                    ).length > 0 && (
-                                        <Card shadow="sm" padding="lg" withBorder>
-                                            <Title order={4} mb="md">
-                                                {t("households.byPostalCode")}
-                                            </Title>
-                                            <BarChart
-                                                h={200}
-                                                data={stats.households.byPostalCode.filter(
-                                                    d => d.count >= MIN_COUNT_THRESHOLD,
-                                                )}
-                                                dataKey="postalCode"
-                                                series={[
-                                                    {
-                                                        name: t("chartLabels.count"),
-                                                        color: "orange.6",
-                                                    },
-                                                ]}
-                                            />
-                                        </Card>
-                                    )}
-
                                     {stats.households.dietaryRestrictions.filter(
                                         d => d.count >= MIN_COUNT_THRESHOLD,
                                     ).length > 0 && (
@@ -454,9 +431,6 @@ export function StatisticsClient() {
                                 {stats.households.byLocale.length === 0 &&
                                     stats.households.ageDistribution.length === 0 &&
                                     stats.households.memberCountDistribution.length === 0 &&
-                                    stats.households.byPostalCode.filter(
-                                        d => d.count >= MIN_COUNT_THRESHOLD,
-                                    ).length === 0 &&
                                     stats.households.dietaryRestrictions.filter(
                                         d => d.count >= MIN_COUNT_THRESHOLD,
                                     ).length === 0 &&

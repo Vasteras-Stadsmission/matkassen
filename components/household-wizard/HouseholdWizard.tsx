@@ -207,7 +207,6 @@ export function HouseholdWizard({
                 last_name: "",
                 phone_number: "",
                 locale: locale,
-                postal_code: "",
                 sms_consent: false,
             },
             members: [],
@@ -251,8 +250,7 @@ export function HouseholdWizard({
         // Check if we need to validate the current step
         if (active === 0) {
             // Validate household step
-            const { first_name, last_name, phone_number, postal_code, sms_consent } =
-                formData.household;
+            const { first_name, last_name, phone_number, sms_consent } = formData.household;
 
             // Check first name
             if (!first_name || first_name.trim().length < 2) {
@@ -294,20 +292,6 @@ export function HouseholdWizard({
                 });
                 openError();
                 return;
-            }
-
-            // Check postal code (optional, but validate format if provided)
-            // Must be before duplicate check to avoid unnecessary API calls
-            if (postal_code && postal_code.trim().length > 0) {
-                const cleanPostalCode = postal_code.replace(/\s/g, "");
-                if (!/^\d{5}$/.test(cleanPostalCode)) {
-                    setValidationError({
-                        field: "postal_code",
-                        message: t("validation.postalCodeFormat"),
-                    });
-                    openError();
-                    return;
-                }
             }
 
             // Check SMS consent - always required (consent can be withdrawn, so must always validate)
@@ -740,8 +724,7 @@ export function HouseholdWizard({
                             error={
                                 validationError?.field === "first_name" ||
                                 validationError?.field === "last_name" ||
-                                validationError?.field === "phone_number" ||
-                                validationError?.field === "postal_code"
+                                validationError?.field === "phone_number"
                                     ? validationError
                                     : null
                             }

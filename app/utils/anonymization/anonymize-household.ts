@@ -4,7 +4,7 @@
  * Implements GDPR-compliant data anonymization:
  * - Replaces personal identifiers with placeholders
  * - Deletes comments and SMS records
- * - Preserves statistical data (parcels, postal code, locale)
+ * - Preserves statistical data (parcels, locale)
  */
 
 import { db } from "@/app/db/drizzle";

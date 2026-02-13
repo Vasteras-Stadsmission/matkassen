@@ -218,7 +218,6 @@ describe("HouseholdWizard Duplicate Prevention - Logic", () => {
             // 4. Phone format validation
             // 5. Phone duplicate check (blocking)
             // 6. Similar name check (confirmation dialog)
-            // 7. Postal code validation
 
             const validationSteps = [
                 "first_name",
@@ -227,7 +226,6 @@ describe("HouseholdWizard Duplicate Prevention - Logic", () => {
                 "phone_format",
                 "phone_duplicate",
                 "similar_names",
-                "postal_code",
             ];
 
             expect(validationSteps.indexOf("phone_duplicate")).toBeLessThan(

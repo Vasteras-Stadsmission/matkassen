@@ -668,14 +668,6 @@ export function ParcelAdminDialog({
                                         </Group>
                                         <Group gap="sm" align="baseline">
                                             <Text size="sm" c="dimmed" fw={500}>
-                                                {t("admin.parcelDialog.postalCode")}:
-                                            </Text>
-                                            <Text size="sm" c="dark">
-                                                {data.household.postalCode}
-                                            </Text>
-                                        </Group>
-                                        <Group gap="sm" align="baseline">
-                                            <Text size="sm" c="dimmed" fw={500}>
                                                 {t("admin.parcelDialog.language")}:
                                             </Text>
                                             <Text size="sm" c="dark" fw={500}>

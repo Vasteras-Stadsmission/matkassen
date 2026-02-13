@@ -60,7 +60,6 @@ function buildEnrollmentData(
             firstName: "Test",
             lastName: "Enrollment",
             phoneNumber,
-            postalCode: "11122",
             locale: "sv",
         },
         smsConsent: false,

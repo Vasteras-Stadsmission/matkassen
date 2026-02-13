@@ -4,7 +4,6 @@ import { Paper, Title, Stack, Group, ThemeIcon, Text, Avatar, Tooltip } from "@m
 import {
     IconUser,
     IconPhone,
-    IconMailbox,
     IconLanguage,
     IconUserCheck,
     IconCircleCheck,
@@ -17,7 +16,6 @@ interface HouseholdInfoCardProps {
     firstName: string;
     lastName: string;
     phoneNumber: string;
-    postalCode: string | null;
     locale: string;
     createdBy: string | null;
     createdAt: Date | string | null;
@@ -30,7 +28,6 @@ export function HouseholdInfoCard({
     firstName,
     lastName,
     phoneNumber,
-    postalCode,
     locale,
     createdBy,
     createdAt,
@@ -40,15 +37,6 @@ export function HouseholdInfoCard({
 }: HouseholdInfoCardProps) {
     const t = useTranslations("householdDetail");
     const currentLocale = useLocale();
-
-    const formatPostalCode = (code: string | null) => {
-        if (!code) return "";
-        const digits = code.replace(/\D/g, "");
-        if (digits.length === 5) {
-            return `${digits.substring(0, 3)} ${digits.substring(3)}`;
-        }
-        return code;
-    };
 
     const formatDate = (date: Date | string | null) => {
         if (!date) return "";
@@ -90,12 +78,6 @@ export function HouseholdInfoCard({
                             </ThemeIcon>
                         </Tooltip>
                     )}
-                </Group>
-                <Group gap="sm">
-                    <ThemeIcon size="lg" variant="light" color="blue">
-                        <IconMailbox size={20} />
-                    </ThemeIcon>
-                    <Text size="md">{formatPostalCode(postalCode)}</Text>
                 </Group>
                 <Group gap="sm">
                     <ThemeIcon size="lg" variant="light" color="blue">
