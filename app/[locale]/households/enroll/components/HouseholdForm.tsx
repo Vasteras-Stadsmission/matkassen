@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import {
     TextInput,
     SimpleGrid,
@@ -23,6 +23,8 @@ import {
     stripSwedishPrefix,
     formatPhoneInputWithSpaces,
 } from "@/app/utils/validation/phone-validation";
+import { getPickupLocationsAction } from "../client-actions";
+import type { PickupLocation } from "../types";
 
 interface ValidationError {
     field: string;
@@ -44,6 +46,7 @@ interface FormValues {
     phone_number: string;
     locale: string;
     sms_consent: boolean;
+    primary_pickup_location_id: string;
 }
 
 // Using fast-deep-equal for robust deep comparison of objects
@@ -60,6 +63,24 @@ export default function HouseholdForm({
     const t = useTranslations("householdForm");
     const currentLocale = useLocale();
 
+    // Pickup locations state
+    const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
+
+    // Fetch pickup locations on mount
+    useEffect(() => {
+        getPickupLocationsAction().then(setPickupLocations);
+    }, []);
+
+    // Memoize location options for the Select
+    const locationOptions = useMemo(
+        () =>
+            pickupLocations.map(loc => ({
+                value: loc.id,
+                label: loc.name,
+            })),
+        [pickupLocations],
+    );
+
     // Standardized field container style
     const fieldContainerStyle = { minHeight: "85px" };
 
@@ -73,6 +94,7 @@ export default function HouseholdForm({
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
+            primary_pickup_location_id: data.primary_pickup_location_id || "",
         },
         validate: {
             first_name: value => (value.trim().length < 2 ? t("validation.firstNameLength") : null),
@@ -108,6 +130,7 @@ export default function HouseholdForm({
             phone_number: currentForm.values.phone_number,
             locale: currentForm.values.locale,
             sms_consent: currentForm.values.sms_consent,
+            primary_pickup_location_id: currentForm.values.primary_pickup_location_id,
         };
 
         // Strip +46 prefix from phone for display (same as initialValues)
@@ -117,6 +140,7 @@ export default function HouseholdForm({
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
+            primary_pickup_location_id: data.primary_pickup_location_id || "",
         };
 
         // Only update form values if they are actually different
@@ -141,6 +165,7 @@ export default function HouseholdForm({
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
+            primary_pickup_location_id: data.primary_pickup_location_id || "",
         };
 
         // Only call updateData if the debounced values actually changed
@@ -234,6 +259,18 @@ export default function HouseholdForm({
                             placeholder={t("selectLanguage")}
                             data={languageOptions}
                             {...form.getInputProps("locale")}
+                        />
+                    </Box>
+
+                    <Box style={fieldContainerStyle}>
+                        <Select
+                            label={t("primaryLocation")}
+                            description={t("primaryLocationDescription")}
+                            placeholder={t("selectPrimaryLocation")}
+                            data={locationOptions}
+                            clearable
+                            searchable
+                            {...form.getInputProps("primary_pickup_location_id")}
                         />
                     </Box>
                 </SimpleGrid>

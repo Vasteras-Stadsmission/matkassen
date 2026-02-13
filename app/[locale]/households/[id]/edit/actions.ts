@@ -336,6 +336,7 @@ async function getHouseholdEditData(householdId: string) {
             // SMS consent defaults to true in edit mode since consent was required at enrollment.
             // Re-consent is only required if the phone number changes (handled by wizard validation).
             sms_consent: true,
+            primary_pickup_location_id: household.primary_pickup_location_id,
         },
         members: members.map(member => ({
             id: member.id,
@@ -408,6 +409,8 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                         last_name: data.household.last_name,
                         phone_number: newPhoneE164,
                         locale: data.household.locale,
+                        primary_pickup_location_id:
+                            data.household.primary_pickup_location_id || null,
                     })
                     .where(eq(households.id, household.id));
 

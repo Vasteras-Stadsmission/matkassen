@@ -23,6 +23,7 @@ import {
     IconBuilding,
     IconCalendarEvent,
     IconClock,
+    IconMapPin,
 } from "@tabler/icons-react";
 import { FormData, Comment } from "../types";
 import { getPickupLocationsAction } from "../client-actions";
@@ -59,6 +60,7 @@ export default function ReviewForm({
     const locale = useLocale();
 
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
+    const [primaryLocationName, setPrimaryLocationName] = useState<string>("");
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
 
     // Format time for display
@@ -88,42 +90,57 @@ export default function ReviewForm({
         return tWeekdays(weekdayKeys[weekday]);
     };
 
-    // Fetch pickup location name when the component mounts
+    // Fetch pickup location names when the component mounts
     useEffect(() => {
-        const fetchLocationName = async () => {
-            if (formData.foodParcels?.pickupLocationId) {
-                try {
-                    setIsLoadingLocation(true);
-                    const locations = await getPickupLocationsAction();
+        const fetchLocationNames = async () => {
+            const needsParcelLocation = !!formData.foodParcels?.pickupLocationId;
+            const needsPrimaryLocation = !!formData.household?.primary_pickup_location_id;
 
-                    // Find matching location by ID
+            if (!needsParcelLocation && !needsPrimaryLocation) return;
+
+            try {
+                setIsLoadingLocation(true);
+                const locations = await getPickupLocationsAction();
+
+                // Resolve parcel pickup location name
+                if (needsParcelLocation) {
                     const location = locations.find(
                         (loc: PickupLocation) => loc.id === formData.foodParcels.pickupLocationId,
                     );
-
                     if (location) {
                         setPickupLocationName(location.name);
                     } else {
-                        // Fallback if location not found
                         setPickupLocationName(
                             t("foodParcels.pickupLocation") +
                                 ` (ID: ${formData.foodParcels.pickupLocationId})`,
                         );
                     }
-                } catch {
-                    // Error fetching pickup location
+                }
+
+                // Resolve primary location name
+                if (needsPrimaryLocation) {
+                    const primaryLoc = locations.find(
+                        (loc: PickupLocation) =>
+                            loc.id === formData.household.primary_pickup_location_id,
+                    );
+                    if (primaryLoc) {
+                        setPrimaryLocationName(primaryLoc.name);
+                    }
+                }
+            } catch {
+                if (needsParcelLocation) {
                     setPickupLocationName(
                         t("foodParcels.pickupLocation") +
                             ` (ID: ${formData.foodParcels.pickupLocationId})`,
                     );
-                } finally {
-                    setIsLoadingLocation(false);
                 }
+            } finally {
+                setIsLoadingLocation(false);
             }
         };
 
-        fetchLocationName();
-    }, [formData.foodParcels?.pickupLocationId, t]);
+        fetchLocationNames();
+    }, [formData.foodParcels?.pickupLocationId, formData.household?.primary_pickup_location_id, t]);
 
     return (
         <Card withBorder p="md" radius="md" shadow="sm">
@@ -156,6 +173,14 @@ export default function ReviewForm({
                             </ThemeIcon>
                             <Text>{formatPhoneForDisplay(formData.household.phone_number)}</Text>
                         </Group>
+                        {primaryLocationName && (
+                            <Group gap="xs">
+                                <ThemeIcon size="md" variant="light" color="grape">
+                                    <IconMapPin size={16} />
+                                </ThemeIcon>
+                                <Text>{primaryLocationName}</Text>
+                            </Group>
+                        )}
                     </Paper>
 
                     {/* Household Members */}

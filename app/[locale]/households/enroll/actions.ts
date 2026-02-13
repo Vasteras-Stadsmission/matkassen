@@ -146,6 +146,7 @@ export const enrollHousehold = protectedAgreementAction(
                         phone_number: normalizePhoneToE164(data.headOfHousehold.phoneNumber),
                         locale: data.headOfHousehold.locale || "sv",
                         created_by: session.user?.githubUsername ?? null,
+                        primary_pickup_location_id: data.primaryPickupLocationId || null,
                     })
                     .returning();
 

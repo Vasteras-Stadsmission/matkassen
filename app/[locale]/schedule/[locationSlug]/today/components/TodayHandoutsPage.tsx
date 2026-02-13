@@ -491,6 +491,26 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                                             t("todayHandouts.noTimeSpecified")}
                                                     </Text>
                                                 </Group>
+                                                {parcel.primaryPickupLocationName && (
+                                                    <Group gap={4} align="center" mt={2}>
+                                                        <IconMapPin size={14} color={
+                                                            parcel.primaryPickupLocationId !== currentLocation?.id
+                                                                ? "var(--mantine-color-orange-6)"
+                                                                : "var(--mantine-color-dimmed)"
+                                                        } />
+                                                        <Text
+                                                            size="xs"
+                                                            c={
+                                                                parcel.primaryPickupLocationId !== currentLocation?.id
+                                                                    ? "orange"
+                                                                    : "dimmed"
+                                                            }
+                                                            truncate
+                                                        >
+                                                            {parcel.primaryPickupLocationName}
+                                                        </Text>
+                                                    </Group>
+                                                )}
                                             </div>
                                             <div style={{ flexShrink: 0 }}>
                                                 <Badge

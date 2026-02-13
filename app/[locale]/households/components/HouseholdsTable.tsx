@@ -34,6 +34,7 @@ interface Household {
     phone_number: string;
     locale: string;
     created_by: string | null;
+    primaryLocationName: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
     nextParcelDate: string | Date | null;
@@ -47,6 +48,7 @@ type ColumnKey =
     | "phone_number"
     | "locale"
     | "created_by"
+    | "primaryLocationName"
     | "firstParcelDate"
     | "lastParcelDate"
     | "nextParcelDate";
@@ -71,6 +73,7 @@ export default function HouseholdsTable({ households }: { households: Household[
             phone_number: true,
             locale: true,
             created_by: false, // Hidden by default
+            primaryLocationName: true,
             firstParcelDate: true,
             lastParcelDate: true,
             nextParcelDate: true,
@@ -289,6 +292,11 @@ export default function HouseholdsTable({ households }: { households: Household[
                                     onChange={() => toggleColumn("created_by")}
                                 />
                                 <Checkbox
+                                    label={t("table.primaryLocation")}
+                                    checked={visibleColumns.primaryLocationName}
+                                    onChange={() => toggleColumn("primaryLocationName")}
+                                />
+                                <Checkbox
                                     label={t("table.firstParcel")}
                                     checked={visibleColumns.firstParcelDate}
                                     onChange={() => toggleColumn("firstParcelDate")}
@@ -411,6 +419,17 @@ export default function HouseholdsTable({ households }: { households: Household[
                                   title: t("table.createdBy"),
                                   sortable: true,
                                   render: (household: Household) => household.created_by || "-",
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.primaryLocationName
+                        ? [
+                              {
+                                  accessor: "primaryLocationName",
+                                  title: t("table.primaryLocation"),
+                                  sortable: true,
+                                  render: (household: Household) =>
+                                      household.primaryLocationName || "-",
                               },
                           ]
                         : []),

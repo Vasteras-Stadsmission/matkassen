@@ -19,6 +19,7 @@ export function EnrollClient() {
                     locale: formData.household.locale,
                 },
                 smsConsent: formData.household.sms_consent ?? false, // Default false, requires explicit opt-in
+                primaryPickupLocationId: formData.household.primary_pickup_location_id || null,
                 members: formData.members.map(member => ({
                     age: member.age,
                     sex: member.sex,

@@ -24,6 +24,8 @@ export interface FoodParcel {
     noShowAt?: Date | null; // Timestamp when parcel was marked as no-show
     pickup_location_id?: string; // Database column name (snake_case)
     locationId?: string; // Alternative naming for the location ID
+    primaryPickupLocationId?: string | null; // Household's primary handout location
+    primaryPickupLocationName?: string | null; // Resolved name for display
 }
 
 export interface PickupLocation {

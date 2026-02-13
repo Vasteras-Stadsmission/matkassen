@@ -204,6 +204,7 @@ export function HouseholdWizard({
                 phone_number: "",
                 locale: locale,
                 sms_consent: false,
+                primary_pickup_location_id: "",
             },
             members: [],
             dietaryRestrictions: [],

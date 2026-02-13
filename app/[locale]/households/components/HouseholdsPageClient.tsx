@@ -14,6 +14,7 @@ interface Household {
     phone_number: string;
     locale: string;
     created_by: string | null;
+    primaryLocationName: string | null;
     firstParcelDate: Date | null;
     lastParcelDate: Date | null;
     nextParcelDate: Date | null;
