@@ -11,7 +11,6 @@ import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { sendSmsViaGateway, checkBalanceViaGateway, type SendSmsResponse } from "./sms-gateway";
 import { formatPickupSms, formatFoodParcelsEndedSms } from "./templates";
-import { isInsufficientBalanceError } from "./hello-sms";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
@@ -717,28 +716,7 @@ export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
 
 // Handle SMS sending failures with simple retry logic
 async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Promise<void> {
-    const isBalanceError = isInsufficientBalanceError(result.httpStatus);
     const currentAttempt = record.attemptCount + 1; // This is the attempt we just made
-
-    // Balance errors fail immediately - they require human action (top up credits)
-    // and can be retried manually via the admin UI once credits are restored.
-    if (isBalanceError) {
-        logError("SMS failed - insufficient balance", new Error(result.error || "No credits"), {
-            intent: record.intent,
-            householdId: record.householdId,
-        });
-
-        await updateSmsStatus(record.id, "failed", {
-            errorMessage: result.error,
-            incrementAttempt: true,
-            balanceFailure: true,
-        });
-
-        sendInsufficientBalanceSlackAlert().catch(err =>
-            logError("Failed to send balance Slack alert", err),
-        );
-        return;
-    }
 
     const maxAttempts = 3; // Total attempts: initial + 2 retries
     const shouldRetry = currentAttempt < maxAttempts && isRetriableHttpError(result.httpStatus);
@@ -1143,8 +1121,6 @@ export async function sendReminderForParcel(parcel: {
  *
  * Unlike permanent failures, transient errors (429, 500, 503) are retried
  * unless max attempts reached or pickup time has passed.
- * Insufficient balance errors (402) fail immediately and must be retried
- * manually by an admin after the organisation tops up SMS credits.
  */
 async function handleJitFailure(
     smsId: string,
@@ -1152,34 +1128,6 @@ async function handleJitFailure(
     pickupLatest: Date,
     result: SendSmsResponse,
 ): Promise<void> {
-    const isBalanceError = isInsufficientBalanceError(result.httpStatus);
-
-    // Balance errors fail immediately - manual retry via admin UI after topping up
-    if (isBalanceError) {
-        logError(
-            "SMS failed - insufficient balance (JIT)",
-            new Error(result.error || "No credits"),
-            {
-                smsId,
-                parcelId,
-            },
-        );
-        await db
-            .update(outgoingSms)
-            .set({
-                status: "failed",
-                last_error_message: result.error,
-                next_attempt_at: null,
-                balance_failure: true,
-            })
-            .where(eq(outgoingSms.id, smsId));
-
-        sendInsufficientBalanceSlackAlert().catch(err =>
-            logError("Failed to send balance Slack alert", err),
-        );
-        return;
-    }
-
     const maxAttempts = 3;
     const now = Time.now().toUTC();
 
@@ -1834,42 +1782,12 @@ export async function sendEndedSmsForHousehold(household: {
  *
  * Unlike pickup reminders, these SMS don't have a time constraint (pickup window),
  * so we retry transient errors up to 3 times with simple backoff.
- * Insufficient balance errors (402) fail immediately and must be retried
- * manually by an admin after the organisation tops up SMS credits.
  */
 async function handleEndedSmsFailure(
     smsId: string,
     householdId: string,
     result: SendSmsResponse,
 ): Promise<void> {
-    const isBalanceError = isInsufficientBalanceError(result.httpStatus);
-
-    // Balance errors fail immediately - manual retry via admin UI after topping up
-    if (isBalanceError) {
-        logError(
-            "Food parcels ended SMS failed - insufficient balance",
-            new Error(result.error || "No credits"),
-            {
-                smsId,
-                householdId,
-            },
-        );
-        await db
-            .update(outgoingSms)
-            .set({
-                status: "failed",
-                last_error_message: result.error,
-                next_attempt_at: null,
-                balance_failure: true,
-            })
-            .where(eq(outgoingSms.id, smsId));
-
-        sendInsufficientBalanceSlackAlert().catch(err =>
-            logError("Failed to send balance Slack alert", err),
-        );
-        return;
-    }
-
     const maxAttempts = 3;
 
     // Get current attempt count

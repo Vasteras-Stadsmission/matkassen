@@ -229,7 +229,7 @@ export async function createTestBalanceFailedSms(overrides: {
         ...overrides,
         status: "failed",
         attempt_count: 1,
-        last_error_message: overrides.error_message ?? "HTTP 402",
+        last_error_message: overrides.error_message ?? "Insufficient balance",
         balance_failure: true,
     });
 }

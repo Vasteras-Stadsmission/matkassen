@@ -5,7 +5,6 @@
  * - Pre-batch balance check returns credit count (or null for fail-open)
  * - Credit budget: credits=0 → fail-fast all as balance failures
  * - Credit budget: credits=N → send N, fail-fast the rest
- * - HTTP 402 during send sets balance_failure=true (safety net)
  * - getInsufficientBalanceStatus() uses boolean column
  * - requeueBalanceFailures() resets balance_failure flag
  * - Dismissed balance failures are excluded from requeue
@@ -65,99 +64,8 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
         resetBalanceAlertCooldown();
     });
 
-    describe("Balance error detection and immediate failure", () => {
-        it("HTTP 402 from provider marks SMS as failed with balance_failure=true", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
-
-            const tomorrow = daysFromTestNow(1);
-            const parcel = await createTestParcel({
-                household_id: household.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
-            });
-
-            const sms = await createTestSms({
-                household_id: household.id,
-                parcel_id: parcel.id,
-                status: "queued",
-                attempt_count: 0,
-                next_attempt_at: new Date(),
-            });
-
-            // Provider returns 402 (insufficient credits)
-            const mockGateway = new MockSmsGateway().alwaysFail("Payment required", 402);
-            setSmsGateway(mockGateway);
-
-            const readyRecords = await getSmsRecordsReadyForSending();
-            const record = readyRecords.find(r => r.id === sms.id);
-            expect(record).toBeDefined();
-
-            const claimed = await sendSmsRecord(record!);
-            expect(claimed).toBe(true);
-
-            // Should be failed immediately, not retrying
-            const [updatedRecord] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-
-            expect(updatedRecord.status).toBe("failed");
-            expect(updatedRecord.balance_failure).toBe(true);
-            expect(updatedRecord.attempt_count).toBe(1);
-            expect(updatedRecord.next_attempt_at).toBeNull();
-            expect(updatedRecord.last_error_message).toContain("Payment required");
-
-            // Only one gateway call (no retries)
-            expect(mockGateway.getCallCount()).toBe(1);
-        });
-
-        it("non-402 error does NOT set balance_failure", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
-
-            const tomorrow = daysFromTestNow(1);
-            const parcel = await createTestParcel({
-                household_id: household.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
-            });
-
-            const sms = await createTestSms({
-                household_id: household.id,
-                parcel_id: parcel.id,
-                status: "queued",
-                attempt_count: 0,
-                next_attempt_at: new Date(),
-            });
-
-            // Provider returns 200 with "Insufficient credits" in message — no longer triggers balance detection
-            const mockGateway = new MockSmsGateway().alwaysFail(
-                "Insufficient credits on account",
-                200,
-            );
-            setSmsGateway(mockGateway);
-
-            const readyRecords = await getSmsRecordsReadyForSending();
-            const record = readyRecords.find(r => r.id === sms.id);
-
-            await sendSmsRecord(record!);
-
-            const [updatedRecord] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-
-            // Non-retriable HTTP 200 error → failed permanently, but NOT a balance failure
-            expect(updatedRecord.status).toBe("failed");
-            expect(updatedRecord.balance_failure).toBe(false);
-        });
-
-        it("transient 503 error still retries (not treated as balance error)", async () => {
+    describe("Send failure handling", () => {
+        it("transient 503 error retries normally (not a balance failure)", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule();
@@ -398,7 +306,7 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
             // Dismissed balance failure
             await createTestDismissedFailedSms({
                 household_id: household.id,
-                error_message: "HTTP 402",
+                error_message: "Insufficient balance",
             });
 
             const status = await getInsufficientBalanceStatus();
@@ -509,7 +417,7 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
                 household_id: household.id,
                 status: "failed",
                 attempt_count: 1,
-                last_error_message: "HTTP 402",
+                last_error_message: "Insufficient balance",
                 balance_failure: true,
                 dismissed_at: new Date(),
                 dismissed_by_user_id: "test-user",
@@ -536,81 +444,6 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
             // Second call should find zero because they're now "queued" with balance_failure=false
             const second = await requeueBalanceFailures();
             expect(second).toBe(0);
-        });
-    });
-
-    describe("Balance failure then successful retry after requeue", () => {
-        it("full lifecycle: send fails with 402 → admin requeues → send succeeds", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
-
-            const tomorrow = daysFromTestNow(1);
-            const parcel = await createTestParcel({
-                household_id: household.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
-            });
-
-            // Phase 1: Initial send attempt fails with 402
-            const sms = await createTestSms({
-                household_id: household.id,
-                parcel_id: parcel.id,
-                status: "queued",
-                attempt_count: 0,
-                next_attempt_at: new Date(),
-            });
-
-            const failGateway = new MockSmsGateway().alwaysFail("HTTP 402", 402);
-            setSmsGateway(failGateway);
-
-            const readyRecords1 = await getSmsRecordsReadyForSending();
-            const record1 = readyRecords1.find(r => r.id === sms.id);
-            await sendSmsRecord(record1!);
-
-            // Verify failed state with balance_failure flag
-            const [failedRecord] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-            expect(failedRecord.status).toBe("failed");
-            expect(failedRecord.balance_failure).toBe(true);
-            expect(failedRecord.last_error_message).toBe("HTTP 402");
-
-            // Phase 2: Admin tops up credits and requeues
-            const requeuedCount = await requeueBalanceFailures();
-            expect(requeuedCount).toBe(1);
-
-            // Verify requeued state with balance_failure cleared
-            const [requeuedRecord] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-            expect(requeuedRecord.status).toBe("queued");
-            expect(requeuedRecord.balance_failure).toBe(false);
-            expect(requeuedRecord.attempt_count).toBe(0);
-            expect(requeuedRecord.next_attempt_at).not.toBeNull();
-            expect(requeuedRecord.last_error_message).toBeNull();
-
-            // Phase 3: Queue processor picks it up and sends successfully
-            const successGateway = new MockSmsGateway().alwaysSucceed();
-            setSmsGateway(successGateway);
-
-            const readyRecords2 = await getSmsRecordsReadyForSending();
-            const record2 = readyRecords2.find(r => r.id === sms.id);
-            expect(record2).toBeDefined();
-
-            await sendSmsRecord(record2!);
-
-            // Verify sent
-            const [sentRecord] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, sms.id));
-            expect(sentRecord.status).toBe("sent");
-            expect(sentRecord.sent_at).not.toBeNull();
-            expect(sentRecord.attempt_count).toBe(1);
         });
     });
 

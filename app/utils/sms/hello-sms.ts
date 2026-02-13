@@ -260,21 +260,6 @@ export function isValidE164(phone: string): boolean {
     return /^\+[1-9]\d{1,14}$/.test(phone);
 }
 
-/**
- * HTTP status code returned by HelloSMS when account has insufficient credits.
- * This is the standard HTTP 402 Payment Required status.
- */
-export const HTTP_INSUFFICIENT_CREDITS = 402;
-
-/**
- * Check if an SMS send failure was caused by insufficient account balance.
- * Only checks HTTP 402 status — the primary detection is the pre-batch
- * balance check via checkBalance(). This is a safety net for per-send failures.
- */
-export function isInsufficientBalanceError(httpStatus?: number): boolean {
-    return httpStatus === HTTP_INSUFFICIENT_CREDITS;
-}
-
 // Re-export BalanceResult from sms-gateway.ts for backwards compatibility
 import type { BalanceResult } from "./sms-gateway";
 export type { BalanceResult };
