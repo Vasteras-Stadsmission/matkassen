@@ -250,8 +250,7 @@ export function HouseholdWizard({
         // Check if we need to validate the current step
         if (active === 0) {
             // Validate household step
-            const { first_name, last_name, phone_number, sms_consent } =
-                formData.household;
+            const { first_name, last_name, phone_number, sms_consent } = formData.household;
 
             // Check first name
             if (!first_name || first_name.trim().length < 2) {

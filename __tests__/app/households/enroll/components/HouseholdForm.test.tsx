@@ -245,5 +245,4 @@ describe("HouseholdForm Component", () => {
         // Verify the updateData was called with the updated locale
         expect(wasCalledWithCorrectData).toBe(true);
     });
-
 });
