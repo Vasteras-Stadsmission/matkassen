@@ -15,6 +15,7 @@ import {
     Paper,
     Chip,
     ThemeIcon,
+    Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { modals } from "@mantine/modals";
@@ -64,6 +65,7 @@ interface FailedSms {
     parcelId: string | null;
     parcelDeleted: boolean;
     parcelOutsideHours: boolean;
+    pickupEarliest: string | null;
     errorMessage: string | null;
     failureType: "internal" | "provider" | "stale";
     createdAt: string;
@@ -123,6 +125,8 @@ export default function IssuesPageClient() {
                 INVALID_ACTION: t("errorCodes.INVALID_ACTION"),
                 OUTSIDE_HOURS: t("errorCodes.OUTSIDE_HOURS"),
                 COOLDOWN_ACTIVE: t("errorCodes.COOLDOWN_ACTIVE"),
+                PARCEL_NOT_FOUND: t("errorCodes.PARCEL_NOT_FOUND"),
+                TOO_LATE: t("errorCodes.TOO_LATE"),
                 FETCH_ERROR: t("errorCodes.FETCH_ERROR"),
                 SEND_ERROR: t("errorCodes.SEND_ERROR"),
                 UNKNOWN_ERROR: t("errorCodes.UNKNOWN_ERROR"),
@@ -407,34 +411,20 @@ export default function IssuesPageClient() {
         }
     };
 
-    // Action handler: Retry failed SMS (only for parcel-related SMS)
+    // Action handler: Retry failed SMS (for parcel-related SMS)
     const handleRetry = async (sms: FailedSms) => {
-        if (!sms.parcelId) {
-            return; // Button is hidden when no parcelId
-        }
-
         const key = `retry-${sms.id}`;
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
         try {
-            const response = await adminFetch(`/api/admin/sms/parcel/${sms.parcelId}`, {
+            const response = await adminFetch(`/api/admin/sms/${sms.id}/retry`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "resend" }),
             });
 
             if (!response.ok) {
                 const data = await response.json();
                 throw new Error(getErrorMessage(data, t("toast.retryError")));
             }
-
-            // Auto-dismiss the original failure after successful retry
-            // This prevents the same failure from reappearing on refresh
-            await adminFetch(`/api/admin/sms/${sms.id}/dismiss`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ dismissed: true }),
-            });
 
             notifications.show({
                 title: t("toast.success"),
@@ -856,110 +846,153 @@ export default function IssuesPageClient() {
 
                         {/* Failed SMS */}
                         {showFailedSms &&
-                            issues.failedSms.map(sms => (
-                                <Paper
-                                    key={`sms-${sms.id}`}
-                                    p="xs"
-                                    withBorder
-                                    style={{
-                                        borderLeft: "3px solid var(--mantine-color-grape-5)",
-                                        opacity: removingItems.has(`sms-${sms.id}`) ? 0 : 1,
-                                        transform: removingItems.has(`sms-${sms.id}`)
-                                            ? "translateX(-20px)"
-                                            : "translateX(0)",
-                                        transition:
-                                            "opacity 300ms ease-out, transform 300ms ease-out",
-                                    }}
-                                >
-                                    <Stack gap={2}>
-                                        <Group gap={6}>
-                                            <IconMessage
-                                                size={16}
-                                                color="var(--mantine-color-grape-5)"
-                                            />
-                                            <Text size="sm" c="dark.5" fw={500}>
-                                                {t("cardType.failedSms")}
-                                            </Text>
-                                        </Group>
-                                        <Group gap="xs" wrap="wrap">
-                                            <Text
-                                                fw={600}
-                                                component={Link}
-                                                href={`/households/${sms.householdId}`}
-                                                style={{ textDecoration: "none" }}
-                                                c="inherit"
-                                            >
-                                                {sms.householdFirstName} {sms.householdLastName}
-                                            </Text>
-                                            {/* Retry only available for pickup_reminder with valid parcel (not deleted, not outside hours) */}
-                                            {sms.parcelId &&
-                                                !sms.parcelDeleted &&
-                                                !sms.parcelOutsideHours &&
-                                                sms.intent === "pickup_reminder" && (
-                                                    <Button
-                                                        variant="light"
-                                                        color="blue"
-                                                        size="compact-sm"
-                                                        loading={actionLoading[`retry-${sms.id}`]}
-                                                        onClick={() => handleRetry(sms)}
-                                                    >
-                                                        {t("actions.retry")}
-                                                    </Button>
-                                                )}
-                                            <Button
-                                                variant="light"
-                                                color="gray"
-                                                size="compact-sm"
-                                                loading={actionLoading[`dismiss-${sms.id}`]}
-                                                onClick={() =>
-                                                    handleDismissFailedSms(
-                                                        sms.id,
-                                                        `${sms.householdFirstName} ${sms.householdLastName}`,
-                                                    )
+                            issues.failedSms.map(sms => {
+                                const failureColor = {
+                                    stale: "grape",
+                                    provider: "red",
+                                    internal: "orange",
+                                }[sms.failureType];
+                                const failureLabel = {
+                                    stale: t("cardType.failedSmsStale"),
+                                    provider: t("cardType.failedSmsProvider"),
+                                    internal: t("cardType.failedSmsInternal"),
+                                }[sms.failureType];
+                                const retryableIntents = [
+                                    "pickup_reminder",
+                                    "pickup_updated",
+                                    "pickup_cancelled",
+                                ];
+                                const canRetry =
+                                    sms.parcelId && retryableIntents.includes(sms.intent);
+                                const pickupTooLate =
+                                    !sms.pickupEarliest ||
+                                    new Date(sms.pickupEarliest).getTime() - Date.now() <
+                                        60 * 60 * 1000;
+
+                                return (
+                                    <Paper
+                                        key={`sms-${sms.id}`}
+                                        p="xs"
+                                        withBorder
+                                        style={{
+                                            borderLeft: `3px solid var(--mantine-color-${failureColor}-5)`,
+                                            opacity: removingItems.has(`sms-${sms.id}`) ? 0 : 1,
+                                            transform: removingItems.has(`sms-${sms.id}`)
+                                                ? "translateX(-20px)"
+                                                : "translateX(0)",
+                                            transition:
+                                                "opacity 300ms ease-out, transform 300ms ease-out",
+                                        }}
+                                    >
+                                        <Stack gap={2}>
+                                            <Group gap={6}>
+                                                <IconMessage
+                                                    size={16}
+                                                    color={`var(--mantine-color-${failureColor}-5)`}
+                                                />
+                                                <Text size="sm" c="dark.5" fw={500}>
+                                                    {failureLabel}
+                                                </Text>
+                                            </Group>
+                                            <Group gap="xs" wrap="wrap">
+                                                <Text
+                                                    fw={600}
+                                                    component={Link}
+                                                    href={`/households/${sms.householdId}`}
+                                                    style={{ textDecoration: "none" }}
+                                                    c="inherit"
+                                                >
+                                                    {sms.householdFirstName} {sms.householdLastName}
+                                                </Text>
+                                                {canRetry &&
+                                                    (pickupTooLate ? (
+                                                        <Tooltip
+                                                            label={t("actions.retryTooLate")}
+                                                            withArrow
+                                                        >
+                                                            <span>
+                                                                <Button
+                                                                    variant="light"
+                                                                    color="blue"
+                                                                    size="compact-sm"
+                                                                    disabled
+                                                                >
+                                                                    {t("actions.retry")}
+                                                                </Button>
+                                                            </span>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Button
+                                                            variant="light"
+                                                            color="blue"
+                                                            size="compact-sm"
+                                                            loading={
+                                                                actionLoading[`retry-${sms.id}`]
+                                                            }
+                                                            onClick={() => handleRetry(sms)}
+                                                        >
+                                                            {t("actions.retry")}
+                                                        </Button>
+                                                    ))}
+                                                <Button
+                                                    variant="light"
+                                                    color="gray"
+                                                    size="compact-sm"
+                                                    loading={actionLoading[`dismiss-${sms.id}`]}
+                                                    onClick={() =>
+                                                        handleDismissFailedSms(
+                                                            sms.id,
+                                                            `${sms.householdFirstName} ${sms.householdLastName}`,
+                                                        )
+                                                    }
+                                                >
+                                                    {t("actions.dismiss")}
+                                                </Button>
+                                                <Button
+                                                    component={Link}
+                                                    href={`/households/${sms.householdId}/edit`}
+                                                    variant="light"
+                                                    size="compact-sm"
+                                                >
+                                                    {t("actions.editHousehold")} →
+                                                </Button>
+                                            </Group>
+                                            <Text size="sm" c="dark.4">
+                                                {
+                                                    {
+                                                        pickup_reminder: t(
+                                                            "smsIntent.pickup_reminder",
+                                                        ),
+                                                        pickup_updated: t(
+                                                            "smsIntent.pickup_updated",
+                                                        ),
+                                                        pickup_cancelled: t(
+                                                            "smsIntent.pickup_cancelled",
+                                                        ),
+                                                        enrolment: t("smsIntent.enrolment"),
+                                                        consent_enrolment: t(
+                                                            "smsIntent.consent_enrolment",
+                                                        ),
+                                                        food_parcels_ended: t(
+                                                            "smsIntent.food_parcels_ended",
+                                                        ),
+                                                    }[sms.intent]
                                                 }
-                                            >
-                                                {t("actions.dismiss")}
-                                            </Button>
-                                            <Button
-                                                component={Link}
-                                                href={`/households/${sms.householdId}/edit`}
-                                                variant="light"
-                                                size="compact-sm"
-                                            >
-                                                {t("actions.editHousehold")} →
-                                            </Button>
-                                        </Group>
-                                        <Text size="sm" c="dark.4">
-                                            {
+                                            </Text>
+                                            <Text size="sm" c="dark.4">
                                                 {
-                                                    pickup_reminder: t("smsIntent.pickup_reminder"),
-                                                    pickup_updated: t("smsIntent.pickup_updated"),
-                                                    pickup_cancelled: t(
-                                                        "smsIntent.pickup_cancelled",
-                                                    ),
-                                                    enrolment: t("smsIntent.enrolment"),
-                                                    consent_enrolment: t(
-                                                        "smsIntent.consent_enrolment",
-                                                    ),
-                                                    food_parcels_ended: t(
-                                                        "smsIntent.food_parcels_ended",
-                                                    ),
-                                                }[sms.intent]
-                                            }
-                                        </Text>
-                                        <Text size="sm" c="dark.4">
-                                            {
-                                                {
-                                                    internal: t("failureDescription.internal"),
-                                                    provider: t("failureDescription.provider"),
-                                                    stale: t("failureDescription.stale"),
-                                                }[sms.failureType]
-                                            }
-                                            {sms.errorMessage && `: ${sms.errorMessage}`}
-                                        </Text>
-                                    </Stack>
-                                </Paper>
-                            ))}
+                                                    {
+                                                        internal: t("failureDescription.internal"),
+                                                        provider: t("failureDescription.provider"),
+                                                        stale: t("failureDescription.stale"),
+                                                    }[sms.failureType]
+                                                }
+                                                {sms.errorMessage && `: ${sms.errorMessage}`}
+                                            </Text>
+                                        </Stack>
+                                    </Paper>
+                                );
+                            })}
 
                         {/* No-Show Follow-ups */}
                         {showNoShowFollowups &&

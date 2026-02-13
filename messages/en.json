@@ -1509,6 +1509,9 @@
             "unresolvedHandout": "Unresolved handout",
             "outsideHours": "Outside opening hours",
             "failedSms": "SMS delivery failed",
+            "failedSmsStale": "SMS delivery unconfirmed",
+            "failedSmsProvider": "SMS delivery rejected",
+            "failedSmsInternal": "SMS sending failed",
             "noShowFollowup": "No-show follow-up needed"
         },
         "actions": {
@@ -1517,6 +1520,7 @@
             "cancelParcel": "Cancel parcel",
             "reschedule": "Reschedule",
             "retry": "Retry",
+            "retryTooLate": "Too late to retry - pickup starts in less than 1 hour",
             "dismiss": "Dismiss",
             "editHousehold": "Edit household",
             "viewHousehold": "View household",
@@ -1572,6 +1576,8 @@
             "COOLDOWN_ACTIVE": "Please wait before sending another SMS.",
             "FETCH_ERROR": "Failed to load data. Please try again.",
             "SEND_ERROR": "Failed to send SMS. Please try again.",
+            "PARCEL_NOT_FOUND": "The associated parcel no longer exists.",
+            "TOO_LATE": "Too late to retry - pickup starts in less than 1 hour.",
             "UNKNOWN_ERROR": "An unexpected error occurred. Please try again."
         },
         "confirm": {

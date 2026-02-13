@@ -91,6 +91,7 @@ export async function GET() {
                 and(
                     isNull(outgoingSms.dismissed_at),
                     isNull(households.anonymized_at),
+                    eq(outgoingSms.balance_failure, false), // Balance failures shown in banner instead
                     or(
                         eq(outgoingSms.status, "failed"),
                         and(
@@ -282,6 +283,7 @@ export async function GET() {
                 and(
                     isNull(outgoingSms.dismissed_at), // Not dismissed
                     isNull(households.anonymized_at), // Exclude anonymized households
+                    eq(outgoingSms.balance_failure, false), // Balance failures shown in banner instead
                     or(
                         eq(outgoingSms.status, "failed"), // Internal failure
                         and(
@@ -334,6 +336,7 @@ export async function GET() {
                 parcelId: sms.parcelId,
                 parcelDeleted: sms.parcelDeleted !== null,
                 parcelOutsideHours,
+                pickupEarliest: sms.parcelPickupEarliest?.toISOString() ?? null,
                 errorMessage: sanitizeErrorMessage(sms.errorMessage),
                 failureType: getFailureType(
                     sms.status,

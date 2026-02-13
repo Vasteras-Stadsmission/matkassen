@@ -639,6 +639,56 @@ export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
         }
     }
 
+    // Revalidate food_parcels_ended eligibility (important for requeued balance failures
+    // which bypass the original eligibility checks in sendEndedSmsForHousehold)
+    if (record.intent === "food_parcels_ended") {
+        // Check household still exists and is not anonymized
+        const [freshHousehold] = await db
+            .select({ anonymizedAt: households.anonymized_at })
+            .from(households)
+            .where(eq(households.id, record.householdId))
+            .limit(1);
+
+        if (!freshHousehold || freshHousehold.anonymizedAt !== null) {
+            logger.info(
+                {
+                    smsId: record.id,
+                    householdId: record.householdId,
+                    reason: "household_anonymized",
+                },
+                "Food parcels ended SMS cancelled - household no longer eligible",
+            );
+            await updateSmsStatus(record.id, "cancelled");
+            return false;
+        }
+
+        // Check for future parcels (staff may have scheduled new parcels since failure)
+        const todayStart = Time.now().startOfDay().toUTC();
+        const [futureParcels] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(foodParcels)
+            .where(
+                and(
+                    eq(foodParcels.household_id, record.householdId),
+                    notDeleted(),
+                    gte(foodParcels.pickup_date_time_latest, todayStart),
+                ),
+            );
+
+        if (futureParcels && futureParcels.count > 0) {
+            logger.info(
+                {
+                    smsId: record.id,
+                    householdId: record.householdId,
+                    reason: "future_parcels_exist",
+                },
+                "Food parcels ended SMS cancelled - household has future parcels",
+            );
+            await updateSmsStatus(record.id, "cancelled");
+            return false;
+        }
+    }
+
     try {
         const result: SendSmsResponse = await sendSmsViaGateway({
             to: record.toE164,
