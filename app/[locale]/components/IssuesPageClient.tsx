@@ -857,8 +857,7 @@ export default function IssuesPageClient() {
                                     provider: t("cardType.failedSmsProvider"),
                                     internal: t("cardType.failedSmsInternal"),
                                 };
-                                const failureColor =
-                                    failureColors[sms.failureType] ?? "grape";
+                                const failureColor = failureColors[sms.failureType] ?? "grape";
                                 const failureLabel =
                                     failureLabels[sms.failureType] ?? t("cardType.failedSms");
                                 const retryableIntents = [

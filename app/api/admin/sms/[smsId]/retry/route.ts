@@ -194,9 +194,7 @@ export async function POST(
                     dismissed_at: now,
                     dismissed_by_user_id: authResult.session!.user.githubUsername,
                 })
-                .where(
-                    and(eq(outgoingSms.id, smsId!), isNull(outgoingSms.dismissed_at)),
-                )
+                .where(and(eq(outgoingSms.id, smsId!), isNull(outgoingSms.dismissed_at)))
                 .returning({ id: outgoingSms.id });
 
             if (!dismissed) {
