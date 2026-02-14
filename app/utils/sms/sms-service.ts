@@ -326,7 +326,6 @@ export async function updateSmsStatus(
         nextAttemptAt?: Date;
         incrementAttempt?: boolean;
         providerMessageId?: string;
-        balanceFailure?: boolean;
     } = {},
 ): Promise<void> {
     const updateData: Record<string, unknown> = {
@@ -344,9 +343,6 @@ export async function updateSmsStatus(
     } else if (status === "failed") {
         updateData.last_error_message = options.errorMessage;
         updateData.next_attempt_at = null; // Clear retry schedule on permanent failure
-        if (options.balanceFailure) {
-            updateData.balance_failure = true;
-        }
     } else if (status === "sent") {
         updateData.sent_at = Time.now().toUTC();
         // Clear any error message from previous failed attempts
@@ -1299,7 +1295,7 @@ export async function getSmsHealthStats(): Promise<{
 /**
  * Create a "failed" SMS record for a parcel when balance is insufficient.
  * Unlike sendReminderForParcel, this does NOT call the gateway.
- * The record is immediately visible in the admin Issues page.
+ * The record is surfaced in the SMS balance banner for bulk retry.
  */
 async function failReminderForBalance(parcel: {
     parcelId: string;
@@ -1372,7 +1368,7 @@ async function failReminderForBalance(parcel: {
  *
  * When creditBudget is provided, only that many SMS are sent through the
  * gateway. Any remaining eligible parcels get fail-fasted as balance
- * failures (immediately visible in the Issues page).
+ * failures (surfaced in the SMS balance banner for bulk retry).
  *
  * Concurrency is handled by idempotency constraint on insert - if two
  * processes try the same parcel, the second insert fails and skips.
@@ -1847,7 +1843,7 @@ async function handleEndedSmsFailure(
 /**
  * Create a "failed" SMS record for a household when balance is insufficient.
  * Unlike sendEndedSmsForHousehold, this does NOT call the gateway.
- * The record is immediately visible in the admin Issues page.
+ * The record is surfaced in the SMS balance banner for bulk retry.
  */
 async function failEndedSmsForBalance(household: {
     householdId: string;
@@ -1911,7 +1907,7 @@ async function failEndedSmsForBalance(household: {
  *
  * When creditBudget is provided, only that many SMS are sent through the
  * gateway. Any remaining eligible households get fail-fasted as balance
- * failures (immediately visible in the Issues page).
+ * failures (surfaced in the SMS balance banner for bulk retry).
  *
  * Concurrency is handled by idempotency constraint on insert - if two
  * processes try the same household/parcel combo, the second insert fails and skips.

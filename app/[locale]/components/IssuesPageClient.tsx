@@ -847,16 +847,20 @@ export default function IssuesPageClient() {
                         {/* Failed SMS */}
                         {showFailedSms &&
                             issues.failedSms.map(sms => {
-                                const failureColor = {
+                                const failureColors: Record<string, string> = {
                                     stale: "grape",
                                     provider: "red",
                                     internal: "orange",
-                                }[sms.failureType];
-                                const failureLabel = {
+                                };
+                                const failureLabels: Record<string, string> = {
                                     stale: t("cardType.failedSmsStale"),
                                     provider: t("cardType.failedSmsProvider"),
                                     internal: t("cardType.failedSmsInternal"),
-                                }[sms.failureType];
+                                };
+                                const failureColor =
+                                    failureColors[sms.failureType] ?? "grape";
+                                const failureLabel =
+                                    failureLabels[sms.failureType] ?? t("cardType.failedSms");
                                 const retryableIntents = [
                                     "pickup_reminder",
                                     "pickup_updated",

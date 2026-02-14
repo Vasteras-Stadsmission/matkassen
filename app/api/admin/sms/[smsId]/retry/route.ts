@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households } from "@/app/db/schema";
-import { eq, and, gte, ne } from "drizzle-orm";
+import { eq, and, gte, ne, isNull } from "drizzle-orm";
 import { createSmsRecord } from "@/app/utils/sms/sms-service";
 import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
@@ -184,10 +184,26 @@ export async function POST(
             );
         }
 
-        // Create new SMS record and auto-dismiss the original in one transaction
-        // to prevent double-click races from creating duplicate retries
+        // Create new SMS record and auto-dismiss the original in one transaction.
+        // The dismissed_at IS NULL guard prevents double-click races: if two concurrent
+        // requests both pass validation, only one will successfully claim the original.
         const newSmsId = await db.transaction(async tx => {
-            const id = await createSmsRecord({
+            const [dismissed] = await tx
+                .update(outgoingSms)
+                .set({
+                    dismissed_at: now,
+                    dismissed_by_user_id: authResult.session!.user.githubUsername,
+                })
+                .where(
+                    and(eq(outgoingSms.id, smsId!), isNull(outgoingSms.dismissed_at)),
+                )
+                .returning({ id: outgoingSms.id });
+
+            if (!dismissed) {
+                return null; // Another request already handled this SMS
+            }
+
+            return createSmsRecord({
                 intent: originalSms.intent,
                 parcelId: originalSms.parcelId!,
                 householdId: parcel.householdId,
@@ -196,17 +212,14 @@ export async function POST(
                 idempotencyKey: `${originalSms.intent}|${originalSms.parcelId}|retry|${nanoid(8)}`,
                 tx,
             });
-
-            await tx
-                .update(outgoingSms)
-                .set({
-                    dismissed_at: now,
-                    dismissed_by_user_id: authResult.session!.user.githubUsername,
-                })
-                .where(eq(outgoingSms.id, smsId!));
-
-            return id;
         });
+
+        if (!newSmsId) {
+            return NextResponse.json(
+                { error: "SMS has already been retried or dismissed", code: "INVALID_ACTION" },
+                { status: 409 },
+            );
+        }
 
         logger.info(
             {

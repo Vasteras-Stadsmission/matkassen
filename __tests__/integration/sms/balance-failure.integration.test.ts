@@ -19,7 +19,6 @@ import {
     createTestSms,
     createTestBalanceFailedSms,
     createTestFailedSms,
-    createTestDismissedFailedSms,
     resetHouseholdCounter,
     resetLocationCounter,
     resetSmsCounter,
@@ -303,10 +302,16 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
         it("excludes dismissed balance failures", async () => {
             const household = await createTestHousehold();
 
-            // Dismissed balance failure
-            await createTestDismissedFailedSms({
+            // Balance failure that has been dismissed — must set both flags
+            // to verify the dismissed_at filter (not just balance_failure=false)
+            await createTestSms({
                 household_id: household.id,
-                error_message: "Insufficient balance",
+                status: "failed",
+                attempt_count: 1,
+                last_error_message: "Insufficient balance",
+                balance_failure: true,
+                dismissed_at: new Date(),
+                dismissed_by_user_id: "test-admin",
             });
 
             const status = await getInsufficientBalanceStatus();
