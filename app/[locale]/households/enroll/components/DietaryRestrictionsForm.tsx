@@ -88,7 +88,6 @@ export default function DietaryRestrictionsForm({
                             {restriction.name}
                             {restriction.isActive === false && (
                                 <Badge ml={8} color="orange" variant="light" size="xs">
-                                    {/* @ts-expect-error next-intl type depth limit - key exists in en.json */}
                                     {t("disabledLabel")}
                                 </Badge>
                             )}

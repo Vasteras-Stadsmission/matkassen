@@ -212,10 +212,8 @@ export function HouseholdOptionsManager() {
                 notifications.show({
                     title: t("notifications.success"),
                     message: nextIsActive
-                        ? // @ts-expect-error next-intl type depth limit
-                          t("notifications.activated")
-                        : // @ts-expect-error next-intl type depth limit
-                          t("notifications.deactivated"),
+                        ? t("notifications.activated")
+                        : t("notifications.deactivated"),
                     color: "green",
                 });
                 await loadAllOptions();
@@ -415,10 +413,8 @@ export function HouseholdOptionsManager() {
                                                     }
                                                     label={
                                                         option.isActive
-                                                            ? // @ts-expect-error next-intl type depth limit
-                                                              t("status.active")
-                                                            : // @ts-expect-error next-intl type depth limit
-                                                              t("status.disabled")
+                                                            ? t("status.active")
+                                                            : t("status.disabled")
                                                     }
                                                     disabled={togglingOptionId === option.id}
                                                 />
@@ -456,7 +452,6 @@ export function HouseholdOptionsManager() {
                                         {option.linkedHouseholds.length > 0 && (
                                             <Stack gap={4}>
                                                 <Text size="xs" c="dimmed">
-                                                    {/* @ts-expect-error next-intl type depth limit */}
                                                     {t("linkedHouseholds.title")}
                                                 </Text>
                                                 <Group gap="xs">

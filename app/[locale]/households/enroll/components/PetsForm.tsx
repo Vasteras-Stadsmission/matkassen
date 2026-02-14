@@ -157,7 +157,6 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                                 </Text>
                                 {isInactive && (
                                     <Badge color="orange" variant="light" size="xs">
-                                        {/* @ts-expect-error next-intl type depth limit - key exists in en.json */}
                                         {t("disabledLabel")}
                                     </Badge>
                                 )}
