@@ -1520,7 +1520,7 @@
             "cancelParcel": "Avboka paket",
             "reschedule": "Omboka",
             "retry": "Försök igen",
-            "retryTooLate": "För sent att skicka igen - upphämtningen börjar inom 1 timme",
+            "retryPickupPassed": "För sent att skicka igen - upphämtningstiden har passerat",
             "dismiss": "Ignorera",
             "editHousehold": "Redigera hushåll",
             "viewHousehold": "Visa hushåll",

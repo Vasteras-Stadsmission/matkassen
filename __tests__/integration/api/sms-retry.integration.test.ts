@@ -4,7 +4,7 @@
  * Tests the validation logic:
  * - Happy path: retry a failed SMS successfully
  * - Non-retryable intent (e.g. enrolment)
- * - Pickup too late (< 1 hour away)
+ * - Pickup in the past
  * - 5-minute cooldown per parcel
  * - Auto-dismissal of original failure
  * - Dismissed SMS cannot be retried
@@ -280,36 +280,6 @@ describe("SMS Retry - Route handler integration", () => {
     });
 
     describe("Validation: pickup too late", () => {
-        it("should reject when pickup is less than 1 hour away", async () => {
-            const household = await createTestHousehold({ first_name: "TooLate" });
-            const { location } = await createTestLocationWithSchedule();
-
-            // Pickup 30 minutes from now
-            const soonPickup = hoursFromTestNow(0.5);
-            const parcel = await createTestParcel({
-                household_id: household.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: soonPickup,
-                pickup_date_time_latest: new Date(soonPickup.getTime() + 30 * 60 * 1000),
-            });
-
-            const failedSms = await createTestSms({
-                household_id: household.id,
-                parcel_id: parcel.id,
-                intent: "pickup_reminder",
-                status: "failed",
-                attempt_count: 1,
-                last_error_message: "Test error",
-                created_at: new Date(TEST_NOW.getTime() - 6 * 60 * 1000),
-            });
-
-            const response = await callRetry(failedSms.id);
-            expect(response.status).toBe(400);
-
-            const payload = await response.json();
-            expect(payload.code).toBe("TOO_LATE");
-        });
-
         it("should reject when pickup is in the past", async () => {
             const household = await createTestHousehold({ first_name: "Past" });
             const { location } = await createTestLocationWithSchedule();

@@ -139,11 +139,10 @@ export async function POST(
             );
         }
 
-        // Pickup must be >1h in the future
-        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
-        if (parcel.pickupEarliest < oneHourFromNow) {
+        // Pickup must not have passed
+        if (parcel.pickupEarliest < now) {
             return NextResponse.json(
-                { error: "Pickup starts in less than 1 hour", code: "TOO_LATE" },
+                { error: "Pickup time has passed", code: "TOO_LATE" },
                 { status: 400 },
             );
         }
