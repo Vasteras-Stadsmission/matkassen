@@ -43,6 +43,18 @@ import {
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+async function ensurePickupLocationExists(tx: DbTransaction, locationId: string) {
+    const [location] = await tx
+        .select({ id: pickupLocationsTable.id })
+        .from(pickupLocationsTable)
+        .where(eq(pickupLocationsTable.id, locationId))
+        .limit(1);
+
+    if (!location) {
+        throw new OptionNotAvailableError();
+    }
+}
+
 class OptionNotAvailableError extends Error {
     readonly code = "OPTION_NOT_AVAILABLE";
 
@@ -137,6 +149,11 @@ export const enrollHousehold = protectedAgreementAction(
 
             // Use a transaction to ensure all operations succeed or fail together
             const result = await db.transaction(async tx => {
+                // 0. Validate primary pickup location exists (if provided)
+                if (data.primaryPickupLocationId) {
+                    await ensurePickupLocationExists(tx, data.primaryPickupLocationId);
+                }
+
                 // 1. Create household
                 const [household] = await tx
                     .insert(households)

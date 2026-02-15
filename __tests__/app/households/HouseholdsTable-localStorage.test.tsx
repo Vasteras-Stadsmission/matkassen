@@ -53,6 +53,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
             phone_number: "0701234567",
             locale: "sv",
             created_by: "testuser",
+            primaryLocationName: null,
             firstParcelDate: new Date("2025-01-01"),
             lastParcelDate: new Date("2025-12-31"),
             nextParcelDate: new Date("2025-06-15"),

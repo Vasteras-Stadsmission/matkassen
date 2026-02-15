@@ -125,6 +125,11 @@ export default function ReviewForm({
                     );
                     if (primaryLoc) {
                         setPrimaryLocationName(primaryLoc.name);
+                    } else {
+                        setPrimaryLocationName(
+                            t("householdForm.primaryLocation") +
+                                ` (ID: ${formData.household.primary_pickup_location_id})`,
+                        );
                     }
                 }
             } catch {

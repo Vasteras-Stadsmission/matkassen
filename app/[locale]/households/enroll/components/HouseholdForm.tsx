@@ -49,6 +49,11 @@ interface FormValues {
     primary_pickup_location_id: string;
 }
 
+// Normalize nullable string to empty string for form values (null and "" are equivalent)
+function toFormString(value: string | null | undefined): string {
+    return value || "";
+}
+
 // Using fast-deep-equal for robust deep comparison of objects
 function objectsEqual<T>(a: T, b: T): boolean {
     return deepEqual(a, b);
@@ -68,7 +73,9 @@ export default function HouseholdForm({
 
     // Fetch pickup locations on mount
     useEffect(() => {
-        getPickupLocationsAction().then(setPickupLocations);
+        getPickupLocationsAction().then(setPickupLocations).catch(() => {
+            // Silently fail - location selector will just be empty
+        });
     }, []);
 
     // Memoize location options for the Select
@@ -134,13 +141,14 @@ export default function HouseholdForm({
         };
 
         // Strip +46 prefix from phone for display (same as initialValues)
+        // Use toFormString for nullable fields to prevent null↔"" sync cycles
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
-            primary_pickup_location_id: data.primary_pickup_location_id || "",
+            primary_pickup_location_id: toFormString(data.primary_pickup_location_id),
         };
 
         // Only update form values if they are actually different
@@ -159,13 +167,14 @@ export default function HouseholdForm({
     // Update parent with debounced values
     useEffect(() => {
         // Strip +46 prefix for comparison (form values don't have the prefix)
+        // Use toFormString for nullable fields to prevent null↔"" sync cycles
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
-            primary_pickup_location_id: data.primary_pickup_location_id || "",
+            primary_pickup_location_id: toFormString(data.primary_pickup_location_id),
         };
 
         // Only call updateData if the debounced values actually changed

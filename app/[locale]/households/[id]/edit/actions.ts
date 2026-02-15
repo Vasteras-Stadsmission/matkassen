@@ -13,6 +13,7 @@ import {
     foodParcels,
     householdComments,
     users,
+    pickupLocations,
 } from "@/app/db/schema";
 import { eq, and, gt, ne, isNull, inArray } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
@@ -45,6 +46,18 @@ class OptionNotAvailableError extends Error {
 
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
+}
+
+async function ensurePickupLocationExists(tx: DbTransaction, locationId: string) {
+    const [location] = await tx
+        .select({ id: pickupLocations.id })
+        .from(pickupLocations)
+        .where(eq(pickupLocations.id, locationId))
+        .limit(1);
+
+    if (!location) {
+        throw new OptionNotAvailableError();
+    }
 }
 
 async function ensureSelectableDietaryRestrictions(
@@ -401,6 +414,11 @@ export const updateHousehold = protectedAgreementHouseholdAction(
 
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
+                // 0. Validate primary pickup location exists (if provided)
+                if (data.household.primary_pickup_location_id) {
+                    await ensurePickupLocationExists(tx, data.household.primary_pickup_location_id);
+                }
+
                 // 1. Update the household basic information
                 await tx
                     .update(households)

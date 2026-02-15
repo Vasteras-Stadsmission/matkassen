@@ -27,7 +27,7 @@ import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/la
 import { useLocale } from "next-intl";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
-interface Household {
+export interface Household {
     id: string;
     first_name: string;
     last_name: string;
