@@ -1509,6 +1509,9 @@
             "unresolvedHandout": "Oregistrerad utlämning",
             "outsideHours": "Utanför öppettider",
             "failedSms": "SMS-leverans misslyckades",
+            "failedSmsStale": "SMS-leverans obekräftad",
+            "failedSmsProvider": "SMS-leverans avvisad",
+            "failedSmsInternal": "SMS-sändning misslyckades",
             "noShowFollowup": "Uppföljning behövs"
         },
         "actions": {
@@ -1517,6 +1520,7 @@
             "cancelParcel": "Avboka paket",
             "reschedule": "Omboka",
             "retry": "Försök igen",
+            "retryTooLate": "För sent att skicka igen - upphämtningen börjar inom 1 timme",
             "dismiss": "Ignorera",
             "editHousehold": "Redigera hushåll",
             "viewHousehold": "Visa hushåll",
@@ -1572,6 +1576,8 @@
             "COOLDOWN_ACTIVE": "Vänta innan du skickar ett nytt SMS.",
             "FETCH_ERROR": "Kunde inte ladda data. Försök igen.",
             "SEND_ERROR": "Kunde inte skicka SMS. Försök igen.",
+            "PARCEL_NOT_FOUND": "Det tillhörande paketet finns inte längre.",
+            "TOO_LATE": "För sent att skicka igen - upphämtningen börjar inom 1 timme.",
             "UNKNOWN_ERROR": "Ett oväntat fel inträffade. Försök igen."
         },
         "confirm": {
@@ -1712,5 +1718,13 @@
             "households": "Hushåll"
         },
         "noData": "Ingen data tillgänglig"
+    },
+    "smsBanner": {
+        "title": "SMS-tjänsten tillfälligt avaktiverad",
+        "description": "SMS-aviseringar kan inte skickas eftersom HelloSMS-kontot har slut på saldo. Organisationen behöver förskottsbetala för mer SMS-saldo.",
+        "affectedCount": "{count, plural, one {# SMS-meddelande} other {# SMS-meddelanden}} kunde inte skickas på grund av lågt saldo.",
+        "retryButton": "Skicka om saldofel",
+        "retrySuccess": "{count, plural, one {# meddelande har} other {# meddelanden har}} lagts i kö för att skickas.",
+        "retryError": "Det gick inte att skicka om. Försök igen."
     }
 }

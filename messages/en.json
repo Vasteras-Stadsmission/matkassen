@@ -1509,6 +1509,9 @@
             "unresolvedHandout": "Unresolved handout",
             "outsideHours": "Outside opening hours",
             "failedSms": "SMS delivery failed",
+            "failedSmsStale": "SMS delivery unconfirmed",
+            "failedSmsProvider": "SMS delivery rejected",
+            "failedSmsInternal": "SMS sending failed",
             "noShowFollowup": "No-show follow-up needed"
         },
         "actions": {
@@ -1517,6 +1520,7 @@
             "cancelParcel": "Cancel parcel",
             "reschedule": "Reschedule",
             "retry": "Retry",
+            "retryTooLate": "Too late to retry - pickup starts in less than 1 hour",
             "dismiss": "Dismiss",
             "editHousehold": "Edit household",
             "viewHousehold": "View household",
@@ -1572,6 +1576,8 @@
             "COOLDOWN_ACTIVE": "Please wait before sending another SMS.",
             "FETCH_ERROR": "Failed to load data. Please try again.",
             "SEND_ERROR": "Failed to send SMS. Please try again.",
+            "PARCEL_NOT_FOUND": "The associated parcel no longer exists.",
+            "TOO_LATE": "Too late to retry - pickup starts in less than 1 hour.",
             "UNKNOWN_ERROR": "An unexpected error occurred. Please try again."
         },
         "confirm": {
@@ -1712,5 +1718,13 @@
             "households": "Households"
         },
         "noData": "No data available"
+    },
+    "smsBanner": {
+        "title": "SMS service temporarily disabled",
+        "description": "SMS notifications cannot be sent because the HelloSMS account has run out of credits. The organisation needs to pre-pay for more SMS credits.",
+        "affectedCount": "{count, plural, one {# SMS message} other {# SMS messages}} failed to send due to low balance.",
+        "retryButton": "Retry balance failures",
+        "retrySuccess": "{count, plural, one {# message was} other {# messages were}} re-queued for sending.",
+        "retryError": "Failed to retry. Please try again."
     }
 }
