@@ -1520,7 +1520,7 @@
             "cancelParcel": "Cancel parcel",
             "reschedule": "Reschedule",
             "retry": "Retry",
-            "retryTooLate": "Too late to retry - pickup starts in less than 1 hour",
+            "retryPickupPassed": "Too late to retry - pickup time has passed",
             "dismiss": "Dismiss",
             "editHousehold": "Edit household",
             "viewHousehold": "View household",

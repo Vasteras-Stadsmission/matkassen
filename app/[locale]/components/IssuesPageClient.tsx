@@ -866,10 +866,9 @@ export default function IssuesPageClient() {
                                 ];
                                 const canRetry =
                                     sms.parcelId && retryableIntents.includes(sms.intent);
-                                const pickupTooLate =
+                                const pickupPassed =
                                     !sms.pickupEarliest ||
-                                    new Date(sms.pickupEarliest).getTime() - Date.now() <
-                                        60 * 60 * 1000;
+                                    new Date(sms.pickupEarliest).getTime() < Date.now();
 
                                 return (
                                     <Paper
@@ -907,9 +906,9 @@ export default function IssuesPageClient() {
                                                     {sms.householdFirstName} {sms.householdLastName}
                                                 </Text>
                                                 {canRetry &&
-                                                    (pickupTooLate ? (
+                                                    (pickupPassed ? (
                                                         <Tooltip
-                                                            label={t("actions.retryTooLate")}
+                                                            label={t("actions.retryPickupPassed")}
                                                             withArrow
                                                         >
                                                             <span tabIndex={0}>
