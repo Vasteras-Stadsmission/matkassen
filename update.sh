@@ -303,7 +303,7 @@ fi
 
 # Run migrations from within the container (stable, reliable approach)
 echo "Running database migrations..."
-sudo docker compose exec -T web pnpm run db:migrate
+sudo docker compose exec -T web node_modules/.bin/drizzle-kit migrate
 if [ $? -ne 0 ]; then
   echo "❌ Migration failed. See error messages above."
   sudo docker compose logs web

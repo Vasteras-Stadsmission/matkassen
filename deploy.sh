@@ -469,7 +469,7 @@ if [ "$MIGRATION_COUNT" -eq 0 ]; then
 fi
 
 # Run migrations with proper error handling
-if ! sudo docker compose exec -T web pnpm run db:migrate; then
+if ! sudo docker compose exec -T web node_modules/.bin/drizzle-kit migrate; then
   echo "❌ Migration failed. See error messages above."
   exit 1
 fi

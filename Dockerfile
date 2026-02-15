@@ -73,10 +73,5 @@ RUN chmod +x docker-entrypoint.sh
 # Switch to non-root user
 USER nextjs
 
-# Prepare pnpm cache as nextjs user (must be after USER nextjs)
-# Running as root would cache in root's home, inaccessible at runtime
-# Note: corepack enable already done in base image, only prepare needed here
-RUN corepack prepare pnpm@10.12.1 --activate
-
 EXPOSE 3000
 CMD ["./docker-entrypoint.sh"]
