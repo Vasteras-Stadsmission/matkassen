@@ -1,0 +1,22 @@
+min_version: 1.10.0
+assert_lefthook_installed: true
+
+pre-commit:
+    jobs:
+        - name: prettier
+          glob: "*.{ts,tsx,js,jsx,json,css,scss,md,yml,yaml}"
+          run: pnpm exec prettier --write --ignore-unknown -- {staged_files}
+          stage_fixed: true
+
+pre-push:
+    parallel: true
+    jobs:
+        - name: lint
+          run: pnpm lint
+
+        - name: typecheck
+          run: pnpm typecheck
+
+        - name: test
+          tags: [test]
+          run: pnpm test
