@@ -34,7 +34,7 @@
         "start": "next start",
         "typecheck": "tsc --noEmit",
         "validate": "pnpm run lint && pnpm run typecheck && pnpm run format-check && pnpm run security:check && pnpm run security:check-api",
-        "prepare": "lefthook install"
+        "prepare": "command -v lefthook >/dev/null 2>&1 && lefthook install || true"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",
