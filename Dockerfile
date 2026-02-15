@@ -3,8 +3,9 @@ FROM node:22.19.0-alpine3.22 AS base
 
 LABEL org.opencontainers.image.source=https://github.com/Vasteras-Stadsmission/matkassen
 
-# Install pnpm globally
-RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
+# Keep in sync with "packageManager" in package.json
+ARG PNPM_VERSION=10.29.3
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 # Stage 1: Install dependencies
 FROM base AS deps
@@ -75,8 +76,8 @@ USER nextjs
 
 # Prepare pnpm cache as nextjs user (must be after USER nextjs)
 # Running as root would cache in root's home, inaccessible at runtime
-# Note: corepack enable already done in base image, only prepare needed here
-RUN corepack prepare pnpm@10.12.1 --activate
+ARG PNPM_VERSION
+RUN corepack prepare pnpm@${PNPM_VERSION} --activate
 
 EXPOSE 3000
 CMD ["./docker-entrypoint.sh"]
