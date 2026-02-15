@@ -1973,7 +1973,7 @@ export async function processFoodParcelsEndedJIT(
 }
 
 /**
- * Check if there are recent SMS failures caused by insufficient balance.
+ * Check if there are undismissed SMS failures caused by insufficient balance.
  *
  * Uses the balance_failure boolean column set when a 402 is detected during send.
  * Used by the admin API to show a warning banner.
@@ -2056,7 +2056,7 @@ export async function getAvailableCredits(): Promise<number | null> {
             return result.credits;
         }
     } catch (error) {
-        logger.debug({ error }, "Balance check failed, proceeding without credit limit");
+        logger.warn({ error }, "Balance check failed, proceeding without credit limit");
     }
     return null; // fail-open
 }

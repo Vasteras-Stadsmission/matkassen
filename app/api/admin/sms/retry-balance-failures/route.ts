@@ -23,8 +23,10 @@ export async function POST() {
 
         const requeuedCount = await requeueBalanceFailures();
 
-        const admin = authResult.session?.user?.name || "unknown";
-        logger.info({ requeuedCount, admin }, "Admin triggered balance-failure SMS retry");
+        logger.info(
+            { requeuedCount, triggeredBy: authResult.session!.user.githubUsername },
+            "Admin triggered balance-failure SMS retry",
+        );
 
         return NextResponse.json({ requeuedCount });
     } catch (error) {

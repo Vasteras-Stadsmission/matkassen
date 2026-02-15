@@ -229,7 +229,7 @@ export async function createTestBalanceFailedSms(overrides: {
         ...overrides,
         status: "failed",
         attempt_count: 1,
-        last_error_message: overrides.error_message ?? "Insufficient balance",
+        last_error_message: overrides.error_message ?? "Insufficient SMS credits",
         balance_failure: true,
     });
 }

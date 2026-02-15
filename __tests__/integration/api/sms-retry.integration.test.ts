@@ -119,6 +119,7 @@ describe("SMS Retry - Route handler integration", () => {
                 .where(eq(outgoingSms.id, payload.smsId));
             expect(newSms.status).toBe("queued");
             expect(newSms.intent).toBe("pickup_reminder");
+            expect(newSms.text).toBe(failedSms.text);
             expect(newSms.parcel_id).toBe(parcel.id);
             expect(newSms.household_id).toBe(household.id);
             expect(newSms.attempt_count).toBe(0);
@@ -604,6 +605,43 @@ describe("SMS Retry - Route handler integration", () => {
                 .from(outgoingSms)
                 .where(eq(outgoingSms.id, providerFailedSms.id));
             expect(original.dismissed_at).toBeInstanceOf(Date);
+        });
+    });
+
+    describe("Validation: double retry", () => {
+        it("should reject second retry of the same SMS (auto-dismissed by first retry)", async () => {
+            const household = await createTestHousehold({ first_name: "Double" });
+            const { location } = await createTestLocationWithSchedule();
+
+            const tomorrow = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+
+            const failedSms = await createTestSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+                intent: "pickup_reminder",
+                status: "failed",
+                attempt_count: 1,
+                last_error_message: "Test error",
+                created_at: new Date(TEST_NOW.getTime() - 6 * 60 * 1000),
+            });
+
+            // First retry succeeds
+            const first = await callRetry(failedSms.id);
+            expect(first.status).toBe(200);
+
+            // Second retry should be rejected (original was auto-dismissed by first)
+            const second = await callRetry(failedSms.id);
+            expect(second.status).toBe(400);
+
+            const payload = await second.json();
+            expect(payload.code).toBe("INVALID_ACTION");
+            expect(payload.error).toContain("dismissed");
         });
     });
 
