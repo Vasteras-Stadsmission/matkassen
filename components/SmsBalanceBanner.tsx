@@ -31,6 +31,7 @@ export function SmsBalanceBanner() {
     const [status, setStatus] = useState<BalanceStatus | null>(null);
     const [retrying, setRetrying] = useState(false);
     const [retryResult, setRetryResult] = useState<{ count: number } | null>(null);
+    const [retryError, setRetryError] = useState(false);
 
     const checkStatus = useCallback(async () => {
         try {
@@ -70,6 +71,7 @@ export function SmsBalanceBanner() {
     const handleRetry = async () => {
         setRetrying(true);
         setRetryResult(null);
+        setRetryError(false);
         try {
             const response = await adminFetch("/api/admin/sms/retry-balance-failures", {
                 method: "POST",
@@ -77,11 +79,12 @@ export function SmsBalanceBanner() {
             if (response.ok) {
                 const data = await response.json();
                 setRetryResult({ count: data.requeuedCount });
-                // Refresh status after retry
                 await checkStatus();
+            } else {
+                setRetryError(true);
             }
         } catch {
-            // Will show error via status refresh
+            setRetryError(true);
         } finally {
             setRetrying(false);
         }
@@ -118,6 +121,14 @@ export function SmsBalanceBanner() {
                         )}
                         {retryResult && retryResult.count > 0 && (
                             <> {t("smsBanner.retrySuccess", { count: retryResult.count })}</>
+                        )}
+                        {retryError && (
+                            <>
+                                {" "}
+                                <Text span c="red.2" fw={600}>
+                                    {t("smsBanner.retryError")}
+                                </Text>
+                            </>
                         )}
                     </Text>
                 </div>

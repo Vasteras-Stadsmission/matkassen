@@ -63,8 +63,6 @@ interface FailedSms {
     householdFirstName: string;
     householdLastName: string;
     parcelId: string | null;
-    parcelDeleted: boolean;
-    parcelOutsideHours: boolean;
     pickupEarliest: string | null;
     errorMessage: string | null;
     failureType: "internal" | "provider" | "stale";
@@ -413,6 +411,7 @@ export default function IssuesPageClient() {
 
     // Action handler: Retry failed SMS (for parcel-related SMS)
     const handleRetry = async (sms: FailedSms) => {
+        if (!sms.parcelId) return;
         const key = `retry-${sms.id}`;
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
@@ -913,7 +912,7 @@ export default function IssuesPageClient() {
                                                             label={t("actions.retryTooLate")}
                                                             withArrow
                                                         >
-                                                            <span>
+                                                            <span tabIndex={0}>
                                                                 <Button
                                                                     variant="light"
                                                                     color="blue"

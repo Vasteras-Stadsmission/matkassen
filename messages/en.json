@@ -1724,6 +1724,7 @@
         "description": "SMS notifications cannot be sent because the HelloSMS account has run out of credits. The organisation needs to pre-pay for more SMS credits.",
         "affectedCount": "{count, plural, one {# SMS message} other {# SMS messages}} failed to send due to low balance.",
         "retryButton": "Retry balance failures",
-        "retrySuccess": "{count, plural, one {# message was} other {# messages were}} re-queued for sending."
+        "retrySuccess": "{count, plural, one {# message was} other {# messages were}} re-queued for sending.",
+        "retryError": "Failed to retry. Please try again."
     }
 }

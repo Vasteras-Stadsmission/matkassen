@@ -400,6 +400,55 @@ describe("Issues API - Integration Tests", () => {
             expect(data.failedSms[0].errorMessage).not.toContain("+46701234567");
             expect(data.failedSms[0].errorMessage).not.toContain("070-123 45 67");
         });
+
+        it("should exclude balance failures from the issues list", async () => {
+            const household = await createTestHousehold({ first_name: "BalExclude" });
+
+            // Balance failure — should NOT appear on Issues page
+            await createTestSms({
+                household_id: household.id,
+                status: "failed",
+                attempt_count: 1,
+                last_error_message: "Insufficient SMS credits",
+                balance_failure: true,
+            });
+
+            // Regular failure — should appear
+            await createTestFailedSms({
+                household_id: household.id,
+                error_message: "Network timeout",
+            });
+
+            const response = await GET();
+            const data = await response.json();
+
+            expect(data.failedSms).toHaveLength(1);
+            expect(data.failedSms[0].errorMessage).toContain("Network timeout");
+        });
+
+        it("should include pickupEarliest in the response", async () => {
+            const household = await createTestHousehold({ first_name: "Pickup" });
+            const { location } = await createTestLocationWithSchedule();
+
+            const tomorrow = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+
+            await createTestFailedSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+            });
+
+            const response = await GET();
+            const data = await response.json();
+
+            expect(data.failedSms).toHaveLength(1);
+            expect(data.failedSms[0].pickupEarliest).toBe(tomorrow.toISOString());
+        });
     });
 
     describe("Counts", () => {

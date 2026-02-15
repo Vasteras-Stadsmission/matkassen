@@ -383,6 +383,12 @@ export const outgoingSms = pgTable(
         index("idx_outgoing_sms_active_failures")
             .on(table.status, table.created_at)
             .where(sql`${table.status} = 'failed' AND ${table.dismissed_at} IS NULL`),
+        // Partial index for balance failure banner/requeue queries
+        index("idx_outgoing_sms_balance_failures")
+            .on(table.balance_failure, table.created_at)
+            .where(
+                sql`${table.status} = 'failed' AND ${table.dismissed_at} IS NULL AND ${table.balance_failure} = true`,
+            ),
     ],
 );
 

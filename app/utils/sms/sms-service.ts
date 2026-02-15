@@ -1411,7 +1411,9 @@ export async function processRemindersJIT(
         const result = await sendReminderForParcel(parcel);
         if (result.recordId) {
             processedCount++;
-            sentCount++; // Gateway was called, count as credit consumed
+            if (result.success) {
+                sentCount++; // Only count actual sends toward credit budget
+            }
         }
 
         // Small delay between sends to avoid rate limiting
@@ -1950,7 +1952,9 @@ export async function processFoodParcelsEndedJIT(
         const result = await sendEndedSmsForHousehold(household);
         if (result.recordId) {
             processedCount++;
-            sentCount++; // Gateway was called, count as credit consumed
+            if (result.success) {
+                sentCount++; // Only count actual sends toward credit budget
+            }
         }
 
         // Small delay between sends to avoid rate limiting

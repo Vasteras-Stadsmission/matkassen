@@ -1,0 +1,2 @@
+ALTER TABLE "outgoing_sms" ADD COLUMN "balance_failure" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "idx_outgoing_sms_balance_failures" ON "outgoing_sms" USING btree ("balance_failure","created_at") WHERE "outgoing_sms"."status" = 'failed' AND "outgoing_sms"."dismissed_at" IS NULL AND "outgoing_sms"."balance_failure" = true;

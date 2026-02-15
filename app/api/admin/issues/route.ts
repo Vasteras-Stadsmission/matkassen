@@ -265,11 +265,7 @@ export async function GET() {
                 householdFirstName: households.first_name,
                 householdLastName: households.last_name,
                 parcelId: outgoingSms.parcel_id,
-                parcelDeleted: foodParcels.deleted_at,
-                parcelLocationId: foodParcels.pickup_location_id,
                 parcelPickupEarliest: foodParcels.pickup_date_time_earliest,
-                parcelPickupLatest: foodParcels.pickup_date_time_latest,
-                parcelIsPickedUp: foodParcels.is_picked_up,
                 status: outgoingSms.status,
                 providerStatus: outgoingSms.provider_status,
                 errorMessage: outgoingSms.last_error_message,
@@ -305,28 +301,6 @@ export async function GET() {
             .limit(100);
 
         const failedSms = failedSmsRaw.map(sms => {
-            // Check if parcel is outside opening hours
-            let parcelOutsideHours = false;
-            if (
-                sms.parcelId &&
-                sms.parcelLocationId &&
-                sms.parcelPickupEarliest &&
-                sms.parcelPickupLatest
-            ) {
-                const scheduleInfo = locationSchedulesMap.get(sms.parcelLocationId);
-                if (scheduleInfo && scheduleInfo.schedules.length > 0) {
-                    const parcelTimeInfo: ParcelTimeInfo = {
-                        id: sms.parcelId,
-                        pickupEarliestTime: sms.parcelPickupEarliest,
-                        pickupLatestTime: sms.parcelPickupLatest,
-                        isPickedUp: sms.parcelIsPickedUp ?? false,
-                    };
-                    parcelOutsideHours = isParcelOutsideOpeningHours(parcelTimeInfo, scheduleInfo, {
-                        onError: "return-true",
-                    });
-                }
-            }
-
             return {
                 id: sms.id,
                 intent: sms.intent,
@@ -334,8 +308,6 @@ export async function GET() {
                 householdFirstName: sms.householdFirstName,
                 householdLastName: sms.householdLastName,
                 parcelId: sms.parcelId,
-                parcelDeleted: sms.parcelDeleted !== null,
-                parcelOutsideHours,
                 pickupEarliest: sms.parcelPickupEarliest?.toISOString() ?? null,
                 errorMessage: sanitizeErrorMessage(sms.errorMessage),
                 failureType: getFailureType(

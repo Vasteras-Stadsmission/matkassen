@@ -172,12 +172,13 @@ export async function POST(
         const [household] = await db
             .select({
                 phoneNumber: households.phone_number,
+                anonymizedAt: households.anonymized_at,
             })
             .from(households)
             .where(eq(households.id, parcel.householdId))
             .limit(1);
 
-        if (!household) {
+        if (!household || household.anonymizedAt) {
             return NextResponse.json(
                 { error: "Household not found", code: "NOT_FOUND" },
                 { status: 404 },

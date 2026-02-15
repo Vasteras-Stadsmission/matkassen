@@ -1,6 +1,6 @@
 {
-  "id": "a5262736-0f5c-41e0-8a30-63964ce09d5c",
-  "prevId": "812727dd-3c92-49a9-b5eb-10112c22cf52",
+  "id": "a91886ce-d8ef-49b5-a44b-25f1afca69b1",
+  "prevId": "a05b2b83-8af8-44b1-8983-f362ea8d2e44",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -801,12 +801,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "postal_code": {
-          "name": "postal_code",
-          "type": "varchar(5)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "anonymized_at": {
           "name": "anonymized_at",
           "type": "timestamp (1) with time zone",
@@ -854,12 +848,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "households_postal_code_check": {
-          "name": "households_postal_code_check",
-          "value": "\"households\".\"postal_code\" IS NULL OR (LENGTH(\"households\".\"postal_code\") = 5 AND \"households\".\"postal_code\" ~ '^[0-9]{5}$')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.outgoing_sms": {
@@ -953,6 +942,13 @@
           "type": "timestamp (1) with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "balance_failure": {
+          "name": "balance_failure",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "dismissed_at": {
           "name": "dismissed_at",
@@ -1088,6 +1084,28 @@
           ],
           "isUnique": false,
           "where": "\"outgoing_sms\".\"status\" = 'failed' AND \"outgoing_sms\".\"dismissed_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_outgoing_sms_balance_failures": {
+          "name": "idx_outgoing_sms_balance_failures",
+          "columns": [
+            {
+              "expression": "balance_failure",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"outgoing_sms\".\"status\" = 'failed' AND \"outgoing_sms\".\"dismissed_at\" IS NULL AND \"outgoing_sms\".\"balance_failure\" = true",
           "concurrently": false,
           "method": "btree",
           "with": {}
