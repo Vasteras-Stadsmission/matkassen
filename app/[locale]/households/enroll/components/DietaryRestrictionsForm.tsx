@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Group, Title, Text, Card, Chip, Loader, Badge } from "@mantine/core";
+import { Group, Title, Text, Chip, Loader, Badge, Stack } from "@mantine/core";
 import { getDietaryRestrictions } from "../actions";
 import { DietaryRestriction } from "../types";
 import { useTranslations } from "next-intl";
@@ -52,25 +52,21 @@ export default function DietaryRestrictionsForm({
 
     if (loading) {
         return (
-            <Card withBorder p="md" radius="md">
-                <Group justify="center" py="xl">
-                    <Loader size="md" />
-                    <Text>{t("loading")}</Text>
+            <Stack>
+                <Title order={5}>{t("title")}</Title>
+                <Group justify="center" py="md">
+                    <Loader size="sm" />
+                    <Text size="sm">{t("loading")}</Text>
                 </Group>
-            </Card>
+            </Stack>
         );
     }
 
     return (
-        <Card withBorder p="md" radius="md">
-            <Title order={3} mb="md">
-                {t("title")}
-            </Title>
-            <Text c="dimmed" size="sm" mb="lg">
-                {t("description")}
-            </Text>
+        <Stack gap="sm">
+            <Title order={5}>{t("title")}</Title>
 
-            <Group mt="md">
+            <Group gap="xs">
                 {availableRestrictions.map(restriction => {
                     const selected = isSelected(restriction.id);
                     const disabledForSelection = restriction.isActive === false && !selected;
@@ -84,6 +80,7 @@ export default function DietaryRestrictionsForm({
                             variant={selected ? "filled" : "outline"}
                             color={selected ? "blue" : "gray"}
                             radius="sm"
+                            size="sm"
                         >
                             {restriction.name}
                             {restriction.isActive === false && (
@@ -95,6 +92,6 @@ export default function DietaryRestrictionsForm({
                     );
                 })}
             </Group>
-        </Card>
+        </Stack>
     );
 }

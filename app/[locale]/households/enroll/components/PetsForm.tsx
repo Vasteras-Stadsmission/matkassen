@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Group, Title, Text, Card, Loader, Stack, Badge } from "@mantine/core";
+import { Group, Title, Text, Loader, Stack, Badge } from "@mantine/core";
 import { getPetSpecies } from "../actions";
 import CounterInput from "@/components/CounterInput";
 import { Pet, PetSpecies } from "../types";
@@ -118,28 +118,21 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
 
     if (isLoading) {
         return (
-            <Card withBorder p="md" radius="md">
-                <Title order={3} mb="md">
-                    {t("title")}
-                </Title>
-                <Group justify="center" py="xl">
-                    <Loader size="md" />
-                    <Text>{t("loading")}</Text>
+            <Stack>
+                <Title order={5}>{t("title")}</Title>
+                <Group justify="center" py="md">
+                    <Loader size="sm" />
+                    <Text size="sm">{t("loading")}</Text>
                 </Group>
-            </Card>
+            </Stack>
         );
     }
 
     return (
-        <Card withBorder p="md" radius="md">
-            <Title order={3} mb="md">
-                {t("title")}
-            </Title>
-            <Text c="dimmed" size="sm" mb="lg">
-                {t("description")}
-            </Text>
+        <Stack gap="sm">
+            <Title order={5}>{t("title")}</Title>
 
-            <Stack gap="md">
+            <Stack gap="xs">
                 {petTypes.map(petType => {
                     const currentCount = petCounts[petType.id] || 0;
                     const isInactive = petType.isActive === false;
@@ -147,12 +140,15 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                     return (
                         <Group
                             key={petType.id}
-                            justify="apart"
+                            justify="space-between"
                             gap="xs"
-                            style={{ borderBottom: "1px solid #f1f1f1", paddingBottom: "8px" }}
+                            style={{
+                                borderBottom: "1px solid var(--mantine-color-gray-1)",
+                                paddingBottom: "6px",
+                            }}
                         >
-                            <Group>
-                                <Text size="md" fw={500} w={150}>
+                            <Group gap="xs">
+                                <Text size="sm" fw={500}>
                                     {petType.name}
                                 </Text>
                                 {isInactive && (
@@ -174,6 +170,6 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                     );
                 })}
             </Stack>
-        </Card>
+        </Stack>
     );
 }

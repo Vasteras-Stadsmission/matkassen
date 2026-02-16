@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import {
     Button,
     Title,
@@ -8,15 +9,13 @@ import {
     NumberInput,
     SegmentedControl,
     ActionIcon,
-    List,
-    Box,
-    Paper,
-    Alert,
-    Flex,
+    Badge,
+    Group,
+    Stack,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { nanoid } from "@/app/db/schema";
-import { IconTrash, IconUserPlus, IconInfoCircle } from "@tabler/icons-react";
+import { IconTrash, IconPlus } from "@tabler/icons-react";
 import { HouseholdMember } from "../types";
 import { useTranslations } from "next-intl";
 
@@ -27,8 +26,8 @@ interface MembersFormProps {
 
 export default function MembersForm({ data, updateData }: MembersFormProps) {
     const t = useTranslations("members");
+    const ageInputRef = useRef<HTMLInputElement>(null);
 
-    // Initialize with data from parent, using Mantine's useForm with improved validation options
     const addMemberForm = useForm({
         initialValues: {
             age: "",
@@ -38,8 +37,8 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
             age: value => (!value ? t("validation.ageRequired") : null),
             sex: value => (!value ? t("validation.genderRequired") : null),
         },
-        validateInputOnBlur: true, // Only validate when field loses focus
-        validateInputOnChange: false, // Don't validate while typing
+        validateInputOnBlur: true,
+        validateInputOnChange: false,
     });
 
     const addMember = (values: { age: string | number; sex: string }) => {
@@ -52,8 +51,10 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
         const updatedMembers = [...data, newMember];
         updateData(updatedMembers);
         addMemberForm.reset();
-        // Reset to default value after adding a member
         addMemberForm.setFieldValue("sex", "male");
+
+        // Auto-focus age input for rapid entry
+        setTimeout(() => ageInputRef.current?.focus(), 0);
     };
 
     const removeMember = (index: number) => {
@@ -61,107 +62,83 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
         updateData(updatedMembers);
     };
 
+    const genderLabel = (sex: string) => {
+        switch (sex) {
+            case "male":
+                return t("gender.male");
+            case "female":
+                return t("gender.female");
+            default:
+                return t("gender.other");
+        }
+    };
+
     return (
         <Card withBorder p="md" radius="md">
-            <Title order={3} mb="md">
+            <Title order={3} mb="xs">
                 {t("title")}
             </Title>
-            <Text c="dimmed" size="sm" mb="lg">
+            <Text c="dimmed" size="sm" mb="md">
                 {t("description")}
             </Text>
 
-            {data.length === 0 && (
-                <Alert
-                    icon={<IconInfoCircle size="1rem" />}
-                    title={t("noMembers")}
-                    color="blue"
-                    mb="md"
-                >
-                    {t("addInstructions")}
-                </Alert>
-            )}
+            <Stack gap={0}>
+                {data.map((member, index) => (
+                    <Group
+                        key={member.id || index}
+                        gap="sm"
+                        py="xs"
+                        style={{ borderBottom: "1px solid var(--mantine-color-gray-2)" }}
+                    >
+                        <Text fw={500} size="sm">
+                            {member.age} {t("ageUnit")}
+                        </Text>
+                        <Badge variant="default" size="lg" fw={400}>
+                            {genderLabel(member.sex)}
+                        </Badge>
+                        <ActionIcon
+                            color="red"
+                            variant="subtle"
+                            size="sm"
+                            onClick={() => removeMember(index)}
+                        >
+                            <IconTrash size="0.875rem" />
+                        </ActionIcon>
+                    </Group>
+                ))}
 
-            {data.length > 0 && (
-                <Box mb="md">
-                    <Title order={5} mb="xs">
-                        {t("registered")}
-                    </Title>
-                    <Paper withBorder p="sm" radius="md">
-                        <List spacing="xs">
-                            {data.map((member, index) => (
-                                <List.Item
-                                    key={member.id || index}
-                                    icon={
-                                        <ActionIcon
-                                            color="red"
-                                            onClick={() => removeMember(index)}
-                                            size="sm"
-                                        >
-                                            <IconTrash size="1rem" />
-                                        </ActionIcon>
-                                    }
-                                >
-                                    <Text>
-                                        {member.age} {t("ageUnit")},{" "}
-                                        {member.sex === "male"
-                                            ? t("gender.male")
-                                            : member.sex === "female"
-                                              ? t("gender.female")
-                                              : t("gender.other")}
-                                    </Text>
-                                </List.Item>
-                            ))}
-                        </List>
-                    </Paper>
-                </Box>
-            )}
-
-            <form onSubmit={addMemberForm.onSubmit(addMember)}>
-                <Paper p="md" withBorder radius="md" shadow="xs">
-                    <Title order={6} mb="md">
-                        {t("addPerson")}
-                    </Title>
-
-                    <Flex align="flex-end" gap="md" wrap="wrap">
-                        <Box style={{ minHeight: "75px" }}>
-                            <NumberInput
-                                label={t("age")}
-                                placeholder={t("age")}
-                                withAsterisk
-                                min={0}
-                                max={120}
-                                {...addMemberForm.getInputProps("age")}
-                                styles={{ wrapper: { width: "120px" } }}
-                            />
-                        </Box>
-
-                        <Box>
-                            <Text fw={500} size="sm" mb={7}>
-                                {t("gender.label")}{" "}
-                                <span style={{ color: "var(--mantine-color-red-6)" }}>*</span>
-                            </Text>
-                            <SegmentedControl
-                                data={[
-                                    { value: "male", label: t("gender.male") },
-                                    { value: "female", label: t("gender.female") },
-                                    { value: "other", label: t("gender.other") },
-                                ]}
-                                {...addMemberForm.getInputProps("sex")}
-                            />
-                        </Box>
-
+                <form onSubmit={addMemberForm.onSubmit(addMember)}>
+                    <Group gap="sm" pt="sm">
+                        <NumberInput
+                            ref={ageInputRef}
+                            placeholder={t("age")}
+                            min={0}
+                            max={120}
+                            {...addMemberForm.getInputProps("age")}
+                            styles={{ input: { width: "80px" } }}
+                            size="sm"
+                        />
+                        <SegmentedControl
+                            size="sm"
+                            data={[
+                                { value: "male", label: t("gender.male") },
+                                { value: "female", label: t("gender.female") },
+                                { value: "other", label: t("gender.other") },
+                            ]}
+                            {...addMemberForm.getInputProps("sex")}
+                        />
                         <Button
                             type="submit"
                             variant="light"
                             color="teal"
-                            leftSection={<IconUserPlus size="1rem" />}
-                            ml="auto"
+                            size="sm"
+                            leftSection={<IconPlus size="0.875rem" />}
                         >
                             {t("addPerson")}
                         </Button>
-                    </Flex>
-                </Paper>
-            </form>
+                    </Group>
+                </form>
+            </Stack>
         </Card>
     );
 }

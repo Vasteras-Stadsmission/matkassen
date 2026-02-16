@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Group, Title, Text, Card, Chip, Loader, Badge } from "@mantine/core";
+import { Group, Title, Text, Chip, Loader, Badge, Stack } from "@mantine/core";
 import { getAdditionalNeeds } from "../actions";
 import { AdditionalNeed } from "../types";
 import { useTranslations } from "next-intl";
@@ -49,25 +49,21 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
 
     if (loading) {
         return (
-            <Card withBorder p="md" radius="md">
-                <Group justify="center" py="xl">
-                    <Loader size="md" />
-                    <Text>{t("loading")}</Text>
+            <Stack>
+                <Title order={5}>{t("title")}</Title>
+                <Group justify="center" py="md">
+                    <Loader size="sm" />
+                    <Text size="sm">{t("loading")}</Text>
                 </Group>
-            </Card>
+            </Stack>
         );
     }
 
     return (
-        <Card withBorder p="md" radius="md">
-            <Title order={3} mb="md">
-                {t("title")}
-            </Title>
-            <Text c="dimmed" size="sm" mb="lg">
-                {t("description")}
-            </Text>
+        <Stack gap="sm">
+            <Title order={5}>{t("title")}</Title>
 
-            <Group mt="md">
+            <Group gap="xs">
                 {availableNeeds.map(item => {
                     const selected = isSelected(item.id);
                     const disabledForSelection = item.isActive === false && !selected;
@@ -81,6 +77,7 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
                             variant={selected ? "filled" : "outline"}
                             color={selected ? "blue" : "gray"}
                             radius="sm"
+                            size="sm"
                         >
                             {item.need}
                             {item.isActive === false && (
@@ -92,6 +89,6 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
                     );
                 })}
             </Group>
-        </Card>
+        </Stack>
     );
 }
