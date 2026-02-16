@@ -29,13 +29,10 @@ export async function getHouseholds() {
     const householdsData = await db
         .select({
             household: households,
-            primaryLocationName: pickupLocations.name,
+            primaryPickupLocationName: pickupLocations.name,
         })
         .from(households)
-        .leftJoin(
-            pickupLocations,
-            eq(households.primary_pickup_location_id, pickupLocations.id),
-        )
+        .leftJoin(pickupLocations, eq(households.primary_pickup_location_id, pickupLocations.id))
         .where(isNull(households.anonymized_at)); // Filter out anonymized households
 
     // For each household, get the food parcels
@@ -64,7 +61,7 @@ export async function getHouseholds() {
 
             return {
                 ...household,
-                primaryLocationName: row.primaryLocationName,
+                primaryPickupLocationName: row.primaryPickupLocationName,
                 firstParcelDate: firstParcel ? firstParcel.pickup_date_time_latest : null,
                 lastParcelDate: lastParcel ? lastParcel.pickup_date_time_latest : null,
                 nextParcelDate: nextParcel ? nextParcel.pickup_date_time_latest : null,

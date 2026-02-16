@@ -209,6 +209,7 @@
         "primaryLocation": "Primary Handout Location",
         "primaryLocationDescription": "The household's main handout location",
         "selectPrimaryLocation": "Select primary location",
+        "locationUnknownWithId": "Unknown location (ID: {id})",
         "validation": {
             "firstNameLength": "First name must be at least 2 characters",
             "lastNameLength": "Last name must be at least 2 characters",

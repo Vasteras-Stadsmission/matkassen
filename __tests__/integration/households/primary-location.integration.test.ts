@@ -26,28 +26,24 @@ import { getTestDb } from "../../db/test-db";
 import { households, pickupLocations } from "@/app/db/schema";
 
 // Mock auth to always succeed - we're testing DB behavior, not auth
+type MockSession = { user: { githubUsername: string; name: string } };
+const mockSession: MockSession = {
+    user: { githubUsername: "test-user", name: "Test User" },
+};
+
 vi.mock("@/app/utils/auth/protected-action", () => ({
-    protectedAgreementAction: (fn: any) => {
-        return async (...args: any[]) => {
-            const mockSession = {
-                user: { githubUsername: "test-user", name: "Test User" },
-            };
+    protectedAgreementAction: (fn: (...args: unknown[]) => unknown) => {
+        return async (...args: unknown[]) => {
             return fn(mockSession, ...args);
         };
     },
-    protectedReadAction: (fn: any) => {
-        return async (...args: any[]) => {
-            const mockSession = {
-                user: { githubUsername: "test-user", name: "Test User" },
-            };
+    protectedReadAction: (fn: (...args: unknown[]) => unknown) => {
+        return async (...args: unknown[]) => {
             return fn(mockSession, ...args);
         };
     },
-    protectedAgreementHouseholdAction: (fn: any) => {
-        return async (householdId: string, ...args: any[]) => {
-            const mockSession = {
-                user: { githubUsername: "test-user", name: "Test User" },
-            };
+    protectedAgreementHouseholdAction: (fn: (...args: unknown[]) => unknown) => {
+        return async (householdId: string, ...args: unknown[]) => {
             const db = await getTestDb();
             const [household] = await db
                 .select()
@@ -61,7 +57,7 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
 
 // Mock next/cache since it's not available in test environment
 vi.mock("next/cache", () => ({
-    unstable_cache: (fn: any) => fn,
+    unstable_cache: (fn: (...args: unknown[]) => unknown) => fn,
     revalidatePath: vi.fn(),
     revalidateTag: vi.fn(),
 }));
@@ -170,10 +166,10 @@ describe("Primary handout location - Household listing (getHouseholds)", () => {
 
         const anna = result.find(h => h.first_name === "Anna");
         expect(anna).toBeDefined();
-        expect(anna!.primaryLocationName).toBe("Klara Kyrka");
+        expect(anna!.primaryPickupLocationName).toBe("Klara Kyrka");
     });
 
-    it("should return null primaryLocationName when household has no primary location", async () => {
+    it("should return null primaryPickupLocationName when household has no primary location", async () => {
         await createTestHousehold({
             first_name: "Erik",
             last_name: "Johansson",
@@ -185,7 +181,7 @@ describe("Primary handout location - Household listing (getHouseholds)", () => {
 
         const erik = result.find(h => h.first_name === "Erik");
         expect(erik).toBeDefined();
-        expect(erik!.primaryLocationName).toBeNull();
+        expect(erik!.primaryPickupLocationName).toBeNull();
     });
 
     it("should resolve different primary locations for different households", async () => {
@@ -211,9 +207,9 @@ describe("Primary handout location - Household listing (getHouseholds)", () => {
         const { getHouseholds } = await import("@/app/[locale]/households/actions");
         const result = await getHouseholds();
 
-        expect(result.find(h => h.last_name === "AtA")!.primaryLocationName).toBe("Plats A");
-        expect(result.find(h => h.last_name === "AtB")!.primaryLocationName).toBe("Plats B");
-        expect(result.find(h => h.last_name === "NoLoc")!.primaryLocationName).toBeNull();
+        expect(result.find(h => h.last_name === "AtA")!.primaryPickupLocationName).toBe("Plats A");
+        expect(result.find(h => h.last_name === "AtB")!.primaryPickupLocationName).toBe("Plats B");
+        expect(result.find(h => h.last_name === "NoLoc")!.primaryPickupLocationName).toBeNull();
     });
 });
 
@@ -341,9 +337,7 @@ describe("Primary handout location - Today's parcels query", () => {
 
 describe("Primary handout location - Server-side validation", () => {
     it("should reject enrollment with a nonexistent primary location ID", async () => {
-        const { enrollHousehold } = await import(
-            "@/app/[locale]/households/enroll/actions"
-        );
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
 
         const result = await enrollHousehold({
             headOfHousehold: {
@@ -373,9 +367,7 @@ describe("Primary handout location - Server-side validation", () => {
     it("should accept enrollment with a valid primary location ID", async () => {
         const location = await createTestPickupLocation({ name: "Valid Location" });
 
-        const { enrollHousehold } = await import(
-            "@/app/[locale]/households/enroll/actions"
-        );
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
 
         const result = await enrollHousehold({
             headOfHousehold: {
@@ -411,9 +403,7 @@ describe("Primary handout location - Server-side validation", () => {
     });
 
     it("should accept enrollment with null primary location ID (optional)", async () => {
-        const { enrollHousehold } = await import(
-            "@/app/[locale]/households/enroll/actions"
-        );
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
 
         const result = await enrollHousehold({
             headOfHousehold: {
@@ -442,9 +432,7 @@ describe("Primary handout location - Server-side validation", () => {
         // Phone must be in stripped format (without +46) as the form would send it
         const strippedPhone = household.phone_number.replace(/^\+46/, "0");
 
-        const { updateHousehold } = await import(
-            "@/app/[locale]/households/[id]/edit/actions"
-        );
+        const { updateHousehold } = await import("@/app/[locale]/households/[id]/edit/actions");
 
         const result = await updateHousehold(household.id, {
             household: {
@@ -476,9 +464,7 @@ describe("Primary handout location - Server-side validation", () => {
         });
         const strippedPhone = household.phone_number.replace(/^\+46/, "0");
 
-        const { updateHousehold } = await import(
-            "@/app/[locale]/households/[id]/edit/actions"
-        );
+        const { updateHousehold } = await import("@/app/[locale]/households/[id]/edit/actions");
 
         const result = await updateHousehold(household.id, {
             household: {
@@ -514,9 +500,7 @@ describe("Primary handout location - Server-side validation", () => {
         });
         const strippedPhone = household.phone_number.replace(/^\+46/, "0");
 
-        const { updateHousehold } = await import(
-            "@/app/[locale]/households/[id]/edit/actions"
-        );
+        const { updateHousehold } = await import("@/app/[locale]/households/[id]/edit/actions");
 
         const result = await updateHousehold(household.id, {
             household: {

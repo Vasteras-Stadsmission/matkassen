@@ -35,7 +35,7 @@ export interface Household {
     phone_number: string;
     locale: string;
     created_by: string | null;
-    primaryLocationName: string | null;
+    primaryPickupLocationName: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
     nextParcelDate: string | Date | null;
@@ -49,7 +49,7 @@ type ColumnKey =
     | "phone_number"
     | "locale"
     | "created_by"
-    | "primaryLocationName"
+    | "primaryPickupLocationName"
     | "firstParcelDate"
     | "lastParcelDate"
     | "nextParcelDate";
@@ -58,7 +58,6 @@ export default function HouseholdsTable({ households }: { households: Household[
     const router = useRouter();
     const t = useTranslations("households");
     const currentLocale = useLocale();
-    const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
     const [locationFilter, setLocationFilter] = useState<string | null>(null);
     const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
@@ -71,7 +70,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     const locationOptions = useMemo(() => {
         const names = new Set<string>();
         households.forEach(h => {
-            if (h.primaryLocationName) names.add(h.primaryLocationName);
+            if (h.primaryPickupLocationName) names.add(h.primaryPickupLocationName);
         });
         return Array.from(names)
             .sort()
@@ -98,7 +97,7 @@ export default function HouseholdsTable({ households }: { households: Household[
             phone_number: true,
             locale: false, // Hidden by default - available on detail page
             created_by: true,
-            primaryLocationName: true,
+            primaryPickupLocationName: true,
             firstParcelDate: false, // Hidden by default - less actionable than last/next
             lastParcelDate: true,
             nextParcelDate: true,
@@ -106,7 +105,7 @@ export default function HouseholdsTable({ households }: { households: Household[
 
         if (typeof window !== "undefined") {
             try {
-                const saved = localStorage.getItem("householdsTableColumns");
+                const saved = localStorage.getItem("householdsTableColumnsV2");
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     // Validate that parsed value is a plain object (not array, not null)
@@ -127,7 +126,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     useEffect(() => {
         if (typeof window !== "undefined") {
             try {
-                localStorage.setItem("householdsTableColumns", JSON.stringify(visibleColumns));
+                localStorage.setItem("householdsTableColumnsV2", JSON.stringify(visibleColumns));
             } catch (error) {
                 // Storage access error (Safari private mode, QuotaExceededError)
                 console.warn("Failed to save column preferences to localStorage", error);
@@ -195,13 +194,13 @@ export default function HouseholdsTable({ households }: { households: Household[
         router.push(`/households/${householdId}/parcels`);
     };
 
-    // Filter households based on search term and dropdown filters
-    useEffect(() => {
+    // Single memoized pipeline: filter then sort
+    const filteredHouseholds = useMemo(() => {
         let filtered = households;
 
         // Apply location filter
         if (locationFilter) {
-            filtered = filtered.filter(h => h.primaryLocationName === locationFilter);
+            filtered = filtered.filter(h => h.primaryPickupLocationName === locationFilter);
         }
 
         // Apply creator filter
@@ -232,13 +231,9 @@ export default function HouseholdsTable({ households }: { households: Household[
             });
         }
 
-        setFilteredHouseholds(filtered);
-    }, [search, locationFilter, creatorFilter, households, formatDate, formatDateTime]);
-
-    // Handle sorting
-    useEffect(() => {
-        const sorted = [...households];
+        // Apply sorting
         const { columnAccessor, direction } = sortStatus;
+        const sorted = [...filtered];
 
         sorted.sort((a: Household, b: Household) => {
             const aValue = a[columnAccessor as keyof Household];
@@ -267,8 +262,8 @@ export default function HouseholdsTable({ households }: { households: Household[
             }
         });
 
-        setFilteredHouseholds(sorted);
-    }, [sortStatus, households]);
+        return sorted;
+    }, [search, locationFilter, creatorFilter, sortStatus, households, formatDate, formatDateTime]);
 
     return (
         <>
@@ -352,8 +347,8 @@ export default function HouseholdsTable({ households }: { households: Household[
                                 />
                                 <Checkbox
                                     label={t("table.primaryLocation")}
-                                    checked={visibleColumns.primaryLocationName}
-                                    onChange={() => toggleColumn("primaryLocationName")}
+                                    checked={visibleColumns.primaryPickupLocationName}
+                                    onChange={() => toggleColumn("primaryPickupLocationName")}
                                 />
                                 <Checkbox
                                     label={t("table.firstParcel")}
@@ -481,14 +476,14 @@ export default function HouseholdsTable({ households }: { households: Household[
                               },
                           ]
                         : []),
-                    ...(visibleColumns.primaryLocationName
+                    ...(visibleColumns.primaryPickupLocationName
                         ? [
                               {
-                                  accessor: "primaryLocationName",
+                                  accessor: "primaryPickupLocationName",
                                   title: t("table.primaryLocation"),
                                   sortable: true,
                                   render: (household: Household) =>
-                                      household.primaryLocationName || "-",
+                                      household.primaryPickupLocationName || "-",
                               },
                           ]
                         : []),

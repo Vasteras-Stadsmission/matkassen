@@ -13,7 +13,6 @@ import {
     foodParcels,
     householdComments,
     users,
-    pickupLocations,
 } from "@/app/db/schema";
 import { eq, and, gt, ne, isNull, inArray } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
@@ -27,6 +26,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
+import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -36,28 +36,8 @@ export interface HouseholdUpdateResult {
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-class OptionNotAvailableError extends Error {
-    readonly code = "OPTION_NOT_AVAILABLE";
-
-    constructor() {
-        super("error.optionNotAvailable");
-    }
-}
-
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
-}
-
-async function ensurePickupLocationExists(tx: DbTransaction, locationId: string) {
-    const [location] = await tx
-        .select({ id: pickupLocations.id })
-        .from(pickupLocations)
-        .where(eq(pickupLocations.id, locationId))
-        .limit(1);
-
-    if (!location) {
-        throw new OptionNotAvailableError();
-    }
 }
 
 async function ensureSelectableDietaryRestrictions(
@@ -412,11 +392,14 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                 }
             }
 
+            // Normalize empty string to null (Mantine Select uses "" for no selection)
+            const primaryLocationId = data.household.primary_pickup_location_id || null;
+
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
                 // 0. Validate primary pickup location exists (if provided)
-                if (data.household.primary_pickup_location_id) {
-                    await ensurePickupLocationExists(tx, data.household.primary_pickup_location_id);
+                if (primaryLocationId) {
+                    await ensurePickupLocationExists(tx, primaryLocationId);
                 }
 
                 // 1. Update the household basic information
@@ -427,8 +410,7 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                         last_name: data.household.last_name,
                         phone_number: newPhoneE164,
                         locale: data.household.locale,
-                        primary_pickup_location_id:
-                            data.household.primary_pickup_location_id || null,
+                        primary_pickup_location_id: primaryLocationId,
                     })
                     .where(eq(households.id, household.id));
 

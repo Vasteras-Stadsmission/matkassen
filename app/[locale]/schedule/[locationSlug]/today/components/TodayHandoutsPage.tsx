@@ -493,15 +493,20 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                                 </Group>
                                                 {parcel.primaryPickupLocationName && (
                                                     <Group gap={4} align="center" mt={2}>
-                                                        <IconMapPin size={14} color={
-                                                            parcel.primaryPickupLocationId !== currentLocation?.id
-                                                                ? "var(--mantine-color-orange-6)"
-                                                                : "var(--mantine-color-dimmed)"
-                                                        } />
+                                                        <IconMapPin
+                                                            size={14}
+                                                            color={
+                                                                parcel.primaryPickupLocationId !==
+                                                                currentLocation?.id
+                                                                    ? "var(--mantine-color-orange-6)"
+                                                                    : "var(--mantine-color-dimmed)"
+                                                            }
+                                                        />
                                                         <Text
                                                             size="xs"
                                                             c={
-                                                                parcel.primaryPickupLocationId !== currentLocation?.id
+                                                                parcel.primaryPickupLocationId !==
+                                                                currentLocation?.id
                                                                     ? "orange"
                                                                     : "dimmed"
                                                             }

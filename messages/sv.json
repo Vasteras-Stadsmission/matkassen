@@ -209,6 +209,7 @@
         "primaryLocation": "Huvudutlämningsplats",
         "primaryLocationDescription": "Hushållets huvudsakliga utlämningsplats",
         "selectPrimaryLocation": "Välj huvudutlämningsplats",
+        "locationUnknownWithId": "Okänd plats (ID: {id})",
         "validation": {
             "firstNameLength": "Förnamn måste vara minst 2 tecken",
             "lastNameLength": "Efternamn måste vara minst 2 tecken",

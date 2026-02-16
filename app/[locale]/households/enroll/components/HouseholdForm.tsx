@@ -37,6 +37,8 @@ interface HouseholdFormProps {
     error?: ValidationError | null;
     /** Original phone number (stripped, without +46) for edit mode - used to detect changes and reset SMS consent */
     originalPhone?: string;
+    /** Pre-fetched pickup locations from parent (avoids duplicate fetch) */
+    pickupLocationsData?: PickupLocation[];
 }
 
 // Define a type for the form values
@@ -64,19 +66,28 @@ export default function HouseholdForm({
     updateData,
     error,
     originalPhone,
+    pickupLocationsData,
 }: HouseholdFormProps) {
     const t = useTranslations("householdForm");
     const currentLocale = useLocale();
 
-    // Pickup locations state
-    const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
+    // Pickup locations state - use pre-fetched data if available, otherwise fetch
+    const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>(
+        pickupLocationsData || [],
+    );
 
-    // Fetch pickup locations on mount
+    // Fetch pickup locations on mount only if not provided by parent
     useEffect(() => {
-        getPickupLocationsAction().then(setPickupLocations).catch(() => {
-            // Silently fail - location selector will just be empty
-        });
-    }, []);
+        if (pickupLocationsData) {
+            setPickupLocations(pickupLocationsData);
+            return;
+        }
+        getPickupLocationsAction()
+            .then(setPickupLocations)
+            .catch(() => {
+                // Silently fail - location selector will just be empty
+            });
+    }, [pickupLocationsData]);
 
     // Memoize location options for the Select
     const locationOptions = useMemo(

@@ -65,6 +65,10 @@ export const households = pgTable(
         uniqueIndex("idx_households_phone_unique")
             .on(table.phone_number)
             .where(sql`${table.anonymized_at} IS NULL`),
+        // Index for FK lookups and joins on primary location
+        index("idx_households_primary_location")
+            .on(table.primary_pickup_location_id)
+            .where(sql`${table.primary_pickup_location_id} IS NOT NULL`),
     ],
 );
 

@@ -45,6 +45,8 @@ interface ReviewFormProps {
     isEditing?: boolean;
     onAddComment?: (comment: string) => Promise<Comment | null | undefined>;
     onDeleteComment?: (commentId: string) => Promise<void>;
+    /** Pre-fetched pickup locations from parent (avoids duplicate fetch) */
+    pickupLocationsData?: PickupLocation[];
 }
 
 export default function ReviewForm({
@@ -52,10 +54,12 @@ export default function ReviewForm({
     isEditing = false,
     onAddComment,
     onDeleteComment,
+    pickupLocationsData,
 }: ReviewFormProps) {
     const t = useTranslations();
     const tReview = useTranslations("review");
     const tHouseholdDetail = useTranslations("householdDetail");
+    const tHouseholdForm = useTranslations("householdForm");
     const tWeekdays = useTranslations("weekdays");
     const locale = useLocale();
 
@@ -90,7 +94,7 @@ export default function ReviewForm({
         return tWeekdays(weekdayKeys[weekday]);
     };
 
-    // Fetch pickup location names when the component mounts
+    // Resolve pickup location names (using pre-fetched data or fetching on demand)
     useEffect(() => {
         const fetchLocationNames = async () => {
             const needsParcelLocation = !!formData.foodParcels?.pickupLocationId;
@@ -100,7 +104,7 @@ export default function ReviewForm({
 
             try {
                 setIsLoadingLocation(true);
-                const locations = await getPickupLocationsAction();
+                const locations = pickupLocationsData || (await getPickupLocationsAction());
 
                 // Resolve parcel pickup location name
                 if (needsParcelLocation) {
@@ -111,8 +115,9 @@ export default function ReviewForm({
                         setPickupLocationName(location.name);
                     } else {
                         setPickupLocationName(
-                            t("foodParcels.pickupLocation") +
-                                ` (ID: ${formData.foodParcels.pickupLocationId})`,
+                            tHouseholdForm("locationUnknownWithId", {
+                                id: formData.foodParcels.pickupLocationId,
+                            }),
                         );
                     }
                 }
@@ -127,16 +132,25 @@ export default function ReviewForm({
                         setPrimaryLocationName(primaryLoc.name);
                     } else {
                         setPrimaryLocationName(
-                            t("householdForm.primaryLocation") +
-                                ` (ID: ${formData.household.primary_pickup_location_id})`,
+                            tHouseholdForm("locationUnknownWithId", {
+                                id: formData.household.primary_pickup_location_id ?? "",
+                            }),
                         );
                     }
                 }
             } catch {
                 if (needsParcelLocation) {
                     setPickupLocationName(
-                        t("foodParcels.pickupLocation") +
-                            ` (ID: ${formData.foodParcels.pickupLocationId})`,
+                        tHouseholdForm("locationUnknownWithId", {
+                            id: formData.foodParcels.pickupLocationId,
+                        }),
+                    );
+                }
+                if (needsPrimaryLocation) {
+                    setPrimaryLocationName(
+                        tHouseholdForm("locationUnknownWithId", {
+                            id: formData.household.primary_pickup_location_id ?? "",
+                        }),
                     );
                 }
             } finally {
@@ -145,7 +159,13 @@ export default function ReviewForm({
         };
 
         fetchLocationNames();
-    }, [formData.foodParcels?.pickupLocationId, formData.household?.primary_pickup_location_id, t]);
+    }, [
+        formData.foodParcels?.pickupLocationId,
+        formData.household?.primary_pickup_location_id,
+        pickupLocationsData,
+        t,
+        tHouseholdForm,
+    ]);
 
     return (
         <Card withBorder p="md" radius="md" shadow="sm">

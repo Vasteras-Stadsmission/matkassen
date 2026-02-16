@@ -53,7 +53,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
             phone_number: "0701234567",
             locale: "sv",
             created_by: "testuser",
-            primaryLocationName: null,
+            primaryPickupLocationName: null,
             firstParcelDate: new Date("2025-01-01"),
             lastParcelDate: new Date("2025-12-31"),
             nextParcelDate: new Date("2025-06-15"),
@@ -95,7 +95,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
     describe("Real component localStorage error handling", () => {
         it("REGRESSION: should render with malformed JSON in localStorage", async () => {
             // Set malformed JSON
-            mockLocalStorage["householdsTableColumns"] = "{ invalid json ~~";
+            mockLocalStorage["householdsTableColumnsV2"] = "{ invalid json ~~";
 
             // This should NOT throw - component should gracefully fall back to defaults
             const { container } = renderWithMantine(
@@ -130,7 +130,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
                 nextParcelDate: true,
             };
 
-            mockLocalStorage["householdsTableColumns"] = JSON.stringify(savedColumns);
+            mockLocalStorage["householdsTableColumnsV2"] = JSON.stringify(savedColumns);
 
             const { container } = renderWithMantine(
                 <HouseholdsTable households={mockHouseholds} />,
@@ -149,7 +149,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
 
         it("should handle non-object JSON values gracefully", async () => {
             // localStorage contains a string instead of object
-            mockLocalStorage["householdsTableColumns"] = JSON.stringify("not an object");
+            mockLocalStorage["householdsTableColumnsV2"] = JSON.stringify("not an object");
 
             const { container } = renderWithMantine(
                 <HouseholdsTable households={mockHouseholds} />,
@@ -164,7 +164,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
         });
 
         it("should handle array instead of object gracefully", async () => {
-            mockLocalStorage["householdsTableColumns"] = JSON.stringify([true, false, true]);
+            mockLocalStorage["householdsTableColumnsV2"] = JSON.stringify([true, false, true]);
 
             const { container } = renderWithMantine(
                 <HouseholdsTable households={mockHouseholds} />,
@@ -179,7 +179,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
         });
 
         it("should handle null JSON value gracefully", async () => {
-            mockLocalStorage["householdsTableColumns"] = JSON.stringify(null);
+            mockLocalStorage["householdsTableColumnsV2"] = JSON.stringify(null);
 
             const { container } = renderWithMantine(
                 <HouseholdsTable households={mockHouseholds} />,
@@ -196,7 +196,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
             const corruptedValues = ["{{}", "}{", '{"a":}', "undefined", "NaN"];
 
             for (const corrupted of corruptedValues) {
-                mockLocalStorage["householdsTableColumns"] = corrupted;
+                mockLocalStorage["householdsTableColumnsV2"] = corrupted;
 
                 // Clear previous render
                 document.body.innerHTML = "";
@@ -223,7 +223,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
                 last_name: false,
             };
 
-            mockLocalStorage["householdsTableColumns"] = JSON.stringify(oldSaved);
+            mockLocalStorage["householdsTableColumnsV2"] = JSON.stringify(oldSaved);
 
             const { container } = renderWithMantine(
                 <HouseholdsTable households={mockHouseholds} />,
@@ -235,7 +235,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
 
             // After component stabilizes, check that localStorage was updated with merged data
             await waitFor(() => {
-                const savedData = mockLocalStorage["householdsTableColumns"];
+                const savedData = mockLocalStorage["householdsTableColumnsV2"];
                 if (savedData) {
                     const parsed = JSON.parse(savedData);
                     // Should have old preferences plus new defaults
@@ -259,11 +259,11 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
 
             // Wait for useEffect to save initial state
             await waitFor(() => {
-                expect(mockLocalStorage["householdsTableColumns"]).toBeDefined();
+                expect(mockLocalStorage["householdsTableColumnsV2"]).toBeDefined();
             });
 
             // Verify saved data is valid JSON object
-            const saved = JSON.parse(mockLocalStorage["householdsTableColumns"]);
+            const saved = JSON.parse(mockLocalStorage["householdsTableColumnsV2"]);
             expect(typeof saved).toBe("object");
             expect(Array.isArray(saved)).toBe(false);
         });
