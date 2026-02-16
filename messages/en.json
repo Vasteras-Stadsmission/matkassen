@@ -668,6 +668,10 @@
                 "label": "Additional Needs",
                 "description": "Special Needs"
             },
+            "preferences": {
+                "label": "Preferences",
+                "description": "Diet, Pets & Needs"
+            },
             "verification": {
                 "label": "Verification",
                 "description": "Required Checks"

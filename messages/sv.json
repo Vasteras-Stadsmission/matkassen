@@ -668,6 +668,10 @@
                 "label": "Ytterligare behov",
                 "description": "Särskilda behov"
             },
+            "preferences": {
+                "label": "Preferenser",
+                "description": "Kost, husdjur & behov"
+            },
             "verification": {
                 "label": "Verifiering",
                 "description": "Obligatoriska kontroller"

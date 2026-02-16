@@ -100,9 +100,7 @@ async function shouldShowAddParcelsDialog(
 // Import form components
 import HouseholdForm from "@/app/[locale]/households/enroll/components/HouseholdForm";
 import MembersForm from "@/app/[locale]/households/enroll/components/MembersForm";
-import DietaryRestrictionsForm from "@/app/[locale]/households/enroll/components/DietaryRestrictionsForm";
-import AdditionalNeedsForm from "@/app/[locale]/households/enroll/components/AdditionalNeedsForm";
-import PetsForm from "@/app/[locale]/households/enroll/components/PetsForm";
+import PreferencesForm from "@/app/[locale]/households/enroll/components/PreferencesForm";
 import VerificationForm from "@/app/[locale]/households/enroll/components/VerificationForm";
 import ReviewForm from "@/app/[locale]/households/enroll/components/ReviewForm";
 
@@ -353,8 +351,8 @@ export function HouseholdWizard({
             }
         }
 
-        // Validate verification step (step 5, only in create mode with questions)
-        if (active === 5 && mode === "create" && hasVerificationQuestions) {
+        // Validate verification step (step 3, only in create mode with questions)
+        if (active === 3 && mode === "create" && hasVerificationQuestions) {
             // Fetch required questions and check if all are checked
             adminFetch(`/api/admin/verification-questions`)
                 .then(res => res.json())
@@ -378,7 +376,7 @@ export function HouseholdWizard({
                     }
 
                     // Validation passed, move to next step
-                    const maxSteps = hasVerificationQuestions ? 6 : 5;
+                    const maxSteps = hasVerificationQuestions ? 4 : 3;
                     setActive(current => (current < maxSteps ? current + 1 : current));
                 })
                 .catch(err => {
@@ -388,7 +386,7 @@ export function HouseholdWizard({
         }
 
         // If all validations pass, move to the next step
-        const maxSteps = mode === "create" && hasVerificationQuestions ? 6 : 5;
+        const maxSteps = mode === "create" && hasVerificationQuestions ? 4 : 3;
         setActive(current => (current < maxSteps ? current + 1 : current));
     };
 
@@ -749,34 +747,18 @@ export function HouseholdWizard({
                     </Stepper.Step>
 
                     <Stepper.Step
-                        label={t("steps.diet.label")}
-                        description={t("steps.diet.description")}
+                        label={t("steps.preferences.label")}
+                        description={t("steps.preferences.description")}
                     >
-                        <DietaryRestrictionsForm
-                            data={formData.dietaryRestrictions}
-                            updateData={(data: DietaryRestriction[]) =>
+                        <PreferencesForm
+                            dietaryRestrictions={formData.dietaryRestrictions}
+                            updateDietaryRestrictions={(data: DietaryRestriction[]) =>
                                 updateFormData("dietaryRestrictions", data)
                             }
-                        />
-                    </Stepper.Step>
-
-                    <Stepper.Step
-                        label={t("steps.pets.label")}
-                        description={t("steps.pets.description")}
-                    >
-                        <PetsForm
-                            data={formData.pets}
-                            updateData={data => updateFormData("pets", data)}
-                        />
-                    </Stepper.Step>
-
-                    <Stepper.Step
-                        label={t("steps.needs.label")}
-                        description={t("steps.needs.description")}
-                    >
-                        <AdditionalNeedsForm
-                            data={formData.additionalNeeds}
-                            updateData={(data: AdditionalNeed[]) =>
+                            pets={formData.pets}
+                            updatePets={data => updateFormData("pets", data)}
+                            additionalNeeds={formData.additionalNeeds}
+                            updateAdditionalNeeds={(data: AdditionalNeed[]) =>
                                 updateFormData("additionalNeeds", data)
                             }
                         />
@@ -810,7 +792,7 @@ export function HouseholdWizard({
 
                 {/* Calculate the final step index dynamically */}
                 {(() => {
-                    const finalStepIndex = mode === "create" && hasVerificationQuestions ? 6 : 5;
+                    const finalStepIndex = mode === "create" && hasVerificationQuestions ? 4 : 3;
                     const isOnFinalStep = active === finalStepIndex;
 
                     return (
@@ -897,7 +879,7 @@ export function HouseholdWizard({
                                 setShowSimilarNameConfirm(false);
                                 // Continue to next step
                                 const maxSteps =
-                                    mode === "create" && hasVerificationQuestions ? 6 : 5;
+                                    mode === "create" && hasVerificationQuestions ? 4 : 3;
                                 setActive(current => (current < maxSteps ? current + 1 : current));
                             }}
                         >
