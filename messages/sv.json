@@ -127,6 +127,10 @@
             "edit": "Redigera",
             "manageParcels": "Hantera matkassar"
         },
+        "filters": {
+            "location": "Filtrera på plats",
+            "createdBy": "Filtrera på skapare"
+        },
         "table": {
             "firstName": "Förnamn",
             "lastName": "Efternamn",

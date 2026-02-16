@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { DataTable } from "mantine-datatable";
 import {
     TextInput,
@@ -11,6 +11,7 @@ import {
     Menu,
     Checkbox,
     Stack,
+    Select,
 } from "@mantine/core";
 import {
     IconSearch,
@@ -59,10 +60,34 @@ export default function HouseholdsTable({ households }: { households: Household[
     const currentLocale = useLocale();
     const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
+    const [locationFilter, setLocationFilter] = useState<string | null>(null);
+    const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: "last_name",
         direction: "asc" as "asc" | "desc",
     });
+
+    // Compute unique location options from household data
+    const locationOptions = useMemo(() => {
+        const names = new Set<string>();
+        households.forEach(h => {
+            if (h.primaryLocationName) names.add(h.primaryLocationName);
+        });
+        return Array.from(names)
+            .sort()
+            .map(name => ({ value: name, label: name }));
+    }, [households]);
+
+    // Compute unique creator options from household data
+    const creatorOptions = useMemo(() => {
+        const creators = new Set<string>();
+        households.forEach(h => {
+            if (h.created_by) creators.add(h.created_by);
+        });
+        return Array.from(creators)
+            .sort()
+            .map(name => ({ value: name, label: name }));
+    }, [households]);
 
     // Column visibility state with localStorage persistence
     const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
@@ -71,10 +96,10 @@ export default function HouseholdsTable({ households }: { households: Household[
             first_name: true,
             last_name: true,
             phone_number: true,
-            locale: true,
-            created_by: false, // Hidden by default
+            locale: false, // Hidden by default - available on detail page
+            created_by: true,
             primaryLocationName: true,
-            firstParcelDate: true,
+            firstParcelDate: false, // Hidden by default - less actionable than last/next
             lastParcelDate: true,
             nextParcelDate: true,
         };
@@ -170,31 +195,45 @@ export default function HouseholdsTable({ households }: { households: Household[
         router.push(`/households/${householdId}/parcels`);
     };
 
-    // Filter households based on search term
+    // Filter households based on search term and dropdown filters
     useEffect(() => {
-        if (!search.trim()) {
-            setFilteredHouseholds(households);
-            return;
+        let filtered = households;
+
+        // Apply location filter
+        if (locationFilter) {
+            filtered = filtered.filter(h => h.primaryLocationName === locationFilter);
         }
 
-        const searchLower = search.toLowerCase();
-        const filtered = households.filter(household => {
-            return (
-                household.first_name.toLowerCase().includes(searchLower) ||
-                household.last_name.toLowerCase().includes(searchLower) ||
-                household.phone_number.toLowerCase().includes(searchLower) ||
-                household.locale.toLowerCase().includes(searchLower) ||
-                (household.nextParcelDate &&
-                    formatDateTime(household.nextParcelDate).toLowerCase().includes(searchLower)) ||
-                (household.firstParcelDate &&
-                    formatDate(household.firstParcelDate).toLowerCase().includes(searchLower)) ||
-                (household.lastParcelDate &&
-                    formatDate(household.lastParcelDate).toLowerCase().includes(searchLower))
-            );
-        });
+        // Apply creator filter
+        if (creatorFilter) {
+            filtered = filtered.filter(h => h.created_by === creatorFilter);
+        }
+
+        // Apply text search
+        if (search.trim()) {
+            const searchLower = search.toLowerCase();
+            filtered = filtered.filter(household => {
+                return (
+                    household.first_name.toLowerCase().includes(searchLower) ||
+                    household.last_name.toLowerCase().includes(searchLower) ||
+                    household.phone_number.toLowerCase().includes(searchLower) ||
+                    household.locale.toLowerCase().includes(searchLower) ||
+                    (household.nextParcelDate &&
+                        formatDateTime(household.nextParcelDate)
+                            .toLowerCase()
+                            .includes(searchLower)) ||
+                    (household.firstParcelDate &&
+                        formatDate(household.firstParcelDate)
+                            .toLowerCase()
+                            .includes(searchLower)) ||
+                    (household.lastParcelDate &&
+                        formatDate(household.lastParcelDate).toLowerCase().includes(searchLower))
+                );
+            });
+        }
 
         setFilteredHouseholds(filtered);
-    }, [search, households, formatDate, formatDateTime]);
+    }, [search, locationFilter, creatorFilter, households, formatDate, formatDateTime]);
 
     // Handle sorting
     useEffect(() => {
@@ -233,24 +272,44 @@ export default function HouseholdsTable({ households }: { households: Household[
 
     return (
         <>
-            {/* Header section with search and new household button */}
-            <Group justify="space-between" mb="md" gap="md">
-                <TextInput
-                    placeholder={t("search.placeholder")}
-                    value={search}
-                    onChange={e => setSearch(e.currentTarget.value)}
-                    leftSection={<IconSearch size={16} />}
-                    rightSection={
-                        search ? (
-                            <IconX
-                                size={16}
-                                style={{ cursor: "pointer" }}
-                                onClick={() => setSearch("")}
-                            />
-                        ) : null
-                    }
-                    style={{ flex: 1, maxWidth: "500px" }}
-                />
+            {/* Header section with search, filters, and new household button */}
+            <Group justify="space-between" mb="md" gap="md" wrap="wrap">
+                <Group gap="sm" style={{ flex: 1 }} wrap="wrap">
+                    <TextInput
+                        placeholder={t("search.placeholder")}
+                        value={search}
+                        onChange={e => setSearch(e.currentTarget.value)}
+                        leftSection={<IconSearch size={16} />}
+                        rightSection={
+                            search ? (
+                                <IconX
+                                    size={16}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => setSearch("")}
+                                />
+                            ) : null
+                        }
+                        style={{ flex: 1, maxWidth: "300px", minWidth: "180px" }}
+                    />
+                    <Select
+                        placeholder={t("filters.location")}
+                        data={locationOptions}
+                        value={locationFilter}
+                        onChange={setLocationFilter}
+                        clearable
+                        searchable
+                        style={{ minWidth: "180px", maxWidth: "220px" }}
+                    />
+                    <Select
+                        placeholder={t("filters.createdBy")}
+                        data={creatorOptions}
+                        value={creatorFilter}
+                        onChange={setCreatorFilter}
+                        clearable
+                        searchable
+                        style={{ minWidth: "160px", maxWidth: "200px" }}
+                    />
+                </Group>
                 <Group gap="sm">
                     <Menu shadow="md" width={250}>
                         <Menu.Target>

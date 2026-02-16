@@ -127,6 +127,10 @@
             "edit": "Edit",
             "manageParcels": "Manage Parcels"
         },
+        "filters": {
+            "location": "Filter by location",
+            "createdBy": "Filter by creator"
+        },
         "table": {
             "firstName": "First Name",
             "lastName": "Last Name",
