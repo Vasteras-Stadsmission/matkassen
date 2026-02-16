@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=d -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.css' '*.scss' '*.md' '*.yml' '*.yaml')
+[ -z "$staged" ] && exit 0
+
+echo "$staged" | xargs pnpm exec prettier --write --ignore-unknown
+echo "$staged" | xargs git add
