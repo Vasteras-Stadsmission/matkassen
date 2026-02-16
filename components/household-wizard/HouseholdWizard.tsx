@@ -109,8 +109,6 @@ import {
     FormData,
     Household,
     HouseholdMember,
-    DietaryRestriction,
-    AdditionalNeed,
     Comment,
 } from "@/app/[locale]/households/enroll/types";
 
@@ -752,15 +750,13 @@ export function HouseholdWizard({
                     >
                         <PreferencesForm
                             dietaryRestrictions={formData.dietaryRestrictions}
-                            updateDietaryRestrictions={(data: DietaryRestriction[]) =>
+                            updateDietaryRestrictions={data =>
                                 updateFormData("dietaryRestrictions", data)
                             }
                             pets={formData.pets}
                             updatePets={data => updateFormData("pets", data)}
                             additionalNeeds={formData.additionalNeeds}
-                            updateAdditionalNeeds={(data: AdditionalNeed[]) =>
-                                updateFormData("additionalNeeds", data)
-                            }
+                            updateAdditionalNeeds={data => updateFormData("additionalNeeds", data)}
                         />
                     </Stepper.Step>
 

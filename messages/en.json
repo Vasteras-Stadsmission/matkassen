@@ -656,18 +656,6 @@
                 "label": "Members",
                 "description": "Household Members"
             },
-            "diet": {
-                "label": "Dietary Restrictions",
-                "description": "Special Diet"
-            },
-            "pets": {
-                "label": "Pets",
-                "description": "Pet Information"
-            },
-            "needs": {
-                "label": "Additional Needs",
-                "description": "Special Needs"
-            },
             "preferences": {
                 "label": "Preferences",
                 "description": "Diet, Pets & Needs"
