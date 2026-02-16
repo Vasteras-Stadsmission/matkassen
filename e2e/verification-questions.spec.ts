@@ -48,9 +48,7 @@ test.describe("Verification Questions - Smoke Tests", () => {
 
         // Navigate through remaining steps to verify no verification step appears
         // (assuming no verification questions are configured)
-        await page.getByRole("button", { name: /Nästa steg|Next Step/i }).click(); // Diet
-        await page.getByRole("button", { name: /Nästa steg|Next Step/i }).click(); // Pets
-        await page.getByRole("button", { name: /Nästa steg|Next Step/i }).click(); // Needs
+        await page.getByRole("button", { name: /Nästa steg|Next Step/i }).click(); // Preferences
         await page.getByRole("button", { name: /Nästa steg|Next Step/i }).click(); // Should be Review
 
         // Verify we're on review step (final step before submission)
@@ -100,7 +98,7 @@ test.describe("Verification Questions - Smoke Tests", () => {
         }
 
         // Navigate to verification step (if it exists)
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 3; i++) {
             const nextButton = page.getByRole("button", { name: /Nästa steg|Next Step/i });
             if (await nextButton.isVisible()) {
                 await nextButton.click();

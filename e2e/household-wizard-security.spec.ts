@@ -89,13 +89,7 @@ test.describe("HouseholdWizard - Stepper Security", () => {
         // Members step - skip
         await page.click('button:has-text("Next")');
 
-        // Diet step - skip
-        await page.click('button:has-text("Next")');
-
-        // Pets step - skip
-        await page.click('button:has-text("Next")');
-
-        // Additional needs step - skip
+        // Preferences step - skip
         await page.click('button:has-text("Next")');
 
         // Now we should be on verification step (if location has questions)
@@ -125,7 +119,7 @@ test.describe("HouseholdWizard - Stepper Security", () => {
         await page.fill('[name="phone_number"]', "0701234567");
 
         // Click through steps
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 3; i++) {
             await page.click('button:has-text("Next")').catch(() => {});
             await page.waitForTimeout(500);
         }
@@ -160,16 +154,10 @@ test.describe("HouseholdWizard - Stepper Normal Flow", () => {
         await expect(page.locator("text=Members")).toBeVisible();
         await page.click('button:has-text("Next")');
 
-        // Step 3: Diet
+        // Step 3: Preferences
         await page.click('button:has-text("Next")');
 
-        // Step 4: Pets
-        await page.click('button:has-text("Next")');
-
-        // Step 5: Additional Needs
-        await page.click('button:has-text("Next")');
-
-        // Step 6: Verification (if exists) or Review
+        // Step 4: Verification (if exists) or Review
         // This test passes if we can navigate through normally
         const hasNext = (await page.locator('button:has-text("Next")').count()) > 0;
         const hasSubmit = (await page.locator('button:has-text("Submit")').count()) > 0;

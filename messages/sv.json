@@ -656,17 +656,9 @@
                 "label": "Medlemmar",
                 "description": "Hushållsmedlemmar"
             },
-            "diet": {
-                "label": "Matrestriktioner",
-                "description": "Specialkost"
-            },
-            "pets": {
-                "label": "Husdjur",
-                "description": "Information om husdjur"
-            },
-            "needs": {
-                "label": "Ytterligare behov",
-                "description": "Särskilda behov"
+            "preferences": {
+                "label": "Preferenser",
+                "description": "Kost, husdjur & behov"
             },
             "verification": {
                 "label": "Verifiering",
