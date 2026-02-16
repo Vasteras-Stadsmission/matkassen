@@ -225,12 +225,9 @@
     "members": {
         "title": "Household Members",
         "description": "Add all members of the household. This information is used to calculate food quantity and special needs.",
-        "noMembers": "No members have been added yet",
-        "registered": "Registered members:",
         "addPerson": "Add Person",
         "age": "Age",
         "ageUnit": "years",
-        "addInstructions": "Fill in the age and select gender for each household member and then click on \"Add Person\" to add them to the list.",
         "gender": {
             "label": "Gender",
             "male": "Male",

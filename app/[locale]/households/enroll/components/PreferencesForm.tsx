@@ -1,10 +1,11 @@
 "use client";
 
-import { Card, SimpleGrid, Divider, Stack, Box } from "@mantine/core";
+import { Card, SimpleGrid, Divider, Box } from "@mantine/core";
 import DietaryRestrictionsForm from "./DietaryRestrictionsForm";
 import PetsForm from "./PetsForm";
 import AdditionalNeedsForm from "./AdditionalNeedsForm";
 import { DietaryRestriction, AdditionalNeed, Pet } from "../types";
+import classes from "./PreferencesForm.module.css";
 
 interface PreferencesFormProps {
     dietaryRestrictions: DietaryRestriction[];
@@ -25,41 +26,27 @@ export default function PreferencesForm({
 }: PreferencesFormProps) {
     return (
         <Card withBorder p="md" radius="md">
-            {/* Desktop: 3 columns with vertical dividers */}
-            <Box visibleFrom="sm">
-                <SimpleGrid cols={3} spacing="md">
-                    <DietaryRestrictionsForm
-                        data={dietaryRestrictions}
-                        updateData={updateDietaryRestrictions}
-                    />
-                    <Box style={{ borderLeft: "1px solid var(--mantine-color-gray-2)" }} pl="md">
-                        <PetsForm data={pets} updateData={updatePets} />
-                    </Box>
-                    <Box style={{ borderLeft: "1px solid var(--mantine-color-gray-2)" }} pl="md">
-                        <AdditionalNeedsForm
-                            data={additionalNeeds}
-                            updateData={updateAdditionalNeeds}
-                        />
-                    </Box>
-                </SimpleGrid>
-            </Box>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                <DietaryRestrictionsForm
+                    data={dietaryRestrictions}
+                    updateData={updateDietaryRestrictions}
+                />
 
-            {/* Mobile: stacked with horizontal dividers */}
-            <Box hiddenFrom="sm">
-                <Stack gap="md">
-                    <DietaryRestrictionsForm
-                        data={dietaryRestrictions}
-                        updateData={updateDietaryRestrictions}
-                    />
-                    <Divider />
+                <Divider orientation="horizontal" hiddenFrom="sm" />
+
+                <Box className={classes.dividedColumn}>
                     <PetsForm data={pets} updateData={updatePets} />
-                    <Divider />
+                </Box>
+
+                <Divider orientation="horizontal" hiddenFrom="sm" />
+
+                <Box className={classes.dividedColumn}>
                     <AdditionalNeedsForm
                         data={additionalNeeds}
                         updateData={updateAdditionalNeeds}
                     />
-                </Stack>
-            </Box>
+                </Box>
+            </SimpleGrid>
         </Card>
     );
 }

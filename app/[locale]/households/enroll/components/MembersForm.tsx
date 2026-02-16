@@ -101,6 +101,7 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
                             variant="subtle"
                             size="sm"
                             onClick={() => removeMember(index)}
+                            aria-label="Remove"
                         >
                             <IconTrash size="0.875rem" />
                         </ActionIcon>
@@ -111,15 +112,17 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
                     <Group gap="sm" pt="sm">
                         <NumberInput
                             ref={ageInputRef}
+                            aria-label={t("age")}
                             placeholder={t("age")}
                             min={0}
                             max={120}
                             {...addMemberForm.getInputProps("age")}
-                            styles={{ input: { width: "80px" } }}
+                            styles={{ root: { width: "80px" } }}
                             size="sm"
                         />
                         <SegmentedControl
                             size="sm"
+                            aria-label={t("gender.label")}
                             data={[
                                 { value: "male", label: t("gender.male") },
                                 { value: "female", label: t("gender.female") },
