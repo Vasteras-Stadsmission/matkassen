@@ -1,10 +1,11 @@
 "use client";
 
-import { Stack } from "@mantine/core";
+import { Card, SimpleGrid, Divider, Box } from "@mantine/core";
 import DietaryRestrictionsForm from "./DietaryRestrictionsForm";
 import PetsForm from "./PetsForm";
 import AdditionalNeedsForm from "./AdditionalNeedsForm";
 import { DietaryRestriction, AdditionalNeed, Pet } from "../types";
+import classes from "./PreferencesForm.module.css";
 
 interface PreferencesFormProps {
     dietaryRestrictions: DietaryRestriction[];
@@ -24,13 +25,28 @@ export default function PreferencesForm({
     updateAdditionalNeeds,
 }: PreferencesFormProps) {
     return (
-        <Stack gap="lg">
-            <DietaryRestrictionsForm
-                data={dietaryRestrictions}
-                updateData={updateDietaryRestrictions}
-            />
-            <PetsForm data={pets} updateData={updatePets} />
-            <AdditionalNeedsForm data={additionalNeeds} updateData={updateAdditionalNeeds} />
-        </Stack>
+        <Card withBorder p="md" radius="md">
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                <DietaryRestrictionsForm
+                    data={dietaryRestrictions}
+                    updateData={updateDietaryRestrictions}
+                />
+
+                <Divider orientation="horizontal" hiddenFrom="sm" />
+
+                <Box className={classes.dividedColumn}>
+                    <PetsForm data={pets} updateData={updatePets} />
+                </Box>
+
+                <Divider orientation="horizontal" hiddenFrom="sm" />
+
+                <Box className={classes.dividedColumn}>
+                    <AdditionalNeedsForm
+                        data={additionalNeeds}
+                        updateData={updateAdditionalNeeds}
+                    />
+                </Box>
+            </SimpleGrid>
+        </Card>
     );
 }

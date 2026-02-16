@@ -1,0 +1,11 @@
+.dividedColumn {
+    border-left: 1px solid var(--mantine-color-gray-2);
+    padding-left: var(--mantine-spacing-md);
+}
+
+@media (max-width: 48em) {
+    .dividedColumn {
+        border-left: none;
+        padding-left: 0;
+    }
+}

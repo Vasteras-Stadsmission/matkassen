@@ -225,12 +225,9 @@
     "members": {
         "title": "Medlemmar i hushållet",
         "description": "Lägg till alla medlemmar i hushållet. Dessa uppgifter används för att beräkna matmängd och särskilda behov.",
-        "noMembers": "Inga medlemmar har lagts till än",
-        "registered": "Registrerade medlemmar:",
         "addPerson": "Lägg till person",
         "age": "Ålder",
         "ageUnit": "år",
-        "addInstructions": "Fyll i ålder och välj kön för varje hushållsmedlem och klicka sedan på \"Lägg till person\" för att lägga till dem i listan.",
         "gender": {
             "label": "Kön",
             "male": "Man",
