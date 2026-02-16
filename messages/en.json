@@ -127,12 +127,17 @@
             "edit": "Edit",
             "manageParcels": "Manage Parcels"
         },
+        "filters": {
+            "location": "Filter by location",
+            "createdBy": "Filter by creator"
+        },
         "table": {
             "firstName": "First Name",
             "lastName": "Last Name",
             "phoneNumber": "Phone Number",
             "language": "Language",
             "createdBy": "Created By",
+            "primaryLocation": "Primary Location",
             "firstParcel": "First Food Parcel",
             "lastParcel": "Last Food Parcel",
             "nextParcel": "Next Food Parcel",
@@ -201,6 +206,10 @@
         "smsConsentDescription": "Required to send pickup reminders and updates",
         "language": "Language",
         "selectLanguage": "Select language",
+        "primaryLocation": "Primary Handout Location",
+        "primaryLocationDescription": "The household's main handout location",
+        "selectPrimaryLocation": "Select primary location",
+        "locationUnknownWithId": "Unknown location (ID: {id})",
         "validation": {
             "firstNameLength": "First name must be at least 2 characters",
             "lastNameLength": "Last name must be at least 2 characters",
@@ -1045,6 +1054,7 @@
             "viewDetails": "View Details",
             "contactInfo": "Contact Information",
             "language": "Language",
+            "primaryLocation": "Primary Location",
             "householdComposition": "Household Composition",
             "members": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
             "pets": "Pets",

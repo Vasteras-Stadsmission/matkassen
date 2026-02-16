@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq, gte, lte, sql, between, ne, gt } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/app/db/drizzle";
 import {
     households,
@@ -145,6 +146,9 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
         const endDate = endTimeStockholm.toDate();
 
         // Query food parcels for today across all locations
+        // Alias pickupLocations for the household's primary location lookup
+        const primaryLocation = alias(pickupLocations, "primary_location");
+
         const parcelsData = await db
             .select({
                 id: foodParcels.id,
@@ -156,9 +160,15 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 isPickedUp: foodParcels.is_picked_up,
                 noShowAt: foodParcels.no_show_at,
                 pickupLocationId: foodParcels.pickup_location_id,
+                primaryPickupLocationId: households.primary_pickup_location_id,
+                primaryPickupLocationName: primaryLocation.name,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .leftJoin(
+                primaryLocation,
+                eq(households.primary_pickup_location_id, primaryLocation.id),
+            )
             .where(
                 and(
                     gte(foodParcels.pickup_date_time_earliest, startDate),
@@ -184,6 +194,8 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 isPickedUp: parcel.isPickedUp,
                 noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
                 pickup_location_id: parcel.pickupLocationId,
+                primaryPickupLocationId: parcel.primaryPickupLocationId,
+                primaryPickupLocationName: parcel.primaryPickupLocationName,
             };
         });
     } catch (error) {

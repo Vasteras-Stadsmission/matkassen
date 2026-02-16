@@ -25,15 +25,21 @@ import { logError } from "@/app/utils/logger";
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
-    // Get all households (excluding anonymized ones)
+    // Get all households with primary location name via left join (excluding anonymized ones)
     const householdsData = await db
-        .select()
+        .select({
+            household: households,
+            primaryPickupLocationName: pickupLocations.name,
+        })
         .from(households)
+        .leftJoin(pickupLocations, eq(households.primary_pickup_location_id, pickupLocations.id))
         .where(isNull(households.anonymized_at)); // Filter out anonymized households
 
     // For each household, get the food parcels
     const householdsWithParcels = await Promise.all(
-        householdsData.map(async household => {
+        householdsData.map(async row => {
+            const household = row.household;
+
             // Get all food parcels for this household sorted by pickup date
             const householdParcels = await db
                 .select()
@@ -55,6 +61,7 @@ export async function getHouseholds() {
 
             return {
                 ...household,
+                primaryPickupLocationName: row.primaryPickupLocationName,
                 firstParcelDate: firstParcel ? firstParcel.pickup_date_time_latest : null,
                 lastParcelDate: lastParcel ? lastParcel.pickup_date_time_latest : null,
                 nextParcelDate: nextParcel ? nextParcel.pickup_date_time_latest : null,
@@ -81,6 +88,7 @@ export async function getHouseholdDetails(householdId: string) {
                 created_at: households.created_at,
                 anonymized_at: households.anonymized_at,
                 anonymized_by: households.anonymized_by,
+                primary_pickup_location_id: households.primary_pickup_location_id,
             })
             .from(households)
             .where(eq(households.id, householdId))
@@ -182,6 +190,20 @@ export async function getHouseholdDetails(householdId: string) {
                 .limit(1);
         }
 
+        // Get primary pickup location info
+        let primaryPickupLocation: { id: string; name: string } | null = null;
+        if (household.primary_pickup_location_id) {
+            const [loc] = await db
+                .select({
+                    id: pickupLocations.id,
+                    name: pickupLocations.name,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, household.primary_pickup_location_id))
+                .limit(1);
+            primaryPickupLocation = loc || null;
+        }
+
         // Get comments with author info from users table
         const commentsResult = await db
             .select({
@@ -278,6 +300,7 @@ export async function getHouseholdDetails(householdId: string) {
                 deletedBy: parcel.deleted_by_user_id,
             })),
             pickupLocation,
+            primaryPickupLocation,
             comments,
         };
     } catch (error) {

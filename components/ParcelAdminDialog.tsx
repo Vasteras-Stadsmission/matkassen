@@ -674,6 +674,19 @@ export function ParcelAdminDialog({
                                                 {getLanguageName(data.household.locale, locale)}
                                             </Text>
                                         </Group>
+                                        {data.household.primaryPickupLocationName && (
+                                            <Group gap="sm" align="baseline">
+                                                <Text size="sm" c="dimmed" fw={500}>
+                                                    {t("admin.parcelDialog.primaryLocation")}:
+                                                </Text>
+                                                <Group gap={4}>
+                                                    <IconMapPin size={14} />
+                                                    <Text size="sm" c="dark" fw={500}>
+                                                        {data.household.primaryPickupLocationName}
+                                                    </Text>
+                                                </Group>
+                                            </Group>
+                                        )}
                                     </Stack>
 
                                     <Stack gap="sm">

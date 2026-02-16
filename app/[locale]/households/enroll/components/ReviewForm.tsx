@@ -23,6 +23,7 @@ import {
     IconBuilding,
     IconCalendarEvent,
     IconClock,
+    IconMapPin,
 } from "@tabler/icons-react";
 import { FormData, Comment } from "../types";
 import { getPickupLocationsAction } from "../client-actions";
@@ -44,6 +45,8 @@ interface ReviewFormProps {
     isEditing?: boolean;
     onAddComment?: (comment: string) => Promise<Comment | null | undefined>;
     onDeleteComment?: (commentId: string) => Promise<void>;
+    /** Pre-fetched pickup locations from parent (avoids duplicate fetch) */
+    pickupLocationsData?: PickupLocation[];
 }
 
 export default function ReviewForm({
@@ -51,14 +54,17 @@ export default function ReviewForm({
     isEditing = false,
     onAddComment,
     onDeleteComment,
+    pickupLocationsData,
 }: ReviewFormProps) {
     const t = useTranslations();
     const tReview = useTranslations("review");
     const tHouseholdDetail = useTranslations("householdDetail");
+    const tHouseholdForm = useTranslations("householdForm");
     const tWeekdays = useTranslations("weekdays");
     const locale = useLocale();
 
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
+    const [primaryLocationName, setPrimaryLocationName] = useState<string>("");
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
 
     // Format time for display
@@ -88,42 +94,78 @@ export default function ReviewForm({
         return tWeekdays(weekdayKeys[weekday]);
     };
 
-    // Fetch pickup location name when the component mounts
+    // Resolve pickup location names (using pre-fetched data or fetching on demand)
     useEffect(() => {
-        const fetchLocationName = async () => {
-            if (formData.foodParcels?.pickupLocationId) {
-                try {
-                    setIsLoadingLocation(true);
-                    const locations = await getPickupLocationsAction();
+        const fetchLocationNames = async () => {
+            const needsParcelLocation = !!formData.foodParcels?.pickupLocationId;
+            const needsPrimaryLocation = !!formData.household?.primary_pickup_location_id;
 
-                    // Find matching location by ID
+            if (!needsParcelLocation && !needsPrimaryLocation) return;
+
+            try {
+                setIsLoadingLocation(true);
+                const locations = pickupLocationsData || (await getPickupLocationsAction());
+
+                // Resolve parcel pickup location name
+                if (needsParcelLocation) {
                     const location = locations.find(
                         (loc: PickupLocation) => loc.id === formData.foodParcels.pickupLocationId,
                     );
-
                     if (location) {
                         setPickupLocationName(location.name);
                     } else {
-                        // Fallback if location not found
                         setPickupLocationName(
-                            t("foodParcels.pickupLocation") +
-                                ` (ID: ${formData.foodParcels.pickupLocationId})`,
+                            tHouseholdForm("locationUnknownWithId", {
+                                id: formData.foodParcels.pickupLocationId,
+                            }),
                         );
                     }
-                } catch {
-                    // Error fetching pickup location
-                    setPickupLocationName(
-                        t("foodParcels.pickupLocation") +
-                            ` (ID: ${formData.foodParcels.pickupLocationId})`,
-                    );
-                } finally {
-                    setIsLoadingLocation(false);
                 }
+
+                // Resolve primary location name
+                if (needsPrimaryLocation) {
+                    const primaryLoc = locations.find(
+                        (loc: PickupLocation) =>
+                            loc.id === formData.household.primary_pickup_location_id,
+                    );
+                    if (primaryLoc) {
+                        setPrimaryLocationName(primaryLoc.name);
+                    } else {
+                        setPrimaryLocationName(
+                            tHouseholdForm("locationUnknownWithId", {
+                                id: formData.household.primary_pickup_location_id ?? "",
+                            }),
+                        );
+                    }
+                }
+            } catch {
+                if (needsParcelLocation) {
+                    setPickupLocationName(
+                        tHouseholdForm("locationUnknownWithId", {
+                            id: formData.foodParcels.pickupLocationId,
+                        }),
+                    );
+                }
+                if (needsPrimaryLocation) {
+                    setPrimaryLocationName(
+                        tHouseholdForm("locationUnknownWithId", {
+                            id: formData.household.primary_pickup_location_id ?? "",
+                        }),
+                    );
+                }
+            } finally {
+                setIsLoadingLocation(false);
             }
         };
 
-        fetchLocationName();
-    }, [formData.foodParcels?.pickupLocationId, t]);
+        fetchLocationNames();
+    }, [
+        formData.foodParcels?.pickupLocationId,
+        formData.household?.primary_pickup_location_id,
+        pickupLocationsData,
+        t,
+        tHouseholdForm,
+    ]);
 
     return (
         <Card withBorder p="md" radius="md" shadow="sm">
@@ -156,6 +198,14 @@ export default function ReviewForm({
                             </ThemeIcon>
                             <Text>{formatPhoneForDisplay(formData.household.phone_number)}</Text>
                         </Group>
+                        {primaryLocationName && (
+                            <Group gap="xs">
+                                <ThemeIcon size="md" variant="light" color="grape">
+                                    <IconMapPin size={16} />
+                                </ThemeIcon>
+                                <Text>{primaryLocationName}</Text>
+                            </Group>
+                        )}
                     </Paper>
 
                     {/* Household Members */}

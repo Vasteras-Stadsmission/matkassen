@@ -54,6 +54,10 @@ export const households = pgTable(
         anonymized_by: varchar("anonymized_by", { length: 50 }), // GitHub username of admin who anonymized
         noshow_followup_dismissed_at: timestamp({ precision: 1, withTimezone: true }), // When no-show follow-up was dismissed
         noshow_followup_dismissed_by: varchar("noshow_followup_dismissed_by", { length: 50 }), // GitHub username of admin who dismissed
+        primary_pickup_location_id: text("primary_pickup_location_id").references(
+            () => pickupLocations.id,
+            { onDelete: "set null" },
+        ), // Optional primary handout location for this household
     },
     table => [
         // Unique phone number per active (non-anonymized) household
@@ -61,6 +65,10 @@ export const households = pgTable(
         uniqueIndex("idx_households_phone_unique")
             .on(table.phone_number)
             .where(sql`${table.anonymized_at} IS NULL`),
+        // Index for FK lookups and joins on primary location
+        index("idx_households_primary_location")
+            .on(table.primary_pickup_location_id)
+            .where(sql`${table.primary_pickup_location_id} IS NOT NULL`),
     ],
 );
 

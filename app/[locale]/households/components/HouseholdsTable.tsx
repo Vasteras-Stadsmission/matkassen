@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { DataTable } from "mantine-datatable";
 import {
     TextInput,
@@ -11,6 +11,7 @@ import {
     Menu,
     Checkbox,
     Stack,
+    Select,
 } from "@mantine/core";
 import {
     IconSearch,
@@ -27,13 +28,14 @@ import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/la
 import { useLocale } from "next-intl";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 
-interface Household {
+export interface Household {
     id: string;
     first_name: string;
     last_name: string;
     phone_number: string;
     locale: string;
     created_by: string | null;
+    primaryPickupLocationName: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
     nextParcelDate: string | Date | null;
@@ -47,6 +49,7 @@ type ColumnKey =
     | "phone_number"
     | "locale"
     | "created_by"
+    | "primaryPickupLocationName"
     | "firstParcelDate"
     | "lastParcelDate"
     | "nextParcelDate";
@@ -55,12 +58,35 @@ export default function HouseholdsTable({ households }: { households: Household[
     const router = useRouter();
     const t = useTranslations("households");
     const currentLocale = useLocale();
-    const [filteredHouseholds, setFilteredHouseholds] = useState<Household[]>(households);
     const [search, setSearch] = useState("");
+    const [locationFilter, setLocationFilter] = useState<string | null>(null);
+    const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: "last_name",
         direction: "asc" as "asc" | "desc",
     });
+
+    // Compute unique location options from household data
+    const locationOptions = useMemo(() => {
+        const names = new Set<string>();
+        households.forEach(h => {
+            if (h.primaryPickupLocationName) names.add(h.primaryPickupLocationName);
+        });
+        return Array.from(names)
+            .sort()
+            .map(name => ({ value: name, label: name }));
+    }, [households]);
+
+    // Compute unique creator options from household data
+    const creatorOptions = useMemo(() => {
+        const creators = new Set<string>();
+        households.forEach(h => {
+            if (h.created_by) creators.add(h.created_by);
+        });
+        return Array.from(creators)
+            .sort()
+            .map(name => ({ value: name, label: name }));
+    }, [households]);
 
     // Column visibility state with localStorage persistence
     const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
@@ -69,16 +95,17 @@ export default function HouseholdsTable({ households }: { households: Household[
             first_name: true,
             last_name: true,
             phone_number: true,
-            locale: true,
-            created_by: false, // Hidden by default
-            firstParcelDate: true,
+            locale: false, // Hidden by default - available on detail page
+            created_by: true,
+            primaryPickupLocationName: true,
+            firstParcelDate: false, // Hidden by default - less actionable than last/next
             lastParcelDate: true,
             nextParcelDate: true,
         };
 
         if (typeof window !== "undefined") {
             try {
-                const saved = localStorage.getItem("householdsTableColumns");
+                const saved = localStorage.getItem("householdsTableColumnsV2");
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     // Validate that parsed value is a plain object (not array, not null)
@@ -99,7 +126,7 @@ export default function HouseholdsTable({ households }: { households: Household[
     useEffect(() => {
         if (typeof window !== "undefined") {
             try {
-                localStorage.setItem("householdsTableColumns", JSON.stringify(visibleColumns));
+                localStorage.setItem("householdsTableColumnsV2", JSON.stringify(visibleColumns));
             } catch (error) {
                 // Storage access error (Safari private mode, QuotaExceededError)
                 console.warn("Failed to save column preferences to localStorage", error);
@@ -167,36 +194,46 @@ export default function HouseholdsTable({ households }: { households: Household[
         router.push(`/households/${householdId}/parcels`);
     };
 
-    // Filter households based on search term
-    useEffect(() => {
-        if (!search.trim()) {
-            setFilteredHouseholds(households);
-            return;
+    // Single memoized pipeline: filter then sort
+    const filteredHouseholds = useMemo(() => {
+        let filtered = households;
+
+        // Apply location filter
+        if (locationFilter) {
+            filtered = filtered.filter(h => h.primaryPickupLocationName === locationFilter);
         }
 
-        const searchLower = search.toLowerCase();
-        const filtered = households.filter(household => {
-            return (
-                household.first_name.toLowerCase().includes(searchLower) ||
-                household.last_name.toLowerCase().includes(searchLower) ||
-                household.phone_number.toLowerCase().includes(searchLower) ||
-                household.locale.toLowerCase().includes(searchLower) ||
-                (household.nextParcelDate &&
-                    formatDateTime(household.nextParcelDate).toLowerCase().includes(searchLower)) ||
-                (household.firstParcelDate &&
-                    formatDate(household.firstParcelDate).toLowerCase().includes(searchLower)) ||
-                (household.lastParcelDate &&
-                    formatDate(household.lastParcelDate).toLowerCase().includes(searchLower))
-            );
-        });
+        // Apply creator filter
+        if (creatorFilter) {
+            filtered = filtered.filter(h => h.created_by === creatorFilter);
+        }
 
-        setFilteredHouseholds(filtered);
-    }, [search, households, formatDate, formatDateTime]);
+        // Apply text search
+        if (search.trim()) {
+            const searchLower = search.toLowerCase();
+            filtered = filtered.filter(household => {
+                return (
+                    household.first_name.toLowerCase().includes(searchLower) ||
+                    household.last_name.toLowerCase().includes(searchLower) ||
+                    household.phone_number.toLowerCase().includes(searchLower) ||
+                    household.locale.toLowerCase().includes(searchLower) ||
+                    (household.nextParcelDate &&
+                        formatDateTime(household.nextParcelDate)
+                            .toLowerCase()
+                            .includes(searchLower)) ||
+                    (household.firstParcelDate &&
+                        formatDate(household.firstParcelDate)
+                            .toLowerCase()
+                            .includes(searchLower)) ||
+                    (household.lastParcelDate &&
+                        formatDate(household.lastParcelDate).toLowerCase().includes(searchLower))
+                );
+            });
+        }
 
-    // Handle sorting
-    useEffect(() => {
-        const sorted = [...households];
+        // Apply sorting
         const { columnAccessor, direction } = sortStatus;
+        const sorted = [...filtered];
 
         sorted.sort((a: Household, b: Household) => {
             const aValue = a[columnAccessor as keyof Household];
@@ -225,29 +262,49 @@ export default function HouseholdsTable({ households }: { households: Household[
             }
         });
 
-        setFilteredHouseholds(sorted);
-    }, [sortStatus, households]);
+        return sorted;
+    }, [search, locationFilter, creatorFilter, sortStatus, households, formatDate, formatDateTime]);
 
     return (
         <>
-            {/* Header section with search and new household button */}
-            <Group justify="space-between" mb="md" gap="md">
-                <TextInput
-                    placeholder={t("search.placeholder")}
-                    value={search}
-                    onChange={e => setSearch(e.currentTarget.value)}
-                    leftSection={<IconSearch size={16} />}
-                    rightSection={
-                        search ? (
-                            <IconX
-                                size={16}
-                                style={{ cursor: "pointer" }}
-                                onClick={() => setSearch("")}
-                            />
-                        ) : null
-                    }
-                    style={{ flex: 1, maxWidth: "500px" }}
-                />
+            {/* Header section with search, filters, and new household button */}
+            <Group justify="space-between" mb="md" gap="md" wrap="wrap">
+                <Group gap="sm" style={{ flex: 1 }} wrap="wrap">
+                    <TextInput
+                        placeholder={t("search.placeholder")}
+                        value={search}
+                        onChange={e => setSearch(e.currentTarget.value)}
+                        leftSection={<IconSearch size={16} />}
+                        rightSection={
+                            search ? (
+                                <IconX
+                                    size={16}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => setSearch("")}
+                                />
+                            ) : null
+                        }
+                        style={{ flex: 1, maxWidth: "300px", minWidth: "180px" }}
+                    />
+                    <Select
+                        placeholder={t("filters.location")}
+                        data={locationOptions}
+                        value={locationFilter}
+                        onChange={setLocationFilter}
+                        clearable
+                        searchable
+                        style={{ minWidth: "180px", maxWidth: "220px" }}
+                    />
+                    <Select
+                        placeholder={t("filters.createdBy")}
+                        data={creatorOptions}
+                        value={creatorFilter}
+                        onChange={setCreatorFilter}
+                        clearable
+                        searchable
+                        style={{ minWidth: "160px", maxWidth: "200px" }}
+                    />
+                </Group>
                 <Group gap="sm">
                     <Menu shadow="md" width={250}>
                         <Menu.Target>
@@ -287,6 +344,11 @@ export default function HouseholdsTable({ households }: { households: Household[
                                     label={t("table.createdBy")}
                                     checked={visibleColumns.created_by}
                                     onChange={() => toggleColumn("created_by")}
+                                />
+                                <Checkbox
+                                    label={t("table.primaryLocation")}
+                                    checked={visibleColumns.primaryPickupLocationName}
+                                    onChange={() => toggleColumn("primaryPickupLocationName")}
                                 />
                                 <Checkbox
                                     label={t("table.firstParcel")}
@@ -411,6 +473,17 @@ export default function HouseholdsTable({ households }: { households: Household[
                                   title: t("table.createdBy"),
                                   sortable: true,
                                   render: (household: Household) => household.created_by || "-",
+                              },
+                          ]
+                        : []),
+                    ...(visibleColumns.primaryPickupLocationName
+                        ? [
+                              {
+                                  accessor: "primaryPickupLocationName",
+                                  title: t("table.primaryLocation"),
+                                  sortable: true,
+                                  render: (household: Household) =>
+                                      household.primaryPickupLocationName || "-",
                               },
                           ]
                         : []),

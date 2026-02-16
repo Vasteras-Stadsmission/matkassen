@@ -74,5 +74,8 @@ server-build/
 # Lefthook local overrides
 lefthook-local.yml
 
+# Playwright MCP
+.playwright-mcp/
+
 # Use AGENTS.md instead
 CLAUDE.md

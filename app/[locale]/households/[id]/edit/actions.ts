@@ -26,6 +26,7 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
+import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -34,14 +35,6 @@ export interface HouseholdUpdateResult {
 }
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-class OptionNotAvailableError extends Error {
-    readonly code = "OPTION_NOT_AVAILABLE";
-
-    constructor() {
-        super("error.optionNotAvailable");
-    }
-}
 
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
@@ -336,6 +329,7 @@ async function getHouseholdEditData(householdId: string) {
             // SMS consent defaults to true in edit mode since consent was required at enrollment.
             // Re-consent is only required if the phone number changes (handled by wizard validation).
             sms_consent: true,
+            primary_pickup_location_id: household.primary_pickup_location_id,
         },
         members: members.map(member => ({
             id: member.id,
@@ -398,8 +392,16 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                 }
             }
 
+            // Normalize empty string to null (Mantine Select uses "" for no selection)
+            const primaryLocationId = data.household.primary_pickup_location_id || null;
+
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
+                // 0. Validate primary pickup location exists (if provided)
+                if (primaryLocationId) {
+                    await ensurePickupLocationExists(tx, primaryLocationId);
+                }
+
                 // 1. Update the household basic information
                 await tx
                     .update(households)
@@ -408,6 +410,7 @@ export const updateHousehold = protectedAgreementHouseholdAction(
                         last_name: data.household.last_name,
                         phone_number: newPhoneE164,
                         locale: data.household.locale,
+                        primary_pickup_location_id: primaryLocationId,
                     })
                     .where(eq(households.id, household.id));
 

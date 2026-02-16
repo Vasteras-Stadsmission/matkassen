@@ -1,0 +1,3 @@
+ALTER TABLE "households" ADD COLUMN "primary_pickup_location_id" text;--> statement-breakpoint
+ALTER TABLE "households" ADD CONSTRAINT "households_primary_pickup_location_id_pickup_locations_id_fk" FOREIGN KEY ("primary_pickup_location_id") REFERENCES "public"."pickup_locations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_households_primary_location" ON "households" USING btree ("primary_pickup_location_id") WHERE "households"."primary_pickup_location_id" IS NOT NULL;

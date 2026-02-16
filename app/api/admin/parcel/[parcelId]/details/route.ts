@@ -15,6 +15,7 @@ import {
     users,
 } from "@/app/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 
@@ -53,6 +54,7 @@ export interface ParcelDetails {
         }>;
         dietaryRestrictions: string[];
         additionalNeeds: string[];
+        primaryPickupLocationName: string | null;
     };
     comments: Array<{
         id: string;
@@ -81,6 +83,9 @@ export async function GET(
         const { parcelId } = await params;
 
         // Fetch parcel with household and pickup location info
+        // Alias for the household's primary pickup location (separate from the parcel's location)
+        const primaryLocation = alias(pickupLocations, "primary_location");
+
         const parcelData = await db
             .select({
                 parcelId: foodParcels.id,
@@ -102,10 +107,15 @@ export async function GET(
                 householdPhoneNumber: households.phone_number,
                 householdLocale: households.locale,
                 householdCreatedAt: households.created_at,
+                primaryPickupLocationName: primaryLocation.name,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
             .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
+            .leftJoin(
+                primaryLocation,
+                eq(households.primary_pickup_location_id, primaryLocation.id),
+            )
             .where(eq(foodParcels.id, parcelId))
             .limit(1);
 
@@ -225,6 +235,7 @@ export async function GET(
                 })),
                 dietaryRestrictions: dietaryRestrictionsData.map(dr => dr.name),
                 additionalNeeds: additionalNeedsData.map(an => an.need),
+                primaryPickupLocationName: parcel.primaryPickupLocationName || null,
             },
             comments: comments.map(comment => ({
                 id: comment.id,

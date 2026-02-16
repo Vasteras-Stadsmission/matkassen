@@ -351,6 +351,13 @@
       "when": 1771169089613,
       "tag": "0049_damp_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1771234236567,
+      "tag": "0050_lumpy_moondragon",
+      "breakpoints": true
     }
   ]
 }

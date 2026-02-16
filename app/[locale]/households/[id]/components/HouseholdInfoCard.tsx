@@ -7,6 +7,7 @@ import {
     IconLanguage,
     IconUserCheck,
     IconCircleCheck,
+    IconMapPin,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { GithubUserData } from "@/app/[locale]/households/enroll/types";
@@ -21,6 +22,7 @@ interface HouseholdInfoCardProps {
     createdAt: Date | string | null;
     creatorGithubData?: GithubUserData | null;
     enrollmentSmsDelivered?: boolean;
+    primaryPickupLocationName?: string | null;
     getLanguageName: (locale: string) => string;
 }
 
@@ -33,6 +35,7 @@ export function HouseholdInfoCard({
     createdAt,
     creatorGithubData,
     enrollmentSmsDelivered,
+    primaryPickupLocationName,
     getLanguageName,
 }: HouseholdInfoCardProps) {
     const t = useTranslations("householdDetail");
@@ -85,6 +88,14 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
+                {primaryPickupLocationName && (
+                    <Group gap="sm">
+                        <ThemeIcon size="lg" variant="light" color="grape">
+                            <IconMapPin size={20} />
+                        </ThemeIcon>
+                        <Text size="md">{primaryPickupLocationName}</Text>
+                    </Group>
+                )}
                 {(createdBy || createdAt) && (
                     <Group gap="sm">
                         {creatorGithubData ? (

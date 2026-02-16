@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import {
     TextInput,
     SimpleGrid,
@@ -23,6 +23,8 @@ import {
     stripSwedishPrefix,
     formatPhoneInputWithSpaces,
 } from "@/app/utils/validation/phone-validation";
+import { getPickupLocationsAction } from "../client-actions";
+import type { PickupLocation } from "../types";
 
 interface ValidationError {
     field: string;
@@ -35,6 +37,8 @@ interface HouseholdFormProps {
     error?: ValidationError | null;
     /** Original phone number (stripped, without +46) for edit mode - used to detect changes and reset SMS consent */
     originalPhone?: string;
+    /** Pre-fetched pickup locations from parent (avoids duplicate fetch) */
+    pickupLocationsData?: PickupLocation[];
 }
 
 // Define a type for the form values
@@ -44,6 +48,12 @@ interface FormValues {
     phone_number: string;
     locale: string;
     sms_consent: boolean;
+    primary_pickup_location_id: string;
+}
+
+// Normalize nullable string to empty string for form values (null and "" are equivalent)
+function toFormString(value: string | null | undefined): string {
+    return value || "";
 }
 
 // Using fast-deep-equal for robust deep comparison of objects
@@ -56,9 +66,38 @@ export default function HouseholdForm({
     updateData,
     error,
     originalPhone,
+    pickupLocationsData,
 }: HouseholdFormProps) {
     const t = useTranslations("householdForm");
     const currentLocale = useLocale();
+
+    // Pickup locations state - use pre-fetched data if available, otherwise fetch
+    const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>(
+        pickupLocationsData || [],
+    );
+
+    // Fetch pickup locations on mount only if not provided by parent
+    useEffect(() => {
+        if (pickupLocationsData) {
+            setPickupLocations(pickupLocationsData);
+            return;
+        }
+        getPickupLocationsAction()
+            .then(setPickupLocations)
+            .catch(() => {
+                // Silently fail - location selector will just be empty
+            });
+    }, [pickupLocationsData]);
+
+    // Memoize location options for the Select
+    const locationOptions = useMemo(
+        () =>
+            pickupLocations.map(loc => ({
+                value: loc.id,
+                label: loc.name,
+            })),
+        [pickupLocations],
+    );
 
     // Standardized field container style
     const fieldContainerStyle = { minHeight: "85px" };
@@ -73,6 +112,7 @@ export default function HouseholdForm({
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
+            primary_pickup_location_id: data.primary_pickup_location_id || "",
         },
         validate: {
             first_name: value => (value.trim().length < 2 ? t("validation.firstNameLength") : null),
@@ -108,15 +148,18 @@ export default function HouseholdForm({
             phone_number: currentForm.values.phone_number,
             locale: currentForm.values.locale,
             sms_consent: currentForm.values.sms_consent,
+            primary_pickup_location_id: currentForm.values.primary_pickup_location_id,
         };
 
         // Strip +46 prefix from phone for display (same as initialValues)
+        // Use toFormString for nullable fields to prevent null↔"" sync cycles
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
+            primary_pickup_location_id: toFormString(data.primary_pickup_location_id),
         };
 
         // Only update form values if they are actually different
@@ -135,12 +178,14 @@ export default function HouseholdForm({
     // Update parent with debounced values
     useEffect(() => {
         // Strip +46 prefix for comparison (form values don't have the prefix)
+        // Use toFormString for nullable fields to prevent null↔"" sync cycles
         const dataValues = {
             first_name: data.first_name || "",
             last_name: data.last_name || "",
             phone_number: stripSwedishPrefix(data.phone_number || ""),
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
+            primary_pickup_location_id: toFormString(data.primary_pickup_location_id),
         };
 
         // Only call updateData if the debounced values actually changed
@@ -234,6 +279,18 @@ export default function HouseholdForm({
                             placeholder={t("selectLanguage")}
                             data={languageOptions}
                             {...form.getInputProps("locale")}
+                        />
+                    </Box>
+
+                    <Box style={fieldContainerStyle}>
+                        <Select
+                            label={t("primaryLocation")}
+                            description={t("primaryLocationDescription")}
+                            placeholder={t("selectPrimaryLocation")}
+                            data={locationOptions}
+                            clearable
+                            searchable
+                            {...form.getInputProps("primary_pickup_location_id")}
                         />
                     </Box>
                 </SimpleGrid>

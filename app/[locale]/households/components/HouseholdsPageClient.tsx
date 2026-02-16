@@ -3,22 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { Box, Text } from "@mantine/core";
 import { useSearchParams } from "next/navigation";
-import HouseholdsTable from "../components/HouseholdsTable";
+import HouseholdsTable, { type Household } from "../components/HouseholdsTable";
 import { useActionWithNotification } from "@/app/hooks/useActionWithNotification";
-
-// Define the Household interface based on the return type of getHouseholds
-interface Household {
-    id: string;
-    first_name: string;
-    last_name: string;
-    phone_number: string;
-    locale: string;
-    created_by: string | null;
-    firstParcelDate: Date | null;
-    lastParcelDate: Date | null;
-    nextParcelDate: Date | null;
-    nextParcelEarliestTime: Date | null;
-}
 
 interface HouseholdsPageClientProps {
     initialHouseholds: Household[];

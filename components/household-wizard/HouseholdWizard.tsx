@@ -42,6 +42,7 @@ import {
     stripSwedishPrefix,
 } from "@/app/utils/validation/phone-validation";
 import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
+import { getPickupLocationsAction } from "@/app/[locale]/households/enroll/client-actions";
 
 // Helper function to check if upcoming parcels exist for a household
 async function checkHouseholdUpcomingParcels(householdId: string): Promise<boolean> {
@@ -110,6 +111,7 @@ import {
     Household,
     HouseholdMember,
     Comment,
+    PickupLocation,
 } from "@/app/[locale]/households/enroll/types";
 
 // Define type for validation errors
@@ -160,6 +162,7 @@ export function HouseholdWizard({
     submitButtonText,
 }: HouseholdWizardProps) {
     const t = useTranslations("wizard");
+    const tSteps = useTranslations("wizard.steps");
     const locale = useLocale();
     const router = useRouter();
     const [active, setActive] = useState(0);
@@ -187,6 +190,9 @@ export function HouseholdWizard({
     // Privacy policy confirmation state (only for create mode)
     const [showPrivacyConfirm, setShowPrivacyConfirm] = useState(false);
     const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
+
+    // Pickup locations - fetched once and shared with HouseholdForm and ReviewForm
+    const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
 
     // AbortController to prevent race conditions
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -461,6 +467,15 @@ export function HouseholdWizard({
         fetchQuestions();
     }, [mode, t, retryTrigger]);
 
+    // Fetch pickup locations once for sharing with HouseholdForm and ReviewForm
+    useEffect(() => {
+        getPickupLocationsAction()
+            .then(setPickupLocations)
+            .catch(() => {
+                // Silently fail - location selectors will be empty
+            });
+    }, []);
+
     // Cleanup: abort any pending requests on unmount
     useEffect(() => {
         return () => {
@@ -711,8 +726,8 @@ export function HouseholdWizard({
                     allowNextStepsSelect={false}
                 >
                     <Stepper.Step
-                        label={t("steps.basics.label")}
-                        description={t("steps.basics.description")}
+                        label={tSteps("basics.label")}
+                        description={tSteps("basics.description")}
                     >
                         <HouseholdForm
                             data={formData.household}
@@ -729,12 +744,13 @@ export function HouseholdWizard({
                                     ? (originalPhoneRef.current ?? undefined)
                                     : undefined
                             }
+                            pickupLocationsData={pickupLocations}
                         />
                     </Stepper.Step>
 
                     <Stepper.Step
-                        label={t("steps.members.label")}
-                        description={t("steps.members.description")}
+                        label={tSteps("members.label")}
+                        description={tSteps("members.description")}
                     >
                         <MembersForm
                             data={formData.members}
@@ -745,8 +761,8 @@ export function HouseholdWizard({
                     </Stepper.Step>
 
                     <Stepper.Step
-                        label={t("steps.preferences.label")}
-                        description={t("steps.preferences.description")}
+                        label={tSteps("preferences.label")}
+                        description={tSteps("preferences.description")}
                     >
                         <PreferencesForm
                             dietaryRestrictions={formData.dietaryRestrictions}
@@ -763,8 +779,8 @@ export function HouseholdWizard({
                     {/* Verification step - only shown in create mode with questions */}
                     {mode === "create" && hasVerificationQuestions && (
                         <Stepper.Step
-                            label={t("steps.verification.label")}
-                            description={t("steps.verification.description")}
+                            label={tSteps("verification.label")}
+                            description={tSteps("verification.description")}
                         >
                             <VerificationForm
                                 checkedQuestions={checkedVerifications}
@@ -774,14 +790,15 @@ export function HouseholdWizard({
                     )}
 
                     <Stepper.Step
-                        label={t("steps.review.label")}
-                        description={t("steps.review.description")}
+                        label={tSteps("review.label")}
+                        description={tSteps("review.description")}
                     >
                         <ReviewForm
                             formData={formData}
                             isEditing={mode === "edit"}
                             onAddComment={handleAddComment}
                             onDeleteComment={handleDeleteComment}
+                            pickupLocationsData={pickupLocations}
                         />
                     </Stepper.Step>
                 </Stepper>

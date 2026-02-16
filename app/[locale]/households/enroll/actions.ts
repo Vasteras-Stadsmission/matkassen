@@ -40,16 +40,9 @@ import {
     DietaryRestrictionData,
     AdditionalNeedData,
 } from "./types";
+import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-class OptionNotAvailableError extends Error {
-    readonly code = "OPTION_NOT_AVAILABLE";
-
-    constructor() {
-        super("error.optionNotAvailable");
-    }
-}
 
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
@@ -135,8 +128,16 @@ export const enrollHousehold = protectedAgreementAction(
             // Store locationId for recompute after transaction
             const locationId = data.foodParcels?.pickupLocationId;
 
+            // Normalize empty string to null (Mantine Select uses "" for no selection)
+            const primaryLocationId = data.primaryPickupLocationId || null;
+
             // Use a transaction to ensure all operations succeed or fail together
             const result = await db.transaction(async tx => {
+                // 0. Validate primary pickup location exists (if provided)
+                if (primaryLocationId) {
+                    await ensurePickupLocationExists(tx, primaryLocationId);
+                }
+
                 // 1. Create household
                 const [household] = await tx
                     .insert(households)
@@ -146,6 +147,7 @@ export const enrollHousehold = protectedAgreementAction(
                         phone_number: normalizePhoneToE164(data.headOfHousehold.phoneNumber),
                         locale: data.headOfHousehold.locale || "sv",
                         created_by: session.user?.githubUsername ?? null,
+                        primary_pickup_location_id: primaryLocationId,
                     })
                     .returning();
 

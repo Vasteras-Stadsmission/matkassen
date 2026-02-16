@@ -6,6 +6,7 @@ export interface Household {
     phone_number: string;
     locale: string;
     sms_consent?: boolean; // UI-only field (not persisted); controls whether an enrollment SMS is queued/sent
+    primary_pickup_location_id?: string | null; // Optional primary handout location
 }
 
 export interface HouseholdMember {
@@ -105,6 +106,7 @@ export interface HouseholdCreateData {
         locale?: string;
     };
     smsConsent: boolean;
+    primaryPickupLocationId?: string | null;
     members: HouseholdMemberData[];
     dietaryRestrictions: DietaryRestrictionData[];
     additionalNeeds: AdditionalNeedData[];
