@@ -259,3 +259,60 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
 export function isValidE164(phone: string): boolean {
     return /^\+[1-9]\d{1,14}$/.test(phone);
 }
+
+// Re-export BalanceResult from sms-gateway.ts for backwards compatibility
+import type { BalanceResult } from "./sms-gateway";
+export type { BalanceResult };
+
+/**
+ * Check the current SMS credit balance from HelloSMS.
+ *
+ * GET https://api.hellosms.se/api/v1/account/balance
+ * Returns { credits: number }
+ */
+export async function checkBalance(): Promise<BalanceResult> {
+    const config = getHelloSmsConfig();
+
+    if (config.testMode) {
+        // In test mode, report unlimited credits
+        return { success: true, credits: 999 };
+    }
+
+    if (!config.username || !config.password) {
+        return { success: false, error: "HelloSMS credentials not configured" };
+    }
+
+    // Derive the balance URL from the configured API URL
+    // Default send URL: https://api.hellosms.se/api/v1/sms/send
+    // Balance URL:      https://api.hellosms.se/api/v1/account/balance
+    const baseUrl = config.apiUrl.replace(/\/sms\/send\/?$/, "");
+    const balanceUrl = `${baseUrl}/account/balance`;
+
+    try {
+        const response = await fetch(balanceUrl, {
+            method: "GET",
+            headers: {
+                Authorization: `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`,
+            },
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            const statusText =
+                (body as { statusText?: string }).statusText || `HTTP ${response.status}`;
+            return { success: false, error: statusText };
+        }
+
+        const data = (await response.json()) as { credits?: unknown };
+        // Validate credits is actually a number — if not, treat as check failure (fail-open)
+        if (typeof data.credits === "number") {
+            return { success: true, credits: data.credits };
+        }
+        return { success: false, error: "Invalid balance response: missing credits field" };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error checking balance",
+        };
+    }
+}

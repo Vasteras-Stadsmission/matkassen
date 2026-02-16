@@ -71,5 +71,8 @@ nginx/local.conf
 server-build/
 .claude/settings.local.json
 
+# Lefthook local overrides
+lefthook-local.yml
+
 # Use AGENTS.md instead
 CLAUDE.md

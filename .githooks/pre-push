@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+pnpm lint &
+pid_lint=$!
+
+pnpm typecheck &
+pid_type=$!
+
+pnpm test &
+pid_test=$!
+
+fail=""
+wait $pid_lint || fail="$fail lint"
+wait $pid_type || fail="$fail typecheck"
+wait $pid_test || fail="$fail test"
+
+if [ -n "$fail" ]; then
+  echo ""
+  echo "Pre-push checks failed:$fail"
+  exit 1
+fi

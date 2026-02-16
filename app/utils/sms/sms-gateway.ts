@@ -8,8 +8,15 @@
 
 import { HelloSmsGateway } from "./hello-sms-gateway";
 
+export interface BalanceResult {
+    success: boolean;
+    credits?: number;
+    error?: string;
+}
+
 export interface SmsGateway {
     send(request: SendSmsRequest): Promise<SendSmsResponse>;
+    checkBalance(): Promise<BalanceResult>;
 }
 
 export interface SendSmsRequest {
@@ -63,4 +70,11 @@ export function resetSmsGateway(): void {
  */
 export async function sendSmsViaGateway(request: SendSmsRequest): Promise<SendSmsResponse> {
     return getSmsGateway().send(request);
+}
+
+/**
+ * Check SMS credit balance via the current gateway.
+ */
+export async function checkBalanceViaGateway(): Promise<BalanceResult> {
+    return getSmsGateway().checkBalance();
 }

@@ -358,6 +358,7 @@ export const outgoingSms = pgTable(
         provider_message_id: varchar("provider_message_id", { length: 50 }), // ID from SMS provider
         provider_status: varchar("provider_status", { length: 100 }), // Delivery status text from provider (e.g., "Delivered", "Failed")
         provider_status_updated_at: timestamp({ precision: 1, withTimezone: true }), // When provider last updated status
+        balance_failure: boolean("balance_failure").notNull().default(false), // True if SMS failed due to insufficient balance (pre-batch credit check)
         dismissed_at: timestamp({ precision: 1, withTimezone: true }), // When admin marked failure as handled
         dismissed_by_user_id: varchar("dismissed_by_user_id", { length: 50 }), // GitHub username of admin who dismissed
         sent_at: timestamp({ precision: 1, withTimezone: true }), // When SMS was actually sent to provider
@@ -382,6 +383,12 @@ export const outgoingSms = pgTable(
         index("idx_outgoing_sms_active_failures")
             .on(table.status, table.created_at)
             .where(sql`${table.status} = 'failed' AND ${table.dismissed_at} IS NULL`),
+        // Partial index for balance failure banner/requeue queries
+        index("idx_outgoing_sms_balance_failures")
+            .on(table.balance_failure, table.created_at)
+            .where(
+                sql`${table.status} = 'failed' AND ${table.dismissed_at} IS NULL AND ${table.balance_failure} = true`,
+            ),
     ],
 );
 
