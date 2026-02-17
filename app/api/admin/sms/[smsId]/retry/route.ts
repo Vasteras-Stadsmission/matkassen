@@ -16,7 +16,15 @@ function isValidSmsId(id: string): boolean {
     return NANOID_PATTERN.test(id);
 }
 
-const RETRYABLE_INTENTS = new Set(["pickup_reminder", "pickup_updated", "pickup_cancelled"]);
+const RETRYABLE_INTENTS = new Set([
+    "pickup_reminder",
+    "pickup_updated",
+    "pickup_cancelled",
+    "enrolment",
+    "consent_enrolment",
+]);
+
+const PARCEL_INTENTS = new Set(["pickup_reminder", "pickup_updated", "pickup_cancelled"]);
 
 /**
  * POST /api/admin/sms/[smsId]/retry - Retry a failed SMS
@@ -26,10 +34,9 @@ const RETRYABLE_INTENTS = new Set(["pickup_reminder", "pickup_updated", "pickup_
  *
  * Validations:
  * - Original SMS must be in a failed state (not dismissed)
- * - Must have a parcel_id
- * - Must be a retryable intent (pickup_reminder, pickup_updated, pickup_cancelled)
- * - Pickup must be >1h in the future
- * - 5-minute cooldown per parcel
+ * - Must be a retryable intent
+ * - For parcel intents: must have parcel_id, pickup must not have passed, 5-min cooldown per parcel
+ * - For enrolment intents: no extra constraints (auto-dismiss prevents double-clicks)
  */
 export async function POST(
     _request: NextRequest,
@@ -107,13 +114,6 @@ export async function POST(
             );
         }
 
-        if (!originalSms.parcelId) {
-            return NextResponse.json(
-                { error: "SMS has no associated parcel", code: "INVALID_ACTION" },
-                { status: 400 },
-            );
-        }
-
         if (!RETRYABLE_INTENTS.has(originalSms.intent)) {
             return NextResponse.json(
                 { error: "SMS intent is not retryable", code: "INVALID_ACTION" },
@@ -121,51 +121,79 @@ export async function POST(
             );
         }
 
-        // Fetch parcel data WITHOUT notDeleted() filter - cancellation SMS implies soft-deleted parcel
-        const [parcel] = await db
-            .select({
-                id: foodParcels.id,
-                householdId: foodParcels.household_id,
-                pickupEarliest: foodParcels.pickup_date_time_earliest,
-            })
-            .from(foodParcels)
-            .where(eq(foodParcels.id, originalSms.parcelId))
-            .limit(1);
+        const isParcelIntent = PARCEL_INTENTS.has(originalSms.intent);
 
-        if (!parcel) {
-            return NextResponse.json(
-                { error: "Parcel not found", code: "PARCEL_NOT_FOUND" },
-                { status: 400 },
-            );
+        if (isParcelIntent) {
+            if (!originalSms.parcelId) {
+                return NextResponse.json(
+                    { error: "SMS has no associated parcel", code: "INVALID_ACTION" },
+                    { status: 400 },
+                );
+            }
+
+            // Fetch parcel data WITHOUT notDeleted() filter - cancellation SMS implies soft-deleted parcel
+            const [parcel] = await db
+                .select({
+                    id: foodParcels.id,
+                    householdId: foodParcels.household_id,
+                    pickupEarliest: foodParcels.pickup_date_time_earliest,
+                })
+                .from(foodParcels)
+                .where(eq(foodParcels.id, originalSms.parcelId))
+                .limit(1);
+
+            if (!parcel) {
+                return NextResponse.json(
+                    { error: "Parcel not found", code: "PARCEL_NOT_FOUND" },
+                    { status: 400 },
+                );
+            }
+
+            if (parcel.householdId !== originalSms.householdId) {
+                logger.error(
+                    {
+                        smsId,
+                        parcelId: originalSms.parcelId,
+                        smsHouseholdId: originalSms.householdId,
+                        parcelHouseholdId: parcel.householdId,
+                    },
+                    "SMS retry: parcel household_id does not match SMS household_id",
+                );
+                return NextResponse.json(
+                    { error: "Data inconsistency detected", code: "INVALID_ACTION" },
+                    { status: 400 },
+                );
+            }
+
+            // Pickup must not have passed
+            if (parcel.pickupEarliest < now) {
+                return NextResponse.json(
+                    { error: "Pickup time has passed", code: "TOO_LATE" },
+                    { status: 400 },
+                );
+            }
+
+            // 5-minute cooldown per parcel (check any recent SMS for this parcel, excluding the original)
+            const [recentSms] = await db
+                .select({ id: outgoingSms.id })
+                .from(outgoingSms)
+                .where(
+                    and(
+                        eq(outgoingSms.parcel_id, originalSms.parcelId),
+                        ne(outgoingSms.id, smsId),
+                        gte(outgoingSms.created_at, new Date(now.getTime() - 5 * 60 * 1000)),
+                    ),
+                )
+                .limit(1);
+
+            if (recentSms) {
+                return NextResponse.json(
+                    { error: "Please wait before retrying", code: "COOLDOWN_ACTIVE" },
+                    { status: 429 },
+                );
+            }
         }
-
-        // Pickup must not have passed
-        if (parcel.pickupEarliest < now) {
-            return NextResponse.json(
-                { error: "Pickup time has passed", code: "TOO_LATE" },
-                { status: 400 },
-            );
-        }
-
-        // 5-minute cooldown per parcel (check any recent SMS for this parcel, excluding the original)
-        const [recentSms] = await db
-            .select({ id: outgoingSms.id })
-            .from(outgoingSms)
-            .where(
-                and(
-                    eq(outgoingSms.parcel_id, originalSms.parcelId),
-                    ne(outgoingSms.id, smsId),
-                    gte(outgoingSms.created_at, new Date(now.getTime() - 5 * 60 * 1000)),
-                ),
-            )
-            .limit(1);
-
-        if (recentSms) {
-            return NextResponse.json(
-                { error: "Please wait before retrying", code: "COOLDOWN_ACTIVE" },
-                { status: 429 },
-            );
-        }
+        // Non-parcel intents: no cooldown needed — the auto-dismiss prevents double-clicks
 
         // Fetch current household phone number
         const [household] = await db
@@ -174,7 +202,7 @@ export async function POST(
                 anonymizedAt: households.anonymized_at,
             })
             .from(households)
-            .where(eq(households.id, parcel.householdId))
+            .where(eq(households.id, originalSms.householdId))
             .limit(1);
 
         if (!household || household.anonymizedAt) {
@@ -203,11 +231,11 @@ export async function POST(
 
             return createSmsRecord({
                 intent: originalSms.intent,
-                parcelId: originalSms.parcelId!,
-                householdId: parcel.householdId,
+                parcelId: isParcelIntent ? originalSms.parcelId! : undefined,
+                householdId: originalSms.householdId,
                 toE164: normalizePhoneToE164(household.phoneNumber),
                 text: originalSms.text,
-                idempotencyKey: `${originalSms.intent}|${originalSms.parcelId}|retry|${nanoid(8)}`,
+                idempotencyKey: `${originalSms.intent}|${originalSms.householdId}|retry|${nanoid(8)}`,
                 tx,
             });
         });
@@ -223,6 +251,7 @@ export async function POST(
             {
                 originalSmsId: smsId,
                 newSmsId,
+                householdId: originalSms.householdId,
                 parcelId: originalSms.parcelId,
                 intent: originalSms.intent,
                 triggeredBy: authResult.session!.user.githubUsername,

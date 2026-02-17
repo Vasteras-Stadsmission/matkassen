@@ -2,13 +2,13 @@
  * Integration tests for POST /api/admin/sms/[smsId]/retry route handler.
  *
  * Tests the validation logic:
- * - Happy path: retry a failed SMS successfully
- * - Non-retryable intent (e.g. enrolment)
+ * - Happy path: retry a failed SMS successfully (parcel and non-parcel intents)
+ * - Non-retryable intent (e.g. food_parcels_ended)
  * - Pickup in the past
  * - 5-minute cooldown per parcel
  * - Auto-dismissal of original failure
  * - Dismissed SMS cannot be retried
- * - SMS without parcel_id cannot be retried
+ * - Parcel intents without parcel_id cannot be retried
  * - SMS not in a failed state cannot be retried
  */
 
@@ -217,37 +217,83 @@ describe("SMS Retry - Route handler integration", () => {
         });
     });
 
-    describe("Validation: non-retryable intent", () => {
-        it("should reject enrolment intent even with a parcel_id", async () => {
+    describe("Happy path: enrolment SMS", () => {
+        it("should retry a failed enrolment SMS using the household's current phone", async () => {
+            const db = await getTestDb();
             const household = await createTestHousehold({ first_name: "Enrol" });
-            const { location } = await createTestLocationWithSchedule();
-
-            const tomorrow = daysFromTestNow(1);
-            const parcel = await createTestParcel({
-                household_id: household.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: tomorrow,
-                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
-            });
 
             const failedSms = await createTestSms({
                 household_id: household.id,
-                parcel_id: parcel.id,
                 intent: "enrolment",
                 status: "failed",
-                attempt_count: 1,
-                last_error_message: "Test error",
+                attempt_count: 3,
+                last_error_message: "Number not in use",
                 created_at: new Date(TEST_NOW.getTime() - 6 * 60 * 1000),
             });
 
             const response = await callRetry(failedSms.id);
-            expect(response.status).toBe(400);
+            expect(response.status).toBe(200);
 
             const payload = await response.json();
-            expect(payload.code).toBe("INVALID_ACTION");
-            expect(payload.error).toContain("intent is not retryable");
+            expect(payload.success).toBe(true);
+            expect(payload.smsId).not.toBe(failedSms.id);
+
+            // Original should be auto-dismissed
+            const [original] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, failedSms.id));
+            expect(original.dismissed_at).toBeInstanceOf(Date);
+            expect(original.dismissed_by_user_id).toBe(ADMIN_USERNAME);
+
+            // New SMS should be queued with same intent and text, no parcel
+            const [newSms] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, payload.smsId));
+            expect(newSms.status).toBe("queued");
+            expect(newSms.intent).toBe("enrolment");
+            expect(newSms.text).toBe(failedSms.text);
+            expect(newSms.parcel_id).toBeNull();
+            expect(newSms.household_id).toBe(household.id);
         });
 
+        it("should retry a failed consent_enrolment SMS", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({ first_name: "Consent" });
+
+            const failedSms = await createTestSms({
+                household_id: household.id,
+                intent: "consent_enrolment",
+                status: "failed",
+                attempt_count: 2,
+                last_error_message: "Number not in use",
+                created_at: new Date(TEST_NOW.getTime() - 6 * 60 * 1000),
+            });
+
+            const response = await callRetry(failedSms.id);
+            expect(response.status).toBe(200);
+
+            const payload = await response.json();
+            expect(payload.success).toBe(true);
+
+            const [original] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, failedSms.id));
+            expect(original.dismissed_at).toBeInstanceOf(Date);
+
+            const [newSms] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, payload.smsId));
+            expect(newSms.status).toBe("queued");
+            expect(newSms.intent).toBe("consent_enrolment");
+            expect(newSms.parcel_id).toBeNull();
+        });
+    });
+
+    describe("Validation: non-retryable intent", () => {
         it("should reject food_parcels_ended intent even with a parcel_id", async () => {
             const household = await createTestHousehold({ first_name: "Ended" });
             const { location } = await createTestLocationWithSchedule();
@@ -446,12 +492,12 @@ describe("SMS Retry - Route handler integration", () => {
             expect(payload.code).toBe("INVALID_ACTION");
         });
 
-        it("should reject SMS without parcel_id", async () => {
+        it("should reject parcel intent SMS without parcel_id", async () => {
             const household = await createTestHousehold({ first_name: "NoParcel" });
 
             const noParcelSms = await createTestSms({
                 household_id: household.id,
-                // No parcel_id
+                // No parcel_id — invalid for a parcel intent
                 intent: "pickup_reminder",
                 status: "failed",
                 attempt_count: 1,

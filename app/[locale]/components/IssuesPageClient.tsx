@@ -409,9 +409,8 @@ export default function IssuesPageClient() {
         }
     };
 
-    // Action handler: Retry failed SMS (for parcel-related SMS)
+    // Action handler: Retry failed SMS
     const handleRetry = async (sms: FailedSms) => {
-        if (!sms.parcelId) return;
         const key = `retry-${sms.id}`;
         setActionLoading(prev => ({ ...prev, [key]: true }));
 
@@ -859,16 +858,25 @@ export default function IssuesPageClient() {
                                 const failureColor = failureColors[sms.failureType] ?? "grape";
                                 const failureLabel =
                                     failureLabels[sms.failureType] ?? t("cardType.failedSms");
-                                const retryableIntents = [
+                                const parcelIntents = [
                                     "pickup_reminder",
                                     "pickup_updated",
                                     "pickup_cancelled",
                                 ];
-                                const canRetry =
-                                    sms.parcelId && retryableIntents.includes(sms.intent);
+                                const nonParcelRetryableIntents = [
+                                    "enrolment",
+                                    "consent_enrolment",
+                                ];
+                                const isParcelRetry =
+                                    sms.parcelId && parcelIntents.includes(sms.intent);
+                                const isNonParcelRetry = nonParcelRetryableIntents.includes(
+                                    sms.intent,
+                                );
+                                const canRetry = isParcelRetry || isNonParcelRetry;
                                 const pickupPassed =
-                                    !sms.pickupEarliest ||
-                                    new Date(sms.pickupEarliest).getTime() < Date.now();
+                                    isParcelRetry &&
+                                    (!sms.pickupEarliest ||
+                                        new Date(sms.pickupEarliest).getTime() < Date.now());
 
                                 return (
                                     <Paper
