@@ -441,7 +441,10 @@
                 "upcoming": "Scheduled",
                 "pickedUp": "Picked up",
                 "noShow": "No-show"
-            }
+            },
+            "homeLocation": "The household's regular handout location",
+            "visitingTooltip": "Visitor – normally picks up at a different location",
+            "createdByTooltip": "Household created by {username}"
         },
         "currentWeek": "Current Week",
         "todayLabel": "Today",
@@ -475,6 +478,8 @@
         "statusLabel": "Status",
         "pickedUpStatus": "Handed out",
         "notPickedUpStatus": "Not handed out",
+        "primaryLocationLabel": "Home location",
+        "createdByLabel": "Created by",
         "reschedule": {
             "title": "Schedule food support for {name}",
             "modalTitle": "Reschedule Food Support",

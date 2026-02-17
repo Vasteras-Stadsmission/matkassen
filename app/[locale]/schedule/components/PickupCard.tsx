@@ -98,6 +98,16 @@ function PickupCard({
                 {t("statusLabel")}:{" "}
                 {foodParcel.isPickedUp ? t("pickedUpStatus") : t("notPickedUpStatus")}
             </Text>
+            {foodParcel.primaryPickupLocationName && (
+                <Text size="sm">
+                    {t("primaryLocationLabel")}: {foodParcel.primaryPickupLocationName}
+                </Text>
+            )}
+            {foodParcel.createdBy && (
+                <Text size="sm">
+                    {t("createdByLabel")}: {foodParcel.createdBy}
+                </Text>
+            )}
         </div>
     );
 

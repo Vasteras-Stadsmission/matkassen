@@ -162,6 +162,7 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 pickupLocationId: foodParcels.pickup_location_id,
                 primaryPickupLocationId: households.primary_pickup_location_id,
                 primaryPickupLocationName: primaryLocation.name,
+                createdBy: households.created_by,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
@@ -196,6 +197,7 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 pickup_location_id: parcel.pickupLocationId,
                 primaryPickupLocationId: parcel.primaryPickupLocationId,
                 primaryPickupLocationName: parcel.primaryPickupLocationName,
+                createdBy: parcel.createdBy,
             };
         });
     } catch (error) {
@@ -224,6 +226,9 @@ export async function getFoodParcelsForWeek(
         const endDate = endTimeStockholm.toDate();
 
         // Query food parcels for this location and week
+        // Alias pickupLocations for the household's primary location lookup
+        const primaryLocation = alias(pickupLocations, "primary_location");
+
         const parcelsData = await db
             .select({
                 id: foodParcels.id,
@@ -233,9 +238,16 @@ export async function getFoodParcelsForWeek(
                 pickupEarliestTime: foodParcels.pickup_date_time_earliest,
                 pickupLatestTime: foodParcels.pickup_date_time_latest,
                 isPickedUp: foodParcels.is_picked_up,
+                primaryPickupLocationId: households.primary_pickup_location_id,
+                primaryPickupLocationName: primaryLocation.name,
+                createdBy: households.created_by,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .leftJoin(
+                primaryLocation,
+                eq(households.primary_pickup_location_id, primaryLocation.id),
+            )
             .where(
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
@@ -259,6 +271,9 @@ export async function getFoodParcelsForWeek(
                 pickupEarliestTime: new Date(parcel.pickupEarliestTime),
                 pickupLatestTime: new Date(parcel.pickupLatestTime),
                 isPickedUp: parcel.isPickedUp,
+                primaryPickupLocationId: parcel.primaryPickupLocationId,
+                primaryPickupLocationName: parcel.primaryPickupLocationName,
+                createdBy: parcel.createdBy,
             };
         });
     } catch (error) {

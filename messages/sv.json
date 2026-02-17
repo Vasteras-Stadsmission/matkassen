@@ -441,7 +441,10 @@
                 "upcoming": "Schemalagd",
                 "pickedUp": "Uthämtad",
                 "noShow": "Utebliven"
-            }
+            },
+            "homeLocation": "Hushållets ordinarie utlämningsplats",
+            "visitingTooltip": "Besökare – hämtar normalt ut på annan plats",
+            "createdByTooltip": "Hushåll skapat av {username}"
         },
         "currentWeek": "Aktuell vecka",
         "todayLabel": "Idag",
@@ -475,6 +478,8 @@
         "statusLabel": "Status",
         "pickedUpStatus": "Utlämnad",
         "notPickedUpStatus": "Ej utlämnad",
+        "primaryLocationLabel": "Hemmaplats",
+        "createdByLabel": "Skapad av",
         "reschedule": {
             "title": "Schemalägg matstöd för {name}",
             "modalTitle": "Omboka matstöd",
