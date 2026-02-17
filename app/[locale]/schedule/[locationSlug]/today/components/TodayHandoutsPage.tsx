@@ -523,6 +523,12 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                                                     leftSection={
                                                                         <IconMapPin size={10} />
                                                                     }
+                                                                    maw={150}
+                                                                    style={{
+                                                                        overflow: "hidden",
+                                                                        textOverflow: "ellipsis",
+                                                                        whiteSpace: "nowrap",
+                                                                    }}
                                                                 >
                                                                     {
                                                                         parcel.primaryPickupLocationName
@@ -546,6 +552,12 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                                                     leftSection={
                                                                         <IconUser size={10} />
                                                                     }
+                                                                    maw={120}
+                                                                    style={{
+                                                                        overflow: "hidden",
+                                                                        textOverflow: "ellipsis",
+                                                                        whiteSpace: "nowrap",
+                                                                    }}
                                                                 >
                                                                     {parcel.createdBy}
                                                                 </Badge>

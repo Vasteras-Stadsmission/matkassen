@@ -443,7 +443,7 @@
                 "noShow": "No-show"
             },
             "homeLocation": "The household's regular handout location",
-            "visitingTooltip": "The household normally picks up here",
+            "visitingTooltip": "Visitor – normally picks up at a different location",
             "createdByTooltip": "Household created by {username}"
         },
         "currentWeek": "Current Week",

@@ -443,7 +443,7 @@
                 "noShow": "Utebliven"
             },
             "homeLocation": "Hushållets ordinarie utlämningsplats",
-            "visitingTooltip": "Hushållet hämtar normalt här",
+            "visitingTooltip": "Besökare – hämtar normalt ut på annan plats",
             "createdByTooltip": "Hushåll skapat av {username}"
         },
         "currentWeek": "Aktuell vecka",
