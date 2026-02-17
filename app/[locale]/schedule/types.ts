@@ -26,6 +26,7 @@ export interface FoodParcel {
     locationId?: string; // Alternative naming for the location ID
     primaryPickupLocationId?: string | null; // Household's primary handout location
     primaryPickupLocationName?: string | null; // Resolved name for display
+    createdBy?: string | null; // GitHub username of household creator
 }
 
 export interface PickupLocation {

@@ -17,6 +17,7 @@ import {
     Button,
     Alert,
     Tabs,
+    Tooltip,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -27,6 +28,7 @@ import {
     IconCalendar,
     IconMapPin,
     IconArrowLeft,
+    IconUser,
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -491,29 +493,64 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                                             t("todayHandouts.noTimeSpecified")}
                                                     </Text>
                                                 </Group>
-                                                {parcel.primaryPickupLocationName && (
-                                                    <Group gap={4} align="center" mt={2}>
-                                                        <IconMapPin
-                                                            size={14}
-                                                            color={
-                                                                parcel.primaryPickupLocationId !==
-                                                                currentLocation?.id
-                                                                    ? "var(--mantine-color-orange-6)"
-                                                                    : "var(--mantine-color-dimmed)"
-                                                            }
-                                                        />
-                                                        <Text
-                                                            size="xs"
-                                                            c={
-                                                                parcel.primaryPickupLocationId !==
-                                                                currentLocation?.id
-                                                                    ? "orange"
-                                                                    : "dimmed"
-                                                            }
-                                                            truncate
-                                                        >
-                                                            {parcel.primaryPickupLocationName}
-                                                        </Text>
+                                                {(parcel.primaryPickupLocationName ||
+                                                    parcel.createdBy) && (
+                                                    <Group gap={4} mt={2}>
+                                                        {parcel.primaryPickupLocationName && (
+                                                            <Tooltip
+                                                                label={
+                                                                    parcel.primaryPickupLocationId ===
+                                                                    currentLocation?.id
+                                                                        ? t(
+                                                                              "todayHandouts.homeLocation",
+                                                                          )
+                                                                        : t(
+                                                                              "todayHandouts.visitingTooltip",
+                                                                          )
+                                                                }
+                                                                withArrow
+                                                                position="top"
+                                                            >
+                                                                <Badge
+                                                                    size="xs"
+                                                                    variant="light"
+                                                                    color={
+                                                                        parcel.primaryPickupLocationId ===
+                                                                        currentLocation?.id
+                                                                            ? "gray"
+                                                                            : "orange"
+                                                                    }
+                                                                    leftSection={
+                                                                        <IconMapPin size={10} />
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        parcel.primaryPickupLocationName
+                                                                    }
+                                                                </Badge>
+                                                            </Tooltip>
+                                                        )}
+                                                        {parcel.createdBy && (
+                                                            <Tooltip
+                                                                label={t(
+                                                                    "todayHandouts.createdByTooltip",
+                                                                    { username: parcel.createdBy },
+                                                                )}
+                                                                withArrow
+                                                                position="top"
+                                                            >
+                                                                <Badge
+                                                                    size="xs"
+                                                                    variant="light"
+                                                                    color="gray"
+                                                                    leftSection={
+                                                                        <IconUser size={10} />
+                                                                    }
+                                                                >
+                                                                    {parcel.createdBy}
+                                                                </Badge>
+                                                            </Tooltip>
+                                                        )}
                                                     </Group>
                                                 )}
                                             </div>
