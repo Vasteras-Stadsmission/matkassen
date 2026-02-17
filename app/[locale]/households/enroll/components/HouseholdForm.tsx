@@ -148,7 +148,9 @@ export default function HouseholdForm({
             phone_number: currentForm.values.phone_number,
             locale: currentForm.values.locale,
             sms_consent: currentForm.values.sms_consent,
-            primary_pickup_location_id: currentForm.values.primary_pickup_location_id,
+            // Normalize null→"" so clearing the Select (which sets null) doesn't
+            // trigger an infinite null↔"" update cycle with toFormString on dataValues
+            primary_pickup_location_id: toFormString(currentForm.values.primary_pickup_location_id),
         };
 
         // Strip +46 prefix from phone for display (same as initialValues)
@@ -188,8 +190,15 @@ export default function HouseholdForm({
             primary_pickup_location_id: toFormString(data.primary_pickup_location_id),
         };
 
+        // Normalize null→"" on debouncedValues for comparison only, so that
+        // null (from Select clear) and "" (from toFormString) are treated as equal
+        const normalizedDebouncedValues = {
+            ...debouncedValues,
+            primary_pickup_location_id: toFormString(debouncedValues.primary_pickup_location_id),
+        };
+
         // Only call updateData if the debounced values actually changed
-        if (!objectsEqual(debouncedValues, dataValues)) {
+        if (!objectsEqual(normalizedDebouncedValues, dataValues)) {
             updateData(debouncedValues);
         }
     }, [debouncedValues, updateData, data]);
