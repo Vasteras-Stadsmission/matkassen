@@ -113,6 +113,7 @@ export async function getHouseholdDetails(householdId: string) {
             .select({
                 id: dietaryRestrictions.id,
                 name: dietaryRestrictions.name,
+                color: dietaryRestrictions.color,
             })
             .from(householdDietaryRestrictions)
             .innerJoin(
@@ -126,6 +127,7 @@ export async function getHouseholdDetails(householdId: string) {
             .select({
                 id: additionalNeeds.id,
                 need: additionalNeeds.need,
+                color: additionalNeeds.color,
             })
             .from(householdAdditionalNeeds)
             .innerJoin(
@@ -140,6 +142,7 @@ export async function getHouseholdDetails(householdId: string) {
                 id: pets.id,
                 species: petSpecies.id,
                 speciesName: petSpecies.name,
+                color: petSpecies.color,
             })
             .from(pets)
             .innerJoin(petSpecies, eq(pets.pet_species_id, petSpecies.id))

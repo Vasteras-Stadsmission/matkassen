@@ -1326,7 +1326,9 @@
                     "petTypes": "Edit Pet Type",
                     "additionalNeeds": "Edit Additional Need"
                 },
-                "editWarning": "Used by {count} households - changes will affect all of them"
+                "editWarning": "Used by {count} households - changes will affect all of them",
+                "colorLabel": "Label color",
+                "colorPlaceholder": "Default"
             },
             "delete": {
                 "title": {

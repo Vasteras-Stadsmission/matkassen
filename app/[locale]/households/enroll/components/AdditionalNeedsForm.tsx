@@ -75,7 +75,7 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
                             onChange={() => toggleNeed(item)}
                             disabled={disabledForSelection}
                             variant={selected ? "filled" : "outline"}
-                            color={selected ? "blue" : "gray"}
+                            color={selected ? (item.color ?? "cyan") : "gray"}
                             radius="sm"
                             size="sm"
                         >

@@ -372,6 +372,7 @@ export async function getDietaryRestrictions() {
             .select({
                 id: dietaryRestrictionsTable.id,
                 name: dietaryRestrictionsTable.name,
+                color: dietaryRestrictionsTable.color,
                 isActive: dietaryRestrictionsTable.is_active,
             })
             .from(dietaryRestrictionsTable)
@@ -391,6 +392,7 @@ export async function getAdditionalNeeds() {
             .select({
                 id: additionalNeedsTable.id,
                 need: additionalNeedsTable.need,
+                color: additionalNeedsTable.color,
                 isActive: additionalNeedsTable.is_active,
             })
             .from(additionalNeedsTable)
@@ -425,6 +427,7 @@ export async function getPetSpecies() {
             .select({
                 id: petSpeciesTable.id,
                 name: petSpeciesTable.name,
+                color: petSpeciesTable.color,
                 isActive: petSpeciesTable.is_active,
             })
             .from(petSpeciesTable)
