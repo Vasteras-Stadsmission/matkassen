@@ -321,7 +321,12 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.ageDistribution}
+                                                data={stats.households.ageDistribution.map(
+                                                    d => ({
+                                                        bucket: d.bucket,
+                                                        [t("chartLabels.count")]: d.count,
+                                                    }),
+                                                )}
                                                 dataKey="bucket"
                                                 series={[
                                                     {
@@ -368,7 +373,11 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.households.dietaryRestrictions
                                                     .filter(d => d.count >= MIN_COUNT_THRESHOLD)
-                                                    .slice(0, 10)}
+                                                    .slice(0, 10)
+                                                    .map(d => ({
+                                                        name: d.name,
+                                                        [t("chartLabels.count")]: d.count,
+                                                    }))}
                                                 dataKey="name"
                                                 series={[
                                                     {
@@ -391,7 +400,11 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.households.additionalNeeds
                                                     .filter(d => d.count >= MIN_COUNT_THRESHOLD)
-                                                    .slice(0, 10)}
+                                                    .slice(0, 10)
+                                                    .map(d => ({
+                                                        name: d.name,
+                                                        [t("chartLabels.count")]: d.count,
+                                                    }))}
                                                 dataKey="name"
                                                 series={[
                                                     {
@@ -414,7 +427,11 @@ export function StatisticsClient() {
                                                 h={200}
                                                 data={stats.households.pets
                                                     .filter(d => d.count >= MIN_COUNT_THRESHOLD)
-                                                    .slice(0, 10)}
+                                                    .slice(0, 10)
+                                                    .map(d => ({
+                                                        species: d.species,
+                                                        [t("chartLabels.count")]: d.count,
+                                                    }))}
                                                 dataKey="species"
                                                 series={[
                                                     {
@@ -495,7 +512,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.parcels.byLocation}
+                                                data={stats.parcels.byLocation.map(d => ({
+                                                    locationName: d.locationName,
+                                                    [t("chartLabels.count")]: d.count,
+                                                }))}
                                                 dataKey="locationName"
                                                 series={[
                                                     {
@@ -541,7 +561,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <LineChart
                                                 h={200}
-                                                data={stats.parcels.dailyTrend}
+                                                data={stats.parcels.dailyTrend.map(d => ({
+                                                    date: d.date,
+                                                    [t("chartLabels.count")]: d.count,
+                                                }))}
                                                 dataKey="date"
                                                 series={[
                                                     {
@@ -810,7 +833,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <LineChart
                                                 h={200}
-                                                data={stats.sms.dailyVolume}
+                                                data={stats.sms.dailyVolume.map(d => ({
+                                                    date: d.date,
+                                                    [t("chartLabels.count")]: d.count,
+                                                }))}
                                                 dataKey="date"
                                                 series={[
                                                     {
