@@ -322,12 +322,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.ageDistribution.map(
-                                                    d => ({
-                                                        bucket: d.bucket,
-                                                        [t("chartLabels.count")]: d.count,
-                                                    }),
-                                                )}
+                                                data={stats.households.ageDistribution.map(d => ({
+                                                    bucket: d.bucket,
+                                                    [t("chartLabels.count")]: d.count,
+                                                }))}
                                                 dataKey="bucket"
                                                 series={[
                                                     {
