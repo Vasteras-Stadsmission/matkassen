@@ -1327,8 +1327,9 @@
                     "additionalNeeds": "Redigera övrigt behov"
                 },
                 "editWarning": "Används av {count} hushåll - ändringar påverkar alla",
-                "colorLabel": "Etikettfärg",
-                "colorPlaceholder": "Standard"
+                "severityLabel": "Allvarlighetsgrad",
+                "severityRequired": "Krav",
+                "severityPreference": "Önskemål"
             },
             "delete": {
                 "title": {

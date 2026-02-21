@@ -47,12 +47,12 @@ export interface OptionWithUsage {
 
 export interface CreateOptionData {
     name: string;
-    color?: string | null;
+    color?: "required" | "preference" | null;
 }
 
 export interface UpdateOptionData {
     name: string;
-    color?: string | null;
+    color?: "required" | "preference" | null;
 }
 
 interface OptionRow {
@@ -233,7 +233,7 @@ export const createDietaryRestriction = protectedAction(
                 .values({
                     id: nanoid(8),
                     name: trimmedName,
-                    color: data.color?.trim() || null,
+                    color: data.color === "required" ? "required" : "preference",
                 })
                 .returning();
 
@@ -283,7 +283,10 @@ export const updateDietaryRestriction = protectedAction(
 
             const [updated] = await db
                 .update(dietaryRestrictions)
-                .set({ name: trimmedName, color: data.color?.trim() || null })
+                .set({
+                    name: trimmedName,
+                    color: data.color === "required" ? "required" : "preference",
+                })
                 .where(eq(dietaryRestrictions.id, id))
                 .returning();
 

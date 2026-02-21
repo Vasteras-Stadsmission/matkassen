@@ -18,6 +18,7 @@ import { Comment } from "@/app/[locale]/households/enroll/types";
 import { useTranslations, useLocale } from "next-intl";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
+import { severityToColor } from "@/app/utils/dietary-severity";
 
 interface HouseholdDetailProps {
     householdDetail: {
@@ -193,6 +194,33 @@ export default function InternationalizedHouseholdDetail({
                         )}
                     </Paper>
 
+                    {/* Dietary Restrictions */}
+                    <Paper withBorder p="md" radius="md" mb="md">
+                        <Title order={5} mb="md">
+                            {t("dietaryRestrictions", {
+                                count: String(householdDetail.dietaryRestrictions.length),
+                            })}
+                        </Title>
+                        {householdDetail.dietaryRestrictions.length > 0 ? (
+                            <Group gap="xs">
+                                {householdDetail.dietaryRestrictions.map(restriction => (
+                                    <Badge
+                                        key={restriction.id}
+                                        color={severityToColor(restriction.color)}
+                                        variant="filled"
+                                        size="lg"
+                                    >
+                                        {restriction.name}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        ) : (
+                            <Text c="dimmed" size="md">
+                                {t("noDietaryRestrictions")}
+                            </Text>
+                        )}
+                    </Paper>
+
                     {/* Household Members */}
                     <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
@@ -253,6 +281,28 @@ export default function InternationalizedHouseholdDetail({
                         )}
                     </Paper>
 
+                    {/* Additional Needs */}
+                    <Paper withBorder p="md" radius="md" mb="md">
+                        <Title order={5} mb="md">
+                            {t("additionalNeeds", {
+                                count: String(householdDetail.additionalNeeds.length),
+                            })}
+                        </Title>
+                        {householdDetail.additionalNeeds.length > 0 ? (
+                            <Group gap="xs">
+                                {householdDetail.additionalNeeds.map(need => (
+                                    <Badge key={need.id} color="cyan" variant="filled" size="lg">
+                                        {need.need}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        ) : (
+                            <Text c="dimmed" size="md">
+                                {t("noAdditionalNeeds")}
+                            </Text>
+                        )}
+                    </Paper>
+
                     {/* Pets */}
                     <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
@@ -286,55 +336,6 @@ export default function InternationalizedHouseholdDetail({
                         ) : (
                             <Text c="dimmed" size="sm">
                                 {t("noPets")}
-                            </Text>
-                        )}
-                    </Paper>
-
-                    {/* Dietary Restrictions */}
-                    <Paper withBorder p="md" radius="md" mb="md">
-                        <Title order={5} mb="md">
-                            {t("dietaryRestrictions", {
-                                count: String(householdDetail.dietaryRestrictions.length),
-                            })}
-                        </Title>
-                        {householdDetail.dietaryRestrictions.length > 0 ? (
-                            <Group gap="xs">
-                                {householdDetail.dietaryRestrictions.map(restriction => (
-                                    <Badge
-                                        key={restriction.id}
-                                        color={restriction.color ?? "blue"}
-                                        variant="filled"
-                                        size="lg"
-                                    >
-                                        {restriction.name}
-                                    </Badge>
-                                ))}
-                            </Group>
-                        ) : (
-                            <Text c="dimmed" size="md">
-                                {t("noDietaryRestrictions")}
-                            </Text>
-                        )}
-                    </Paper>
-
-                    {/* Additional Needs */}
-                    <Paper withBorder p="md" radius="md" mb="md">
-                        <Title order={5} mb="md">
-                            {t("additionalNeeds", {
-                                count: String(householdDetail.additionalNeeds.length),
-                            })}
-                        </Title>
-                        {householdDetail.additionalNeeds.length > 0 ? (
-                            <Group gap="xs">
-                                {householdDetail.additionalNeeds.map(need => (
-                                    <Badge key={need.id} color="cyan" variant="filled" size="lg">
-                                        {need.need}
-                                    </Badge>
-                                ))}
-                            </Group>
-                        ) : (
-                            <Text c="dimmed" size="md">
-                                {t("noAdditionalNeeds")}
                             </Text>
                         )}
                     </Paper>

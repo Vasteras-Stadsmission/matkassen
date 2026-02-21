@@ -18,14 +18,15 @@ import {
     Tabs,
     Tooltip,
     Switch,
-    ColorInput,
-    ColorSwatch,
+    SegmentedControl,
 } from "@mantine/core";
 import { IconPlus, IconEdit, IconTrash, IconInfoCircle } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { useTranslations } from "next-intl";
 import { Link } from "@/app/i18n/navigation";
+import { severityToColor } from "@/app/utils/dietary-severity";
+import type { CreateOptionData } from "../actions";
 import {
     listDietaryRestrictions,
     createDietaryRestriction,
@@ -51,22 +52,6 @@ interface OptionFormData {
     name: string;
     color: string;
 }
-
-const COLOR_SWATCHES = [
-    "#868e96", // gray
-    "#fa5252", // red
-    "#e64980", // pink
-    "#be4bdb", // grape
-    "#7950f2", // violet
-    "#4c6ef5", // indigo
-    "#228be6", // blue
-    "#15aabf", // cyan
-    "#12b886", // teal
-    "#40c057", // green
-    "#82c91e", // lime
-    "#fab005", // yellow
-    "#fd7e14", // orange
-];
 
 const ERROR_TRANSLATIONS = {
     FETCH_FAILED: "notifications.errors.FETCH_FAILED",
@@ -193,13 +178,21 @@ export function HouseholdOptionsManager() {
 
     const handleAddOption = () => {
         setEditingOption(null);
-        setFormData({ name: "", color: "" });
+        setFormData({ name: "", color: activeTab === "dietaryRestrictions" ? "preference" : "" });
         openModal();
     };
 
     const handleEditOption = (option: OptionWithUsage) => {
         setEditingOption(option);
-        setFormData({ name: option.name, color: option.color ?? "" });
+        setFormData({
+            name: option.name,
+            color:
+                activeTab === "dietaryRestrictions"
+                    ? option.color === "required"
+                        ? "required"
+                        : "preference"
+                    : "",
+        });
         openModal();
     };
 
@@ -260,7 +253,13 @@ export function HouseholdOptionsManager() {
 
         try {
             let result;
-            const data = { name: formData.name, color: formData.color || null };
+            const data: CreateOptionData =
+                activeTab === "dietaryRestrictions"
+                    ? {
+                          name: formData.name,
+                          color: formData.color === "required" ? "required" : "preference",
+                      }
+                    : { name: formData.name };
 
             if (editingOption) {
                 switch (activeTab) {
@@ -410,13 +409,17 @@ export function HouseholdOptionsManager() {
                                             wrap="nowrap"
                                         >
                                             <Group gap="md" style={{ flex: 1 }}>
-                                                {activeTab === "dietaryRestrictions" &&
-                                                    option.color && (
-                                                        <ColorSwatch
-                                                            color={option.color}
-                                                            size={16}
-                                                        />
-                                                    )}
+                                                {activeTab === "dietaryRestrictions" && (
+                                                    <Badge
+                                                        size="xs"
+                                                        color={severityToColor(option.color)}
+                                                        variant="filled"
+                                                    >
+                                                        {option.color === "required"
+                                                            ? t("form.severityRequired")
+                                                            : t("form.severityPreference")}
+                                                    </Badge>
+                                                )}
                                                 <Text fw={500}>{option.name}</Text>
                                                 <Badge
                                                     size="sm"
@@ -526,14 +529,26 @@ export function HouseholdOptionsManager() {
                         />
 
                         {activeTab === "dietaryRestrictions" && (
-                            <ColorInput
-                                label={t("form.colorLabel")}
-                                placeholder={t("form.colorPlaceholder")}
-                                value={formData.color}
-                                onChange={value => setFormData(prev => ({ ...prev, color: value }))}
-                                swatches={COLOR_SWATCHES}
-                                swatchesPerRow={7}
-                            />
+                            <div>
+                                <Text size="sm" fw={500} mb={4}>
+                                    {t("form.severityLabel")}
+                                </Text>
+                                <SegmentedControl
+                                    aria-label={t("form.severityLabel")}
+                                    value={formData.color || "preference"}
+                                    onChange={value =>
+                                        setFormData(prev => ({ ...prev, color: value }))
+                                    }
+                                    data={[
+                                        {
+                                            label: t("form.severityPreference"),
+                                            value: "preference",
+                                        },
+                                        { label: t("form.severityRequired"), value: "required" },
+                                    ]}
+                                    fullWidth
+                                />
+                            </div>
                         )}
 
                         {editingOption && editingOption.usageCount > 0 && (

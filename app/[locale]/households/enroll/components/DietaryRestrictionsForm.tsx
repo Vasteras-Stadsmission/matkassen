@@ -5,6 +5,7 @@ import { Group, Title, Text, Chip, Loader, Badge, Stack } from "@mantine/core";
 import { getDietaryRestrictions } from "../actions";
 import { DietaryRestriction } from "../types";
 import { useTranslations } from "next-intl";
+import { severityToColor } from "@/app/utils/dietary-severity";
 
 interface DietaryRestrictionsFormProps {
     data: DietaryRestriction[];
@@ -78,7 +79,7 @@ export default function DietaryRestrictionsForm({
                             onChange={() => toggleRestriction(restriction)}
                             disabled={disabledForSelection}
                             variant={selected ? "filled" : "outline"}
-                            color={selected ? (restriction.color ?? "blue") : "gray"}
+                            color={selected ? severityToColor(restriction.color) : "gray"}
                             radius="sm"
                             size="sm"
                         >

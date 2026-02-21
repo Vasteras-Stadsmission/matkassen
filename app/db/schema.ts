@@ -421,7 +421,7 @@ export const dietaryRestrictions = pgTable("dietary_restrictions", {
         .notNull()
         .$defaultFn(() => nanoid(8)),
     name: text("name").notNull().unique(), // e.g., gluten, lactose, pork...
-    color: text("color"), // optional badge color (hex or Mantine color name)
+    color: text("color"), // severity level: "required" (red) or "preference" (orange)
     is_active: boolean("is_active").notNull().default(true),
     deactivated_at: timestamp({ precision: 1, withTimezone: true }),
     deactivated_by: varchar("deactivated_by", { length: 50 }),
