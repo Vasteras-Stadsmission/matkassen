@@ -305,6 +305,7 @@ export function StatisticsClient() {
                                                     value: l.count,
                                                     color: l.locale === "sv" ? "blue.6" : "green.6",
                                                 }))}
+                                                withLabels
                                                 withLabelsLine
                                                 labelsPosition="outside"
                                                 labelsType="value"
@@ -321,12 +322,10 @@ export function StatisticsClient() {
                                             </Title>
                                             <BarChart
                                                 h={200}
-                                                data={stats.households.ageDistribution.map(
-                                                    d => ({
-                                                        bucket: d.bucket,
-                                                        [t("chartLabels.count")]: d.count,
-                                                    }),
-                                                )}
+                                                data={stats.households.ageDistribution.map(d => ({
+                                                    bucket: d.bucket,
+                                                    [t("chartLabels.count")]: d.count,
+                                                }))}
                                                 dataKey="bucket"
                                                 series={[
                                                     {
