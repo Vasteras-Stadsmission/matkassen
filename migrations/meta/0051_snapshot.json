@@ -1,6 +1,6 @@
 {
-  "id": "b7c3e2f1-8a94-4d2e-9f1b-3c5a7e8d0f12",
-  "prevId": "106190f0-4425-4bf1-8a10-7fa08cd40a84",
+  "id": "15c76886-d3cc-4b4a-b168-c50825a781d1",
+  "prevId": "b7c3e2f1-8a94-4d2e-9f1b-3c5a7e8d0f12",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -19,12 +19,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "color": {
-          "name": "color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "is_active": {
           "name": "is_active",
@@ -860,6 +854,22 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_households_primary_location": {
+          "name": "idx_households_primary_location",
+          "columns": [
+            {
+              "expression": "primary_pickup_location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"households\".\"primary_pickup_location_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1192,12 +1202,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "color": {
-          "name": "color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "is_active": {
           "name": "is_active",

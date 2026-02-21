@@ -392,7 +392,6 @@ export async function getAdditionalNeeds() {
             .select({
                 id: additionalNeedsTable.id,
                 need: additionalNeedsTable.need,
-                color: additionalNeedsTable.color,
                 isActive: additionalNeedsTable.is_active,
             })
             .from(additionalNeedsTable)
@@ -427,7 +426,6 @@ export async function getPetSpecies() {
             .select({
                 id: petSpeciesTable.id,
                 name: petSpeciesTable.name,
-                color: petSpeciesTable.color,
                 isActive: petSpeciesTable.is_active,
             })
             .from(petSpeciesTable)

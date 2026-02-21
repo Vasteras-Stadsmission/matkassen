@@ -340,12 +340,7 @@ export default function ReviewForm({
                         {formData.additionalNeeds.length > 0 ? (
                             <Group gap="xs">
                                 {formData.additionalNeeds.map(need => (
-                                    <Badge
-                                        key={need.id}
-                                        color={need.color ?? "cyan"}
-                                        variant="filled"
-                                        size="md"
-                                    >
+                                    <Badge key={need.id} color="cyan" variant="filled" size="md">
                                         {need.need}
                                     </Badge>
                                 ))}

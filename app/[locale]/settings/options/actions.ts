@@ -134,15 +134,16 @@ async function listDietaryRestrictionsWithUsage(): Promise<OptionWithUsage[]> {
 }
 
 async function listPetSpeciesWithUsage(): Promise<OptionWithUsage[]> {
-    const options = await db
+    const rows = await db
         .select({
             id: petSpecies.id,
             name: petSpecies.name,
-            color: petSpecies.color,
             isActive: petSpecies.is_active,
         })
         .from(petSpecies)
         .orderBy(asc(petSpecies.name));
+
+    const options: OptionRow[] = rows.map(r => ({ ...r, color: null }));
 
     const links = await db
         .select({
@@ -159,15 +160,16 @@ async function listPetSpeciesWithUsage(): Promise<OptionWithUsage[]> {
 }
 
 async function listAdditionalNeedsWithUsage(): Promise<OptionWithUsage[]> {
-    const options = await db
+    const rows = await db
         .select({
             id: additionalNeeds.id,
             name: additionalNeeds.need,
-            color: additionalNeeds.color,
             isActive: additionalNeeds.is_active,
         })
         .from(additionalNeeds)
         .orderBy(asc(additionalNeeds.need));
+
+    const options: OptionRow[] = rows.map(r => ({ ...r, color: null }));
 
     const links = await db
         .select({
@@ -231,7 +233,7 @@ export const createDietaryRestriction = protectedAction(
                 .values({
                     id: nanoid(8),
                     name: trimmedName,
-                    color: data.color ?? null,
+                    color: data.color?.trim() || null,
                 })
                 .returning();
 
@@ -281,7 +283,7 @@ export const updateDietaryRestriction = protectedAction(
 
             const [updated] = await db
                 .update(dietaryRestrictions)
-                .set({ name: trimmedName, color: data.color ?? null })
+                .set({ name: trimmedName, color: data.color?.trim() || null })
                 .where(eq(dietaryRestrictions.id, id))
                 .returning();
 
@@ -459,7 +461,6 @@ export const createPetSpecies = protectedAction(
                 .values({
                     id: nanoid(8),
                     name: trimmedName,
-                    color: data.color ?? null,
                 })
                 .returning();
 
@@ -467,7 +468,7 @@ export const createPetSpecies = protectedAction(
             return success({
                 id: newSpecies.id,
                 name: newSpecies.name,
-                color: newSpecies.color,
+                color: null,
                 isActive: newSpecies.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],
@@ -509,7 +510,7 @@ export const updatePetSpecies = protectedAction(
 
             const [updated] = await db
                 .update(petSpecies)
-                .set({ name: trimmedName, color: data.color ?? null })
+                .set({ name: trimmedName })
                 .where(eq(petSpecies.id, id))
                 .returning();
 
@@ -684,7 +685,6 @@ export const createAdditionalNeed = protectedAction(
                 .values({
                     id: nanoid(8),
                     need: trimmedName,
-                    color: data.color ?? null,
                 })
                 .returning();
 
@@ -692,7 +692,7 @@ export const createAdditionalNeed = protectedAction(
             return success({
                 id: newNeed.id,
                 name: newNeed.need,
-                color: newNeed.color,
+                color: null,
                 isActive: newNeed.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],
@@ -734,7 +734,7 @@ export const updateAdditionalNeed = protectedAction(
 
             const [updated] = await db
                 .update(additionalNeeds)
-                .set({ need: trimmedName, color: data.color ?? null })
+                .set({ need: trimmedName })
                 .where(eq(additionalNeeds.id, id))
                 .returning();
 

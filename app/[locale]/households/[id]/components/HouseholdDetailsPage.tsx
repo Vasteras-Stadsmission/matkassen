@@ -215,17 +215,13 @@ export default function HouseholdDetailsPage({
     };
 
     const countPetsBySpecies = () => {
-        if (!householdData?.pets) return new Map<string, { count: number; color?: string | null }>();
-        const petMap = new Map<string, { count: number; color?: string | null }>();
+        if (!householdData?.pets) return new Map<string, number>();
+        const petCounts = new Map<string, number>();
         householdData.pets.forEach(pet => {
             const species = pet.speciesName || pet.species;
-            const existing = petMap.get(species);
-            petMap.set(species, {
-                count: (existing?.count || 0) + 1,
-                color: existing?.color ?? pet.color,
-            });
+            petCounts.set(species, (petCounts.get(species) || 0) + 1);
         });
-        return petMap;
+        return petCounts;
     };
 
     if (!householdData) {
@@ -326,22 +322,16 @@ export default function HouseholdDetailsPage({
                                 {t("pets", { count: String(householdData.pets.length) })}
                             </Title>
                             <Group gap="sm">
-                                {Array.from(countPetsBySpecies()).map(
-                                    ([species, { count, color }]) => (
-                                        <Paper key={species} radius="md" p="sm" withBorder>
-                                            <Group gap="xs">
-                                                <Badge
-                                                    size="lg"
-                                                    variant="light"
-                                                    color={color ?? "blue"}
-                                                >
-                                                    {count}
-                                                </Badge>
-                                                <Text size="sm">{species}</Text>
-                                            </Group>
-                                        </Paper>
-                                    ),
-                                )}
+                                {Array.from(countPetsBySpecies()).map(([species, count]) => (
+                                    <Paper key={species} radius="md" p="sm" withBorder>
+                                        <Group gap="xs">
+                                            <Badge size="lg" variant="light" color="blue">
+                                                {count}
+                                            </Badge>
+                                            <Text size="sm">{species}</Text>
+                                        </Group>
+                                    </Paper>
+                                ))}
                             </Group>
                         </Paper>
                     )}
@@ -378,11 +368,7 @@ export default function HouseholdDetailsPage({
                             </Title>
                             <Group gap="xs">
                                 {householdData.additionalNeeds.map(need => (
-                                    <Badge
-                                        key={need.id}
-                                        color={need.color ?? "cyan"}
-                                        size="lg"
-                                    >
+                                    <Badge key={need.id} color="cyan" size="lg">
                                         {need.need}
                                     </Badge>
                                 ))}

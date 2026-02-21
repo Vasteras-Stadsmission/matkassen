@@ -410,12 +410,13 @@ export function HouseholdOptionsManager() {
                                             wrap="nowrap"
                                         >
                                             <Group gap="md" style={{ flex: 1 }}>
-                                                {option.color && (
-                                                    <ColorSwatch
-                                                        color={option.color}
-                                                        size={16}
-                                                    />
-                                                )}
+                                                {activeTab === "dietaryRestrictions" &&
+                                                    option.color && (
+                                                        <ColorSwatch
+                                                            color={option.color}
+                                                            size={16}
+                                                        />
+                                                    )}
                                                 <Text fw={500}>{option.name}</Text>
                                                 <Badge
                                                     size="sm"
@@ -521,21 +522,19 @@ export function HouseholdOptionsManager() {
                             required
                             maxLength={100}
                             value={formData.name}
-                            onChange={e =>
-                                setFormData(prev => ({ ...prev, name: e.target.value }))
-                            }
+                            onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                         />
 
-                        <ColorInput
-                            label={t("form.colorLabel")}
-                            placeholder={t("form.colorPlaceholder")}
-                            value={formData.color}
-                            onChange={value =>
-                                setFormData(prev => ({ ...prev, color: value }))
-                            }
-                            swatches={COLOR_SWATCHES}
-                            swatchesPerRow={7}
-                        />
+                        {activeTab === "dietaryRestrictions" && (
+                            <ColorInput
+                                label={t("form.colorLabel")}
+                                placeholder={t("form.colorPlaceholder")}
+                                value={formData.color}
+                                onChange={value => setFormData(prev => ({ ...prev, color: value }))}
+                                swatches={COLOR_SWATCHES}
+                                swatchesPerRow={7}
+                            />
+                        )}
 
                         {editingOption && editingOption.usageCount > 0 && (
                             <Alert color="yellow" variant="light">

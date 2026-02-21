@@ -41,13 +41,11 @@ interface HouseholdDetailProps {
         additionalNeeds: Array<{
             id: string;
             need: string;
-            color?: string | null;
         }>;
         pets: Array<{
             id?: string;
             species: string;
             speciesName?: string;
-            color?: string | null;
         }>;
         foodParcels: {
             pickupLocationId: string;
@@ -126,22 +124,18 @@ export default function InternationalizedHouseholdDetail({
         return compareDate < today;
     };
 
-    // Get unique pet species with counts and color
+    // Get unique pet species with counts
     const uniquePetsWithCount = () => {
-        const petMap = new Map<string, { count: number; color?: string | null }>();
+        const petCounts = new Map<string, number>();
 
         householdDetail.pets.forEach(pet => {
             const species = pet.speciesName || pet.species;
-            const existing = petMap.get(species);
-            petMap.set(species, {
-                count: (existing?.count || 0) + 1,
-                color: existing?.color ?? pet.color,
-            });
+            petCounts.set(species, (petCounts.get(species) || 0) + 1);
         });
 
-        const uniquePets: { species: string; count: number; color?: string | null }[] = [];
-        petMap.forEach(({ count, color }, species) => {
-            uniquePets.push({ species, count, color });
+        const uniquePets: { species: string; count: number }[] = [];
+        petCounts.forEach((count, species) => {
+            uniquePets.push({ species, count });
         });
 
         return uniquePets;
@@ -280,7 +274,7 @@ export default function InternationalizedHouseholdDetail({
                                                 size="md"
                                                 radius="xl"
                                                 variant="light"
-                                                color={pet.color ?? "blue"}
+                                                color="blue"
                                             >
                                                 {pet.count}
                                             </Badge>
@@ -333,12 +327,7 @@ export default function InternationalizedHouseholdDetail({
                         {householdDetail.additionalNeeds.length > 0 ? (
                             <Group gap="xs">
                                 {householdDetail.additionalNeeds.map(need => (
-                                    <Badge
-                                        key={need.id}
-                                        color={need.color ?? "cyan"}
-                                        variant="filled"
-                                        size="lg"
-                                    >
+                                    <Badge key={need.id} color="cyan" variant="filled" size="lg">
                                         {need.need}
                                     </Badge>
                                 ))}
