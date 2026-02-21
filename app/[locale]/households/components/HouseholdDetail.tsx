@@ -36,15 +36,18 @@ interface HouseholdDetailProps {
         dietaryRestrictions: Array<{
             id: string;
             name: string;
+            color?: string | null;
         }>;
         additionalNeeds: Array<{
             id: string;
             need: string;
+            color?: string | null;
         }>;
         pets: Array<{
             id?: string;
             species: string;
             speciesName?: string;
+            color?: string | null;
         }>;
         foodParcels: {
             pickupLocationId: string;
@@ -123,25 +126,22 @@ export default function InternationalizedHouseholdDetail({
         return compareDate < today;
     };
 
-    // Count pets by species
-    const countPetsBySpecies = () => {
-        const petCounts = new Map<string, number>();
+    // Get unique pet species with counts and color
+    const uniquePetsWithCount = () => {
+        const petMap = new Map<string, { count: number; color?: string | null }>();
 
         householdDetail.pets.forEach(pet => {
             const species = pet.speciesName || pet.species;
-            petCounts.set(species, (petCounts.get(species) || 0) + 1);
+            const existing = petMap.get(species);
+            petMap.set(species, {
+                count: (existing?.count || 0) + 1,
+                color: existing?.color ?? pet.color,
+            });
         });
 
-        return petCounts;
-    };
-
-    // Get unique pet species with counts
-    const uniquePetsWithCount = () => {
-        const petCounts = countPetsBySpecies();
-        const uniquePets: { species: string; count: number }[] = [];
-
-        petCounts.forEach((count, species) => {
-            uniquePets.push({ species, count });
+        const uniquePets: { species: string; count: number; color?: string | null }[] = [];
+        petMap.forEach(({ count, color }, species) => {
+            uniquePets.push({ species, count, color });
         });
 
         return uniquePets;
@@ -280,7 +280,7 @@ export default function InternationalizedHouseholdDetail({
                                                 size="md"
                                                 radius="xl"
                                                 variant="light"
-                                                color="blue"
+                                                color={pet.color ?? "blue"}
                                             >
                                                 {pet.count}
                                             </Badge>
@@ -308,7 +308,7 @@ export default function InternationalizedHouseholdDetail({
                                 {householdDetail.dietaryRestrictions.map(restriction => (
                                     <Badge
                                         key={restriction.id}
-                                        color="blue"
+                                        color={restriction.color ?? "blue"}
                                         variant="filled"
                                         size="lg"
                                     >
@@ -333,7 +333,12 @@ export default function InternationalizedHouseholdDetail({
                         {householdDetail.additionalNeeds.length > 0 ? (
                             <Group gap="xs">
                                 {householdDetail.additionalNeeds.map(need => (
-                                    <Badge key={need.id} color="cyan" variant="filled" size="lg">
+                                    <Badge
+                                        key={need.id}
+                                        color={need.color ?? "cyan"}
+                                        variant="filled"
+                                        size="lg"
+                                    >
                                         {need.need}
                                     </Badge>
                                 ))}

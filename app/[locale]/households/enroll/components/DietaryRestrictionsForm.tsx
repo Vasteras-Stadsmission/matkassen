@@ -78,7 +78,7 @@ export default function DietaryRestrictionsForm({
                             onChange={() => toggleRestriction(restriction)}
                             disabled={disabledForSelection}
                             variant={selected ? "filled" : "outline"}
-                            color={selected ? "blue" : "gray"}
+                            color={selected ? (restriction.color ?? "blue") : "gray"}
                             radius="sm"
                             size="sm"
                         >

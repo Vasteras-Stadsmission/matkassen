@@ -18,6 +18,8 @@ import {
     Tabs,
     Tooltip,
     Switch,
+    ColorInput,
+    ColorSwatch,
 } from "@mantine/core";
 import { IconPlus, IconEdit, IconTrash, IconInfoCircle } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
@@ -47,7 +49,24 @@ type OptionType = "dietaryRestrictions" | "petTypes" | "additionalNeeds";
 
 interface OptionFormData {
     name: string;
+    color: string;
 }
+
+const COLOR_SWATCHES = [
+    "#868e96", // gray
+    "#fa5252", // red
+    "#e64980", // pink
+    "#be4bdb", // grape
+    "#7950f2", // violet
+    "#4c6ef5", // indigo
+    "#228be6", // blue
+    "#15aabf", // cyan
+    "#12b886", // teal
+    "#40c057", // green
+    "#82c91e", // lime
+    "#fab005", // yellow
+    "#fd7e14", // orange
+];
 
 const ERROR_TRANSLATIONS = {
     FETCH_FAILED: "notifications.errors.FETCH_FAILED",
@@ -90,7 +109,7 @@ export function HouseholdOptionsManager() {
         useDisclosure(false);
     const [editingOption, setEditingOption] = useState<OptionWithUsage | null>(null);
     const [deletingOption, setDeletingOption] = useState<OptionWithUsage | null>(null);
-    const [formData, setFormData] = useState<OptionFormData>({ name: "" });
+    const [formData, setFormData] = useState<OptionFormData>({ name: "", color: "" });
 
     const loadAllOptions = useCallback(async () => {
         setLoading(true);
@@ -174,13 +193,13 @@ export function HouseholdOptionsManager() {
 
     const handleAddOption = () => {
         setEditingOption(null);
-        setFormData({ name: "" });
+        setFormData({ name: "", color: "" });
         openModal();
     };
 
     const handleEditOption = (option: OptionWithUsage) => {
         setEditingOption(option);
-        setFormData({ name: option.name });
+        setFormData({ name: option.name, color: option.color ?? "" });
         openModal();
     };
 
@@ -241,7 +260,7 @@ export function HouseholdOptionsManager() {
 
         try {
             let result;
-            const data = { name: formData.name };
+            const data = { name: formData.name, color: formData.color || null };
 
             if (editingOption) {
                 switch (activeTab) {
@@ -391,6 +410,12 @@ export function HouseholdOptionsManager() {
                                             wrap="nowrap"
                                         >
                                             <Group gap="md" style={{ flex: 1 }}>
+                                                {option.color && (
+                                                    <ColorSwatch
+                                                        color={option.color}
+                                                        size={16}
+                                                    />
+                                                )}
                                                 <Text fw={500}>{option.name}</Text>
                                                 <Badge
                                                     size="sm"
@@ -496,7 +521,20 @@ export function HouseholdOptionsManager() {
                             required
                             maxLength={100}
                             value={formData.name}
-                            onChange={e => setFormData({ name: e.target.value })}
+                            onChange={e =>
+                                setFormData(prev => ({ ...prev, name: e.target.value }))
+                            }
+                        />
+
+                        <ColorInput
+                            label={t("form.colorLabel")}
+                            placeholder={t("form.colorPlaceholder")}
+                            value={formData.color}
+                            onChange={value =>
+                                setFormData(prev => ({ ...prev, color: value }))
+                            }
+                            swatches={COLOR_SWATCHES}
+                            swatchesPerRow={7}
                         />
 
                         {editingOption && editingOption.usageCount > 0 && (

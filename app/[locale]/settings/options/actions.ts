@@ -39,6 +39,7 @@ interface LinkedHousehold {
 export interface OptionWithUsage {
     id: string;
     name: string;
+    color: string | null;
     isActive: boolean;
     usageCount: number;
     linkedHouseholds: LinkedHousehold[];
@@ -46,15 +47,18 @@ export interface OptionWithUsage {
 
 export interface CreateOptionData {
     name: string;
+    color?: string | null;
 }
 
 export interface UpdateOptionData {
     name: string;
+    color?: string | null;
 }
 
 interface OptionRow {
     id: string;
     name: string;
+    color: string | null;
     isActive: boolean;
 }
 
@@ -109,6 +113,7 @@ async function listDietaryRestrictionsWithUsage(): Promise<OptionWithUsage[]> {
         .select({
             id: dietaryRestrictions.id,
             name: dietaryRestrictions.name,
+            color: dietaryRestrictions.color,
             isActive: dietaryRestrictions.is_active,
         })
         .from(dietaryRestrictions)
@@ -133,6 +138,7 @@ async function listPetSpeciesWithUsage(): Promise<OptionWithUsage[]> {
         .select({
             id: petSpecies.id,
             name: petSpecies.name,
+            color: petSpecies.color,
             isActive: petSpecies.is_active,
         })
         .from(petSpecies)
@@ -157,6 +163,7 @@ async function listAdditionalNeedsWithUsage(): Promise<OptionWithUsage[]> {
         .select({
             id: additionalNeeds.id,
             name: additionalNeeds.need,
+            color: additionalNeeds.color,
             isActive: additionalNeeds.is_active,
         })
         .from(additionalNeeds)
@@ -224,6 +231,7 @@ export const createDietaryRestriction = protectedAction(
                 .values({
                     id: nanoid(8),
                     name: trimmedName,
+                    color: data.color ?? null,
                 })
                 .returning();
 
@@ -231,6 +239,7 @@ export const createDietaryRestriction = protectedAction(
             return success({
                 id: newRestriction.id,
                 name: newRestriction.name,
+                color: newRestriction.color,
                 isActive: newRestriction.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],
@@ -272,7 +281,7 @@ export const updateDietaryRestriction = protectedAction(
 
             const [updated] = await db
                 .update(dietaryRestrictions)
-                .set({ name: trimmedName })
+                .set({ name: trimmedName, color: data.color ?? null })
                 .where(eq(dietaryRestrictions.id, id))
                 .returning();
 
@@ -450,6 +459,7 @@ export const createPetSpecies = protectedAction(
                 .values({
                     id: nanoid(8),
                     name: trimmedName,
+                    color: data.color ?? null,
                 })
                 .returning();
 
@@ -457,6 +467,7 @@ export const createPetSpecies = protectedAction(
             return success({
                 id: newSpecies.id,
                 name: newSpecies.name,
+                color: newSpecies.color,
                 isActive: newSpecies.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],
@@ -498,7 +509,7 @@ export const updatePetSpecies = protectedAction(
 
             const [updated] = await db
                 .update(petSpecies)
-                .set({ name: trimmedName })
+                .set({ name: trimmedName, color: data.color ?? null })
                 .where(eq(petSpecies.id, id))
                 .returning();
 
@@ -673,6 +684,7 @@ export const createAdditionalNeed = protectedAction(
                 .values({
                     id: nanoid(8),
                     need: trimmedName,
+                    color: data.color ?? null,
                 })
                 .returning();
 
@@ -680,6 +692,7 @@ export const createAdditionalNeed = protectedAction(
             return success({
                 id: newNeed.id,
                 name: newNeed.need,
+                color: newNeed.color,
                 isActive: newNeed.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],
@@ -721,7 +734,7 @@ export const updateAdditionalNeed = protectedAction(
 
             const [updated] = await db
                 .update(additionalNeeds)
-                .set({ need: trimmedName })
+                .set({ need: trimmedName, color: data.color ?? null })
                 .where(eq(additionalNeeds.id, id))
                 .returning();
 

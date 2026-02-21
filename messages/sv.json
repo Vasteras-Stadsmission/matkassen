@@ -1326,7 +1326,9 @@
                     "petTypes": "Redigera djurtyp",
                     "additionalNeeds": "Redigera övrigt behov"
                 },
-                "editWarning": "Används av {count} hushåll - ändringar påverkar alla"
+                "editWarning": "Används av {count} hushåll - ändringar påverkar alla",
+                "colorLabel": "Etikettfärg",
+                "colorPlaceholder": "Standard"
             },
             "delete": {
                 "title": {
