@@ -18,6 +18,7 @@ export interface HouseholdMember {
 export interface DietaryRestriction {
     id: string;
     name: string;
+    color?: string | null;
     isCustom?: boolean;
     isActive?: boolean;
 }

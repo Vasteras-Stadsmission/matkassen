@@ -18,12 +18,15 @@ import {
     Tabs,
     Tooltip,
     Switch,
+    SegmentedControl,
 } from "@mantine/core";
 import { IconPlus, IconEdit, IconTrash, IconInfoCircle } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { useTranslations } from "next-intl";
 import { Link } from "@/app/i18n/navigation";
+import { severityToColor } from "@/app/utils/dietary-severity";
+import type { CreateOptionData } from "../actions";
 import {
     listDietaryRestrictions,
     createDietaryRestriction,
@@ -47,6 +50,7 @@ type OptionType = "dietaryRestrictions" | "petTypes" | "additionalNeeds";
 
 interface OptionFormData {
     name: string;
+    color: string;
 }
 
 const ERROR_TRANSLATIONS = {
@@ -90,7 +94,7 @@ export function HouseholdOptionsManager() {
         useDisclosure(false);
     const [editingOption, setEditingOption] = useState<OptionWithUsage | null>(null);
     const [deletingOption, setDeletingOption] = useState<OptionWithUsage | null>(null);
-    const [formData, setFormData] = useState<OptionFormData>({ name: "" });
+    const [formData, setFormData] = useState<OptionFormData>({ name: "", color: "" });
 
     const loadAllOptions = useCallback(async () => {
         setLoading(true);
@@ -174,13 +178,21 @@ export function HouseholdOptionsManager() {
 
     const handleAddOption = () => {
         setEditingOption(null);
-        setFormData({ name: "" });
+        setFormData({ name: "", color: activeTab === "dietaryRestrictions" ? "preference" : "" });
         openModal();
     };
 
     const handleEditOption = (option: OptionWithUsage) => {
         setEditingOption(option);
-        setFormData({ name: option.name });
+        setFormData({
+            name: option.name,
+            color:
+                activeTab === "dietaryRestrictions"
+                    ? option.color === "required"
+                        ? "required"
+                        : "preference"
+                    : "",
+        });
         openModal();
     };
 
@@ -241,7 +253,13 @@ export function HouseholdOptionsManager() {
 
         try {
             let result;
-            const data = { name: formData.name };
+            const data: CreateOptionData =
+                activeTab === "dietaryRestrictions"
+                    ? {
+                          name: formData.name,
+                          color: formData.color === "required" ? "required" : "preference",
+                      }
+                    : { name: formData.name };
 
             if (editingOption) {
                 switch (activeTab) {
@@ -391,6 +409,17 @@ export function HouseholdOptionsManager() {
                                             wrap="nowrap"
                                         >
                                             <Group gap="md" style={{ flex: 1 }}>
+                                                {activeTab === "dietaryRestrictions" && (
+                                                    <Badge
+                                                        size="xs"
+                                                        color={severityToColor(option.color)}
+                                                        variant="filled"
+                                                    >
+                                                        {option.color === "required"
+                                                            ? t("form.severityRequired")
+                                                            : t("form.severityPreference")}
+                                                    </Badge>
+                                                )}
                                                 <Text fw={500}>{option.name}</Text>
                                                 <Badge
                                                     size="sm"
@@ -496,8 +525,31 @@ export function HouseholdOptionsManager() {
                             required
                             maxLength={100}
                             value={formData.name}
-                            onChange={e => setFormData({ name: e.target.value })}
+                            onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                         />
+
+                        {activeTab === "dietaryRestrictions" && (
+                            <div>
+                                <Text size="sm" fw={500} mb={4}>
+                                    {t("form.severityLabel")}
+                                </Text>
+                                <SegmentedControl
+                                    aria-label={t("form.severityLabel")}
+                                    value={formData.color || "preference"}
+                                    onChange={value =>
+                                        setFormData(prev => ({ ...prev, color: value }))
+                                    }
+                                    data={[
+                                        {
+                                            label: t("form.severityPreference"),
+                                            value: "preference",
+                                        },
+                                        { label: t("form.severityRequired"), value: "required" },
+                                    ]}
+                                    fullWidth
+                                />
+                            </div>
+                        )}
 
                         {editingOption && editingOption.usageCount > 0 && (
                             <Alert color="yellow" variant="light">

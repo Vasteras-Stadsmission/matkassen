@@ -39,6 +39,7 @@ interface LinkedHousehold {
 export interface OptionWithUsage {
     id: string;
     name: string;
+    color: string | null;
     isActive: boolean;
     usageCount: number;
     linkedHouseholds: LinkedHousehold[];
@@ -46,15 +47,18 @@ export interface OptionWithUsage {
 
 export interface CreateOptionData {
     name: string;
+    color?: "required" | "preference" | null;
 }
 
 export interface UpdateOptionData {
     name: string;
+    color?: "required" | "preference" | null;
 }
 
 interface OptionRow {
     id: string;
     name: string;
+    color: string | null;
     isActive: boolean;
 }
 
@@ -109,6 +113,7 @@ async function listDietaryRestrictionsWithUsage(): Promise<OptionWithUsage[]> {
         .select({
             id: dietaryRestrictions.id,
             name: dietaryRestrictions.name,
+            color: dietaryRestrictions.color,
             isActive: dietaryRestrictions.is_active,
         })
         .from(dietaryRestrictions)
@@ -129,7 +134,7 @@ async function listDietaryRestrictionsWithUsage(): Promise<OptionWithUsage[]> {
 }
 
 async function listPetSpeciesWithUsage(): Promise<OptionWithUsage[]> {
-    const options = await db
+    const rows = await db
         .select({
             id: petSpecies.id,
             name: petSpecies.name,
@@ -137,6 +142,8 @@ async function listPetSpeciesWithUsage(): Promise<OptionWithUsage[]> {
         })
         .from(petSpecies)
         .orderBy(asc(petSpecies.name));
+
+    const options: OptionRow[] = rows.map(r => ({ ...r, color: null }));
 
     const links = await db
         .select({
@@ -153,7 +160,7 @@ async function listPetSpeciesWithUsage(): Promise<OptionWithUsage[]> {
 }
 
 async function listAdditionalNeedsWithUsage(): Promise<OptionWithUsage[]> {
-    const options = await db
+    const rows = await db
         .select({
             id: additionalNeeds.id,
             name: additionalNeeds.need,
@@ -161,6 +168,8 @@ async function listAdditionalNeedsWithUsage(): Promise<OptionWithUsage[]> {
         })
         .from(additionalNeeds)
         .orderBy(asc(additionalNeeds.need));
+
+    const options: OptionRow[] = rows.map(r => ({ ...r, color: null }));
 
     const links = await db
         .select({
@@ -224,6 +233,7 @@ export const createDietaryRestriction = protectedAction(
                 .values({
                     id: nanoid(8),
                     name: trimmedName,
+                    color: data.color === "required" ? "required" : "preference",
                 })
                 .returning();
 
@@ -231,6 +241,7 @@ export const createDietaryRestriction = protectedAction(
             return success({
                 id: newRestriction.id,
                 name: newRestriction.name,
+                color: newRestriction.color,
                 isActive: newRestriction.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],
@@ -272,7 +283,10 @@ export const updateDietaryRestriction = protectedAction(
 
             const [updated] = await db
                 .update(dietaryRestrictions)
-                .set({ name: trimmedName })
+                .set({
+                    name: trimmedName,
+                    color: data.color === "required" ? "required" : "preference",
+                })
                 .where(eq(dietaryRestrictions.id, id))
                 .returning();
 
@@ -457,6 +471,7 @@ export const createPetSpecies = protectedAction(
             return success({
                 id: newSpecies.id,
                 name: newSpecies.name,
+                color: null,
                 isActive: newSpecies.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],
@@ -680,6 +695,7 @@ export const createAdditionalNeed = protectedAction(
             return success({
                 id: newNeed.id,
                 name: newNeed.need,
+                color: null,
                 isActive: newNeed.is_active,
                 usageCount: 0,
                 linkedHouseholds: [],

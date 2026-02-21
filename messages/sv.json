@@ -1326,7 +1326,10 @@
                     "petTypes": "Redigera djurtyp",
                     "additionalNeeds": "Redigera övrigt behov"
                 },
-                "editWarning": "Används av {count} hushåll - ändringar påverkar alla"
+                "editWarning": "Används av {count} hushåll - ändringar påverkar alla",
+                "severityLabel": "Allvarlighetsgrad",
+                "severityRequired": "Krav",
+                "severityPreference": "Önskemål"
             },
             "delete": {
                 "title": {

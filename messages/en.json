@@ -1326,7 +1326,10 @@
                     "petTypes": "Edit Pet Type",
                     "additionalNeeds": "Edit Additional Need"
                 },
-                "editWarning": "Used by {count} households - changes will affect all of them"
+                "editWarning": "Used by {count} households - changes will affect all of them",
+                "severityLabel": "Severity level",
+                "severityRequired": "Required",
+                "severityPreference": "Preference"
             },
             "delete": {
                 "title": {

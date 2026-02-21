@@ -372,6 +372,7 @@ export async function getDietaryRestrictions() {
             .select({
                 id: dietaryRestrictionsTable.id,
                 name: dietaryRestrictionsTable.name,
+                color: dietaryRestrictionsTable.color,
                 isActive: dietaryRestrictionsTable.is_active,
             })
             .from(dietaryRestrictionsTable)

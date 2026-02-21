@@ -202,6 +202,7 @@ async function getHouseholdEditData(householdId: string) {
         .select({
             id: dietaryRestrictions.id,
             name: dietaryRestrictions.name,
+            color: dietaryRestrictions.color,
         })
         .from(householdDietaryRestrictions)
         .innerJoin(

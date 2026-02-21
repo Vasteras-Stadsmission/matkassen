@@ -32,6 +32,7 @@ import { useTranslations } from "next-intl";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 import { useLocale } from "next-intl";
 import LocalizedDate from "@/components/LocalizedDate";
+import { severityToColor } from "@/app/utils/dietary-severity";
 
 // Interface for pickup location data from DB
 interface PickupLocation {
@@ -208,6 +209,33 @@ export default function ReviewForm({
                         )}
                     </Paper>
 
+                    {/* Dietary Restrictions */}
+                    <Paper withBorder p="md" radius="md" mb="md">
+                        <Title order={5} mb="md">
+                            {tHouseholdDetail("dietaryRestrictions", {
+                                count: String(formData.dietaryRestrictions.length),
+                            })}
+                        </Title>
+                        {formData.dietaryRestrictions.length > 0 ? (
+                            <Group gap="xs">
+                                {formData.dietaryRestrictions.map(restriction => (
+                                    <Badge
+                                        key={restriction.id}
+                                        color={severityToColor(restriction.color)}
+                                        variant="filled"
+                                        size="md"
+                                    >
+                                        {restriction.name}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        ) : (
+                            <Text c="dimmed" size="sm">
+                                {tHouseholdDetail("noDietaryRestrictions")}
+                            </Text>
+                        )}
+                    </Paper>
+
                     {/* Household Members */}
                     <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
@@ -265,6 +293,28 @@ export default function ReviewForm({
                         )}
                     </Paper>
 
+                    {/* Additional Needs */}
+                    <Paper withBorder p="md" radius="md" mb="md">
+                        <Title order={5} mb="md">
+                            {tHouseholdDetail("additionalNeeds", {
+                                count: String(formData.additionalNeeds.length),
+                            })}
+                        </Title>
+                        {formData.additionalNeeds.length > 0 ? (
+                            <Group gap="xs">
+                                {formData.additionalNeeds.map(need => (
+                                    <Badge key={need.id} color="cyan" variant="filled" size="md">
+                                        {need.need}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        ) : (
+                            <Text c="dimmed" size="sm">
+                                {tHouseholdDetail("noAdditionalNeeds")}
+                            </Text>
+                        )}
+                    </Paper>
+
                     {/* Pets */}
                     <Paper withBorder p="md" radius="md" mb="md">
                         <Title order={5} mb="md">
@@ -299,55 +349,6 @@ export default function ReviewForm({
                         ) : (
                             <Text c="dimmed" size="sm">
                                 {tHouseholdDetail("noPets")}
-                            </Text>
-                        )}
-                    </Paper>
-
-                    {/* Dietary Restrictions */}
-                    <Paper withBorder p="md" radius="md" mb="md">
-                        <Title order={5} mb="md">
-                            {tHouseholdDetail("dietaryRestrictions", {
-                                count: String(formData.dietaryRestrictions.length),
-                            })}
-                        </Title>
-                        {formData.dietaryRestrictions.length > 0 ? (
-                            <Group gap="xs">
-                                {formData.dietaryRestrictions.map(restriction => (
-                                    <Badge
-                                        key={restriction.id}
-                                        color="blue"
-                                        variant="filled"
-                                        size="md"
-                                    >
-                                        {restriction.name}
-                                    </Badge>
-                                ))}
-                            </Group>
-                        ) : (
-                            <Text c="dimmed" size="sm">
-                                {tHouseholdDetail("noDietaryRestrictions")}
-                            </Text>
-                        )}
-                    </Paper>
-
-                    {/* Additional Needs */}
-                    <Paper withBorder p="md" radius="md" mb="md">
-                        <Title order={5} mb="md">
-                            {tHouseholdDetail("additionalNeeds", {
-                                count: String(formData.additionalNeeds.length),
-                            })}
-                        </Title>
-                        {formData.additionalNeeds.length > 0 ? (
-                            <Group gap="xs">
-                                {formData.additionalNeeds.map(need => (
-                                    <Badge key={need.id} color="cyan" variant="filled" size="md">
-                                        {need.need}
-                                    </Badge>
-                                ))}
-                            </Group>
-                        ) : (
-                            <Text c="dimmed" size="sm">
-                                {tHouseholdDetail("noAdditionalNeeds")}
                             </Text>
                         )}
                     </Paper>

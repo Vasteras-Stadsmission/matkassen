@@ -701,14 +701,6 @@ export function ParcelAdminDialog({
                                                 {data.household.members.length}
                                             </Text>
                                         </Group>
-                                        {data.household.pets.length > 0 && (
-                                            <Text size="sm">
-                                                {t("admin.parcelDialog.pets")}:{" "}
-                                                {data.household.pets
-                                                    .map(pet => pet.species)
-                                                    .join(", ")}
-                                            </Text>
-                                        )}
                                         {data.household.dietaryRestrictions.length > 0 && (
                                             <Box>
                                                 <Text size="sm" fw={500} mb="xs">
@@ -747,6 +739,14 @@ export function ParcelAdminDialog({
                                                     ))}
                                                 </Group>
                                             </Box>
+                                        )}
+                                        {data.household.pets.length > 0 && (
+                                            <Text size="sm">
+                                                {t("admin.parcelDialog.pets")}:{" "}
+                                                {data.household.pets
+                                                    .map(pet => pet.species)
+                                                    .join(", ")}
+                                            </Text>
                                         )}
                                     </Stack>
                                 </SimpleGrid>

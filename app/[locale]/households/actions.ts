@@ -113,6 +113,7 @@ export async function getHouseholdDetails(householdId: string) {
             .select({
                 id: dietaryRestrictions.id,
                 name: dietaryRestrictions.name,
+                color: dietaryRestrictions.color,
             })
             .from(householdDietaryRestrictions)
             .innerJoin(

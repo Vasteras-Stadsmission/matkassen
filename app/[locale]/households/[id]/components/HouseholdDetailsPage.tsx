@@ -41,6 +41,7 @@ import { HouseholdMembersCard } from "./HouseholdMembersCard";
 import { ParcelList } from "./ParcelList";
 import { RemoveHouseholdDialog } from "./RemoveHouseholdDialog";
 import type { ParcelCardData } from "./ParcelCard";
+import { severityToColor } from "@/app/utils/dietary-severity";
 
 interface HouseholdDetailsPageProps {
     householdId: string;
@@ -215,7 +216,7 @@ export default function HouseholdDetailsPage({
     };
 
     const countPetsBySpecies = () => {
-        if (!householdData?.pets) return new Map();
+        if (!householdData?.pets) return new Map<string, number>();
         const petCounts = new Map<string, number>();
         householdData.pets.forEach(pet => {
             const species = pet.speciesName || pet.species;
@@ -312,8 +313,48 @@ export default function HouseholdDetailsPage({
                         getLanguageName={getLanguageName}
                     />
 
+                    {/* Dietary Restrictions */}
+                    {householdData.dietaryRestrictions.length > 0 && (
+                        <Paper withBorder p="lg" radius="md">
+                            <Title order={3} size="h4" mb="md">
+                                {t("dietaryRestrictions", {
+                                    count: String(householdData.dietaryRestrictions.length),
+                                })}
+                            </Title>
+                            <Group gap="xs">
+                                {householdData.dietaryRestrictions.map(restriction => (
+                                    <Badge
+                                        key={restriction.id}
+                                        color={severityToColor(restriction.color)}
+                                        size="lg"
+                                    >
+                                        {restriction.name}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        </Paper>
+                    )}
+
                     {/* Household Members */}
                     <HouseholdMembersCard members={householdData.members} />
+
+                    {/* Additional Needs */}
+                    {householdData.additionalNeeds.length > 0 && (
+                        <Paper withBorder p="lg" radius="md">
+                            <Title order={3} size="h4" mb="md">
+                                {t("additionalNeeds", {
+                                    count: String(householdData.additionalNeeds.length),
+                                })}
+                            </Title>
+                            <Group gap="xs">
+                                {householdData.additionalNeeds.map(need => (
+                                    <Badge key={need.id} color="cyan" size="lg">
+                                        {need.need}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        </Paper>
+                    )}
 
                     {/* Pets */}
                     {householdData.pets.length > 0 && (
@@ -331,42 +372,6 @@ export default function HouseholdDetailsPage({
                                             <Text size="sm">{species}</Text>
                                         </Group>
                                     </Paper>
-                                ))}
-                            </Group>
-                        </Paper>
-                    )}
-
-                    {/* Dietary Restrictions */}
-                    {householdData.dietaryRestrictions.length > 0 && (
-                        <Paper withBorder p="lg" radius="md">
-                            <Title order={3} size="h4" mb="md">
-                                {t("dietaryRestrictions", {
-                                    count: String(householdData.dietaryRestrictions.length),
-                                })}
-                            </Title>
-                            <Group gap="xs">
-                                {householdData.dietaryRestrictions.map(restriction => (
-                                    <Badge key={restriction.id} color="blue" size="lg">
-                                        {restriction.name}
-                                    </Badge>
-                                ))}
-                            </Group>
-                        </Paper>
-                    )}
-
-                    {/* Additional Needs */}
-                    {householdData.additionalNeeds.length > 0 && (
-                        <Paper withBorder p="lg" radius="md">
-                            <Title order={3} size="h4" mb="md">
-                                {t("additionalNeeds", {
-                                    count: String(householdData.additionalNeeds.length),
-                                })}
-                            </Title>
-                            <Group gap="xs">
-                                {householdData.additionalNeeds.map(need => (
-                                    <Badge key={need.id} color="cyan" size="lg">
-                                        {need.need}
-                                    </Badge>
                                 ))}
                             </Group>
                         </Paper>
