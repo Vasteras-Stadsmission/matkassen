@@ -52,7 +52,7 @@ export interface ParcelDetails {
             id: string;
             species: string;
         }>;
-        dietaryRestrictions: string[];
+        dietaryRestrictions: Array<{ name: string; color: string | null }>;
         additionalNeeds: string[];
         primaryPickupLocationName: string | null;
     };
@@ -149,6 +149,7 @@ export async function GET(
         const dietaryRestrictionsData = await db
             .select({
                 name: dietaryRestrictions.name,
+                color: dietaryRestrictions.color,
             })
             .from(householdDietaryRestrictions)
             .innerJoin(
@@ -233,7 +234,10 @@ export async function GET(
                     id: pet.id,
                     species: pet.species,
                 })),
-                dietaryRestrictions: dietaryRestrictionsData.map(dr => dr.name),
+                dietaryRestrictions: dietaryRestrictionsData.map(dr => ({
+                    name: dr.name,
+                    color: dr.color,
+                })),
                 additionalNeeds: additionalNeedsData.map(an => an.need),
                 primaryPickupLocationName: parcel.primaryPickupLocationName || null,
             },
