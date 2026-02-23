@@ -25,6 +25,7 @@ import {
     IconTrash,
     IconSend,
     IconUserOff,
+    IconAlertTriangle,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/app/i18n/navigation";
@@ -33,7 +34,6 @@ import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
 import { SmsActionButton } from "./SmsActionButton";
 import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
-import { severityToColor } from "@/app/utils/dietary-severity";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { getLanguageName } from "@/app/constants/languages";
 import { Time } from "@/app/utils/time-provider";
@@ -633,6 +633,89 @@ export function ParcelAdminDialog({
                             </Group>
                         </Card>
 
+                        {/* Dietary Restrictions — dedicated section for safety visibility */}
+                        <Card withBorder>
+                            <Stack gap="sm">
+                                <Text fw={600} size="sm">
+                                    {t("admin.parcelDialog.dietaryRestrictions")}
+                                </Text>
+                                {(() => {
+                                    const required = data.household.dietaryRestrictions.filter(
+                                        r => r.color === "required",
+                                    );
+                                    const preferences = data.household.dietaryRestrictions.filter(
+                                        r => r.color !== "required",
+                                    );
+                                    const hasAny = data.household.dietaryRestrictions.length > 0;
+
+                                    if (!hasAny) {
+                                        return (
+                                            <Alert
+                                                color="green"
+                                                variant="light"
+                                                icon={<IconCheck size="1.2rem" />}
+                                            >
+                                                <Text size="sm" fw={500}>
+                                                    {t("admin.parcelDialog.noRestrictions")}
+                                                </Text>
+                                            </Alert>
+                                        );
+                                    }
+
+                                    return (
+                                        <>
+                                            {required.length > 0 && (
+                                                <Alert
+                                                    color="red"
+                                                    variant="light"
+                                                    icon={<IconAlertTriangle size="1.2rem" />}
+                                                >
+                                                    <Text size="sm" fw={700} c="red.9" mb="xs">
+                                                        {t("admin.parcelDialog.severityRequired")}
+                                                    </Text>
+                                                    <Group gap="xs">
+                                                        {required.map(r => (
+                                                            <Badge
+                                                                key={r.name}
+                                                                size="lg"
+                                                                variant="filled"
+                                                                color="red"
+                                                            >
+                                                                {r.name}
+                                                            </Badge>
+                                                        ))}
+                                                    </Group>
+                                                </Alert>
+                                            )}
+                                            {preferences.length > 0 && (
+                                                <Alert
+                                                    color="orange"
+                                                    variant="light"
+                                                    icon={<IconInfoCircle size="1.2rem" />}
+                                                >
+                                                    <Text size="sm" fw={700} c="orange.9" mb="xs">
+                                                        {t("admin.parcelDialog.severityPreference")}
+                                                    </Text>
+                                                    <Group gap="xs">
+                                                        {preferences.map(r => (
+                                                            <Badge
+                                                                key={r.name}
+                                                                size="lg"
+                                                                variant="filled"
+                                                                color="orange"
+                                                            >
+                                                                {r.name}
+                                                            </Badge>
+                                                        ))}
+                                                    </Group>
+                                                </Alert>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </Stack>
+                        </Card>
+
                         {/* Household Details */}
                         <Card withBorder>
                             <Stack gap="md">
@@ -702,29 +785,6 @@ export function ParcelAdminDialog({
                                                 {data.household.members.length}
                                             </Text>
                                         </Group>
-                                        {data.household.dietaryRestrictions.length > 0 && (
-                                            <Box>
-                                                <Text size="sm" fw={500} mb="xs">
-                                                    {t("admin.parcelDialog.dietaryRestrictions")}:
-                                                </Text>
-                                                <Group gap="xs">
-                                                    {data.household.dietaryRestrictions.map(
-                                                        restriction => (
-                                                            <Badge
-                                                                key={restriction.name}
-                                                                size="sm"
-                                                                variant="filled"
-                                                                color={severityToColor(
-                                                                    restriction.color,
-                                                                )}
-                                                            >
-                                                                {restriction.name}
-                                                            </Badge>
-                                                        ),
-                                                    )}
-                                                </Group>
-                                            </Box>
-                                        )}
                                         {data.household.additionalNeeds.length > 0 && (
                                             <Box>
                                                 <Text size="sm" fw={500} mb="xs">
