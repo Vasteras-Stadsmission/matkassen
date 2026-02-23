@@ -33,6 +33,7 @@ import CommentSection from "./CommentSection";
 import { convertParcelCommentsToComments } from "./commentHelpers";
 import { SmsActionButton } from "./SmsActionButton";
 import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
+import { severityToColor } from "@/app/utils/dietary-severity";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { getLanguageName } from "@/app/constants/languages";
 import { Time } from "@/app/utils/time-provider";
@@ -710,11 +711,14 @@ export function ParcelAdminDialog({
                                                     {data.household.dietaryRestrictions.map(
                                                         restriction => (
                                                             <Badge
-                                                                key={restriction}
+                                                                key={restriction.name}
                                                                 size="sm"
-                                                                variant="outline"
+                                                                variant="filled"
+                                                                color={severityToColor(
+                                                                    restriction.color,
+                                                                )}
                                                             >
-                                                                {restriction}
+                                                                {restriction.name}
                                                             </Badge>
                                                         ),
                                                     )}
