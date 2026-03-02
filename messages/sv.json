@@ -444,7 +444,17 @@
             },
             "homeLocation": "Hushållets ordinarie utlämningsplats",
             "visitingTooltip": "Besökare – hämtar normalt ut på annan plats",
-            "createdByTooltip": "Hushåll skapat av {username}"
+            "createdByTooltip": "Hushåll skapat av {username}",
+            "summary": {
+                "restrictionsTitle": "Matbegränsningar",
+                "title": "Sammanfattning",
+                "noDietaryRestrictions": "Inga matbegränsningar",
+                "householdsAndMembers": "{households} hushåll · {members} {members, plural, =1 {person} other {personer}}",
+                "pets": "Husdjur",
+                "additionalRequests": "Extra önskemål",
+                "expand": "Visa sammanfattning",
+                "collapse": "Dölj sammanfattning"
+            }
         },
         "currentWeek": "Aktuell vecka",
         "todayLabel": "Idag",

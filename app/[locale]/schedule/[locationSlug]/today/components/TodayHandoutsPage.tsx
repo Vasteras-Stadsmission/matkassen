@@ -32,13 +32,24 @@ import {
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import { getTodaysParcels, getPickupLocations, getParcelById } from "../../../actions";
+import {
+    getTodaysParcels,
+    getPickupLocations,
+    getParcelById,
+    getTodaysSummaryStats,
+} from "../../../actions";
+import { TodaySummaryCard } from "./TodaySummaryCard";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { findLocationBySlug } from "../../../utils/location-slugs";
 import { FavoriteStar } from "../../../components/FavoriteStar";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
 import { getUserFavoriteLocation } from "../../../utils/user-preferences";
-import type { FoodParcel, PickupLocation, ParcelDisplayStatus } from "../../../types";
+import type {
+    FoodParcel,
+    PickupLocation,
+    ParcelDisplayStatus,
+    TodaySummaryStats,
+} from "../../../types";
 import type { TranslationFunction } from "../../../../types";
 
 // Enhanced type for today's view with additional computed fields
@@ -60,6 +71,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     // State
     const [parcels, setParcels] = useState<TodayParcel[]>([]);
+    const [summaryStats, setSummaryStats] = useState<TodaySummaryStats | null>(null);
     const [currentLocation, setCurrentLocation] = useState<PickupLocation | null>(null);
     const [loading, setLoading] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
@@ -121,8 +133,13 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                 setIsFavorite(false);
             }
 
-            // Load today's parcels
-            const parcelsData = await getTodaysParcels();
+            // Load today's parcels and summary stats in parallel
+            const [parcelsData, stats] = await Promise.all([
+                getTodaysParcels(),
+                getTodaysSummaryStats(location.id),
+            ]);
+
+            setSummaryStats(stats);
 
             // Check if we need to fetch a specific parcel to get its location (but don't add it to the list)
             const parcelId = searchParams.get("parcel");
@@ -435,6 +452,11 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                     {/* No upcoming schedule warning */}
                     {currentLocation && !currentLocation.hasUpcomingSchedule && (
                         <NoUpcomingScheduleAlert />
+                    )}
+
+                    {/* Summary card — only shown when there are parcels */}
+                    {totalParcels > 0 && summaryStats !== null && (
+                        <TodaySummaryCard stats={summaryStats} />
                     )}
 
                     {/* Food Parcels List */}

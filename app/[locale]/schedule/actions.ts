@@ -1,6 +1,19 @@
 "use server";
 
-import { and, eq, gte, lte, sql, between, ne, gt } from "drizzle-orm";
+import {
+    and,
+    eq,
+    gte,
+    lte,
+    sql,
+    between,
+    ne,
+    gt,
+    count,
+    countDistinct,
+    inArray,
+    desc,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/app/db/drizzle";
 import {
@@ -9,6 +22,13 @@ import {
     pickupLocations,
     pickupLocationSchedules,
     pickupLocationScheduleDays,
+    householdMembers,
+    dietaryRestrictions,
+    householdDietaryRestrictions,
+    pets,
+    petSpecies,
+    householdAdditionalNeeds,
+    additionalNeeds,
 } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { isTimeAvailable, isDateAvailable } from "@/app/utils/schedule/location-availability";
@@ -32,6 +52,7 @@ import type {
     LocationScheduleInfo,
     DayInfo,
     TimeSlotGridData,
+    TodaySummaryStats,
 } from "./types";
 
 /**
@@ -203,6 +224,136 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
     } catch (error) {
         logError("Error fetching today's parcels", error);
         return [];
+    }
+}
+
+/**
+ * Get summary stats for today's parcels at a specific location
+ */
+export async function getTodaysSummaryStats(locationId: string): Promise<TodaySummaryStats> {
+    const empty: TodaySummaryStats = {
+        householdCount: 0,
+        memberCount: 0,
+        dietaryRestrictions: [],
+        pets: [],
+        additionalNeeds: [],
+    };
+
+    try {
+        const today = new Date();
+        const todayInStockholm = Time.fromDate(today);
+        const startDate = todayInStockholm.startOfDay().toDate();
+        const endDate = todayInStockholm.endOfDay().toDate();
+
+        // Get distinct household IDs for today's parcels at this location
+        const parcelsData = await db
+            .selectDistinct({ householdId: foodParcels.household_id })
+            .from(foodParcels)
+            .where(
+                and(
+                    eq(foodParcels.pickup_location_id, locationId),
+                    gte(foodParcels.pickup_date_time_earliest, startDate),
+                    lte(foodParcels.pickup_date_time_earliest, endDate),
+                    notDeleted(),
+                ),
+            );
+
+        const householdIds = parcelsData.map(p => p.householdId);
+
+        if (householdIds.length === 0) {
+            return empty;
+        }
+
+        // Note: inArray generates "IN (...)" with one value per household. For very large
+        // locations (hundreds of households) this could hit query-size limits — if that
+        // becomes a concern, switch to a subquery or temporary table approach.
+        const [memberRows, dietaryRows, petRows, additionalNeedRows] = await Promise.all([
+            // Member count
+            db
+                .select({ total: count() })
+                .from(householdMembers)
+                .where(inArray(householdMembers.household_id, householdIds)),
+
+            // Dietary restrictions with household counts
+            db
+                .select({
+                    name: dietaryRestrictions.name,
+                    color: dietaryRestrictions.color,
+                    householdCount: countDistinct(householdDietaryRestrictions.household_id),
+                })
+                .from(householdDietaryRestrictions)
+                .innerJoin(
+                    dietaryRestrictions,
+                    eq(householdDietaryRestrictions.dietary_restriction_id, dietaryRestrictions.id),
+                )
+                .where(
+                    and(
+                        inArray(householdDietaryRestrictions.household_id, householdIds),
+                        eq(dietaryRestrictions.is_active, true),
+                    ),
+                )
+                .groupBy(
+                    dietaryRestrictions.id,
+                    dietaryRestrictions.name,
+                    dietaryRestrictions.color,
+                )
+                .orderBy(desc(countDistinct(householdDietaryRestrictions.household_id))),
+
+            // Pets with counts
+            db
+                .select({
+                    species: petSpecies.name,
+                    petCount: count(),
+                })
+                .from(pets)
+                .innerJoin(petSpecies, eq(pets.pet_species_id, petSpecies.id))
+                .where(
+                    and(inArray(pets.household_id, householdIds), eq(petSpecies.is_active, true)),
+                )
+                .groupBy(petSpecies.id, petSpecies.name)
+                .orderBy(desc(count())),
+
+            // Additional needs with household counts
+            db
+                .select({
+                    need: additionalNeeds.need,
+                    householdCount: countDistinct(householdAdditionalNeeds.household_id),
+                })
+                .from(householdAdditionalNeeds)
+                .innerJoin(
+                    additionalNeeds,
+                    eq(householdAdditionalNeeds.additional_need_id, additionalNeeds.id),
+                )
+                .where(
+                    and(
+                        inArray(householdAdditionalNeeds.household_id, householdIds),
+                        eq(additionalNeeds.is_active, true),
+                    ),
+                )
+                .groupBy(additionalNeeds.id, additionalNeeds.need)
+                .orderBy(desc(countDistinct(householdAdditionalNeeds.household_id))),
+        ]);
+
+        return {
+            householdCount: householdIds.length,
+            memberCount: memberRows[0]?.total ?? 0,
+            dietaryRestrictions: dietaryRows.map(r => ({
+                name: r.name,
+                color: r.color,
+                count: r.householdCount,
+            })),
+            pets: petRows.map(r => ({
+                species: r.species,
+                count: r.petCount,
+            })),
+            additionalNeeds: additionalNeedRows.map(r => ({
+                need: r.need,
+                count: r.householdCount,
+            })),
+        };
+    } catch (error) {
+        logError("Error fetching today's summary stats", error);
+        return empty;
     }
 }
 
