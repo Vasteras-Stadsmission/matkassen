@@ -48,6 +48,7 @@ import { findLocationBySlug } from "../../../utils/location-slugs";
 import { FavoriteStar } from "../../../components/FavoriteStar";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
 import { getUserFavoriteLocation } from "../../../utils/user-preferences";
+import { filterParcelsByQuery } from "../../../utils/parcel-search";
 import type {
     FoodParcel,
     PickupLocation,
@@ -299,24 +300,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const totalParcels = parcels.length;
     const completedParcels = parcels.filter(p => p.status === "pickedUp").length;
 
-    // Client-side search filtering
-    const query = searchQuery.trim().toLowerCase();
-    // Raw digits from query (keep leading zeros so "070" stays "070", not "70")
-    const digitQuery = query.replace(/\D/g, "");
-    const filteredParcels = query
-        ? parcels.filter(parcel => {
-              if (parcel.householdName.toLowerCase().includes(query)) return true;
-              if (digitQuery.length >= 1 && parcel.phoneNumber) {
-                  const storedDigits = parcel.phoneNumber.replace(/\D/g, "");
-                  // Normalize E.164 (+46701...) to local format (0701...) so both match
-                  const localStored = storedDigits.startsWith("46")
-                      ? "0" + storedDigits.slice(2)
-                      : storedDigits;
-                  return storedDigits.includes(digitQuery) || localStored.includes(digitQuery);
-              }
-              return false;
-          })
-        : parcels;
+    const filteredParcels = filterParcelsByQuery(parcels, searchQuery);
 
     return (
         <div
