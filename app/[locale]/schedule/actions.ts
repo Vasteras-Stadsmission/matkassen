@@ -1,6 +1,19 @@
 "use server";
 
-import { and, eq, gte, lte, sql, between, ne, gt, count, countDistinct, inArray, desc } from "drizzle-orm";
+import {
+    and,
+    eq,
+    gte,
+    lte,
+    sql,
+    between,
+    ne,
+    gt,
+    count,
+    countDistinct,
+    inArray,
+    desc,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/app/db/drizzle";
 import {
@@ -279,7 +292,11 @@ export async function getTodaysSummaryStats(locationId: string): Promise<TodaySu
                         eq(dietaryRestrictions.is_active, true),
                     ),
                 )
-                .groupBy(dietaryRestrictions.id, dietaryRestrictions.name, dietaryRestrictions.color)
+                .groupBy(
+                    dietaryRestrictions.id,
+                    dietaryRestrictions.name,
+                    dietaryRestrictions.color,
+                )
                 .orderBy(desc(countDistinct(householdDietaryRestrictions.household_id))),
 
             // Pets with counts
@@ -291,10 +308,7 @@ export async function getTodaysSummaryStats(locationId: string): Promise<TodaySu
                 .from(pets)
                 .innerJoin(petSpecies, eq(pets.pet_species_id, petSpecies.id))
                 .where(
-                    and(
-                        inArray(pets.household_id, householdIds),
-                        eq(petSpecies.is_active, true),
-                    ),
+                    and(inArray(pets.household_id, householdIds), eq(petSpecies.is_active, true)),
                 )
                 .groupBy(petSpecies.id, petSpecies.name)
                 .orderBy(desc(count())),

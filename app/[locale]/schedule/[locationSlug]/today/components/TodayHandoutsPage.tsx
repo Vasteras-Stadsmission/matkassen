@@ -32,14 +32,24 @@ import {
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import { getTodaysParcels, getPickupLocations, getParcelById, getTodaysSummaryStats } from "../../../actions";
+import {
+    getTodaysParcels,
+    getPickupLocations,
+    getParcelById,
+    getTodaysSummaryStats,
+} from "../../../actions";
 import { TodaySummaryCard } from "./TodaySummaryCard";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { findLocationBySlug } from "../../../utils/location-slugs";
 import { FavoriteStar } from "../../../components/FavoriteStar";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
 import { getUserFavoriteLocation } from "../../../utils/user-preferences";
-import type { FoodParcel, PickupLocation, ParcelDisplayStatus, TodaySummaryStats } from "../../../types";
+import type {
+    FoodParcel,
+    PickupLocation,
+    ParcelDisplayStatus,
+    TodaySummaryStats,
+} from "../../../types";
 import type { TranslationFunction } from "../../../../types";
 
 // Enhanced type for today's view with additional computed fields
