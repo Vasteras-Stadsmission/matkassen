@@ -454,6 +454,11 @@
                 "additionalRequests": "Additional requests",
                 "expand": "Expand summary",
                 "collapse": "Collapse summary"
+            },
+            "search": {
+                "placeholder": "Search by name or phone number",
+                "noResults": "No match for \"{query}\"",
+                "clear": "Clear search"
             }
         },
         "currentWeek": "Current Week",

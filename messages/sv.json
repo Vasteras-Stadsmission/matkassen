@@ -454,6 +454,11 @@
                 "additionalRequests": "Extra önskemål",
                 "expand": "Visa sammanfattning",
                 "collapse": "Dölj sammanfattning"
+            },
+            "search": {
+                "placeholder": "Sök på namn eller telefonnummer",
+                "noResults": "Ingen matchning för \"{query}\"",
+                "clear": "Rensa sökning"
             }
         },
         "currentWeek": "Aktuell vecka",

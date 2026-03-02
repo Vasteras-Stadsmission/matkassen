@@ -17,6 +17,7 @@ export interface FoodParcel {
     id: string;
     householdId: string;
     householdName: string;
+    phoneNumber?: string | null; // E.164 format, used for staff search
     pickupDate: Date;
     pickupEarliestTime: Date;
     pickupLatestTime: Date;

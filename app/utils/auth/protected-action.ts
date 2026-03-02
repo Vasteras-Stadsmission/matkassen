@@ -209,6 +209,41 @@ async function verifyAgreementAcceptance(
 }
 
 /**
+ * Like protectedReadAction but also requires the user to have accepted the current agreement.
+ * Use this for read actions that return personal data (GDPR compliance).
+ * Throws an error on auth or agreement failure.
+ * Do NOT use for agreement-related or admin settings actions.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedAgreementReadAction<T extends any[], R>(
+    action: (session: AuthSession, ...args: T) => Promise<R>,
+): (...args: T) => Promise<R> {
+    return async (...args: T): Promise<R> => {
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            throw new Error(authResult.error?.message || "Authentication required");
+        }
+
+        const agreementCheck = await verifyAgreementAcceptance(authResult.data);
+        if (agreementCheck) {
+            throw new Error(agreementCheck.error?.message || "Agreement acceptance required");
+        }
+
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                action: action.name || "anonymous",
+                type: "protected_agreement_read_action",
+            },
+            "Protected agreement read action executed",
+        );
+
+        return action(authResult.data, ...args);
+    };
+}
+
+/**
  * Like protectedAction but also requires the user to have accepted the current agreement.
  * Use this for actions that handle personal/household data (GDPR compliance).
  * Do NOT use for agreement-related or admin settings actions.
