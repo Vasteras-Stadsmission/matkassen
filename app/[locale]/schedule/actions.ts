@@ -162,8 +162,9 @@ export const getPickupLocations = protectedReadAction(
 /**
  * Internal query — not exported. Fetches today's parcels without auth or phone numbers.
  * Used by both getTodaysParcels and getTodaysParcelsWithPhone to avoid double auth checks.
+ * Pass locationId to scope results to a single location (required when phone numbers are included).
  */
-async function queryTodaysParcels(): Promise<FoodParcel[]> {
+async function queryTodaysParcels(locationId?: string): Promise<FoodParcel[]> {
     // Get today's date range in Stockholm timezone
     const today = new Date();
     const todayInStockholm = Time.fromDate(today);
@@ -195,6 +196,7 @@ async function queryTodaysParcels(): Promise<FoodParcel[]> {
                 gte(foodParcels.pickup_date_time_earliest, startDate),
                 lte(foodParcels.pickup_date_time_earliest, endDate),
                 notDeleted(),
+                locationId ? eq(foodParcels.pickup_location_id, locationId) : undefined,
             ),
         )
         .orderBy(foodParcels.pickup_date_time_earliest);
@@ -234,15 +236,15 @@ export const getTodaysParcels = protectedReadAction(async (_session): Promise<Fo
 });
 
 /**
- * Get today's parcels with phone numbers included.
+ * Get today's parcels with phone numbers included, scoped to a single location.
  * Use only on the handouts page where staff need phone-based search.
- * Phone numbers are fetched in a separate query to avoid sending PII to pages that don't need it.
+ * Requires a locationId so phone numbers are never sent for other locations.
  */
 export const getTodaysParcelsWithPhone = protectedAgreementReadAction(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async (_session): Promise<FoodParcel[]> => {
+    async (_session, locationId: string): Promise<FoodParcel[]> => {
         try {
-            const parcels = await queryTodaysParcels();
+            const parcels = await queryTodaysParcels(locationId);
             if (parcels.length === 0) return parcels;
 
             const householdIds = [...new Set(parcels.map(p => p.householdId))];
