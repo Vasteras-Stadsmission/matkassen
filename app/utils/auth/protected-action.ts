@@ -226,8 +226,8 @@ export function protectedAgreementReadAction<T extends any[], R>(
         }
 
         const agreementCheck = await verifyAgreementAcceptance(authResult.data);
-        if (agreementCheck) {
-            throw new Error(agreementCheck.error?.message || "Agreement acceptance required");
+        if (agreementCheck && !agreementCheck.success) {
+            throw new Error(agreementCheck.error.message || "Agreement acceptance required");
         }
 
         logger.info(

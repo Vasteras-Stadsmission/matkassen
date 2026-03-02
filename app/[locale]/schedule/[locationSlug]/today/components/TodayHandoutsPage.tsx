@@ -519,7 +519,9 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                         <Paper p={{ base: "md", sm: "lg" }} withBorder>
                             <Center>
                                 <Text size="md" c="dimmed" ta="center">
-                                    {t("todayHandouts.search.noResults", { query: searchQuery.trim() })}
+                                    {t("todayHandouts.search.noResults", {
+                                        query: searchQuery.trim(),
+                                    })}
                                 </Text>
                             </Center>
                         </Paper>

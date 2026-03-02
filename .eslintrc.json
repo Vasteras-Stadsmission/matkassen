@@ -2,8 +2,6 @@
     "extends": ["next/core-web-vitals", "next/typescript"],
     "rules": {
         "react/no-unescaped-entities": "off",
-        // Allow _ prefix convention for intentionally unused parameters (e.g. _session in protected actions)
-        "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
         // Prevent console.* usage - use Pino logger instead
         "no-console": "error",
         // Consistently import navigation APIs from `@/app/i18n/navigation`
