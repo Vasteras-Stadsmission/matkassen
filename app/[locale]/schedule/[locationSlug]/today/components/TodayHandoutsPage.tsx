@@ -143,7 +143,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
             // Load today's parcels (with phone numbers for search) and summary stats in parallel
             const [parcelsData, stats] = await Promise.all([
-                getTodaysParcelsWithPhone(),
+                getTodaysParcelsWithPhone(location.id),
                 getTodaysSummaryStats(location.id),
             ]);
 
@@ -155,9 +155,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                 await getParcelById(parcelId);
             }
 
-            // Filter parcels for the current location and enhance them
-            const locationParcels = parcelsData.filter(p => p.pickup_location_id === location.id);
-            const enhancedParcels = locationParcels.map((parcel): TodayParcel => {
+            // Enhance parcels (already scoped to this location by the server action)
+            const enhancedParcels = parcelsData.map((parcel): TodayParcel => {
                 // Determine status: pickedUp > noShow > upcoming
                 let status: ParcelDisplayStatus;
                 if (parcel.isPickedUp) {
