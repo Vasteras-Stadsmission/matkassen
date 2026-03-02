@@ -306,7 +306,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const filteredParcels = query
         ? parcels.filter(parcel => {
               if (parcel.householdName.toLowerCase().includes(query)) return true;
-              if (digitQuery.length >= 3 && parcel.phoneNumber) {
+              if (digitQuery.length >= 1 && parcel.phoneNumber) {
                   const storedDigits = parcel.phoneNumber.replace(/\D/g, "");
                   // Normalize E.164 (+46701...) to local format (0701...) so both match
                   const localStored = storedDigits.startsWith("46")
