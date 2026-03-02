@@ -109,7 +109,7 @@ export const getParcelById = protectedReadAction(
     },
 );
 export const getPickupLocations = protectedReadAction(
-    async (_session): Promise<PickupLocation[]> => {
+    async (_): Promise<PickupLocation[]> => {
         try {
             // Get current date for schedule comparison
             const currentDateStr = Time.now().toDateString();
@@ -222,7 +222,7 @@ async function queryTodaysParcels(): Promise<FoodParcel[]> {
  * Requires authentication. Does not include phone numbers — use getTodaysParcelsWithPhone
  * on the handouts page where staff need phone-based search.
  */
-export const getTodaysParcels = protectedReadAction(async (_session): Promise<FoodParcel[]> => {
+export const getTodaysParcels = protectedReadAction(async (_): Promise<FoodParcel[]> => {
     try {
         return await queryTodaysParcels();
     } catch (error) {
@@ -237,7 +237,7 @@ export const getTodaysParcels = protectedReadAction(async (_session): Promise<Fo
  * Phone numbers are fetched in a separate query to avoid sending PII to pages that don't need it.
  */
 export const getTodaysParcelsWithPhone = protectedAgreementReadAction(
-    async (_session): Promise<FoodParcel[]> => {
+    async (_): Promise<FoodParcel[]> => {
         try {
             const parcels = await queryTodaysParcels();
             if (parcels.length === 0) return parcels;
