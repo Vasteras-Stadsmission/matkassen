@@ -444,7 +444,17 @@
             },
             "homeLocation": "The household's regular handout location",
             "visitingTooltip": "Visitor – normally picks up at a different location",
-            "createdByTooltip": "Household created by {username}"
+            "createdByTooltip": "Household created by {username}",
+            "summary": {
+                "restrictionsTitle": "Dietary restrictions",
+                "title": "Summary",
+                "noDietaryRestrictions": "No dietary restrictions",
+                "householdsAndMembers": "{households} {households, plural, =1 {household} other {households}} · {members} {members, plural, =1 {person} other {people}}",
+                "pets": "Pets",
+                "additionalRequests": "Additional requests",
+                "expand": "Expand summary",
+                "collapse": "Collapse summary"
+            }
         },
         "currentWeek": "Current Week",
         "todayLabel": "Today",

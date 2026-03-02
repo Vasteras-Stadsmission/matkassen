@@ -61,6 +61,30 @@ export interface LocationScheduleInfo {
     schedules: LocationSchedule[];
 }
 
+export interface TodayDietaryRestrictionStat {
+    name: string;
+    color: string | null;
+    count: number;
+}
+
+export interface TodayPetStat {
+    species: string;
+    count: number;
+}
+
+export interface TodayAdditionalNeedStat {
+    need: string;
+    count: number;
+}
+
+export interface TodaySummaryStats {
+    householdCount: number;
+    memberCount: number;
+    dietaryRestrictions: TodayDietaryRestrictionStat[];
+    pets: TodayPetStat[];
+    additionalNeeds: TodayAdditionalNeedStat[];
+}
+
 // Define interfaces for the time slot grid
 export interface DayInfo {
     date: Date;
