@@ -38,7 +38,11 @@ import { getAvailableTimeRange } from "@/app/utils/schedule/location-availabilit
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 import { unstable_cache } from "next/cache";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { protectedReadAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import {
+    protectedReadAction,
+    protectedAgreementAction,
+    protectedAgreementReadAction,
+} from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
@@ -58,153 +62,34 @@ import type {
 /**
  * Get a specific parcel by ID, regardless of date
  */
-export async function getParcelById(parcelId: string): Promise<FoodParcel | null> {
-    try {
-        const parcelsData = await db
-            .select({
-                id: foodParcels.id,
-                householdId: foodParcels.household_id,
-                firstName: households.first_name,
-                lastName: households.last_name,
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-                pickupLatestTime: foodParcels.pickup_date_time_latest,
-                isPickedUp: foodParcels.is_picked_up,
-                noShowAt: foodParcels.no_show_at,
-                pickupLocationId: foodParcels.pickup_location_id,
-            })
-            .from(foodParcels)
-            .innerJoin(households, eq(foodParcels.household_id, households.id))
-            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
-            .limit(1);
+export const getParcelById = protectedReadAction(
+    async (_session, parcelId: string): Promise<FoodParcel | null> => {
+        try {
+            const parcelsData = await db
+                .select({
+                    id: foodParcels.id,
+                    householdId: foodParcels.household_id,
+                    firstName: households.first_name,
+                    lastName: households.last_name,
+                    pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+                    pickupLatestTime: foodParcels.pickup_date_time_latest,
+                    isPickedUp: foodParcels.is_picked_up,
+                    noShowAt: foodParcels.no_show_at,
+                    pickupLocationId: foodParcels.pickup_location_id,
+                })
+                .from(foodParcels)
+                .innerJoin(households, eq(foodParcels.household_id, households.id))
+                .where(and(eq(foodParcels.id, parcelId), notDeleted()))
+                .limit(1);
 
-        if (parcelsData.length === 0) {
-            return null;
-        }
+            if (parcelsData.length === 0) {
+                return null;
+            }
 
-        const parcel = parcelsData[0];
-
-        // Create Stockholm timezone date for the pickup date
-        const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
-        const pickupDate = pickupTimeStockholm.startOfDay().toDate();
-
-        return {
-            id: parcel.id,
-            householdId: parcel.householdId,
-            householdName: `${parcel.firstName} ${parcel.lastName}`,
-            pickupDate,
-            pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-            pickupLatestTime: new Date(parcel.pickupLatestTime),
-            isPickedUp: parcel.isPickedUp,
-            noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
-            pickup_location_id: parcel.pickupLocationId,
-        };
-    } catch (error) {
-        logError("Error fetching parcel by ID", error, { parcelId });
-        return null;
-    }
-}
-export async function getPickupLocations(): Promise<PickupLocation[]> {
-    try {
-        // Get current date for schedule comparison
-        const currentDateStr = Time.now().toDateString();
-
-        const locations = await db
-            .select({
-                id: pickupLocations.id,
-                name: pickupLocations.name,
-                street_address: pickupLocations.street_address,
-                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-                maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
-                outsideHoursCount: pickupLocations.outside_hours_count,
-                // Avoid correlated subqueries here; some drivers/dialects can mis-handle outer column references.
-                // Instead, join upcoming schedules + open days and count matches.
-                hasUpcomingSchedule: sql<boolean>`COUNT(${pickupLocationScheduleDays.id}) > 0`,
-            })
-            .from(pickupLocations)
-            .leftJoin(
-                pickupLocationSchedules,
-                and(
-                    eq(pickupLocationSchedules.pickup_location_id, pickupLocations.id),
-                    sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
-                ),
-            )
-            .leftJoin(
-                pickupLocationScheduleDays,
-                and(
-                    eq(pickupLocationScheduleDays.schedule_id, pickupLocationSchedules.id),
-                    eq(pickupLocationScheduleDays.is_open, true),
-                ),
-            )
-            .groupBy(
-                pickupLocations.id,
-                pickupLocations.name,
-                pickupLocations.street_address,
-                pickupLocations.parcels_max_per_day,
-                pickupLocations.max_parcels_per_slot,
-                pickupLocations.outside_hours_count,
-            );
-
-        return locations;
-    } catch (error) {
-        logError("Error fetching pickup locations", error);
-        return [];
-    }
-}
-
-/**
- * Get all parcels scheduled for today across all locations
- */
-export async function getTodaysParcels(): Promise<FoodParcel[]> {
-    try {
-        // Get today's date range in Stockholm timezone
-        const today = new Date();
-        const todayInStockholm = Time.fromDate(today);
-        const startTimeStockholm = todayInStockholm.startOfDay();
-        const endTimeStockholm = todayInStockholm.endOfDay();
-
-        // Convert to UTC for database query
-        const startDate = startTimeStockholm.toDate();
-        const endDate = endTimeStockholm.toDate();
-
-        // Query food parcels for today across all locations
-        // Alias pickupLocations for the household's primary location lookup
-        const primaryLocation = alias(pickupLocations, "primary_location");
-
-        const parcelsData = await db
-            .select({
-                id: foodParcels.id,
-                householdId: foodParcels.household_id,
-                firstName: households.first_name,
-                lastName: households.last_name,
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-                pickupLatestTime: foodParcels.pickup_date_time_latest,
-                isPickedUp: foodParcels.is_picked_up,
-                noShowAt: foodParcels.no_show_at,
-                pickupLocationId: foodParcels.pickup_location_id,
-                primaryPickupLocationId: households.primary_pickup_location_id,
-                primaryPickupLocationName: primaryLocation.name,
-                createdBy: households.created_by,
-            })
-            .from(foodParcels)
-            .innerJoin(households, eq(foodParcels.household_id, households.id))
-            .leftJoin(
-                primaryLocation,
-                eq(households.primary_pickup_location_id, primaryLocation.id),
-            )
-            .where(
-                and(
-                    gte(foodParcels.pickup_date_time_earliest, startDate),
-                    lte(foodParcels.pickup_date_time_earliest, endDate),
-                    notDeleted(),
-                ),
-            )
-            .orderBy(foodParcels.pickup_date_time_earliest);
-
-        // Transform the data to the expected format with proper timezone handling
-        return parcelsData.map(parcel => {
-            // Create Stockholm timezone date for the pickup date
-            const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
-            const pickupDate = pickupTimeStockholm.startOfDay().toDate();
+            const parcel = parcelsData[0];
+            const pickupDate = Time.fromDate(new Date(parcel.pickupEarliestTime))
+                .startOfDay()
+                .toDate();
 
             return {
                 id: parcel.id,
@@ -216,16 +101,164 @@ export async function getTodaysParcels(): Promise<FoodParcel[]> {
                 isPickedUp: parcel.isPickedUp,
                 noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
                 pickup_location_id: parcel.pickupLocationId,
-                primaryPickupLocationId: parcel.primaryPickupLocationId,
-                primaryPickupLocationName: parcel.primaryPickupLocationName,
-                createdBy: parcel.createdBy,
             };
-        });
+        } catch (error) {
+            logError("Error fetching parcel by ID", error, { parcelId });
+            return null;
+        }
+    },
+);
+export const getPickupLocations = protectedReadAction(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (_session): Promise<PickupLocation[]> => {
+        try {
+            // Get current date for schedule comparison
+            const currentDateStr = Time.now().toDateString();
+
+            const locations = await db
+                .select({
+                    id: pickupLocations.id,
+                    name: pickupLocations.name,
+                    street_address: pickupLocations.street_address,
+                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                    maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
+                    outsideHoursCount: pickupLocations.outside_hours_count,
+                    // Avoid correlated subqueries here; some drivers/dialects can mis-handle outer column references.
+                    // Instead, join upcoming schedules + open days and count matches.
+                    hasUpcomingSchedule: sql<boolean>`COUNT(${pickupLocationScheduleDays.id}) > 0`,
+                })
+                .from(pickupLocations)
+                .leftJoin(
+                    pickupLocationSchedules,
+                    and(
+                        eq(pickupLocationSchedules.pickup_location_id, pickupLocations.id),
+                        sql`${pickupLocationSchedules.end_date} >= ${currentDateStr}::date`,
+                    ),
+                )
+                .leftJoin(
+                    pickupLocationScheduleDays,
+                    and(
+                        eq(pickupLocationScheduleDays.schedule_id, pickupLocationSchedules.id),
+                        eq(pickupLocationScheduleDays.is_open, true),
+                    ),
+                )
+                .groupBy(
+                    pickupLocations.id,
+                    pickupLocations.name,
+                    pickupLocations.street_address,
+                    pickupLocations.parcels_max_per_day,
+                    pickupLocations.max_parcels_per_slot,
+                    pickupLocations.outside_hours_count,
+                );
+
+            return locations;
+        } catch (error) {
+            logError("Error fetching pickup locations", error);
+            return [];
+        }
+    },
+);
+
+/**
+ * Internal query — not exported. Fetches today's parcels without auth or phone numbers.
+ * Used by both getTodaysParcels and getTodaysParcelsWithPhone to avoid double auth checks.
+ */
+async function queryTodaysParcels(): Promise<FoodParcel[]> {
+    // Get today's date range in Stockholm timezone
+    const today = new Date();
+    const todayInStockholm = Time.fromDate(today);
+    const startDate = todayInStockholm.startOfDay().toDate();
+    const endDate = todayInStockholm.endOfDay().toDate();
+
+    const primaryLocation = alias(pickupLocations, "primary_location");
+
+    const parcelsData = await db
+        .select({
+            id: foodParcels.id,
+            householdId: foodParcels.household_id,
+            firstName: households.first_name,
+            lastName: households.last_name,
+            pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+            pickupLatestTime: foodParcels.pickup_date_time_latest,
+            isPickedUp: foodParcels.is_picked_up,
+            noShowAt: foodParcels.no_show_at,
+            pickupLocationId: foodParcels.pickup_location_id,
+            primaryPickupLocationId: households.primary_pickup_location_id,
+            primaryPickupLocationName: primaryLocation.name,
+            createdBy: households.created_by,
+        })
+        .from(foodParcels)
+        .innerJoin(households, eq(foodParcels.household_id, households.id))
+        .leftJoin(primaryLocation, eq(households.primary_pickup_location_id, primaryLocation.id))
+        .where(
+            and(
+                gte(foodParcels.pickup_date_time_earliest, startDate),
+                lte(foodParcels.pickup_date_time_earliest, endDate),
+                notDeleted(),
+            ),
+        )
+        .orderBy(foodParcels.pickup_date_time_earliest);
+
+    return parcelsData.map(parcel => {
+        const pickupDate = Time.fromDate(new Date(parcel.pickupEarliestTime)).startOfDay().toDate();
+        return {
+            id: parcel.id,
+            householdId: parcel.householdId,
+            householdName: `${parcel.firstName} ${parcel.lastName}`,
+            pickupDate,
+            pickupEarliestTime: new Date(parcel.pickupEarliestTime),
+            pickupLatestTime: new Date(parcel.pickupLatestTime),
+            isPickedUp: parcel.isPickedUp,
+            noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
+            pickup_location_id: parcel.pickupLocationId,
+            primaryPickupLocationId: parcel.primaryPickupLocationId,
+            primaryPickupLocationName: parcel.primaryPickupLocationName,
+            createdBy: parcel.createdBy,
+        };
+    });
+}
+
+/**
+ * Get all parcels scheduled for today across all locations.
+ * Requires authentication. Does not include phone numbers — use getTodaysParcelsWithPhone
+ * on the handouts page where staff need phone-based search.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const getTodaysParcels = protectedReadAction(async (_session): Promise<FoodParcel[]> => {
+    try {
+        return await queryTodaysParcels();
     } catch (error) {
         logError("Error fetching today's parcels", error);
         return [];
     }
-}
+});
+
+/**
+ * Get today's parcels with phone numbers included.
+ * Use only on the handouts page where staff need phone-based search.
+ * Phone numbers are fetched in a separate query to avoid sending PII to pages that don't need it.
+ */
+export const getTodaysParcelsWithPhone = protectedAgreementReadAction(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (_session): Promise<FoodParcel[]> => {
+        try {
+            const parcels = await queryTodaysParcels();
+            if (parcels.length === 0) return parcels;
+
+            const householdIds = [...new Set(parcels.map(p => p.householdId))];
+            const phoneRows = await db
+                .select({ id: households.id, phoneNumber: households.phone_number })
+                .from(households)
+                .where(inArray(households.id, householdIds));
+
+            const phoneMap = new Map(phoneRows.map(r => [r.id, r.phoneNumber]));
+            return parcels.map(p => ({ ...p, phoneNumber: phoneMap.get(p.householdId) ?? null }));
+        } catch (error) {
+            logError("Error fetching today's parcels with phone numbers", error);
+            return [];
+        }
+    },
+);
 
 /**
  * Get summary stats for today's parcels at a specific location

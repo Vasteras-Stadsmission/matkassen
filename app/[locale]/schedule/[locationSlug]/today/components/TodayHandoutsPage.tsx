@@ -18,6 +18,8 @@ import {
     Alert,
     Tabs,
     Tooltip,
+    TextInput,
+    ActionIcon,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -29,11 +31,13 @@ import {
     IconMapPin,
     IconArrowLeft,
     IconUser,
+    IconSearch,
+    IconX,
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import {
-    getTodaysParcels,
+    getTodaysParcelsWithPhone,
     getPickupLocations,
     getParcelById,
     getTodaysSummaryStats,
@@ -87,6 +91,9 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const [dialogOpened, { open: openDialog, close: closeDialog }] = useDisclosure(false);
     const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
 
+    // Search state
+    const [searchQuery, setSearchQuery] = useState("");
+
     const today = new Date();
 
     // Handle deep link to specific parcel (like QR code scans)
@@ -133,9 +140,9 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                 setIsFavorite(false);
             }
 
-            // Load today's parcels and summary stats in parallel
+            // Load today's parcels (with phone numbers for search) and summary stats in parallel
             const [parcelsData, stats] = await Promise.all([
-                getTodaysParcels(),
+                getTodaysParcelsWithPhone(),
                 getTodaysSummaryStats(location.id),
             ]);
 
@@ -288,9 +295,23 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
         );
     }
 
-    // Calculate progress for current location
+    // Calculate progress for current location (always based on full list)
     const totalParcels = parcels.length;
     const completedParcels = parcels.filter(p => p.status === "pickedUp").length;
+
+    // Client-side search filtering
+    const query = searchQuery.trim().toLowerCase();
+    // Strip non-digits and leading zeros so Swedish local format (070...) matches E.164 (+4670...)
+    const strippedQuery = query.replace(/\D/g, "").replace(/^0+/, "");
+    const filteredParcels = query
+        ? parcels.filter(parcel => {
+              if (parcel.householdName.toLowerCase().includes(query)) return true;
+              if (strippedQuery.length >= 3 && parcel.phoneNumber) {
+                  return parcel.phoneNumber.replace(/\D/g, "").includes(strippedQuery);
+              }
+              return false;
+          })
+        : parcels;
 
     return (
         <div
@@ -446,6 +467,29 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                     </Tabs.Tab>
                                 </Tabs.List>
                             </Tabs>
+                            {totalParcels > 0 && (
+                                <TextInput
+                                    placeholder={t("todayHandouts.search.placeholder")}
+                                    leftSection={<IconSearch size={14} />}
+                                    rightSection={
+                                        searchQuery ? (
+                                            <ActionIcon
+                                                size="xs"
+                                                variant="subtle"
+                                                color="gray"
+                                                onClick={() => setSearchQuery("")}
+                                                aria-label={t("todayHandouts.search.clear")}
+                                            >
+                                                <IconX size={12} />
+                                            </ActionIcon>
+                                        ) : null
+                                    }
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.currentTarget.value)}
+                                    size="xs"
+                                    autoComplete="off"
+                                />
+                            )}
                         </Stack>
                     </Paper>
 
@@ -471,9 +515,19 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                 </Stack>
                             </Center>
                         </Paper>
+                    ) : filteredParcels.length === 0 ? (
+                        <Paper p={{ base: "md", sm: "lg" }} withBorder>
+                            <Center>
+                                <Text size="md" c="dimmed" ta="center">
+                                    {t("todayHandouts.search.noResults", {
+                                        query: searchQuery.trim(),
+                                    })}
+                                </Text>
+                            </Center>
+                        </Paper>
                     ) : (
                         <Stack gap={4}>
-                            {parcels.map(parcel => {
+                            {filteredParcels.map(parcel => {
                                 return (
                                     <Paper
                                         key={parcel.id}
