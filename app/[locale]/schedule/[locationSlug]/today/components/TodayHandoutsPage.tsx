@@ -301,13 +301,18 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     // Client-side search filtering
     const query = searchQuery.trim().toLowerCase();
-    // Strip non-digits and leading zeros so Swedish local format (070...) matches E.164 (+4670...)
-    const strippedQuery = query.replace(/\D/g, "").replace(/^0+/, "");
+    // Raw digits from query (keep leading zeros so "070" stays "070", not "70")
+    const digitQuery = query.replace(/\D/g, "");
     const filteredParcels = query
         ? parcels.filter(parcel => {
               if (parcel.householdName.toLowerCase().includes(query)) return true;
-              if (strippedQuery.length >= 3 && parcel.phoneNumber) {
-                  return parcel.phoneNumber.replace(/\D/g, "").includes(strippedQuery);
+              if (digitQuery.length >= 3 && parcel.phoneNumber) {
+                  const storedDigits = parcel.phoneNumber.replace(/\D/g, "");
+                  // Normalize E.164 (+46701...) to local format (0701...) so both match
+                  const localStored = storedDigits.startsWith("46")
+                      ? "0" + storedDigits.slice(2)
+                      : storedDigits;
+                  return storedDigits.includes(digitQuery) || localStored.includes(digitQuery);
               }
               return false;
           })
