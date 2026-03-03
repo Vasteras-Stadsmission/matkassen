@@ -5,7 +5,8 @@ import { Container, Title, Text, Table, Avatar, Group, Select, Stack, Badge } fr
 import { notifications } from "@mantine/notifications";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { updateUserRole, type UserRow, type UserRole } from "../actions";
+import type { UserRole } from "@/app/db/schema";
+import { updateUserRole, type UserRow } from "../actions";
 
 interface UsersManagerProps {
     initialUsers: UserRow[];

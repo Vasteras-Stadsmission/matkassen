@@ -9,8 +9,6 @@ import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
 
-export type { UserRole };
-
 export interface UserRow {
     id: string;
     github_username: string;
