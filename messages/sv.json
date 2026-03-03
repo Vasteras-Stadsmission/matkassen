@@ -1517,6 +1517,11 @@
                 "success": "Klart",
                 "error": "Fel",
                 "roleUpdated": "Roll uppdaterad"
+            },
+            "errors": {
+                "cannotChangeSelfRole": "Du kan inte ändra din egen roll",
+                "cannotDemoteLastAdmin": "Kan inte nedgradera den sista administratören — minst en administratör måste finnas kvar",
+                "updateFailed": "Det gick inte att uppdatera rollen, försök igen"
             }
         }
     },

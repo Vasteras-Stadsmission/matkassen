@@ -5,6 +5,7 @@
 
 import "next-auth";
 import "next-auth/jwt";
+import type { UserRole } from "@/app/db/schema";
 
 type OrgEligibilityStatus =
     | "ok"
@@ -24,8 +25,6 @@ type OrgEligibility = {
     httpStatus?: number;
     message?: string;
 };
-
-type UserRole = "admin" | "handout_staff";
 
 declare module "next-auth" {
     /**

@@ -20,6 +20,12 @@ export function UsersManager({ initialUsers }: UsersManagerProps) {
     const [pending, startTransition] = useTransition();
     const [loadingId, setLoadingId] = useState<string | null>(null);
 
+    function errorMessage(code: string): string {
+        if (code === "CANNOT_CHANGE_SELF_ROLE") return t("errors.cannotChangeSelfRole");
+        if (code === "CANNOT_DEMOTE_LAST_ADMIN") return t("errors.cannotDemoteLastAdmin");
+        return t("errors.updateFailed");
+    }
+
     function handleRoleChange(userId: string, role: UserRole) {
         setLoadingId(userId);
         startTransition(async () => {
@@ -35,7 +41,7 @@ export function UsersManager({ initialUsers }: UsersManagerProps) {
             } else {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: result.error.message,
+                    message: errorMessage(result.error.code),
                     color: "red",
                 });
             }

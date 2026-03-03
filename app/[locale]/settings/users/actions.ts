@@ -1,7 +1,7 @@
 "use server";
 
 import { protectedAdminAction } from "@/app/utils/auth/protected-action";
-import { success, validationError, type ActionResult } from "@/app/utils/auth/action-result";
+import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
 import { users, type UserRole } from "@/app/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -40,7 +40,7 @@ export const getUsers = protectedAdminAction(async (): Promise<ActionResult<User
         return success(rows);
     } catch (error) {
         logError("Error fetching users", error);
-        return validationError("Failed to fetch users");
+        return failure({ code: "FETCH_FAILED", message: "Failed to fetch users" });
     }
 });
 
@@ -56,37 +56,55 @@ export const updateUserRole = protectedAdminAction(
             const currentUser = currentUserRows[0];
 
             if (currentUser?.id === userId) {
-                return validationError("Cannot change your own role");
+                return failure({
+                    code: "CANNOT_CHANGE_SELF_ROLE",
+                    message: "Cannot change your own role",
+                });
             }
 
-            // Anti-lockout: ensure at least one admin remains after the change
-            if (role !== "admin") {
-                const targetRows = await db
-                    .select({ role: users.role })
-                    .from(users)
-                    .where(eq(users.id, userId))
-                    .limit(1);
-                const targetRole = targetRows[0]?.role;
+            // Anti-lockout: ensure at least one admin remains after the change.
+            // Wrapped in a transaction with a FOR UPDATE lock on all admin rows to prevent
+            // two concurrent demotions from both passing the count check.
+            await db.transaction(async tx => {
+                if (role !== "admin") {
+                    // Lock all admin rows before counting to serialise concurrent demotions
+                    await tx.execute(sql`SELECT id FROM ${users} WHERE role = 'admin' FOR UPDATE`);
 
-                if (targetRole === "admin") {
-                    const countRows = await db
+                    const [{ count }] = await tx
                         .select({ count: sql<number>`count(*)::int` })
                         .from(users)
                         .where(eq(users.role, "admin"));
-                    const adminCount = countRows[0]?.count ?? 0;
 
-                    if (adminCount <= 1) {
-                        return validationError("Cannot demote the last admin");
+                    const targetRows = await tx
+                        .select({ role: users.role })
+                        .from(users)
+                        .where(eq(users.id, userId))
+                        .limit(1);
+
+                    if (targetRows[0]?.role === "admin" && count <= 1) {
+                        throw Object.assign(new Error("Cannot demote the last admin"), {
+                            code: "CANNOT_DEMOTE_LAST_ADMIN",
+                        });
                     }
                 }
-            }
 
-            await db.update(users).set({ role }).where(eq(users.id, userId));
+                await tx.update(users).set({ role }).where(eq(users.id, userId));
+            });
+
             revalidateUsersPage();
             return success(undefined);
         } catch (error) {
+            if (
+                error instanceof Error &&
+                (error as Error & { code?: string }).code === "CANNOT_DEMOTE_LAST_ADMIN"
+            ) {
+                return failure({
+                    code: "CANNOT_DEMOTE_LAST_ADMIN",
+                    message: "Cannot demote the last admin",
+                });
+            }
             logError("Error updating user role", error);
-            return validationError("Failed to update user role");
+            return failure({ code: "UPDATE_FAILED", message: "Failed to update user role" });
         }
     },
 );
