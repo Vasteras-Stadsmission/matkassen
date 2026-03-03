@@ -26,6 +26,9 @@ export const nanoid = (length = 12) => {
 
 export const sexEnum = pgEnum("sex", ["male", "female", "other"]);
 
+export const userRoleEnum = pgEnum("user_role", ["admin", "handout_staff"]);
+export type UserRole = (typeof userRoleEnum.enumValues)[number];
+
 // Define weekday enum for opening hours
 export const weekdayEnum = pgEnum("weekday", [
     "monday",
@@ -514,6 +517,7 @@ export const users = pgTable("users", {
         () => pickupLocations.id,
         { onDelete: "set null" },
     ),
+    role: userRoleEnum("role").notNull().default("handout_staff"),
 });
 
 // User agreements for GDPR compliance (confidentiality commitment / sekretessförbindelse)

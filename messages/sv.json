@@ -1,1755 +1,1773 @@
 {
-    "common": {
-        "brandName": "Matcentralen",
-        "welcome": "Välkommen till Matcentralen",
-        "description": "Administrationssystem för distribution av matkassar",
-        "authStatus": "Autentiseringsstatus",
-        "loggedInAs": "Du är inloggad som",
-        "loginToAccess": "Logga in för att få tillgång till applikationens funktioner",
-        "close": "Stäng",
-        "languages": {
-            "sv": "Svenska"
-        }
-    },
-    "auth": {
-        "login": "Logga in",
-        "logout": "Logga ut",
-        "signInTitle": "Logga in på Matcentralen",
-        "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matcentralens administrationssystem.",
-        "signInWithGitHub": "Logga in med GitHub",
-        "errorTitle": "Autentiseringsfel",
-        "tryAgain": "Försök igen",
-        "account": "Konto",
-        "profile": "Profil",
-        "user": "Användare",
-        "protection": {
-            "signInRequired": "Logga in för att komma åt den här sidan."
-        },
-        "errors": {
-            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen och följa dess säkerhetspolicy (säker tvåfaktorsautentisering krävs) för att få åtkomst till appen.",
-            "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
-            "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
-            "accessDenied": "Åtkomst nekad. Du har inte behörighet att logga in.",
-            "verification": "Verifiering misslyckades. Försök logga in igen.",
-            "default": "Ett fel uppstod vid inloggningen. Försök igen."
-        },
-        "accessDenied": {
-            "title": "Åtkomst nekad",
-            "subtitle": "Vi kunde inte logga in dig. Detta beror vanligtvis på att ditt GitHub-konto behöver ytterligare säkerhetsinställningar.",
-            "explanations": {
-                "notMember": "Ditt GitHub-konto är inte medlem i organisationen. Be din administratör att skicka en inbjudan till dig.",
-                "membershipInactive": "Du har en väntande inbjudan till organisationen. Kolla din e-post eller GitHub-notiser och acceptera inbjudan.",
-                "insecure2fa": "Ditt GitHub-konto använder SMS för tvåfaktorsautentisering. Organisationen kräver en säkrare metod. Följ stegen nedan för att åtgärda detta.",
-                "unauthenticated": "Din inloggning är inte längre giltig. Logga ut och logga in igen.",
-                "temporaryError": "Vi kunde inte verifiera ditt konto på grund av ett tillfälligt problem hos GitHub. Försök igen om några minuter.",
-                "membershipHelp": "Om du anser att du borde ha åtkomst, kontakta din organisationsadministratör för att få en inbjudan."
-            },
-            "reasons": {
-                "title": "Varför ser jag detta?",
-                "preamble": "En eller flera av följande kan gälla:",
-                "notMember": "Du är inte medlem i den auktoriserade GitHub-organisationen",
-                "insecure2fa": "Ditt GitHub-konto behöver en säkrare inloggningsmetod (inte bara SMS)"
-            },
-            "acceptedMethods": {
-                "title": "Godkända inloggningsmetoder",
-                "githubMobile": "GitHub Mobile-appen — enklaste alternativet, godkänn bara en notis",
-                "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
-                "authenticatorApp": "Autentiseringsapp (Google Authenticator, Authy, Microsoft Authenticator)"
-            },
-            "notAccepted": {
-                "title": "Ej godkänt (lägg till en metod ovan)",
-                "sms": "Endast SMS-meddelanden är inte tillräckligt säkert"
-            },
-            "howToFix": {
-                "title": "Så här åtgärdar du detta",
-                "step1": "Gå till dina GitHub-säkerhetsinställningar",
-                "step1Aria": "Gå till dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
-                "step2": "Hitta \"Password and authentication\" i menyn",
-                "step3": "Lägg till en av de godkända metoderna ovan",
-                "step4": "Kom tillbaka hit och logga in igen"
-            },
-            "buttons": {
-                "githubSettings": "Öppna GitHub-säkerhetsinställningar",
-                "githubSettingsAria": "Öppna GitHub-säkerhetsinställningar (öppnas i ny flik)",
-                "signOutAndRetry": "Logga ut och försök igen"
-            },
-            "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
-        }
-    },
-    "agreement": {
-        "title": "Användaravtal för behandling av personuppgifter",
-        "subtitle": "Läs igenom och acceptera avtalet för att fortsätta använda systemet",
-        "version": "Version {version}",
-        "effectiveFrom": "Gäller från {date}",
-        "acceptedAt": "Du accepterade detta avtal {date}",
-        "checkbox": "Jag har läst och förstår mitt ansvar för att hantera personuppgifter enligt detta avtal",
-        "accept": "Acceptera och fortsätt",
-        "loading": "Laddar avtal...",
-        "errors": {
-            "title": "Fel",
-            "loadFailed": "Kunde inte ladda användaravtalet",
-            "acceptFailed": "Kunde inte acceptera avtalet. Försök igen.",
-            "newerVersion": "En nyare version av avtalet har publicerats. Vänligen granska och acceptera den."
-        },
-        "notifications": {
-            "success": "Klart",
-            "error": "Fel",
-            "accepted": "Du har accepterat användaravtalet"
-        }
-    },
-    "navigation": {
-        "brandName": "Matcentralen",
-        "households": "Hushåll",
-        "schedule": "Schema",
-        "todayHandouts": "Dagens utlämningar",
-        "locations": "Utlämningsställen",
-        "smsDashboard": "SMS-hantering",
-        "newHousehold": "Nytt hushåll",
-        "statistics": "Statistik",
-        "scanQrCode": "Skanna QR-kod",
-        "navigation": "Navigation",
-        "issues": "Behöver uppföljning"
-    },
-    "households": {
-        "title": "Hushåll",
-        "description": "Hantera hushåll och deras information",
-        "newHousehold": "Nytt hushåll har registrerats!",
-        "updatedHousehold": "Hushållet har uppdaterats!",
-        "search": {
-            "placeholder": "Sök hushåll..."
-        },
-        "modal": {
-            "loading": "Laddar...",
-            "title": "Hushållsdetaljer: {firstName} {lastName}"
-        },
-        "actions": {
-            "view": "Visa",
-            "edit": "Redigera",
-            "manageParcels": "Hantera matkassar"
-        },
-        "filters": {
-            "location": "Filtrera på plats",
-            "createdBy": "Filtrera på skapare"
-        },
-        "table": {
-            "firstName": "Förnamn",
-            "lastName": "Efternamn",
-            "phoneNumber": "Telefonnummer",
-            "language": "Språk",
-            "createdBy": "Skapad av",
-            "primaryLocation": "Huvudutlämningsplats",
-            "firstParcel": "Första matkasse",
-            "lastParcel": "Sista matkasse",
-            "nextParcel": "Nästa matkasse",
-            "columns": "Kolumner",
-            "visibleColumns": "Synliga kolumner",
-            "actions": {
-                "viewDetails": "Visa detaljer",
-                "edit": "Redigera hushåll",
-                "search": "Sök hushåll...",
-                "newHousehold": "Nytt hushåll"
-            }
-        },
-        "errors": {
-            "notFound": "Kunde inte hitta hushållet. Kontrollera att ID är korrekt.",
-            "createError": "Ett fel uppstod vid registrering av hushåll.",
-            "updateError": "Ett fel uppstod vid uppdatering av hushåll."
-        }
-    },
-    "parcelManagement": {
-        "breadcrumb": {
-            "households": "Hushåll",
-            "manageParcels": "Hantera matkassar för {householdName}"
-        },
-        "success": {
-            "title": "Klart",
-            "parcelsUpdated": "Matkassarna har uppdaterats!"
-        },
-        "error": {
-            "title": "Fel",
-            "general": "Ett fel uppstod",
-            "unknown": "Okänt fel",
-            "updateFailed": "Det gick inte att uppdatera matkassar. Försök igen.",
-            "unauthorized": "Du måste vara autentiserad för att hantera matkassar",
-            "forbidden": "Du har inte behörighet att utföra denna åtgärd",
-            "householdNotFound": "Det angivna hushållet finns inte",
-            "configurationError": "Serverfel. Kontakta support."
-        },
-        "validation": {
-            "pickupLocationRequired": "Välj en upphämtningsplats",
-            "title": "Kunde inte spara",
-            "description": "Matkassar kunde inte sparas på grund av valideringsfel",
-            "summaryTitle": "Matkassar kunde inte sparas",
-            "summaryDescription": "Följande problem måste åtgärdas:",
-            "jumpToError": "↑ Hoppa till formuläret för att åtgärda"
-        },
-        "submitting": {
-            "update": "Uppdaterar matkassar..."
-        },
-        "actions": {
-            "back": "Tillbaka till hushåll",
-            "saveParcels": "Spara matkassar"
-        },
-        "backToHouseholds": "Tillbaka till hushåll"
-    },
-    "householdForm": {
-        "basics": "Grunduppgifter",
-        "basicDescription": "Fyll i grundläggande kontaktuppgifter för hushållet. Dessa uppgifter används för att kontakta hushållet.",
-        "firstName": "Förnamn",
-        "enterFirstName": "Ange förnamn",
-        "lastName": "Efternamn",
-        "enterLastName": "Ange efternamn",
-        "phoneNumber": "Telefonnummer",
-        "phoneDescription": "Endast svenska telefonnummer",
-        "enterPhoneNumber": "Ange telefonnummer",
-        "smsConsent": "Hushållet samtycker till SMS-kontakt",
-        "smsConsentDescription": "Krävs för att skicka påminnelser och uppdateringar",
-        "language": "Språk",
-        "selectLanguage": "Välj språk",
-        "primaryLocation": "Huvudutlämningsplats",
-        "primaryLocationDescription": "Hushållets huvudsakliga utlämningsplats",
-        "selectPrimaryLocation": "Välj huvudutlämningsplats",
-        "locationUnknownWithId": "Okänd plats (ID: {id})",
-        "validation": {
-            "firstNameLength": "Förnamn måste vara minst 2 tecken",
-            "lastNameLength": "Efternamn måste vara minst 2 tecken",
-            "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
-            "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
-            "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll"
-        },
-        "duplicatePhone": {
-            "title": "Telefonnumret finns redan",
-            "message": "Detta telefonnummer tillhör redan hushåll: {name} (ID: {id}). Telefon: {phone}",
-            "fieldError": "Detta telefonnummer är redan registrerat"
-        },
-        "similarName": {
-            "title": "Liknande hushåll hittades",
-            "message": "Ett hushåll med liknande namn finns redan. Kontrollera att detta är ett nytt hushåll:",
-            "confirmTitle": "Bekräfta nytt hushåll",
-            "confirmMessage": "Liknande hushåll finns redan. Är du säker på att detta är ett annat hushåll?",
-            "confirmButton": "Ja, skapa nytt hushåll",
-            "cancelButton": "Avbryt"
-        }
-    },
-    "members": {
-        "title": "Medlemmar i hushållet",
-        "description": "Lägg till alla medlemmar i hushållet. Dessa uppgifter används för att beräkna matmängd och särskilda behov.",
-        "addPerson": "Lägg till person",
-        "age": "Ålder",
-        "ageUnit": "år",
-        "gender": {
-            "label": "Kön",
-            "male": "Man",
-            "female": "Kvinna",
-            "other": "Annat"
-        },
-        "validation": {
-            "ageRequired": "Ålder krävs",
-            "genderRequired": "Könsval krävs"
-        }
-    },
-    "dietaryRestrictions": {
-        "title": "Matrestriktioner",
-        "description": "Välj matrestriktioner som gäller för hushållet.",
-        "loading": "Laddar matrestriktioner...",
-        "noRestrictions": "Inga matrestriktioner tillagda",
-        "addNew": "Lägg till ny restriktion",
-        "newRestriction": "Ny matrestriktion",
-        "placeholderExample": "T.ex. Jordgubbar, Soja, etc.",
-        "add": "Lägg till",
-        "addConfirmTitle": "Lägg till matrestriktion",
-        "addConfirmQuestion": "Vill du lägga till följande matrestriktion i din ansökan?",
-        "removeConfirmTitle": "Ta bort matrestriktion",
-        "removeConfirmQuestion": "Vill du ta bort följande matrestriktion från din ansökan?",
-        "cancel": "Avbryt",
-        "remove": "Ta bort",
-        "disabledLabel": "Inaktiv",
-        "validation": {
-            "minLength": "Matrestriktion måste vara minst 2 tecken"
-        }
-    },
-    "pets": {
-        "title": "Husdjur",
-        "description": "Registrera husdjur som finns i hushållet. Detta hjälper oss att anpassa matsortimentet.",
-        "noPets": "Inga husdjur tillagda",
-        "loading": "Laddar husdjurstyper...",
-        "addNew": "Lägg till ny typ av husdjur",
-        "newPetType": "Ny typ av husdjur",
-        "placeholderExample": "T.ex. Marsvin, Ödla, etc.",
-        "add": "Lägg till",
-        "addConfirmTitle": "Lägg till husdjurstyp",
-        "addConfirmQuestion": "Vill du lägga till följande husdjurstyp i din ansökan?",
-        "removeConfirmTitle": "Ta bort husdjurstyp",
-        "removeConfirmQuestion": "Vill du ta bort följande husdjurstyp från din ansökan?",
-        "cancel": "Avbryt",
-        "remove": "Ta bort",
-        "disabledLabel": "Inaktiv",
-        "defaultPetType": "Husdjurstyp {index}",
-        "unknownPetType": "Okänd",
-        "validation": {
-            "minLength": "Husdjurstyp måste vara minst 2 tecken"
-        }
-    },
-    "additionalNeeds": {
-        "title": "Ytterligare behov",
-        "description": "Välj ytterligare behov som hushållet kan ha.",
-        "noNeeds": "Inga ytterligare behov tillagda",
-        "loading": "Laddar ytterligare behov...",
-        "addNew": "Lägg till nytt behov",
-        "newNeed": "Nytt behov",
-        "placeholderExample": "T.ex. Rakhyvlar, Schampo, etc.",
-        "add": "Lägg till",
-        "disabledLabel": "Inaktiv",
-        "validation": {
-            "minLength": "Behov måste vara minst 2 tecken"
-        }
-    },
-    "foodParcels": {
-        "title": "Schemalagda matkassar",
-        "description": "Schemalägg matkassar för hushållet med hämtplats och tider.",
-        "settings": "Inställningar för schemaläggning",
-        "pickupLocation": "Hämtplats",
-        "selectLocation": "Välj hämtplats",
-        "selectDates": "Välj datum för matkassar",
-        "loadingAvailability": "Laddar tillgänglighet...",
-        "selectLocationFirst": "Välj en hämtplats först för att se tillgänglighet",
-        "selectDatesHint": "Välj alla datum när hushållet ska få en matkasse",
-        "setBulkTimes": "Sätt alla tider",
-        "editingAllTimes": "Redigerar alla tider",
-        "bulkTimeHint": "Ställ in samma tid för alla matkassar, eller avbryt för att redigera individuellt.",
-        "bulk": {
-            "upcomingOnly": "gäller endast kommande matkassar",
-            "notAvailableTitle": "Massändring ej tillgänglig",
-            "notAvailableMsg": "Valda datum har olika öppettider. Redigera tider per datum.",
-            "notAvailableMsgWithSummary": "Valda datum har olika öppettider: {summary}. Redigera tider per datum."
-        },
-        "individualTimeHint": "Klicka på tiderna för att ändra upphämtningstid för varje enskild matkasse.",
-        "calendar": {
-            "unavailableClosedDay": "Stängt denna dag",
-            "fullyBooked": "Fullbokad",
-            "selected": "Vald dag"
-        },
-        "time": {
-            "earliest": "Tidigast hämttid",
-            "latest": "Senast hämttid",
-            "updateAll": "Uppdatera alla",
-            "error": "Tidigast tid måste vara före senast tid",
-            "dateAndPickup": "Datum och hämttid",
-            "noAvailableTimes": "Inga tillgängliga tider",
-            "noAvailableTimesForToday": "Alla tider för idag har passerat. Välj ett framtida datum."
-        },
-        "cancel": "Avbryt",
-        "for": "för",
-        "table": {
-            "date": "Datum",
-            "pickupTime": "Hämttid",
-            "facilityHours": "Anläggningens öppettider"
-        },
-        "slotDuration": "Slotlängd: {duration} minuter",
-        "errors": {
-            "selectLocation": "Välj en hämtplats"
-        },
-        "validationErrors": {
-            "title": "Valideringsfel",
-            "capacityReached": "Platsens kapacitet överskriden för valt datum",
-            "slotCapacityReached": "Tidssloten är fullbokad",
-            "doubleBooking": "Hushållet har redan en matkasse schemalagd för detta datum",
-            "outsideOperatingHours": "Vald tid är utanför öppettider",
-            "pastTimeSlot": "Kan inte schemalägga upphämtning i det förflutna"
-        }
-    },
-    "review": {
-        "title": "Sammanfattning",
-        "editDescription": "Granska all information innan du uppdaterar hushållet.",
-        "createDescription": "Granska all information innan du sparar det nya hushållet."
-    },
-    "schedule": {
-        "title": "Schemaläggning av matutdelning",
-        "today": "Idag",
-        "todayTab": "Idag",
-        "weeklyTab": "Vecka",
-        "hub": {
-            "title": "Schema",
-            "subtitle": "Välj en utlämningsplats för att visa scheman",
-            "noLocations": "Inga utlämningsställen hittades",
-            "noHandoutsToday": "Inga utlämningar idag",
-            "parcelsToday": "{count} matkassar idag",
-            "completed": "slutförda",
-            "todayHandouts": "Dagens utlämningar",
-            "weeklySchedule": "Veckoschema",
-            "setAsFavorite": "Sätt som favorit",
-            "favorite": "Favorit",
-            "favoriteSet": "{location} är nu din favorit",
-            "favoriteChanged": "Favorit ändrad till {location}",
-            "favoriteRemoved": "{location} borttagen från favoriter",
-            "confirmSetFavorite": "Sätt {location} som din favorit?",
-            "confirmChangeFavorite": "Ändra din favorit från {oldLocation} till {newLocation}?",
-            "confirmRemoveFavorite": "Ta bort {location} som din favorit?",
-            "favoriteExplanation": "Att sätta en favorit tar dig automatiskt dit när du bläddrar i scheman, vilket gör det snabbare att komma åt platsen du använder oftast.",
-            "confirmRemoveFavoriteLabel": "Ta bort favorit",
-            "confirmChangeFavoriteLabel": "Byt favorit",
-            "currentFavoriteLabel": "nuvarande favorit",
-            "notificationSuccessTitle": "Klart",
-            "notificationErrorTitle": "Fel",
-            "favoriteUpdateFailed": "Det gick inte att uppdatera favoritplatsen",
-            "cancelButton": "Avbryt",
-            "tooltipSetFavorite": "Sätt {location} som favorit",
-            "tooltipRemoveFavorite": "Ta bort {location} som favorit",
-            "noUpcomingSchedule": "Inga kommande öppettider"
-        },
-        "noUpcomingSchedule": {
-            "title": "Inga kommande öppettider",
-            "description": "Denna plats har inga öppettider schemalagda för framtida datum.",
-            "whatThisMeans": "Vad detta innebär:",
-            "consequence1": "Nya matkassar kan inte bokas på denna plats",
-            "consequence2": "Hushåll kan inte tilldelas upphämtningstider här",
-            "callToAction": "Om denna plats ska ta emot matkassar, vänligen kontakta den ansvarige för hantering av utlämningsplatsernas scheman.",
-            "understand": "Jag förstår"
-        },
-        "location": {
-            "header": {
-                "locations": "Utlämningsställen",
-                "completedToday": "{completed}/{total} slutförda idag"
-            },
-            "landing": {
-                "title": "Schema",
-                "selectView": "Välj vy",
-                "todayHandouts": "Dagens utlämningar",
-                "todayDescription": "Visa dagens schemalagda matkassar",
-                "weeklySchedule": "Veckoschema",
-                "weeklyDescription": "Visa och hantera veckoschema",
-                "goToToday": "Gå till idag",
-                "weeklyView": "Veckovy",
-                "locationError": "Platsfel",
-                "locationNotFound": "Plats hittades inte"
-            }
-        },
-        "todayHandouts": {
-            "title": "Dagens utlämningar",
-            "pageTitle": "Dagens utlämningar",
-            "date": "{weekday}, {date}",
-            "selectLocation": "Välj en plats för att visa matkassar",
-            "clearSelection": "Rensa val",
-            "noLocation": "Välj en plats för att visa dagens matkassar",
-            "noParcels": "Inga matkassar schemalagda idag på denna plats",
-            "completed": "slutförda",
-            "scheduled": "Schemalagd",
-            "completedStatus": "Slutförd",
-            "parcels": "matkassar",
-            "noTimeSpecified": "Ingen tid angiven",
-            "parcel": {
-                "upcoming": "Schemalagd",
-                "pickedUp": "Uthämtad",
-                "noShow": "Utebliven"
-            },
-            "homeLocation": "Hushållets ordinarie utlämningsplats",
-            "visitingTooltip": "Besökare – hämtar normalt ut på annan plats",
-            "createdByTooltip": "Hushåll skapat av {username}",
-            "summary": {
-                "restrictionsTitle": "Matbegränsningar",
-                "title": "Sammanfattning",
-                "noDietaryRestrictions": "Inga matbegränsningar",
-                "householdsAndMembers": "{households} hushåll · {members} {members, plural, =1 {person} other {personer}}",
-                "pets": "Husdjur",
-                "additionalRequests": "Extra önskemål",
-                "expand": "Visa sammanfattning",
-                "collapse": "Dölj sammanfattning"
-            },
-            "search": {
-                "placeholder": "Sök på namn eller telefonnummer",
-                "noResults": "Ingen matchning för \"{query}\"",
-                "clear": "Rensa sökning"
-            }
-        },
-        "currentWeek": "Aktuell vecka",
-        "todayLabel": "Idag",
-        "weekLabel": "Vecka {week}, {year}",
-        "loading": "Laddar schema...",
-        "noFoodSupport": "Ingen matutdelning schemalagd den här veckan",
-        "refresh": "Uppdatera",
-        "selectWeek": "Välj vecka",
-        "pastDateError": "Detta datum har redan passerat",
-        "unavailableDay": "Denna plats är inte öppen denna dag",
-        "unavailableSlot": "Denna tid är utanför öppettiderna",
-        "timeGap": "Tidshopp",
-        "scheduleChangeWarning": "Varning för schemaändring",
-        "parcelsWillBeAffected": "Matkassar kommer att påverkas",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
-        "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
-        "proceedAnyway": "Fortsätt ändå",
-        "outsideHours": {
-            "panelTitle": "Utanför öppettider ({count})"
-        },
-        "days": {
-            "monday": "Måndag",
-            "tuesday": "Tisdag",
-            "wednesday": "Onsdag",
-            "thursday": "Torsdag",
-            "friday": "Fredag",
-            "saturday": "Lördag",
-            "sunday": "Söndag"
-        },
-        "pickupTimeLabel": "Tid",
-        "statusLabel": "Status",
-        "pickedUpStatus": "Utlämnad",
-        "notPickedUpStatus": "Ej utlämnad",
-        "primaryLocationLabel": "Hemmaplats",
-        "createdByLabel": "Skapad av",
-        "reschedule": {
-            "title": "Schemalägg matstöd för {name}",
-            "modalTitle": "Omboka matstöd",
-            "changed": "Tidpunkt har ändrats från",
-            "to": "till",
-            "from": "Från:",
-            "to2": "Till:",
-            "confirmTitle": "Bekräfta ombokning",
-            "confirmQuestion": "Vill du boka om matstöd för {name}?",
-            "confirm": "Bekräfta ändring",
-            "cancel": "Avbryt",
-            "success": "Schemaläggning uppdaterad",
-            "successMessage": "{name} har schemalagts på ny tid.",
-            "error": "Fel vid schemaläggning",
-            "pastError": "Det går inte att boka matstöd i det förflutna.",
-            "pastSourceError": "Det går inte att boka om matstöd från en tidpunkt i det förflutna.",
-            "capacityError": "Denna plats har nått sin maximala kapacitet för det valda datumet.",
-            "slotCapacityError": "Denna tidsslot är fullbokad. Välj en annan tid.",
-            "doubleBookingError": "Detta hushåll har redan en matkasse schemalagd för det valda datumet.",
-            "operatingHoursError": "Den valda tiden är utanför platsens öppettider.",
-            "genericError": "Ett oväntat fel inträffade.",
-            "outsideWeek": "Schemalägg utanför vecka",
-            "selectDateError": "Du måste välja ett datum",
-            "timeError": "Tidigast tid måste vara före senast tid",
-            "earliestTime": "Tidigast hämttid",
-            "latestTime": "Senast hämttid",
-            "currentPickup": "Nuvarande upphämtningsdetaljer",
-            "newPickup": "Nya upphämtningsdetaljer",
-            "date": "Datum",
-            "time": "Tid",
-            "newDate": "Nytt datum",
-            "newTime": "Ny tid",
-            "selectDate": "Välj datum",
-            "selectTime": "Välj tid",
-            "dateUnavailable": "Detta datum är inte tillgängligt för upphämtning",
-            "noTimesAvailable": "Inga tillgängliga tider på detta datum",
-            "requiredFields": "Fyll i alla obligatoriska fält"
-        },
-        "sms": {
-            "title": "SMS-notiser",
-            "viewHistory": "Visa SMS-historik",
-            "status": {
-                "pending": "Väntar",
-                "sent": "Skickat",
-                "delivered": "Levererat",
-                "failed": "Misslyckades",
-                "cancelled": "Avbrutet"
-            },
-            "intent": {
-                "pickup_reminder": "Hämtningspåminnelse"
-            },
-            "actions": {
-                "sendSms": "Skicka SMS",
-                "resend": "Skicka igen"
-            },
-            "notifications": {
-                "sendSuccess": "SMS skickat",
-                "initialSendSuccess": "Första notifiering skickades framgångsrikt",
-                "reminderSendSuccess": "Påminnelse skickades framgångsrikt",
-                "resendSuccess": "SMS skickat igen",
-                "smsQueued": "SMS har lagts i kö för leverans",
-                "sendError": "Misslyckades att skicka SMS",
-                "resendError": "Misslyckades att skicka SMS igen",
-                "genericError": "Ett oväntat fel inträffade"
-            },
-            "historyModal": {
-                "title": "SMS-historik",
-                "noHistory": "Inga SMS-meddelanden skickade för denna matkasse",
-                "sentAt": "Skickat",
-                "deliveredAt": "Levererat",
-                "error": "Fel",
-                "retries": "Försök igen"
-            }
-        }
-    },
-    "householdDetail": {
-        "basics": "Grunduppgifter",
-        "createdBy": "Skapad av {username}",
-        "created": "Skapad",
-        "enrollmentSmsDelivered": "Välkomst-SMS levererat",
-        "members": "Medlemmar ({count})",
-        "noMembers": "Inga medlemmar tillagda",
-        "pets": "Husdjur ({count})",
-        "noPets": "Inga husdjur tillagda",
-        "dietaryRestrictions": "Matrestriktioner ({count})",
-        "noDietaryRestrictions": "Inga matrestriktioner tillagda",
-        "additionalNeeds": "Ytterligare behov ({count})",
-        "noAdditionalNeeds": "Inga ytterligare behov tillagda",
-        "foodParcels": "Matkassar ({count})",
-        "noFoodParcels": "Inga matkassar schemalagda",
-        "cancelledParcels": "Avbokade matkassar",
-        "noCancelledParcels": "Inga avbokade matkassar",
-        "ageUnit": "år",
-        "editHousehold": "Redigera hushåll",
-        "manageParcels": "Hantera matkassar",
-        "removeHousehold": "Ta bort hushåll",
-        "deletedOn": "Avbokad den",
-        "by": "av",
-        "status": {
-            "pickedUp": "Utlämnad",
-            "notPickedUp": "Ej utlämnad",
-            "noShow": "Uteblev",
-            "upcoming": "Kommande",
-            "cancelled": "Avbokad"
-        },
-        "comments": {
-            "title": "Kommentarer ({count})"
-        },
-        "warnings": {
-            "parcelCountHigh": "Detta hushåll har mottagit {count} matkassar (gräns: {threshold}). Överväg att granska deras situation och erbjuda ytterligare stöd."
-        },
-        "removal": {
-            "dialogTitle": "Ta bort hushåll",
-            "lastName": "Efternamn",
-            "confirmationPrompt": "Skriv in efternamnet för att bekräfta:",
-            "confirmationHelp": "(Kopiera och klistra in är tillåtet)",
-            "warningCannotUndo": "Denna åtgärd kan inte ångras.",
-            "cancelButton": "Avbryt",
-            "removeButton": "Ta bort hushåll",
-            "removing": "Tar bort...",
-            "success": "Hushållet togs bort",
-            "anonymizedTitle": "Hushåll borttaget",
-            "anonymizedMessage": "Detta hushåll togs bort den {date}.",
-            "anonymizedSubtext": "Personuppgifter har raderats.",
-            "backToList": "Tillbaka till hushåll",
-            "errors": {
-                "notFound": "Hushållet hittades inte",
-                "alreadyRemoved": "Hushållet har redan tagits bort",
-                "lastNameMismatch": "Efternamnet matchar inte",
-                "hasUpcomingParcels": "Kan inte ta bort hushåll",
-                "upcomingParcelsMessage": "Detta hushåll har {count, plural, =1 {1 kommande matkasse} other {# kommande matkassar}}.",
-                "upcomingParcelsAction": "Ta bort dessa matkassar först, sedan kan hushållet tas bort.",
-                "removalFailed": "Misslyckades att ta bort hushåll"
-            }
-        }
-    },
-    "comments": {
-        "title": "Kommentarer ({count})",
-        "noComments": "Inga kommentarer tillagda",
-        "placeholder": "Lägg till en kommentar om hushållet... (HTML stöds, t.ex. länkar)",
-        "add": "Lägg till",
-        "errors": {
-            "deleteFailed": "Misslyckades att ta bort kommentar",
-            "deleteError": "Fel vid borttagning av kommentar"
-        },
-        "unknownName": "Namn Okänt",
-        "deleteTooltip": "Ta bort kommentar",
-        "deleteTitle": "Ta bort kommentar",
-        "deleteConfirmation": "Är du säker på att du vill ta bort denna kommentar?",
-        "deleteButton": "Ta bort",
-        "cancelButton": "Avbryt"
-    },
-    "wizard": {
-        "stepBasics": "Grunduppgifter",
-        "stepBasicsDescription": "Kontaktinformation",
-        "stepMembers": "Medlemmar",
-        "stepMembersDescription": "Hushållsmedlemmar",
-        "stepDietaryRestrictions": "Matrestriktioner",
-        "stepDietaryRestrictionsDescription": "Specialkost",
-        "stepPets": "Husdjur",
-        "stepPetsDescription": "Information om husdjur",
-        "stepAdditionalNeeds": "Ytterligare behov",
-        "stepAdditionalNeedsDescription": "Särskilda behov",
-        "stepFoodParcels": "Matkassar",
-        "stepFoodParcelsDescription": "Schemaläggning",
-        "stepReview": "Sammanfattning",
-        "stepReviewDescription": "Granska och skicka",
-        "creating": "Skapar nytt hushåll...",
-        "updating": "Uppdaterar hushåll...",
-        "validationError": "Valideringsfel",
-        "nextStep": "Nästa steg",
-        "back": "Tillbaka",
-        "backToList": "Tillbaka till hushållslistan",
-        "saveHousehold": "Spara hushåll",
-        "createHousehold": "Skapa hushåll",
-        "editHousehold": "Redigera hushåll",
-        "updateHousehold": "Uppdatera hushåll",
-        "backToHouseholds": "Tillbaka till hushåll",
-        "steps": {
-            "basics": {
-                "label": "Grunduppgifter",
-                "description": "Kontaktinformation"
-            },
-            "members": {
-                "label": "Medlemmar",
-                "description": "Hushållsmedlemmar"
-            },
-            "preferences": {
-                "label": "Preferenser",
-                "description": "Kost, husdjur & behov"
-            },
-            "verification": {
-                "label": "Verifiering",
-                "description": "Obligatoriska kontroller"
-            },
-            "parcels": {
-                "label": "Matkassar",
-                "description": "Schemaläggning"
-            },
-            "review": {
-                "label": "Sammanfattning",
-                "description": "Granska och skicka"
-            }
-        },
-        "navigation": {
-            "next": "Nästa steg",
-            "back": "Tillbaka"
-        },
-        "validation": {
-            "title": "Valideringsfel",
-            "firstNameLength": "Förnamn måste vara minst 2 tecken",
-            "lastNameLength": "Efternamn måste vara minst 2 tecken",
-            "phoneNumberFormat": "Ange ett giltigt mobilnummer (9-10 siffror)",
-            "phoneDuplicate": "Detta telefonnummer är redan registrerat till ett annat hushåll",
-            "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} - {phone} (ID: {id})",
-            "pickupLocation": "Välj en hämtplats",
-            "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta",
-            "smsConsentRequired": "SMS-samtycke krävs för att fortsätta"
-        },
-        "similarNameDialog": {
-            "title": "Liknande hushåll hittades",
-            "message": "Ett hushåll med liknande namn finns redan. Är du säker på att detta är ett annat hushåll?",
-            "existingHouseholds": "Befintliga liknande hushåll:",
-            "confirm": "Ja, skapa nytt hushåll",
-            "cancel": "Avbryt"
-        },
-        "verification": {
-            "title": "Personalens verifieringschecklista",
-            "description": "Bekräfta följande innan du skapar detta hushåll:",
-            "allComplete": "Alla verifieringar genomförda",
-            "requiredMark": "Obligatorisk",
-            "optionalMark": "Valfri",
-            "progress": "{completed} av {total} verifierade",
-            "noQuestions": "Ingen verifieringschecklista konfigurerad",
-            "errorLoading": "Kunde inte ladda verifieringschecklista",
-            "errorUnknown": "Ett okänt fel uppstod"
-        },
-        "success": {
-            "title": "Klart!",
-            "created": "Nytt hushåll har skapats!",
-            "updated": "Hushållet har uppdaterats!"
-        },
-        "error": {
-            "title": "Fel",
-            "general": "Ett fel uppstod",
-            "unknown": "Okänt fel",
-            "create": "Ett fel uppstod vid skapande av hushåll",
-            "update": "Ett fel uppstod vid uppdatering av hushåll",
-            "optionNotAvailable": "Ett eller flera valda alternativ är inte längre tillgängliga. Granska valen och försök igen.",
-            "verificationQuestionsLoadFailed": "Kunde inte ladda verifieringsfrågor. Kan inte fortsätta utan att slutföra obligatoriska kontroller.",
-            "retry": "Försök igen"
-        },
-        "submitting": {
-            "create": "Skapar nytt hushåll...",
-            "update": "Uppdaterar hushåll..."
-        },
-        "addParcels": {
-            "title": "Lägg till matkassar?",
-            "message": "Detta hushåll har inga kommande matkassar. Vill du lägga till några nu?",
-            "addNow": "Lägg till nu",
-            "later": "Lägg till senare"
-        },
-        "privacyConfirm": {
-            "title": "Bekräftelse av integritetspolicy",
-            "message": "Innan du slutför inskrivningen, bekräfta att du har informerat hushållet om hur deras personuppgifter kommer att behandlas.",
-            "checkbox": "Jag har informerat hushållet om integritetspolicyn",
-            "viewPolicy": "Visa integritetspolicy",
-            "cancel": "Avbryt",
-            "confirm": "Slutför inskrivning"
-        }
-    },
-    "buttons": {
-        "add": "Lägg till",
-        "cancel": "Avbryt",
-        "remove": "Ta bort",
-        "confirm": "Bekräfta"
-    },
+  "common": {
+    "brandName": "Matcentralen",
+    "welcome": "Välkommen till Matcentralen",
+    "description": "Administrationssystem för distribution av matkassar",
+    "authStatus": "Autentiseringsstatus",
+    "loggedInAs": "Du är inloggad som",
+    "loginToAccess": "Logga in för att få tillgång till applikationens funktioner",
+    "close": "Stäng",
     "languages": {
-        "en": "Engelska",
-        "sv": "Svenska",
-        "english": "Engelska",
-        "swedish": "Svenska",
-        "britishFlag": "Brittisk flagga",
-        "swedishFlag": "Svensk flagga",
-        "switchTo": "Byt till {language}"
+      "sv": "Svenska"
+    }
+  },
+  "auth": {
+    "login": "Logga in",
+    "logout": "Logga ut",
+    "signInTitle": "Logga in på Matcentralen",
+    "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matcentralens administrationssystem.",
+    "signInWithGitHub": "Logga in med GitHub",
+    "errorTitle": "Autentiseringsfel",
+    "tryAgain": "Försök igen",
+    "account": "Konto",
+    "profile": "Profil",
+    "user": "Användare",
+    "protection": {
+      "signInRequired": "Logga in för att komma åt den här sidan."
     },
-    "weekdays": {
-        "sunday": "Söndag",
-        "monday": "Måndag",
-        "tuesday": "Tisdag",
-        "wednesday": "Onsdag",
-        "thursday": "Torsdag",
-        "friday": "Fredag",
-        "saturday": "Lördag"
+    "errors": {
+      "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen och följa dess säkerhetspolicy (säker tvåfaktorsautentisering krävs) för att få åtkomst till appen.",
+      "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
+      "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
+      "accessDenied": "Åtkomst nekad. Du har inte behörighet att logga in.",
+      "verification": "Verifiering misslyckades. Försök logga in igen.",
+      "default": "Ett fel uppstod vid inloggningen. Försök igen."
     },
-    "months": {
-        "january": "januari",
-        "february": "februari",
-        "march": "mars",
-        "april": "april",
-        "may": "maj",
-        "june": "juni",
-        "july": "juli",
-        "august": "augusti",
-        "september": "september",
-        "october": "oktober",
-        "november": "november",
-        "december": "december"
+    "accessDenied": {
+      "title": "Åtkomst nekad",
+      "subtitle": "Vi kunde inte logga in dig. Detta beror vanligtvis på att ditt GitHub-konto behöver ytterligare säkerhetsinställningar.",
+      "explanations": {
+        "notMember": "Ditt GitHub-konto är inte medlem i organisationen. Be din administratör att skicka en inbjudan till dig.",
+        "membershipInactive": "Du har en väntande inbjudan till organisationen. Kolla din e-post eller GitHub-notiser och acceptera inbjudan.",
+        "insecure2fa": "Ditt GitHub-konto använder SMS för tvåfaktorsautentisering. Organisationen kräver en säkrare metod. Följ stegen nedan för att åtgärda detta.",
+        "unauthenticated": "Din inloggning är inte längre giltig. Logga ut och logga in igen.",
+        "temporaryError": "Vi kunde inte verifiera ditt konto på grund av ett tillfälligt problem hos GitHub. Försök igen om några minuter.",
+        "membershipHelp": "Om du anser att du borde ha åtkomst, kontakta din organisationsadministratör för att få en inbjudan."
+      },
+      "reasons": {
+        "title": "Varför ser jag detta?",
+        "preamble": "En eller flera av följande kan gälla:",
+        "notMember": "Du är inte medlem i den auktoriserade GitHub-organisationen",
+        "insecure2fa": "Ditt GitHub-konto behöver en säkrare inloggningsmetod (inte bara SMS)"
+      },
+      "acceptedMethods": {
+        "title": "Godkända inloggningsmetoder",
+        "githubMobile": "GitHub Mobile-appen — enklaste alternativet, godkänn bara en notis",
+        "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
+        "authenticatorApp": "Autentiseringsapp (Google Authenticator, Authy, Microsoft Authenticator)"
+      },
+      "notAccepted": {
+        "title": "Ej godkänt (lägg till en metod ovan)",
+        "sms": "Endast SMS-meddelanden är inte tillräckligt säkert"
+      },
+      "howToFix": {
+        "title": "Så här åtgärdar du detta",
+        "step1": "Gå till dina GitHub-säkerhetsinställningar",
+        "step1Aria": "Gå till dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
+        "step2": "Hitta \"Password and authentication\" i menyn",
+        "step3": "Lägg till en av de godkända metoderna ovan",
+        "step4": "Kom tillbaka hit och logga in igen"
+      },
+      "buttons": {
+        "githubSettings": "Öppna GitHub-säkerhetsinställningar",
+        "githubSettingsAria": "Öppna GitHub-säkerhetsinställningar (öppnas i ny flik)",
+        "signOutAndRetry": "Logga ut och försök igen"
+      },
+      "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
+    }
+  },
+  "agreement": {
+    "title": "Användaravtal för behandling av personuppgifter",
+    "subtitle": "Läs igenom och acceptera avtalet för att fortsätta använda systemet",
+    "version": "Version {version}",
+    "effectiveFrom": "Gäller från {date}",
+    "acceptedAt": "Du accepterade detta avtal {date}",
+    "checkbox": "Jag har läst och förstår mitt ansvar för att hantera personuppgifter enligt detta avtal",
+    "accept": "Acceptera och fortsätt",
+    "loading": "Laddar avtal...",
+    "errors": {
+      "title": "Fel",
+      "loadFailed": "Kunde inte ladda användaravtalet",
+      "acceptFailed": "Kunde inte acceptera avtalet. Försök igen.",
+      "newerVersion": "En nyare version av avtalet har publicerats. Vänligen granska och acceptera den."
     },
-    "handoutLocations": {
-        "pageTitle": "Utlämningsställen",
-        "pageDescription": "Hantera de platser där matkassar distribueras, deras öppettider och inställningar.",
-        "locationsList": "Platser",
-        "addLocation": "Lägg till plats",
-        "addFirstLocation": "Lägg till din första plats",
-        "editLocation": "Redigera plats",
-        "noLocations": "Inga utlämningsställen har lagts till än",
-        "loading": "Laddar platser...",
-        "confirmDelete": "Är du säker på att du vill ta bort denna plats? Denna åtgärd kan inte ångras.",
-        "locationCreated": "Plats skapad",
-        "locationCreatedMessage": "Utlämningsstället har skapats.",
-        "locationUpdated": "Plats uppdaterad",
-        "locationUpdatedMessage": "Utlämningsstället har uppdaterats.",
-        "locationDeleted": "Plats raderad",
-        "locationDeletedMessage": "Utlämningsstället har raderats.",
-        "errorLoading": "Fel vid laddning av platser",
-        "errorLoadingMessage": "Det uppstod ett fel vid laddning av utlämningsställen. Försök igen.",
-        "errorSaving": "Fel vid sparande av plats",
-        "errorSavingMessage": "Det uppstod ett fel vid sparande av utlämningsstället. Försök igen.",
-        "errorDeleting": "Fel vid radering av plats",
-        "errorDeletingMessage": "Det uppstod ett fel vid radering av utlämningsstället. Försök igen.",
-        "generalInfo": "Allmän information",
-        "weeklyHours": "Veckoöppettider",
-        "name": "Platsnamn",
-        "namePlaceholder": "Ange platsnamn",
-        "streetAddress": "Gatuadress",
-        "streetAddressPlaceholder": "Ange gatuadress",
-        "postalCode": "Postnummer",
-        "maxParcelsPerDay": "Maximalt antal matkassar per dag",
-        "maxParcelsPlaceholder": "t.ex. 20",
-        "maxParcelsPerSlot": "Maximalt antal matkassar per tidsslot",
-        "maxParcelsPerSlotDescription": "Maximalt antal matkassar som kan bokas i samma tidsslot (lämna tomt för ingen gräns)",
-        "maxParcelsPerSlotPositive": "Maximalt antal matkassar per tidsslot måste vara positivt",
-        "slotDuration": "Slotlängd (minuter)",
-        "slotDurationDescription": "Slotlängd för varje matkasseuthämtning",
-        "slotDurationPositive": "Slotlängd måste vara positiv",
-        "slotDurationMaxExceeded": "Slotlängd får inte överstiga 4 timmar (240 minuter)",
-        "slotDurationIncrement": "Slotlängd måste vara i 15-minutersintervall",
-        "contactInfo": "Kontaktinformation",
-        "contactName": "Kontaktperson",
-        "contactNamePlaceholder": "Ange kontaktpersonens namn",
-        "contactEmail": "E-post",
-        "contactEmailPlaceholder": "Ange e-postadress",
-        "contactPhone": "Telefonnummer",
-        "contactPhonePlaceholder": "Ange telefonnummer",
-        "nameRequired": "Platsnamn krävs",
-        "streetAddressRequired": "Gatuadress krävs",
-        "postalCodeRequired": "Postnummer krävs",
-        "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
-        "emailInvalid": "Ange en giltig e-postadress",
-        "weeklyHoursDescription": "Ställ in regelbundna veckoöppettider för denna plats. Dessa tider kommer att användas som standard vid schemaläggning av matkassar.",
-        "noWeeklyHours": "Inga veckoöppettider har ställts in",
-        "addWeeklyHours": "Lägg till veckoöppettider",
-        "addHours": "Lägg till tider",
-        "weekday": "Veckodag",
-        "selectWeekday": "Välj veckodag",
-        "openingTime": "Öppningstid",
-        "closingTime": "Stängningstid",
-        "timeErrors": {
-            "openingRequired": "Öppningstid krävs",
-            "closingRequired": "Stängningstid krävs",
-            "openingBeforeClosing": "Öppningstid måste vara före stängningstid"
-        },
-        "actions": "Åtgärder",
-        "monday": "Måndag",
-        "tuesday": "Tisdag",
-        "wednesday": "Onsdag",
-        "thursday": "Torsdag",
-        "friday": "Fredag",
-        "saturday": "Lördag",
-        "sunday": "Söndag",
-        "selectDates": "Välj datum",
-        "date": "Datum",
-        "status": "Status",
-        "hours": "Tider",
-        "open": "Öppen",
-        "closed": "Stängd",
-        "selectedDate": "Valt datum",
-        "locationClosed": "Platsen stängd denna dag",
-        "createLocation": "Skapa plats",
-        "updateLocation": "Uppdatera plats",
-        "cancel": "Avbryt",
-        "schedules": "Scheman",
-        "addSchedule": "Lägg till schema",
-        "noSchedulesYet": "Inga scheman har lagts till än",
-        "addNewSchedule": "Lägg till nytt schema",
-        "editSchedule": "Redigera schema",
-        "scheduleName": {
-            "required": "Schemanamn krävs",
-            "label": "Schemanamn"
-        },
-        "startDate": {
-            "required": "Startdatum krävs"
-        },
-        "endDate": {
-            "required": "Slutdatum krävs",
-            "afterStartDate": "Slutdatum måste vara efter startdatum"
-        },
-        "days": {
-            "atLeastOneRequired": "Minst en dag måste vara öppen"
-        },
-        "scheduleNamePlaceholder": "t.ex. Sommarschema, Helgschema",
-        "selectDate": "Välj datum",
-        "startWeek": "Startvecka",
-        "endWeek": "Slutvecka",
-        "week": "Vecka",
-        "selectWeek": "Välj vecka",
-        "previousYear": "Föregående år",
-        "nextYear": "Nästa år",
-        "previousMonth": "Föregående månad",
-        "nextMonth": "Nästa månad",
-        "scheduleOverlapWarning": "Överlappande scheman upptäckta",
-        "scheduleOverlapMessage": "Detta schema överlappar med \"{scheduleName}\" ({startDate} till {endDate}). Välj ett annat datumintervall.",
-        "weekdaySchedule": "Veckodagsschema",
-        "configureEachWeekday": "Välj veckodagar när denna plats är öppen och ställ in öppettider för varje dag.",
-        "weekdays": {
-            "monday": "Måndag",
-            "tuesday": "Tisdag",
-            "wednesday": "Onsdag",
-            "thursday": "Torsdag",
-            "friday": "Fredag",
-            "saturday": "Lördag",
-            "sunday": "Söndag"
-        },
-        "saveChanges": "Spara ändringar",
-        "createSchedule": "Skapa schema",
-        "confirmDeletion": "Bekräfta radering",
-        "confirmDeleteScheduleMessage": "Är du säker på att du vill ta bort schemat ",
-        "delete": "Ta bort",
-        "active": "Aktiv",
-        "upcoming": "Kommande",
-        "past": "Tidigare",
-        "edit": "Redigera",
-        "scheduleCreateError": "Fel vid skapande av schema",
-        "scheduleUpdateError": "Fel vid uppdatering av schema",
-        "scheduleDeleteError": "Fel vid radering av schema",
-        "activeDays": "Aktiva dagar",
-        "noDaysOpen": "Inga dagar öppna",
-        "allDaysOpen": "Alla veckodagar",
-        "saveLocationFirst": "Spara platsen först innan du lägger till scheman",
-        "showPastSchedules": "Visa tidigare scheman",
-        "hidePastSchedules": "Dölj tidigare scheman",
-        "pastScheduleHidden": "tidigare schema är dolt",
-        "pastSchedulesHidden": "tidigare scheman är dolda",
-        "noPastSchedules": "Inga scheman att visa. Försök att visa tidigare scheman.",
-        "deleteLocationAriaLabel": "Ta bort plats",
-        "error": "Fel",
-        "errorFetchingLocation": "Det uppstod ett fel vid hämtning av utlämningsstället. Försök igen.",
-        "scheduleChangeWarning": "Varning för schemaändring",
-        "parcelsWillBeAffected": "Matkassar kommer att påverkas",
-        "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
-        "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
-        "proceedAnyway": "Fortsätt ändå",
-        "checking": "Kontrollerar...",
-        "checkingAffectedParcels": "Kontrollerar hur många matkassar som skulle påverkas av denna radering...",
-        "verification": {
-            "title": "Verifieringsfrågor",
-            "description": "Hantera verifieringsfrågor som administratörer måste bekräfta innan de skapar hushåll för denna plats",
-            "noQuestions": "Inga verifieringsfrågor konfigurerade än",
-            "addQuestion": "Lägg till fråga",
-            "addFirstQuestion": "Lägg till din första verifieringsfråga",
-            "editQuestion": "Redigera verifieringsfråga",
-            "questionTextSv": "Frågetext (svenska)",
-            "questionTextEn": "Frågetext (engelska)",
-            "questionTextSvPlaceholder": "t.ex. Jag har verifierat att hushållet bor i rätt postnummerområde",
-            "questionTextEnPlaceholder": "t.ex. I have verified that the household lives in the correct postal code area",
-            "helpTextSv": "Hjälptext (svenska, valfri)",
-            "helpTextEn": "Hjälptext (engelska, valfri)",
-            "helpTextSvPlaceholder": "Ytterligare vägledning eller förklaring på svenska",
-            "helpTextEnPlaceholder": "Ytterligare vägledning eller förklaring på engelska",
-            "isRequired": "Obligatorisk verifiering",
-            "isRequiredDescription": "Administratören måste markera denna ruta innan de skapar hushåll",
-            "displayOrder": "Visningsordning",
-            "displayOrderDescription": "Lägre nummer visas först (0, 1, 2...)",
-            "questionTextSvRequired": "Svensk frågetext krävs",
-            "questionTextEnRequired": "Engelsk frågetext krävs",
-            "displayOrderRequired": "Visningsordning krävs",
-            "saveQuestion": "Spara fråga",
-            "cancel": "Avbryt",
-            "questionCreated": "Verifieringsfråga skapad",
-            "questionUpdated": "Verifieringsfråga uppdaterad",
-            "questionDeleted": "Verifieringsfråga raderad",
-            "errorCreating": "Fel vid skapande av verifieringsfråga",
-            "errorUpdating": "Fel vid uppdatering av verifieringsfråga",
-            "errorDeleting": "Fel vid radering av verifieringsfråga",
-            "errorLoading": "Fel vid laddning av verifieringsfrågor",
-            "confirmDelete": "Är du säker på att du vill ta bort denna verifieringsfråga?",
-            "delete": "Ta bort",
-            "edit": "Redigera",
-            "active": "Aktiv",
-            "inactive": "Inaktiv",
-            "toggleActive": "Växla aktiv/inaktiv",
-            "required": "Obligatorisk",
-            "optional": "Valfri",
-            "preview": "Förhandsgranskning",
-            "previewDescription": "Så här ser administratörer denna fråga i guiden för att skapa hushåll:",
-            "reorderInstructions": "Dra för att ändra ordning på frågor"
-        }
+    "notifications": {
+      "success": "Klart",
+      "error": "Fel",
+      "accepted": "Du har accepterat användaravtalet"
+    }
+  },
+  "navigation": {
+    "brandName": "Matcentralen",
+    "households": "Hushåll",
+    "schedule": "Schema",
+    "todayHandouts": "Dagens utlämningar",
+    "locations": "Utlämningsställen",
+    "smsDashboard": "SMS-hantering",
+    "newHousehold": "Nytt hushåll",
+    "statistics": "Statistik",
+    "scanQrCode": "Skanna QR-kod",
+    "navigation": "Navigation",
+    "issues": "Behöver uppföljning"
+  },
+  "households": {
+    "title": "Hushåll",
+    "description": "Hantera hushåll och deras information",
+    "newHousehold": "Nytt hushåll har registrerats!",
+    "updatedHousehold": "Hushållet har uppdaterats!",
+    "search": {
+      "placeholder": "Sök hushåll..."
+    },
+    "modal": {
+      "loading": "Laddar...",
+      "title": "Hushållsdetaljer: {firstName} {lastName}"
+    },
+    "actions": {
+      "view": "Visa",
+      "edit": "Redigera",
+      "manageParcels": "Hantera matkassar"
+    },
+    "filters": {
+      "location": "Filtrera på plats",
+      "createdBy": "Filtrera på skapare"
+    },
+    "table": {
+      "firstName": "Förnamn",
+      "lastName": "Efternamn",
+      "phoneNumber": "Telefonnummer",
+      "language": "Språk",
+      "createdBy": "Skapad av",
+      "primaryLocation": "Huvudutlämningsplats",
+      "firstParcel": "Första matkasse",
+      "lastParcel": "Sista matkasse",
+      "nextParcel": "Nästa matkasse",
+      "columns": "Kolumner",
+      "visibleColumns": "Synliga kolumner",
+      "actions": {
+        "viewDetails": "Visa detaljer",
+        "edit": "Redigera hushåll",
+        "search": "Sök hushåll...",
+        "newHousehold": "Nytt hushåll"
+      }
+    },
+    "errors": {
+      "notFound": "Kunde inte hitta hushållet. Kontrollera att ID är korrekt.",
+      "createError": "Ett fel uppstod vid registrering av hushåll.",
+      "updateError": "Ett fel uppstod vid uppdatering av hushåll."
+    }
+  },
+  "parcelManagement": {
+    "breadcrumb": {
+      "households": "Hushåll",
+      "manageParcels": "Hantera matkassar för {householdName}"
+    },
+    "success": {
+      "title": "Klart",
+      "parcelsUpdated": "Matkassarna har uppdaterats!"
+    },
+    "error": {
+      "title": "Fel",
+      "general": "Ett fel uppstod",
+      "unknown": "Okänt fel",
+      "updateFailed": "Det gick inte att uppdatera matkassar. Försök igen.",
+      "unauthorized": "Du måste vara autentiserad för att hantera matkassar",
+      "forbidden": "Du har inte behörighet att utföra denna åtgärd",
+      "householdNotFound": "Det angivna hushållet finns inte",
+      "configurationError": "Serverfel. Kontakta support."
+    },
+    "validation": {
+      "pickupLocationRequired": "Välj en upphämtningsplats",
+      "title": "Kunde inte spara",
+      "description": "Matkassar kunde inte sparas på grund av valideringsfel",
+      "summaryTitle": "Matkassar kunde inte sparas",
+      "summaryDescription": "Följande problem måste åtgärdas:",
+      "jumpToError": "↑ Hoppa till formuläret för att åtgärda"
+    },
+    "submitting": {
+      "update": "Uppdaterar matkassar..."
+    },
+    "actions": {
+      "back": "Tillbaka till hushåll",
+      "saveParcels": "Spara matkassar"
+    },
+    "backToHouseholds": "Tillbaka till hushåll"
+  },
+  "householdForm": {
+    "basics": "Grunduppgifter",
+    "basicDescription": "Fyll i grundläggande kontaktuppgifter för hushållet. Dessa uppgifter används för att kontakta hushållet.",
+    "firstName": "Förnamn",
+    "enterFirstName": "Ange förnamn",
+    "lastName": "Efternamn",
+    "enterLastName": "Ange efternamn",
+    "phoneNumber": "Telefonnummer",
+    "phoneDescription": "Endast svenska telefonnummer",
+    "enterPhoneNumber": "Ange telefonnummer",
+    "smsConsent": "Hushållet samtycker till SMS-kontakt",
+    "smsConsentDescription": "Krävs för att skicka påminnelser och uppdateringar",
+    "language": "Språk",
+    "selectLanguage": "Välj språk",
+    "primaryLocation": "Huvudutlämningsplats",
+    "primaryLocationDescription": "Hushållets huvudsakliga utlämningsplats",
+    "selectPrimaryLocation": "Välj huvudutlämningsplats",
+    "locationUnknownWithId": "Okänd plats (ID: {id})",
+    "validation": {
+      "firstNameLength": "Förnamn måste vara minst 2 tecken",
+      "lastNameLength": "Efternamn måste vara minst 2 tecken",
+      "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
+      "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
+      "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll"
+    },
+    "duplicatePhone": {
+      "title": "Telefonnumret finns redan",
+      "message": "Detta telefonnummer tillhör redan hushåll: {name} (ID: {id}). Telefon: {phone}",
+      "fieldError": "Detta telefonnummer är redan registrerat"
+    },
+    "similarName": {
+      "title": "Liknande hushåll hittades",
+      "message": "Ett hushåll med liknande namn finns redan. Kontrollera att detta är ett nytt hushåll:",
+      "confirmTitle": "Bekräfta nytt hushåll",
+      "confirmMessage": "Liknande hushåll finns redan. Är du säker på att detta är ett annat hushåll?",
+      "confirmButton": "Ja, skapa nytt hushåll",
+      "cancelButton": "Avbryt"
+    }
+  },
+  "members": {
+    "title": "Medlemmar i hushållet",
+    "description": "Lägg till alla medlemmar i hushållet. Dessa uppgifter används för att beräkna matmängd och särskilda behov.",
+    "addPerson": "Lägg till person",
+    "age": "Ålder",
+    "ageUnit": "år",
+    "gender": {
+      "label": "Kön",
+      "male": "Man",
+      "female": "Kvinna",
+      "other": "Annat"
+    },
+    "validation": {
+      "ageRequired": "Ålder krävs",
+      "genderRequired": "Könsval krävs"
+    }
+  },
+  "dietaryRestrictions": {
+    "title": "Matrestriktioner",
+    "description": "Välj matrestriktioner som gäller för hushållet.",
+    "loading": "Laddar matrestriktioner...",
+    "noRestrictions": "Inga matrestriktioner tillagda",
+    "addNew": "Lägg till ny restriktion",
+    "newRestriction": "Ny matrestriktion",
+    "placeholderExample": "T.ex. Jordgubbar, Soja, etc.",
+    "add": "Lägg till",
+    "addConfirmTitle": "Lägg till matrestriktion",
+    "addConfirmQuestion": "Vill du lägga till följande matrestriktion i din ansökan?",
+    "removeConfirmTitle": "Ta bort matrestriktion",
+    "removeConfirmQuestion": "Vill du ta bort följande matrestriktion från din ansökan?",
+    "cancel": "Avbryt",
+    "remove": "Ta bort",
+    "disabledLabel": "Inaktiv",
+    "validation": {
+      "minLength": "Matrestriktion måste vara minst 2 tecken"
+    }
+  },
+  "pets": {
+    "title": "Husdjur",
+    "description": "Registrera husdjur som finns i hushållet. Detta hjälper oss att anpassa matsortimentet.",
+    "noPets": "Inga husdjur tillagda",
+    "loading": "Laddar husdjurstyper...",
+    "addNew": "Lägg till ny typ av husdjur",
+    "newPetType": "Ny typ av husdjur",
+    "placeholderExample": "T.ex. Marsvin, Ödla, etc.",
+    "add": "Lägg till",
+    "addConfirmTitle": "Lägg till husdjurstyp",
+    "addConfirmQuestion": "Vill du lägga till följande husdjurstyp i din ansökan?",
+    "removeConfirmTitle": "Ta bort husdjurstyp",
+    "removeConfirmQuestion": "Vill du ta bort följande husdjurstyp från din ansökan?",
+    "cancel": "Avbryt",
+    "remove": "Ta bort",
+    "disabledLabel": "Inaktiv",
+    "defaultPetType": "Husdjurstyp {index}",
+    "unknownPetType": "Okänd",
+    "validation": {
+      "minLength": "Husdjurstyp måste vara minst 2 tecken"
+    }
+  },
+  "additionalNeeds": {
+    "title": "Ytterligare behov",
+    "description": "Välj ytterligare behov som hushållet kan ha.",
+    "noNeeds": "Inga ytterligare behov tillagda",
+    "loading": "Laddar ytterligare behov...",
+    "addNew": "Lägg till nytt behov",
+    "newNeed": "Nytt behov",
+    "placeholderExample": "T.ex. Rakhyvlar, Schampo, etc.",
+    "add": "Lägg till",
+    "disabledLabel": "Inaktiv",
+    "validation": {
+      "minLength": "Behov måste vara minst 2 tecken"
+    }
+  },
+  "foodParcels": {
+    "title": "Schemalagda matkassar",
+    "description": "Schemalägg matkassar för hushållet med hämtplats och tider.",
+    "settings": "Inställningar för schemaläggning",
+    "pickupLocation": "Hämtplats",
+    "selectLocation": "Välj hämtplats",
+    "selectDates": "Välj datum för matkassar",
+    "loadingAvailability": "Laddar tillgänglighet...",
+    "selectLocationFirst": "Välj en hämtplats först för att se tillgänglighet",
+    "selectDatesHint": "Välj alla datum när hushållet ska få en matkasse",
+    "setBulkTimes": "Sätt alla tider",
+    "editingAllTimes": "Redigerar alla tider",
+    "bulkTimeHint": "Ställ in samma tid för alla matkassar, eller avbryt för att redigera individuellt.",
+    "bulk": {
+      "upcomingOnly": "gäller endast kommande matkassar",
+      "notAvailableTitle": "Massändring ej tillgänglig",
+      "notAvailableMsg": "Valda datum har olika öppettider. Redigera tider per datum.",
+      "notAvailableMsgWithSummary": "Valda datum har olika öppettider: {summary}. Redigera tider per datum."
+    },
+    "individualTimeHint": "Klicka på tiderna för att ändra upphämtningstid för varje enskild matkasse.",
+    "calendar": {
+      "unavailableClosedDay": "Stängt denna dag",
+      "fullyBooked": "Fullbokad",
+      "selected": "Vald dag"
+    },
+    "time": {
+      "earliest": "Tidigast hämttid",
+      "latest": "Senast hämttid",
+      "updateAll": "Uppdatera alla",
+      "error": "Tidigast tid måste vara före senast tid",
+      "dateAndPickup": "Datum och hämttid",
+      "noAvailableTimes": "Inga tillgängliga tider",
+      "noAvailableTimesForToday": "Alla tider för idag har passerat. Välj ett framtida datum."
+    },
+    "cancel": "Avbryt",
+    "for": "för",
+    "table": {
+      "date": "Datum",
+      "pickupTime": "Hämttid",
+      "facilityHours": "Anläggningens öppettider"
+    },
+    "slotDuration": "Slotlängd: {duration} minuter",
+    "errors": {
+      "selectLocation": "Välj en hämtplats"
+    },
+    "validationErrors": {
+      "title": "Valideringsfel",
+      "capacityReached": "Platsens kapacitet överskriden för valt datum",
+      "slotCapacityReached": "Tidssloten är fullbokad",
+      "doubleBooking": "Hushållet har redan en matkasse schemalagd för detta datum",
+      "outsideOperatingHours": "Vald tid är utanför öppettider",
+      "pastTimeSlot": "Kan inte schemalägga upphämtning i det förflutna"
+    }
+  },
+  "review": {
+    "title": "Sammanfattning",
+    "editDescription": "Granska all information innan du uppdaterar hushållet.",
+    "createDescription": "Granska all information innan du sparar det nya hushållet."
+  },
+  "schedule": {
+    "title": "Schemaläggning av matutdelning",
+    "today": "Idag",
+    "todayTab": "Idag",
+    "weeklyTab": "Vecka",
+    "hub": {
+      "title": "Schema",
+      "subtitle": "Välj en utlämningsplats för att visa scheman",
+      "noLocations": "Inga utlämningsställen hittades",
+      "noHandoutsToday": "Inga utlämningar idag",
+      "parcelsToday": "{count} matkassar idag",
+      "completed": "slutförda",
+      "todayHandouts": "Dagens utlämningar",
+      "weeklySchedule": "Veckoschema",
+      "setAsFavorite": "Sätt som favorit",
+      "favorite": "Favorit",
+      "favoriteSet": "{location} är nu din favorit",
+      "favoriteChanged": "Favorit ändrad till {location}",
+      "favoriteRemoved": "{location} borttagen från favoriter",
+      "confirmSetFavorite": "Sätt {location} som din favorit?",
+      "confirmChangeFavorite": "Ändra din favorit från {oldLocation} till {newLocation}?",
+      "confirmRemoveFavorite": "Ta bort {location} som din favorit?",
+      "favoriteExplanation": "Att sätta en favorit tar dig automatiskt dit när du bläddrar i scheman, vilket gör det snabbare att komma åt platsen du använder oftast.",
+      "confirmRemoveFavoriteLabel": "Ta bort favorit",
+      "confirmChangeFavoriteLabel": "Byt favorit",
+      "currentFavoriteLabel": "nuvarande favorit",
+      "notificationSuccessTitle": "Klart",
+      "notificationErrorTitle": "Fel",
+      "favoriteUpdateFailed": "Det gick inte att uppdatera favoritplatsen",
+      "cancelButton": "Avbryt",
+      "tooltipSetFavorite": "Sätt {location} som favorit",
+      "tooltipRemoveFavorite": "Ta bort {location} som favorit",
+      "noUpcomingSchedule": "Inga kommande öppettider"
+    },
+    "noUpcomingSchedule": {
+      "title": "Inga kommande öppettider",
+      "description": "Denna plats har inga öppettider schemalagda för framtida datum.",
+      "whatThisMeans": "Vad detta innebär:",
+      "consequence1": "Nya matkassar kan inte bokas på denna plats",
+      "consequence2": "Hushåll kan inte tilldelas upphämtningstider här",
+      "callToAction": "Om denna plats ska ta emot matkassar, vänligen kontakta den ansvarige för hantering av utlämningsplatsernas scheman.",
+      "understand": "Jag förstår"
+    },
+    "location": {
+      "header": {
+        "locations": "Utlämningsställen",
+        "completedToday": "{completed}/{total} slutförda idag"
+      },
+      "landing": {
+        "title": "Schema",
+        "selectView": "Välj vy",
+        "todayHandouts": "Dagens utlämningar",
+        "todayDescription": "Visa dagens schemalagda matkassar",
+        "weeklySchedule": "Veckoschema",
+        "weeklyDescription": "Visa och hantera veckoschema",
+        "goToToday": "Gå till idag",
+        "weeklyView": "Veckovy",
+        "locationError": "Platsfel",
+        "locationNotFound": "Plats hittades inte"
+      }
+    },
+    "todayHandouts": {
+      "title": "Dagens utlämningar",
+      "pageTitle": "Dagens utlämningar",
+      "date": "{weekday}, {date}",
+      "selectLocation": "Välj en plats för att visa matkassar",
+      "clearSelection": "Rensa val",
+      "noLocation": "Välj en plats för att visa dagens matkassar",
+      "noParcels": "Inga matkassar schemalagda idag på denna plats",
+      "completed": "slutförda",
+      "scheduled": "Schemalagd",
+      "completedStatus": "Slutförd",
+      "parcels": "matkassar",
+      "noTimeSpecified": "Ingen tid angiven",
+      "parcel": {
+        "upcoming": "Schemalagd",
+        "pickedUp": "Uthämtad",
+        "noShow": "Utebliven"
+      },
+      "homeLocation": "Hushållets ordinarie utlämningsplats",
+      "visitingTooltip": "Besökare – hämtar normalt ut på annan plats",
+      "createdByTooltip": "Hushåll skapat av {username}",
+      "summary": {
+        "restrictionsTitle": "Matbegränsningar",
+        "title": "Sammanfattning",
+        "noDietaryRestrictions": "Inga matbegränsningar",
+        "householdsAndMembers": "{households} hushåll · {members} {members, plural, =1 {person} other {personer}}",
+        "pets": "Husdjur",
+        "additionalRequests": "Extra önskemål",
+        "expand": "Visa sammanfattning",
+        "collapse": "Dölj sammanfattning"
+      },
+      "search": {
+        "placeholder": "Sök på namn eller telefonnummer",
+        "noResults": "Ingen matchning för \"{query}\"",
+        "clear": "Rensa sökning"
+      }
+    },
+    "currentWeek": "Aktuell vecka",
+    "todayLabel": "Idag",
+    "weekLabel": "Vecka {week}, {year}",
+    "loading": "Laddar schema...",
+    "noFoodSupport": "Ingen matutdelning schemalagd den här veckan",
+    "refresh": "Uppdatera",
+    "selectWeek": "Välj vecka",
+    "pastDateError": "Detta datum har redan passerat",
+    "unavailableDay": "Denna plats är inte öppen denna dag",
+    "unavailableSlot": "Denna tid är utanför öppettiderna",
+    "timeGap": "Tidshopp",
+    "scheduleChangeWarning": "Varning för schemaändring",
+    "parcelsWillBeAffected": "Matkassar kommer att påverkas",
+    "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
+    "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
+    "proceedAnyway": "Fortsätt ändå",
+    "outsideHours": {
+      "panelTitle": "Utanför öppettider ({count})"
+    },
+    "days": {
+      "monday": "Måndag",
+      "tuesday": "Tisdag",
+      "wednesday": "Onsdag",
+      "thursday": "Torsdag",
+      "friday": "Fredag",
+      "saturday": "Lördag",
+      "sunday": "Söndag"
+    },
+    "pickupTimeLabel": "Tid",
+    "statusLabel": "Status",
+    "pickedUpStatus": "Utlämnad",
+    "notPickedUpStatus": "Ej utlämnad",
+    "primaryLocationLabel": "Hemmaplats",
+    "createdByLabel": "Skapad av",
+    "reschedule": {
+      "title": "Schemalägg matstöd för {name}",
+      "modalTitle": "Omboka matstöd",
+      "changed": "Tidpunkt har ändrats från",
+      "to": "till",
+      "from": "Från:",
+      "to2": "Till:",
+      "confirmTitle": "Bekräfta ombokning",
+      "confirmQuestion": "Vill du boka om matstöd för {name}?",
+      "confirm": "Bekräfta ändring",
+      "cancel": "Avbryt",
+      "success": "Schemaläggning uppdaterad",
+      "successMessage": "{name} har schemalagts på ny tid.",
+      "error": "Fel vid schemaläggning",
+      "pastError": "Det går inte att boka matstöd i det förflutna.",
+      "pastSourceError": "Det går inte att boka om matstöd från en tidpunkt i det förflutna.",
+      "capacityError": "Denna plats har nått sin maximala kapacitet för det valda datumet.",
+      "slotCapacityError": "Denna tidsslot är fullbokad. Välj en annan tid.",
+      "doubleBookingError": "Detta hushåll har redan en matkasse schemalagd för det valda datumet.",
+      "operatingHoursError": "Den valda tiden är utanför platsens öppettider.",
+      "genericError": "Ett oväntat fel inträffade.",
+      "outsideWeek": "Schemalägg utanför vecka",
+      "selectDateError": "Du måste välja ett datum",
+      "timeError": "Tidigast tid måste vara före senast tid",
+      "earliestTime": "Tidigast hämttid",
+      "latestTime": "Senast hämttid",
+      "currentPickup": "Nuvarande upphämtningsdetaljer",
+      "newPickup": "Nya upphämtningsdetaljer",
+      "date": "Datum",
+      "time": "Tid",
+      "newDate": "Nytt datum",
+      "newTime": "Ny tid",
+      "selectDate": "Välj datum",
+      "selectTime": "Välj tid",
+      "dateUnavailable": "Detta datum är inte tillgängligt för upphämtning",
+      "noTimesAvailable": "Inga tillgängliga tider på detta datum",
+      "requiredFields": "Fyll i alla obligatoriska fält"
     },
     "sms": {
-        "title": "SMS-meddelanden",
-        "testModeWarning": "⚠️ TESTLÄGE: Inga riktiga SMS kommer att skickas.",
-        "status": {
-            "queued": "I kö",
-            "sending": "Skickar",
-            "sent": "Skickat",
-            "delivered": "Levererat",
-            "not_delivered": "Ej levererat",
-            "retrying": "Försöker igen",
-            "failed": "Misslyckades"
-        },
-        "actions": {
-            "markPickedUp": "Markera som utlämnad",
-            "previewSms": "Förhandsgranska SMS",
-            "resendSms": "Skicka SMS igen",
-            "sendSms": "Skicka SMS",
-            "simulateDelivered": "Simulera levererat",
-            "simulateNotDelivered": "Simulera ej levererat"
-        },
-        "history": {
-            "title": "SMS-historik",
-            "noSms": "Inga SMS-meddelanden skickade för denna matkasse",
-            "intent": "Typ",
-            "status": "Status",
-            "attempts": "Försök",
-            "createdAt": "Skapad",
-            "sentAt": "Skickat",
-            "deliveredAt": "Levererat",
-            "error": "Fel"
-        },
-        "preview": {
-            "title": "SMS-förhandsgranskning",
-            "recipient": "Mottagare",
-            "message": "Meddelande",
-            "locale": "Språk"
-        },
-        "notifications": {
-            "markedPickedUp": "Matkasse markerad som utlämnad",
-            "smsQueued": "SMS köad för sändning",
-            "smsResent": "SMS köad för omsändning",
-            "deliverySimulated": "Leveransstatus simulerad",
-            "cooldownActive": "Vänta innan du skickar SMS igen",
-            "error": "Ett fel uppstod"
-        },
-        "cooldown": {
-            "message": "Du kan skicka SMS igen om {minutes} minuter",
-            "active": "Omsändningsnedkylning aktiv"
-        }
-    },
-    "admin": {
-        "parcelDialog": {
-            "title": "Matkasseinformation",
-            "loading": "Laddar matkassedetaljer...",
-            "pickupSchedule": "Hämtschema",
-            "pickedUp": "Utlämnad",
-            "notPickedUp": "Ej utlämnad",
-            "status": {
-                "pickedUp": "Utlämnad",
-                "noShow": "Utebliven",
-                "cancelled": "AVBOKAD",
-                "wrongDay": "Fel dag",
-                "checkTime": "Kolla tid",
-                "okToHandOut": "OK att lämna ut"
-            },
-            "by": "av",
-            "householdDetails": "Hushållsdetaljer",
-            "viewDetails": "Visa detaljer",
-            "contactInfo": "Kontaktinformation",
-            "language": "Språk",
-            "primaryLocation": "Huvudutlämningsplats",
-            "householdComposition": "Hushållssammansättning",
-            "members": "{count, plural, =0 {Inga medlemmar} =1 {1 medlem} other {# medlemmar}}",
-            "pets": "Husdjur",
-            "dietaryRestrictions": "Kostrestriktioner",
-            "severityRequired": "Krav",
-            "severityPreference": "Önskemål",
-            "noRestrictions": "Inga kostrestriktioner registrerade",
-            "additionalNeeds": "Ytterligare behov",
-            "comments": "Kommentarer",
-            "noComments": "Inga kommentarer än",
-            "addCommentPlaceholder": "Lägg till en kommentar om detta hushåll...",
-            "addComment": "Lägg till kommentar",
-            "markPickedUp": "Markera som utlämnad",
-            "undoPickup": "Ångra utlämning",
-            "markNoShow": "Utebliven",
-            "undoNoShow": "Ångra utebliven",
-            "noShowConfirmTitle": "Markera som utebliven?",
-            "noShowConfirmMessage": "Är du säker på att du vill markera {name} som utebliven?",
-            "confirmNoShow": "Ja, markera som utebliven",
-            "cancelNoShow": "Avbryt",
-            "markNoShowAriaLabel": "Markera {name} som utebliven",
-            "undoNoShowAriaLabel": "Ångra utebliven för {name}",
-            "markPickedUpAriaLabel": "Markera {name}s matkasse som utlämnad",
-            "undoPickupAriaLabel": "Ångra utlämning för {name}",
-            "cancelParcel": "Avboka matkasse",
-            "deleteConfirmTitle": "Bekräfta avbokning",
-            "deleteConfirmMessage": "Är du säker på att du vill avboka denna matkasse? {smsWarning}",
-            "smsWarning": "Ett avboknings-SMS kommer att skickas till hushållet.",
-            "smsNoWarning": "Inget SMS har skickats ännu.",
-            "confirmDelete": "Ja, avboka",
-            "cancelDelete": "Avbryt",
-            "deleting": "Avbokar...",
-            "success": {
-                "parcelDeleted": "Matkasse avbokad",
-                "parcelDeletedMessage": "Matkassen har avbokats"
-            },
-            "errors": {
-                "parcelNotFound": "Matkassen hittades inte",
-                "loadFailed": "Misslyckades med att ladda matkassedetaljer",
-                "markPickupFailed": "Misslyckades med att markera som hämtat",
-                "undoPickupFailed": "Misslyckades med att ångra hämtning",
-                "markNoShowFailed": "Misslyckades med att markera som utebliven",
-                "undoNoShowFailed": "Misslyckades med att ångra utebliven",
-                "addCommentFailed": "Misslyckades med att lägga till kommentar",
-                "deleteCommentFailed": "Misslyckades att ta bort kommentar",
-                "deleteCommentError": "Fel vid borttagning av kommentar",
-                "deleteParcelFailed": "Misslyckades med att avboka matkassen",
-                "parcelAlreadyPickedUp": "Kan inte avboka en matkasse som redan är upphämtad",
-                "parcelInPast": "Kan inte avboka en matkasse från det förflutna"
-            },
-            "smsStatus": {
-                "title": "SMS-status",
-                "provider": {
-                    "delivered": "Levererat",
-                    "failed": "Misslyckades",
-                    "notDelivered": "Ej levererat",
-                    "awaiting": "Inväntar bekräftelse"
-                },
-                "deliveryStatusAt": "Leveransstatus kl"
-            }
-        },
-        "smsDashboard": {
-            "title": "SMS-hantering",
-            "pendingCount": "{count, plural, =0 {Inga väntande SMS} =1 {1 väntande SMS} other {# väntande SMS}}",
-            "failureCount": "{count, plural, =0 {Inga fel} =1 {1 fel} other {# fel}}",
-            "loading": "Laddar SMS...",
-            "refreshing": "Uppdaterar...",
-            "filters": {
-                "location": "Plats",
-                "allLocations": "Alla platser",
-                "status": "Status",
-                "allStatuses": "Alla statusar",
-                "searchPlaceholder": "Sök namn...",
-                "clearFilters": "Rensa filter",
-                "refresh": "Uppdatera",
-                "showCancelled": "Visa avbokade matkassar"
-            },
-            "status": {
-                "queued": "Väntar",
-                "sending": "Skickar",
-                "sent": "Skickad",
-                "retrying": "Försöker igen",
-                "failed": "Misslyckad",
-                "cancelled": "Avbruten",
-                "retryScheduled": "Nytt försök schemalagt",
-                "retryScheduledAt": "Nytt försök kl {time}"
-            },
-            "intent": {
-                "pickup_reminder": "Påminnelse",
-                "pickup_updated": "Uppdatering",
-                "pickup_cancelled": "Avbruten",
-                "consent_enrolment": "Samtycke",
-                "enrolment": "Inskrivning"
-            },
-            "dateGroups": {
-                "today": "IDAG",
-                "tomorrow": "IMORGON"
-            },
-            "actions": {
-                "menuLabel": "Åtgärder",
-                "sendNow": "Skicka nu",
-                "tryAgain": "Försök igen",
-                "sendAgain": "Skicka igen",
-                "viewHousehold": "Visa hushåll",
-                "viewParcel": "Visa matkasse"
-            },
-            "itemInfo": {
-                "willSendAt": "Skickas cirka {time}",
-                "sentAt": "Skickades {time}"
-            },
-            "notifications": {
-                "sendSuccess": "SMS skickades",
-                "sendError": "Kunde inte skicka SMS",
-                "sendErrorDetail": "Kunde inte skicka SMS: {error}"
-            },
-            "emptyStates": {
-                "noPending": "Inga väntande SMS - Allt klart! ✨",
-                "noResults": "Inga SMS hittades med nuvarande filter",
-                "noFailures": "Inga misslyckade SMS just nu"
-            },
-            "errorMessages": {
-                "loadError": "Kunde inte ladda SMS-data",
-                "tryAgainLater": "Försök igen senare"
-            },
-            "statistics": {
-                "title": "SMS-statistik & hälsa",
-                "viewMonthly": "Visa månadsstatistik",
-                "hide": "Dölj statistik",
-                "status": {
-                    "healthy": "Fungerar bra",
-                    "attention": "Observera",
-                    "critical": "Kritiskt"
-                },
-                "today": {
-                    "label": "Idag"
-                },
-                "last7Days": "Senaste 7 dagarna",
-                "currentMonth": "Denna månad",
-                "monthlyProgress": "Månatlig utveckling",
-                "byLocation": "Per plats",
-                "sent": "skickade",
-                "failed": "misslyckade",
-                "pending": "väntande",
-                "total": "totalt",
-                "successRate": "lyckade",
-                "vsLastMonth": "vs förra månaden",
-                "ofLastMonth": "av {count} förra månaden"
-            }
-        }
-    },
-    "settings": {
-        "settings": "Inställningar",
-        "general": "Allmänna inställningar",
-        "generalDescription": "Konfigurera integritetspolicy, registreringsformulär, matkassegränser och uppföljningsinställningar.",
-        "locations": "Utlämningsställen",
-        "parcels": "Matkassegränser",
-        "aria": {
-            "settingsMenu": "Inställningsmeny"
-        },
-        "nav": {
-            "privacyPolicy": "Integritetspolicy",
-            "userAgreement": "Användaravtal",
-            "enrollmentChecklist": "Registreringsformulär",
-            "parcelThreshold": "Matkassegränser",
-            "noshowFollowup": "Uppföljning vid uteblivna"
-        },
-        "enrollmentChecklist": {
-            "title": "Registreringsformulär",
-            "description": "Personalens checklista för alla nya hushåll",
-            "addChecklistItem": "Lägg till kontrollpunkt",
-            "editChecklistItem": "Redigera kontrollpunkt",
-            "deleteConfirm": "Ta bort denna kontrollpunkt?",
-            "deleteModalTitle": "Ta bort kontrollpunkt",
-            "reorderHint": "Dra för att ändra ordning",
-            "preview": "Förhandsgranska",
-            "emptyState": "Inga kontrollpunkter än",
-            "instructionText": "Jag har sett till att...",
-            "badges": {
-                "required": "Obligatorisk",
-                "helpAvailable": "Hjälptext tillgänglig"
-            },
-            "buttons": {
-                "cancel": "Avbryt",
-                "save": "Spara",
-                "delete": "Ta bort"
-            },
-            "form": {
-                "checklistText": "Kontrollpunkt",
-                "helpText": "Hjälptext",
-                "isRequired": "Obligatorisk",
-                "requiredHint": "Personal måste kryssa i denna ruta",
-                "placeholder": "De har informerats om...",
-                "helpTextPlaceholder": "Valfri hjälptext..."
-            },
-            "examples": {
-                "title": "Exempel på kontrollpunkter:",
-                "item1": "De har informerats om hämtningstider och plats",
-                "item2": "De förstår månadsgränsen för matpaket",
-                "item3": "Jag har verifierat deras identitetshandling",
-                "item4": "De har informerats om alternativ för kostbegränsningar"
-            },
-            "validation": {
-                "textRequired": "Kontrollpunktstext krävs",
-                "textTooShort": "Kontrollpunkten måste vara minst 10 tecken"
-            },
-            "notifications": {
-                "created": "Kontrollpunkt skapad",
-                "updated": "Kontrollpunkt uppdaterad",
-                "deleted": "Kontrollpunkt borttagen",
-                "reordered": "Kontrollpunkter omordnade",
-                "error": "Fel",
-                "success": "Lyckades",
-                "loadError": "Kunde inte ladda verifieringsfrågor",
-                "saveError": "Kunde inte spara fråga",
-                "deleteError": "Kunde inte ta bort fråga",
-                "reorderError": "Kunde inte omordna frågor",
-                "errors": {
-                    "FETCH_FAILED": "Kunde inte ladda kontrollpunkter",
-                    "VALIDATION_ERROR": "Kontrollpunktstext kan inte vara tom",
-                    "CREATE_FAILED": "Kunde inte skapa kontrollpunkt",
-                    "UPDATE_FAILED": "Kunde inte uppdatera kontrollpunkt",
-                    "NOT_FOUND": "Kontrollpunkt hittades inte",
-                    "DELETE_FAILED": "Kunde inte ta bort kontrollpunkt",
-                    "REORDER_FAILED": "Kunde inte omordna kontrollpunkter",
-                    "UNKNOWN": "Ett oväntat fel inträffade"
-                }
-            }
-        },
-        "householdOptions": {
-            "title": "Hushållsalternativ",
-            "description": "Hantera kostbegränsningar, djurtyper och övriga behov som visas i skapa/redigera hushåll.",
-            "tabs": {
-                "dietaryRestrictions": "Kostbegränsningar",
-                "petTypes": "Djurtyper",
-                "additionalNeeds": "Övriga behov"
-            },
-            "addButton": "Lägg till",
-            "statusToggle": "Aktiv",
-            "status": {
-                "active": "Aktiv",
-                "disabled": "Inaktiv"
-            },
-            "linkedHouseholds": {
-                "title": "Kopplade hushåll"
-            },
-            "usageCount": "{count, plural, =0 {Används inte} =1 {1 hushåll} other {# hushåll}}",
-            "emptyState": {
-                "dietaryRestrictions": "Inga kostbegränsningar än. Lägg till vanliga begränsningar som \"Glutenfri\" eller \"Halal\".",
-                "petTypes": "Inga djurtyper än. Lägg till vanliga djur som \"Hund\" eller \"Katt\".",
-                "additionalNeeds": "Inga övriga behov än. Lägg till behov som \"Blöjor\" eller \"Busskort\"."
-            },
-            "infoAlert": "Använd reglaget för att inaktivera alternativ utan att ta bort dem. Inaktiva alternativ syns i guiden men kan inte väljas på nytt.",
-            "form": {
-                "nameLabel": "Namn",
-                "namePlaceholder": {
-                    "dietaryRestrictions": "T.ex. Glutenfri, Halal, Vegan...",
-                    "petTypes": "T.ex. Hund, Katt, Kanin...",
-                    "additionalNeeds": "T.ex. Blöjor, Busskort, Rengöringsmedel..."
-                },
-                "addTitle": {
-                    "dietaryRestrictions": "Lägg till kostbegränsning",
-                    "petTypes": "Lägg till djurtyp",
-                    "additionalNeeds": "Lägg till övrigt behov"
-                },
-                "editTitle": {
-                    "dietaryRestrictions": "Redigera kostbegränsning",
-                    "petTypes": "Redigera djurtyp",
-                    "additionalNeeds": "Redigera övrigt behov"
-                },
-                "editWarning": "Används av {count} hushåll - ändringar påverkar alla",
-                "severityLabel": "Allvarlighetsgrad",
-                "severityRequired": "Krav",
-                "severityPreference": "Önskemål"
-            },
-            "delete": {
-                "title": {
-                    "dietaryRestrictions": "Ta bort kostbegränsning",
-                    "petTypes": "Ta bort djurtyp",
-                    "additionalNeeds": "Ta bort övrigt behov"
-                },
-                "confirmMessage": "Är du säker på att du vill ta bort \"{name}\"?",
-                "cannotDelete": "Kan inte ta bort - används av {count} hushåll",
-                "cannotDeleteTooltip": "Ta bort detta alternativ från alla hushåll innan du tar bort det"
-            },
-            "buttons": {
-                "cancel": "Avbryt",
-                "save": "Spara",
-                "delete": "Ta bort"
-            },
-            "notifications": {
-                "created": "Alternativ skapat",
-                "updated": "Alternativ uppdaterat",
-                "deleted": "Alternativ borttaget",
-                "activated": "Alternativ aktiverat",
-                "deactivated": "Alternativ inaktiverat",
-                "error": "Fel",
-                "success": "Lyckades",
-                "loadError": "Kunde inte ladda alternativ",
-                "saveError": "Kunde inte spara alternativ",
-                "deleteError": "Kunde inte ta bort alternativ",
-                "errors": {
-                    "FETCH_FAILED": "Kunde inte ladda alternativ",
-                    "CREATE_FAILED": "Kunde inte skapa alternativ",
-                    "UPDATE_FAILED": "Kunde inte uppdatera alternativ",
-                    "DELETE_FAILED": "Kunde inte ta bort alternativ",
-                    "OPTION_IN_USE": "Kan inte ta bort alternativ som används av hushåll",
-                    "DUPLICATE_NAME": "Ett alternativ med detta namn finns redan",
-                    "VALIDATION_ERROR": "Namn krävs",
-                    "NOT_FOUND": "Alternativ hittades inte",
-                    "UNKNOWN": "Ett oväntat fel inträffade"
-                }
-            }
-        },
-        "privacyPolicy": {
-            "title": "Integritetspolicy",
-            "description": "Redigera integritetspolicyn som visas för hushåll. Policyn finns tillgänglig på /privacy",
-            "viewPublicPage": "Visa publik sida",
-            "markdownHint": "Använd Markdown-formatering för rubriker, listor och betoning.",
-            "markdownExamples": "Exempel: # Rubrik, ## Underrubrik, - Listpunkt, **fet**, *kursiv*",
-            "placeholder": "Skriv integritetspolicyn här...",
-            "preview": "Förhandsgranskning",
-            "lastUpdated": "uppdaterad {date}",
-            "lastUpdatedFull": "Senast uppdaterad: {date}",
-            "saved": "Sparad",
-            "addLanguage": "Lägg till språk...",
-            "buttons": {
-                "edit": "Redigera",
-                "preview": "Förhandsgranska",
-                "save": "Spara"
-            },
-            "notifications": {
-                "success": "Klart",
-                "error": "Fel",
-                "saved": "Integritetspolicyn har sparats",
-                "loadError": "Kunde inte ladda integritetspolicyn",
-                "saveError": "Kunde inte spara integritetspolicyn",
-                "emptyContent": "Integritetspolicyn kan inte vara tom",
-                "cannotRemoveSaved": "Kan inte ta bort ett språk med sparat innehåll"
-            }
-        },
-        "userAgreement": {
-            "title": "Användaravtal",
-            "description": "Hantera användaravtalet som alla administratörer måste acceptera innan de kan använda systemet. Avtalet beskriver ansvar för hantering av personuppgifter.",
-            "currentVersion": "Nuvarande version: {version}",
-            "acceptedBy": "{count} användare har accepterat",
-            "noAgreement": "Inget användaravtal har skapats ännu. Skapa ett avtal för att kräva att alla användare accepterar det innan de kan använda systemet.",
-            "publishWarning": "Att publicera en ny version kräver att alla användare accepterar avtalet igen innan de kan fortsätta använda systemet.",
-            "markdownHint": "Använd Markdown-formatering för rubriker, listor och betoning.",
-            "placeholder": "Skriv användaravtalet här...",
-            "preview": "Förhandsgranskning",
-            "versionHistory": "Versionshistorik",
-            "table": {
-                "version": "Version",
-                "createdAt": "Skapad",
-                "createdBy": "Skapad av",
-                "acceptedBy": "Accepterat av"
-            },
-            "buttons": {
-                "edit": "Redigera",
-                "preview": "Förhandsgranska",
-                "showHistory": "Visa historik",
-                "hideHistory": "Dölj historik",
-                "publish": "Publicera ny version",
-                "create": "Skapa avtal"
-            },
-            "notifications": {
-                "success": "Klart",
-                "error": "Fel",
-                "saved": "Användaravtalet har sparats. Alla användare måste nu acceptera det igen.",
-                "loadError": "Kunde inte ladda användaravtalet",
-                "saveError": "Kunde inte spara användaravtalet",
-                "emptyContent": "Användaravtalet kan inte vara tomt"
-            }
-        },
-        "parcelThreshold": {
-            "title": "Varningsgräns för matkassar",
-            "description": "Ange antalet matkassar varefter systemet ska varna administratörer om hög användning",
-            "infoMessage": "När ett hushåll överskrider detta antal matkassar visas en varning på hushållets detaljsida och när fler kassar läggs till. Detta hjälper till att identifiera hushåll som kan behöva ytterligare stöd eller genomgång.",
-            "thresholdLabel": "Varningsgräns",
-            "thresholdDescription": "Antal matkassar innan varning visas",
-            "thresholdPlaceholder": "t.ex. 10",
-            "warningPreview": "Varningar visas för hushåll med fler än {threshold} matkassar",
-            "saveButton": "Spara",
-            "clearButton": "Rensa (inaktivera varningar)",
-            "success": {
-                "savedTitle": "Sparat",
-                "savedMessage": "Varningsgränsen för matkassar har uppdaterats",
-                "clearedMessage": "Matkassevarningar har inaktiverats"
-            },
-            "errors": {
-                "loadFailedTitle": "Fel",
-                "loadFailedMessage": "Kunde inte ladda varningsgräns för matkassar",
-                "saveFailedTitle": "Fel",
-                "saveFailedMessage": "Kunde inte spara varningsgräns för matkassar"
-            }
-        },
-        "noshowFollowup": {
-            "title": "Uppföljning vid uteblivna",
-            "description": "Konfigurera automatiskt skapande av uppföljningsärenden när hushåll har upprepade uteblivna hämtningar",
-            "infoMessage": "När aktiverad skapas ett uppföljningsärende automatiskt på ärendesidan när ett hushåll når de angivna tröskelvärdena för uteblivna hämtningar. Detta hjälper till att identifiera hushåll som kan behöva ytterligare kontakt eller stöd.",
-            "enabledLabel": "Aktivera uppföljning vid uteblivna",
-            "enabledDescription": "Skapa automatiskt uppföljningsärenden för hushåll med upprepade uteblivna hämtningar",
-            "consecutiveLabel": "Uteblivna i rad",
-            "consecutiveDescription": "Antal uteblivna i rad för att skapa uppföljning",
-            "consecutivePlaceholder": "t.ex. 2",
-            "totalLabel": "Totalt uteblivna",
-            "totalDescription": "Totalt antal uteblivna (all tid) för att skapa uppföljning",
-            "totalPlaceholder": "t.ex. 4",
-            "preview": "Ett uppföljningsärende skapas när ett hushåll har {consecutive} uteblivna i rad ELLER {total} uteblivna totalt",
-            "saveButton": "Spara",
-            "success": {
-                "savedTitle": "Sparat",
-                "savedMessage": "Inställningar för uppföljning vid uteblivna har uppdaterats"
-            },
-            "errors": {
-                "loadFailedTitle": "Fel",
-                "loadFailedMessage": "Kunde inte ladda inställningar för uppföljning vid uteblivna",
-                "saveFailedTitle": "Fel",
-                "saveFailedMessage": "Kunde inte spara inställningar för uppföljning vid uteblivna"
-            }
-        },
-        "smsTemplates": {
-            "title": "Standard SMS-mallar",
-            "description": "Anpassa textmeddelanden som skickas till hushåll",
-            "comingSoon": "Kommer snart..."
-        }
-    },
-    "parcelWarning": {
-        "modal": {
-            "title": "Varning för högt antal matkassar",
-            "message": "{householdName} har mottagit {count} matkassar (gräns: {threshold}).",
-            "explanation": "Detta hushåll har överskridit varningsgränsen för matkassar. Vänligen verifiera att de har fått lämpligt stöd och hjälp. Du kan fortfarande lägga till fler kassar, men detta kräver bekräftelse.",
-            "acknowledgmentLabel": "Jag bekräftar att detta hushåll kan behöva ytterligare genomgång eller stöd",
-            "confirmButton": "Fortsätt lägga till matkassar",
-            "cancelButton": "Avbryt"
-        }
-    },
-    "issues": {
-        "title": "Uppföljning",
-        "allClear": "Allt klart! Inget behöver följas upp.",
-        "refresh": "Uppdatera",
-        "error": "Fel vid inläsning av ärenden",
-        "accessDenied": "Åtkomst nekad. Du har inte behörighet att visa ärenden.",
-        "filters": {
-            "all": "Alla",
-            "unresolvedHandouts": "Oregistrerade utlämningar",
-            "outsideOpeningHours": "Utanför öppettider",
-            "failedSms": "Misslyckade SMS",
-            "noShowFollowups": "Uppföljning uteblivna"
-        },
-        "sections": {
-            "unresolvedHandouts": "Oregistrerade utlämningar",
-            "outsideOpeningHours": "Utanför öppettider",
-            "failedSms": "Misslyckade SMS"
-        },
-        "cardType": {
-            "unresolvedHandout": "Oregistrerad utlämning",
-            "outsideHours": "Utanför öppettider",
-            "failedSms": "SMS-leverans misslyckades",
-            "failedSmsStale": "SMS-leverans obekräftad",
-            "failedSmsProvider": "SMS-leverans avvisad",
-            "failedSmsInternal": "SMS-sändning misslyckades",
-            "noShowFollowup": "Uppföljning behövs"
-        },
-        "actions": {
-            "handedOut": "Utlämnad",
-            "noShow": "Uteblev",
-            "cancelParcel": "Avboka paket",
-            "reschedule": "Omboka",
-            "retry": "Försök igen",
-            "retryPickupPassed": "För sent att skicka igen - upphämtningstiden har passerat",
-            "dismiss": "Ignorera",
-            "editHousehold": "Redigera hushåll",
-            "viewHousehold": "Visa hushåll",
-            "cancel": "Avbryt",
-            "save": "Spara"
-        },
-        "openingHours": "Öppettider {hours}",
-        "closedThisDay": "Stängt denna dag",
-        "smsIntent": {
-            "pickup_reminder": "Påminnelse om hämtning",
-            "pickup_updated": "Ändrad hämtningstid",
-            "pickup_cancelled": "Hämtning avbokad",
-            "enrolment": "Välkomstmeddelande",
-            "consent_enrolment": "Samtyckesbegäran",
-            "food_parcels_ended": "Meddelande om avslutad mathjälp"
-        },
-        "failureDescription": {
-            "internal": "Kunde inte skickas. Kontakta teknisk support.",
-            "provider": "SMS ej levererat. Detta betyder vanligtvis att telefonnumret inte är i bruk.",
-            "stale": "Ingen leveransbekräftelse mottagen. Kontakta teknisk support."
-        },
-        "toast": {
-            "handedOut": "Markerad som utlämnad",
-            "noShow": "Markerad som utebliven",
-            "retry": "SMS köat för nytt försök",
-            "dismiss": "Ärende ignorerat",
-            "cancelParcel": "Paket avbokat",
-            "rescheduled": "Paket ombokat",
-            "success": "Lyckades",
-            "actionError": "Åtgärden misslyckades",
-            "handedOutError": "Kunde inte markera som utlämnad",
-            "noShowError": "Kunde inte markera som utebliven",
-            "cancelError": "Kunde inte avboka paket",
-            "retryError": "Kunde inte skicka SMS igen",
-            "dismissError": "Kunde inte ignorera",
-            "noShowFollowupDismissed": "Uppföljning ignorerad"
-        },
-        "noShowFollowup": {
-            "triggerConsecutive": "{count} uteblivna i rad",
-            "triggerTotal": "{count} uteblivna totalt",
-            "triggerBoth": "{consecutive} i rad, {total} totalt uteblivna"
-        },
-        "errorCodes": {
-            "NOT_FOUND": "Kunde inte hitta objektet. Det kan ha tagits bort.",
-            "ALREADY_CANCELLED": "Detta paket har redan avbokats.",
-            "ALREADY_PICKED_UP": "Detta paket har redan lämnats ut.",
-            "ALREADY_NO_SHOW": "Detta paket är redan markerat som utebliven.",
-            "FUTURE_PARCEL": "Kan inte markera ett framtida paket som utebliven.",
-            "ALREADY_DELETED": "Detta paket har redan tagits bort.",
-            "PAST_PARCEL": "Kan inte avboka ett tidigare paket.",
-            "INVALID_ACTION": "Ogiltig åtgärd begärd.",
-            "OUTSIDE_HOURS": "Kan inte skicka SMS för paket schemalagt utanför öppettider.",
-            "COOLDOWN_ACTIVE": "Vänta innan du skickar ett nytt SMS.",
-            "FETCH_ERROR": "Kunde inte ladda data. Försök igen.",
-            "SEND_ERROR": "Kunde inte skicka SMS. Försök igen.",
-            "PARCEL_NOT_FOUND": "Det tillhörande paketet finns inte längre.",
-            "TOO_LATE": "För sent att skicka igen - upphämtningen börjar inom 1 timme.",
-            "UNKNOWN_ERROR": "Ett oväntat fel inträffade. Försök igen."
-        },
-        "confirm": {
-            "noShowTitle": "Markera som utebliven?",
-            "noShowMessage": "Är du säker på att du vill markera {name} som utebliven?",
-            "noShowConfirm": "Ja, markera som utebliven",
-            "cancelParcelTitle": "Avboka paket?",
-            "cancelParcelMessage": "Är du säker på att du vill avboka matpaketet för {name}? Denna åtgärd kan inte ångras.",
-            "cancelParcelConfirm": "Ja, avboka paket",
-            "dismissFailedSmsTitle": "Ignorera SMS-fel?",
-            "dismissFailedSmsMessage": "Är du säker på att du vill ignorera det misslyckade SMS:et för {name}?",
-            "dismissFailedSmsConfirm": "Ja, ignorera",
-            "dismissNoShowFollowupTitle": "Ignorera uppföljning?",
-            "dismissNoShowFollowupMessage": "Är du säker på att du vill ignorera uppföljningen för {name}? Den visas igen om de uteblir igen.",
-            "dismissNoShowFollowupConfirm": "Ja, ignorera",
-            "cancel": "Avbryt"
-        },
-        "confirmCancelTitle": "Avboka paket?",
-        "confirmCancelMessage": "Är du säker på att du vill avboka detta matpaket? Denna åtgärd kan inte ångras.",
-        "reschedule": {
-            "loading": "Laddar tillgänglighet...",
-            "newDate": "Nytt datum",
-            "selectDate": "Välj datum",
-            "newTime": "Ny tid",
-            "selectTime": "Välj tid",
-            "dateUnavailable": "Platsen är stängd detta datum",
-            "noTimesAvailable": "Inga lediga tider",
-            "requiredFields": "Välj både datum och tid",
-            "genericError": "Ombokningen misslyckades. Försök igen.",
-            "loadError": "Kunde inte ladda schema"
-        }
-    },
-    "smsConfirm": {
-        "title": "Skicka SMS",
-        "recentWarning": "Nyligen skickat",
-        "recentWarningMessage": "Ett SMS skickades till denna mottagare kl {time}. Är du säker på att du vill skicka ett till?",
-        "previousSms": "Tidigare SMS",
-        "moreHistory": "+{count} till",
-        "cancel": "Avbryt",
-        "confirm": "Skicka SMS"
-    },
-    "statistics": {
-        "title": "Statistik",
-        "description": "Översikt över tjänstestatistik och trender",
-        "periods": {
-            "7d": "Senaste 7 dagarna",
-            "30d": "Senaste 30 dagarna",
-            "90d": "Senaste 90 dagarna",
-            "year": "I år",
-            "all": "All tid"
-        },
-        "overview": {
-            "title": "Översikt",
-            "totalHouseholds": "Aktiva hushåll",
-            "newHouseholds": "Nya hushåll",
-            "removedHouseholds": "Borttagna hushåll",
-            "totalParcels": "Totalt antal kassar",
-            "pickedUpParcels": "Hämtade",
-            "pickupRate": "Hämtningsgrad",
-            "smsDeliveryRate": "SMS-leveransgrad",
-            "noData": "Inga data för vald period"
-        },
-        "households": {
-            "title": "Hushållsdemografi",
-            "total": "Totalt aktiva",
-            "new": "Nya",
-            "removed": "Borttagna",
-            "byLanguage": "Per språk",
-            "ageDistribution": "Åldersfördelning",
-            "memberCountDistribution": "Hushållsstorlek",
-            "dietaryRestrictions": "Kostpreferenser",
-            "additionalNeeds": "Övriga behov",
-            "pets": "Husdjur",
-            "locales": {
-                "sv": "Svenska",
-                "en": "Engelska"
-            },
-            "members": "{count, plural, =0 {0 medlemmar} =1 {1 medlem} other {# medlemmar}}",
-            "description": "Fördelningsdata inkluderar alla registrerade hushåll (aktiva och historiska)"
-        },
-        "parcels": {
-            "title": "Kassar",
-            "total": "Totalt",
-            "pickedUp": "Hämtade",
-            "notPickedUp": "Ej hämtade",
-            "cancelled": "Avbokade",
-            "byLocation": "Per plats",
-            "byWeekday": "Per veckodag",
-            "dailyTrend": "Daglig trend",
-            "avgPerHousehold": "Snitt per hushåll",
-            "weekdays": {
-                "Sunday": "Söndag",
-                "Monday": "Måndag",
-                "Tuesday": "Tisdag",
-                "Wednesday": "Onsdag",
-                "Thursday": "Torsdag",
-                "Friday": "Fredag",
-                "Saturday": "Lördag"
-            }
-        },
-        "locations": {
-            "title": "Platser",
-            "capacityUsage": "Kapacitetsutnyttjande",
-            "pickupRate": "Hämtningsgrad per plats",
-            "nearCapacityAlerts": "Nära kapacitetsgräns",
-            "scheduled": "Bokade",
-            "max": "Max",
-            "usagePercent": "Utnyttjande %",
-            "noMax": "Ingen gräns satt",
-            "capacityUsageTitle": "Kapacitetsutnyttjande (Nästa 7 dagar)",
-            "nearCapacityAlertsTitle": "Nära kapacitet (Nästa 7 dagar)"
-        },
-        "sms": {
-            "title": "SMS",
-            "totalSent": "Totalt skickade",
-            "delivered": "Levererade",
-            "deliveryRate": "Leveransgrad",
-            "failedInternal": "Misslyckade (Internt)",
-            "failedProvider": "Misslyckade (Leverantör)",
-            "pending": "Väntande",
-            "byIntent": "Per syfte",
-            "dailyVolume": "Daglig volym",
-            "intents": {
-                "pickup_reminder": "Hämtningspåminnelse",
-                "pickup_updated": "Hämtning uppdaterad",
-                "pickup_cancelled": "Hämtning avbokad",
-                "consent_enrolment": "Samtycke anmälan",
-                "enrolment": "Välkomstmeddelande",
-                "food_parcels_ended": "Matkassar avslutade"
-            },
-            "pendingLabel": "Väntande (Aktuellt)"
-        },
-        "loading": "Laddar statistik...",
-        "error": "Kunde inte ladda statistik",
-        "chartLabels": {
-            "count": "Antal",
-            "rate": "Andel",
-            "households": "Hushåll"
-        },
-        "noData": "Ingen data tillgänglig"
-    },
-    "smsBanner": {
-        "title": "SMS-tjänsten tillfälligt avaktiverad",
-        "description": "SMS-aviseringar kan inte skickas eftersom HelloSMS-kontot har slut på saldo. Organisationen behöver förskottsbetala för mer SMS-saldo.",
-        "affectedCount": "{count, plural, one {# SMS-meddelande} other {# SMS-meddelanden}} kunde inte skickas på grund av lågt saldo.",
-        "retryButton": "Skicka om saldofel",
-        "retrySuccess": "{count, plural, one {# meddelande har} other {# meddelanden har}} lagts i kö för att skickas.",
-        "retryError": "Det gick inte att skicka om. Försök igen."
+      "title": "SMS-notiser",
+      "viewHistory": "Visa SMS-historik",
+      "status": {
+        "pending": "Väntar",
+        "sent": "Skickat",
+        "delivered": "Levererat",
+        "failed": "Misslyckades",
+        "cancelled": "Avbrutet"
+      },
+      "intent": {
+        "pickup_reminder": "Hämtningspåminnelse"
+      },
+      "actions": {
+        "sendSms": "Skicka SMS",
+        "resend": "Skicka igen"
+      },
+      "notifications": {
+        "sendSuccess": "SMS skickat",
+        "initialSendSuccess": "Första notifiering skickades framgångsrikt",
+        "reminderSendSuccess": "Påminnelse skickades framgångsrikt",
+        "resendSuccess": "SMS skickat igen",
+        "smsQueued": "SMS har lagts i kö för leverans",
+        "sendError": "Misslyckades att skicka SMS",
+        "resendError": "Misslyckades att skicka SMS igen",
+        "genericError": "Ett oväntat fel inträffade"
+      },
+      "historyModal": {
+        "title": "SMS-historik",
+        "noHistory": "Inga SMS-meddelanden skickade för denna matkasse",
+        "sentAt": "Skickat",
+        "deliveredAt": "Levererat",
+        "error": "Fel",
+        "retries": "Försök igen"
+      }
     }
+  },
+  "householdDetail": {
+    "basics": "Grunduppgifter",
+    "createdBy": "Skapad av {username}",
+    "created": "Skapad",
+    "enrollmentSmsDelivered": "Välkomst-SMS levererat",
+    "members": "Medlemmar ({count})",
+    "noMembers": "Inga medlemmar tillagda",
+    "pets": "Husdjur ({count})",
+    "noPets": "Inga husdjur tillagda",
+    "dietaryRestrictions": "Matrestriktioner ({count})",
+    "noDietaryRestrictions": "Inga matrestriktioner tillagda",
+    "additionalNeeds": "Ytterligare behov ({count})",
+    "noAdditionalNeeds": "Inga ytterligare behov tillagda",
+    "foodParcels": "Matkassar ({count})",
+    "noFoodParcels": "Inga matkassar schemalagda",
+    "cancelledParcels": "Avbokade matkassar",
+    "noCancelledParcels": "Inga avbokade matkassar",
+    "ageUnit": "år",
+    "editHousehold": "Redigera hushåll",
+    "manageParcels": "Hantera matkassar",
+    "removeHousehold": "Ta bort hushåll",
+    "deletedOn": "Avbokad den",
+    "by": "av",
+    "status": {
+      "pickedUp": "Utlämnad",
+      "notPickedUp": "Ej utlämnad",
+      "noShow": "Uteblev",
+      "upcoming": "Kommande",
+      "cancelled": "Avbokad"
+    },
+    "comments": {
+      "title": "Kommentarer ({count})"
+    },
+    "warnings": {
+      "parcelCountHigh": "Detta hushåll har mottagit {count} matkassar (gräns: {threshold}). Överväg att granska deras situation och erbjuda ytterligare stöd."
+    },
+    "removal": {
+      "dialogTitle": "Ta bort hushåll",
+      "lastName": "Efternamn",
+      "confirmationPrompt": "Skriv in efternamnet för att bekräfta:",
+      "confirmationHelp": "(Kopiera och klistra in är tillåtet)",
+      "warningCannotUndo": "Denna åtgärd kan inte ångras.",
+      "cancelButton": "Avbryt",
+      "removeButton": "Ta bort hushåll",
+      "removing": "Tar bort...",
+      "success": "Hushållet togs bort",
+      "anonymizedTitle": "Hushåll borttaget",
+      "anonymizedMessage": "Detta hushåll togs bort den {date}.",
+      "anonymizedSubtext": "Personuppgifter har raderats.",
+      "backToList": "Tillbaka till hushåll",
+      "errors": {
+        "notFound": "Hushållet hittades inte",
+        "alreadyRemoved": "Hushållet har redan tagits bort",
+        "lastNameMismatch": "Efternamnet matchar inte",
+        "hasUpcomingParcels": "Kan inte ta bort hushåll",
+        "upcomingParcelsMessage": "Detta hushåll har {count, plural, =1 {1 kommande matkasse} other {# kommande matkassar}}.",
+        "upcomingParcelsAction": "Ta bort dessa matkassar först, sedan kan hushållet tas bort.",
+        "removalFailed": "Misslyckades att ta bort hushåll"
+      }
+    }
+  },
+  "comments": {
+    "title": "Kommentarer ({count})",
+    "noComments": "Inga kommentarer tillagda",
+    "placeholder": "Lägg till en kommentar om hushållet... (HTML stöds, t.ex. länkar)",
+    "add": "Lägg till",
+    "errors": {
+      "deleteFailed": "Misslyckades att ta bort kommentar",
+      "deleteError": "Fel vid borttagning av kommentar"
+    },
+    "unknownName": "Namn Okänt",
+    "deleteTooltip": "Ta bort kommentar",
+    "deleteTitle": "Ta bort kommentar",
+    "deleteConfirmation": "Är du säker på att du vill ta bort denna kommentar?",
+    "deleteButton": "Ta bort",
+    "cancelButton": "Avbryt"
+  },
+  "wizard": {
+    "stepBasics": "Grunduppgifter",
+    "stepBasicsDescription": "Kontaktinformation",
+    "stepMembers": "Medlemmar",
+    "stepMembersDescription": "Hushållsmedlemmar",
+    "stepDietaryRestrictions": "Matrestriktioner",
+    "stepDietaryRestrictionsDescription": "Specialkost",
+    "stepPets": "Husdjur",
+    "stepPetsDescription": "Information om husdjur",
+    "stepAdditionalNeeds": "Ytterligare behov",
+    "stepAdditionalNeedsDescription": "Särskilda behov",
+    "stepFoodParcels": "Matkassar",
+    "stepFoodParcelsDescription": "Schemaläggning",
+    "stepReview": "Sammanfattning",
+    "stepReviewDescription": "Granska och skicka",
+    "creating": "Skapar nytt hushåll...",
+    "updating": "Uppdaterar hushåll...",
+    "validationError": "Valideringsfel",
+    "nextStep": "Nästa steg",
+    "back": "Tillbaka",
+    "backToList": "Tillbaka till hushållslistan",
+    "saveHousehold": "Spara hushåll",
+    "createHousehold": "Skapa hushåll",
+    "editHousehold": "Redigera hushåll",
+    "updateHousehold": "Uppdatera hushåll",
+    "backToHouseholds": "Tillbaka till hushåll",
+    "steps": {
+      "basics": {
+        "label": "Grunduppgifter",
+        "description": "Kontaktinformation"
+      },
+      "members": {
+        "label": "Medlemmar",
+        "description": "Hushållsmedlemmar"
+      },
+      "preferences": {
+        "label": "Preferenser",
+        "description": "Kost, husdjur & behov"
+      },
+      "verification": {
+        "label": "Verifiering",
+        "description": "Obligatoriska kontroller"
+      },
+      "parcels": {
+        "label": "Matkassar",
+        "description": "Schemaläggning"
+      },
+      "review": {
+        "label": "Sammanfattning",
+        "description": "Granska och skicka"
+      }
+    },
+    "navigation": {
+      "next": "Nästa steg",
+      "back": "Tillbaka"
+    },
+    "validation": {
+      "title": "Valideringsfel",
+      "firstNameLength": "Förnamn måste vara minst 2 tecken",
+      "lastNameLength": "Efternamn måste vara minst 2 tecken",
+      "phoneNumberFormat": "Ange ett giltigt mobilnummer (9-10 siffror)",
+      "phoneDuplicate": "Detta telefonnummer är redan registrerat till ett annat hushåll",
+      "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} - {phone} (ID: {id})",
+      "pickupLocation": "Välj en hämtplats",
+      "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta",
+      "smsConsentRequired": "SMS-samtycke krävs för att fortsätta"
+    },
+    "similarNameDialog": {
+      "title": "Liknande hushåll hittades",
+      "message": "Ett hushåll med liknande namn finns redan. Är du säker på att detta är ett annat hushåll?",
+      "existingHouseholds": "Befintliga liknande hushåll:",
+      "confirm": "Ja, skapa nytt hushåll",
+      "cancel": "Avbryt"
+    },
+    "verification": {
+      "title": "Personalens verifieringschecklista",
+      "description": "Bekräfta följande innan du skapar detta hushåll:",
+      "allComplete": "Alla verifieringar genomförda",
+      "requiredMark": "Obligatorisk",
+      "optionalMark": "Valfri",
+      "progress": "{completed} av {total} verifierade",
+      "noQuestions": "Ingen verifieringschecklista konfigurerad",
+      "errorLoading": "Kunde inte ladda verifieringschecklista",
+      "errorUnknown": "Ett okänt fel uppstod"
+    },
+    "success": {
+      "title": "Klart!",
+      "created": "Nytt hushåll har skapats!",
+      "updated": "Hushållet har uppdaterats!"
+    },
+    "error": {
+      "title": "Fel",
+      "general": "Ett fel uppstod",
+      "unknown": "Okänt fel",
+      "create": "Ett fel uppstod vid skapande av hushåll",
+      "update": "Ett fel uppstod vid uppdatering av hushåll",
+      "optionNotAvailable": "Ett eller flera valda alternativ är inte längre tillgängliga. Granska valen och försök igen.",
+      "verificationQuestionsLoadFailed": "Kunde inte ladda verifieringsfrågor. Kan inte fortsätta utan att slutföra obligatoriska kontroller.",
+      "retry": "Försök igen"
+    },
+    "submitting": {
+      "create": "Skapar nytt hushåll...",
+      "update": "Uppdaterar hushåll..."
+    },
+    "addParcels": {
+      "title": "Lägg till matkassar?",
+      "message": "Detta hushåll har inga kommande matkassar. Vill du lägga till några nu?",
+      "addNow": "Lägg till nu",
+      "later": "Lägg till senare"
+    },
+    "privacyConfirm": {
+      "title": "Bekräftelse av integritetspolicy",
+      "message": "Innan du slutför inskrivningen, bekräfta att du har informerat hushållet om hur deras personuppgifter kommer att behandlas.",
+      "checkbox": "Jag har informerat hushållet om integritetspolicyn",
+      "viewPolicy": "Visa integritetspolicy",
+      "cancel": "Avbryt",
+      "confirm": "Slutför inskrivning"
+    }
+  },
+  "buttons": {
+    "add": "Lägg till",
+    "cancel": "Avbryt",
+    "remove": "Ta bort",
+    "confirm": "Bekräfta"
+  },
+  "languages": {
+    "en": "Engelska",
+    "sv": "Svenska",
+    "english": "Engelska",
+    "swedish": "Svenska",
+    "britishFlag": "Brittisk flagga",
+    "swedishFlag": "Svensk flagga",
+    "switchTo": "Byt till {language}"
+  },
+  "weekdays": {
+    "sunday": "Söndag",
+    "monday": "Måndag",
+    "tuesday": "Tisdag",
+    "wednesday": "Onsdag",
+    "thursday": "Torsdag",
+    "friday": "Fredag",
+    "saturday": "Lördag"
+  },
+  "months": {
+    "january": "januari",
+    "february": "februari",
+    "march": "mars",
+    "april": "april",
+    "may": "maj",
+    "june": "juni",
+    "july": "juli",
+    "august": "augusti",
+    "september": "september",
+    "october": "oktober",
+    "november": "november",
+    "december": "december"
+  },
+  "handoutLocations": {
+    "pageTitle": "Utlämningsställen",
+    "pageDescription": "Hantera de platser där matkassar distribueras, deras öppettider och inställningar.",
+    "locationsList": "Platser",
+    "addLocation": "Lägg till plats",
+    "addFirstLocation": "Lägg till din första plats",
+    "editLocation": "Redigera plats",
+    "noLocations": "Inga utlämningsställen har lagts till än",
+    "loading": "Laddar platser...",
+    "confirmDelete": "Är du säker på att du vill ta bort denna plats? Denna åtgärd kan inte ångras.",
+    "locationCreated": "Plats skapad",
+    "locationCreatedMessage": "Utlämningsstället har skapats.",
+    "locationUpdated": "Plats uppdaterad",
+    "locationUpdatedMessage": "Utlämningsstället har uppdaterats.",
+    "locationDeleted": "Plats raderad",
+    "locationDeletedMessage": "Utlämningsstället har raderats.",
+    "errorLoading": "Fel vid laddning av platser",
+    "errorLoadingMessage": "Det uppstod ett fel vid laddning av utlämningsställen. Försök igen.",
+    "errorSaving": "Fel vid sparande av plats",
+    "errorSavingMessage": "Det uppstod ett fel vid sparande av utlämningsstället. Försök igen.",
+    "errorDeleting": "Fel vid radering av plats",
+    "errorDeletingMessage": "Det uppstod ett fel vid radering av utlämningsstället. Försök igen.",
+    "generalInfo": "Allmän information",
+    "weeklyHours": "Veckoöppettider",
+    "name": "Platsnamn",
+    "namePlaceholder": "Ange platsnamn",
+    "streetAddress": "Gatuadress",
+    "streetAddressPlaceholder": "Ange gatuadress",
+    "postalCode": "Postnummer",
+    "maxParcelsPerDay": "Maximalt antal matkassar per dag",
+    "maxParcelsPlaceholder": "t.ex. 20",
+    "maxParcelsPerSlot": "Maximalt antal matkassar per tidsslot",
+    "maxParcelsPerSlotDescription": "Maximalt antal matkassar som kan bokas i samma tidsslot (lämna tomt för ingen gräns)",
+    "maxParcelsPerSlotPositive": "Maximalt antal matkassar per tidsslot måste vara positivt",
+    "slotDuration": "Slotlängd (minuter)",
+    "slotDurationDescription": "Slotlängd för varje matkasseuthämtning",
+    "slotDurationPositive": "Slotlängd måste vara positiv",
+    "slotDurationMaxExceeded": "Slotlängd får inte överstiga 4 timmar (240 minuter)",
+    "slotDurationIncrement": "Slotlängd måste vara i 15-minutersintervall",
+    "contactInfo": "Kontaktinformation",
+    "contactName": "Kontaktperson",
+    "contactNamePlaceholder": "Ange kontaktpersonens namn",
+    "contactEmail": "E-post",
+    "contactEmailPlaceholder": "Ange e-postadress",
+    "contactPhone": "Telefonnummer",
+    "contactPhonePlaceholder": "Ange telefonnummer",
+    "nameRequired": "Platsnamn krävs",
+    "streetAddressRequired": "Gatuadress krävs",
+    "postalCodeRequired": "Postnummer krävs",
+    "postalCodeFormat": "Postnummer måste bestå av 5 siffror",
+    "emailInvalid": "Ange en giltig e-postadress",
+    "weeklyHoursDescription": "Ställ in regelbundna veckoöppettider för denna plats. Dessa tider kommer att användas som standard vid schemaläggning av matkassar.",
+    "noWeeklyHours": "Inga veckoöppettider har ställts in",
+    "addWeeklyHours": "Lägg till veckoöppettider",
+    "addHours": "Lägg till tider",
+    "weekday": "Veckodag",
+    "selectWeekday": "Välj veckodag",
+    "openingTime": "Öppningstid",
+    "closingTime": "Stängningstid",
+    "timeErrors": {
+      "openingRequired": "Öppningstid krävs",
+      "closingRequired": "Stängningstid krävs",
+      "openingBeforeClosing": "Öppningstid måste vara före stängningstid"
+    },
+    "actions": "Åtgärder",
+    "monday": "Måndag",
+    "tuesday": "Tisdag",
+    "wednesday": "Onsdag",
+    "thursday": "Torsdag",
+    "friday": "Fredag",
+    "saturday": "Lördag",
+    "sunday": "Söndag",
+    "selectDates": "Välj datum",
+    "date": "Datum",
+    "status": "Status",
+    "hours": "Tider",
+    "open": "Öppen",
+    "closed": "Stängd",
+    "selectedDate": "Valt datum",
+    "locationClosed": "Platsen stängd denna dag",
+    "createLocation": "Skapa plats",
+    "updateLocation": "Uppdatera plats",
+    "cancel": "Avbryt",
+    "schedules": "Scheman",
+    "addSchedule": "Lägg till schema",
+    "noSchedulesYet": "Inga scheman har lagts till än",
+    "addNewSchedule": "Lägg till nytt schema",
+    "editSchedule": "Redigera schema",
+    "scheduleName": {
+      "required": "Schemanamn krävs",
+      "label": "Schemanamn"
+    },
+    "startDate": {
+      "required": "Startdatum krävs"
+    },
+    "endDate": {
+      "required": "Slutdatum krävs",
+      "afterStartDate": "Slutdatum måste vara efter startdatum"
+    },
+    "days": {
+      "atLeastOneRequired": "Minst en dag måste vara öppen"
+    },
+    "scheduleNamePlaceholder": "t.ex. Sommarschema, Helgschema",
+    "selectDate": "Välj datum",
+    "startWeek": "Startvecka",
+    "endWeek": "Slutvecka",
+    "week": "Vecka",
+    "selectWeek": "Välj vecka",
+    "previousYear": "Föregående år",
+    "nextYear": "Nästa år",
+    "previousMonth": "Föregående månad",
+    "nextMonth": "Nästa månad",
+    "scheduleOverlapWarning": "Överlappande scheman upptäckta",
+    "scheduleOverlapMessage": "Detta schema överlappar med \"{scheduleName}\" ({startDate} till {endDate}). Välj ett annat datumintervall.",
+    "weekdaySchedule": "Veckodagsschema",
+    "configureEachWeekday": "Välj veckodagar när denna plats är öppen och ställ in öppettider för varje dag.",
+    "weekdays": {
+      "monday": "Måndag",
+      "tuesday": "Tisdag",
+      "wednesday": "Onsdag",
+      "thursday": "Torsdag",
+      "friday": "Fredag",
+      "saturday": "Lördag",
+      "sunday": "Söndag"
+    },
+    "saveChanges": "Spara ändringar",
+    "createSchedule": "Skapa schema",
+    "confirmDeletion": "Bekräfta radering",
+    "confirmDeleteScheduleMessage": "Är du säker på att du vill ta bort schemat ",
+    "delete": "Ta bort",
+    "active": "Aktiv",
+    "upcoming": "Kommande",
+    "past": "Tidigare",
+    "edit": "Redigera",
+    "scheduleCreateError": "Fel vid skapande av schema",
+    "scheduleUpdateError": "Fel vid uppdatering av schema",
+    "scheduleDeleteError": "Fel vid radering av schema",
+    "activeDays": "Aktiva dagar",
+    "noDaysOpen": "Inga dagar öppna",
+    "allDaysOpen": "Alla veckodagar",
+    "saveLocationFirst": "Spara platsen först innan du lägger till scheman",
+    "showPastSchedules": "Visa tidigare scheman",
+    "hidePastSchedules": "Dölj tidigare scheman",
+    "pastScheduleHidden": "tidigare schema är dolt",
+    "pastSchedulesHidden": "tidigare scheman är dolda",
+    "noPastSchedules": "Inga scheman att visa. Försök att visa tidigare scheman.",
+    "deleteLocationAriaLabel": "Ta bort plats",
+    "error": "Fel",
+    "errorFetchingLocation": "Det uppstod ett fel vid hämtning av utlämningsstället. Försök igen.",
+    "scheduleChangeWarning": "Varning för schemaändring",
+    "parcelsWillBeAffected": "Matkassar kommer att påverkas",
+    "parcelsAffectedMessage": "{count, plural, =1 {1 matkassehämtning} other {# matkassehämtningar}} kommer att hamna utanför de nya öppettiderna.",
+    "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
+    "proceedAnyway": "Fortsätt ändå",
+    "checking": "Kontrollerar...",
+    "checkingAffectedParcels": "Kontrollerar hur många matkassar som skulle påverkas av denna radering...",
+    "verification": {
+      "title": "Verifieringsfrågor",
+      "description": "Hantera verifieringsfrågor som administratörer måste bekräfta innan de skapar hushåll för denna plats",
+      "noQuestions": "Inga verifieringsfrågor konfigurerade än",
+      "addQuestion": "Lägg till fråga",
+      "addFirstQuestion": "Lägg till din första verifieringsfråga",
+      "editQuestion": "Redigera verifieringsfråga",
+      "questionTextSv": "Frågetext (svenska)",
+      "questionTextEn": "Frågetext (engelska)",
+      "questionTextSvPlaceholder": "t.ex. Jag har verifierat att hushållet bor i rätt postnummerområde",
+      "questionTextEnPlaceholder": "t.ex. I have verified that the household lives in the correct postal code area",
+      "helpTextSv": "Hjälptext (svenska, valfri)",
+      "helpTextEn": "Hjälptext (engelska, valfri)",
+      "helpTextSvPlaceholder": "Ytterligare vägledning eller förklaring på svenska",
+      "helpTextEnPlaceholder": "Ytterligare vägledning eller förklaring på engelska",
+      "isRequired": "Obligatorisk verifiering",
+      "isRequiredDescription": "Administratören måste markera denna ruta innan de skapar hushåll",
+      "displayOrder": "Visningsordning",
+      "displayOrderDescription": "Lägre nummer visas först (0, 1, 2...)",
+      "questionTextSvRequired": "Svensk frågetext krävs",
+      "questionTextEnRequired": "Engelsk frågetext krävs",
+      "displayOrderRequired": "Visningsordning krävs",
+      "saveQuestion": "Spara fråga",
+      "cancel": "Avbryt",
+      "questionCreated": "Verifieringsfråga skapad",
+      "questionUpdated": "Verifieringsfråga uppdaterad",
+      "questionDeleted": "Verifieringsfråga raderad",
+      "errorCreating": "Fel vid skapande av verifieringsfråga",
+      "errorUpdating": "Fel vid uppdatering av verifieringsfråga",
+      "errorDeleting": "Fel vid radering av verifieringsfråga",
+      "errorLoading": "Fel vid laddning av verifieringsfrågor",
+      "confirmDelete": "Är du säker på att du vill ta bort denna verifieringsfråga?",
+      "delete": "Ta bort",
+      "edit": "Redigera",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "toggleActive": "Växla aktiv/inaktiv",
+      "required": "Obligatorisk",
+      "optional": "Valfri",
+      "preview": "Förhandsgranskning",
+      "previewDescription": "Så här ser administratörer denna fråga i guiden för att skapa hushåll:",
+      "reorderInstructions": "Dra för att ändra ordning på frågor"
+    }
+  },
+  "sms": {
+    "title": "SMS-meddelanden",
+    "testModeWarning": "⚠️ TESTLÄGE: Inga riktiga SMS kommer att skickas.",
+    "status": {
+      "queued": "I kö",
+      "sending": "Skickar",
+      "sent": "Skickat",
+      "delivered": "Levererat",
+      "not_delivered": "Ej levererat",
+      "retrying": "Försöker igen",
+      "failed": "Misslyckades"
+    },
+    "actions": {
+      "markPickedUp": "Markera som utlämnad",
+      "previewSms": "Förhandsgranska SMS",
+      "resendSms": "Skicka SMS igen",
+      "sendSms": "Skicka SMS",
+      "simulateDelivered": "Simulera levererat",
+      "simulateNotDelivered": "Simulera ej levererat"
+    },
+    "history": {
+      "title": "SMS-historik",
+      "noSms": "Inga SMS-meddelanden skickade för denna matkasse",
+      "intent": "Typ",
+      "status": "Status",
+      "attempts": "Försök",
+      "createdAt": "Skapad",
+      "sentAt": "Skickat",
+      "deliveredAt": "Levererat",
+      "error": "Fel"
+    },
+    "preview": {
+      "title": "SMS-förhandsgranskning",
+      "recipient": "Mottagare",
+      "message": "Meddelande",
+      "locale": "Språk"
+    },
+    "notifications": {
+      "markedPickedUp": "Matkasse markerad som utlämnad",
+      "smsQueued": "SMS köad för sändning",
+      "smsResent": "SMS köad för omsändning",
+      "deliverySimulated": "Leveransstatus simulerad",
+      "cooldownActive": "Vänta innan du skickar SMS igen",
+      "error": "Ett fel uppstod"
+    },
+    "cooldown": {
+      "message": "Du kan skicka SMS igen om {minutes} minuter",
+      "active": "Omsändningsnedkylning aktiv"
+    }
+  },
+  "admin": {
+    "parcelDialog": {
+      "title": "Matkasseinformation",
+      "loading": "Laddar matkassedetaljer...",
+      "pickupSchedule": "Hämtschema",
+      "pickedUp": "Utlämnad",
+      "notPickedUp": "Ej utlämnad",
+      "status": {
+        "pickedUp": "Utlämnad",
+        "noShow": "Utebliven",
+        "cancelled": "AVBOKAD",
+        "wrongDay": "Fel dag",
+        "checkTime": "Kolla tid",
+        "okToHandOut": "OK att lämna ut"
+      },
+      "by": "av",
+      "householdDetails": "Hushållsdetaljer",
+      "viewDetails": "Visa detaljer",
+      "contactInfo": "Kontaktinformation",
+      "language": "Språk",
+      "primaryLocation": "Huvudutlämningsplats",
+      "householdComposition": "Hushållssammansättning",
+      "members": "{count, plural, =0 {Inga medlemmar} =1 {1 medlem} other {# medlemmar}}",
+      "pets": "Husdjur",
+      "dietaryRestrictions": "Kostrestriktioner",
+      "severityRequired": "Krav",
+      "severityPreference": "Önskemål",
+      "noRestrictions": "Inga kostrestriktioner registrerade",
+      "additionalNeeds": "Ytterligare behov",
+      "comments": "Kommentarer",
+      "noComments": "Inga kommentarer än",
+      "addCommentPlaceholder": "Lägg till en kommentar om detta hushåll...",
+      "addComment": "Lägg till kommentar",
+      "markPickedUp": "Markera som utlämnad",
+      "undoPickup": "Ångra utlämning",
+      "markNoShow": "Utebliven",
+      "undoNoShow": "Ångra utebliven",
+      "noShowConfirmTitle": "Markera som utebliven?",
+      "noShowConfirmMessage": "Är du säker på att du vill markera {name} som utebliven?",
+      "confirmNoShow": "Ja, markera som utebliven",
+      "cancelNoShow": "Avbryt",
+      "markNoShowAriaLabel": "Markera {name} som utebliven",
+      "undoNoShowAriaLabel": "Ångra utebliven för {name}",
+      "markPickedUpAriaLabel": "Markera {name}s matkasse som utlämnad",
+      "undoPickupAriaLabel": "Ångra utlämning för {name}",
+      "cancelParcel": "Avboka matkasse",
+      "deleteConfirmTitle": "Bekräfta avbokning",
+      "deleteConfirmMessage": "Är du säker på att du vill avboka denna matkasse? {smsWarning}",
+      "smsWarning": "Ett avboknings-SMS kommer att skickas till hushållet.",
+      "smsNoWarning": "Inget SMS har skickats ännu.",
+      "confirmDelete": "Ja, avboka",
+      "cancelDelete": "Avbryt",
+      "deleting": "Avbokar...",
+      "success": {
+        "parcelDeleted": "Matkasse avbokad",
+        "parcelDeletedMessage": "Matkassen har avbokats"
+      },
+      "errors": {
+        "parcelNotFound": "Matkassen hittades inte",
+        "loadFailed": "Misslyckades med att ladda matkassedetaljer",
+        "markPickupFailed": "Misslyckades med att markera som hämtat",
+        "undoPickupFailed": "Misslyckades med att ångra hämtning",
+        "markNoShowFailed": "Misslyckades med att markera som utebliven",
+        "undoNoShowFailed": "Misslyckades med att ångra utebliven",
+        "addCommentFailed": "Misslyckades med att lägga till kommentar",
+        "deleteCommentFailed": "Misslyckades att ta bort kommentar",
+        "deleteCommentError": "Fel vid borttagning av kommentar",
+        "deleteParcelFailed": "Misslyckades med att avboka matkassen",
+        "parcelAlreadyPickedUp": "Kan inte avboka en matkasse som redan är upphämtad",
+        "parcelInPast": "Kan inte avboka en matkasse från det förflutna"
+      },
+      "smsStatus": {
+        "title": "SMS-status",
+        "provider": {
+          "delivered": "Levererat",
+          "failed": "Misslyckades",
+          "notDelivered": "Ej levererat",
+          "awaiting": "Inväntar bekräftelse"
+        },
+        "deliveryStatusAt": "Leveransstatus kl"
+      }
+    },
+    "smsDashboard": {
+      "title": "SMS-hantering",
+      "pendingCount": "{count, plural, =0 {Inga väntande SMS} =1 {1 väntande SMS} other {# väntande SMS}}",
+      "failureCount": "{count, plural, =0 {Inga fel} =1 {1 fel} other {# fel}}",
+      "loading": "Laddar SMS...",
+      "refreshing": "Uppdaterar...",
+      "filters": {
+        "location": "Plats",
+        "allLocations": "Alla platser",
+        "status": "Status",
+        "allStatuses": "Alla statusar",
+        "searchPlaceholder": "Sök namn...",
+        "clearFilters": "Rensa filter",
+        "refresh": "Uppdatera",
+        "showCancelled": "Visa avbokade matkassar"
+      },
+      "status": {
+        "queued": "Väntar",
+        "sending": "Skickar",
+        "sent": "Skickad",
+        "retrying": "Försöker igen",
+        "failed": "Misslyckad",
+        "cancelled": "Avbruten",
+        "retryScheduled": "Nytt försök schemalagt",
+        "retryScheduledAt": "Nytt försök kl {time}"
+      },
+      "intent": {
+        "pickup_reminder": "Påminnelse",
+        "pickup_updated": "Uppdatering",
+        "pickup_cancelled": "Avbruten",
+        "consent_enrolment": "Samtycke",
+        "enrolment": "Inskrivning"
+      },
+      "dateGroups": {
+        "today": "IDAG",
+        "tomorrow": "IMORGON"
+      },
+      "actions": {
+        "menuLabel": "Åtgärder",
+        "sendNow": "Skicka nu",
+        "tryAgain": "Försök igen",
+        "sendAgain": "Skicka igen",
+        "viewHousehold": "Visa hushåll",
+        "viewParcel": "Visa matkasse"
+      },
+      "itemInfo": {
+        "willSendAt": "Skickas cirka {time}",
+        "sentAt": "Skickades {time}"
+      },
+      "notifications": {
+        "sendSuccess": "SMS skickades",
+        "sendError": "Kunde inte skicka SMS",
+        "sendErrorDetail": "Kunde inte skicka SMS: {error}"
+      },
+      "emptyStates": {
+        "noPending": "Inga väntande SMS - Allt klart! ✨",
+        "noResults": "Inga SMS hittades med nuvarande filter",
+        "noFailures": "Inga misslyckade SMS just nu"
+      },
+      "errorMessages": {
+        "loadError": "Kunde inte ladda SMS-data",
+        "tryAgainLater": "Försök igen senare"
+      },
+      "statistics": {
+        "title": "SMS-statistik & hälsa",
+        "viewMonthly": "Visa månadsstatistik",
+        "hide": "Dölj statistik",
+        "status": {
+          "healthy": "Fungerar bra",
+          "attention": "Observera",
+          "critical": "Kritiskt"
+        },
+        "today": {
+          "label": "Idag"
+        },
+        "last7Days": "Senaste 7 dagarna",
+        "currentMonth": "Denna månad",
+        "monthlyProgress": "Månatlig utveckling",
+        "byLocation": "Per plats",
+        "sent": "skickade",
+        "failed": "misslyckade",
+        "pending": "väntande",
+        "total": "totalt",
+        "successRate": "lyckade",
+        "vsLastMonth": "vs förra månaden",
+        "ofLastMonth": "av {count} förra månaden"
+      }
+    }
+  },
+  "settings": {
+    "settings": "Inställningar",
+    "general": "Allmänna inställningar",
+    "generalDescription": "Konfigurera integritetspolicy, registreringsformulär, matkassegränser och uppföljningsinställningar.",
+    "locations": "Utlämningsställen",
+    "parcels": "Matkassegränser",
+    "aria": {
+      "settingsMenu": "Inställningsmeny"
+    },
+    "nav": {
+      "privacyPolicy": "Integritetspolicy",
+      "userAgreement": "Användaravtal",
+      "enrollmentChecklist": "Registreringsformulär",
+      "parcelThreshold": "Matkassegränser",
+      "noshowFollowup": "Uppföljning vid uteblivna"
+    },
+    "enrollmentChecklist": {
+      "title": "Registreringsformulär",
+      "description": "Personalens checklista för alla nya hushåll",
+      "addChecklistItem": "Lägg till kontrollpunkt",
+      "editChecklistItem": "Redigera kontrollpunkt",
+      "deleteConfirm": "Ta bort denna kontrollpunkt?",
+      "deleteModalTitle": "Ta bort kontrollpunkt",
+      "reorderHint": "Dra för att ändra ordning",
+      "preview": "Förhandsgranska",
+      "emptyState": "Inga kontrollpunkter än",
+      "instructionText": "Jag har sett till att...",
+      "badges": {
+        "required": "Obligatorisk",
+        "helpAvailable": "Hjälptext tillgänglig"
+      },
+      "buttons": {
+        "cancel": "Avbryt",
+        "save": "Spara",
+        "delete": "Ta bort"
+      },
+      "form": {
+        "checklistText": "Kontrollpunkt",
+        "helpText": "Hjälptext",
+        "isRequired": "Obligatorisk",
+        "requiredHint": "Personal måste kryssa i denna ruta",
+        "placeholder": "De har informerats om...",
+        "helpTextPlaceholder": "Valfri hjälptext..."
+      },
+      "examples": {
+        "title": "Exempel på kontrollpunkter:",
+        "item1": "De har informerats om hämtningstider och plats",
+        "item2": "De förstår månadsgränsen för matpaket",
+        "item3": "Jag har verifierat deras identitetshandling",
+        "item4": "De har informerats om alternativ för kostbegränsningar"
+      },
+      "validation": {
+        "textRequired": "Kontrollpunktstext krävs",
+        "textTooShort": "Kontrollpunkten måste vara minst 10 tecken"
+      },
+      "notifications": {
+        "created": "Kontrollpunkt skapad",
+        "updated": "Kontrollpunkt uppdaterad",
+        "deleted": "Kontrollpunkt borttagen",
+        "reordered": "Kontrollpunkter omordnade",
+        "error": "Fel",
+        "success": "Lyckades",
+        "loadError": "Kunde inte ladda verifieringsfrågor",
+        "saveError": "Kunde inte spara fråga",
+        "deleteError": "Kunde inte ta bort fråga",
+        "reorderError": "Kunde inte omordna frågor",
+        "errors": {
+          "FETCH_FAILED": "Kunde inte ladda kontrollpunkter",
+          "VALIDATION_ERROR": "Kontrollpunktstext kan inte vara tom",
+          "CREATE_FAILED": "Kunde inte skapa kontrollpunkt",
+          "UPDATE_FAILED": "Kunde inte uppdatera kontrollpunkt",
+          "NOT_FOUND": "Kontrollpunkt hittades inte",
+          "DELETE_FAILED": "Kunde inte ta bort kontrollpunkt",
+          "REORDER_FAILED": "Kunde inte omordna kontrollpunkter",
+          "UNKNOWN": "Ett oväntat fel inträffade"
+        }
+      }
+    },
+    "householdOptions": {
+      "title": "Hushållsalternativ",
+      "description": "Hantera kostbegränsningar, djurtyper och övriga behov som visas i skapa/redigera hushåll.",
+      "tabs": {
+        "dietaryRestrictions": "Kostbegränsningar",
+        "petTypes": "Djurtyper",
+        "additionalNeeds": "Övriga behov"
+      },
+      "addButton": "Lägg till",
+      "statusToggle": "Aktiv",
+      "status": {
+        "active": "Aktiv",
+        "disabled": "Inaktiv"
+      },
+      "linkedHouseholds": {
+        "title": "Kopplade hushåll"
+      },
+      "usageCount": "{count, plural, =0 {Används inte} =1 {1 hushåll} other {# hushåll}}",
+      "emptyState": {
+        "dietaryRestrictions": "Inga kostbegränsningar än. Lägg till vanliga begränsningar som \"Glutenfri\" eller \"Halal\".",
+        "petTypes": "Inga djurtyper än. Lägg till vanliga djur som \"Hund\" eller \"Katt\".",
+        "additionalNeeds": "Inga övriga behov än. Lägg till behov som \"Blöjor\" eller \"Busskort\"."
+      },
+      "infoAlert": "Använd reglaget för att inaktivera alternativ utan att ta bort dem. Inaktiva alternativ syns i guiden men kan inte väljas på nytt.",
+      "form": {
+        "nameLabel": "Namn",
+        "namePlaceholder": {
+          "dietaryRestrictions": "T.ex. Glutenfri, Halal, Vegan...",
+          "petTypes": "T.ex. Hund, Katt, Kanin...",
+          "additionalNeeds": "T.ex. Blöjor, Busskort, Rengöringsmedel..."
+        },
+        "addTitle": {
+          "dietaryRestrictions": "Lägg till kostbegränsning",
+          "petTypes": "Lägg till djurtyp",
+          "additionalNeeds": "Lägg till övrigt behov"
+        },
+        "editTitle": {
+          "dietaryRestrictions": "Redigera kostbegränsning",
+          "petTypes": "Redigera djurtyp",
+          "additionalNeeds": "Redigera övrigt behov"
+        },
+        "editWarning": "Används av {count} hushåll - ändringar påverkar alla",
+        "severityLabel": "Allvarlighetsgrad",
+        "severityRequired": "Krav",
+        "severityPreference": "Önskemål"
+      },
+      "delete": {
+        "title": {
+          "dietaryRestrictions": "Ta bort kostbegränsning",
+          "petTypes": "Ta bort djurtyp",
+          "additionalNeeds": "Ta bort övrigt behov"
+        },
+        "confirmMessage": "Är du säker på att du vill ta bort \"{name}\"?",
+        "cannotDelete": "Kan inte ta bort - används av {count} hushåll",
+        "cannotDeleteTooltip": "Ta bort detta alternativ från alla hushåll innan du tar bort det"
+      },
+      "buttons": {
+        "cancel": "Avbryt",
+        "save": "Spara",
+        "delete": "Ta bort"
+      },
+      "notifications": {
+        "created": "Alternativ skapat",
+        "updated": "Alternativ uppdaterat",
+        "deleted": "Alternativ borttaget",
+        "activated": "Alternativ aktiverat",
+        "deactivated": "Alternativ inaktiverat",
+        "error": "Fel",
+        "success": "Lyckades",
+        "loadError": "Kunde inte ladda alternativ",
+        "saveError": "Kunde inte spara alternativ",
+        "deleteError": "Kunde inte ta bort alternativ",
+        "errors": {
+          "FETCH_FAILED": "Kunde inte ladda alternativ",
+          "CREATE_FAILED": "Kunde inte skapa alternativ",
+          "UPDATE_FAILED": "Kunde inte uppdatera alternativ",
+          "DELETE_FAILED": "Kunde inte ta bort alternativ",
+          "OPTION_IN_USE": "Kan inte ta bort alternativ som används av hushåll",
+          "DUPLICATE_NAME": "Ett alternativ med detta namn finns redan",
+          "VALIDATION_ERROR": "Namn krävs",
+          "NOT_FOUND": "Alternativ hittades inte",
+          "UNKNOWN": "Ett oväntat fel inträffade"
+        }
+      }
+    },
+    "privacyPolicy": {
+      "title": "Integritetspolicy",
+      "description": "Redigera integritetspolicyn som visas för hushåll. Policyn finns tillgänglig på /privacy",
+      "viewPublicPage": "Visa publik sida",
+      "markdownHint": "Använd Markdown-formatering för rubriker, listor och betoning.",
+      "markdownExamples": "Exempel: # Rubrik, ## Underrubrik, - Listpunkt, **fet**, *kursiv*",
+      "placeholder": "Skriv integritetspolicyn här...",
+      "preview": "Förhandsgranskning",
+      "lastUpdated": "uppdaterad {date}",
+      "lastUpdatedFull": "Senast uppdaterad: {date}",
+      "saved": "Sparad",
+      "addLanguage": "Lägg till språk...",
+      "buttons": {
+        "edit": "Redigera",
+        "preview": "Förhandsgranska",
+        "save": "Spara"
+      },
+      "notifications": {
+        "success": "Klart",
+        "error": "Fel",
+        "saved": "Integritetspolicyn har sparats",
+        "loadError": "Kunde inte ladda integritetspolicyn",
+        "saveError": "Kunde inte spara integritetspolicyn",
+        "emptyContent": "Integritetspolicyn kan inte vara tom",
+        "cannotRemoveSaved": "Kan inte ta bort ett språk med sparat innehåll"
+      }
+    },
+    "userAgreement": {
+      "title": "Användaravtal",
+      "description": "Hantera användaravtalet som alla administratörer måste acceptera innan de kan använda systemet. Avtalet beskriver ansvar för hantering av personuppgifter.",
+      "currentVersion": "Nuvarande version: {version}",
+      "acceptedBy": "{count} användare har accepterat",
+      "noAgreement": "Inget användaravtal har skapats ännu. Skapa ett avtal för att kräva att alla användare accepterar det innan de kan använda systemet.",
+      "publishWarning": "Att publicera en ny version kräver att alla användare accepterar avtalet igen innan de kan fortsätta använda systemet.",
+      "markdownHint": "Använd Markdown-formatering för rubriker, listor och betoning.",
+      "placeholder": "Skriv användaravtalet här...",
+      "preview": "Förhandsgranskning",
+      "versionHistory": "Versionshistorik",
+      "table": {
+        "version": "Version",
+        "createdAt": "Skapad",
+        "createdBy": "Skapad av",
+        "acceptedBy": "Accepterat av"
+      },
+      "buttons": {
+        "edit": "Redigera",
+        "preview": "Förhandsgranska",
+        "showHistory": "Visa historik",
+        "hideHistory": "Dölj historik",
+        "publish": "Publicera ny version",
+        "create": "Skapa avtal"
+      },
+      "notifications": {
+        "success": "Klart",
+        "error": "Fel",
+        "saved": "Användaravtalet har sparats. Alla användare måste nu acceptera det igen.",
+        "loadError": "Kunde inte ladda användaravtalet",
+        "saveError": "Kunde inte spara användaravtalet",
+        "emptyContent": "Användaravtalet kan inte vara tomt"
+      }
+    },
+    "parcelThreshold": {
+      "title": "Varningsgräns för matkassar",
+      "description": "Ange antalet matkassar varefter systemet ska varna administratörer om hög användning",
+      "infoMessage": "När ett hushåll överskrider detta antal matkassar visas en varning på hushållets detaljsida och när fler kassar läggs till. Detta hjälper till att identifiera hushåll som kan behöva ytterligare stöd eller genomgång.",
+      "thresholdLabel": "Varningsgräns",
+      "thresholdDescription": "Antal matkassar innan varning visas",
+      "thresholdPlaceholder": "t.ex. 10",
+      "warningPreview": "Varningar visas för hushåll med fler än {threshold} matkassar",
+      "saveButton": "Spara",
+      "clearButton": "Rensa (inaktivera varningar)",
+      "success": {
+        "savedTitle": "Sparat",
+        "savedMessage": "Varningsgränsen för matkassar har uppdaterats",
+        "clearedMessage": "Matkassevarningar har inaktiverats"
+      },
+      "errors": {
+        "loadFailedTitle": "Fel",
+        "loadFailedMessage": "Kunde inte ladda varningsgräns för matkassar",
+        "saveFailedTitle": "Fel",
+        "saveFailedMessage": "Kunde inte spara varningsgräns för matkassar"
+      }
+    },
+    "noshowFollowup": {
+      "title": "Uppföljning vid uteblivna",
+      "description": "Konfigurera automatiskt skapande av uppföljningsärenden när hushåll har upprepade uteblivna hämtningar",
+      "infoMessage": "När aktiverad skapas ett uppföljningsärende automatiskt på ärendesidan när ett hushåll når de angivna tröskelvärdena för uteblivna hämtningar. Detta hjälper till att identifiera hushåll som kan behöva ytterligare kontakt eller stöd.",
+      "enabledLabel": "Aktivera uppföljning vid uteblivna",
+      "enabledDescription": "Skapa automatiskt uppföljningsärenden för hushåll med upprepade uteblivna hämtningar",
+      "consecutiveLabel": "Uteblivna i rad",
+      "consecutiveDescription": "Antal uteblivna i rad för att skapa uppföljning",
+      "consecutivePlaceholder": "t.ex. 2",
+      "totalLabel": "Totalt uteblivna",
+      "totalDescription": "Totalt antal uteblivna (all tid) för att skapa uppföljning",
+      "totalPlaceholder": "t.ex. 4",
+      "preview": "Ett uppföljningsärende skapas när ett hushåll har {consecutive} uteblivna i rad ELLER {total} uteblivna totalt",
+      "saveButton": "Spara",
+      "success": {
+        "savedTitle": "Sparat",
+        "savedMessage": "Inställningar för uppföljning vid uteblivna har uppdaterats"
+      },
+      "errors": {
+        "loadFailedTitle": "Fel",
+        "loadFailedMessage": "Kunde inte ladda inställningar för uppföljning vid uteblivna",
+        "saveFailedTitle": "Fel",
+        "saveFailedMessage": "Kunde inte spara inställningar för uppföljning vid uteblivna"
+      }
+    },
+    "smsTemplates": {
+      "title": "Standard SMS-mallar",
+      "description": "Anpassa textmeddelanden som skickas till hushåll",
+      "comingSoon": "Kommer snart..."
+    },
+    "users": "Användare",
+    "usersSection": {
+      "title": "Användarhantering",
+      "description": "Hantera användarroller. Rolländringar träder i kraft inom 5 minuter.",
+      "columns": {
+        "user": "Användare",
+        "role": "Roll"
+      },
+      "roles": {
+        "admin": "Administratör",
+        "handout_staff": "Utlämningspersonal"
+      },
+      "notifications": {
+        "success": "Klart",
+        "error": "Fel",
+        "roleUpdated": "Roll uppdaterad"
+      }
+    }
+  },
+  "parcelWarning": {
+    "modal": {
+      "title": "Varning för högt antal matkassar",
+      "message": "{householdName} har mottagit {count} matkassar (gräns: {threshold}).",
+      "explanation": "Detta hushåll har överskridit varningsgränsen för matkassar. Vänligen verifiera att de har fått lämpligt stöd och hjälp. Du kan fortfarande lägga till fler kassar, men detta kräver bekräftelse.",
+      "acknowledgmentLabel": "Jag bekräftar att detta hushåll kan behöva ytterligare genomgång eller stöd",
+      "confirmButton": "Fortsätt lägga till matkassar",
+      "cancelButton": "Avbryt"
+    }
+  },
+  "issues": {
+    "title": "Uppföljning",
+    "allClear": "Allt klart! Inget behöver följas upp.",
+    "refresh": "Uppdatera",
+    "error": "Fel vid inläsning av ärenden",
+    "accessDenied": "Åtkomst nekad. Du har inte behörighet att visa ärenden.",
+    "filters": {
+      "all": "Alla",
+      "unresolvedHandouts": "Oregistrerade utlämningar",
+      "outsideOpeningHours": "Utanför öppettider",
+      "failedSms": "Misslyckade SMS",
+      "noShowFollowups": "Uppföljning uteblivna"
+    },
+    "sections": {
+      "unresolvedHandouts": "Oregistrerade utlämningar",
+      "outsideOpeningHours": "Utanför öppettider",
+      "failedSms": "Misslyckade SMS"
+    },
+    "cardType": {
+      "unresolvedHandout": "Oregistrerad utlämning",
+      "outsideHours": "Utanför öppettider",
+      "failedSms": "SMS-leverans misslyckades",
+      "failedSmsStale": "SMS-leverans obekräftad",
+      "failedSmsProvider": "SMS-leverans avvisad",
+      "failedSmsInternal": "SMS-sändning misslyckades",
+      "noShowFollowup": "Uppföljning behövs"
+    },
+    "actions": {
+      "handedOut": "Utlämnad",
+      "noShow": "Uteblev",
+      "cancelParcel": "Avboka paket",
+      "reschedule": "Omboka",
+      "retry": "Försök igen",
+      "retryPickupPassed": "För sent att skicka igen - upphämtningstiden har passerat",
+      "dismiss": "Ignorera",
+      "editHousehold": "Redigera hushåll",
+      "viewHousehold": "Visa hushåll",
+      "cancel": "Avbryt",
+      "save": "Spara"
+    },
+    "openingHours": "Öppettider {hours}",
+    "closedThisDay": "Stängt denna dag",
+    "smsIntent": {
+      "pickup_reminder": "Påminnelse om hämtning",
+      "pickup_updated": "Ändrad hämtningstid",
+      "pickup_cancelled": "Hämtning avbokad",
+      "enrolment": "Välkomstmeddelande",
+      "consent_enrolment": "Samtyckesbegäran",
+      "food_parcels_ended": "Meddelande om avslutad mathjälp"
+    },
+    "failureDescription": {
+      "internal": "Kunde inte skickas. Kontakta teknisk support.",
+      "provider": "SMS ej levererat. Detta betyder vanligtvis att telefonnumret inte är i bruk.",
+      "stale": "Ingen leveransbekräftelse mottagen. Kontakta teknisk support."
+    },
+    "toast": {
+      "handedOut": "Markerad som utlämnad",
+      "noShow": "Markerad som utebliven",
+      "retry": "SMS köat för nytt försök",
+      "dismiss": "Ärende ignorerat",
+      "cancelParcel": "Paket avbokat",
+      "rescheduled": "Paket ombokat",
+      "success": "Lyckades",
+      "actionError": "Åtgärden misslyckades",
+      "handedOutError": "Kunde inte markera som utlämnad",
+      "noShowError": "Kunde inte markera som utebliven",
+      "cancelError": "Kunde inte avboka paket",
+      "retryError": "Kunde inte skicka SMS igen",
+      "dismissError": "Kunde inte ignorera",
+      "noShowFollowupDismissed": "Uppföljning ignorerad"
+    },
+    "noShowFollowup": {
+      "triggerConsecutive": "{count} uteblivna i rad",
+      "triggerTotal": "{count} uteblivna totalt",
+      "triggerBoth": "{consecutive} i rad, {total} totalt uteblivna"
+    },
+    "errorCodes": {
+      "NOT_FOUND": "Kunde inte hitta objektet. Det kan ha tagits bort.",
+      "ALREADY_CANCELLED": "Detta paket har redan avbokats.",
+      "ALREADY_PICKED_UP": "Detta paket har redan lämnats ut.",
+      "ALREADY_NO_SHOW": "Detta paket är redan markerat som utebliven.",
+      "FUTURE_PARCEL": "Kan inte markera ett framtida paket som utebliven.",
+      "ALREADY_DELETED": "Detta paket har redan tagits bort.",
+      "PAST_PARCEL": "Kan inte avboka ett tidigare paket.",
+      "INVALID_ACTION": "Ogiltig åtgärd begärd.",
+      "OUTSIDE_HOURS": "Kan inte skicka SMS för paket schemalagt utanför öppettider.",
+      "COOLDOWN_ACTIVE": "Vänta innan du skickar ett nytt SMS.",
+      "FETCH_ERROR": "Kunde inte ladda data. Försök igen.",
+      "SEND_ERROR": "Kunde inte skicka SMS. Försök igen.",
+      "PARCEL_NOT_FOUND": "Det tillhörande paketet finns inte längre.",
+      "TOO_LATE": "För sent att skicka igen - upphämtningen börjar inom 1 timme.",
+      "UNKNOWN_ERROR": "Ett oväntat fel inträffade. Försök igen."
+    },
+    "confirm": {
+      "noShowTitle": "Markera som utebliven?",
+      "noShowMessage": "Är du säker på att du vill markera {name} som utebliven?",
+      "noShowConfirm": "Ja, markera som utebliven",
+      "cancelParcelTitle": "Avboka paket?",
+      "cancelParcelMessage": "Är du säker på att du vill avboka matpaketet för {name}? Denna åtgärd kan inte ångras.",
+      "cancelParcelConfirm": "Ja, avboka paket",
+      "dismissFailedSmsTitle": "Ignorera SMS-fel?",
+      "dismissFailedSmsMessage": "Är du säker på att du vill ignorera det misslyckade SMS:et för {name}?",
+      "dismissFailedSmsConfirm": "Ja, ignorera",
+      "dismissNoShowFollowupTitle": "Ignorera uppföljning?",
+      "dismissNoShowFollowupMessage": "Är du säker på att du vill ignorera uppföljningen för {name}? Den visas igen om de uteblir igen.",
+      "dismissNoShowFollowupConfirm": "Ja, ignorera",
+      "cancel": "Avbryt"
+    },
+    "confirmCancelTitle": "Avboka paket?",
+    "confirmCancelMessage": "Är du säker på att du vill avboka detta matpaket? Denna åtgärd kan inte ångras.",
+    "reschedule": {
+      "loading": "Laddar tillgänglighet...",
+      "newDate": "Nytt datum",
+      "selectDate": "Välj datum",
+      "newTime": "Ny tid",
+      "selectTime": "Välj tid",
+      "dateUnavailable": "Platsen är stängd detta datum",
+      "noTimesAvailable": "Inga lediga tider",
+      "requiredFields": "Välj både datum och tid",
+      "genericError": "Ombokningen misslyckades. Försök igen.",
+      "loadError": "Kunde inte ladda schema"
+    }
+  },
+  "smsConfirm": {
+    "title": "Skicka SMS",
+    "recentWarning": "Nyligen skickat",
+    "recentWarningMessage": "Ett SMS skickades till denna mottagare kl {time}. Är du säker på att du vill skicka ett till?",
+    "previousSms": "Tidigare SMS",
+    "moreHistory": "+{count} till",
+    "cancel": "Avbryt",
+    "confirm": "Skicka SMS"
+  },
+  "statistics": {
+    "title": "Statistik",
+    "description": "Översikt över tjänstestatistik och trender",
+    "periods": {
+      "7d": "Senaste 7 dagarna",
+      "30d": "Senaste 30 dagarna",
+      "90d": "Senaste 90 dagarna",
+      "year": "I år",
+      "all": "All tid"
+    },
+    "overview": {
+      "title": "Översikt",
+      "totalHouseholds": "Aktiva hushåll",
+      "newHouseholds": "Nya hushåll",
+      "removedHouseholds": "Borttagna hushåll",
+      "totalParcels": "Totalt antal kassar",
+      "pickedUpParcels": "Hämtade",
+      "pickupRate": "Hämtningsgrad",
+      "smsDeliveryRate": "SMS-leveransgrad",
+      "noData": "Inga data för vald period"
+    },
+    "households": {
+      "title": "Hushållsdemografi",
+      "total": "Totalt aktiva",
+      "new": "Nya",
+      "removed": "Borttagna",
+      "byLanguage": "Per språk",
+      "ageDistribution": "Åldersfördelning",
+      "memberCountDistribution": "Hushållsstorlek",
+      "dietaryRestrictions": "Kostpreferenser",
+      "additionalNeeds": "Övriga behov",
+      "pets": "Husdjur",
+      "locales": {
+        "sv": "Svenska",
+        "en": "Engelska"
+      },
+      "members": "{count, plural, =0 {0 medlemmar} =1 {1 medlem} other {# medlemmar}}",
+      "description": "Fördelningsdata inkluderar alla registrerade hushåll (aktiva och historiska)"
+    },
+    "parcels": {
+      "title": "Kassar",
+      "total": "Totalt",
+      "pickedUp": "Hämtade",
+      "notPickedUp": "Ej hämtade",
+      "cancelled": "Avbokade",
+      "byLocation": "Per plats",
+      "byWeekday": "Per veckodag",
+      "dailyTrend": "Daglig trend",
+      "avgPerHousehold": "Snitt per hushåll",
+      "weekdays": {
+        "Sunday": "Söndag",
+        "Monday": "Måndag",
+        "Tuesday": "Tisdag",
+        "Wednesday": "Onsdag",
+        "Thursday": "Torsdag",
+        "Friday": "Fredag",
+        "Saturday": "Lördag"
+      }
+    },
+    "locations": {
+      "title": "Platser",
+      "capacityUsage": "Kapacitetsutnyttjande",
+      "pickupRate": "Hämtningsgrad per plats",
+      "nearCapacityAlerts": "Nära kapacitetsgräns",
+      "scheduled": "Bokade",
+      "max": "Max",
+      "usagePercent": "Utnyttjande %",
+      "noMax": "Ingen gräns satt",
+      "capacityUsageTitle": "Kapacitetsutnyttjande (Nästa 7 dagar)",
+      "nearCapacityAlertsTitle": "Nära kapacitet (Nästa 7 dagar)"
+    },
+    "sms": {
+      "title": "SMS",
+      "totalSent": "Totalt skickade",
+      "delivered": "Levererade",
+      "deliveryRate": "Leveransgrad",
+      "failedInternal": "Misslyckade (Internt)",
+      "failedProvider": "Misslyckade (Leverantör)",
+      "pending": "Väntande",
+      "byIntent": "Per syfte",
+      "dailyVolume": "Daglig volym",
+      "intents": {
+        "pickup_reminder": "Hämtningspåminnelse",
+        "pickup_updated": "Hämtning uppdaterad",
+        "pickup_cancelled": "Hämtning avbokad",
+        "consent_enrolment": "Samtycke anmälan",
+        "enrolment": "Välkomstmeddelande",
+        "food_parcels_ended": "Matkassar avslutade"
+      },
+      "pendingLabel": "Väntande (Aktuellt)"
+    },
+    "loading": "Laddar statistik...",
+    "error": "Kunde inte ladda statistik",
+    "chartLabels": {
+      "count": "Antal",
+      "rate": "Andel",
+      "households": "Hushåll"
+    },
+    "noData": "Ingen data tillgänglig"
+  },
+  "smsBanner": {
+    "title": "SMS-tjänsten tillfälligt avaktiverad",
+    "description": "SMS-aviseringar kan inte skickas eftersom HelloSMS-kontot har slut på saldo. Organisationen behöver förskottsbetala för mer SMS-saldo.",
+    "affectedCount": "{count, plural, one {# SMS-meddelande} other {# SMS-meddelanden}} kunde inte skickas på grund av lågt saldo.",
+    "retryButton": "Skicka om saldofel",
+    "retrySuccess": "{count, plural, one {# meddelande har} other {# meddelanden har}} lagts i kö för att skickas.",
+    "retryError": "Det gick inte att skicka om. Försök igen."
+  }
 }

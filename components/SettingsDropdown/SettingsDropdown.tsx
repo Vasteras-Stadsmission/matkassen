@@ -7,6 +7,7 @@ import {
     IconMapPin,
     IconPackage,
     IconListDetails,
+    IconUsers,
 } from "@tabler/icons-react";
 import { Link } from "@/app/i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -80,6 +81,19 @@ export function SettingsDropdown() {
                     href="/settings/options"
                 >
                     {t("householdOptions.title")}
+                </Menu.Item>
+
+                <Menu.Item
+                    leftSection={
+                        <IconUsers
+                            style={{ width: rem(14), height: rem(14) }}
+                            aria-hidden="true"
+                        />
+                    }
+                    component={Link}
+                    href="/settings/users"
+                >
+                    {t("users")}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

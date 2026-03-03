@@ -72,69 +72,6 @@ async function fetchGitHubJson(accessToken: string, path: string) {
     return { response, json };
 }
 
-export type UserRole = "admin" | "handout_staff";
-
-/**
- * Derive role from GitHub team membership.
- * On network/API failures, preserves `currentRole` so admins aren't silently
- * downgraded due to transient outages (mirrors the grace policy for org eligibility).
- * Returns "handout_staff" when no existing role is available and the check fails.
- */
-export async function getUserRoleFromGitHub(
-    accessToken: string,
-    githubUsername: string,
-    currentRole?: UserRole,
-): Promise<UserRole> {
-    const adminTeam = process.env.GITHUB_ADMIN_TEAM ?? "admins";
-    const org = process.env.GITHUB_ORG;
-
-    if (!org || !accessToken || !githubUsername) {
-        return currentRole ?? "handout_staff";
-    }
-
-    try {
-        const { response, json } = await fetchGitHubJson(
-            accessToken,
-            `/orgs/${org}/teams/${adminTeam}/memberships/${githubUsername}`,
-        );
-
-        if (response.ok) {
-            // Definitive successful response — check membership state
-            if (json && typeof json === "object") {
-                const record = json as Record<string, unknown>;
-                if (record.state === "active") {
-                    return "admin";
-                }
-            }
-            // 200 OK but not an active admin team member
-            return "handout_staff";
-        }
-
-        if (response.status === 404) {
-            // 404 = user definitively not in the team
-            return "handout_staff";
-        }
-
-        // Any other non-ok status (429, 5xx, 401, 403) is a transient failure —
-        // preserve the existing role so admins aren't silently downgraded.
-        logger.warn(
-            {
-                githubUsername,
-                status: response.status,
-                currentRole: currentRole ?? "none",
-            },
-            "GitHub admin team check returned non-ok status, preserving existing role",
-        );
-        return currentRole ?? "handout_staff";
-    } catch (error) {
-        logError("Failed to check admin team membership from GitHub, preserving existing role", error, {
-            githubUsername,
-            currentRole: currentRole ?? "none",
-        });
-        return currentRole ?? "handout_staff";
-    }
-}
-
 export async function checkGitHubOrgEligibility({
     accessToken,
     organization,

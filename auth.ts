@@ -2,11 +2,8 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig, Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import {
-    checkGitHubOrgEligibility,
-    getUserRoleFromGitHub,
-    type UserRole,
-} from "./app/utils/auth/org-eligibility";
+import { checkGitHubOrgEligibility } from "./app/utils/auth/org-eligibility";
+import type { UserRole } from "./app/db/schema";
 import { logger } from "./app/utils/logger";
 import { SESSION_COOKIE_NAME } from "./app/utils/auth/session-cookie";
 
@@ -201,22 +198,35 @@ const authConfig: NextAuthConfig = {
                 }
             }
 
-            // Re-check role every 10 minutes.
-            // On GitHub API failure, getUserRoleFromGitHub preserves the existing role
-            // so admins aren't silently downgraded by transient outages.
+            // Re-check role every 5 minutes from DB.
+            // On DB failure, preserve existing role so admins aren't silently downgraded.
             const now = Date.now();
             const roleNextCheckAt = token.roleNextCheckAt ?? 0;
             if (!token.role || now >= roleNextCheckAt) {
-                const accessToken = token.githubAccessToken as string | undefined;
                 const githubUsername = token.githubUsername as string | undefined;
-                if (accessToken && githubUsername) {
-                    token.role = await getUserRoleFromGitHub(accessToken, githubUsername, token.role);
+                if (githubUsername) {
+                    try {
+                        const { db } = await import("./app/db/drizzle");
+                        const { users } = await import("./app/db/schema");
+                        const { eq } = await import("drizzle-orm");
+                        const row = await db
+                            .select({ role: users.role })
+                            .from(users)
+                            .where(eq(users.github_username, githubUsername))
+                            .limit(1)
+                            .then(rows => rows[0]);
+                        // row may be undefined on first login (signIn callback upserts user first,
+                        // but jwt callback may race). Fall back to handout_staff; next check will resolve.
+                        token.role = row?.role ?? "handout_staff";
+                    } catch (err) {
+                        logger.warn({ err, githubUsername }, "Failed to load role from DB; preserving existing");
+                        token.role = token.role ?? "handout_staff";
+                    }
                 } else {
-                    // Token fields missing — preserve existing role rather than downgrading,
-                    // otherwise a corrupted/missing token field demotes an admin.
+                    // Token fields missing — preserve existing role rather than downgrading.
                     token.role = token.role ?? "handout_staff";
                 }
-                token.roleNextCheckAt = now + 10 * 60 * 1000;
+                token.roleNextCheckAt = now + 5 * 60 * 1000;
             }
 
             return token;

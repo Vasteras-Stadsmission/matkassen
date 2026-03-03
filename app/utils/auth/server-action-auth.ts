@@ -9,7 +9,7 @@ import { households } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { type ActionResult, failure } from "./action-result";
 import { logError } from "@/app/utils/logger";
-import type { UserRole } from "./org-eligibility";
+import type { UserRole } from "@/app/db/schema";
 
 /**
  * Session type for authenticated users
