@@ -1,1773 +1,1773 @@
 {
-  "common": {
-    "brandName": "Matcentralen",
-    "welcome": "Welcome to Matcentralen",
-    "description": "Administration system for food parcel distribution",
-    "authStatus": "Authentication status",
-    "loggedInAs": "You are logged in as",
-    "loginToAccess": "Please log in to access the application's features",
-    "close": "Close",
-    "languages": {
-      "sv": "Swedish"
-    }
-  },
-  "navigation": {
-    "brandName": "Matcentralen",
-    "households": "Households",
-    "schedule": "Schedule",
-    "todayHandouts": "Today's Handouts",
-    "locations": "Pickup Locations",
-    "smsDashboard": "SMS Management",
-    "newHousehold": "New Household",
-    "statistics": "Statistics",
-    "scanQrCode": "Scan QR Code",
-    "navigation": "Navigation",
-    "issues": "Needs Follow-up"
-  },
-  "auth": {
-    "login": "Log in",
-    "logout": "Log out",
-    "signInTitle": "Sign in to Matcentralen",
-    "signInDescription": "Sign in with your GitHub account to access the Matcentralen administration system.",
-    "signInWithGitHub": "Sign in with GitHub",
-    "errorTitle": "Authentication Error",
-    "tryAgain": "Try Again",
-    "account": "Account",
-    "profile": "Profile",
-    "user": "User",
-    "protection": {
-      "signInRequired": "Please sign in to access this page."
-    },
-    "errors": {
-      "notOrgMember": "You must be a member of the authorized organization and comply with its security policies (secure 2FA required) to access this app.",
-      "invalidProvider": "Invalid account provider. Please use GitHub.",
-      "configuration": "There is a problem with the authentication configuration. Please contact support.",
-      "accessDenied": "Access denied. You don't have permission to sign in.",
-      "verification": "Verification failed. Please try signing in again.",
-      "default": "An error occurred while signing in. Please try again."
-    },
-    "accessDenied": {
-      "title": "Access Denied",
-      "subtitle": "We couldn't log you in. This is usually because your GitHub account needs additional security setup.",
-      "explanations": {
-        "notMember": "Your GitHub account is not a member of the organization. Ask your administrator to send you an invitation.",
-        "membershipInactive": "You have a pending invitation to the organization. Check your email or GitHub notifications and accept the invitation.",
-        "insecure2fa": "Your GitHub account uses SMS for two-factor authentication. The organization requires a more secure method. Follow the steps below to fix this.",
-        "unauthenticated": "Your login is no longer valid. Please sign out and sign in again.",
-        "temporaryError": "We could not verify your account due to a temporary problem with GitHub. Please try again in a few minutes.",
-        "membershipHelp": "If you believe you should have access, contact your organization administrator to get an invitation."
-      },
-      "reasons": {
-        "title": "Why am I seeing this?",
-        "preamble": "One or more of the following may apply:",
-        "notMember": "You are not a member of the authorized GitHub organization",
-        "insecure2fa": "Your GitHub account needs a more secure login method (not just SMS)"
-      },
-      "acceptedMethods": {
-        "title": "Accepted Login Methods",
-        "githubMobile": "GitHub Mobile app — easiest option, just approve a notification",
-        "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
-        "authenticatorApp": "Authenticator app (Google Authenticator, Authy, Microsoft Authenticator)"
-      },
-      "notAccepted": {
-        "title": "Not Accepted (must add one above)",
-        "sms": "SMS text messages alone are not secure enough"
-      },
-      "howToFix": {
-        "title": "How to Fix This",
-        "step1": "Go to your GitHub Security Settings",
-        "step1Aria": "Go to your GitHub Security Settings (opens in new tab)",
-        "step2": "Find \"Password and authentication\" in the menu",
-        "step3": "Add one of the accepted methods listed above",
-        "step4": "Come back here and sign in again"
-      },
-      "buttons": {
-        "githubSettings": "Open GitHub Security Settings",
-        "githubSettingsAria": "Open GitHub Security Settings (opens in new tab)",
-        "signOutAndRetry": "Sign Out and Try Again"
-      },
-      "support": "Still having trouble? Contact your organization administrator."
-    }
-  },
-  "agreement": {
-    "title": "User Agreement for Personal Data Processing",
-    "subtitle": "Read and accept the agreement to continue using the system",
-    "version": "Version {version}",
-    "effectiveFrom": "Effective from {date}",
-    "acceptedAt": "You accepted this agreement {date}",
-    "checkbox": "I have read and understand my responsibility for handling personal data according to this agreement",
-    "accept": "Accept and continue",
-    "loading": "Loading agreement...",
-    "errors": {
-      "title": "Error",
-      "loadFailed": "Could not load the user agreement",
-      "acceptFailed": "Could not accept the agreement. Please try again.",
-      "newerVersion": "A newer version of the agreement has been published. Please review and accept it."
-    },
-    "notifications": {
-      "success": "Done",
-      "error": "Error",
-      "accepted": "You have accepted the user agreement"
-    }
-  },
-  "households": {
-    "title": "Households",
-    "description": "Manage households and their information",
-    "newHousehold": "New household has been registered!",
-    "updatedHousehold": "The household has been updated!",
-    "search": {
-      "placeholder": "Search households..."
-    },
-    "modal": {
-      "loading": "Loading...",
-      "title": "Household Details: {firstName} {lastName}"
-    },
-    "actions": {
-      "view": "View",
-      "edit": "Edit",
-      "manageParcels": "Manage Parcels"
-    },
-    "filters": {
-      "location": "Filter by location",
-      "createdBy": "Filter by creator"
-    },
-    "table": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "phoneNumber": "Phone Number",
-      "language": "Language",
-      "createdBy": "Created By",
-      "primaryLocation": "Primary Location",
-      "firstParcel": "First Food Parcel",
-      "lastParcel": "Last Food Parcel",
-      "nextParcel": "Next Food Parcel",
-      "columns": "Columns",
-      "visibleColumns": "Visible Columns",
-      "actions": {
-        "viewDetails": "View Details",
-        "edit": "Edit Household",
-        "search": "Search households...",
-        "newHousehold": "New Household"
-      }
-    },
-    "errors": {
-      "notFound": "Could not find the household. Please check that the ID is correct.",
-      "createError": "An error occurred while registering the household.",
-      "updateError": "An error occurred while updating the household."
-    }
-  },
-  "parcelManagement": {
-    "breadcrumb": {
-      "households": "Households",
-      "manageParcels": "Manage Parcels for {householdName}"
-    },
-    "success": {
-      "title": "Success",
-      "parcelsUpdated": "Food parcels have been updated successfully!"
-    },
-    "error": {
-      "title": "Error",
-      "general": "An error occurred",
-      "unknown": "Unknown error",
-      "updateFailed": "Failed to update parcels. Please try again.",
-      "unauthorized": "You must be authenticated to manage parcels",
-      "forbidden": "You don't have permission to perform this action",
-      "householdNotFound": "The specified household does not exist",
-      "configurationError": "Server configuration error. Please contact support."
-    },
-    "validation": {
-      "pickupLocationRequired": "Please select a pickup location",
-      "title": "Could not save",
-      "description": "Parcels could not be saved due to validation errors",
-      "summaryTitle": "Parcels could not be saved",
-      "summaryDescription": "The following issues must be resolved:",
-      "jumpToError": "↑ Jump to form to fix"
-    },
-    "submitting": {
-      "update": "Updating parcels..."
-    },
-    "actions": {
-      "back": "Back to Households",
-      "saveParcels": "Save Parcels"
-    },
-    "backToHouseholds": "Back to Households"
-  },
-  "householdForm": {
-    "basics": "Basic Information",
-    "basicDescription": "Fill in the basic contact information for the household. This information is used to contact the household.",
-    "firstName": "First Name",
-    "enterFirstName": "Enter first name",
-    "lastName": "Last Name",
-    "enterLastName": "Enter last name",
-    "phoneNumber": "Phone Number",
-    "phoneDescription": "Swedish phone numbers only",
-    "enterPhoneNumber": "Enter phone number",
-    "smsConsent": "Household consents to SMS contact",
-    "smsConsentDescription": "Required to send pickup reminders and updates",
-    "language": "Language",
-    "selectLanguage": "Select language",
-    "primaryLocation": "Primary Handout Location",
-    "primaryLocationDescription": "The household's main handout location",
-    "selectPrimaryLocation": "Select primary location",
-    "locationUnknownWithId": "Unknown location (ID: {id})",
-    "validation": {
-      "firstNameLength": "First name must be at least 2 characters",
-      "lastNameLength": "Last name must be at least 2 characters",
-      "phoneNumberFormat": "Enter a valid Swedish phone number (7-10 digits)",
-      "swedishNumbersOnly": "Only Swedish phone numbers (+46) are supported",
-      "phoneNumberInUse": "This phone number is already registered with another household"
-    },
-    "duplicatePhone": {
-      "title": "Phone Number Already Exists",
-      "message": "This phone number already belongs to household: {name} (ID: {id}). Phone: {phone}",
-      "fieldError": "This phone number is already registered"
-    },
-    "similarName": {
-      "title": "Similar Household Found",
-      "message": "A household with a similar name already exists. Please verify this is a new household:",
-      "confirmTitle": "Confirm New Household",
-      "confirmMessage": "Similar households already exist. Are you sure this is a different household?",
-      "confirmButton": "Yes, Create New Household",
-      "cancelButton": "Cancel"
-    }
-  },
-  "members": {
-    "title": "Household Members",
-    "description": "Add all members of the household. This information is used to calculate food quantity and special needs.",
-    "addPerson": "Add Person",
-    "age": "Age",
-    "ageUnit": "years",
-    "gender": {
-      "label": "Gender",
-      "male": "Male",
-      "female": "Female",
-      "other": "Other"
-    },
-    "validation": {
-      "ageRequired": "Age is required",
-      "genderRequired": "Gender selection is required"
-    }
-  },
-  "dietaryRestrictions": {
-    "title": "Dietary Restrictions",
-    "description": "Select dietary restrictions that apply to the household.",
-    "loading": "Loading dietary restrictions...",
-    "noRestrictions": "No dietary restrictions added",
-    "addNew": "Add new restriction",
-    "newRestriction": "New dietary restriction",
-    "placeholderExample": "E.g. Strawberries, Soy, etc.",
-    "add": "Add",
-    "addConfirmTitle": "Add Dietary Restriction",
-    "addConfirmQuestion": "Do you want to add the following dietary restriction to your application?",
-    "removeConfirmTitle": "Remove Dietary Restriction",
-    "removeConfirmQuestion": "Do you want to remove the following dietary restriction from your application?",
-    "cancel": "Cancel",
-    "remove": "Remove",
-    "disabledLabel": "Disabled",
-    "validation": {
-      "minLength": "Dietary restriction must be at least 2 characters"
-    }
-  },
-  "pets": {
-    "title": "Pets",
-    "description": "Register pets in the household. This helps us to adapt the food assortment.",
-    "noPets": "No pets added",
-    "loading": "Loading pet types...",
-    "addNew": "Add new type of pet",
-    "newPetType": "New type of pet",
-    "placeholderExample": "E.g. Guinea Pig, Lizard, etc.",
-    "add": "Add",
-    "addConfirmTitle": "Add Pet Type",
-    "addConfirmQuestion": "Do you want to add the following pet type to your application?",
-    "removeConfirmTitle": "Remove Pet Type",
-    "removeConfirmQuestion": "Do you want to remove the following pet type from your application?",
-    "cancel": "Cancel",
-    "remove": "Remove",
-    "disabledLabel": "Disabled",
-    "defaultPetType": "Pet type {index}",
-    "unknownPetType": "Unknown",
-    "validation": {
-      "minLength": "Pet type must be at least 2 characters"
-    }
-  },
-  "additionalNeeds": {
-    "title": "Additional Needs",
-    "description": "Select additional needs that the household may have.",
-    "noNeeds": "No additional needs added",
-    "loading": "Loading additional needs...",
-    "addNew": "Add new need",
-    "newNeed": "New need",
-    "placeholderExample": "E.g. Razors, Shampoo, etc.",
-    "add": "Add",
-    "disabledLabel": "Disabled",
-    "validation": {
-      "minLength": "Need must be at least 2 characters"
-    }
-  },
-  "foodParcels": {
-    "title": "Scheduled Food Parcels",
-    "description": "Schedule food parcels for the household with pickup location and times.",
-    "settings": "Scheduling Settings",
-    "pickupLocation": "Pickup Location",
-    "selectLocation": "Select pickup location",
-    "selectDates": "Select dates for food parcels",
-    "loadingAvailability": "Loading availability...",
-    "selectLocationFirst": "Select a pickup location first to see availability",
-    "selectDatesHint": "Select all dates when the household should receive a food parcel",
-    "setBulkTimes": "Set all times",
-    "editingAllTimes": "Editing all times",
-    "bulkTimeHint": "Set the same time for all food parcels, or cancel to edit individually.",
-    "bulk": {
-      "upcomingOnly": "applies to upcoming parcels only",
-      "notAvailableTitle": "Bulk change not available",
-      "notAvailableMsg": "Selected dates have different opening hours. Edit times per date.",
-      "notAvailableMsgWithSummary": "Selected dates have different opening hours: {summary}. Edit times per date."
-    },
-    "individualTimeHint": "Click on the times to change pickup time for each individual food parcel.",
-    "calendar": {
-      "unavailableClosedDay": "Closed on this day",
-      "fullyBooked": "Fully booked",
-      "selected": "Selected day"
-    },
-    "time": {
-      "earliest": "Earliest pickup time",
-      "latest": "Latest pickup time",
-      "updateAll": "Update all",
-      "error": "Earliest time must be before latest time",
-      "dateAndPickup": "Date and pickup time",
-      "noAvailableTimes": "No available times",
-      "noAvailableTimesForToday": "All times for today have passed. Please select a future date."
-    },
-    "cancel": "Cancel",
-    "for": "for",
-    "table": {
-      "date": "Date",
-      "pickupTime": "Pickup Time",
-      "facilityHours": "Facility Hours"
-    },
-    "slotDuration": "Slot Duration: {duration} minutes",
-    "errors": {
-      "selectLocation": "Select a pickup location"
-    },
-    "validationErrors": {
-      "title": "Validation Errors",
-      "capacityReached": "Location capacity exceeded for selected date",
-      "slotCapacityReached": "Time slot is fully booked",
-      "doubleBooking": "Household already has a parcel scheduled for this date",
-      "outsideOperatingHours": "Selected time is outside operating hours",
-      "pastTimeSlot": "Cannot schedule pickup in the past"
-    }
-  },
-  "review": {
-    "title": "Summary",
-    "editDescription": "Review all information before updating the household.",
-    "createDescription": "Review all information before saving the new household."
-  },
-  "schedule": {
-    "title": "Food Support Scheduling",
-    "today": "Today",
-    "todayTab": "Today",
-    "weeklyTab": "Weekly",
-    "hub": {
-      "title": "Schedule",
-      "subtitle": "Select a handout location to view schedules",
-      "noLocations": "No handout locations found",
-      "noHandoutsToday": "No handouts today",
-      "parcelsToday": "{count} parcels today",
-      "completed": "completed",
-      "todayHandouts": "Today's Handouts",
-      "weeklySchedule": "Weekly Schedule",
-      "setAsFavorite": "Set as Favorite",
-      "favorite": "Favorite",
-      "favoriteSet": "{location} set as favorite",
-      "favoriteChanged": "Favorite changed to {location}",
-      "favoriteRemoved": "{location} removed from favorites",
-      "confirmSetFavorite": "Set {location} as your favorite?",
-      "confirmChangeFavorite": "Change your favorite from {oldLocation} to {newLocation}?",
-      "confirmRemoveFavorite": "Remove {location} as your favorite?",
-      "favoriteExplanation": "Setting a favorite will automatically take you there when browsing schedules, making it faster to access the location you use most often.",
-      "confirmRemoveFavoriteLabel": "Remove favorite",
-      "confirmChangeFavoriteLabel": "Change favorite",
-      "currentFavoriteLabel": "current favorite",
-      "notificationSuccessTitle": "Success",
-      "notificationErrorTitle": "Error",
-      "favoriteUpdateFailed": "Failed to update favorite location",
-      "cancelButton": "Cancel",
-      "tooltipSetFavorite": "Set {location} as favorite",
-      "tooltipRemoveFavorite": "Remove {location} as favorite",
-      "noUpcomingSchedule": "No upcoming opening hours"
-    },
-    "noUpcomingSchedule": {
-      "title": "No Upcoming Opening Hours",
-      "description": "This location has no opening hours scheduled for future dates.",
-      "whatThisMeans": "What this means:",
-      "consequence1": "New food parcels cannot be booked at this location",
-      "consequence2": "Households cannot be assigned pickup times here",
-      "callToAction": "If this location should be accepting food parcels, please contact the person responsible for managing handout location schedules.",
-      "understand": "I Understand"
-    },
-    "location": {
-      "header": {
-        "locations": "Handout Locations",
-        "completedToday": "{completed}/{total} completed today"
-      },
-      "landing": {
-        "title": "Schedule",
-        "selectView": "Select View",
-        "todayHandouts": "Today's Handouts",
-        "todayDescription": "View today's scheduled parcels",
-        "weeklySchedule": "Weekly Schedule",
-        "weeklyDescription": "View and manage weekly schedule",
-        "goToToday": "Go to Today",
-        "weeklyView": "Weekly View",
-        "locationError": "Location Error",
-        "locationNotFound": "Location not found"
-      }
-    },
-    "todayHandouts": {
-      "title": "Today's Handouts",
-      "pageTitle": "Today's Handouts",
-      "date": "{weekday}, {date}",
-      "selectLocation": "Select a location to view packages",
-      "clearSelection": "Clear selection",
-      "noLocation": "Select a location to view today's packages",
-      "noParcels": "No packages scheduled today at this location",
-      "completed": "completed",
-      "scheduled": "Scheduled",
-      "completedStatus": "Completed",
-      "parcels": "packages",
-      "noTimeSpecified": "No time specified",
-      "parcel": {
-        "upcoming": "Scheduled",
-        "pickedUp": "Picked up",
-        "noShow": "No-show"
-      },
-      "homeLocation": "The household's regular handout location",
-      "visitingTooltip": "Visitor – normally picks up at a different location",
-      "createdByTooltip": "Household created by {username}",
-      "summary": {
-        "restrictionsTitle": "Dietary restrictions",
-        "title": "Summary",
-        "noDietaryRestrictions": "No dietary restrictions",
-        "householdsAndMembers": "{households} {households, plural, =1 {household} other {households}} · {members} {members, plural, =1 {person} other {people}}",
-        "pets": "Pets",
-        "additionalRequests": "Additional requests",
-        "expand": "Expand summary",
-        "collapse": "Collapse summary"
-      },
-      "search": {
-        "placeholder": "Search by name or phone number",
-        "noResults": "No match for \"{query}\"",
-        "clear": "Clear search"
-      }
-    },
-    "currentWeek": "Current Week",
-    "todayLabel": "Today",
-    "weekLabel": "Week {week}, {year}",
-    "loading": "Loading schedule...",
-    "noFoodSupport": "No food support scheduled this week",
-    "refresh": "Refresh",
-    "selectWeek": "Select Week",
-    "pastDateError": "This date has already passed",
-    "unavailableDay": "This location is not open on this day",
-    "unavailableSlot": "This time is outside opening hours",
-    "timeGap": "Time gap",
-    "scheduleChangeWarning": "Schedule Change Warning",
-    "parcelsWillBeAffected": "Food parcels will be affected",
-    "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",
-    "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
-    "proceedAnyway": "Proceed anyway",
-    "outsideHours": {
-      "panelTitle": "Outside opening hours ({count})"
-    },
-    "days": {
-      "monday": "Monday",
-      "tuesday": "Tuesday",
-      "wednesday": "Wednesday",
-      "thursday": "Thursday",
-      "friday": "Friday",
-      "saturday": "Saturday",
-      "sunday": "Sunday"
-    },
-    "pickupTimeLabel": "Time",
-    "statusLabel": "Status",
-    "pickedUpStatus": "Handed out",
-    "notPickedUpStatus": "Not handed out",
-    "primaryLocationLabel": "Home location",
-    "createdByLabel": "Created by",
-    "reschedule": {
-      "title": "Schedule food support for {name}",
-      "modalTitle": "Reschedule Food Support",
-      "changed": "Time has been changed from",
-      "to": "to",
-      "from": "From:",
-      "to2": "To:",
-      "confirmTitle": "Confirm Rescheduling",
-      "confirmQuestion": "Do you want to reschedule food support for {name}?",
-      "confirm": "Confirm Change",
-      "cancel": "Cancel",
-      "success": "Schedule Updated",
-      "successMessage": "{name} has been rescheduled to a new time.",
-      "error": "Scheduling error",
-      "pastError": "Cannot schedule food support in the past.",
-      "pastSourceError": "Cannot reschedule food support from a time in the past.",
-      "capacityError": "This location has reached its maximum capacity for the selected date.",
-      "slotCapacityError": "This time slot is fully booked. Please select a different time.",
-      "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
-      "operatingHoursError": "The selected time is outside the location's operating hours.",
-      "genericError": "An unexpected error occurred.",
-      "outsideWeek": "Schedule outside of current week",
-      "selectDateError": "You must select a date",
-      "timeError": "Earliest time must be before latest time",
-      "earliestTime": "Earliest pickup time",
-      "latestTime": "Latest pickup time",
-      "currentPickup": "Current Pickup Details",
-      "newPickup": "New Pickup Details",
-      "date": "Date",
-      "time": "Time",
-      "newDate": "New Date",
-      "newTime": "New Time",
-      "selectDate": "Select date",
-      "selectTime": "Select time",
-      "dateUnavailable": "This date is not available for pickup",
-      "noTimesAvailable": "No available times on this date",
-      "requiredFields": "Please fill all required fields"
-    },
-    "sms": {
-      "title": "SMS Notifications",
-      "viewHistory": "View SMS history",
-      "status": {
-        "pending": "Pending",
-        "sent": "Sent",
-        "delivered": "Delivered",
-        "failed": "Failed",
-        "cancelled": "Cancelled"
-      },
-      "intent": {
-        "pickup_reminder": "Pickup reminder"
-      },
-      "actions": {
-        "sendSms": "Send SMS",
-        "resend": "Resend"
-      },
-      "notifications": {
-        "sendSuccess": "SMS Sent",
-        "initialSendSuccess": "Initial notification sent successfully",
-        "reminderSendSuccess": "Reminder sent successfully",
-        "resendSuccess": "SMS Resent",
-        "smsQueued": "SMS has been queued for delivery",
-        "sendError": "Failed to Send SMS",
-        "resendError": "Failed to Resend SMS",
-        "genericError": "An unexpected error occurred"
-      },
-      "historyModal": {
-        "title": "SMS History",
-        "noHistory": "No SMS messages sent for this parcel",
-        "sentAt": "Sent",
-        "deliveredAt": "Delivered",
-        "error": "Error",
-        "retries": "Retries"
-      }
-    }
-  },
-  "householdDetail": {
-    "basics": "Basic Information",
-    "createdBy": "Created by {username}",
-    "created": "Created",
-    "enrollmentSmsDelivered": "Enrollment SMS delivered",
-    "members": "Members ({count})",
-    "noMembers": "No members added",
-    "pets": "Pets ({count})",
-    "noPets": "No pets added",
-    "dietaryRestrictions": "Dietary Restrictions ({count})",
-    "noDietaryRestrictions": "No dietary restrictions added",
-    "additionalNeeds": "Additional Needs ({count})",
-    "noAdditionalNeeds": "No additional needs added",
-    "foodParcels": "Food Parcels ({count})",
-    "noFoodParcels": "No food parcels scheduled",
-    "cancelledParcels": "Cancelled Parcels",
-    "noCancelledParcels": "No cancelled parcels",
-    "ageUnit": "years",
-    "editHousehold": "Edit Household",
-    "manageParcels": "Manage Parcels",
-    "removeHousehold": "Remove Household",
-    "deletedOn": "Cancelled on",
-    "by": "by",
-    "status": {
-      "pickedUp": "Handed out",
-      "notPickedUp": "Not handed out",
-      "noShow": "No-show",
-      "upcoming": "Upcoming",
-      "cancelled": "Cancelled"
-    },
-    "comments": {
-      "title": "Comments ({count})"
-    },
-    "warnings": {
-      "parcelCountHigh": "This household has received {count} food parcels (threshold: {threshold}). Consider reviewing their situation and providing additional support."
-    },
-    "removal": {
-      "dialogTitle": "Remove Household",
-      "lastName": "Last name",
-      "confirmationPrompt": "Type the last name to confirm:",
-      "confirmationHelp": "(Copy-paste allowed)",
-      "warningCannotUndo": "This action cannot be undone.",
-      "cancelButton": "Cancel",
-      "removeButton": "Remove Household",
-      "removing": "Removing...",
-      "success": "Household removed successfully",
-      "anonymizedTitle": "Household Removed",
-      "anonymizedMessage": "This household was removed on {date}.",
-      "anonymizedSubtext": "Personal data has been deleted.",
-      "backToList": "Back to Households",
-      "errors": {
-        "notFound": "Household not found",
-        "alreadyRemoved": "Household has already been removed",
-        "lastNameMismatch": "Last name does not match",
-        "hasUpcomingParcels": "Cannot remove household",
-        "upcomingParcelsMessage": "This household has {count, plural, =1 {1 upcoming food parcel} other {# upcoming food parcels}}.",
-        "upcomingParcelsAction": "Delete those parcels first, then remove the household.",
-        "removalFailed": "Failed to remove household"
-      }
-    }
-  },
-  "comments": {
-    "title": "Comments ({count})",
-    "noComments": "No comments added",
-    "placeholder": "Add a comment about the household... (HTML is supported, e.g. links)",
-    "add": "Add",
-    "errors": {
-      "deleteFailed": "Failed to delete comment",
-      "deleteError": "Error deleting comment"
-    },
-    "unknownName": "Unknown Name",
-    "deleteTooltip": "Delete comment",
-    "deleteTitle": "Delete comment",
-    "deleteConfirmation": "Are you sure you want to delete this comment?",
-    "deleteButton": "Delete",
-    "cancelButton": "Cancel"
-  },
-  "wizard": {
-    "stepBasics": "Basic Information",
-    "stepBasicsDescription": "Contact Information",
-    "stepMembers": "Members",
-    "stepMembersDescription": "Household Members",
-    "stepDietaryRestrictions": "Dietary Restrictions",
-    "stepDietaryRestrictionsDescription": "Special Diet",
-    "stepPets": "Pets",
-    "stepPetsDescription": "Pet Information",
-    "stepAdditionalNeeds": "Additional Needs",
-    "stepAdditionalNeedsDescription": "Special Needs",
-    "stepFoodParcels": "Food Parcels",
-    "stepFoodParcelsDescription": "Scheduling",
-    "stepReview": "Summary",
-    "stepReviewDescription": "Review and submit",
-    "creating": "Creating new household...",
-    "updating": "Updating household...",
-    "validationError": "Validation Error",
-    "nextStep": "Next Step",
-    "back": "Back",
-    "backToList": "Back to household list",
-    "saveHousehold": "Save Household",
-    "createHousehold": "Create Household",
-    "editHousehold": "Edit Household",
-    "updateHousehold": "Update Household",
-    "backToHouseholds": "Back to Households",
-    "steps": {
-      "basics": {
-        "label": "Basic Information",
-        "description": "Contact Information"
-      },
-      "members": {
-        "label": "Members",
-        "description": "Household Members"
-      },
-      "preferences": {
-        "label": "Preferences",
-        "description": "Diet, Pets & Needs"
-      },
-      "verification": {
-        "label": "Verification",
-        "description": "Required Checks"
-      },
-      "parcels": {
-        "label": "Food Parcels",
-        "description": "Scheduling"
-      },
-      "review": {
-        "label": "Summary",
-        "description": "Review and submit"
-      }
+    "common": {
+        "brandName": "Matcentralen",
+        "welcome": "Welcome to Matcentralen",
+        "description": "Administration system for food parcel distribution",
+        "authStatus": "Authentication status",
+        "loggedInAs": "You are logged in as",
+        "loginToAccess": "Please log in to access the application's features",
+        "close": "Close",
+        "languages": {
+            "sv": "Swedish"
+        }
     },
     "navigation": {
-      "next": "Next Step",
-      "back": "Back"
+        "brandName": "Matcentralen",
+        "households": "Households",
+        "schedule": "Schedule",
+        "todayHandouts": "Today's Handouts",
+        "locations": "Pickup Locations",
+        "smsDashboard": "SMS Management",
+        "newHousehold": "New Household",
+        "statistics": "Statistics",
+        "scanQrCode": "Scan QR Code",
+        "navigation": "Navigation",
+        "issues": "Needs Follow-up"
     },
-    "validation": {
-      "title": "Validation Error",
-      "firstNameLength": "First name must be at least 2 characters",
-      "lastNameLength": "Last name must be at least 2 characters",
-      "phoneNumberFormat": "Enter a valid mobile number (9-10 digits)",
-      "phoneDuplicate": "This phone number is already registered to another household",
-      "phoneDuplicateWithInfo": "This phone number belongs to: {name} - {phone} (ID: {id})",
-      "pickupLocation": "Select a pickup location",
-      "verificationIncomplete": "All required verifications must be checked before proceeding",
-      "smsConsentRequired": "SMS consent is required to proceed"
-    },
-    "similarNameDialog": {
-      "title": "Similar Household Found",
-      "message": "A household with a similar name already exists. Are you sure this is a different household?",
-      "existingHouseholds": "Existing similar households:",
-      "confirm": "Yes, Create New Household",
-      "cancel": "Cancel"
-    },
-    "verification": {
-      "title": "Staff Verification Checklist",
-      "description": "Please confirm the following before creating this household:",
-      "allComplete": "All verifications complete",
-      "requiredMark": "Required",
-      "optionalMark": "Optional",
-      "progress": "{completed} of {total} verified",
-      "noQuestions": "No verification checklist configured",
-      "errorLoading": "Failed to load verification checklist",
-      "errorUnknown": "An unknown error occurred"
-    },
-    "success": {
-      "title": "Success!",
-      "created": "New household has been created!",
-      "updated": "The household has been updated!"
-    },
-    "error": {
-      "title": "Error",
-      "general": "An error occurred",
-      "unknown": "Unknown error",
-      "create": "An error occurred while creating the household",
-      "update": "An error occurred while updating the household",
-      "optionNotAvailable": "One or more selected options are no longer available. Please review and try again.",
-      "verificationQuestionsLoadFailed": "Failed to load verification questions. Cannot proceed without completing required checks.",
-      "retry": "Retry"
-    },
-    "submitting": {
-      "create": "Creating new household...",
-      "update": "Updating household..."
-    },
-    "addParcels": {
-      "title": "Add Food Parcels?",
-      "message": "This household has no upcoming food parcels. Would you like to add some now?",
-      "addNow": "Add Parcels Now",
-      "later": "Add Later"
-    },
-    "privacyConfirm": {
-      "title": "Privacy Policy Confirmation",
-      "message": "Before completing the enrollment, please confirm that you have informed the household about how their personal data will be processed.",
-      "checkbox": "I have informed the household about the privacy policy",
-      "viewPolicy": "View privacy policy",
-      "cancel": "Cancel",
-      "confirm": "Complete Enrollment"
-    }
-  },
-  "buttons": {
-    "add": "Add",
-    "cancel": "Cancel",
-    "remove": "Remove",
-    "confirm": "Confirm"
-  },
-  "languages": {
-    "en": "English",
-    "sv": "Swedish",
-    "english": "English",
-    "swedish": "Swedish",
-    "britishFlag": "British flag",
-    "swedishFlag": "Swedish flag",
-    "switchTo": "Switch to {language}"
-  },
-  "weekdays": {
-    "sunday": "Sunday",
-    "monday": "Monday",
-    "tuesday": "Tuesday",
-    "wednesday": "Wednesday",
-    "thursday": "Thursday",
-    "friday": "Friday",
-    "saturday": "Saturday"
-  },
-  "months": {
-    "january": "January",
-    "february": "February",
-    "march": "March",
-    "april": "April",
-    "may": "May",
-    "june": "June",
-    "july": "July",
-    "august": "August",
-    "september": "September",
-    "october": "October",
-    "november": "November",
-    "december": "December"
-  },
-  "handoutLocations": {
-    "pageTitle": "Handout Locations",
-    "pageDescription": "Manage the locations where food parcels are distributed, their opening hours, and settings.",
-    "locationsList": "Locations",
-    "addLocation": "Add Location",
-    "addFirstLocation": "Add Your First Location",
-    "editLocation": "Edit Location",
-    "noLocations": "No handout locations have been added yet",
-    "loading": "Loading locations...",
-    "confirmDelete": "Are you sure you want to delete this location? This action cannot be undone.",
-    "locationCreated": "Location Created",
-    "locationCreatedMessage": "The handout location has been successfully created.",
-    "locationUpdated": "Location Updated",
-    "locationUpdatedMessage": "The handout location has been successfully updated.",
-    "locationDeleted": "Location Deleted",
-    "locationDeletedMessage": "The handout location has been successfully deleted.",
-    "errorLoading": "Error Loading Locations",
-    "errorLoadingMessage": "There was an error loading the handout locations. Please try again.",
-    "errorSaving": "Error Saving Location",
-    "errorSavingMessage": "There was an error saving the handout location. Please try again.",
-    "errorDeleting": "Error Deleting Location",
-    "errorDeletingMessage": "There was an error deleting the handout location. Please try again.",
-    "generalInfo": "General Information",
-    "weeklyHours": "Weekly Opening Hours",
-    "name": "Location Name",
-    "namePlaceholder": "Enter location name",
-    "streetAddress": "Street Address",
-    "streetAddressPlaceholder": "Enter street address",
-    "postalCode": "Postal Code",
-    "maxParcelsPerDay": "Maximum Food Parcels Per Day",
-    "maxParcelsPlaceholder": "e.g. 20",
-    "maxParcelsPerSlot": "Maximum Parcels Per Time Slot",
-    "maxParcelsPerSlotDescription": "Maximum number of parcels that can be booked in the same time slot (leave empty for no limit)",
-    "maxParcelsPerSlotPositive": "Max parcels per slot must be positive",
-    "slotDuration": "Slot Duration (minutes)",
-    "slotDurationDescription": "Time allocated for each food parcel pickup",
-    "slotDurationPositive": "Slot duration must be positive",
-    "slotDurationMaxExceeded": "Slot duration cannot exceed 4 hours (240 minutes)",
-    "slotDurationIncrement": "Slot duration must be in 15-minute increments",
-    "contactInfo": "Contact Information",
-    "contactName": "Contact Person",
-    "contactNamePlaceholder": "Enter contact person name",
-    "contactEmail": "Email",
-    "contactEmailPlaceholder": "Enter contact email",
-    "contactPhone": "Phone Number",
-    "contactPhonePlaceholder": "Enter phone number",
-    "nameRequired": "Location name is required",
-    "streetAddressRequired": "Street address is required",
-    "postalCodeRequired": "Postal code is required",
-    "postalCodeFormat": "Postal code must be 5 digits",
-    "emailInvalid": "Please enter a valid email address",
-    "weeklyHoursDescription": "Set the regular weekly opening hours for this location. These hours will be used by default when scheduling food parcels.",
-    "noWeeklyHours": "No weekly opening hours have been set",
-    "addWeeklyHours": "Add Weekly Hours",
-    "addHours": "Add Hours",
-    "weekday": "Weekday",
-    "selectWeekday": "Select weekday",
-    "openingTime": "Opening Time",
-    "closingTime": "Closing Time",
-    "timeErrors": {
-      "openingRequired": "Opening time is required",
-      "closingRequired": "Closing time is required",
-      "openingBeforeClosing": "Opening must be before closing"
-    },
-    "actions": "Actions",
-    "monday": "Monday",
-    "tuesday": "Tuesday",
-    "wednesday": "Wednesday",
-    "thursday": "Thursday",
-    "friday": "Friday",
-    "saturday": "Saturday",
-    "sunday": "Sunday",
-    "selectDates": "Select Dates",
-    "date": "Date",
-    "status": "Status",
-    "hours": "Hours",
-    "open": "Open",
-    "closed": "Closed",
-    "selectedDate": "Selected Date",
-    "locationClosed": "Location closed on this day",
-    "createLocation": "Create Location",
-    "updateLocation": "Update Location",
-    "cancel": "Cancel",
-    "schedules": "Schedules",
-    "addSchedule": "Add Schedule",
-    "noSchedulesYet": "No schedules have been added yet",
-    "addNewSchedule": "Add New Schedule",
-    "editSchedule": "Edit Schedule",
-    "scheduleName": {
-      "required": "Schedule name is required",
-      "label": "Schedule Name"
-    },
-    "startDate": {
-      "required": "Start date is required"
-    },
-    "endDate": {
-      "required": "End date is required",
-      "afterStartDate": "End date must be after start date"
-    },
-    "days": {
-      "atLeastOneRequired": "At least one day must be open"
-    },
-    "scheduleNamePlaceholder": "e.g. Summer Schedule, Holiday Schedule",
-    "selectDate": "Select date",
-    "startWeek": "Start Week",
-    "endWeek": "End Week",
-    "week": "Week",
-    "selectWeek": "Select week",
-    "previousYear": "Previous Year",
-    "nextYear": "Next Year",
-    "previousMonth": "Previous Month",
-    "nextMonth": "Next Month",
-    "scheduleOverlapWarning": "Schedule Overlap Detected",
-    "scheduleOverlapMessage": "This schedule overlaps with \"{scheduleName}\" ({startDate} to {endDate}). Please select a different date range.",
-    "weekdaySchedule": "Weekday Schedule",
-    "configureEachWeekday": "Select the days of the week when this location is open, and set the opening hours for each day.",
-    "weekdays": {
-      "monday": "Monday",
-      "tuesday": "Tuesday",
-      "wednesday": "Wednesday",
-      "thursday": "Thursday",
-      "friday": "Friday",
-      "saturday": "Saturday",
-      "sunday": "Sunday"
-    },
-    "saveChanges": "Save Changes",
-    "createSchedule": "Create Schedule",
-    "confirmDeletion": "Confirm Deletion",
-    "confirmDeleteScheduleMessage": "Are you sure you want to delete the schedule ",
-    "delete": "Delete",
-    "active": "Active",
-    "upcoming": "Upcoming",
-    "past": "Past",
-    "edit": "Edit",
-    "scheduleCreateError": "Error creating schedule",
-    "scheduleUpdateError": "Error updating schedule",
-    "scheduleDeleteError": "Error deleting schedule",
-    "activeDays": "Active days",
-    "noDaysOpen": "No days open",
-    "allDaysOpen": "All days of the week",
-    "saveLocationFirst": "Please save the location first before adding schedules",
-    "showPastSchedules": "Show past schedules",
-    "hidePastSchedules": "Hide past schedules",
-    "pastScheduleHidden": "past schedule hidden",
-    "pastSchedulesHidden": "past schedules hidden",
-    "noPastSchedules": "No schedules to display. Try showing past schedules.",
-    "deleteLocationAriaLabel": "Delete location",
-    "error": "Error",
-    "errorFetchingLocation": "An error occurred while fetching the location. Please try again.",
-    "scheduleChangeWarning": "Schedule Change Warning",
-    "parcelsWillBeAffected": "Food parcels will be affected",
-    "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",
-    "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
-    "proceedAnyway": "Proceed anyway",
-    "checking": "Checking...",
-    "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion...",
-    "verification": {
-      "title": "Verification Questions",
-      "description": "Manage verification questions that admins must confirm before creating households for this location",
-      "noQuestions": "No verification questions configured yet",
-      "addQuestion": "Add Question",
-      "addFirstQuestion": "Add Your First Verification Question",
-      "editQuestion": "Edit Verification Question",
-      "questionTextSv": "Question Text (Swedish)",
-      "questionTextEn": "Question Text (English)",
-      "questionTextSvPlaceholder": "e.g. Jag har verifierat att hushållet bor i rätt postnummerområde",
-      "questionTextEnPlaceholder": "e.g. I have verified that the household lives in the correct postal code area",
-      "helpTextSv": "Help Text (Swedish, Optional)",
-      "helpTextEn": "Help Text (English, Optional)",
-      "helpTextSvPlaceholder": "Additional guidance or explanation in Swedish",
-      "helpTextEnPlaceholder": "Additional guidance or explanation in English",
-      "isRequired": "Required Verification",
-      "isRequiredDescription": "Admin must check this box before creating household",
-      "displayOrder": "Display Order",
-      "displayOrderDescription": "Lower numbers appear first (0, 1, 2...)",
-      "questionTextSvRequired": "Swedish question text is required",
-      "questionTextEnRequired": "English question text is required",
-      "displayOrderRequired": "Display order is required",
-      "saveQuestion": "Save Question",
-      "cancel": "Cancel",
-      "questionCreated": "Verification question created successfully",
-      "questionUpdated": "Verification question updated successfully",
-      "questionDeleted": "Verification question deleted successfully",
-      "errorCreating": "Error creating verification question",
-      "errorUpdating": "Error updating verification question",
-      "errorDeleting": "Error deleting verification question",
-      "errorLoading": "Error loading verification questions",
-      "confirmDelete": "Are you sure you want to delete this verification question?",
-      "delete": "Delete",
-      "edit": "Edit",
-      "active": "Active",
-      "inactive": "Inactive",
-      "toggleActive": "Toggle active/inactive",
-      "required": "Required",
-      "optional": "Optional",
-      "preview": "Preview",
-      "previewDescription": "This is how admins will see this question in the household creation wizard:",
-      "reorderInstructions": "Drag to reorder questions"
-    }
-  },
-  "sms": {
-    "title": "SMS Messages",
-    "testModeWarning": "⚠️ TEST MODE: No real SMS will be sent.",
-    "status": {
-      "queued": "Queued",
-      "sending": "Sending",
-      "sent": "Sent",
-      "delivered": "Delivered",
-      "not_delivered": "Not Delivered",
-      "retrying": "Retrying",
-      "failed": "Failed"
-    },
-    "actions": {
-      "markPickedUp": "Mark as Handed Out",
-      "previewSms": "Preview SMS",
-      "resendSms": "Resend SMS",
-      "sendSms": "Send SMS",
-      "simulateDelivered": "Simulate Delivered",
-      "simulateNotDelivered": "Simulate Not Delivered"
-    },
-    "history": {
-      "title": "SMS History",
-      "noSms": "No SMS messages sent for this parcel",
-      "intent": "Type",
-      "status": "Status",
-      "attempts": "Attempts",
-      "createdAt": "Created",
-      "sentAt": "Sent",
-      "deliveredAt": "Delivered",
-      "error": "Error"
-    },
-    "preview": {
-      "title": "SMS Preview",
-      "recipient": "Recipient",
-      "message": "Message",
-      "locale": "Language"
-    },
-    "notifications": {
-      "markedPickedUp": "Food parcel marked as handed out",
-      "smsQueued": "SMS queued for sending",
-      "smsResent": "SMS queued for resending",
-      "deliverySimulated": "Delivery status simulated",
-      "cooldownActive": "Please wait before resending SMS",
-      "error": "An error occurred"
-    },
-    "cooldown": {
-      "message": "You can resend SMS in {minutes} minutes",
-      "active": "Resend cooldown active"
-    }
-  },
-  "admin": {
-    "parcelDialog": {
-      "title": "Parcel Information",
-      "loading": "Loading parcel details...",
-      "pickupSchedule": "Pickup Schedule",
-      "pickedUp": "Handed Out",
-      "notPickedUp": "Not Handed Out",
-      "status": {
-        "pickedUp": "Handed Out",
-        "noShow": "No-show",
-        "cancelled": "CANCELLED",
-        "wrongDay": "Wrong Day",
-        "checkTime": "Check Time",
-        "okToHandOut": "OK to Hand Out"
-      },
-      "by": "by",
-      "householdDetails": "Household Details",
-      "viewDetails": "View Details",
-      "contactInfo": "Contact Information",
-      "language": "Language",
-      "primaryLocation": "Primary Location",
-      "householdComposition": "Household Composition",
-      "members": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
-      "pets": "Pets",
-      "dietaryRestrictions": "Dietary Restrictions",
-      "severityRequired": "Required",
-      "severityPreference": "Preference",
-      "noRestrictions": "No dietary restrictions recorded",
-      "additionalNeeds": "Additional Needs",
-      "comments": "Comments",
-      "noComments": "No comments yet",
-      "addCommentPlaceholder": "Add a comment about this household...",
-      "addComment": "Add Comment",
-      "markPickedUp": "Mark as Handed Out",
-      "undoPickup": "Undo Handout",
-      "markNoShow": "No-show",
-      "undoNoShow": "Undo No-show",
-      "noShowConfirmTitle": "Mark as no-show?",
-      "noShowConfirmMessage": "Are you sure you want to mark {name} as no-show?",
-      "confirmNoShow": "Yes, mark as no-show",
-      "cancelNoShow": "Cancel",
-      "markNoShowAriaLabel": "Mark {name} as no-show",
-      "undoNoShowAriaLabel": "Undo no-show for {name}",
-      "markPickedUpAriaLabel": "Mark {name}'s parcel as handed out",
-      "undoPickupAriaLabel": "Undo handout for {name}",
-      "cancelParcel": "Cancel Parcel",
-      "deleteConfirmTitle": "Confirm Cancellation",
-      "deleteConfirmMessage": "Are you sure you want to cancel this parcel? {smsWarning}",
-      "smsWarning": "A cancellation SMS will be sent to the household.",
-      "smsNoWarning": "No SMS has been sent yet.",
-      "confirmDelete": "Yes, cancel",
-      "cancelDelete": "Abort",
-      "deleting": "Cancelling...",
-      "success": {
-        "parcelDeleted": "Parcel Cancelled",
-        "parcelDeletedMessage": "The food parcel has been cancelled"
-      },
-      "errors": {
-        "parcelNotFound": "Parcel not found",
-        "loadFailed": "Failed to load parcel details",
-        "markPickupFailed": "Failed to mark as picked up",
-        "undoPickupFailed": "Failed to undo pickup",
-        "markNoShowFailed": "Failed to mark as no-show",
-        "undoNoShowFailed": "Failed to undo no-show",
-        "addCommentFailed": "Failed to add comment",
-        "deleteCommentFailed": "Failed to delete comment",
-        "deleteCommentError": "Error deleting comment",
-        "deleteParcelFailed": "Failed to cancel parcel",
-        "parcelAlreadyPickedUp": "Cannot cancel a parcel that has already been picked up",
-        "parcelInPast": "Cannot cancel a parcel from the past"
-      },
-      "smsStatus": {
-        "title": "SMS Status",
-        "provider": {
-          "delivered": "Delivered",
-          "failed": "Failed",
-          "notDelivered": "Not Delivered",
-          "awaiting": "Awaiting confirmation"
-        },
-        "deliveryStatusAt": "Delivery status at"
-      }
-    },
-    "smsDashboard": {
-      "title": "SMS Management",
-      "pendingCount": "{count, plural, =0 {No pending SMS} =1 {1 pending SMS} other {# pending SMS}}",
-      "failureCount": "{count, plural, =0 {No failures} =1 {1 failure} other {# failures}}",
-      "loading": "Loading SMS...",
-      "refreshing": "Refreshing...",
-      "filters": {
-        "location": "Location",
-        "allLocations": "All locations",
-        "status": "Status",
-        "allStatuses": "All statuses",
-        "searchPlaceholder": "Search name...",
-        "clearFilters": "Clear filters",
-        "refresh": "Refresh",
-        "showCancelled": "Show cancelled parcels"
-      },
-      "status": {
-        "queued": "Queued",
-        "sending": "Sending",
-        "sent": "Sent",
-        "retrying": "Retrying",
-        "failed": "Failed",
-        "cancelled": "Cancelled",
-        "retryScheduled": "Retry scheduled",
-        "retryScheduledAt": "Retry at {time}"
-      },
-      "intent": {
-        "pickup_reminder": "Reminder",
-        "pickup_updated": "Update",
-        "pickup_cancelled": "Cancelled",
-        "consent_enrolment": "Consent",
-        "enrolment": "Enrolment"
-      },
-      "dateGroups": {
-        "today": "TODAY",
-        "tomorrow": "TOMORROW"
-      },
-      "actions": {
-        "menuLabel": "Actions",
-        "sendNow": "Send Now",
+    "auth": {
+        "login": "Log in",
+        "logout": "Log out",
+        "signInTitle": "Sign in to Matcentralen",
+        "signInDescription": "Sign in with your GitHub account to access the Matcentralen administration system.",
+        "signInWithGitHub": "Sign in with GitHub",
+        "errorTitle": "Authentication Error",
         "tryAgain": "Try Again",
-        "sendAgain": "Send Again",
-        "viewHousehold": "View Household",
-        "viewParcel": "View Parcel"
-      },
-      "itemInfo": {
-        "willSendAt": "Sends at approximately {time}",
-        "sentAt": "Sent at {time}"
-      },
-      "notifications": {
-        "sendSuccess": "SMS sent",
-        "sendError": "Failed to send SMS",
-        "sendErrorDetail": "Failed to send SMS: {error}"
-      },
-      "emptyStates": {
-        "noPending": "No pending SMS - All caught up! ✨",
-        "noResults": "No SMS found with current filters",
-        "noFailures": "No failed SMS right now"
-      },
-      "errorMessages": {
-        "loadError": "Failed to load SMS data",
-        "tryAgainLater": "Please try again later"
-      },
-      "statistics": {
-        "title": "SMS Statistics & Health",
-        "viewMonthly": "View monthly statistics",
-        "hide": "Hide statistics",
-        "status": {
-          "healthy": "Healthy",
-          "attention": "Attention",
-          "critical": "Critical"
-        },
-        "today": {
-          "label": "Today"
-        },
-        "last7Days": "Last 7 Days",
-        "currentMonth": "This Month",
-        "monthlyProgress": "Monthly Progress",
-        "byLocation": "By Location",
-        "sent": "sent",
-        "failed": "failed",
-        "pending": "pending",
-        "total": "total",
-        "successRate": "success rate",
-        "vsLastMonth": "vs last month",
-        "ofLastMonth": "of {count} last month"
-      }
-    }
-  },
-  "settings": {
-    "settings": "Settings",
-    "general": "General Settings",
-    "generalDescription": "Configure privacy policy, enrollment checklist, parcel limits, and follow-up settings.",
-    "locations": "Handout Location Settings",
-    "parcels": "Parcel Limits",
-    "aria": {
-      "settingsMenu": "Settings menu"
-    },
-    "nav": {
-      "privacyPolicy": "Privacy Policy",
-      "userAgreement": "User Agreement",
-      "enrollmentChecklist": "Enrollment Checklist",
-      "parcelThreshold": "Parcel Limits",
-      "noshowFollowup": "No-Show Follow-up"
-    },
-    "enrollmentChecklist": {
-      "title": "Enrollment Checklist",
-      "description": "Staff checklist for all new households",
-      "addChecklistItem": "Add Checklist Item",
-      "editChecklistItem": "Edit Checklist Item",
-      "deleteConfirm": "Delete this checklist item?",
-      "deleteModalTitle": "Delete Checklist Item",
-      "reorderHint": "Drag to reorder",
-      "preview": "Preview",
-      "emptyState": "No checklist items yet",
-      "instructionText": "I have made sure that...",
-      "badges": {
-        "required": "Required",
-        "helpAvailable": "Help text available"
-      },
-      "buttons": {
-        "cancel": "Cancel",
-        "save": "Save",
-        "delete": "Delete"
-      },
-      "form": {
-        "checklistText": "Checklist Item",
-        "helpText": "Help Text",
-        "isRequired": "Required",
-        "requiredHint": "Staff must check this box",
-        "placeholder": "They have been told about...",
-        "helpTextPlaceholder": "Optional help text..."
-      },
-      "examples": {
-        "title": "Example checklist items:",
-        "item1": "They have been told about pickup times and location",
-        "item2": "They understand the monthly parcel limit",
-        "item3": "I have verified their identity document",
-        "item4": "They have been informed about dietary restriction options"
-      },
-      "validation": {
-        "textRequired": "Checklist text is required",
-        "textTooShort": "Checklist item must be at least 10 characters"
-      },
-      "notifications": {
-        "created": "Checklist item created",
-        "updated": "Checklist item updated",
-        "deleted": "Checklist item deleted",
-        "reordered": "Checklist items reordered",
-        "error": "Error",
-        "success": "Success",
-        "loadError": "Failed to load verification questions",
-        "saveError": "Failed to save question",
-        "deleteError": "Failed to delete question",
-        "reorderError": "Failed to reorder questions",
-        "errors": {
-          "FETCH_FAILED": "Failed to load checklist items",
-          "VALIDATION_ERROR": "Checklist text cannot be empty",
-          "CREATE_FAILED": "Failed to create checklist item",
-          "UPDATE_FAILED": "Failed to update checklist item",
-          "NOT_FOUND": "Checklist item not found",
-          "DELETE_FAILED": "Failed to delete checklist item",
-          "REORDER_FAILED": "Failed to reorder checklist items",
-          "UNKNOWN": "An unexpected error occurred"
-        }
-      }
-    },
-    "householdOptions": {
-      "title": "Household Options",
-      "description": "Manage dietary restrictions, pet types, and additional needs that appear in household create/edit flows.",
-      "tabs": {
-        "dietaryRestrictions": "Dietary Restrictions",
-        "petTypes": "Pet Types",
-        "additionalNeeds": "Additional Needs"
-      },
-      "addButton": "Add",
-      "statusToggle": "Enabled",
-      "status": {
-        "active": "Active",
-        "disabled": "Disabled"
-      },
-      "linkedHouseholds": {
-        "title": "Linked households"
-      },
-      "usageCount": "{count, plural, =0 {Not used} =1 {1 household} other {# households}}",
-      "emptyState": {
-        "dietaryRestrictions": "No dietary restrictions yet. Add common restrictions like \"Gluten-free\" or \"Halal\".",
-        "petTypes": "No pet types yet. Add common pets like \"Dog\" or \"Cat\".",
-        "additionalNeeds": "No additional needs yet. Add needs like \"Diapers\" or \"Bus pass\"."
-      },
-      "infoAlert": "Use the toggle to disable options without deleting them. Disabled options stay visible in the wizard but cannot be newly selected.",
-      "form": {
-        "nameLabel": "Name",
-        "namePlaceholder": {
-          "dietaryRestrictions": "E.g., Gluten-free, Halal, Vegan...",
-          "petTypes": "E.g., Dog, Cat, Rabbit...",
-          "additionalNeeds": "E.g., Diapers, Bus pass, Cleaning supplies..."
-        },
-        "addTitle": {
-          "dietaryRestrictions": "Add Dietary Restriction",
-          "petTypes": "Add Pet Type",
-          "additionalNeeds": "Add Additional Need"
-        },
-        "editTitle": {
-          "dietaryRestrictions": "Edit Dietary Restriction",
-          "petTypes": "Edit Pet Type",
-          "additionalNeeds": "Edit Additional Need"
-        },
-        "editWarning": "Used by {count} households - changes will affect all of them",
-        "severityLabel": "Severity level",
-        "severityRequired": "Required",
-        "severityPreference": "Preference"
-      },
-      "delete": {
-        "title": {
-          "dietaryRestrictions": "Delete Dietary Restriction",
-          "petTypes": "Delete Pet Type",
-          "additionalNeeds": "Delete Additional Need"
-        },
-        "confirmMessage": "Are you sure you want to delete \"{name}\"?",
-        "cannotDelete": "Cannot delete - used by {count} households",
-        "cannotDeleteTooltip": "Remove this option from all households before deleting"
-      },
-      "buttons": {
-        "cancel": "Cancel",
-        "save": "Save",
-        "delete": "Delete"
-      },
-      "notifications": {
-        "created": "Option created",
-        "updated": "Option updated",
-        "deleted": "Option deleted",
-        "activated": "Option enabled",
-        "deactivated": "Option disabled",
-        "error": "Error",
-        "success": "Success",
-        "loadError": "Failed to load options",
-        "saveError": "Failed to save option",
-        "deleteError": "Failed to delete option",
-        "errors": {
-          "FETCH_FAILED": "Failed to load options",
-          "CREATE_FAILED": "Failed to create option",
-          "UPDATE_FAILED": "Failed to update option",
-          "DELETE_FAILED": "Failed to delete option",
-          "OPTION_IN_USE": "Cannot delete option that is in use by households",
-          "DUPLICATE_NAME": "An option with this name already exists",
-          "VALIDATION_ERROR": "Name is required",
-          "NOT_FOUND": "Option not found",
-          "UNKNOWN": "An unexpected error occurred"
-        }
-      }
-    },
-    "privacyPolicy": {
-      "title": "Privacy Policy",
-      "description": "Edit the privacy policy shown to households. The policy is available at /privacy",
-      "viewPublicPage": "View Public Page",
-      "markdownHint": "Use Markdown formatting for headers, lists, and emphasis.",
-      "markdownExamples": "Examples: # Header, ## Subheader, - List item, **bold**, *italic*",
-      "placeholder": "Enter the privacy policy content here...",
-      "preview": "Preview",
-      "lastUpdated": "updated {date}",
-      "lastUpdatedFull": "Last updated: {date}",
-      "saved": "Saved",
-      "addLanguage": "Add language...",
-      "buttons": {
-        "edit": "Edit",
-        "preview": "Preview",
-        "save": "Save"
-      },
-      "notifications": {
-        "success": "Success",
-        "error": "Error",
-        "saved": "Privacy policy saved",
-        "loadError": "Failed to load privacy policy",
-        "saveError": "Failed to save privacy policy",
-        "emptyContent": "Privacy policy content cannot be empty",
-        "cannotRemoveSaved": "Cannot remove a language with saved content"
-      }
-    },
-    "userAgreement": {
-      "title": "User Agreement",
-      "description": "Manage the user agreement that all administrators must accept before using the system. The agreement describes responsibilities for handling personal data.",
-      "currentVersion": "Current version: {version}",
-      "acceptedBy": "{count} users have accepted",
-      "noAgreement": "No user agreement has been created yet. Create an agreement to require all users to accept it before using the system.",
-      "publishWarning": "Publishing a new version will require all users to accept the agreement again before they can continue using the system.",
-      "markdownHint": "Use Markdown formatting for headers, lists, and emphasis.",
-      "placeholder": "Enter the user agreement content here...",
-      "preview": "Preview",
-      "versionHistory": "Version History",
-      "table": {
-        "version": "Version",
-        "createdAt": "Created",
-        "createdBy": "Created by",
-        "acceptedBy": "Accepted by"
-      },
-      "buttons": {
-        "edit": "Edit",
-        "preview": "Preview",
-        "showHistory": "Show History",
-        "hideHistory": "Hide History",
-        "publish": "Publish New Version",
-        "create": "Create Agreement"
-      },
-      "notifications": {
-        "success": "Success",
-        "error": "Error",
-        "saved": "User agreement saved. All users must now accept it again.",
-        "loadError": "Failed to load user agreement",
-        "saveError": "Failed to save user agreement",
-        "emptyContent": "User agreement content cannot be empty"
-      }
-    },
-    "parcelThreshold": {
-      "title": "Parcel Warning Threshold",
-      "description": "Set the number of parcels after which to warn administrators about high household usage",
-      "infoMessage": "When a household exceeds this number of parcels, a warning will appear on the household details page and when adding more parcels. This helps identify households that may need additional support or review.",
-      "thresholdLabel": "Warning Threshold",
-      "thresholdDescription": "Number of parcels before warning appears",
-      "thresholdPlaceholder": "e.g., 10",
-      "warningPreview": "Warnings will appear for households with more than {threshold} parcels",
-      "saveButton": "Save",
-      "clearButton": "Clear (Disable Warnings)",
-      "success": {
-        "savedTitle": "Saved",
-        "savedMessage": "Parcel warning threshold has been updated",
-        "clearedMessage": "Parcel warnings have been disabled"
-      },
-      "errors": {
-        "loadFailedTitle": "Error",
-        "loadFailedMessage": "Failed to load parcel warning threshold",
-        "saveFailedTitle": "Error",
-        "saveFailedMessage": "Failed to save parcel warning threshold"
-      }
-    },
-    "noshowFollowup": {
-      "title": "No-Show Follow-up",
-      "description": "Configure automatic follow-up item creation when households have repeated no-shows",
-      "infoMessage": "When enabled, a follow-up item will be automatically created on the Issues page when a household reaches the specified no-show thresholds. This helps identify households that may need additional outreach or support.",
-      "enabledLabel": "Enable No-Show Follow-up",
-      "enabledDescription": "Automatically create follow-up items for households with repeated no-shows",
-      "consecutiveLabel": "Consecutive No-Shows",
-      "consecutiveDescription": "Number of consecutive (in a row) no-shows to trigger follow-up",
-      "consecutivePlaceholder": "e.g., 2",
-      "totalLabel": "Total No-Shows",
-      "totalDescription": "Total number of no-shows (all time) to trigger follow-up",
-      "totalPlaceholder": "e.g., 4",
-      "preview": "A follow-up item will be created when a household has {consecutive} consecutive no-shows OR {total} total no-shows",
-      "saveButton": "Save",
-      "success": {
-        "savedTitle": "Saved",
-        "savedMessage": "No-show follow-up settings have been updated"
-      },
-      "errors": {
-        "loadFailedTitle": "Error",
-        "loadFailedMessage": "Failed to load no-show follow-up settings",
-        "saveFailedTitle": "Error",
-        "saveFailedMessage": "Failed to save no-show follow-up settings"
-      }
-    },
-    "smsTemplates": {
-      "title": "Default SMS Templates",
-      "description": "Customize the text messages sent to households",
-      "comingSoon": "Coming Soon..."
-    },
-    "users": "Users",
-    "usersSection": {
-      "title": "User Management",
-      "description": "Manage user roles. Role changes take effect within 5 minutes.",
-      "columns": {
+        "account": "Account",
+        "profile": "Profile",
         "user": "User",
-        "role": "Role"
-      },
-      "roles": {
-        "admin": "Admin",
-        "handout_staff": "Handout Staff"
-      },
-      "notifications": {
-        "success": "Success",
-        "error": "Error",
-        "roleUpdated": "Role updated"
-      }
-    }
-  },
-  "parcelWarning": {
-    "modal": {
-      "title": "High Parcel Count Warning",
-      "message": "{householdName} has received {count} food parcels (threshold: {threshold}).",
-      "explanation": "This household has exceeded the parcel limit threshold. Please verify that they have received appropriate support and assistance. You can still add more parcels, but this requires acknowledgment.",
-      "acknowledgmentLabel": "I acknowledge this household may need additional review or support",
-      "confirmButton": "Continue Adding Parcels",
-      "cancelButton": "Cancel"
-    }
-  },
-  "issues": {
-    "title": "Follow-up",
-    "allClear": "All clear! Nothing needs follow-up.",
-    "refresh": "Refresh",
-    "error": "Error loading issues",
-    "accessDenied": "Access denied. You don't have permission to view issues.",
-    "filters": {
-      "all": "All",
-      "unresolvedHandouts": "Unresolved handouts",
-      "outsideOpeningHours": "Outside opening hours",
-      "failedSms": "Failed SMS",
-      "noShowFollowups": "No-show follow-ups"
+        "protection": {
+            "signInRequired": "Please sign in to access this page."
+        },
+        "errors": {
+            "notOrgMember": "You must be a member of the authorized organization and comply with its security policies (secure 2FA required) to access this app.",
+            "invalidProvider": "Invalid account provider. Please use GitHub.",
+            "configuration": "There is a problem with the authentication configuration. Please contact support.",
+            "accessDenied": "Access denied. You don't have permission to sign in.",
+            "verification": "Verification failed. Please try signing in again.",
+            "default": "An error occurred while signing in. Please try again."
+        },
+        "accessDenied": {
+            "title": "Access Denied",
+            "subtitle": "We couldn't log you in. This is usually because your GitHub account needs additional security setup.",
+            "explanations": {
+                "notMember": "Your GitHub account is not a member of the organization. Ask your administrator to send you an invitation.",
+                "membershipInactive": "You have a pending invitation to the organization. Check your email or GitHub notifications and accept the invitation.",
+                "insecure2fa": "Your GitHub account uses SMS for two-factor authentication. The organization requires a more secure method. Follow the steps below to fix this.",
+                "unauthenticated": "Your login is no longer valid. Please sign out and sign in again.",
+                "temporaryError": "We could not verify your account due to a temporary problem with GitHub. Please try again in a few minutes.",
+                "membershipHelp": "If you believe you should have access, contact your organization administrator to get an invitation."
+            },
+            "reasons": {
+                "title": "Why am I seeing this?",
+                "preamble": "One or more of the following may apply:",
+                "notMember": "You are not a member of the authorized GitHub organization",
+                "insecure2fa": "Your GitHub account needs a more secure login method (not just SMS)"
+            },
+            "acceptedMethods": {
+                "title": "Accepted Login Methods",
+                "githubMobile": "GitHub Mobile app — easiest option, just approve a notification",
+                "passkey": "Passkey (Face ID, Touch ID, Windows Hello)",
+                "authenticatorApp": "Authenticator app (Google Authenticator, Authy, Microsoft Authenticator)"
+            },
+            "notAccepted": {
+                "title": "Not Accepted (must add one above)",
+                "sms": "SMS text messages alone are not secure enough"
+            },
+            "howToFix": {
+                "title": "How to Fix This",
+                "step1": "Go to your GitHub Security Settings",
+                "step1Aria": "Go to your GitHub Security Settings (opens in new tab)",
+                "step2": "Find \"Password and authentication\" in the menu",
+                "step3": "Add one of the accepted methods listed above",
+                "step4": "Come back here and sign in again"
+            },
+            "buttons": {
+                "githubSettings": "Open GitHub Security Settings",
+                "githubSettingsAria": "Open GitHub Security Settings (opens in new tab)",
+                "signOutAndRetry": "Sign Out and Try Again"
+            },
+            "support": "Still having trouble? Contact your organization administrator."
+        }
     },
-    "sections": {
-      "unresolvedHandouts": "Unresolved handouts",
-      "outsideOpeningHours": "Outside opening hours",
-      "failedSms": "Failed SMS"
-    },
-    "cardType": {
-      "unresolvedHandout": "Unresolved handout",
-      "outsideHours": "Outside opening hours",
-      "failedSms": "SMS delivery failed",
-      "failedSmsStale": "SMS delivery unconfirmed",
-      "failedSmsProvider": "SMS delivery rejected",
-      "failedSmsInternal": "SMS sending failed",
-      "noShowFollowup": "No-show follow-up needed"
-    },
-    "actions": {
-      "handedOut": "Handed out",
-      "noShow": "No-show",
-      "cancelParcel": "Cancel parcel",
-      "reschedule": "Reschedule",
-      "retry": "Retry",
-      "retryPickupPassed": "Too late to retry - pickup time has passed",
-      "dismiss": "Dismiss",
-      "editHousehold": "Edit household",
-      "viewHousehold": "View household",
-      "cancel": "Cancel",
-      "save": "Save"
-    },
-    "openingHours": "Open {hours}",
-    "closedThisDay": "Closed this day",
-    "smsIntent": {
-      "pickup_reminder": "Pickup reminder",
-      "pickup_updated": "Pickup time changed",
-      "pickup_cancelled": "Pickup cancelled",
-      "enrolment": "Welcome message",
-      "consent_enrolment": "Consent request",
-      "food_parcels_ended": "End of food support notice"
-    },
-    "failureDescription": {
-      "internal": "Could not send. Contact technical support.",
-      "provider": "SMS not delivered. This usually means the phone number is not in use.",
-      "stale": "No delivery confirmation received. Contact technical support."
-    },
-    "toast": {
-      "handedOut": "Marked as handed out",
-      "noShow": "Marked as no-show",
-      "retry": "SMS queued for retry",
-      "dismiss": "Issue dismissed",
-      "cancelParcel": "Parcel cancelled",
-      "rescheduled": "Parcel rescheduled",
-      "success": "Success",
-      "actionError": "Action failed",
-      "handedOutError": "Failed to mark as handed out",
-      "noShowError": "Failed to mark as no-show",
-      "cancelError": "Failed to cancel parcel",
-      "retryError": "Failed to retry SMS",
-      "dismissError": "Failed to dismiss",
-      "noShowFollowupDismissed": "No-show follow-up dismissed"
-    },
-    "noShowFollowup": {
-      "triggerConsecutive": "{count} consecutive no-shows",
-      "triggerTotal": "{count} total no-shows",
-      "triggerBoth": "{consecutive} consecutive, {total} total no-shows"
-    },
-    "errorCodes": {
-      "NOT_FOUND": "Could not find the item. It may have been deleted.",
-      "ALREADY_CANCELLED": "This parcel has already been cancelled.",
-      "ALREADY_PICKED_UP": "This parcel has already been handed out.",
-      "ALREADY_NO_SHOW": "This parcel is already marked as no-show.",
-      "FUTURE_PARCEL": "Cannot mark a future parcel as no-show.",
-      "ALREADY_DELETED": "This parcel has already been deleted.",
-      "PAST_PARCEL": "Cannot cancel a past parcel.",
-      "INVALID_ACTION": "Invalid action requested.",
-      "OUTSIDE_HOURS": "Cannot send SMS for parcel scheduled outside opening hours.",
-      "COOLDOWN_ACTIVE": "Please wait before sending another SMS.",
-      "FETCH_ERROR": "Failed to load data. Please try again.",
-      "SEND_ERROR": "Failed to send SMS. Please try again.",
-      "PARCEL_NOT_FOUND": "The associated parcel no longer exists.",
-      "TOO_LATE": "Too late to retry - pickup starts in less than 1 hour.",
-      "UNKNOWN_ERROR": "An unexpected error occurred. Please try again."
-    },
-    "confirm": {
-      "noShowTitle": "Mark as no-show?",
-      "noShowMessage": "Are you sure you want to mark {name} as no-show?",
-      "noShowConfirm": "Yes, mark as no-show",
-      "cancelParcelTitle": "Cancel parcel?",
-      "cancelParcelMessage": "Are you sure you want to cancel the food parcel for {name}? This action cannot be undone.",
-      "cancelParcelConfirm": "Yes, cancel parcel",
-      "dismissFailedSmsTitle": "Dismiss SMS failure?",
-      "dismissFailedSmsMessage": "Are you sure you want to dismiss the failed SMS for {name}?",
-      "dismissFailedSmsConfirm": "Yes, dismiss",
-      "dismissNoShowFollowupTitle": "Dismiss follow-up?",
-      "dismissNoShowFollowupMessage": "Are you sure you want to dismiss the no-show follow-up for {name}? It will reappear if they have another no-show.",
-      "dismissNoShowFollowupConfirm": "Yes, dismiss",
-      "cancel": "Cancel"
-    },
-    "confirmCancelTitle": "Cancel parcel?",
-    "confirmCancelMessage": "Are you sure you want to cancel this food parcel? This action cannot be undone.",
-    "reschedule": {
-      "loading": "Loading availability...",
-      "newDate": "New date",
-      "selectDate": "Select date",
-      "newTime": "New time",
-      "selectTime": "Select time",
-      "dateUnavailable": "Location is closed on this date",
-      "noTimesAvailable": "No available time slots",
-      "requiredFields": "Please select both date and time",
-      "genericError": "Failed to reschedule. Please try again.",
-      "loadError": "Failed to load schedule"
-    }
-  },
-  "smsConfirm": {
-    "title": "Send SMS",
-    "recentWarning": "Recently Sent",
-    "recentWarningMessage": "An SMS was sent to this recipient at {time}. Are you sure you want to send another?",
-    "previousSms": "Previous SMS",
-    "moreHistory": "+{count} more",
-    "cancel": "Cancel",
-    "confirm": "Send SMS"
-  },
-  "statistics": {
-    "title": "Statistics",
-    "description": "Overview of service statistics and trends",
-    "periods": {
-      "7d": "Last 7 days",
-      "30d": "Last 30 days",
-      "90d": "Last 90 days",
-      "year": "This year",
-      "all": "All time"
-    },
-    "overview": {
-      "title": "Overview",
-      "totalHouseholds": "Active Households",
-      "newHouseholds": "New Households",
-      "removedHouseholds": "Removed Households",
-      "totalParcels": "Total Parcels",
-      "pickedUpParcels": "Picked Up",
-      "pickupRate": "Pickup Rate",
-      "smsDeliveryRate": "SMS Delivery Rate",
-      "noData": "No data for selected period"
+    "agreement": {
+        "title": "User Agreement for Personal Data Processing",
+        "subtitle": "Read and accept the agreement to continue using the system",
+        "version": "Version {version}",
+        "effectiveFrom": "Effective from {date}",
+        "acceptedAt": "You accepted this agreement {date}",
+        "checkbox": "I have read and understand my responsibility for handling personal data according to this agreement",
+        "accept": "Accept and continue",
+        "loading": "Loading agreement...",
+        "errors": {
+            "title": "Error",
+            "loadFailed": "Could not load the user agreement",
+            "acceptFailed": "Could not accept the agreement. Please try again.",
+            "newerVersion": "A newer version of the agreement has been published. Please review and accept it."
+        },
+        "notifications": {
+            "success": "Done",
+            "error": "Error",
+            "accepted": "You have accepted the user agreement"
+        }
     },
     "households": {
-      "title": "Household Demographics",
-      "total": "Total Active",
-      "new": "New",
-      "removed": "Removed",
-      "byLanguage": "By Language",
-      "ageDistribution": "Age Distribution",
-      "memberCountDistribution": "Household Size",
-      "dietaryRestrictions": "Dietary Restrictions",
-      "additionalNeeds": "Additional Needs",
-      "pets": "Pets",
-      "locales": {
+        "title": "Households",
+        "description": "Manage households and their information",
+        "newHousehold": "New household has been registered!",
+        "updatedHousehold": "The household has been updated!",
+        "search": {
+            "placeholder": "Search households..."
+        },
+        "modal": {
+            "loading": "Loading...",
+            "title": "Household Details: {firstName} {lastName}"
+        },
+        "actions": {
+            "view": "View",
+            "edit": "Edit",
+            "manageParcels": "Manage Parcels"
+        },
+        "filters": {
+            "location": "Filter by location",
+            "createdBy": "Filter by creator"
+        },
+        "table": {
+            "firstName": "First Name",
+            "lastName": "Last Name",
+            "phoneNumber": "Phone Number",
+            "language": "Language",
+            "createdBy": "Created By",
+            "primaryLocation": "Primary Location",
+            "firstParcel": "First Food Parcel",
+            "lastParcel": "Last Food Parcel",
+            "nextParcel": "Next Food Parcel",
+            "columns": "Columns",
+            "visibleColumns": "Visible Columns",
+            "actions": {
+                "viewDetails": "View Details",
+                "edit": "Edit Household",
+                "search": "Search households...",
+                "newHousehold": "New Household"
+            }
+        },
+        "errors": {
+            "notFound": "Could not find the household. Please check that the ID is correct.",
+            "createError": "An error occurred while registering the household.",
+            "updateError": "An error occurred while updating the household."
+        }
+    },
+    "parcelManagement": {
+        "breadcrumb": {
+            "households": "Households",
+            "manageParcels": "Manage Parcels for {householdName}"
+        },
+        "success": {
+            "title": "Success",
+            "parcelsUpdated": "Food parcels have been updated successfully!"
+        },
+        "error": {
+            "title": "Error",
+            "general": "An error occurred",
+            "unknown": "Unknown error",
+            "updateFailed": "Failed to update parcels. Please try again.",
+            "unauthorized": "You must be authenticated to manage parcels",
+            "forbidden": "You don't have permission to perform this action",
+            "householdNotFound": "The specified household does not exist",
+            "configurationError": "Server configuration error. Please contact support."
+        },
+        "validation": {
+            "pickupLocationRequired": "Please select a pickup location",
+            "title": "Could not save",
+            "description": "Parcels could not be saved due to validation errors",
+            "summaryTitle": "Parcels could not be saved",
+            "summaryDescription": "The following issues must be resolved:",
+            "jumpToError": "↑ Jump to form to fix"
+        },
+        "submitting": {
+            "update": "Updating parcels..."
+        },
+        "actions": {
+            "back": "Back to Households",
+            "saveParcels": "Save Parcels"
+        },
+        "backToHouseholds": "Back to Households"
+    },
+    "householdForm": {
+        "basics": "Basic Information",
+        "basicDescription": "Fill in the basic contact information for the household. This information is used to contact the household.",
+        "firstName": "First Name",
+        "enterFirstName": "Enter first name",
+        "lastName": "Last Name",
+        "enterLastName": "Enter last name",
+        "phoneNumber": "Phone Number",
+        "phoneDescription": "Swedish phone numbers only",
+        "enterPhoneNumber": "Enter phone number",
+        "smsConsent": "Household consents to SMS contact",
+        "smsConsentDescription": "Required to send pickup reminders and updates",
+        "language": "Language",
+        "selectLanguage": "Select language",
+        "primaryLocation": "Primary Handout Location",
+        "primaryLocationDescription": "The household's main handout location",
+        "selectPrimaryLocation": "Select primary location",
+        "locationUnknownWithId": "Unknown location (ID: {id})",
+        "validation": {
+            "firstNameLength": "First name must be at least 2 characters",
+            "lastNameLength": "Last name must be at least 2 characters",
+            "phoneNumberFormat": "Enter a valid Swedish phone number (7-10 digits)",
+            "swedishNumbersOnly": "Only Swedish phone numbers (+46) are supported",
+            "phoneNumberInUse": "This phone number is already registered with another household"
+        },
+        "duplicatePhone": {
+            "title": "Phone Number Already Exists",
+            "message": "This phone number already belongs to household: {name} (ID: {id}). Phone: {phone}",
+            "fieldError": "This phone number is already registered"
+        },
+        "similarName": {
+            "title": "Similar Household Found",
+            "message": "A household with a similar name already exists. Please verify this is a new household:",
+            "confirmTitle": "Confirm New Household",
+            "confirmMessage": "Similar households already exist. Are you sure this is a different household?",
+            "confirmButton": "Yes, Create New Household",
+            "cancelButton": "Cancel"
+        }
+    },
+    "members": {
+        "title": "Household Members",
+        "description": "Add all members of the household. This information is used to calculate food quantity and special needs.",
+        "addPerson": "Add Person",
+        "age": "Age",
+        "ageUnit": "years",
+        "gender": {
+            "label": "Gender",
+            "male": "Male",
+            "female": "Female",
+            "other": "Other"
+        },
+        "validation": {
+            "ageRequired": "Age is required",
+            "genderRequired": "Gender selection is required"
+        }
+    },
+    "dietaryRestrictions": {
+        "title": "Dietary Restrictions",
+        "description": "Select dietary restrictions that apply to the household.",
+        "loading": "Loading dietary restrictions...",
+        "noRestrictions": "No dietary restrictions added",
+        "addNew": "Add new restriction",
+        "newRestriction": "New dietary restriction",
+        "placeholderExample": "E.g. Strawberries, Soy, etc.",
+        "add": "Add",
+        "addConfirmTitle": "Add Dietary Restriction",
+        "addConfirmQuestion": "Do you want to add the following dietary restriction to your application?",
+        "removeConfirmTitle": "Remove Dietary Restriction",
+        "removeConfirmQuestion": "Do you want to remove the following dietary restriction from your application?",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "disabledLabel": "Disabled",
+        "validation": {
+            "minLength": "Dietary restriction must be at least 2 characters"
+        }
+    },
+    "pets": {
+        "title": "Pets",
+        "description": "Register pets in the household. This helps us to adapt the food assortment.",
+        "noPets": "No pets added",
+        "loading": "Loading pet types...",
+        "addNew": "Add new type of pet",
+        "newPetType": "New type of pet",
+        "placeholderExample": "E.g. Guinea Pig, Lizard, etc.",
+        "add": "Add",
+        "addConfirmTitle": "Add Pet Type",
+        "addConfirmQuestion": "Do you want to add the following pet type to your application?",
+        "removeConfirmTitle": "Remove Pet Type",
+        "removeConfirmQuestion": "Do you want to remove the following pet type from your application?",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "disabledLabel": "Disabled",
+        "defaultPetType": "Pet type {index}",
+        "unknownPetType": "Unknown",
+        "validation": {
+            "minLength": "Pet type must be at least 2 characters"
+        }
+    },
+    "additionalNeeds": {
+        "title": "Additional Needs",
+        "description": "Select additional needs that the household may have.",
+        "noNeeds": "No additional needs added",
+        "loading": "Loading additional needs...",
+        "addNew": "Add new need",
+        "newNeed": "New need",
+        "placeholderExample": "E.g. Razors, Shampoo, etc.",
+        "add": "Add",
+        "disabledLabel": "Disabled",
+        "validation": {
+            "minLength": "Need must be at least 2 characters"
+        }
+    },
+    "foodParcels": {
+        "title": "Scheduled Food Parcels",
+        "description": "Schedule food parcels for the household with pickup location and times.",
+        "settings": "Scheduling Settings",
+        "pickupLocation": "Pickup Location",
+        "selectLocation": "Select pickup location",
+        "selectDates": "Select dates for food parcels",
+        "loadingAvailability": "Loading availability...",
+        "selectLocationFirst": "Select a pickup location first to see availability",
+        "selectDatesHint": "Select all dates when the household should receive a food parcel",
+        "setBulkTimes": "Set all times",
+        "editingAllTimes": "Editing all times",
+        "bulkTimeHint": "Set the same time for all food parcels, or cancel to edit individually.",
+        "bulk": {
+            "upcomingOnly": "applies to upcoming parcels only",
+            "notAvailableTitle": "Bulk change not available",
+            "notAvailableMsg": "Selected dates have different opening hours. Edit times per date.",
+            "notAvailableMsgWithSummary": "Selected dates have different opening hours: {summary}. Edit times per date."
+        },
+        "individualTimeHint": "Click on the times to change pickup time for each individual food parcel.",
+        "calendar": {
+            "unavailableClosedDay": "Closed on this day",
+            "fullyBooked": "Fully booked",
+            "selected": "Selected day"
+        },
+        "time": {
+            "earliest": "Earliest pickup time",
+            "latest": "Latest pickup time",
+            "updateAll": "Update all",
+            "error": "Earliest time must be before latest time",
+            "dateAndPickup": "Date and pickup time",
+            "noAvailableTimes": "No available times",
+            "noAvailableTimesForToday": "All times for today have passed. Please select a future date."
+        },
+        "cancel": "Cancel",
+        "for": "for",
+        "table": {
+            "date": "Date",
+            "pickupTime": "Pickup Time",
+            "facilityHours": "Facility Hours"
+        },
+        "slotDuration": "Slot Duration: {duration} minutes",
+        "errors": {
+            "selectLocation": "Select a pickup location"
+        },
+        "validationErrors": {
+            "title": "Validation Errors",
+            "capacityReached": "Location capacity exceeded for selected date",
+            "slotCapacityReached": "Time slot is fully booked",
+            "doubleBooking": "Household already has a parcel scheduled for this date",
+            "outsideOperatingHours": "Selected time is outside operating hours",
+            "pastTimeSlot": "Cannot schedule pickup in the past"
+        }
+    },
+    "review": {
+        "title": "Summary",
+        "editDescription": "Review all information before updating the household.",
+        "createDescription": "Review all information before saving the new household."
+    },
+    "schedule": {
+        "title": "Food Support Scheduling",
+        "today": "Today",
+        "todayTab": "Today",
+        "weeklyTab": "Weekly",
+        "hub": {
+            "title": "Schedule",
+            "subtitle": "Select a handout location to view schedules",
+            "noLocations": "No handout locations found",
+            "noHandoutsToday": "No handouts today",
+            "parcelsToday": "{count} parcels today",
+            "completed": "completed",
+            "todayHandouts": "Today's Handouts",
+            "weeklySchedule": "Weekly Schedule",
+            "setAsFavorite": "Set as Favorite",
+            "favorite": "Favorite",
+            "favoriteSet": "{location} set as favorite",
+            "favoriteChanged": "Favorite changed to {location}",
+            "favoriteRemoved": "{location} removed from favorites",
+            "confirmSetFavorite": "Set {location} as your favorite?",
+            "confirmChangeFavorite": "Change your favorite from {oldLocation} to {newLocation}?",
+            "confirmRemoveFavorite": "Remove {location} as your favorite?",
+            "favoriteExplanation": "Setting a favorite will automatically take you there when browsing schedules, making it faster to access the location you use most often.",
+            "confirmRemoveFavoriteLabel": "Remove favorite",
+            "confirmChangeFavoriteLabel": "Change favorite",
+            "currentFavoriteLabel": "current favorite",
+            "notificationSuccessTitle": "Success",
+            "notificationErrorTitle": "Error",
+            "favoriteUpdateFailed": "Failed to update favorite location",
+            "cancelButton": "Cancel",
+            "tooltipSetFavorite": "Set {location} as favorite",
+            "tooltipRemoveFavorite": "Remove {location} as favorite",
+            "noUpcomingSchedule": "No upcoming opening hours"
+        },
+        "noUpcomingSchedule": {
+            "title": "No Upcoming Opening Hours",
+            "description": "This location has no opening hours scheduled for future dates.",
+            "whatThisMeans": "What this means:",
+            "consequence1": "New food parcels cannot be booked at this location",
+            "consequence2": "Households cannot be assigned pickup times here",
+            "callToAction": "If this location should be accepting food parcels, please contact the person responsible for managing handout location schedules.",
+            "understand": "I Understand"
+        },
+        "location": {
+            "header": {
+                "locations": "Handout Locations",
+                "completedToday": "{completed}/{total} completed today"
+            },
+            "landing": {
+                "title": "Schedule",
+                "selectView": "Select View",
+                "todayHandouts": "Today's Handouts",
+                "todayDescription": "View today's scheduled parcels",
+                "weeklySchedule": "Weekly Schedule",
+                "weeklyDescription": "View and manage weekly schedule",
+                "goToToday": "Go to Today",
+                "weeklyView": "Weekly View",
+                "locationError": "Location Error",
+                "locationNotFound": "Location not found"
+            }
+        },
+        "todayHandouts": {
+            "title": "Today's Handouts",
+            "pageTitle": "Today's Handouts",
+            "date": "{weekday}, {date}",
+            "selectLocation": "Select a location to view packages",
+            "clearSelection": "Clear selection",
+            "noLocation": "Select a location to view today's packages",
+            "noParcels": "No packages scheduled today at this location",
+            "completed": "completed",
+            "scheduled": "Scheduled",
+            "completedStatus": "Completed",
+            "parcels": "packages",
+            "noTimeSpecified": "No time specified",
+            "parcel": {
+                "upcoming": "Scheduled",
+                "pickedUp": "Picked up",
+                "noShow": "No-show"
+            },
+            "homeLocation": "The household's regular handout location",
+            "visitingTooltip": "Visitor – normally picks up at a different location",
+            "createdByTooltip": "Household created by {username}",
+            "summary": {
+                "restrictionsTitle": "Dietary restrictions",
+                "title": "Summary",
+                "noDietaryRestrictions": "No dietary restrictions",
+                "householdsAndMembers": "{households} {households, plural, =1 {household} other {households}} · {members} {members, plural, =1 {person} other {people}}",
+                "pets": "Pets",
+                "additionalRequests": "Additional requests",
+                "expand": "Expand summary",
+                "collapse": "Collapse summary"
+            },
+            "search": {
+                "placeholder": "Search by name or phone number",
+                "noResults": "No match for \"{query}\"",
+                "clear": "Clear search"
+            }
+        },
+        "currentWeek": "Current Week",
+        "todayLabel": "Today",
+        "weekLabel": "Week {week}, {year}",
+        "loading": "Loading schedule...",
+        "noFoodSupport": "No food support scheduled this week",
+        "refresh": "Refresh",
+        "selectWeek": "Select Week",
+        "pastDateError": "This date has already passed",
+        "unavailableDay": "This location is not open on this day",
+        "unavailableSlot": "This time is outside opening hours",
+        "timeGap": "Time gap",
+        "scheduleChangeWarning": "Schedule Change Warning",
+        "parcelsWillBeAffected": "Food parcels will be affected",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",
+        "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
+        "proceedAnyway": "Proceed anyway",
+        "outsideHours": {
+            "panelTitle": "Outside opening hours ({count})"
+        },
+        "days": {
+            "monday": "Monday",
+            "tuesday": "Tuesday",
+            "wednesday": "Wednesday",
+            "thursday": "Thursday",
+            "friday": "Friday",
+            "saturday": "Saturday",
+            "sunday": "Sunday"
+        },
+        "pickupTimeLabel": "Time",
+        "statusLabel": "Status",
+        "pickedUpStatus": "Handed out",
+        "notPickedUpStatus": "Not handed out",
+        "primaryLocationLabel": "Home location",
+        "createdByLabel": "Created by",
+        "reschedule": {
+            "title": "Schedule food support for {name}",
+            "modalTitle": "Reschedule Food Support",
+            "changed": "Time has been changed from",
+            "to": "to",
+            "from": "From:",
+            "to2": "To:",
+            "confirmTitle": "Confirm Rescheduling",
+            "confirmQuestion": "Do you want to reschedule food support for {name}?",
+            "confirm": "Confirm Change",
+            "cancel": "Cancel",
+            "success": "Schedule Updated",
+            "successMessage": "{name} has been rescheduled to a new time.",
+            "error": "Scheduling error",
+            "pastError": "Cannot schedule food support in the past.",
+            "pastSourceError": "Cannot reschedule food support from a time in the past.",
+            "capacityError": "This location has reached its maximum capacity for the selected date.",
+            "slotCapacityError": "This time slot is fully booked. Please select a different time.",
+            "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
+            "operatingHoursError": "The selected time is outside the location's operating hours.",
+            "genericError": "An unexpected error occurred.",
+            "outsideWeek": "Schedule outside of current week",
+            "selectDateError": "You must select a date",
+            "timeError": "Earliest time must be before latest time",
+            "earliestTime": "Earliest pickup time",
+            "latestTime": "Latest pickup time",
+            "currentPickup": "Current Pickup Details",
+            "newPickup": "New Pickup Details",
+            "date": "Date",
+            "time": "Time",
+            "newDate": "New Date",
+            "newTime": "New Time",
+            "selectDate": "Select date",
+            "selectTime": "Select time",
+            "dateUnavailable": "This date is not available for pickup",
+            "noTimesAvailable": "No available times on this date",
+            "requiredFields": "Please fill all required fields"
+        },
+        "sms": {
+            "title": "SMS Notifications",
+            "viewHistory": "View SMS history",
+            "status": {
+                "pending": "Pending",
+                "sent": "Sent",
+                "delivered": "Delivered",
+                "failed": "Failed",
+                "cancelled": "Cancelled"
+            },
+            "intent": {
+                "pickup_reminder": "Pickup reminder"
+            },
+            "actions": {
+                "sendSms": "Send SMS",
+                "resend": "Resend"
+            },
+            "notifications": {
+                "sendSuccess": "SMS Sent",
+                "initialSendSuccess": "Initial notification sent successfully",
+                "reminderSendSuccess": "Reminder sent successfully",
+                "resendSuccess": "SMS Resent",
+                "smsQueued": "SMS has been queued for delivery",
+                "sendError": "Failed to Send SMS",
+                "resendError": "Failed to Resend SMS",
+                "genericError": "An unexpected error occurred"
+            },
+            "historyModal": {
+                "title": "SMS History",
+                "noHistory": "No SMS messages sent for this parcel",
+                "sentAt": "Sent",
+                "deliveredAt": "Delivered",
+                "error": "Error",
+                "retries": "Retries"
+            }
+        }
+    },
+    "householdDetail": {
+        "basics": "Basic Information",
+        "createdBy": "Created by {username}",
+        "created": "Created",
+        "enrollmentSmsDelivered": "Enrollment SMS delivered",
+        "members": "Members ({count})",
+        "noMembers": "No members added",
+        "pets": "Pets ({count})",
+        "noPets": "No pets added",
+        "dietaryRestrictions": "Dietary Restrictions ({count})",
+        "noDietaryRestrictions": "No dietary restrictions added",
+        "additionalNeeds": "Additional Needs ({count})",
+        "noAdditionalNeeds": "No additional needs added",
+        "foodParcels": "Food Parcels ({count})",
+        "noFoodParcels": "No food parcels scheduled",
+        "cancelledParcels": "Cancelled Parcels",
+        "noCancelledParcels": "No cancelled parcels",
+        "ageUnit": "years",
+        "editHousehold": "Edit Household",
+        "manageParcels": "Manage Parcels",
+        "removeHousehold": "Remove Household",
+        "deletedOn": "Cancelled on",
+        "by": "by",
+        "status": {
+            "pickedUp": "Handed out",
+            "notPickedUp": "Not handed out",
+            "noShow": "No-show",
+            "upcoming": "Upcoming",
+            "cancelled": "Cancelled"
+        },
+        "comments": {
+            "title": "Comments ({count})"
+        },
+        "warnings": {
+            "parcelCountHigh": "This household has received {count} food parcels (threshold: {threshold}). Consider reviewing their situation and providing additional support."
+        },
+        "removal": {
+            "dialogTitle": "Remove Household",
+            "lastName": "Last name",
+            "confirmationPrompt": "Type the last name to confirm:",
+            "confirmationHelp": "(Copy-paste allowed)",
+            "warningCannotUndo": "This action cannot be undone.",
+            "cancelButton": "Cancel",
+            "removeButton": "Remove Household",
+            "removing": "Removing...",
+            "success": "Household removed successfully",
+            "anonymizedTitle": "Household Removed",
+            "anonymizedMessage": "This household was removed on {date}.",
+            "anonymizedSubtext": "Personal data has been deleted.",
+            "backToList": "Back to Households",
+            "errors": {
+                "notFound": "Household not found",
+                "alreadyRemoved": "Household has already been removed",
+                "lastNameMismatch": "Last name does not match",
+                "hasUpcomingParcels": "Cannot remove household",
+                "upcomingParcelsMessage": "This household has {count, plural, =1 {1 upcoming food parcel} other {# upcoming food parcels}}.",
+                "upcomingParcelsAction": "Delete those parcels first, then remove the household.",
+                "removalFailed": "Failed to remove household"
+            }
+        }
+    },
+    "comments": {
+        "title": "Comments ({count})",
+        "noComments": "No comments added",
+        "placeholder": "Add a comment about the household... (HTML is supported, e.g. links)",
+        "add": "Add",
+        "errors": {
+            "deleteFailed": "Failed to delete comment",
+            "deleteError": "Error deleting comment"
+        },
+        "unknownName": "Unknown Name",
+        "deleteTooltip": "Delete comment",
+        "deleteTitle": "Delete comment",
+        "deleteConfirmation": "Are you sure you want to delete this comment?",
+        "deleteButton": "Delete",
+        "cancelButton": "Cancel"
+    },
+    "wizard": {
+        "stepBasics": "Basic Information",
+        "stepBasicsDescription": "Contact Information",
+        "stepMembers": "Members",
+        "stepMembersDescription": "Household Members",
+        "stepDietaryRestrictions": "Dietary Restrictions",
+        "stepDietaryRestrictionsDescription": "Special Diet",
+        "stepPets": "Pets",
+        "stepPetsDescription": "Pet Information",
+        "stepAdditionalNeeds": "Additional Needs",
+        "stepAdditionalNeedsDescription": "Special Needs",
+        "stepFoodParcels": "Food Parcels",
+        "stepFoodParcelsDescription": "Scheduling",
+        "stepReview": "Summary",
+        "stepReviewDescription": "Review and submit",
+        "creating": "Creating new household...",
+        "updating": "Updating household...",
+        "validationError": "Validation Error",
+        "nextStep": "Next Step",
+        "back": "Back",
+        "backToList": "Back to household list",
+        "saveHousehold": "Save Household",
+        "createHousehold": "Create Household",
+        "editHousehold": "Edit Household",
+        "updateHousehold": "Update Household",
+        "backToHouseholds": "Back to Households",
+        "steps": {
+            "basics": {
+                "label": "Basic Information",
+                "description": "Contact Information"
+            },
+            "members": {
+                "label": "Members",
+                "description": "Household Members"
+            },
+            "preferences": {
+                "label": "Preferences",
+                "description": "Diet, Pets & Needs"
+            },
+            "verification": {
+                "label": "Verification",
+                "description": "Required Checks"
+            },
+            "parcels": {
+                "label": "Food Parcels",
+                "description": "Scheduling"
+            },
+            "review": {
+                "label": "Summary",
+                "description": "Review and submit"
+            }
+        },
+        "navigation": {
+            "next": "Next Step",
+            "back": "Back"
+        },
+        "validation": {
+            "title": "Validation Error",
+            "firstNameLength": "First name must be at least 2 characters",
+            "lastNameLength": "Last name must be at least 2 characters",
+            "phoneNumberFormat": "Enter a valid mobile number (9-10 digits)",
+            "phoneDuplicate": "This phone number is already registered to another household",
+            "phoneDuplicateWithInfo": "This phone number belongs to: {name} - {phone} (ID: {id})",
+            "pickupLocation": "Select a pickup location",
+            "verificationIncomplete": "All required verifications must be checked before proceeding",
+            "smsConsentRequired": "SMS consent is required to proceed"
+        },
+        "similarNameDialog": {
+            "title": "Similar Household Found",
+            "message": "A household with a similar name already exists. Are you sure this is a different household?",
+            "existingHouseholds": "Existing similar households:",
+            "confirm": "Yes, Create New Household",
+            "cancel": "Cancel"
+        },
+        "verification": {
+            "title": "Staff Verification Checklist",
+            "description": "Please confirm the following before creating this household:",
+            "allComplete": "All verifications complete",
+            "requiredMark": "Required",
+            "optionalMark": "Optional",
+            "progress": "{completed} of {total} verified",
+            "noQuestions": "No verification checklist configured",
+            "errorLoading": "Failed to load verification checklist",
+            "errorUnknown": "An unknown error occurred"
+        },
+        "success": {
+            "title": "Success!",
+            "created": "New household has been created!",
+            "updated": "The household has been updated!"
+        },
+        "error": {
+            "title": "Error",
+            "general": "An error occurred",
+            "unknown": "Unknown error",
+            "create": "An error occurred while creating the household",
+            "update": "An error occurred while updating the household",
+            "optionNotAvailable": "One or more selected options are no longer available. Please review and try again.",
+            "verificationQuestionsLoadFailed": "Failed to load verification questions. Cannot proceed without completing required checks.",
+            "retry": "Retry"
+        },
+        "submitting": {
+            "create": "Creating new household...",
+            "update": "Updating household..."
+        },
+        "addParcels": {
+            "title": "Add Food Parcels?",
+            "message": "This household has no upcoming food parcels. Would you like to add some now?",
+            "addNow": "Add Parcels Now",
+            "later": "Add Later"
+        },
+        "privacyConfirm": {
+            "title": "Privacy Policy Confirmation",
+            "message": "Before completing the enrollment, please confirm that you have informed the household about how their personal data will be processed.",
+            "checkbox": "I have informed the household about the privacy policy",
+            "viewPolicy": "View privacy policy",
+            "cancel": "Cancel",
+            "confirm": "Complete Enrollment"
+        }
+    },
+    "buttons": {
+        "add": "Add",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "confirm": "Confirm"
+    },
+    "languages": {
+        "en": "English",
         "sv": "Swedish",
-        "en": "English"
-      },
-      "members": "{count, plural, =0 {0 members} =1 {1 member} other {# members}}",
-      "description": "Distribution data includes all registered households (active and historical)"
+        "english": "English",
+        "swedish": "Swedish",
+        "britishFlag": "British flag",
+        "swedishFlag": "Swedish flag",
+        "switchTo": "Switch to {language}"
     },
-    "parcels": {
-      "title": "Parcels",
-      "total": "Total",
-      "pickedUp": "Picked Up",
-      "notPickedUp": "Not Picked Up",
-      "cancelled": "Cancelled",
-      "byLocation": "By Location",
-      "byWeekday": "By Weekday",
-      "dailyTrend": "Daily Trend",
-      "avgPerHousehold": "Avg per Household",
-      "weekdays": {
-        "Sunday": "Sunday",
-        "Monday": "Monday",
-        "Tuesday": "Tuesday",
-        "Wednesday": "Wednesday",
-        "Thursday": "Thursday",
-        "Friday": "Friday",
-        "Saturday": "Saturday"
-      }
+    "weekdays": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
     },
-    "locations": {
-      "title": "Locations",
-      "capacityUsage": "Capacity Usage",
-      "pickupRate": "Pickup Rate by Location",
-      "nearCapacityAlerts": "Near Capacity Alerts",
-      "scheduled": "Scheduled",
-      "max": "Max",
-      "usagePercent": "Usage %",
-      "noMax": "No limit set",
-      "capacityUsageTitle": "Capacity Usage (Next 7 Days)",
-      "nearCapacityAlertsTitle": "Near Capacity (Next 7 Days)"
+    "months": {
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
+    },
+    "handoutLocations": {
+        "pageTitle": "Handout Locations",
+        "pageDescription": "Manage the locations where food parcels are distributed, their opening hours, and settings.",
+        "locationsList": "Locations",
+        "addLocation": "Add Location",
+        "addFirstLocation": "Add Your First Location",
+        "editLocation": "Edit Location",
+        "noLocations": "No handout locations have been added yet",
+        "loading": "Loading locations...",
+        "confirmDelete": "Are you sure you want to delete this location? This action cannot be undone.",
+        "locationCreated": "Location Created",
+        "locationCreatedMessage": "The handout location has been successfully created.",
+        "locationUpdated": "Location Updated",
+        "locationUpdatedMessage": "The handout location has been successfully updated.",
+        "locationDeleted": "Location Deleted",
+        "locationDeletedMessage": "The handout location has been successfully deleted.",
+        "errorLoading": "Error Loading Locations",
+        "errorLoadingMessage": "There was an error loading the handout locations. Please try again.",
+        "errorSaving": "Error Saving Location",
+        "errorSavingMessage": "There was an error saving the handout location. Please try again.",
+        "errorDeleting": "Error Deleting Location",
+        "errorDeletingMessage": "There was an error deleting the handout location. Please try again.",
+        "generalInfo": "General Information",
+        "weeklyHours": "Weekly Opening Hours",
+        "name": "Location Name",
+        "namePlaceholder": "Enter location name",
+        "streetAddress": "Street Address",
+        "streetAddressPlaceholder": "Enter street address",
+        "postalCode": "Postal Code",
+        "maxParcelsPerDay": "Maximum Food Parcels Per Day",
+        "maxParcelsPlaceholder": "e.g. 20",
+        "maxParcelsPerSlot": "Maximum Parcels Per Time Slot",
+        "maxParcelsPerSlotDescription": "Maximum number of parcels that can be booked in the same time slot (leave empty for no limit)",
+        "maxParcelsPerSlotPositive": "Max parcels per slot must be positive",
+        "slotDuration": "Slot Duration (minutes)",
+        "slotDurationDescription": "Time allocated for each food parcel pickup",
+        "slotDurationPositive": "Slot duration must be positive",
+        "slotDurationMaxExceeded": "Slot duration cannot exceed 4 hours (240 minutes)",
+        "slotDurationIncrement": "Slot duration must be in 15-minute increments",
+        "contactInfo": "Contact Information",
+        "contactName": "Contact Person",
+        "contactNamePlaceholder": "Enter contact person name",
+        "contactEmail": "Email",
+        "contactEmailPlaceholder": "Enter contact email",
+        "contactPhone": "Phone Number",
+        "contactPhonePlaceholder": "Enter phone number",
+        "nameRequired": "Location name is required",
+        "streetAddressRequired": "Street address is required",
+        "postalCodeRequired": "Postal code is required",
+        "postalCodeFormat": "Postal code must be 5 digits",
+        "emailInvalid": "Please enter a valid email address",
+        "weeklyHoursDescription": "Set the regular weekly opening hours for this location. These hours will be used by default when scheduling food parcels.",
+        "noWeeklyHours": "No weekly opening hours have been set",
+        "addWeeklyHours": "Add Weekly Hours",
+        "addHours": "Add Hours",
+        "weekday": "Weekday",
+        "selectWeekday": "Select weekday",
+        "openingTime": "Opening Time",
+        "closingTime": "Closing Time",
+        "timeErrors": {
+            "openingRequired": "Opening time is required",
+            "closingRequired": "Closing time is required",
+            "openingBeforeClosing": "Opening must be before closing"
+        },
+        "actions": "Actions",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday",
+        "selectDates": "Select Dates",
+        "date": "Date",
+        "status": "Status",
+        "hours": "Hours",
+        "open": "Open",
+        "closed": "Closed",
+        "selectedDate": "Selected Date",
+        "locationClosed": "Location closed on this day",
+        "createLocation": "Create Location",
+        "updateLocation": "Update Location",
+        "cancel": "Cancel",
+        "schedules": "Schedules",
+        "addSchedule": "Add Schedule",
+        "noSchedulesYet": "No schedules have been added yet",
+        "addNewSchedule": "Add New Schedule",
+        "editSchedule": "Edit Schedule",
+        "scheduleName": {
+            "required": "Schedule name is required",
+            "label": "Schedule Name"
+        },
+        "startDate": {
+            "required": "Start date is required"
+        },
+        "endDate": {
+            "required": "End date is required",
+            "afterStartDate": "End date must be after start date"
+        },
+        "days": {
+            "atLeastOneRequired": "At least one day must be open"
+        },
+        "scheduleNamePlaceholder": "e.g. Summer Schedule, Holiday Schedule",
+        "selectDate": "Select date",
+        "startWeek": "Start Week",
+        "endWeek": "End Week",
+        "week": "Week",
+        "selectWeek": "Select week",
+        "previousYear": "Previous Year",
+        "nextYear": "Next Year",
+        "previousMonth": "Previous Month",
+        "nextMonth": "Next Month",
+        "scheduleOverlapWarning": "Schedule Overlap Detected",
+        "scheduleOverlapMessage": "This schedule overlaps with \"{scheduleName}\" ({startDate} to {endDate}). Please select a different date range.",
+        "weekdaySchedule": "Weekday Schedule",
+        "configureEachWeekday": "Select the days of the week when this location is open, and set the opening hours for each day.",
+        "weekdays": {
+            "monday": "Monday",
+            "tuesday": "Tuesday",
+            "wednesday": "Wednesday",
+            "thursday": "Thursday",
+            "friday": "Friday",
+            "saturday": "Saturday",
+            "sunday": "Sunday"
+        },
+        "saveChanges": "Save Changes",
+        "createSchedule": "Create Schedule",
+        "confirmDeletion": "Confirm Deletion",
+        "confirmDeleteScheduleMessage": "Are you sure you want to delete the schedule ",
+        "delete": "Delete",
+        "active": "Active",
+        "upcoming": "Upcoming",
+        "past": "Past",
+        "edit": "Edit",
+        "scheduleCreateError": "Error creating schedule",
+        "scheduleUpdateError": "Error updating schedule",
+        "scheduleDeleteError": "Error deleting schedule",
+        "activeDays": "Active days",
+        "noDaysOpen": "No days open",
+        "allDaysOpen": "All days of the week",
+        "saveLocationFirst": "Please save the location first before adding schedules",
+        "showPastSchedules": "Show past schedules",
+        "hidePastSchedules": "Hide past schedules",
+        "pastScheduleHidden": "past schedule hidden",
+        "pastSchedulesHidden": "past schedules hidden",
+        "noPastSchedules": "No schedules to display. Try showing past schedules.",
+        "deleteLocationAriaLabel": "Delete location",
+        "error": "Error",
+        "errorFetchingLocation": "An error occurred while fetching the location. Please try again.",
+        "scheduleChangeWarning": "Schedule Change Warning",
+        "parcelsWillBeAffected": "Food parcels will be affected",
+        "parcelsAffectedMessage": "{count, plural, =1 {1 food parcel pickup} other {# food parcel pickups}} will fall outside the new opening hours.",
+        "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
+        "proceedAnyway": "Proceed anyway",
+        "checking": "Checking...",
+        "checkingAffectedParcels": "Checking how many food parcels would be affected by this deletion...",
+        "verification": {
+            "title": "Verification Questions",
+            "description": "Manage verification questions that admins must confirm before creating households for this location",
+            "noQuestions": "No verification questions configured yet",
+            "addQuestion": "Add Question",
+            "addFirstQuestion": "Add Your First Verification Question",
+            "editQuestion": "Edit Verification Question",
+            "questionTextSv": "Question Text (Swedish)",
+            "questionTextEn": "Question Text (English)",
+            "questionTextSvPlaceholder": "e.g. Jag har verifierat att hushållet bor i rätt postnummerområde",
+            "questionTextEnPlaceholder": "e.g. I have verified that the household lives in the correct postal code area",
+            "helpTextSv": "Help Text (Swedish, Optional)",
+            "helpTextEn": "Help Text (English, Optional)",
+            "helpTextSvPlaceholder": "Additional guidance or explanation in Swedish",
+            "helpTextEnPlaceholder": "Additional guidance or explanation in English",
+            "isRequired": "Required Verification",
+            "isRequiredDescription": "Admin must check this box before creating household",
+            "displayOrder": "Display Order",
+            "displayOrderDescription": "Lower numbers appear first (0, 1, 2...)",
+            "questionTextSvRequired": "Swedish question text is required",
+            "questionTextEnRequired": "English question text is required",
+            "displayOrderRequired": "Display order is required",
+            "saveQuestion": "Save Question",
+            "cancel": "Cancel",
+            "questionCreated": "Verification question created successfully",
+            "questionUpdated": "Verification question updated successfully",
+            "questionDeleted": "Verification question deleted successfully",
+            "errorCreating": "Error creating verification question",
+            "errorUpdating": "Error updating verification question",
+            "errorDeleting": "Error deleting verification question",
+            "errorLoading": "Error loading verification questions",
+            "confirmDelete": "Are you sure you want to delete this verification question?",
+            "delete": "Delete",
+            "edit": "Edit",
+            "active": "Active",
+            "inactive": "Inactive",
+            "toggleActive": "Toggle active/inactive",
+            "required": "Required",
+            "optional": "Optional",
+            "preview": "Preview",
+            "previewDescription": "This is how admins will see this question in the household creation wizard:",
+            "reorderInstructions": "Drag to reorder questions"
+        }
     },
     "sms": {
-      "title": "SMS",
-      "totalSent": "Total Sent",
-      "delivered": "Delivered",
-      "deliveryRate": "Delivery Rate",
-      "failedInternal": "Failed (Internal)",
-      "failedProvider": "Failed (Provider)",
-      "pending": "Pending",
-      "byIntent": "By Intent",
-      "dailyVolume": "Daily Volume",
-      "intents": {
-        "pickup_reminder": "Pickup Reminder",
-        "pickup_updated": "Pickup Updated",
-        "pickup_cancelled": "Pickup Cancelled",
-        "consent_enrolment": "Consent Enrolment",
-        "enrolment": "Welcome message",
-        "food_parcels_ended": "Food Parcels Ended"
-      },
-      "pendingLabel": "Pending (Current)"
+        "title": "SMS Messages",
+        "testModeWarning": "⚠️ TEST MODE: No real SMS will be sent.",
+        "status": {
+            "queued": "Queued",
+            "sending": "Sending",
+            "sent": "Sent",
+            "delivered": "Delivered",
+            "not_delivered": "Not Delivered",
+            "retrying": "Retrying",
+            "failed": "Failed"
+        },
+        "actions": {
+            "markPickedUp": "Mark as Handed Out",
+            "previewSms": "Preview SMS",
+            "resendSms": "Resend SMS",
+            "sendSms": "Send SMS",
+            "simulateDelivered": "Simulate Delivered",
+            "simulateNotDelivered": "Simulate Not Delivered"
+        },
+        "history": {
+            "title": "SMS History",
+            "noSms": "No SMS messages sent for this parcel",
+            "intent": "Type",
+            "status": "Status",
+            "attempts": "Attempts",
+            "createdAt": "Created",
+            "sentAt": "Sent",
+            "deliveredAt": "Delivered",
+            "error": "Error"
+        },
+        "preview": {
+            "title": "SMS Preview",
+            "recipient": "Recipient",
+            "message": "Message",
+            "locale": "Language"
+        },
+        "notifications": {
+            "markedPickedUp": "Food parcel marked as handed out",
+            "smsQueued": "SMS queued for sending",
+            "smsResent": "SMS queued for resending",
+            "deliverySimulated": "Delivery status simulated",
+            "cooldownActive": "Please wait before resending SMS",
+            "error": "An error occurred"
+        },
+        "cooldown": {
+            "message": "You can resend SMS in {minutes} minutes",
+            "active": "Resend cooldown active"
+        }
     },
-    "loading": "Loading statistics...",
-    "error": "Failed to load statistics",
-    "chartLabels": {
-      "count": "Count",
-      "rate": "Rate",
-      "households": "Households"
+    "admin": {
+        "parcelDialog": {
+            "title": "Parcel Information",
+            "loading": "Loading parcel details...",
+            "pickupSchedule": "Pickup Schedule",
+            "pickedUp": "Handed Out",
+            "notPickedUp": "Not Handed Out",
+            "status": {
+                "pickedUp": "Handed Out",
+                "noShow": "No-show",
+                "cancelled": "CANCELLED",
+                "wrongDay": "Wrong Day",
+                "checkTime": "Check Time",
+                "okToHandOut": "OK to Hand Out"
+            },
+            "by": "by",
+            "householdDetails": "Household Details",
+            "viewDetails": "View Details",
+            "contactInfo": "Contact Information",
+            "language": "Language",
+            "primaryLocation": "Primary Location",
+            "householdComposition": "Household Composition",
+            "members": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
+            "pets": "Pets",
+            "dietaryRestrictions": "Dietary Restrictions",
+            "severityRequired": "Required",
+            "severityPreference": "Preference",
+            "noRestrictions": "No dietary restrictions recorded",
+            "additionalNeeds": "Additional Needs",
+            "comments": "Comments",
+            "noComments": "No comments yet",
+            "addCommentPlaceholder": "Add a comment about this household...",
+            "addComment": "Add Comment",
+            "markPickedUp": "Mark as Handed Out",
+            "undoPickup": "Undo Handout",
+            "markNoShow": "No-show",
+            "undoNoShow": "Undo No-show",
+            "noShowConfirmTitle": "Mark as no-show?",
+            "noShowConfirmMessage": "Are you sure you want to mark {name} as no-show?",
+            "confirmNoShow": "Yes, mark as no-show",
+            "cancelNoShow": "Cancel",
+            "markNoShowAriaLabel": "Mark {name} as no-show",
+            "undoNoShowAriaLabel": "Undo no-show for {name}",
+            "markPickedUpAriaLabel": "Mark {name}'s parcel as handed out",
+            "undoPickupAriaLabel": "Undo handout for {name}",
+            "cancelParcel": "Cancel Parcel",
+            "deleteConfirmTitle": "Confirm Cancellation",
+            "deleteConfirmMessage": "Are you sure you want to cancel this parcel? {smsWarning}",
+            "smsWarning": "A cancellation SMS will be sent to the household.",
+            "smsNoWarning": "No SMS has been sent yet.",
+            "confirmDelete": "Yes, cancel",
+            "cancelDelete": "Abort",
+            "deleting": "Cancelling...",
+            "success": {
+                "parcelDeleted": "Parcel Cancelled",
+                "parcelDeletedMessage": "The food parcel has been cancelled"
+            },
+            "errors": {
+                "parcelNotFound": "Parcel not found",
+                "loadFailed": "Failed to load parcel details",
+                "markPickupFailed": "Failed to mark as picked up",
+                "undoPickupFailed": "Failed to undo pickup",
+                "markNoShowFailed": "Failed to mark as no-show",
+                "undoNoShowFailed": "Failed to undo no-show",
+                "addCommentFailed": "Failed to add comment",
+                "deleteCommentFailed": "Failed to delete comment",
+                "deleteCommentError": "Error deleting comment",
+                "deleteParcelFailed": "Failed to cancel parcel",
+                "parcelAlreadyPickedUp": "Cannot cancel a parcel that has already been picked up",
+                "parcelInPast": "Cannot cancel a parcel from the past"
+            },
+            "smsStatus": {
+                "title": "SMS Status",
+                "provider": {
+                    "delivered": "Delivered",
+                    "failed": "Failed",
+                    "notDelivered": "Not Delivered",
+                    "awaiting": "Awaiting confirmation"
+                },
+                "deliveryStatusAt": "Delivery status at"
+            }
+        },
+        "smsDashboard": {
+            "title": "SMS Management",
+            "pendingCount": "{count, plural, =0 {No pending SMS} =1 {1 pending SMS} other {# pending SMS}}",
+            "failureCount": "{count, plural, =0 {No failures} =1 {1 failure} other {# failures}}",
+            "loading": "Loading SMS...",
+            "refreshing": "Refreshing...",
+            "filters": {
+                "location": "Location",
+                "allLocations": "All locations",
+                "status": "Status",
+                "allStatuses": "All statuses",
+                "searchPlaceholder": "Search name...",
+                "clearFilters": "Clear filters",
+                "refresh": "Refresh",
+                "showCancelled": "Show cancelled parcels"
+            },
+            "status": {
+                "queued": "Queued",
+                "sending": "Sending",
+                "sent": "Sent",
+                "retrying": "Retrying",
+                "failed": "Failed",
+                "cancelled": "Cancelled",
+                "retryScheduled": "Retry scheduled",
+                "retryScheduledAt": "Retry at {time}"
+            },
+            "intent": {
+                "pickup_reminder": "Reminder",
+                "pickup_updated": "Update",
+                "pickup_cancelled": "Cancelled",
+                "consent_enrolment": "Consent",
+                "enrolment": "Enrolment"
+            },
+            "dateGroups": {
+                "today": "TODAY",
+                "tomorrow": "TOMORROW"
+            },
+            "actions": {
+                "menuLabel": "Actions",
+                "sendNow": "Send Now",
+                "tryAgain": "Try Again",
+                "sendAgain": "Send Again",
+                "viewHousehold": "View Household",
+                "viewParcel": "View Parcel"
+            },
+            "itemInfo": {
+                "willSendAt": "Sends at approximately {time}",
+                "sentAt": "Sent at {time}"
+            },
+            "notifications": {
+                "sendSuccess": "SMS sent",
+                "sendError": "Failed to send SMS",
+                "sendErrorDetail": "Failed to send SMS: {error}"
+            },
+            "emptyStates": {
+                "noPending": "No pending SMS - All caught up! ✨",
+                "noResults": "No SMS found with current filters",
+                "noFailures": "No failed SMS right now"
+            },
+            "errorMessages": {
+                "loadError": "Failed to load SMS data",
+                "tryAgainLater": "Please try again later"
+            },
+            "statistics": {
+                "title": "SMS Statistics & Health",
+                "viewMonthly": "View monthly statistics",
+                "hide": "Hide statistics",
+                "status": {
+                    "healthy": "Healthy",
+                    "attention": "Attention",
+                    "critical": "Critical"
+                },
+                "today": {
+                    "label": "Today"
+                },
+                "last7Days": "Last 7 Days",
+                "currentMonth": "This Month",
+                "monthlyProgress": "Monthly Progress",
+                "byLocation": "By Location",
+                "sent": "sent",
+                "failed": "failed",
+                "pending": "pending",
+                "total": "total",
+                "successRate": "success rate",
+                "vsLastMonth": "vs last month",
+                "ofLastMonth": "of {count} last month"
+            }
+        }
     },
-    "noData": "No data available"
-  },
-  "smsBanner": {
-    "title": "SMS service temporarily disabled",
-    "description": "SMS notifications cannot be sent because the HelloSMS account has run out of credits. The organisation needs to pre-pay for more SMS credits.",
-    "affectedCount": "{count, plural, one {# SMS message} other {# SMS messages}} failed to send due to low balance.",
-    "retryButton": "Retry balance failures",
-    "retrySuccess": "{count, plural, one {# message was} other {# messages were}} re-queued for sending.",
-    "retryError": "Failed to retry. Please try again."
-  }
+    "settings": {
+        "settings": "Settings",
+        "general": "General Settings",
+        "generalDescription": "Configure privacy policy, enrollment checklist, parcel limits, and follow-up settings.",
+        "locations": "Handout Location Settings",
+        "parcels": "Parcel Limits",
+        "aria": {
+            "settingsMenu": "Settings menu"
+        },
+        "nav": {
+            "privacyPolicy": "Privacy Policy",
+            "userAgreement": "User Agreement",
+            "enrollmentChecklist": "Enrollment Checklist",
+            "parcelThreshold": "Parcel Limits",
+            "noshowFollowup": "No-Show Follow-up"
+        },
+        "enrollmentChecklist": {
+            "title": "Enrollment Checklist",
+            "description": "Staff checklist for all new households",
+            "addChecklistItem": "Add Checklist Item",
+            "editChecklistItem": "Edit Checklist Item",
+            "deleteConfirm": "Delete this checklist item?",
+            "deleteModalTitle": "Delete Checklist Item",
+            "reorderHint": "Drag to reorder",
+            "preview": "Preview",
+            "emptyState": "No checklist items yet",
+            "instructionText": "I have made sure that...",
+            "badges": {
+                "required": "Required",
+                "helpAvailable": "Help text available"
+            },
+            "buttons": {
+                "cancel": "Cancel",
+                "save": "Save",
+                "delete": "Delete"
+            },
+            "form": {
+                "checklistText": "Checklist Item",
+                "helpText": "Help Text",
+                "isRequired": "Required",
+                "requiredHint": "Staff must check this box",
+                "placeholder": "They have been told about...",
+                "helpTextPlaceholder": "Optional help text..."
+            },
+            "examples": {
+                "title": "Example checklist items:",
+                "item1": "They have been told about pickup times and location",
+                "item2": "They understand the monthly parcel limit",
+                "item3": "I have verified their identity document",
+                "item4": "They have been informed about dietary restriction options"
+            },
+            "validation": {
+                "textRequired": "Checklist text is required",
+                "textTooShort": "Checklist item must be at least 10 characters"
+            },
+            "notifications": {
+                "created": "Checklist item created",
+                "updated": "Checklist item updated",
+                "deleted": "Checklist item deleted",
+                "reordered": "Checklist items reordered",
+                "error": "Error",
+                "success": "Success",
+                "loadError": "Failed to load verification questions",
+                "saveError": "Failed to save question",
+                "deleteError": "Failed to delete question",
+                "reorderError": "Failed to reorder questions",
+                "errors": {
+                    "FETCH_FAILED": "Failed to load checklist items",
+                    "VALIDATION_ERROR": "Checklist text cannot be empty",
+                    "CREATE_FAILED": "Failed to create checklist item",
+                    "UPDATE_FAILED": "Failed to update checklist item",
+                    "NOT_FOUND": "Checklist item not found",
+                    "DELETE_FAILED": "Failed to delete checklist item",
+                    "REORDER_FAILED": "Failed to reorder checklist items",
+                    "UNKNOWN": "An unexpected error occurred"
+                }
+            }
+        },
+        "householdOptions": {
+            "title": "Household Options",
+            "description": "Manage dietary restrictions, pet types, and additional needs that appear in household create/edit flows.",
+            "tabs": {
+                "dietaryRestrictions": "Dietary Restrictions",
+                "petTypes": "Pet Types",
+                "additionalNeeds": "Additional Needs"
+            },
+            "addButton": "Add",
+            "statusToggle": "Enabled",
+            "status": {
+                "active": "Active",
+                "disabled": "Disabled"
+            },
+            "linkedHouseholds": {
+                "title": "Linked households"
+            },
+            "usageCount": "{count, plural, =0 {Not used} =1 {1 household} other {# households}}",
+            "emptyState": {
+                "dietaryRestrictions": "No dietary restrictions yet. Add common restrictions like \"Gluten-free\" or \"Halal\".",
+                "petTypes": "No pet types yet. Add common pets like \"Dog\" or \"Cat\".",
+                "additionalNeeds": "No additional needs yet. Add needs like \"Diapers\" or \"Bus pass\"."
+            },
+            "infoAlert": "Use the toggle to disable options without deleting them. Disabled options stay visible in the wizard but cannot be newly selected.",
+            "form": {
+                "nameLabel": "Name",
+                "namePlaceholder": {
+                    "dietaryRestrictions": "E.g., Gluten-free, Halal, Vegan...",
+                    "petTypes": "E.g., Dog, Cat, Rabbit...",
+                    "additionalNeeds": "E.g., Diapers, Bus pass, Cleaning supplies..."
+                },
+                "addTitle": {
+                    "dietaryRestrictions": "Add Dietary Restriction",
+                    "petTypes": "Add Pet Type",
+                    "additionalNeeds": "Add Additional Need"
+                },
+                "editTitle": {
+                    "dietaryRestrictions": "Edit Dietary Restriction",
+                    "petTypes": "Edit Pet Type",
+                    "additionalNeeds": "Edit Additional Need"
+                },
+                "editWarning": "Used by {count} households - changes will affect all of them",
+                "severityLabel": "Severity level",
+                "severityRequired": "Required",
+                "severityPreference": "Preference"
+            },
+            "delete": {
+                "title": {
+                    "dietaryRestrictions": "Delete Dietary Restriction",
+                    "petTypes": "Delete Pet Type",
+                    "additionalNeeds": "Delete Additional Need"
+                },
+                "confirmMessage": "Are you sure you want to delete \"{name}\"?",
+                "cannotDelete": "Cannot delete - used by {count} households",
+                "cannotDeleteTooltip": "Remove this option from all households before deleting"
+            },
+            "buttons": {
+                "cancel": "Cancel",
+                "save": "Save",
+                "delete": "Delete"
+            },
+            "notifications": {
+                "created": "Option created",
+                "updated": "Option updated",
+                "deleted": "Option deleted",
+                "activated": "Option enabled",
+                "deactivated": "Option disabled",
+                "error": "Error",
+                "success": "Success",
+                "loadError": "Failed to load options",
+                "saveError": "Failed to save option",
+                "deleteError": "Failed to delete option",
+                "errors": {
+                    "FETCH_FAILED": "Failed to load options",
+                    "CREATE_FAILED": "Failed to create option",
+                    "UPDATE_FAILED": "Failed to update option",
+                    "DELETE_FAILED": "Failed to delete option",
+                    "OPTION_IN_USE": "Cannot delete option that is in use by households",
+                    "DUPLICATE_NAME": "An option with this name already exists",
+                    "VALIDATION_ERROR": "Name is required",
+                    "NOT_FOUND": "Option not found",
+                    "UNKNOWN": "An unexpected error occurred"
+                }
+            }
+        },
+        "privacyPolicy": {
+            "title": "Privacy Policy",
+            "description": "Edit the privacy policy shown to households. The policy is available at /privacy",
+            "viewPublicPage": "View Public Page",
+            "markdownHint": "Use Markdown formatting for headers, lists, and emphasis.",
+            "markdownExamples": "Examples: # Header, ## Subheader, - List item, **bold**, *italic*",
+            "placeholder": "Enter the privacy policy content here...",
+            "preview": "Preview",
+            "lastUpdated": "updated {date}",
+            "lastUpdatedFull": "Last updated: {date}",
+            "saved": "Saved",
+            "addLanguage": "Add language...",
+            "buttons": {
+                "edit": "Edit",
+                "preview": "Preview",
+                "save": "Save"
+            },
+            "notifications": {
+                "success": "Success",
+                "error": "Error",
+                "saved": "Privacy policy saved",
+                "loadError": "Failed to load privacy policy",
+                "saveError": "Failed to save privacy policy",
+                "emptyContent": "Privacy policy content cannot be empty",
+                "cannotRemoveSaved": "Cannot remove a language with saved content"
+            }
+        },
+        "userAgreement": {
+            "title": "User Agreement",
+            "description": "Manage the user agreement that all administrators must accept before using the system. The agreement describes responsibilities for handling personal data.",
+            "currentVersion": "Current version: {version}",
+            "acceptedBy": "{count} users have accepted",
+            "noAgreement": "No user agreement has been created yet. Create an agreement to require all users to accept it before using the system.",
+            "publishWarning": "Publishing a new version will require all users to accept the agreement again before they can continue using the system.",
+            "markdownHint": "Use Markdown formatting for headers, lists, and emphasis.",
+            "placeholder": "Enter the user agreement content here...",
+            "preview": "Preview",
+            "versionHistory": "Version History",
+            "table": {
+                "version": "Version",
+                "createdAt": "Created",
+                "createdBy": "Created by",
+                "acceptedBy": "Accepted by"
+            },
+            "buttons": {
+                "edit": "Edit",
+                "preview": "Preview",
+                "showHistory": "Show History",
+                "hideHistory": "Hide History",
+                "publish": "Publish New Version",
+                "create": "Create Agreement"
+            },
+            "notifications": {
+                "success": "Success",
+                "error": "Error",
+                "saved": "User agreement saved. All users must now accept it again.",
+                "loadError": "Failed to load user agreement",
+                "saveError": "Failed to save user agreement",
+                "emptyContent": "User agreement content cannot be empty"
+            }
+        },
+        "parcelThreshold": {
+            "title": "Parcel Warning Threshold",
+            "description": "Set the number of parcels after which to warn administrators about high household usage",
+            "infoMessage": "When a household exceeds this number of parcels, a warning will appear on the household details page and when adding more parcels. This helps identify households that may need additional support or review.",
+            "thresholdLabel": "Warning Threshold",
+            "thresholdDescription": "Number of parcels before warning appears",
+            "thresholdPlaceholder": "e.g., 10",
+            "warningPreview": "Warnings will appear for households with more than {threshold} parcels",
+            "saveButton": "Save",
+            "clearButton": "Clear (Disable Warnings)",
+            "success": {
+                "savedTitle": "Saved",
+                "savedMessage": "Parcel warning threshold has been updated",
+                "clearedMessage": "Parcel warnings have been disabled"
+            },
+            "errors": {
+                "loadFailedTitle": "Error",
+                "loadFailedMessage": "Failed to load parcel warning threshold",
+                "saveFailedTitle": "Error",
+                "saveFailedMessage": "Failed to save parcel warning threshold"
+            }
+        },
+        "noshowFollowup": {
+            "title": "No-Show Follow-up",
+            "description": "Configure automatic follow-up item creation when households have repeated no-shows",
+            "infoMessage": "When enabled, a follow-up item will be automatically created on the Issues page when a household reaches the specified no-show thresholds. This helps identify households that may need additional outreach or support.",
+            "enabledLabel": "Enable No-Show Follow-up",
+            "enabledDescription": "Automatically create follow-up items for households with repeated no-shows",
+            "consecutiveLabel": "Consecutive No-Shows",
+            "consecutiveDescription": "Number of consecutive (in a row) no-shows to trigger follow-up",
+            "consecutivePlaceholder": "e.g., 2",
+            "totalLabel": "Total No-Shows",
+            "totalDescription": "Total number of no-shows (all time) to trigger follow-up",
+            "totalPlaceholder": "e.g., 4",
+            "preview": "A follow-up item will be created when a household has {consecutive} consecutive no-shows OR {total} total no-shows",
+            "saveButton": "Save",
+            "success": {
+                "savedTitle": "Saved",
+                "savedMessage": "No-show follow-up settings have been updated"
+            },
+            "errors": {
+                "loadFailedTitle": "Error",
+                "loadFailedMessage": "Failed to load no-show follow-up settings",
+                "saveFailedTitle": "Error",
+                "saveFailedMessage": "Failed to save no-show follow-up settings"
+            }
+        },
+        "smsTemplates": {
+            "title": "Default SMS Templates",
+            "description": "Customize the text messages sent to households",
+            "comingSoon": "Coming Soon..."
+        },
+        "users": "Users",
+        "usersSection": {
+            "title": "User Management",
+            "description": "Manage user roles. Role changes take effect within 5 minutes.",
+            "columns": {
+                "user": "User",
+                "role": "Role"
+            },
+            "roles": {
+                "admin": "Admin",
+                "handout_staff": "Handout Staff"
+            },
+            "notifications": {
+                "success": "Success",
+                "error": "Error",
+                "roleUpdated": "Role updated"
+            }
+        }
+    },
+    "parcelWarning": {
+        "modal": {
+            "title": "High Parcel Count Warning",
+            "message": "{householdName} has received {count} food parcels (threshold: {threshold}).",
+            "explanation": "This household has exceeded the parcel limit threshold. Please verify that they have received appropriate support and assistance. You can still add more parcels, but this requires acknowledgment.",
+            "acknowledgmentLabel": "I acknowledge this household may need additional review or support",
+            "confirmButton": "Continue Adding Parcels",
+            "cancelButton": "Cancel"
+        }
+    },
+    "issues": {
+        "title": "Follow-up",
+        "allClear": "All clear! Nothing needs follow-up.",
+        "refresh": "Refresh",
+        "error": "Error loading issues",
+        "accessDenied": "Access denied. You don't have permission to view issues.",
+        "filters": {
+            "all": "All",
+            "unresolvedHandouts": "Unresolved handouts",
+            "outsideOpeningHours": "Outside opening hours",
+            "failedSms": "Failed SMS",
+            "noShowFollowups": "No-show follow-ups"
+        },
+        "sections": {
+            "unresolvedHandouts": "Unresolved handouts",
+            "outsideOpeningHours": "Outside opening hours",
+            "failedSms": "Failed SMS"
+        },
+        "cardType": {
+            "unresolvedHandout": "Unresolved handout",
+            "outsideHours": "Outside opening hours",
+            "failedSms": "SMS delivery failed",
+            "failedSmsStale": "SMS delivery unconfirmed",
+            "failedSmsProvider": "SMS delivery rejected",
+            "failedSmsInternal": "SMS sending failed",
+            "noShowFollowup": "No-show follow-up needed"
+        },
+        "actions": {
+            "handedOut": "Handed out",
+            "noShow": "No-show",
+            "cancelParcel": "Cancel parcel",
+            "reschedule": "Reschedule",
+            "retry": "Retry",
+            "retryPickupPassed": "Too late to retry - pickup time has passed",
+            "dismiss": "Dismiss",
+            "editHousehold": "Edit household",
+            "viewHousehold": "View household",
+            "cancel": "Cancel",
+            "save": "Save"
+        },
+        "openingHours": "Open {hours}",
+        "closedThisDay": "Closed this day",
+        "smsIntent": {
+            "pickup_reminder": "Pickup reminder",
+            "pickup_updated": "Pickup time changed",
+            "pickup_cancelled": "Pickup cancelled",
+            "enrolment": "Welcome message",
+            "consent_enrolment": "Consent request",
+            "food_parcels_ended": "End of food support notice"
+        },
+        "failureDescription": {
+            "internal": "Could not send. Contact technical support.",
+            "provider": "SMS not delivered. This usually means the phone number is not in use.",
+            "stale": "No delivery confirmation received. Contact technical support."
+        },
+        "toast": {
+            "handedOut": "Marked as handed out",
+            "noShow": "Marked as no-show",
+            "retry": "SMS queued for retry",
+            "dismiss": "Issue dismissed",
+            "cancelParcel": "Parcel cancelled",
+            "rescheduled": "Parcel rescheduled",
+            "success": "Success",
+            "actionError": "Action failed",
+            "handedOutError": "Failed to mark as handed out",
+            "noShowError": "Failed to mark as no-show",
+            "cancelError": "Failed to cancel parcel",
+            "retryError": "Failed to retry SMS",
+            "dismissError": "Failed to dismiss",
+            "noShowFollowupDismissed": "No-show follow-up dismissed"
+        },
+        "noShowFollowup": {
+            "triggerConsecutive": "{count} consecutive no-shows",
+            "triggerTotal": "{count} total no-shows",
+            "triggerBoth": "{consecutive} consecutive, {total} total no-shows"
+        },
+        "errorCodes": {
+            "NOT_FOUND": "Could not find the item. It may have been deleted.",
+            "ALREADY_CANCELLED": "This parcel has already been cancelled.",
+            "ALREADY_PICKED_UP": "This parcel has already been handed out.",
+            "ALREADY_NO_SHOW": "This parcel is already marked as no-show.",
+            "FUTURE_PARCEL": "Cannot mark a future parcel as no-show.",
+            "ALREADY_DELETED": "This parcel has already been deleted.",
+            "PAST_PARCEL": "Cannot cancel a past parcel.",
+            "INVALID_ACTION": "Invalid action requested.",
+            "OUTSIDE_HOURS": "Cannot send SMS for parcel scheduled outside opening hours.",
+            "COOLDOWN_ACTIVE": "Please wait before sending another SMS.",
+            "FETCH_ERROR": "Failed to load data. Please try again.",
+            "SEND_ERROR": "Failed to send SMS. Please try again.",
+            "PARCEL_NOT_FOUND": "The associated parcel no longer exists.",
+            "TOO_LATE": "Too late to retry - pickup starts in less than 1 hour.",
+            "UNKNOWN_ERROR": "An unexpected error occurred. Please try again."
+        },
+        "confirm": {
+            "noShowTitle": "Mark as no-show?",
+            "noShowMessage": "Are you sure you want to mark {name} as no-show?",
+            "noShowConfirm": "Yes, mark as no-show",
+            "cancelParcelTitle": "Cancel parcel?",
+            "cancelParcelMessage": "Are you sure you want to cancel the food parcel for {name}? This action cannot be undone.",
+            "cancelParcelConfirm": "Yes, cancel parcel",
+            "dismissFailedSmsTitle": "Dismiss SMS failure?",
+            "dismissFailedSmsMessage": "Are you sure you want to dismiss the failed SMS for {name}?",
+            "dismissFailedSmsConfirm": "Yes, dismiss",
+            "dismissNoShowFollowupTitle": "Dismiss follow-up?",
+            "dismissNoShowFollowupMessage": "Are you sure you want to dismiss the no-show follow-up for {name}? It will reappear if they have another no-show.",
+            "dismissNoShowFollowupConfirm": "Yes, dismiss",
+            "cancel": "Cancel"
+        },
+        "confirmCancelTitle": "Cancel parcel?",
+        "confirmCancelMessage": "Are you sure you want to cancel this food parcel? This action cannot be undone.",
+        "reschedule": {
+            "loading": "Loading availability...",
+            "newDate": "New date",
+            "selectDate": "Select date",
+            "newTime": "New time",
+            "selectTime": "Select time",
+            "dateUnavailable": "Location is closed on this date",
+            "noTimesAvailable": "No available time slots",
+            "requiredFields": "Please select both date and time",
+            "genericError": "Failed to reschedule. Please try again.",
+            "loadError": "Failed to load schedule"
+        }
+    },
+    "smsConfirm": {
+        "title": "Send SMS",
+        "recentWarning": "Recently Sent",
+        "recentWarningMessage": "An SMS was sent to this recipient at {time}. Are you sure you want to send another?",
+        "previousSms": "Previous SMS",
+        "moreHistory": "+{count} more",
+        "cancel": "Cancel",
+        "confirm": "Send SMS"
+    },
+    "statistics": {
+        "title": "Statistics",
+        "description": "Overview of service statistics and trends",
+        "periods": {
+            "7d": "Last 7 days",
+            "30d": "Last 30 days",
+            "90d": "Last 90 days",
+            "year": "This year",
+            "all": "All time"
+        },
+        "overview": {
+            "title": "Overview",
+            "totalHouseholds": "Active Households",
+            "newHouseholds": "New Households",
+            "removedHouseholds": "Removed Households",
+            "totalParcels": "Total Parcels",
+            "pickedUpParcels": "Picked Up",
+            "pickupRate": "Pickup Rate",
+            "smsDeliveryRate": "SMS Delivery Rate",
+            "noData": "No data for selected period"
+        },
+        "households": {
+            "title": "Household Demographics",
+            "total": "Total Active",
+            "new": "New",
+            "removed": "Removed",
+            "byLanguage": "By Language",
+            "ageDistribution": "Age Distribution",
+            "memberCountDistribution": "Household Size",
+            "dietaryRestrictions": "Dietary Restrictions",
+            "additionalNeeds": "Additional Needs",
+            "pets": "Pets",
+            "locales": {
+                "sv": "Swedish",
+                "en": "English"
+            },
+            "members": "{count, plural, =0 {0 members} =1 {1 member} other {# members}}",
+            "description": "Distribution data includes all registered households (active and historical)"
+        },
+        "parcels": {
+            "title": "Parcels",
+            "total": "Total",
+            "pickedUp": "Picked Up",
+            "notPickedUp": "Not Picked Up",
+            "cancelled": "Cancelled",
+            "byLocation": "By Location",
+            "byWeekday": "By Weekday",
+            "dailyTrend": "Daily Trend",
+            "avgPerHousehold": "Avg per Household",
+            "weekdays": {
+                "Sunday": "Sunday",
+                "Monday": "Monday",
+                "Tuesday": "Tuesday",
+                "Wednesday": "Wednesday",
+                "Thursday": "Thursday",
+                "Friday": "Friday",
+                "Saturday": "Saturday"
+            }
+        },
+        "locations": {
+            "title": "Locations",
+            "capacityUsage": "Capacity Usage",
+            "pickupRate": "Pickup Rate by Location",
+            "nearCapacityAlerts": "Near Capacity Alerts",
+            "scheduled": "Scheduled",
+            "max": "Max",
+            "usagePercent": "Usage %",
+            "noMax": "No limit set",
+            "capacityUsageTitle": "Capacity Usage (Next 7 Days)",
+            "nearCapacityAlertsTitle": "Near Capacity (Next 7 Days)"
+        },
+        "sms": {
+            "title": "SMS",
+            "totalSent": "Total Sent",
+            "delivered": "Delivered",
+            "deliveryRate": "Delivery Rate",
+            "failedInternal": "Failed (Internal)",
+            "failedProvider": "Failed (Provider)",
+            "pending": "Pending",
+            "byIntent": "By Intent",
+            "dailyVolume": "Daily Volume",
+            "intents": {
+                "pickup_reminder": "Pickup Reminder",
+                "pickup_updated": "Pickup Updated",
+                "pickup_cancelled": "Pickup Cancelled",
+                "consent_enrolment": "Consent Enrolment",
+                "enrolment": "Welcome message",
+                "food_parcels_ended": "Food Parcels Ended"
+            },
+            "pendingLabel": "Pending (Current)"
+        },
+        "loading": "Loading statistics...",
+        "error": "Failed to load statistics",
+        "chartLabels": {
+            "count": "Count",
+            "rate": "Rate",
+            "households": "Households"
+        },
+        "noData": "No data available"
+    },
+    "smsBanner": {
+        "title": "SMS service temporarily disabled",
+        "description": "SMS notifications cannot be sent because the HelloSMS account has run out of credits. The organisation needs to pre-pay for more SMS credits.",
+        "affectedCount": "{count, plural, one {# SMS message} other {# SMS messages}} failed to send due to low balance.",
+        "retryButton": "Retry balance failures",
+        "retrySuccess": "{count, plural, one {# message was} other {# messages were}} re-queued for sending.",
+        "retryError": "Failed to retry. Please try again."
+    }
 }

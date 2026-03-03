@@ -1,17 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-    Container,
-    Title,
-    Text,
-    Table,
-    Avatar,
-    Group,
-    Select,
-    Stack,
-    Badge,
-} from "@mantine/core";
+import { Container, Title, Text, Table, Avatar, Group, Select, Stack, Badge } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -36,9 +26,7 @@ export function UsersManager({ initialUsers }: UsersManagerProps) {
             const result = await updateUserRole(userId, role);
             setLoadingId(null);
             if (result.success) {
-                setUserList(prev =>
-                    prev.map(u => (u.id === userId ? { ...u, role } : u)),
-                );
+                setUserList(prev => prev.map(u => (u.id === userId ? { ...u, role } : u)));
                 notifications.show({
                     title: t("notifications.success"),
                     message: t("notifications.roleUpdated"),

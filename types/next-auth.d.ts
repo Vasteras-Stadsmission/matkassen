@@ -25,6 +25,8 @@ type OrgEligibility = {
     message?: string;
 };
 
+type UserRole = "admin" | "handout_staff";
+
 declare module "next-auth" {
     /**
      * Extended session interface with GitHub username
@@ -35,6 +37,8 @@ declare module "next-auth" {
             githubUsername?: string;
             /** Server-evaluated org eligibility (membership + org security policy enforcement) */
             orgEligibility?: OrgEligibility;
+            /** User role stored in DB, cached in JWT (5-min TTL) */
+            role?: UserRole;
             /** Display name from GitHub profile (e.g., "John Doe") - used for UI display */
             name?: string | null;
             email?: string | null;
@@ -64,6 +68,10 @@ declare module "next-auth/jwt" {
         githubAccessToken?: string;
         /** Cached org eligibility result (membership + org security policy enforcement) */
         orgEligibility?: OrgEligibility;
+        /** User role cached from DB */
+        role?: UserRole;
+        /** Timestamp after which role should be re-fetched from DB */
+        roleNextCheckAt?: number;
         name?: string | null;
         email?: string | null;
         picture?: string | null;

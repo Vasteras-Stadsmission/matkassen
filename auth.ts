@@ -3,43 +3,8 @@ import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig, Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import { checkGitHubOrgEligibility } from "./app/utils/auth/org-eligibility";
-import type { UserRole } from "./app/db/schema";
 import { logger } from "./app/utils/logger";
 import { SESSION_COOKIE_NAME } from "./app/utils/auth/session-cookie";
-
-// Extend next-auth types with role and githubUsername
-declare module "next-auth" {
-    interface Session {
-        user: {
-            githubUsername?: string;
-            orgEligibility?: {
-                ok: boolean;
-                status: string;
-                checkedAt: number;
-                nextCheckAt: number;
-            };
-            role?: UserRole;
-            name?: string | null;
-            email?: string | null;
-            image?: string | null;
-        };
-    }
-}
-
-declare module "next-auth/jwt" {
-    interface JWT {
-        githubUsername?: string;
-        githubAccessToken?: string;
-        orgEligibility?: {
-            ok: boolean;
-            status: string;
-            checkedAt: number;
-            nextCheckAt: number;
-        };
-        role?: UserRole;
-        roleNextCheckAt?: number;
-    }
-}
 
 // GitHub profile type from OAuth provider
 interface GitHubProfile {
@@ -164,9 +129,7 @@ const authConfig: NextAuthConfig = {
                 token.githubAccessToken = account.access_token;
             }
 
-            const existingEligibility = token.orgEligibility as
-                | { ok: boolean; checkedAt: number; nextCheckAt: number; status: string }
-                | undefined;
+            const existingEligibility = token.orgEligibility;
 
             const shouldRecheck =
                 !existingEligibility ||
@@ -219,7 +182,10 @@ const authConfig: NextAuthConfig = {
                         // but jwt callback may race). Fall back to handout_staff; next check will resolve.
                         token.role = row?.role ?? "handout_staff";
                     } catch (err) {
-                        logger.warn({ err, githubUsername }, "Failed to load role from DB; preserving existing");
+                        logger.warn(
+                            { err, githubUsername },
+                            "Failed to load role from DB; preserving existing",
+                        );
                         token.role = token.role ?? "handout_staff";
                     }
                 } else {

@@ -25,26 +25,24 @@ function revalidateUsersPage() {
     });
 }
 
-export const getUsers = protectedAdminAction(
-    async (): Promise<ActionResult<UserRow[]>> => {
-        try {
-            const rows = await db
-                .select({
-                    id: users.id,
-                    github_username: users.github_username,
-                    display_name: users.display_name,
-                    avatar_url: users.avatar_url,
-                    role: users.role,
-                })
-                .from(users)
-                .orderBy(users.display_name, users.github_username);
-            return success(rows);
-        } catch (error) {
-            logError("Error fetching users", error);
-            return validationError("Failed to fetch users");
-        }
-    },
-);
+export const getUsers = protectedAdminAction(async (): Promise<ActionResult<UserRow[]>> => {
+    try {
+        const rows = await db
+            .select({
+                id: users.id,
+                github_username: users.github_username,
+                display_name: users.display_name,
+                avatar_url: users.avatar_url,
+                role: users.role,
+            })
+            .from(users)
+            .orderBy(users.display_name, users.github_username);
+        return success(rows);
+    } catch (error) {
+        logError("Error fetching users", error);
+        return validationError("Failed to fetch users");
+    }
+});
 
 export const updateUserRole = protectedAdminAction(
     async (session, userId: string, role: UserRole): Promise<ActionResult<void>> => {

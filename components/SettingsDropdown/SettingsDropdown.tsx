@@ -85,10 +85,7 @@ export function SettingsDropdown() {
 
                 <Menu.Item
                     leftSection={
-                        <IconUsers
-                            style={{ width: rem(14), height: rem(14) }}
-                            aria-hidden="true"
-                        />
+                        <IconUsers style={{ width: rem(14), height: rem(14) }} aria-hidden="true" />
                     }
                     component={Link}
                     href="/settings/users"
