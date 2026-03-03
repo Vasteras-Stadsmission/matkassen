@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { checkRateLimit, getSmsRateLimitKey } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
@@ -11,7 +12,7 @@ import { logger, logError } from "@/app/utils/logger";
 export interface AuthResult {
     success: boolean;
     response?: NextResponse;
-    session?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    session?: Session;
 }
 
 interface RateLimitConfig {
@@ -62,7 +63,7 @@ export async function authenticateAdminRequest(
             };
         }
 
-        if ((options.adminOnly ?? true) && session.user.role === "handout_staff") {
+        if ((options.adminOnly ?? true) && session.user.role !== "admin") {
             return {
                 success: false,
                 response: NextResponse.json({ error: "Admin access required" }, { status: 403 }),

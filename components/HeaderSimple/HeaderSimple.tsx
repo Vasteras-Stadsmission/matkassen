@@ -45,8 +45,10 @@ export function HeaderSimple() {
     const showIconOnlyActions = useMediaQuery(`(max-width: ${theme.breakpoints.md})`, false, {
         getInitialValueInEffect: true,
     });
-    const { data: session } = useSession();
-    const isAdmin = !session?.user?.role || session.user.role === "admin";
+    const { data: session, status } = useSession();
+    // Only grant admin UI once the session has been confirmed — avoids briefly
+    // showing admin nav/settings to non-admin users while the session loads.
+    const isAdmin = status !== "loading" && session?.user?.role === "admin";
 
     // State to track active link - initialized as empty string to ensure consistent SSR/client rendering
     const [active, setActive] = useState("");

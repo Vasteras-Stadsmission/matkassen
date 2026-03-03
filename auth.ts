@@ -200,14 +200,16 @@ const authConfig: NextAuthConfig = {
                 }
             }
 
-            // Re-check role every 10 minutes
+            // Re-check role every 10 minutes.
+            // On GitHub API failure, getUserRoleFromGitHub preserves the existing role
+            // so admins aren't silently downgraded by transient outages.
             const now = Date.now();
             const roleNextCheckAt = token.roleNextCheckAt ?? 0;
             if (!token.role || now >= roleNextCheckAt) {
                 const accessToken = token.githubAccessToken as string | undefined;
                 const githubUsername = token.githubUsername as string | undefined;
                 if (accessToken && githubUsername) {
-                    token.role = await getUserRoleFromGitHub(accessToken, githubUsername);
+                    token.role = await getUserRoleFromGitHub(accessToken, githubUsername, token.role);
                 } else {
                     token.role = "handout_staff";
                 }

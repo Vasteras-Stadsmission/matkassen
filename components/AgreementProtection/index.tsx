@@ -41,7 +41,7 @@ export async function AgreementProtection({
         return unauthorized;
     }
 
-    if (adminOnly && session.user?.role === "handout_staff") {
+    if (adminOnly && session.user?.role !== "admin") {
         const t = await getTranslations("auth.accessDenied");
         return (
             <Container size="xl" py="xl">

@@ -74,15 +74,22 @@ async function fetchGitHubJson(accessToken: string, path: string) {
 
 export type UserRole = "admin" | "handout_staff";
 
+/**
+ * Derive role from GitHub team membership.
+ * On network/API failures, preserves `currentRole` so admins aren't silently
+ * downgraded due to transient outages (mirrors the grace policy for org eligibility).
+ * Returns "handout_staff" when no existing role is available and the check fails.
+ */
 export async function getUserRoleFromGitHub(
     accessToken: string,
     githubUsername: string,
+    currentRole?: UserRole,
 ): Promise<UserRole> {
     const adminTeam = process.env.GITHUB_ADMIN_TEAM ?? "admins";
     const org = process.env.GITHUB_ORG;
 
     if (!org || !accessToken || !githubUsername) {
-        return "handout_staff";
+        return currentRole ?? "handout_staff";
     }
 
     try {
@@ -97,11 +104,16 @@ export async function getUserRoleFromGitHub(
                 return "admin";
             }
         }
-    } catch {
-        // Fall through to default
-    }
 
-    return "handout_staff";
+        // Successful API call but user is not an active admin team member
+        return "handout_staff";
+    } catch (error) {
+        logError("Failed to check admin team membership from GitHub, preserving existing role", error, {
+            githubUsername,
+            currentRole: currentRole ?? "none",
+        });
+        return currentRole ?? "handout_staff";
+    }
 }
 
 export async function checkGitHubOrgEligibility({

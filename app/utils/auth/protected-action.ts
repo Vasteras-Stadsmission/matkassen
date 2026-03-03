@@ -117,7 +117,7 @@ export function protectedAdminAction<T extends any[], R>(
             return authResult;
         }
 
-        if (authResult.data.user?.role === "handout_staff") {
+        if (authResult.data.user?.role !== "admin") {
             return authError("Admin access required", "FORBIDDEN");
         }
 
@@ -155,7 +155,7 @@ export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
             return authResult;
         }
 
-        if (authResult.data.user?.role === "handout_staff") {
+        if (authResult.data.user?.role !== "admin") {
             return authError("Admin access required", "FORBIDDEN");
         }
 
