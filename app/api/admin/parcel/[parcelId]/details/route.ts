@@ -75,7 +75,7 @@ export async function GET(
 ) {
     try {
         // Validate authentication
-        const authResult = await authenticateAdminRequest();
+        const authResult = await authenticateAdminRequest(undefined, { adminOnly: false });
         if (!authResult.success) {
             return authResult.response!;
         }

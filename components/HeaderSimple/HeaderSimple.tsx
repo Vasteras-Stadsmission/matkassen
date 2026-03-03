@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { IconQrcode } from "@tabler/icons-react";
+import { useSession } from "next-auth/react";
 
 import classes from "./HeaderSimple.module.css";
 
@@ -44,14 +45,18 @@ export function HeaderSimple() {
     const showIconOnlyActions = useMediaQuery(`(max-width: ${theme.breakpoints.md})`, false, {
         getInitialValueInEffect: true,
     });
+    const { data: session } = useSession();
+    const isAdmin = !session?.user?.role || session.user.role === "admin";
 
     // State to track active link - initialized as empty string to ensure consistent SSR/client rendering
     const [active, setActive] = useState("");
     const [issuesCount, setIssuesCount] = useState(0);
 
-    // Fetch issues count on mount
+    // Fetch issues count on mount (only for admins)
     // Note: Badge only updates on full page refresh, not on client-side navigation
     useEffect(() => {
+        if (!isAdmin) return;
+
         const fetchIssuesCount = async () => {
             try {
                 // NOTE: Use plain fetch() here, NOT adminFetch(). The header renders
@@ -71,13 +76,14 @@ export function HeaderSimple() {
         };
 
         fetchIssuesCount();
-    }, []);
+    }, [isAdmin]);
 
     // Define navigation links with translated labels using useMemo to avoid dependency changes
     // Issues link only appears when there are issues to address (home page is accessible via logo)
+    // Admin-only links are hidden for handout_staff
     const links = useMemo(
         () => [
-            ...(issuesCount > 0
+            ...(isAdmin && issuesCount > 0
                 ? [
                       {
                           link: "/",
@@ -86,11 +92,11 @@ export function HeaderSimple() {
                       },
                   ]
                 : []),
-            { link: "/households", label: t("navigation.households") },
+            ...(isAdmin ? [{ link: "/households", label: t("navigation.households") }] : []),
             { link: "/schedule", label: t("navigation.schedule") },
-            { link: "/statistics", label: t("navigation.statistics") },
+            ...(isAdmin ? [{ link: "/statistics", label: t("navigation.statistics") }] : []),
         ],
-        [t, issuesCount],
+        [t, issuesCount, isAdmin],
     );
 
     // Calculate active link after hydration to prevent SSR/client mismatch
@@ -241,7 +247,7 @@ export function HeaderSimple() {
                     >
                         <LanguageSwitcher />
                         <AuthDropdown />
-                        <SettingsDropdown />
+                        {isAdmin && <SettingsDropdown />}
                         <ScanQRCodeLink />
                     </Group>
                     <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
@@ -262,7 +268,7 @@ export function HeaderSimple() {
                     <div className={classes.mobileActions}>
                         <LanguageSwitcher />
                         <ScanQRCodeLink />
-                        <SettingsDropdown />
+                        {isAdmin && <SettingsDropdown />}
                         <AuthDropdown />
                     </div>
                 </div>

@@ -3,7 +3,7 @@ import { HouseholdOptionsManager } from "./components/HouseholdOptionsManager";
 
 export default async function HouseholdOptionsPage() {
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <HouseholdOptionsManager />
         </AgreementProtection>
     );

@@ -1,9 +1,48 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig } from "next-auth";
-import { checkGitHubOrgEligibility } from "./app/utils/auth/org-eligibility";
+import type { JWT } from "next-auth/jwt";
+import {
+    checkGitHubOrgEligibility,
+    getUserRoleFromGitHub,
+    type UserRole,
+} from "./app/utils/auth/org-eligibility";
 import { logger } from "./app/utils/logger";
 import { SESSION_COOKIE_NAME } from "./app/utils/auth/session-cookie";
+
+// Extend next-auth types with role and githubUsername
+declare module "next-auth" {
+    interface Session {
+        user: {
+            githubUsername?: string;
+            orgEligibility?: {
+                ok: boolean;
+                status: string;
+                checkedAt: number;
+                nextCheckAt: number;
+            };
+            role?: UserRole;
+            name?: string | null;
+            email?: string | null;
+            image?: string | null;
+        };
+    }
+}
+
+declare module "next-auth/jwt" {
+    interface JWT {
+        githubUsername?: string;
+        githubAccessToken?: string;
+        orgEligibility?: {
+            ok: boolean;
+            status: string;
+            checkedAt: number;
+            nextCheckAt: number;
+        };
+        role?: UserRole;
+        roleNextCheckAt?: number;
+    }
+}
 
 // GitHub profile type from OAuth provider
 interface GitHubProfile {
@@ -124,10 +163,10 @@ const authConfig: NextAuthConfig = {
             }
 
             if (account?.provider === "github" && typeof account?.access_token === "string") {
-                (token as any).githubAccessToken = account.access_token;
+                token.githubAccessToken = account.access_token;
             }
 
-            const existingEligibility = (token as any).orgEligibility as
+            const existingEligibility = token.orgEligibility as
                 | { ok: boolean; checkedAt: number; nextCheckAt: number; status: string }
                 | undefined;
 
@@ -137,7 +176,7 @@ const authConfig: NextAuthConfig = {
                 Date.now() >= existingEligibility.nextCheckAt;
 
             if (shouldRecheck) {
-                const accessToken = (token as any).githubAccessToken as string | undefined;
+                const accessToken = token.githubAccessToken as string | undefined;
                 const organization = process.env.GITHUB_ORG ?? "";
 
                 const fresh = await checkGitHubOrgEligibility({
@@ -152,13 +191,27 @@ const authConfig: NextAuthConfig = {
                     existingEligibility?.ok === true &&
                     Date.now() - existingEligibility.checkedAt < ELIGIBILITY_GRACE_MS
                 ) {
-                    (token as any).orgEligibility = {
+                    token.orgEligibility = {
                         ...existingEligibility,
                         nextCheckAt: Date.now() + 2 * 60 * 1000,
                     };
                 } else {
-                    (token as any).orgEligibility = fresh;
+                    token.orgEligibility = fresh;
                 }
+            }
+
+            // Re-check role every 10 minutes
+            const now = Date.now();
+            const roleNextCheckAt = token.roleNextCheckAt ?? 0;
+            if (!token.role || now >= roleNextCheckAt) {
+                const accessToken = token.githubAccessToken as string | undefined;
+                const githubUsername = token.githubUsername as string | undefined;
+                if (accessToken && githubUsername) {
+                    token.role = await getUserRoleFromGitHub(accessToken, githubUsername);
+                } else {
+                    token.role = "handout_staff";
+                }
+                token.roleNextCheckAt = now + 10 * 60 * 1000;
             }
 
             return token;
@@ -168,7 +221,8 @@ const authConfig: NextAuthConfig = {
             if (token.githubUsername) {
                 session.user.githubUsername = token.githubUsername;
             }
-            (session.user as any).orgEligibility = (token as any).orgEligibility;
+            session.user.orgEligibility = token.orgEligibility;
+            session.user.role = token.role;
             return session;
         },
         // Redirect callback: Handle deep links and callbackUrls after authentication

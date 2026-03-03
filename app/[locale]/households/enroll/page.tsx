@@ -3,7 +3,7 @@ import { EnrollClient } from "./EnrollClient";
 
 export default function EnrollHouseholdPage() {
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <EnrollClient />
         </AgreementProtection>
     );

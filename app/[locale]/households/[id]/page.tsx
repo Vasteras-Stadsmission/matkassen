@@ -53,7 +53,7 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
     // If household is anonymized, show special page
     if (householdDetails.household.anonymized_at) {
         return (
-            <AgreementProtection>
+            <AgreementProtection adminOnly>
                 <AnonymizedHouseholdPage anonymizedAt={householdDetails.household.anonymized_at} />
             </AgreementProtection>
         );

@@ -19,7 +19,7 @@ export default async function LocationPage({ params }: Props) {
     const { locationSlug } = await params;
 
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <LocationLandingPage locationSlug={locationSlug} />
         </AgreementProtection>
     );

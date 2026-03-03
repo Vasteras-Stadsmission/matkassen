@@ -22,12 +22,16 @@ interface RateLimitConfig {
 /**
  * Comprehensive authentication check for admin API endpoints
  * Verifies both session and organization membership
+ * When adminOnly=true (default), also rejects handout_staff users with 403
  */
-export async function authenticateAdminRequest(rateLimitConfig?: {
-    endpoint: string;
-    config: RateLimitConfig;
-    identifier?: string;
-}): Promise<AuthResult> {
+export async function authenticateAdminRequest(
+    rateLimitConfig?: {
+        endpoint: string;
+        config: RateLimitConfig;
+        identifier?: string;
+    },
+    options: { adminOnly?: boolean } = { adminOnly: true },
+): Promise<AuthResult> {
     try {
         // Check basic authentication
         const session = await auth();
@@ -55,6 +59,13 @@ export async function authenticateAdminRequest(rateLimitConfig?: {
             return {
                 success: false,
                 response: NextResponse.json({ error: "Access denied" }, { status: statusCode }),
+            };
+        }
+
+        if ((options.adminOnly ?? true) && session.user.role === "handout_staff") {
+            return {
+                success: false,
+                response: NextResponse.json({ error: "Admin access required" }, { status: 403 }),
             };
         }
 

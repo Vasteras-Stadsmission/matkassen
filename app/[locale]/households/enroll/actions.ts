@@ -19,7 +19,7 @@ import {
 import { eq, and, sql, gte, lte, count, inArray, asc, desc } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { getStockholmDayUtcRange, getStockholmDateKey } from "@/app/utils/date-utils";
-import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
     success,
@@ -111,7 +111,7 @@ async function ensureActiveAdditionalNeeds(tx: DbTransaction, needs: AdditionalN
     }
 }
 
-export const enrollHousehold = protectedAgreementAction(
+export const enrollHousehold = protectedAdminAction(
     async (session, data: HouseholdCreateData): Promise<ActionResult<{ householdId: string }>> => {
         try {
             // Auth already verified by protectedAction wrapper

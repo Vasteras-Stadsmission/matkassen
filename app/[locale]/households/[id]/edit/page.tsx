@@ -13,7 +13,7 @@ type Params = {
 export default async function EditHouseholdPage({ params }: { params: Params | Promise<Params> }) {
     const { id } = await params;
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <EditHouseholdClient id={id} />
         </AgreementProtection>
     );

@@ -22,6 +22,7 @@ export interface AuthSession {
             checkedAt: number;
             nextCheckAt: number;
         };
+        role?: "admin" | "handout_staff";
         name?: string | null;
         email?: string | null;
         image?: string | null;

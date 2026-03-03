@@ -3,7 +3,7 @@ import { ParcelThresholdSettings } from "./components/ParcelThresholdSettings";
 
 export default async function ParcelSettingsPage() {
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <ParcelThresholdSettings />
         </AgreementProtection>
     );

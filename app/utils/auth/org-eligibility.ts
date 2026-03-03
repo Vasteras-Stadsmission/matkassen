@@ -72,6 +72,38 @@ async function fetchGitHubJson(accessToken: string, path: string) {
     return { response, json };
 }
 
+export type UserRole = "admin" | "handout_staff";
+
+export async function getUserRoleFromGitHub(
+    accessToken: string,
+    githubUsername: string,
+): Promise<UserRole> {
+    const adminTeam = process.env.GITHUB_ADMIN_TEAM ?? "admins";
+    const org = process.env.GITHUB_ORG;
+
+    if (!org || !accessToken || !githubUsername) {
+        return "handout_staff";
+    }
+
+    try {
+        const { response, json } = await fetchGitHubJson(
+            accessToken,
+            `/orgs/${org}/teams/${adminTeam}/memberships/${githubUsername}`,
+        );
+
+        if (response.ok && json && typeof json === "object") {
+            const record = json as Record<string, unknown>;
+            if (record.state === "active") {
+                return "admin";
+            }
+        }
+    } catch {
+        // Fall through to default
+    }
+
+    return "handout_staff";
+}
+
 export async function checkGitHubOrgEligibility({
     accessToken,
     organization,

@@ -19,7 +19,7 @@ export default async function LocationSettingsPage() {
     const locations = result.data;
 
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <HandoutLocationsPageLayout>
                 <Suspense
                     fallback={

@@ -3,7 +3,7 @@ import { SettingsPageClient } from "./components/SettingsPageClient";
 
 export default async function GeneralSettingsPage() {
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <SettingsPageClient />
         </AgreementProtection>
     );

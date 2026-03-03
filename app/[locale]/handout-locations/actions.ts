@@ -9,7 +9,7 @@ import {
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { protectedAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAction as protectedAction, protectedAdminAction as protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import {
     LocationFormInput,
