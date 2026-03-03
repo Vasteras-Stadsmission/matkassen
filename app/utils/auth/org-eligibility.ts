@@ -98,15 +98,34 @@ export async function getUserRoleFromGitHub(
             `/orgs/${org}/teams/${adminTeam}/memberships/${githubUsername}`,
         );
 
-        if (response.ok && json && typeof json === "object") {
-            const record = json as Record<string, unknown>;
-            if (record.state === "active") {
-                return "admin";
+        if (response.ok) {
+            // Definitive successful response — check membership state
+            if (json && typeof json === "object") {
+                const record = json as Record<string, unknown>;
+                if (record.state === "active") {
+                    return "admin";
+                }
             }
+            // 200 OK but not an active admin team member
+            return "handout_staff";
         }
 
-        // Successful API call but user is not an active admin team member
-        return "handout_staff";
+        if (response.status === 404) {
+            // 404 = user definitively not in the team
+            return "handout_staff";
+        }
+
+        // Any other non-ok status (429, 5xx, 401, 403) is a transient failure —
+        // preserve the existing role so admins aren't silently downgraded.
+        logger.warn(
+            {
+                githubUsername,
+                status: response.status,
+                currentRole: currentRole ?? "none",
+            },
+            "GitHub admin team check returned non-ok status, preserving existing role",
+        );
+        return currentRole ?? "handout_staff";
     } catch (error) {
         logError("Failed to check admin team membership from GitHub, preserving existing role", error, {
             githubUsername,

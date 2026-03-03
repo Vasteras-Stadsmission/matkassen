@@ -18,7 +18,7 @@ export async function POST(
         // Validate authentication
         const authResult = await authenticateAdminRequest();
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const { householdId } = await params;
@@ -42,7 +42,7 @@ export async function POST(
             .insert(householdComments)
             .values({
                 household_id: householdId,
-                author_github_username: authResult.session!.user.githubUsername!,
+                author_github_username: authResult.session.user.githubUsername!,
                 comment: body.comment.trim(),
             })
             .returning({

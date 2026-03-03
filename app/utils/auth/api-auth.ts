@@ -9,11 +9,14 @@ import { auth } from "@/auth";
 import { checkRateLimit, getSmsRateLimitKey } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
 
-export interface AuthResult {
-    success: boolean;
-    response?: NextResponse;
-    session?: Session;
-}
+/**
+ * Discriminated union: when success=true the session is guaranteed present;
+ * when success=false the response is guaranteed present. Callers can drop
+ * non-null assertions on both fields.
+ */
+export type AuthResult =
+    | { success: true; session: Session }
+    | { success: false; response: NextResponse };
 
 interface RateLimitConfig {
     maxRequests: number;

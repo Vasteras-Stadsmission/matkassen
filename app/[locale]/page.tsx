@@ -7,7 +7,7 @@ import { getLocale } from "next-intl/server";
 
 export default async function HomePage() {
     const session = await auth();
-    if (session?.user?.role === "handout_staff") {
+    if (session?.user?.githubUsername && session.user.role !== "admin") {
         const locale = await getLocale();
         redirect({ href: "/schedule", locale });
     }

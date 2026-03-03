@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import {
     checkGitHubOrgEligibility,
@@ -86,7 +86,8 @@ const authConfig: NextAuthConfig = {
     callbacks: {
         authorized: async ({ auth }) => {
             // Used by Auth.js middleware patterns. Main gating is enforced in route handlers/pages.
-            return !!auth?.user && (auth.user as any).orgEligibility?.ok === true;
+            // Cast through our augmented Session["user"] type instead of `any` to keep it narrow.
+            return !!auth?.user && (auth.user as Session["user"]).orgEligibility?.ok === true;
         },
         async signIn({ account, profile }) {
             if (account?.provider === "github") {
@@ -211,7 +212,9 @@ const authConfig: NextAuthConfig = {
                 if (accessToken && githubUsername) {
                     token.role = await getUserRoleFromGitHub(accessToken, githubUsername, token.role);
                 } else {
-                    token.role = "handout_staff";
+                    // Token fields missing — preserve existing role rather than downgrading,
+                    // otherwise a corrupted/missing token field demotes an admin.
+                    token.role = token.role ?? "handout_staff";
                 }
                 token.roleNextCheckAt = now + 10 * 60 * 1000;
             }

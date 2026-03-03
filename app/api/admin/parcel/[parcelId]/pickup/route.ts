@@ -15,7 +15,7 @@ export async function PATCH(
         // Validate authentication
         const authResult = await authenticateAdminRequest(undefined, { adminOnly: false });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const { parcelId } = await params;
@@ -29,7 +29,7 @@ export async function PATCH(
             .set({
                 is_picked_up: true,
                 picked_up_at: now,
-                picked_up_by_user_id: authResult.session!.user.githubUsername,
+                picked_up_by_user_id: authResult.session.user.githubUsername,
                 no_show_at: null,
                 no_show_by_user_id: null,
             })
@@ -46,7 +46,7 @@ export async function PATCH(
         return NextResponse.json({
             success: true,
             pickedUpAt: now.toISOString(),
-            pickedUpBy: authResult.session!.user.githubUsername,
+            pickedUpBy: authResult.session.user.githubUsername,
             message: "Parcel marked as picked up",
         });
     } catch (error) {
@@ -68,7 +68,7 @@ export async function DELETE(
         // Validate authentication
         const authResult = await authenticateAdminRequest(undefined, { adminOnly: false });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const { parcelId } = await params;

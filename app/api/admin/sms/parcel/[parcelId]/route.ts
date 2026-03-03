@@ -37,7 +37,7 @@ export async function GET(
         // Validate authentication and organization membership
         const authResult = await authenticateAdminRequest();
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const { parcelId } = await params;
@@ -81,7 +81,7 @@ export async function POST(
             identifier: parcelId,
         });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const { action } = await request.json();
@@ -243,7 +243,7 @@ export async function POST(
                 householdId: parcelData.householdId,
                 smsId,
                 action,
-                triggeredBy: authResult.session!.user.githubUsername,
+                triggeredBy: authResult.session.user.githubUsername,
             },
             "Manual parcel SMS queued",
         );

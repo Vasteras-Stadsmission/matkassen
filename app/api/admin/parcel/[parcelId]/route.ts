@@ -27,7 +27,7 @@ export async function DELETE(
         // Validate authentication
         const authResult = await authenticateAdminRequest();
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const { parcelId } = await params;

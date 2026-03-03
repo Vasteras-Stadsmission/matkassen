@@ -37,7 +37,7 @@ export async function PATCH(
         // Validate authentication
         const authResult = await authenticateAdminRequest();
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         smsId = (await params).smsId;
