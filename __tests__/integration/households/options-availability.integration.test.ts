@@ -18,6 +18,7 @@ vi.mock("@/app/utils/auth/server-action-auth", () => ({
             user: {
                 id: "test-admin-id",
                 githubUsername: "test-admin",
+                role: "admin",
             },
         },
     })),
