@@ -93,37 +93,23 @@ describe("adminFetch", () => {
         expect(result.status).toBe(404);
     });
 
-    // --- Scenario: Stale session after deployment ---
-    // User was logged in, a deployment changed session structure,
-    // now the API returns 403 "Re-authentication required"
+    // --- Scenario: Insufficient role (handout_staff accessing admin endpoint) ---
+    // 403 means the user is authenticated but lacks the required role.
+    // adminFetch returns the response as-is so the caller can show an
+    // inline "access denied" message rather than redirecting to sign-in.
 
-    it("redirects to sign-in on 403 (stale session)", async () => {
-        vi.mocked(global.fetch).mockResolvedValueOnce({
+    it("returns 403 as-is (insufficient role, not a stale session)", async () => {
+        const mockResponse = {
             ok: false,
             status: 403,
-            json: async () => ({ error: "Re-authentication required" }),
-        } as Response);
+            json: async () => ({ error: "Admin access required" }),
+        };
+        vi.mocked(global.fetch).mockResolvedValueOnce(mockResponse as Response);
 
-        // adminFetch should redirect and return a pending promise
-        const result = adminFetch("/api/admin/issues");
+        const result = await adminFetch("/api/admin/issues");
 
-        // Flush microtasks so the async function body completes
-        await vi.advanceTimersByTimeAsync(0);
-
-        expect(window.location.href).toBe("/api/auth/signin?callbackUrl=%2Fhouseholds");
-
-        // The promise should not resolve (caller stops processing)
-        let settled = false;
-        result.then(
-            () => {
-                settled = true;
-            },
-            () => {
-                settled = true;
-            },
-        );
-        await vi.advanceTimersByTimeAsync(0);
-        expect(settled).toBe(false);
+        expect(result.status).toBe(403);
+        expect(window.location.href).toBe(""); // no redirect
     });
 
     // --- Scenario: Session expired / cookie deleted ---

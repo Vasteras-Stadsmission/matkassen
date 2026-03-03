@@ -55,42 +55,29 @@ vi.mock("@/app/db/drizzle", () => {
 });
 
 // Mock the auth module
+const mockAdminHouseholdAction = (fn: any) => {
+    return async (householdId: string, ...args: any[]) => {
+        const mockSession = {
+            user: {
+                githubUsername: "test-user",
+                role: "admin",
+                name: "Test User",
+                email: "test@example.com",
+            },
+        };
+        const mockHousehold = {
+            id: householdId,
+            first_name: "Test",
+            last_name: "Household",
+        };
+        return fn(mockSession, mockHousehold, ...args);
+    };
+};
+
 vi.mock("@/app/utils/auth/protected-action", () => ({
-    protectedHouseholdAction: (fn: any) => {
-        // Return a function that calls the original with mock session and household
-        return async (householdId: string, ...args: any[]) => {
-            const mockSession = {
-                user: {
-                    githubUsername: "test-user",
-                    name: "Test User",
-                    email: "test@example.com",
-                },
-            };
-            const mockHousehold = {
-                id: householdId,
-                first_name: "Test",
-                last_name: "Household",
-            };
-            return fn(mockSession, mockHousehold, ...args);
-        };
-    },
-    protectedAgreementHouseholdAction: (fn: any) => {
-        return async (householdId: string, ...args: any[]) => {
-            const mockSession = {
-                user: {
-                    githubUsername: "test-user",
-                    name: "Test User",
-                    email: "test@example.com",
-                },
-            };
-            const mockHousehold = {
-                id: householdId,
-                first_name: "Test",
-                last_name: "Household",
-            };
-            return fn(mockSession, mockHousehold, ...args);
-        };
-    },
+    protectedHouseholdAction: mockAdminHouseholdAction,
+    protectedAdminHouseholdAction: mockAdminHouseholdAction,
+    protectedAgreementHouseholdAction: mockAdminHouseholdAction,
 }));
 
 // Mock the schedule actions validation
