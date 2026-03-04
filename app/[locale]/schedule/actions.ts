@@ -1414,8 +1414,8 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
         return { outsideParcels: [], totalCount: 0 };
     }
 
-    // Get current schedules for this location
-    const locationSchedules = await getPickupLocationSchedules(locationId);
+    // Get current schedules for this location — bypass cache since recompute always needs fresh data
+    const locationSchedules = await fetchPickupLocationSchedules(locationId);
 
     if (!locationSchedules || !locationSchedules.schedules) {
         // Transform to FoodParcel format
@@ -1478,6 +1478,127 @@ export async function getTotalOutsideHoursCount(): Promise<number> {
         return 0;
     }
 }
+
+/**
+ * Bulk reschedule multiple parcels to a new time slot
+ */
+export const bulkRescheduleParcels = protectedAdminAction(
+    async (
+        _session,
+        parcelIds: string[],
+        newTimeslot: { startTime: Date },
+    ): Promise<ActionResult<{ count: number }>> => {
+        if (parcelIds.length === 0) {
+            return failure({ code: "VALIDATION_ERROR", message: "No parcels selected" });
+        }
+
+        try {
+            // Get all parcels and verify they exist, are active, and belong to same location
+            const parcels = await db
+                .select({
+                    id: foodParcels.id,
+                    locationId: foodParcels.pickup_location_id,
+                    isPickedUp: foodParcels.is_picked_up,
+                })
+                .from(foodParcels)
+                .where(and(inArray(foodParcels.id, parcelIds), notDeleted()));
+
+            if (parcels.length !== parcelIds.length) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: `Found ${parcels.length} of ${parcelIds.length} parcels`,
+                });
+            }
+
+            // Verify all parcels belong to the same location
+            const locationIds = new Set(parcels.map(p => p.locationId));
+            if (locationIds.size !== 1) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "All parcels must belong to the same location",
+                });
+            }
+
+            const locationId = parcels[0].locationId;
+
+            // Get location's slot duration
+            const [location] = await db
+                .select({
+                    slotDuration: pickupLocations.default_slot_duration_minutes,
+                    maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, locationId))
+                .limit(1);
+
+            const slotDurationMinutes = location?.slotDuration ?? 15;
+            const endTime = new Date(newTimeslot.startTime);
+            endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
+
+            // Capacity check + update in a single transaction to prevent race conditions
+            await db.transaction(async tx => {
+                if (location?.maxParcelsPerSlot != null) {
+                    // Count existing parcels in target slot, excluding the ones being moved
+                    const existingInSlot = await tx
+                        .select({ count: count() })
+                        .from(foodParcels)
+                        .where(
+                            and(
+                                eq(foodParcels.pickup_location_id, locationId),
+                                eq(foodParcels.pickup_date_time_earliest, newTimeslot.startTime),
+                                eq(foodParcels.pickup_date_time_latest, endTime),
+                                notDeleted(),
+                                // Exclude the parcels being moved (they may already be in a different slot)
+                                sql`${foodParcels.id} NOT IN (${sql.join(
+                                    parcelIds.map(id => sql`${id}`),
+                                    sql`, `,
+                                )})`,
+                            ),
+                        );
+
+                    const existingCount = existingInSlot[0]?.count ?? 0;
+                    if (existingCount + parcelIds.length > location.maxParcelsPerSlot) {
+                        throw new Error(
+                            `CAPACITY_EXCEEDED:${existingCount}:${location.maxParcelsPerSlot}`,
+                        );
+                    }
+                }
+
+                await tx
+                    .update(foodParcels)
+                    .set({
+                        pickup_date_time_earliest: newTimeslot.startTime,
+                        pickup_date_time_latest: endTime,
+                    })
+                    .where(inArray(foodParcels.id, parcelIds));
+            });
+
+            // Recompute outside_hours_count after commit
+            try {
+                await recomputeOutsideHoursCount(locationId);
+            } catch (e) {
+                logError("Failed to recompute outside-hours count after bulk reschedule", e, {
+                    locationId,
+                });
+            }
+
+            return success({ count: parcelIds.length });
+        } catch (error) {
+            // Handle capacity exceeded from transaction
+            if (error instanceof Error && error.message.startsWith("CAPACITY_EXCEEDED:")) {
+                return failure({
+                    code: "CAPACITY_EXCEEDED",
+                    message: "Slot capacity would be exceeded",
+                });
+            }
+            logError("Error in bulk reschedule", error, { parcelIds });
+            return failure({
+                code: "DATABASE_ERROR",
+                message: "Bulk reschedule failed",
+            });
+        }
+    },
+);
 
 /**
  * Recompute and persist the count of future parcels outside opening hours for a location

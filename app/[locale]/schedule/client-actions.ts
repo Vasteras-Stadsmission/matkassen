@@ -5,6 +5,7 @@ import {
     getPickupLocationSchedules,
     getLocationSlotDuration,
     recomputeOutsideHoursCount,
+    bulkRescheduleParcels,
 } from "./actions";
 import type { LocationScheduleInfo } from "./types";
 import { logError } from "@/app/utils/logger";
@@ -79,6 +80,33 @@ export async function recomputeOutsideHoursCountAction(locationId: string): Prom
     } catch (error) {
         logError("Error recomputing outside-hours count", error, { locationId });
         return 0;
+    }
+}
+
+/**
+ * Client wrapper for bulk rescheduling parcels
+ */
+export async function bulkRescheduleParcelsAction(
+    parcelIds: string[],
+    newTimeslot: { startTime: Date },
+): Promise<{ success: boolean; count?: number; error?: string; errorCode?: string }> {
+    try {
+        const result = await bulkRescheduleParcels(parcelIds, newTimeslot);
+        if (!result.success) {
+            return {
+                success: false,
+                error: result.error.message,
+                errorCode: result.error.code,
+            };
+        }
+        return { success: true, count: result.data.count };
+    } catch (error) {
+        logError("Error calling bulkRescheduleParcels", error, { parcelIds });
+        return {
+            success: false,
+            errorCode: "UNKNOWN_ERROR",
+            error: error instanceof Error ? error.message : undefined,
+        };
     }
 }
 

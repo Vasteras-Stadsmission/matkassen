@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useForm } from "@mantine/form";
 import {
     Box,
@@ -51,6 +51,7 @@ interface ScheduleFormProps {
     scheduleId?: string;
     onCancel: () => void;
     locationId: string; // Required to check affected parcels
+    slotDurationMinutes?: number; // Location's slot duration for validation warnings
 }
 
 // Default values for a new schedule
@@ -94,6 +95,7 @@ export function ScheduleForm({
     scheduleId,
     onCancel,
     locationId,
+    slotDurationMinutes,
 }: ScheduleFormProps) {
     const t = useTranslations("handoutLocations");
     const [saving, setSaving] = useState(false);
@@ -174,6 +176,45 @@ export function ScheduleForm({
     const handleScheduleNameBlur = () => {
         form.setFieldValue("name", localScheduleName);
     };
+
+    // Compute slot duration warnings for each open day
+    const tSchedule = useTranslations("schedule");
+    const slotDurationWarnings = useMemo(() => {
+        if (!slotDurationMinutes) return [];
+        const warnings: { day: string; message: string }[] = [];
+        for (const day of form.values.days) {
+            if (!day.is_open || !day.opening_time || !day.closing_time) continue;
+            const openMin = toMinutes(day.opening_time);
+            const closeMin = toMinutes(day.closing_time);
+            const windowMin = closeMin - openMin;
+            if (windowMin <= 0) continue;
+            const dayName = t(`weekdays.${day.weekday}`);
+            if (windowMin < slotDurationMinutes) {
+                warnings.push({
+                    day: day.weekday,
+                    message: tSchedule("slotDurationWarning.tooShort", {
+                        day: dayName,
+                        opening: day.opening_time,
+                        closing: day.closing_time,
+                        windowMinutes: String(windowMin),
+                        slotMinutes: String(slotDurationMinutes),
+                    }),
+                });
+            } else if (windowMin % slotDurationMinutes !== 0) {
+                warnings.push({
+                    day: day.weekday,
+                    message: tSchedule("slotDurationWarning.unevenFit", {
+                        day: dayName,
+                        opening: day.opening_time,
+                        closing: day.closing_time,
+                        windowMinutes: String(windowMin),
+                        slotMinutes: String(slotDurationMinutes),
+                    }),
+                });
+            }
+        }
+        return warnings;
+    }, [form.values.days, slotDurationMinutes, t, tSchedule]);
 
     // Update form dates when week selection changes - memoize handlers
     const handleStartWeekChange = useCallback(
@@ -570,6 +611,21 @@ export function ScheduleForm({
                             </Box>
                         ))}
                     </Paper>
+
+                    {/* Slot duration warnings */}
+                    {slotDurationWarnings.length > 0 && (
+                        <Alert
+                            icon={<IconAlertCircle size={16} />}
+                            color="orange"
+                            title={t("slotDurationMismatch")}
+                        >
+                            {slotDurationWarnings.map(w => (
+                                <Text key={w.day} size="sm">
+                                    {w.message}
+                                </Text>
+                            ))}
+                        </Alert>
+                    )}
 
                     {/* Helper text for schedule impact */}
                     <Text size="sm" c="dimmed">

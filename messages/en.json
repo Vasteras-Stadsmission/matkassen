@@ -478,7 +478,20 @@
         "parcelsAffectedExplanation": "These parcels will appear in the 'Outside opening hours' section on the schedule page for easy rescheduling.",
         "proceedAnyway": "Proceed anyway",
         "outsideHours": {
-            "panelTitle": "Outside opening hours ({count})"
+            "panelTitle": "Outside opening hours ({count})",
+            "rescheduleSelected": "Reschedule selected",
+            "selectAll": "Select all",
+            "deselectAll": "Deselect all",
+            "bulkRescheduleTitle": "Reschedule {count} food parcels",
+            "bulkRescheduleConfirm": "Reschedule",
+            "capacityInfo": "{used}/{total} slots used in selected time slot",
+            "capacityWarning": "Not enough capacity for all selected parcels in the chosen time slot",
+            "bulkRescheduleSuccess": "{count} food parcels rescheduled",
+            "noValidSlots": "Slot duration is {slotMinutes} min but no opening hours are long enough. Change the opening hours or slot duration to reschedule."
+        },
+        "slotDurationWarning": {
+            "tooShort": "Opening hours on {day} ({opening}-{closing} = {windowMinutes} min) are shorter than the slot duration ({slotMinutes} min). No new bookings can be made on this day.",
+            "unevenFit": "Opening hours on {day} ({opening}-{closing} = {windowMinutes} min) do not divide evenly by the slot duration ({slotMinutes} min)."
         },
         "days": {
             "monday": "Monday",
@@ -916,6 +929,7 @@
         "nextYear": "Next Year",
         "previousMonth": "Previous Month",
         "nextMonth": "Next Month",
+        "slotDurationMismatch": "Slot duration does not match opening hours",
         "scheduleOverlapWarning": "Schedule Overlap Detected",
         "scheduleOverlapMessage": "This schedule overlaps with \"{scheduleName}\" ({startDate} to {endDate}). Please select a different date range.",
         "weekdaySchedule": "Weekday Schedule",
