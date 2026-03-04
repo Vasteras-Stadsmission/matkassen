@@ -36,8 +36,6 @@ import { generateTimeSlotsBetween } from "@/app/utils/date-utils";
 import { Time } from "@/app/utils/time-provider";
 import { getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
-import { unstable_cache } from "next/cache";
-import { revalidatePath, revalidateTag } from "next/cache";
 import {
     protectedReadAction,
     protectedAgreementReadAction,
@@ -763,41 +761,9 @@ export async function validateParcelAssignments(
  */
 export const getPickupLocationSchedules = protectedReadAction(
     async (_session, locationId: string): Promise<LocationScheduleInfo> => {
-        // Create a cached function that will fetch the schedules
-        const cachedFetchSchedules = unstable_cache(
-            () => fetchPickupLocationSchedules(locationId),
-            // Use a key that includes the location ID for better caching
-            [`pickup-location-schedules-${locationId}`],
-            {
-                // Cache results for 1 minute (60 seconds) to reduce staleness
-                revalidate: 60,
-                // Add tags for more precise cache invalidation
-                tags: [`location-schedules`, `location-schedules-${locationId}`],
-            },
-        );
-
-        // IMPORTANT: We need to invoke the cached function, not just return it
-        return cachedFetchSchedules();
+        return fetchPickupLocationSchedules(locationId);
     },
 );
-
-/**
- * Clear the cache for a specific location's schedules
- * Call this when schedules are updated to ensure fresh data
- */
-export const clearLocationSchedulesCache = async (locationId: string) => {
-    try {
-        // Use revalidateTag for more precise cache invalidation
-        revalidateTag(`location-schedules-${locationId}`);
-        revalidateTag(`location-schedules`);
-
-        // Also revalidate the relevant pages
-        revalidatePath(`/schedule`);
-        revalidatePath(`/handout-locations`);
-    } catch (error) {
-        logError("Error clearing cache for location", error, { locationId });
-    }
-};
 
 /**
  * Check if a pickup location is open on a specific date and time
@@ -1414,8 +1380,8 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
         return { outsideParcels: [], totalCount: 0 };
     }
 
-    // Get current schedules for this location
-    const locationSchedules = await getPickupLocationSchedules(locationId);
+    // Get current schedules for this location — bypass cache since recompute always needs fresh data
+    const locationSchedules = await fetchPickupLocationSchedules(locationId);
 
     if (!locationSchedules || !locationSchedules.schedules) {
         // Transform to FoodParcel format
@@ -1478,6 +1444,204 @@ export async function getTotalOutsideHoursCount(): Promise<number> {
         return 0;
     }
 }
+
+/**
+ * Bulk reschedule multiple parcels to a new time slot
+ */
+export const bulkRescheduleParcels = protectedAdminAction(
+    async (
+        _session,
+        parcelIds: string[],
+        newTimeslot: { startTime: Date },
+    ): Promise<ActionResult<{ count: number }>> => {
+        if (parcelIds.length === 0) {
+            return failure({ code: "VALIDATION_ERROR", message: "No parcels selected" });
+        }
+
+        try {
+            // Get all parcels and verify they exist, are active, and belong to same location
+            const parcels = await db
+                .select({
+                    id: foodParcels.id,
+                    locationId: foodParcels.pickup_location_id,
+                    isPickedUp: foodParcels.is_picked_up,
+                })
+                .from(foodParcels)
+                .where(and(inArray(foodParcels.id, parcelIds), notDeleted()));
+
+            if (parcels.length !== parcelIds.length) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: `Found ${parcels.length} of ${parcelIds.length} parcels`,
+                });
+            }
+
+            // Reject already-picked-up parcels
+            const pickedUp = parcels.filter(p => p.isPickedUp);
+            if (pickedUp.length > 0) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: `${pickedUp.length} parcel(s) already picked up`,
+                });
+            }
+
+            // Verify all parcels belong to the same location
+            const locationIds = new Set(parcels.map(p => p.locationId));
+            if (locationIds.size !== 1) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "All parcels must belong to the same location",
+                });
+            }
+
+            const locationId = parcels[0].locationId;
+
+            // Get location's slot duration and daily capacity
+            const [location] = await db
+                .select({
+                    slotDuration: pickupLocations.default_slot_duration_minutes,
+                    maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
+                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, locationId))
+                .limit(1);
+
+            const slotDurationMinutes = location?.slotDuration ?? 15;
+            const endTime = new Date(newTimeslot.startTime);
+            endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
+
+            // Server-side opening hours validation
+            const schedules = await fetchPickupLocationSchedules(locationId);
+            if (schedules) {
+                const isOutside = isParcelOutsideOpeningHours(
+                    {
+                        id: "bulk-check",
+                        pickupEarliestTime: newTimeslot.startTime,
+                        pickupLatestTime: endTime,
+                        isPickedUp: false,
+                    },
+                    schedules,
+                    { onError: "return-true" },
+                );
+                if (isOutside) {
+                    return failure({
+                        code: "VALIDATION_ERROR",
+                        message: "Target time is outside opening hours",
+                    });
+                }
+            }
+
+            // Capacity check + update in a single transaction to prevent race conditions
+            await db.transaction(async tx => {
+                // Slot capacity check
+                if (location?.maxParcelsPerSlot != null) {
+                    const existingInSlot = await tx
+                        .select({ count: count() })
+                        .from(foodParcels)
+                        .where(
+                            and(
+                                eq(foodParcels.pickup_location_id, locationId),
+                                eq(foodParcels.pickup_date_time_earliest, newTimeslot.startTime),
+                                eq(foodParcels.pickup_date_time_latest, endTime),
+                                notDeleted(),
+                                sql`${foodParcels.id} NOT IN (${sql.join(
+                                    parcelIds.map(id => sql`${id}`),
+                                    sql`, `,
+                                )})`,
+                            ),
+                        );
+
+                    const existingCount = existingInSlot[0]?.count ?? 0;
+                    if (existingCount + parcelIds.length > location.maxParcelsPerSlot) {
+                        throw new Error(
+                            `CAPACITY_EXCEEDED:${existingCount}:${location.maxParcelsPerSlot}`,
+                        );
+                    }
+                }
+
+                // Daily capacity check
+                if (location?.maxParcelsPerDay != null) {
+                    const targetDate = newTimeslot.startTime;
+                    const dayStart = new Date(targetDate);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(targetDate);
+                    dayEnd.setHours(23, 59, 59, 999);
+
+                    const existingOnDay = await tx
+                        .select({ count: count() })
+                        .from(foodParcels)
+                        .where(
+                            and(
+                                eq(foodParcels.pickup_location_id, locationId),
+                                gte(foodParcels.pickup_date_time_earliest, dayStart),
+                                lte(foodParcels.pickup_date_time_earliest, dayEnd),
+                                notDeleted(),
+                                sql`${foodParcels.id} NOT IN (${sql.join(
+                                    parcelIds.map(id => sql`${id}`),
+                                    sql`, `,
+                                )})`,
+                            ),
+                        );
+
+                    const dailyCount = existingOnDay[0]?.count ?? 0;
+                    if (dailyCount + parcelIds.length > location.maxParcelsPerDay) {
+                        throw new Error("DAILY_CAPACITY_EXCEEDED");
+                    }
+                }
+
+                await tx
+                    .update(foodParcels)
+                    .set({
+                        pickup_date_time_earliest: newTimeslot.startTime,
+                        pickup_date_time_latest: endTime,
+                    })
+                    .where(inArray(foodParcels.id, parcelIds));
+            });
+
+            // Recompute outside_hours_count after commit
+            try {
+                await recomputeOutsideHoursCount(locationId);
+            } catch (e) {
+                logError("Failed to recompute outside-hours count after bulk reschedule", e, {
+                    locationId,
+                });
+            }
+
+            // Queue pickup_updated SMS for each parcel (non-fatal)
+            try {
+                const { queuePickupUpdatedSms } = await import("@/app/utils/sms/sms-service");
+                await Promise.allSettled(parcelIds.map(id => queuePickupUpdatedSms(id)));
+            } catch (e) {
+                logError("Failed to queue pickup_updated SMS after bulk reschedule", e, {
+                    locationId,
+                    parcelCount: parcelIds.length,
+                });
+            }
+
+            return success({ count: parcelIds.length });
+        } catch (error) {
+            // Handle capacity exceeded from transaction
+            if (error instanceof Error && error.message.startsWith("CAPACITY_EXCEEDED:")) {
+                return failure({
+                    code: "CAPACITY_EXCEEDED",
+                    message: "Slot capacity would be exceeded",
+                });
+            }
+            if (error instanceof Error && error.message === "DAILY_CAPACITY_EXCEEDED") {
+                return failure({
+                    code: "CAPACITY_EXCEEDED",
+                    message: "Daily capacity would be exceeded",
+                });
+            }
+            logError("Error in bulk reschedule", error, { parcelIds });
+            return failure({
+                code: "DATABASE_ERROR",
+                message: "Bulk reschedule failed",
+            });
+        }
+    },
+);
 
 /**
  * Recompute and persist the count of future parcels outside opening hours for a location

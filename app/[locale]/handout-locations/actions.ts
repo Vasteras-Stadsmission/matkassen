@@ -5,6 +5,7 @@ import {
     pickupLocations,
     pickupLocationSchedules,
     pickupLocationScheduleDays,
+    scheduleAuditLog,
 } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -264,11 +265,12 @@ export const deleteLocation = protectedAgreementAction(
 // Create a new schedule for a location
 export const createSchedule = protectedAgreementAction(
     async (
-        _: unknown,
+        session,
         locationId: string,
         scheduleData: ScheduleInput,
     ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
         // Auth already verified by protectedAction wrapper
+        const username = session.user?.githubUsername ?? "unknown";
 
         try {
             // Validate schedule overlap using shared utility
@@ -295,6 +297,7 @@ export const createSchedule = protectedAgreementAction(
                             scheduleData.end_date instanceof Date
                                 ? scheduleData.end_date.toISOString().split("T")[0]
                                 : scheduleData.end_date,
+                        created_by: username,
                     })
                     .returning();
 
@@ -320,6 +323,19 @@ export const createSchedule = protectedAgreementAction(
                     }),
                 );
 
+                // Insert audit log entry
+                const openDays = scheduleData.days
+                    .filter(d => d.is_open)
+                    .map(d => `${d.weekday}: ${d.opening_time}-${d.closing_time}`)
+                    .join(", ");
+                await tx.insert(scheduleAuditLog).values({
+                    schedule_id: schedule.id,
+                    pickup_location_id: locationId,
+                    action: "created",
+                    changed_by: username,
+                    changes_summary: `Created schedule "${scheduleData.name}" (${openDays})`,
+                });
+
                 // Create the return object
                 createdSchedule = {
                     ...schedule,
@@ -333,12 +349,11 @@ export const createSchedule = protectedAgreementAction(
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
 
-            // Recompute outside-hours count for this location after schedule change
+            // Recompute outside-hours count after schedule change
             try {
-                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                const { recomputeOutsideHoursCount } =
                     await import("@/app/[locale]/schedule/actions");
                 await recomputeOutsideHoursCount(locationId);
-                await clearLocationSchedulesCache(locationId);
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule create", e, {
                     action: "createSchedule",
@@ -363,28 +378,35 @@ export const createSchedule = protectedAgreementAction(
 // Update an existing schedule
 export const updateSchedule = protectedAgreementAction(
     async (
-        _: unknown,
+        session,
         scheduleId: string,
         scheduleData: ScheduleInput,
     ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
         // Auth already verified by protectedAction wrapper
+        const username = session.user?.githubUsername ?? "unknown";
 
         try {
-            // Get the current schedule to find the location
-            const currentSchedule = await db
-                .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
+            // Get the current schedule to find the location and old days for diff
+            const currentScheduleRows = await db
+                .select()
                 .from(pickupLocationSchedules)
                 .where(eq(pickupLocationSchedules.id, scheduleId))
                 .limit(1);
 
-            if (currentSchedule.length === 0) {
+            if (currentScheduleRows.length === 0) {
                 return failure({
                     code: "NOT_FOUND",
                     message: `Schedule with ID ${scheduleId} not found`,
                 });
             }
 
-            const locationId = currentSchedule[0].pickup_location_id;
+            const locationId = currentScheduleRows[0].pickup_location_id;
+
+            // Fetch old days BEFORE update for change diff
+            const oldDays = await db
+                .select()
+                .from(pickupLocationScheduleDays)
+                .where(eq(pickupLocationScheduleDays.schedule_id, scheduleId));
 
             // Validate schedule overlap using shared utility (excluding current schedule)
             const { validateScheduleOverlap } =
@@ -409,6 +431,8 @@ export const updateSchedule = protectedAgreementAction(
                             scheduleData.end_date instanceof Date
                                 ? scheduleData.end_date.toISOString().split("T")[0]
                                 : scheduleData.end_date,
+                        updated_by: username,
+                        updated_at: new Date(),
                     })
                     .where(eq(pickupLocationSchedules.id, scheduleId))
                     .returning();
@@ -440,6 +464,38 @@ export const updateSchedule = protectedAgreementAction(
                     }),
                 );
 
+                // Build change summary for audit log
+                const changes: string[] = [];
+                for (const newDay of scheduleData.days) {
+                    const oldDay = oldDays.find(d => d.weekday === newDay.weekday);
+                    const oldOpen = oldDay?.is_open ?? false;
+                    const newOpen = newDay.is_open;
+                    const oldTime = oldDay
+                        ? `${oldDay.opening_time?.substring(0, 5)}-${oldDay.closing_time?.substring(0, 5)}`
+                        : null;
+                    const newTime = `${newDay.opening_time}-${newDay.closing_time}`;
+
+                    if (oldOpen !== newOpen) {
+                        changes.push(
+                            `${newDay.weekday}: ${oldOpen ? "open" : "closed"} → ${newOpen ? "open" : "closed"}`,
+                        );
+                    } else if (newOpen && oldTime !== newTime) {
+                        changes.push(`${newDay.weekday}: ${oldTime} → ${newTime}`);
+                    }
+                }
+                const summary =
+                    changes.length > 0
+                        ? changes.join(", ")
+                        : "No day changes (name or date range updated)";
+
+                await tx.insert(scheduleAuditLog).values({
+                    schedule_id: scheduleId,
+                    pickup_location_id: locationId,
+                    action: "updated",
+                    changed_by: username,
+                    changes_summary: summary,
+                });
+
                 // Create the return object
                 updatedSchedule = {
                     ...schedule,
@@ -453,12 +509,11 @@ export const updateSchedule = protectedAgreementAction(
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
 
-            // Recompute outside-hours count for this location after schedule update
+            // Recompute outside-hours count with fresh data
             try {
-                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                const { recomputeOutsideHoursCount } =
                     await import("@/app/[locale]/schedule/actions");
                 await recomputeOutsideHoursCount(locationId);
-                await clearLocationSchedulesCache(locationId);
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule update", e, {
                     action: "updateSchedule",
@@ -482,23 +537,39 @@ export const updateSchedule = protectedAgreementAction(
 );
 
 // Delete a schedule
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const deleteSchedule = protectedAgreementAction(
-    async (_session, scheduleId: string): Promise<ActionResult<void>> => {
+    async (session, scheduleId: string): Promise<ActionResult<void>> => {
         // Auth already verified by protectedAction wrapper
+        const username = session.user?.githubUsername ?? "unknown";
 
         try {
-            // Determine location before deletion
+            // Determine location and schedule name before deletion
             const [scheduleRow] = await db
-                .select({ pickup_location_id: pickupLocationSchedules.pickup_location_id })
+                .select({
+                    pickup_location_id: pickupLocationSchedules.pickup_location_id,
+                    name: pickupLocationSchedules.name,
+                })
                 .from(pickupLocationSchedules)
                 .where(eq(pickupLocationSchedules.id, scheduleId))
                 .limit(1);
 
-            // Delete the schedule (cascade will delete related days)
-            await db
-                .delete(pickupLocationSchedules)
-                .where(eq(pickupLocationSchedules.id, scheduleId));
+            // Audit log + delete in a single transaction for atomicity
+            await db.transaction(async tx => {
+                if (scheduleRow) {
+                    await tx.insert(scheduleAuditLog).values({
+                        schedule_id: scheduleId,
+                        pickup_location_id: scheduleRow.pickup_location_id,
+                        action: "deleted",
+                        changed_by: username,
+                        changes_summary: `Deleted schedule "${scheduleRow.name}"`,
+                    });
+                }
+
+                // Delete the schedule (cascade will delete related days)
+                await tx
+                    .delete(pickupLocationSchedules)
+                    .where(eq(pickupLocationSchedules.id, scheduleId));
+            });
 
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
@@ -506,13 +577,12 @@ export const deleteSchedule = protectedAgreementAction(
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
 
-            // Recompute outside-hours count for this location after schedule deletion
+            // Recompute outside-hours count with fresh data
             try {
                 if (scheduleRow?.pickup_location_id) {
-                    const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                    const { recomputeOutsideHoursCount } =
                         await import("@/app/[locale]/schedule/actions");
                     await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
-                    await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
                 }
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule delete", e, {

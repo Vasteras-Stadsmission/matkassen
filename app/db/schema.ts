@@ -182,6 +182,10 @@ export const pickupLocationSchedules = pgTable(
         start_date: date("start_date").notNull(), // First day the schedule is valid
         end_date: date("end_date").notNull(), // Last day the schedule is valid
         name: text("name").notNull(), // Optional name for the schedule (e.g., "Summer schedule")
+        created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        created_by: varchar("created_by", { length: 50 }), // GitHub username of user who created schedule
+        updated_at: timestamp({ precision: 1, withTimezone: true }), // Last time the schedule was modified
+        updated_by: varchar("updated_by", { length: 50 }), // GitHub username of user who last modified schedule
     },
     table => [
         // Ensure end_date is after or equal to start_date
@@ -218,6 +222,29 @@ export const pickupLocationScheduleDays = pgTable(
             "opening_hours_check",
             sql`NOT ${table.is_open} OR (${table.opening_time} IS NOT NULL AND ${table.closing_time} IS NOT NULL AND ${table.opening_time} < ${table.closing_time})`,
         ),
+    ],
+);
+
+// Audit log for schedule changes — preserves history after deletion
+export const scheduleAuditLog = pgTable(
+    "schedule_audit_log",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        schedule_id: text("schedule_id"), // Plain text, not FK — preserves history after deletion
+        pickup_location_id: text("pickup_location_id")
+            .notNull()
+            .references(() => pickupLocations.id, { onDelete: "cascade" }),
+        action: text("action").notNull(), // 'created' | 'updated' | 'deleted'
+        changed_by: varchar("changed_by", { length: 50 }).notNull(), // GitHub username from session
+        changed_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        changes_summary: text("changes_summary"), // Human-readable diff (e.g. "Wednesday: 13:00-14:00 → 13:30-14:00")
+    },
+    table => [
+        index("idx_schedule_audit_log_location").on(table.pickup_location_id),
+        index("idx_schedule_audit_log_schedule").on(table.schedule_id),
     ],
 );
 

@@ -164,6 +164,7 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
                 onUpdateSchedule={handleUpdateSchedule}
                 onDeleteSchedule={handleDeleteSchedule}
                 locationId={location.id}
+                slotDurationMinutes={location.default_slot_duration_minutes}
             />
         </Stack>
     );

@@ -13,6 +13,7 @@ import {
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
     Box,
+    Checkbox,
     Grid,
     Group,
     Modal,
@@ -25,10 +26,11 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
-import { IconArrowBackUp, IconCheck, IconInfoCircle } from "@tabler/icons-react";
+import { IconArrowBackUp, IconCheck, IconInfoCircle, IconAlertTriangle } from "@tabler/icons-react";
 import TimeSlotCell from "./TimeSlotCell";
 import PickupCard from "./PickupCard";
 import ReschedulePickupModal from "./ReschedulePickupModal";
+import BulkRescheduleModal from "./BulkRescheduleModal";
 import { FoodParcel, type LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 import {
     updateFoodParcelScheduleAction,
@@ -165,6 +167,11 @@ export default function WeeklyScheduleGrid({
     // Add loading state for schedule data
     const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(true);
 
+    // State for bulk reschedule
+    const [selectedOutsideHoursIds, setSelectedOutsideHoursIds] = useState<Set<string>>(new Set());
+    const [bulkRescheduleOpened, { open: openBulkReschedule, close: closeBulkReschedule }] =
+        useDisclosure(false);
+
     // Derived list of parcels that are outside opening hours for the current week
     const outsideHoursParcels = useMemo(() => {
         if (!locationSchedules) return [] as FoodParcel[];
@@ -194,6 +201,31 @@ export default function WeeklyScheduleGrid({
             return weekParcels.find(p => p.id === filtered.id)!;
         });
     }, [foodParcels, locationSchedules, weekDates]);
+
+    // Auto-select all outside-hours parcels, and prune stale selections
+    useEffect(() => {
+        const currentIds = new Set(outsideHoursParcels.map(p => p.id));
+        setSelectedOutsideHoursIds(currentIds);
+    }, [outsideHoursParcels]);
+
+    // Detect if any valid time slots exist for rescheduling
+    const hasValidSlots = useMemo(() => {
+        if (!locationSchedules || locationSchedules.schedules.length === 0) return false;
+        for (const schedule of locationSchedules.schedules) {
+            for (const day of schedule.days) {
+                if (day.isOpen && day.openingTime && day.closingTime) {
+                    const slots = generateTimeSlotsBetween(
+                        day.openingTime,
+                        day.closingTime,
+                        slotDuration,
+                        true,
+                    );
+                    if (slots.length > 0) return true;
+                }
+            }
+        }
+        return false;
+    }, [locationSchedules, slotDuration]);
 
     // Fetch the slot duration when locationId changes
     useEffect(() => {
@@ -956,21 +988,132 @@ export default function WeeklyScheduleGrid({
                                         })}
                                     </Alert>
                                     <Paper withBorder radius="sm" p="xs">
+                                        {/* Bulk action toolbar */}
+                                        <Group justify="space-between" mb="xs">
+                                            <Group gap="xs">
+                                                <Checkbox
+                                                    size="xs"
+                                                    checked={
+                                                        selectedOutsideHoursIds.size ===
+                                                            outsideHoursParcels.length &&
+                                                        outsideHoursParcels.length > 0
+                                                    }
+                                                    indeterminate={
+                                                        selectedOutsideHoursIds.size > 0 &&
+                                                        selectedOutsideHoursIds.size <
+                                                            outsideHoursParcels.length
+                                                    }
+                                                    onChange={() => {
+                                                        if (
+                                                            selectedOutsideHoursIds.size ===
+                                                            outsideHoursParcels.length
+                                                        ) {
+                                                            setSelectedOutsideHoursIds(new Set());
+                                                        } else {
+                                                            setSelectedOutsideHoursIds(
+                                                                new Set(
+                                                                    outsideHoursParcels.map(
+                                                                        p => p.id,
+                                                                    ),
+                                                                ),
+                                                            );
+                                                        }
+                                                    }}
+                                                    label={
+                                                        selectedOutsideHoursIds.size ===
+                                                        outsideHoursParcels.length
+                                                            ? t("outsideHours.deselectAll")
+                                                            : t("outsideHours.selectAll")
+                                                    }
+                                                />
+                                            </Group>
+                                            {hasValidSlots ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="filled"
+                                                    disabled={selectedOutsideHoursIds.size === 0}
+                                                    onClick={openBulkReschedule}
+                                                >
+                                                    {t("outsideHours.rescheduleSelected")} (
+                                                    {selectedOutsideHoursIds.size})
+                                                </Button>
+                                            ) : (
+                                                <Alert
+                                                    color="orange"
+                                                    variant="light"
+                                                    icon={<IconAlertTriangle size={14} />}
+                                                    p="xs"
+                                                    style={{ flex: 1, maxWidth: 400 }}
+                                                >
+                                                    <Text size="xs">
+                                                        {t("outsideHours.noValidSlots", {
+                                                            slotMinutes: slotDuration,
+                                                        })}
+                                                    </Text>
+                                                </Alert>
+                                            )}
+                                        </Group>
                                         <Group gap="xs" wrap="wrap">
                                             {outsideHoursParcels.map(parcel => (
                                                 <Box
                                                     key={parcel.id}
-                                                    style={{ width: "120px", flexShrink: 0 }}
+                                                    style={{
+                                                        width: "120px",
+                                                        flexShrink: 0,
+                                                        position: "relative",
+                                                    }}
                                                 >
+                                                    <Checkbox
+                                                        size="xs"
+                                                        checked={selectedOutsideHoursIds.has(
+                                                            parcel.id,
+                                                        )}
+                                                        onChange={() => {
+                                                            setSelectedOutsideHoursIds(prev => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(parcel.id)) {
+                                                                    next.delete(parcel.id);
+                                                                } else {
+                                                                    next.add(parcel.id);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            position: "absolute",
+                                                            top: 2,
+                                                            left: 2,
+                                                            zIndex: 10,
+                                                        }}
+                                                    />
                                                     <PickupCard
                                                         foodParcel={parcel}
                                                         isCompact={true}
-                                                        onReschedule={handleRescheduleClick}
+                                                        onReschedule={
+                                                            hasValidSlots
+                                                                ? handleRescheduleClick
+                                                                : undefined
+                                                        }
                                                     />
                                                 </Box>
                                             ))}
                                         </Group>
                                     </Paper>
+
+                                    {/* Bulk reschedule modal */}
+                                    <BulkRescheduleModal
+                                        opened={bulkRescheduleOpened}
+                                        onClose={closeBulkReschedule}
+                                        parcelIds={Array.from(selectedOutsideHoursIds)}
+                                        locationId={locationId || ""}
+                                        locationSchedules={locationSchedules}
+                                        onSuccess={() => {
+                                            onParcelRescheduled();
+                                            window.dispatchEvent(
+                                                new CustomEvent("refreshOutsideHoursCount"),
+                                            );
+                                        }}
+                                    />
                                 </Box>
                             )}
 

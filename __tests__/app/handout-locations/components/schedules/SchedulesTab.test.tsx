@@ -92,6 +92,10 @@ describe("SchedulesTab", () => {
         name: "Test Schedule",
         start_date: "2025-01-01",
         end_date: "2025-12-31",
+        created_at: new Date("2025-01-01"),
+        created_by: null,
+        updated_at: null,
+        updated_by: null,
         days: [],
     };
 

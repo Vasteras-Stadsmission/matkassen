@@ -478,7 +478,20 @@
         "parcelsAffectedExplanation": "Dessa matkassar kommer att visas i sektionen 'Utanför öppettider' på schemasidan för enkel ombokning.",
         "proceedAnyway": "Fortsätt ändå",
         "outsideHours": {
-            "panelTitle": "Utanför öppettider ({count})"
+            "panelTitle": "Utanför öppettider ({count})",
+            "rescheduleSelected": "Omboka valda",
+            "selectAll": "Markera alla",
+            "deselectAll": "Avmarkera alla",
+            "bulkRescheduleTitle": "Omboka {count} matkassar",
+            "bulkRescheduleConfirm": "Omboka",
+            "capacityInfo": "{used}/{total} platser upptagna i vald tidslucka",
+            "capacityWarning": "Det finns inte plats för alla valda matkassar i den valda tidsluckan",
+            "bulkRescheduleSuccess": "{count} matkassar ombokade",
+            "noValidSlots": "Tidsluckan är {slotMinutes} min men inga öppettider har tillräckligt lång tid. Ändra öppettiderna eller tidsluckan för att kunna omboka."
+        },
+        "slotDurationWarning": {
+            "tooShort": "Öppettiderna på {day} ({opening}-{closing} = {windowMinutes} min) är kortare än tidsluckan ({slotMinutes} min). Inga nya bokningar kan göras denna dag.",
+            "unevenFit": "Öppettiderna på {day} ({opening}-{closing} = {windowMinutes} min) passar inte jämnt med tidsluckan ({slotMinutes} min)."
         },
         "days": {
             "monday": "Måndag",
@@ -916,6 +929,7 @@
         "nextYear": "Nästa år",
         "previousMonth": "Föregående månad",
         "nextMonth": "Nästa månad",
+        "slotDurationMismatch": "Tidsluckan passar inte med öppettiderna",
         "scheduleOverlapWarning": "Överlappande scheman upptäckta",
         "scheduleOverlapMessage": "Detta schema överlappar med \"{scheduleName}\" ({startDate} till {endDate}). Välj ett annat datumintervall.",
         "weekdaySchedule": "Veckodagsschema",

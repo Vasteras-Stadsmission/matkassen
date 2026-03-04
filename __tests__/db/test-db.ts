@@ -78,6 +78,7 @@ export async function cleanupTestDb() {
             household_members,
             pets,
             households,
+            schedule_audit_log,
             pickup_location_schedule_days,
             pickup_location_schedules,
             pickup_locations,

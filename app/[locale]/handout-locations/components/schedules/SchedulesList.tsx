@@ -31,6 +31,7 @@ interface SchedulesListProps {
     onUpdateSchedule: (id: string, schedule: ScheduleInput) => Promise<void>;
     onDeleteSchedule: (id: string) => Promise<void>;
     locationId: string; // Required to pass to ScheduleForm
+    slotDurationMinutes?: number; // Location's slot duration for validation warnings
 }
 
 export function SchedulesList({
@@ -39,6 +40,7 @@ export function SchedulesList({
     onUpdateSchedule,
     onDeleteSchedule,
     locationId,
+    slotDurationMinutes,
 }: SchedulesListProps) {
     const t = useTranslations("handoutLocations");
     const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] =
@@ -311,6 +313,7 @@ export function SchedulesList({
                     existingSchedules={schedules}
                     onCancel={closeCreateModal}
                     locationId={locationId}
+                    slotDurationMinutes={slotDurationMinutes}
                 />
             </Modal>
 
@@ -393,6 +396,7 @@ export function SchedulesList({
                         scheduleId={currentSchedule.id}
                         onCancel={closeEditModal}
                         locationId={locationId}
+                        slotDurationMinutes={slotDurationMinutes}
                     />
                 )}
             </Modal>
