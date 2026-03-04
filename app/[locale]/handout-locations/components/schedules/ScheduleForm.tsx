@@ -187,15 +187,17 @@ export function ScheduleForm({
             const openMin = toMinutes(day.opening_time);
             const closeMin = toMinutes(day.closing_time);
             const windowMin = closeMin - openMin;
-            if (windowMin <= 0) continue;
+            if (windowMin < 0) continue;
             const dayName = t(`weekdays.${day.weekday}`);
+            const opening = day.opening_time.slice(0, 5);
+            const closing = day.closing_time.slice(0, 5);
             if (windowMin < slotDurationMinutes) {
                 warnings.push({
                     day: day.weekday,
                     message: tSchedule("slotDurationWarning.tooShort", {
                         day: dayName,
-                        opening: day.opening_time,
-                        closing: day.closing_time,
+                        opening,
+                        closing,
                         windowMinutes: String(windowMin),
                         slotMinutes: String(slotDurationMinutes),
                     }),
@@ -205,8 +207,8 @@ export function ScheduleForm({
                     day: day.weekday,
                     message: tSchedule("slotDurationWarning.unevenFit", {
                         day: dayName,
-                        opening: day.opening_time,
-                        closing: day.closing_time,
+                        opening,
+                        closing,
                         windowMinutes: String(windowMin),
                         slotMinutes: String(slotDurationMinutes),
                     }),
