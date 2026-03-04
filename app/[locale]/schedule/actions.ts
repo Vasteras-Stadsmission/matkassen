@@ -36,7 +36,6 @@ import { generateTimeSlotsBetween } from "@/app/utils/date-utils";
 import { Time } from "@/app/utils/time-provider";
 import { getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
-import { revalidatePath } from "next/cache";
 import {
     protectedReadAction,
     protectedAgreementReadAction,
@@ -765,19 +764,6 @@ export const getPickupLocationSchedules = protectedReadAction(
         return fetchPickupLocationSchedules(locationId);
     },
 );
-
-/**
- * Revalidate schedule-related pages after mutations
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const clearLocationSchedulesCache = async (_locationId: string) => {
-    try {
-        revalidatePath(`/schedule`);
-        revalidatePath(`/handout-locations`);
-    } catch (error) {
-        logError("Error revalidating schedule paths", error);
-    }
-};
 
 /**
  * Check if a pickup location is open on a specific date and time
