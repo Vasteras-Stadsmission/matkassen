@@ -87,9 +87,7 @@ test.describe("Settings menu — Users navigation entry", () => {
         await page.goto("/sv");
 
         // Open the settings menu (aria-label is "Inställningsmeny" in Swedish)
-        const settingsButton = page
-            .getByRole("button", { name: "Inställningsmeny" })
-            .first();
+        const settingsButton = page.getByRole("button", { name: "Inställningsmeny" }).first();
         await settingsButton.click();
 
         // The Users link should be visible in the dropdown
@@ -101,9 +99,7 @@ test.describe("Settings menu — Users navigation entry", () => {
     test("clicking the Users menu item navigates to the users page", async ({ page }) => {
         await page.goto("/sv");
 
-        const settingsButton = page
-            .getByRole("button", { name: "Inställningsmeny" })
-            .first();
+        const settingsButton = page.getByRole("button", { name: "Inställningsmeny" }).first();
         await settingsButton.click();
 
         await page.getByRole("menuitem", { name: /användare/i }).click();
