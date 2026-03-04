@@ -1476,6 +1476,15 @@ export const bulkRescheduleParcels = protectedAdminAction(
                 });
             }
 
+            // Reject already-picked-up parcels
+            const pickedUp = parcels.filter(p => p.isPickedUp);
+            if (pickedUp.length > 0) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: `${pickedUp.length} parcel(s) already picked up`,
+                });
+            }
+
             // Verify all parcels belong to the same location
             const locationIds = new Set(parcels.map(p => p.locationId));
             if (locationIds.size !== 1) {
@@ -1487,11 +1496,12 @@ export const bulkRescheduleParcels = protectedAdminAction(
 
             const locationId = parcels[0].locationId;
 
-            // Get location's slot duration
+            // Get location's slot duration and daily capacity
             const [location] = await db
                 .select({
                     slotDuration: pickupLocations.default_slot_duration_minutes,
                     maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
+                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                 })
                 .from(pickupLocations)
                 .where(eq(pickupLocations.id, locationId))
@@ -1501,10 +1511,31 @@ export const bulkRescheduleParcels = protectedAdminAction(
             const endTime = new Date(newTimeslot.startTime);
             endTime.setMinutes(endTime.getMinutes() + slotDurationMinutes);
 
+            // Server-side opening hours validation
+            const schedules = await fetchPickupLocationSchedules(locationId);
+            if (schedules) {
+                const isOutside = isParcelOutsideOpeningHours(
+                    {
+                        id: "bulk-check",
+                        pickupEarliestTime: newTimeslot.startTime,
+                        pickupLatestTime: endTime,
+                        isPickedUp: false,
+                    },
+                    schedules,
+                    { onError: "return-true" },
+                );
+                if (isOutside) {
+                    return failure({
+                        code: "VALIDATION_ERROR",
+                        message: "Target time is outside opening hours",
+                    });
+                }
+            }
+
             // Capacity check + update in a single transaction to prevent race conditions
             await db.transaction(async tx => {
+                // Slot capacity check
                 if (location?.maxParcelsPerSlot != null) {
-                    // Count existing parcels in target slot, excluding the ones being moved
                     const existingInSlot = await tx
                         .select({ count: count() })
                         .from(foodParcels)
@@ -1514,7 +1545,6 @@ export const bulkRescheduleParcels = protectedAdminAction(
                                 eq(foodParcels.pickup_date_time_earliest, newTimeslot.startTime),
                                 eq(foodParcels.pickup_date_time_latest, endTime),
                                 notDeleted(),
-                                // Exclude the parcels being moved (they may already be in a different slot)
                                 sql`${foodParcels.id} NOT IN (${sql.join(
                                     parcelIds.map(id => sql`${id}`),
                                     sql`, `,
@@ -1527,6 +1557,36 @@ export const bulkRescheduleParcels = protectedAdminAction(
                         throw new Error(
                             `CAPACITY_EXCEEDED:${existingCount}:${location.maxParcelsPerSlot}`,
                         );
+                    }
+                }
+
+                // Daily capacity check
+                if (location?.maxParcelsPerDay != null) {
+                    const targetDate = newTimeslot.startTime;
+                    const dayStart = new Date(targetDate);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(targetDate);
+                    dayEnd.setHours(23, 59, 59, 999);
+
+                    const existingOnDay = await tx
+                        .select({ count: count() })
+                        .from(foodParcels)
+                        .where(
+                            and(
+                                eq(foodParcels.pickup_location_id, locationId),
+                                gte(foodParcels.pickup_date_time_earliest, dayStart),
+                                lte(foodParcels.pickup_date_time_earliest, dayEnd),
+                                notDeleted(),
+                                sql`${foodParcels.id} NOT IN (${sql.join(
+                                    parcelIds.map(id => sql`${id}`),
+                                    sql`, `,
+                                )})`,
+                            ),
+                        );
+
+                    const dailyCount = existingOnDay[0]?.count ?? 0;
+                    if (dailyCount + parcelIds.length > location.maxParcelsPerDay) {
+                        throw new Error("DAILY_CAPACITY_EXCEEDED");
                     }
                 }
 
@@ -1548,6 +1608,17 @@ export const bulkRescheduleParcels = protectedAdminAction(
                 });
             }
 
+            // Queue pickup_updated SMS for each parcel (non-fatal)
+            try {
+                const { queuePickupUpdatedSms } = await import("@/app/utils/sms/sms-service");
+                await Promise.allSettled(parcelIds.map(id => queuePickupUpdatedSms(id)));
+            } catch (e) {
+                logError("Failed to queue pickup_updated SMS after bulk reschedule", e, {
+                    locationId,
+                    parcelCount: parcelIds.length,
+                });
+            }
+
             return success({ count: parcelIds.length });
         } catch (error) {
             // Handle capacity exceeded from transaction
@@ -1555,6 +1626,12 @@ export const bulkRescheduleParcels = protectedAdminAction(
                 return failure({
                     code: "CAPACITY_EXCEEDED",
                     message: "Slot capacity would be exceeded",
+                });
+            }
+            if (error instanceof Error && error.message === "DAILY_CAPACITY_EXCEEDED") {
+                return failure({
+                    code: "CAPACITY_EXCEEDED",
+                    message: "Daily capacity would be exceeded",
                 });
             }
             logError("Error in bulk reschedule", error, { parcelIds });

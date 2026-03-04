@@ -111,7 +111,8 @@ export default function BulkRescheduleModal({
                 setError(t("reschedule.noTimesAvailable"));
             }
         }
-    }, [selectedDate, locationSchedules, t, selectedTime, slotDuration]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedTime excluded: we SET it inside this effect
+    }, [selectedDate, locationSchedules, t, slotDuration]);
 
     // Reset form when modal opens
     useEffect(() => {
