@@ -23,6 +23,7 @@ describe("/api/admin/parcel/[parcelId]/details", () => {
                 user: {
                     name: "test-admin",
                 },
+                expires: new Date(Date.now() + 86400_000).toISOString(),
             },
         });
     });

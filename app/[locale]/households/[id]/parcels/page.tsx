@@ -22,7 +22,7 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
 
     if (!result.success) {
         return (
-            <AgreementProtection>
+            <AgreementProtection adminOnly>
                 <Alert
                     icon={<IconAlertCircle size="1rem" />}
                     title={t("title")}
@@ -42,7 +42,7 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
     const warningData = await shouldShowParcelWarning(householdId);
 
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <ParcelManagementClient
                 householdId={householdId}
                 householdName={householdName}

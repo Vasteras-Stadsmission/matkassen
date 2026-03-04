@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import { checkGitHubOrgEligibility } from "./app/utils/auth/org-eligibility";
 import { logger } from "./app/utils/logger";
 import { SESSION_COOKIE_NAME } from "./app/utils/auth/session-cookie";
@@ -47,7 +48,8 @@ const authConfig: NextAuthConfig = {
     callbacks: {
         authorized: async ({ auth }) => {
             // Used by Auth.js middleware patterns. Main gating is enforced in route handlers/pages.
-            return !!auth?.user && (auth.user as any).orgEligibility?.ok === true;
+            // Cast through our augmented Session["user"] type instead of `any` to keep it narrow.
+            return !!auth?.user && (auth.user as Session["user"]).orgEligibility?.ok === true;
         },
         async signIn({ account, profile }) {
             if (account?.provider === "github") {
@@ -124,12 +126,10 @@ const authConfig: NextAuthConfig = {
             }
 
             if (account?.provider === "github" && typeof account?.access_token === "string") {
-                (token as any).githubAccessToken = account.access_token;
+                token.githubAccessToken = account.access_token;
             }
 
-            const existingEligibility = (token as any).orgEligibility as
-                | { ok: boolean; checkedAt: number; nextCheckAt: number; status: string }
-                | undefined;
+            const existingEligibility = token.orgEligibility;
 
             const shouldRecheck =
                 !existingEligibility ||
@@ -137,7 +137,7 @@ const authConfig: NextAuthConfig = {
                 Date.now() >= existingEligibility.nextCheckAt;
 
             if (shouldRecheck) {
-                const accessToken = (token as any).githubAccessToken as string | undefined;
+                const accessToken = token.githubAccessToken as string | undefined;
                 const organization = process.env.GITHUB_ORG ?? "";
 
                 const fresh = await checkGitHubOrgEligibility({
@@ -152,13 +152,47 @@ const authConfig: NextAuthConfig = {
                     existingEligibility?.ok === true &&
                     Date.now() - existingEligibility.checkedAt < ELIGIBILITY_GRACE_MS
                 ) {
-                    (token as any).orgEligibility = {
+                    token.orgEligibility = {
                         ...existingEligibility,
                         nextCheckAt: Date.now() + 2 * 60 * 1000,
                     };
                 } else {
-                    (token as any).orgEligibility = fresh;
+                    token.orgEligibility = fresh;
                 }
+            }
+
+            // Re-check role every 5 minutes from DB.
+            // On DB failure, preserve existing role so admins aren't silently downgraded.
+            const now = Date.now();
+            const roleNextCheckAt = token.roleNextCheckAt ?? 0;
+            if (!token.role || now >= roleNextCheckAt) {
+                const githubUsername = token.githubUsername as string | undefined;
+                if (githubUsername) {
+                    try {
+                        const { db } = await import("./app/db/drizzle");
+                        const { users } = await import("./app/db/schema");
+                        const { eq } = await import("drizzle-orm");
+                        const row = await db
+                            .select({ role: users.role })
+                            .from(users)
+                            .where(eq(users.github_username, githubUsername))
+                            .limit(1)
+                            .then(rows => rows[0]);
+                        // row may be undefined on first login (signIn callback upserts user first,
+                        // but jwt callback may race). Fall back to handout_staff; next check will resolve.
+                        token.role = row?.role ?? "handout_staff";
+                    } catch (err) {
+                        logger.warn(
+                            { err, githubUsername },
+                            "Failed to load role from DB; preserving existing",
+                        );
+                        token.role = token.role ?? "handout_staff";
+                    }
+                } else {
+                    // Token fields missing — preserve existing role rather than downgrading.
+                    token.role = token.role ?? "handout_staff";
+                }
+                token.roleNextCheckAt = now + 5 * 60 * 1000;
             }
 
             return token;
@@ -168,7 +202,8 @@ const authConfig: NextAuthConfig = {
             if (token.githubUsername) {
                 session.user.githubUsername = token.githubUsername;
             }
-            (session.user as any).orgEligibility = (token as any).orgEligibility;
+            session.user.orgEligibility = token.orgEligibility;
+            session.user.role = token.role;
             return session;
         },
         // Redirect callback: Handle deep links and callbackUrls after authentication

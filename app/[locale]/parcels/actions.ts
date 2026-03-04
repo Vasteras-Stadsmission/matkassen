@@ -4,7 +4,7 @@ import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, households } from "@/app/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
-import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAction as protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { formatCancellationSms } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";

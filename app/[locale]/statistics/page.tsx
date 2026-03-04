@@ -3,7 +3,7 @@ import { StatisticsClient } from "./components/StatisticsClient";
 
 export default async function StatisticsPage() {
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <StatisticsClient />
         </AgreementProtection>
     );

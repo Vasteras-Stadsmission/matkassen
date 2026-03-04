@@ -8,7 +8,7 @@ import { logError } from "@/app/utils/logger";
 export async function GET() {
     const authResult = await authenticateAdminRequest();
     if (!authResult.success) {
-        return authResult.response!;
+        return authResult.response;
     }
 
     try {

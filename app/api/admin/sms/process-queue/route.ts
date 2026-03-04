@@ -12,7 +12,7 @@ export async function POST() {
             config: SMS_RATE_LIMITS.QUEUE_PROCESSING,
         });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         // Manually trigger SMS JIT processing via unified scheduler

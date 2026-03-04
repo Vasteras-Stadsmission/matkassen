@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter, usePathname } from "@/app/i18n/navigation";
+import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import {
     Container,
@@ -73,6 +74,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const router = useRouter();
     const pathname = usePathname();
     const t = useTranslations("schedule") as TranslationFunction;
+    const { data: session, status } = useSession();
+    const isAdmin = status !== "loading" && session?.user?.role === "admin";
 
     // State
     const [parcels, setParcels] = useState<TodayParcel[]>([]);
@@ -439,20 +442,22 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                             {t("todayTab")}
                                         </Text>
                                     </Tabs.Tab>
-                                    <Tabs.Tab
-                                        value="weekly"
-                                        leftSection={<IconCalendar size={12} />}
-                                        onClick={() =>
-                                            router.push(`/schedule/${locationSlug}/weekly`)
-                                        }
-                                    >
-                                        <Text size="xs" hiddenFrom="sm">
-                                            {t("weeklyTab")}
-                                        </Text>
-                                        <Text size="sm" visibleFrom="sm">
-                                            {t("weeklyTab")}
-                                        </Text>
-                                    </Tabs.Tab>
+                                    {isAdmin && (
+                                        <Tabs.Tab
+                                            value="weekly"
+                                            leftSection={<IconCalendar size={12} />}
+                                            onClick={() =>
+                                                router.push(`/schedule/${locationSlug}/weekly`)
+                                            }
+                                        >
+                                            <Text size="xs" hiddenFrom="sm">
+                                                {t("weeklyTab")}
+                                            </Text>
+                                            <Text size="sm" visibleFrom="sm">
+                                                {t("weeklyTab")}
+                                            </Text>
+                                        </Tabs.Tab>
+                                    )}
                                 </Tabs.List>
                             </Tabs>
                             {totalParcels > 0 && (

@@ -4,15 +4,19 @@
  */
 
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { checkRateLimit, getSmsRateLimitKey } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
 
-export interface AuthResult {
-    success: boolean;
-    response?: NextResponse;
-    session?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-}
+/**
+ * Discriminated union: when success=true the session is guaranteed present;
+ * when success=false the response is guaranteed present. Callers can drop
+ * non-null assertions on both fields.
+ */
+export type AuthResult =
+    | { success: true; session: Session }
+    | { success: false; response: NextResponse };
 
 interface RateLimitConfig {
     maxRequests: number;
@@ -22,12 +26,16 @@ interface RateLimitConfig {
 /**
  * Comprehensive authentication check for admin API endpoints
  * Verifies both session and organization membership
+ * When adminOnly=true (default), also rejects handout_staff users with 403
  */
-export async function authenticateAdminRequest(rateLimitConfig?: {
-    endpoint: string;
-    config: RateLimitConfig;
-    identifier?: string;
-}): Promise<AuthResult> {
+export async function authenticateAdminRequest(
+    rateLimitConfig?: {
+        endpoint: string;
+        config: RateLimitConfig;
+        identifier?: string;
+    },
+    options: { adminOnly?: boolean } = { adminOnly: true },
+): Promise<AuthResult> {
     try {
         // Check basic authentication
         const session = await auth();
@@ -55,6 +63,13 @@ export async function authenticateAdminRequest(rateLimitConfig?: {
             return {
                 success: false,
                 response: NextResponse.json({ error: "Access denied" }, { status: statusCode }),
+            };
+        }
+
+        if ((options.adminOnly ?? true) && session.user.role !== "admin") {
+            return {
+                success: false,
+                response: NextResponse.json({ error: "Admin access required" }, { status: 403 }),
             };
         }
 

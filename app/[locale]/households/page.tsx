@@ -11,7 +11,7 @@ export default async function HouseholdsPage() {
     const households = await getHouseholds();
 
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <Container size="xl" py="xl">
                 <Title order={2} mb="xs">
                     {t("title")}

@@ -19,7 +19,7 @@ export default async function LocationWeeklyPage({ params }: Props) {
     const { locationSlug } = await params;
 
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <WeeklySchedulePage locationSlug={locationSlug} />
         </AgreementProtection>
     );

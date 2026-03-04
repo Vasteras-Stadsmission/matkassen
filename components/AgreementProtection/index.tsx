@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { auth } from "@/auth";
 import { redirect } from "@/app/i18n/navigation";
 import { stripLocalePrefix } from "@/app/i18n/routing";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { Container } from "@mantine/core";
 import {
@@ -14,12 +14,14 @@ import {
 interface AgreementProtectionProps {
     children: ReactNode;
     unauthorized?: ReactNode;
+    adminOnly?: boolean;
 }
 
 /**
  * A server component that protects content behind both authentication AND agreement acceptance
  * Renders the unauthorized content if the user is not authenticated
  * Redirects to /agreement if the user hasn't accepted the current agreement
+ * When adminOnly=true, renders access-denied if the user has the handout_staff role
  * Works alongside the middleware protection for defense in depth
  */
 export async function AgreementProtection({
@@ -31,11 +33,23 @@ export async function AgreementProtection({
             </div>
         </Container>
     ),
+    adminOnly = false,
 }: AgreementProtectionProps) {
     const session = await auth();
 
     if (!session) {
         return unauthorized;
+    }
+
+    if (adminOnly && session.user?.role !== "admin") {
+        const t = await getTranslations("auth.accessDenied");
+        return (
+            <Container size="xl" py="xl">
+                <div className="flex justify-center items-center h-[calc(100vh-180px)]">
+                    <p className="text-xl font-medium">{t("title")}</p>
+                </div>
+            </Container>
+        );
     }
 
     // Check if there's a current agreement that needs to be accepted

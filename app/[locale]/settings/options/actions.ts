@@ -1,6 +1,6 @@
 "use server";
 
-import { protectedAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAction as protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
 import {

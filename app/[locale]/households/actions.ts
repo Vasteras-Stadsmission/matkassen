@@ -19,7 +19,7 @@ import {
 import { asc, desc, eq, and, isNull } from "drizzle-orm";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
-import { protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 
@@ -314,7 +314,7 @@ export async function getHouseholdDetails(householdId: string) {
 }
 
 // Function to add a comment to a household
-export const addHouseholdComment = protectedAgreementAction(
+export const addHouseholdComment = protectedAdminAction(
     async (
         session,
         householdId: string,
@@ -380,7 +380,7 @@ export const addHouseholdComment = protectedAgreementAction(
 );
 
 // Function to delete a comment
-export const deleteHouseholdComment = protectedAgreementAction(
+export const deleteHouseholdComment = protectedAdminAction(
     async (session, commentId: string): Promise<ActionResult<boolean>> => {
         try {
             // Auth already verified by protectedAction wrapper

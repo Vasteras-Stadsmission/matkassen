@@ -17,7 +17,7 @@ export async function GET() {
     try {
         const authResult = await authenticateAdminRequest();
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         // Run balance check and failure status check in parallel

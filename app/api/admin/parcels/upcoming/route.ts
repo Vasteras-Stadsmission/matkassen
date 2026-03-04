@@ -11,7 +11,7 @@ export async function GET(request: Request) {
         // Validate authentication and organization membership
         const authResult = await authenticateAdminRequest();
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         // Parse query parameters

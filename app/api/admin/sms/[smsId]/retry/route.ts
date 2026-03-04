@@ -59,7 +59,7 @@ export async function POST(
             identifier: smsId,
         });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         // Fetch the original SMS
@@ -220,7 +220,7 @@ export async function POST(
                 .update(outgoingSms)
                 .set({
                     dismissed_at: now,
-                    dismissed_by_user_id: authResult.session!.user.githubUsername,
+                    dismissed_by_user_id: authResult.session.user.githubUsername,
                 })
                 .where(and(eq(outgoingSms.id, smsId!), isNull(outgoingSms.dismissed_at)))
                 .returning({ id: outgoingSms.id });
@@ -254,7 +254,7 @@ export async function POST(
                 householdId: originalSms.householdId,
                 parcelId: originalSms.parcelId,
                 intent: originalSms.intent,
-                triggeredBy: authResult.session!.user.githubUsername,
+                triggeredBy: authResult.session.user.githubUsername,
             },
             "SMS retry queued",
         );

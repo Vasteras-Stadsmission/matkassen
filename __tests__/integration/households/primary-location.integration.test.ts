@@ -26,9 +26,9 @@ import { getTestDb } from "../../db/test-db";
 import { households, pickupLocations } from "@/app/db/schema";
 
 // Mock auth to always succeed - we're testing DB behavior, not auth
-type MockSession = { user: { githubUsername: string; name: string } };
+type MockSession = { user: { githubUsername: string; name: string; role: "admin" } };
 const mockSession: MockSession = {
-    user: { githubUsername: "test-user", name: "Test User" },
+    user: { githubUsername: "test-user", name: "Test User", role: "admin" },
 };
 
 vi.mock("@/app/utils/auth/protected-action", () => ({
@@ -47,7 +47,23 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
             return fn(mockSession, ...args);
         };
     },
+    protectedAdminAction: (fn: (...args: unknown[]) => unknown) => {
+        return async (...args: unknown[]) => {
+            return fn(mockSession, ...args);
+        };
+    },
     protectedAgreementHouseholdAction: (fn: (...args: unknown[]) => unknown) => {
+        return async (householdId: string, ...args: unknown[]) => {
+            const db = await getTestDb();
+            const [household] = await db
+                .select()
+                .from(households)
+                .where(eq(households.id, householdId))
+                .limit(1);
+            return fn(mockSession, household, ...args);
+        };
+    },
+    protectedAdminHouseholdAction: (fn: (...args: unknown[]) => unknown) => {
         return async (householdId: string, ...args: unknown[]) => {
             const db = await getTestDb();
             const [household] = await db

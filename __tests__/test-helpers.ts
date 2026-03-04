@@ -24,6 +24,7 @@ export function createMockSession(options?: {
                 checkedAt: 1,
                 nextCheckAt: Number.MAX_SAFE_INTEGER,
             },
+            role: "admin" as const,
             name: options?.name ?? options?.githubUsername ?? "testuser",
             email: options?.email ?? "test@example.com",
             image: options?.image ?? null,

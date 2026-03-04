@@ -48,7 +48,7 @@ describe("API Authentication", () => {
 
             const result = await authenticateAdminRequest();
 
-            expect(result.success).toBe(true);
+            if (!result.success) throw new Error("Expected success");
             expect(result.session).toEqual(mockSession);
         });
 
@@ -66,8 +66,8 @@ describe("API Authentication", () => {
 
             const result = await authenticateAdminRequest();
 
-            expect(result.success).toBe(false);
-            expect(result.response?.status).toBe(401);
+            if (result.success) throw new Error("Expected failure");
+            expect(result.response.status).toBe(401);
         });
 
         it("should return 403 when organization eligibility is missing", async () => {
@@ -79,8 +79,8 @@ describe("API Authentication", () => {
 
             const result = await authenticateAdminRequest();
 
-            expect(result.success).toBe(false);
-            expect(result.response?.status).toBe(403);
+            if (result.success) throw new Error("Expected failure");
+            expect(result.response.status).toBe(403);
         });
 
         it("should return 403 when organization eligibility is not ok", async () => {
@@ -97,8 +97,8 @@ describe("API Authentication", () => {
 
             const result = await authenticateAdminRequest();
 
-            expect(result.success).toBe(false);
-            expect(result.response?.status).toBe(403);
+            if (result.success) throw new Error("Expected failure");
+            expect(result.response.status).toBe(403);
         });
 
         it("should return 500 for configuration errors", async () => {
@@ -115,8 +115,8 @@ describe("API Authentication", () => {
 
             const result = await authenticateAdminRequest();
 
-            expect(result.success).toBe(false);
-            expect(result.response?.status).toBe(500);
+            if (result.success) throw new Error("Expected failure");
+            expect(result.response.status).toBe(500);
         });
 
         it("should work with users who have no display name", async () => {

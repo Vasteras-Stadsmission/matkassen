@@ -18,13 +18,13 @@ export async function POST() {
             config: { maxRequests: 3, windowMs: 5 * 60 * 1000 },
         });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const requeuedCount = await requeueBalanceFailures();
 
         logger.info(
-            { requeuedCount, triggeredBy: authResult.session!.user.githubUsername },
+            { requeuedCount, triggeredBy: authResult.session.user.githubUsername },
             "Admin triggered balance-failure SMS retry",
         );
 

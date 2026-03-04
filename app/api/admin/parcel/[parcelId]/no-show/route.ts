@@ -16,9 +16,9 @@ export async function PATCH(
 
     try {
         // Validate authentication
-        const authResult = await authenticateAdminRequest();
+        const authResult = await authenticateAdminRequest(undefined, { adminOnly: false });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         const now = Time.now().toUTC();
@@ -81,14 +81,14 @@ export async function PATCH(
             .update(foodParcels)
             .set({
                 no_show_at: now,
-                no_show_by_user_id: authResult.session!.user.githubUsername,
+                no_show_by_user_id: authResult.session.user.githubUsername,
             })
             .where(eq(foodParcels.id, parcelId));
 
         return NextResponse.json({
             success: true,
             noShowAt: now.toISOString(),
-            noShowBy: authResult.session!.user.githubUsername,
+            noShowBy: authResult.session.user.githubUsername,
             message: "Parcel marked as no-show",
         });
     } catch (error) {
@@ -110,9 +110,9 @@ export async function DELETE(
 
     try {
         // Validate authentication
-        const authResult = await authenticateAdminRequest();
+        const authResult = await authenticateAdminRequest(undefined, { adminOnly: false });
         if (!authResult.success) {
-            return authResult.response!;
+            return authResult.response;
         }
 
         // Update the parcel to clear no-show status - only if:

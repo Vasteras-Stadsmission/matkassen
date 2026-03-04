@@ -47,7 +47,7 @@ vi.mock("@/app/utils/auth/server-action-auth", () => ({
     verifyServerActionAuth: vi.fn(() =>
         Promise.resolve({
             success: true,
-            data: { user: { githubUsername: ADMIN_USERNAME } },
+            data: { user: { githubUsername: ADMIN_USERNAME, role: "admin" } },
         }),
     ),
     verifyHouseholdAccess: vi.fn((householdId: string) =>

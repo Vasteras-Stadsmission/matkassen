@@ -19,7 +19,7 @@ export default async function HandoutLocationsPage() {
     const locations = result.data;
 
     return (
-        <AgreementProtection>
+        <AgreementProtection adminOnly>
             <HandoutLocationsPageLayout>
                 <Suspense
                     fallback={

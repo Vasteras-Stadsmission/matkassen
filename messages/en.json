@@ -1500,6 +1500,29 @@
             "title": "Default SMS Templates",
             "description": "Customize the text messages sent to households",
             "comingSoon": "Coming Soon..."
+        },
+        "users": "Users",
+        "usersSection": {
+            "title": "User Management",
+            "description": "Manage user roles. Role changes take effect within 5 minutes.",
+            "columns": {
+                "user": "User",
+                "role": "Role"
+            },
+            "roles": {
+                "admin": "Admin",
+                "handout_staff": "Handout Staff"
+            },
+            "notifications": {
+                "success": "Success",
+                "error": "Error",
+                "roleUpdated": "Role updated"
+            },
+            "errors": {
+                "cannotChangeSelfRole": "You cannot change your own role",
+                "cannotDemoteLastAdmin": "Cannot demote the last admin — at least one admin must remain",
+                "updateFailed": "Failed to update role, please try again"
+            }
         }
     },
     "parcelWarning": {

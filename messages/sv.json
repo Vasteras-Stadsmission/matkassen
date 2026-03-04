@@ -1500,6 +1500,29 @@
             "title": "Standard SMS-mallar",
             "description": "Anpassa textmeddelanden som skickas till hushåll",
             "comingSoon": "Kommer snart..."
+        },
+        "users": "Användare",
+        "usersSection": {
+            "title": "Användarhantering",
+            "description": "Hantera användarroller. Rolländringar träder i kraft inom 5 minuter.",
+            "columns": {
+                "user": "Användare",
+                "role": "Roll"
+            },
+            "roles": {
+                "admin": "Administratör",
+                "handout_staff": "Utlämningspersonal"
+            },
+            "notifications": {
+                "success": "Klart",
+                "error": "Fel",
+                "roleUpdated": "Roll uppdaterad"
+            },
+            "errors": {
+                "cannotChangeSelfRole": "Du kan inte ändra din egen roll",
+                "cannotDemoteLastAdmin": "Kan inte nedgradera den sista administratören — minst en administratör måste finnas kvar",
+                "updateFailed": "Det gick inte att uppdatera rollen, försök igen"
+            }
         }
     },
     "parcelWarning": {

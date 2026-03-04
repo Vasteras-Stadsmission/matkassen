@@ -4,7 +4,7 @@ import {
     type AuthSession,
     type HouseholdData,
 } from "./server-action-auth";
-import { type ActionResult, failure } from "./action-result";
+import { type ActionResult, failure, authError } from "./action-result";
 import { logger } from "@/app/utils/logger";
 import {
     getCurrentAgreement,
@@ -98,6 +98,85 @@ export function protectedAction<T extends any[], R>(
         );
 
         return action(authResult.data, ...args);
+    };
+}
+
+/**
+ * Like protectedAction but also requires the user to have the admin role.
+ * Use this for actions that should only be accessible to admins, not handout staff.
+ * Returns FORBIDDEN for authenticated handout_staff users.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedAdminAction<T extends any[], R>(
+    action: (session: AuthSession, ...args: T) => Promise<ActionResult<R>>,
+): (...args: T) => Promise<ActionResult<R>> {
+    return async (...args: T): Promise<ActionResult<R>> => {
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            return authResult;
+        }
+
+        if (authResult.data.user?.role !== "admin") {
+            return authError("Admin access required", "FORBIDDEN");
+        }
+
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                action: action.name || "anonymous",
+                type: "protected_admin_action",
+            },
+            "Protected admin action executed",
+        );
+
+        return action(authResult.data, ...args);
+    };
+}
+
+/**
+ * Like protectedAdminAction but also verifies household access.
+ * Use this for admin-only household mutations.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
+    action: (
+        session: AuthSession,
+        household: HouseholdData,
+        ...args: T extends [string, ...infer Rest] ? Rest : never
+    ) => Promise<ActionResult<R>>,
+): (...args: T) => Promise<ActionResult<R>> {
+    return async (...args: T): Promise<ActionResult<R>> => {
+        const [householdId, ...restArgs] = args;
+
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            return authResult;
+        }
+
+        if (authResult.data.user?.role !== "admin") {
+            return authError("Admin access required", "FORBIDDEN");
+        }
+
+        const householdResult = await verifyHouseholdAccess(householdId as string);
+
+        if (!householdResult.success) {
+            return householdResult;
+        }
+
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                householdId: householdResult.data.id,
+                action: action.name || "anonymous",
+                type: "protected_admin_household_action",
+            },
+            "Protected admin household action executed",
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return action(authResult.data, householdResult.data, ...(restArgs as any));
     };
 }
 
