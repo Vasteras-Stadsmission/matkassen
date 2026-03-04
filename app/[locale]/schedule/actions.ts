@@ -36,8 +36,7 @@ import { generateTimeSlotsBetween } from "@/app/utils/date-utils";
 import { Time } from "@/app/utils/time-provider";
 import { getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
-import { unstable_cache } from "next/cache";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import {
     protectedReadAction,
     protectedAgreementReadAction,
@@ -763,39 +762,19 @@ export async function validateParcelAssignments(
  */
 export const getPickupLocationSchedules = protectedReadAction(
     async (_session, locationId: string): Promise<LocationScheduleInfo> => {
-        // Create a cached function that will fetch the schedules
-        const cachedFetchSchedules = unstable_cache(
-            () => fetchPickupLocationSchedules(locationId),
-            // Use a key that includes the location ID for better caching
-            [`pickup-location-schedules-${locationId}`],
-            {
-                // Cache results for 1 minute (60 seconds) to reduce staleness
-                revalidate: 60,
-                // Add tags for more precise cache invalidation
-                tags: [`location-schedules`, `location-schedules-${locationId}`],
-            },
-        );
-
-        // IMPORTANT: We need to invoke the cached function, not just return it
-        return cachedFetchSchedules();
+        return fetchPickupLocationSchedules(locationId);
     },
 );
 
 /**
- * Clear the cache for a specific location's schedules
- * Call this when schedules are updated to ensure fresh data
+ * Revalidate schedule-related pages after mutations
  */
-export const clearLocationSchedulesCache = async (locationId: string) => {
+export const clearLocationSchedulesCache = async (_locationId: string) => {
     try {
-        // Use revalidateTag for more precise cache invalidation
-        revalidateTag(`location-schedules-${locationId}`);
-        revalidateTag(`location-schedules`);
-
-        // Also revalidate the relevant pages
         revalidatePath(`/schedule`);
         revalidatePath(`/handout-locations`);
     } catch (error) {
-        logError("Error clearing cache for location", error, { locationId });
+        logError("Error revalidating schedule paths", error);
     }
 };
 
