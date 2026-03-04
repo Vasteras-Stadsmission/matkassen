@@ -349,11 +349,10 @@ export const createSchedule = protectedAgreementAction(
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
 
-            // Recompute outside-hours count AFTER clearing cache to use fresh data
+            // Recompute outside-hours count after schedule change
             try {
-                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                const { recomputeOutsideHoursCount } =
                     await import("@/app/[locale]/schedule/actions");
-                await clearLocationSchedulesCache(locationId);
                 await recomputeOutsideHoursCount(locationId);
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule create", e, {
@@ -510,11 +509,10 @@ export const updateSchedule = protectedAgreementAction(
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
 
-            // Recompute outside-hours count AFTER clearing cache to use fresh data
+            // Recompute outside-hours count with fresh data
             try {
-                const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                const { recomputeOutsideHoursCount } =
                     await import("@/app/[locale]/schedule/actions");
-                await clearLocationSchedulesCache(locationId);
                 await recomputeOutsideHoursCount(locationId);
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule update", e, {
@@ -579,12 +577,11 @@ export const deleteSchedule = protectedAgreementAction(
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
 
-            // Recompute outside-hours count AFTER clearing cache to use fresh data
+            // Recompute outside-hours count with fresh data
             try {
                 if (scheduleRow?.pickup_location_id) {
-                    const { recomputeOutsideHoursCount, clearLocationSchedulesCache } =
+                    const { recomputeOutsideHoursCount } =
                         await import("@/app/[locale]/schedule/actions");
-                    await clearLocationSchedulesCache(scheduleRow.pickup_location_id);
                     await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
                 }
             } catch (e) {
