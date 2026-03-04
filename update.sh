@@ -270,10 +270,12 @@ if [ $? -ne 0 ]; then
 fi
 
 # Run migrations from within the container (stable, reliable approach)
+# Timeout matches other deployment steps — prevents a hung migration (e.g. lock wait)
+# from keeping nginx down indefinitely.
 echo "Running database migrations..."
-sudo docker compose exec -T web pnpm run db:migrate
+timeout 300 sudo docker compose exec -T web pnpm run db:migrate
 if [ $? -ne 0 ]; then
-  echo "❌ Migration failed. See error messages above."
+  echo "❌ Migration failed or timed out. See error messages above."
   sudo docker compose logs web
   exit 1
 else
