@@ -769,6 +769,7 @@ export const getPickupLocationSchedules = protectedReadAction(
 /**
  * Revalidate schedule-related pages after mutations
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const clearLocationSchedulesCache = async (_locationId: string) => {
     try {
         revalidatePath(`/schedule`);
