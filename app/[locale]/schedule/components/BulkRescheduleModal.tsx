@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Modal, Button, Group, Text, Select, Stack, Alert } from "@mantine/core";
+import { Modal, Button, Group, Select, Stack, Alert } from "@mantine/core";
 import { IconCalendar, IconClock, IconCheck, IconAlertTriangle } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
 import { useTranslations } from "next-intl";
