@@ -6,7 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { FoodParcel } from "@/app/[locale]/schedule/types";
 import { IconCalendarTime, IconInfoCircle } from "@tabler/icons-react";
 import styles from "./PickupCard.module.css"; // Import the CSS module
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { memo, useMemo } from "react";
 
 interface PickupCardProps {
@@ -23,6 +23,7 @@ function PickupCard({
     onOpenAdminDialog,
 }: PickupCardProps) {
     const t = useTranslations("schedule");
+    const locale = useLocale();
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: foodParcel.id,
         data: {
@@ -60,11 +61,25 @@ function PickupCard({
             });
         };
 
+        // Format date as weekday + date, e.g. "Måndag 2026-03-10" / "Monday 2026-03-10"
+        const dateLocale = locale === "sv" ? "sv-SE" : "en-US";
+        const weekday = foodParcel.pickupEarliestTime.toLocaleDateString(dateLocale, {
+            weekday: "long",
+        });
+        const dateStr = foodParcel.pickupEarliestTime.toLocaleDateString("sv-SE", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        });
+        const capitalizedWeekday =
+            weekday.charAt(0).toLocaleUpperCase(dateLocale) + weekday.slice(1);
+
         return {
             earliest: formatTime(foodParcel.pickupEarliestTime),
             latest: formatTime(foodParcel.pickupLatestTime),
+            date: `${capitalizedWeekday} ${dateStr}`,
         };
-    }, [foodParcel.pickupEarliestTime, foodParcel.pickupLatestTime]);
+    }, [foodParcel.pickupEarliestTime, foodParcel.pickupLatestTime, locale]);
 
     // Handle click to open reschedule modal
     const handleRescheduleClick = (e: React.MouseEvent) => {
@@ -91,6 +106,7 @@ function PickupCard({
     const tooltipContent = (
         <div>
             <Text fw={600}>{foodParcel.householdName}</Text>
+            <Text size="sm">{timeDisplay.date}</Text>
             <Text size="sm">
                 {t("pickupTimeLabel")}: {timeDisplay.earliest} - {timeDisplay.latest}
             </Text>

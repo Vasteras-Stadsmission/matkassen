@@ -6,8 +6,9 @@ import {
     getLocationSlotDuration,
     recomputeOutsideHoursCount,
     bulkRescheduleParcels,
+    getOutsideHoursParcelsForLocation,
 } from "./actions";
-import type { LocationScheduleInfo } from "./types";
+import type { FoodParcel, LocationScheduleInfo } from "./types";
 import { logError } from "@/app/utils/logger";
 
 /**
@@ -107,6 +108,18 @@ export async function bulkRescheduleParcelsAction(
             errorCode: "UNKNOWN_ERROR",
             error: error instanceof Error ? error.message : undefined,
         };
+    }
+}
+
+/**
+ * Client wrapper for getting all future outside-hours parcels for a location
+ */
+export async function getOutsideHoursParcelsAction(locationId: string): Promise<FoodParcel[]> {
+    try {
+        return await getOutsideHoursParcelsForLocation(locationId);
+    } catch (error) {
+        logError("Error fetching outside-hours parcels", error, { locationId });
+        return [];
     }
 }
 
