@@ -256,10 +256,33 @@ if ! timeout 60 bash -c '
     exit 1
 fi
 
-# Note: No additional sleep needed here - containers only use port 3000, never 80/443
-# Health checks above already ensured containers are fully ready
+# Run migrations before opening nginx to public traffic.
+# Containers are healthy at this point (web health check passes with SELECT 1),
+# but nginx is still down so no public requests can reach the new code yet.
+# This ensures the schema is always up to date before any user traffic arrives.
+echo "Waiting for database to be ready..."
+cd "$APP_DIR"
+timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
+if [ $? -ne 0 ]; then
+  echo "❌ Database did not become ready within 60 seconds."
+  sudo docker compose logs db
+  exit 1
+fi
 
-# Now start nginx after Docker is fully up (with retry logic)
+# Run migrations from within the container (stable, reliable approach)
+# Timeout matches other deployment steps — prevents a hung migration (e.g. lock wait)
+# from keeping nginx down indefinitely.
+echo "Running database migrations..."
+timeout 300 sudo docker compose exec -T web pnpm run db:migrate
+if [ $? -ne 0 ]; then
+  echo "❌ Migration failed or timed out. See error messages above."
+  sudo docker compose logs web
+  exit 1
+else
+  echo "✅ Database migrations completed successfully."
+fi
+
+# Now start nginx — schema is up to date, safe to accept public traffic
 echo "Starting nginx..."
 NGINX_START_ATTEMPTS=0
 MAX_NGINX_ATTEMPTS=3
@@ -290,27 +313,6 @@ while [ $NGINX_START_ATTEMPTS -lt $MAX_NGINX_ATTEMPTS ]; do
         fi
     fi
 done
-
-# Run migrations directly rather than waiting for the migration container
-echo "Waiting for database to be ready..."
-cd "$APP_DIR"
-timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
-if [ $? -ne 0 ]; then
-  echo "❌ Database did not become ready within 60 seconds."
-  sudo docker compose logs db
-  exit 1
-fi
-
-# Run migrations from within the container (stable, reliable approach)
-echo "Running database migrations..."
-sudo docker compose exec -T web pnpm run db:migrate
-if [ $? -ne 0 ]; then
-  echo "❌ Migration failed. See error messages above."
-  sudo docker compose logs web
-  exit 1
-else
-  echo "✅ Database migrations completed successfully."
-fi
 
 # Cleanup old Docker images and containers (but keep recent build cache)
 echo "Cleaning up old Docker resources..."
