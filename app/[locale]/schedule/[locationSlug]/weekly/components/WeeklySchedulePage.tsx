@@ -164,8 +164,6 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
 
                     // Load parcels for this location and week
                     await loadFoodParcels(location.id, dates);
-                    // Load all future outside-hours parcels (independent of week)
-                    await loadOutsideHoursParcels(location.id);
                 }
             } catch {
                 // Error boundary will handle display
@@ -184,7 +182,14 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         return () => {
             isMounted = false;
         };
-    }, [locationSlug, currentDate, loadFoodParcels, loadOutsideHoursParcels]);
+    }, [locationSlug, currentDate, loadFoodParcels]);
+
+    // Fetch outside-hours parcels when location changes (independent of week navigation)
+    useEffect(() => {
+        if (currentLocation) {
+            loadOutsideHoursParcels(currentLocation.id);
+        }
+    }, [currentLocation, loadOutsideHoursParcels]);
 
     // Navigation functions
     const goToToday = useCallback(() => {

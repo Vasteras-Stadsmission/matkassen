@@ -206,10 +206,15 @@ export default function WeeklyScheduleGrid({
         setSelectedOutsideHoursIds(currentIds);
     }, [outsideHoursParcels]);
 
-    // Detect if any valid time slots exist for rescheduling
+    // Detect if any valid future time slots exist for rescheduling
     const hasValidSlots = useMemo(() => {
         if (!locationSchedules || locationSchedules.schedules.length === 0) return false;
+        const today = new Date();
         for (const schedule of locationSchedules.schedules) {
+            // Skip schedules that have already ended
+            const endDate = new Date(schedule.endDate);
+            if (endDate < today) continue;
+
             for (const day of schedule.days) {
                 if (day.isOpen && day.openingTime && day.closingTime) {
                     const slots = generateTimeSlotsBetween(
