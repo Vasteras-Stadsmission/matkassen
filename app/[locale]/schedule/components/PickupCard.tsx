@@ -60,9 +60,21 @@ function PickupCard({
             });
         };
 
+        // Format date as weekday + date, e.g. "Måndag 2026-03-10"
+        const weekday = foodParcel.pickupEarliestTime.toLocaleDateString("sv-SE", {
+            weekday: "long",
+        });
+        const dateStr = foodParcel.pickupEarliestTime.toLocaleDateString("sv-SE", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        });
+        const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+
         return {
             earliest: formatTime(foodParcel.pickupEarliestTime),
             latest: formatTime(foodParcel.pickupLatestTime),
+            date: `${capitalizedWeekday} ${dateStr}`,
         };
     }, [foodParcel.pickupEarliestTime, foodParcel.pickupLatestTime]);
 
@@ -91,6 +103,7 @@ function PickupCard({
     const tooltipContent = (
         <div>
             <Text fw={600}>{foodParcel.householdName}</Text>
+            <Text size="sm">{timeDisplay.date}</Text>
             <Text size="sm">
                 {t("pickupTimeLabel")}: {timeDisplay.earliest} - {timeDisplay.latest}
             </Text>

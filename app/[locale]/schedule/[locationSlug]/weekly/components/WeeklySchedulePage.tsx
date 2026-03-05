@@ -28,6 +28,7 @@ import {
     IconExclamationCircle,
 } from "@tabler/icons-react";
 import { getFoodParcelsForWeek, getPickupLocations } from "../../../actions";
+import { getOutsideHoursParcelsAction } from "../../../client-actions";
 import { findLocationBySlug } from "../../../utils/location-slugs";
 import WeeklyScheduleGrid from "../../../components/WeeklyScheduleGrid";
 import { getISOWeekNumber, getWeekDates } from "../../../../../utils/date-utils";
@@ -56,6 +57,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
 
     // State for food parcels
     const [foodParcels, setFoodParcels] = useState<FoodParcel[]>([]);
+    const [outsideHoursParcels, setOutsideHoursParcels] = useState<FoodParcel[]>([]);
     const lastParcelsRequestRef = useRef<string | null>(null);
 
     // Loading states
@@ -110,6 +112,16 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         [],
     );
 
+    // Load all future outside-hours parcels for a location
+    const loadOutsideHoursParcels = useCallback(async (locationId: string) => {
+        try {
+            const parcels = await getOutsideHoursParcelsAction(locationId);
+            setOutsideHoursParcels(parcels);
+        } catch {
+            setOutsideHoursParcels([]);
+        }
+    }, []);
+
     // Initialize location and dates
     useEffect(() => {
         let isMounted = true;
@@ -152,6 +164,8 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
 
                     // Load parcels for this location and week
                     await loadFoodParcels(location.id, dates);
+                    // Load all future outside-hours parcels (independent of week)
+                    await loadOutsideHoursParcels(location.id);
                 }
             } catch {
                 // Error boundary will handle display
@@ -170,7 +184,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         return () => {
             isMounted = false;
         };
-    }, [locationSlug, currentDate, loadFoodParcels]);
+    }, [locationSlug, currentDate, loadFoodParcels, loadOutsideHoursParcels]);
 
     // Navigation functions
     const goToToday = useCallback(() => {
@@ -208,8 +222,9 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
     const handleParcelRescheduled = useCallback(() => {
         if (currentLocation) {
             loadFoodParcels(currentLocation.id, weekDates, { force: true });
+            loadOutsideHoursParcels(currentLocation.id);
         }
-    }, [currentLocation, weekDates, loadFoodParcels]);
+    }, [currentLocation, weekDates, loadFoodParcels, loadOutsideHoursParcels]);
 
     // Admin dialog handlers
     const closeAdminDialog = useCallback(() => {
@@ -356,6 +371,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                         <WeeklyScheduleGrid
                             weekDates={weekDates}
                             foodParcels={foodParcels}
+                            outsideHoursParcels={outsideHoursParcels}
                             maxParcelsPerDay={getMaxParcelsPerDay()}
                             maxParcelsPerSlot={getMaxParcelsPerSlot()}
                             onParcelRescheduled={handleParcelRescheduled}

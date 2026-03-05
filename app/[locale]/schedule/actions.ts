@@ -1349,6 +1349,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
     const now = Time.now();
 
     // Get all future, active parcels for this location
+    const primaryLocation = alias(pickupLocations, "primary_location");
     let parcels;
     try {
         parcels = await db
@@ -1360,9 +1361,16 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
                 pickupEarliestTime: foodParcels.pickup_date_time_earliest,
                 pickupLatestTime: foodParcels.pickup_date_time_latest,
                 isPickedUp: foodParcels.is_picked_up,
+                primaryPickupLocationId: households.primary_pickup_location_id,
+                primaryPickupLocationName: primaryLocation.name,
+                createdBy: households.created_by,
             })
             .from(foodParcels)
             .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .leftJoin(
+                primaryLocation,
+                eq(households.primary_pickup_location_id, primaryLocation.id),
+            )
             .where(
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
@@ -1419,15 +1427,17 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
 /**
  * Get all future outside-hours parcels for a specific location
  */
-export async function getOutsideHoursParcelsForLocation(locationId: string): Promise<FoodParcel[]> {
-    try {
-        const { outsideParcels } = await identifyOutsideHoursParcels(locationId);
-        return outsideParcels;
-    } catch (error) {
-        logError("Error getting outside hours parcels for location", error, { locationId });
-        return [];
-    }
-}
+export const getOutsideHoursParcelsForLocation = protectedReadAction(
+    async (_session, locationId: string): Promise<FoodParcel[]> => {
+        try {
+            const { outsideParcels } = await identifyOutsideHoursParcels(locationId);
+            return outsideParcels;
+        } catch (error) {
+            logError("Error getting outside hours parcels for location", error, { locationId });
+            return [];
+        }
+    },
+);
 
 /**
  * Get the total count of outside hours parcels across all locations

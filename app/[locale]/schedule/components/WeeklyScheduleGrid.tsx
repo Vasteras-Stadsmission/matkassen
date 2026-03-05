@@ -97,6 +97,7 @@ export function generateDaySpecificTimeSlots(
 interface WeeklyScheduleGridProps {
     weekDates: Date[];
     foodParcels: FoodParcel[];
+    outsideHoursParcels?: FoodParcel[];
     maxParcelsPerDay: number;
     /** Maximum parcels per slot. null = no limit, undefined = use default (3) */
     maxParcelsPerSlot?: number | null;
@@ -108,6 +109,7 @@ interface WeeklyScheduleGridProps {
 export default function WeeklyScheduleGrid({
     weekDates,
     foodParcels,
+    outsideHoursParcels: outsideHoursParcelsProp,
     maxParcelsPerDay,
     maxParcelsPerSlot,
     onParcelRescheduled,
@@ -172,21 +174,20 @@ export default function WeeklyScheduleGrid({
     const [bulkRescheduleOpened, { open: openBulkReschedule, close: closeBulkReschedule }] =
         useDisclosure(false);
 
-    // Derived list of parcels that are outside opening hours for the current week
+    // Use the prop from the parent (all future outside-hours parcels) when available,
+    // otherwise fall back to client-side filtering for the current week
     const outsideHoursParcels = useMemo(() => {
+        if (outsideHoursParcelsProp) return outsideHoursParcelsProp;
+
         if (!locationSchedules) return [] as FoodParcel[];
 
         const now = new Date();
-        // Build a set of week date keys for quick membership test
         const weekKeys = new Set(weekDates.map(d => formatDateToYMD(d)));
-
-        // Filter to only parcels whose pickup date is within this week
         const weekParcels = foodParcels.filter(p => {
             const pickupKey = formatDateToYMD(p.pickupDate);
             return weekKeys.has(pickupKey);
         });
 
-        // Use the utility function to filter for outside-hours parcels
         return filterOutsideHoursParcels(
             weekParcels.map(p => ({
                 id: p.id,
@@ -196,11 +197,8 @@ export default function WeeklyScheduleGrid({
             })),
             locationSchedules,
             now,
-        ).map(filtered => {
-            // Map back to the original FoodParcel objects
-            return weekParcels.find(p => p.id === filtered.id)!;
-        });
-    }, [foodParcels, locationSchedules, weekDates]);
+        ).map(filtered => weekParcels.find(p => p.id === filtered.id)!);
+    }, [outsideHoursParcelsProp, foodParcels, locationSchedules, weekDates]);
 
     // Auto-select all outside-hours parcels, and prune stale selections
     useEffect(() => {
@@ -990,60 +988,66 @@ export default function WeeklyScheduleGrid({
                                     <Paper withBorder radius="sm" p="xs">
                                         {/* Bulk action toolbar */}
                                         <Group justify="space-between" mb="xs">
-                                            <Group gap="xs">
-                                                <Checkbox
-                                                    size="xs"
-                                                    checked={
-                                                        selectedOutsideHoursIds.size ===
-                                                            outsideHoursParcels.length &&
-                                                        outsideHoursParcels.length > 0
-                                                    }
-                                                    indeterminate={
-                                                        selectedOutsideHoursIds.size > 0 &&
-                                                        selectedOutsideHoursIds.size <
-                                                            outsideHoursParcels.length
-                                                    }
-                                                    onChange={() => {
-                                                        if (
-                                                            selectedOutsideHoursIds.size ===
-                                                            outsideHoursParcels.length
-                                                        ) {
-                                                            setSelectedOutsideHoursIds(new Set());
-                                                        } else {
-                                                            setSelectedOutsideHoursIds(
-                                                                new Set(
-                                                                    outsideHoursParcels.map(
-                                                                        p => p.id,
-                                                                    ),
-                                                                ),
-                                                            );
-                                                        }
-                                                    }}
-                                                    label={
-                                                        selectedOutsideHoursIds.size ===
-                                                        outsideHoursParcels.length
-                                                            ? t("outsideHours.deselectAll")
-                                                            : t("outsideHours.selectAll")
-                                                    }
-                                                />
-                                            </Group>
                                             {hasValidSlots ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="filled"
-                                                    disabled={selectedOutsideHoursIds.size === 0}
-                                                    onClick={openBulkReschedule}
-                                                >
-                                                    {t("outsideHours.rescheduleSelected")} (
-                                                    {selectedOutsideHoursIds.size})
-                                                </Button>
+                                                <>
+                                                    <Group gap="xs">
+                                                        <Checkbox
+                                                            size="xs"
+                                                            checked={
+                                                                selectedOutsideHoursIds.size ===
+                                                                    outsideHoursParcels.length &&
+                                                                outsideHoursParcels.length > 0
+                                                            }
+                                                            indeterminate={
+                                                                selectedOutsideHoursIds.size > 0 &&
+                                                                selectedOutsideHoursIds.size <
+                                                                    outsideHoursParcels.length
+                                                            }
+                                                            onChange={() => {
+                                                                if (
+                                                                    selectedOutsideHoursIds.size ===
+                                                                    outsideHoursParcels.length
+                                                                ) {
+                                                                    setSelectedOutsideHoursIds(
+                                                                        new Set(),
+                                                                    );
+                                                                } else {
+                                                                    setSelectedOutsideHoursIds(
+                                                                        new Set(
+                                                                            outsideHoursParcels.map(
+                                                                                p => p.id,
+                                                                            ),
+                                                                        ),
+                                                                    );
+                                                                }
+                                                            }}
+                                                            label={
+                                                                selectedOutsideHoursIds.size ===
+                                                                outsideHoursParcels.length
+                                                                    ? t("outsideHours.deselectAll")
+                                                                    : t("outsideHours.selectAll")
+                                                            }
+                                                        />
+                                                    </Group>
+                                                    <Button
+                                                        size="xs"
+                                                        variant="filled"
+                                                        disabled={
+                                                            selectedOutsideHoursIds.size === 0
+                                                        }
+                                                        onClick={openBulkReschedule}
+                                                    >
+                                                        {t("outsideHours.rescheduleSelected")} (
+                                                        {selectedOutsideHoursIds.size})
+                                                    </Button>
+                                                </>
                                             ) : (
                                                 <Alert
                                                     color="orange"
                                                     variant="light"
                                                     icon={<IconAlertTriangle size={14} />}
                                                     p="xs"
-                                                    style={{ flex: 1, maxWidth: 400 }}
+                                                    style={{ flex: 1 }}
                                                 >
                                                     <Text size="xs">
                                                         {t("outsideHours.noValidSlots", {
@@ -1063,29 +1067,31 @@ export default function WeeklyScheduleGrid({
                                                         position: "relative",
                                                     }}
                                                 >
-                                                    <Checkbox
-                                                        size="xs"
-                                                        checked={selectedOutsideHoursIds.has(
-                                                            parcel.id,
-                                                        )}
-                                                        onChange={() => {
-                                                            setSelectedOutsideHoursIds(prev => {
-                                                                const next = new Set(prev);
-                                                                if (next.has(parcel.id)) {
-                                                                    next.delete(parcel.id);
-                                                                } else {
-                                                                    next.add(parcel.id);
-                                                                }
-                                                                return next;
-                                                            });
-                                                        }}
-                                                        style={{
-                                                            position: "absolute",
-                                                            top: 2,
-                                                            left: 2,
-                                                            zIndex: 10,
-                                                        }}
-                                                    />
+                                                    {hasValidSlots && (
+                                                        <Checkbox
+                                                            size="xs"
+                                                            checked={selectedOutsideHoursIds.has(
+                                                                parcel.id,
+                                                            )}
+                                                            onChange={() => {
+                                                                setSelectedOutsideHoursIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(parcel.id)) {
+                                                                        next.delete(parcel.id);
+                                                                    } else {
+                                                                        next.add(parcel.id);
+                                                                    }
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 2,
+                                                                left: 2,
+                                                                zIndex: 10,
+                                                            }}
+                                                        />
+                                                    )}
                                                     <PickupCard
                                                         foodParcel={parcel}
                                                         isCompact={true}
