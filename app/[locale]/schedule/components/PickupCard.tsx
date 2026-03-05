@@ -79,7 +79,7 @@ function PickupCard({
             latest: formatTime(foodParcel.pickupLatestTime),
             date: `${capitalizedWeekday} ${dateStr}`,
         };
-    }, [foodParcel.pickupEarliestTime, foodParcel.pickupLatestTime]);
+    }, [foodParcel.pickupEarliestTime, foodParcel.pickupLatestTime, locale]);
 
     // Handle click to open reschedule modal
     const handleRescheduleClick = (e: React.MouseEvent) => {
