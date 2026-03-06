@@ -3,7 +3,7 @@
 /**
  * Wrapper around fetch that redirects to sign-in on 401.
  *
- * 401 = no session — redirect to sign-in so the user can authenticate.
+ * 401 = no session or stale session (missing orgEligibility) — redirect to sign-in.
  * 403 = authenticated but insufficient role — return as-is so callers can
  *       show an inline access-denied message rather than redirecting to login.
  */

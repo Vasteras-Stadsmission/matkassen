@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import {
     Modal,
     Stack,
@@ -75,6 +76,8 @@ export function ParcelAdminDialog({
 }: ParcelAdminDialogProps) {
     const t = useTranslations() as TranslationFunction;
     const locale = useLocale();
+    const { data: session, status } = useSession();
+    const isAdmin = status !== "loading" && session?.user?.role === "admin";
     const [state, setState] = useState<ParcelDialogState>({
         loading: false,
         error: null,
@@ -823,6 +826,7 @@ export function ParcelAdminDialog({
                                 comments={convertParcelCommentsToComments(data.comments)}
                                 onAddComment={handleAddComment}
                                 onDeleteComment={handleDeleteComment}
+                                canDelete={isAdmin}
                                 entityType="parcel"
                                 isSubmitting={submitting}
                                 placeholder={t("admin.parcelDialog.addCommentPlaceholder")}
@@ -939,8 +943,8 @@ export function ParcelAdminDialog({
                         {/* Actions - hide if cancelled */}
                         {!data.parcel.deletedAt && (
                             <Group justify="space-between">
-                                {/* Cancel button - only show if not picked up and not no-show */}
-                                {!data.parcel.isPickedUp && !data.parcel.noShowAt && (
+                                {/* Cancel button - admin only, only show if not picked up and not no-show */}
+                                {isAdmin && !data.parcel.isPickedUp && !data.parcel.noShowAt && (
                                     <Button
                                         color="red"
                                         variant="subtle"
