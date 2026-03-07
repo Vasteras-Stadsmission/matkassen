@@ -15,8 +15,8 @@ export async function POST(
     { params }: { params: Promise<{ householdId: string }> },
 ) {
     try {
-        // Validate authentication
-        const authResult = await authenticateAdminRequest();
+        // Validate authentication — any org member (admin or handout_staff) may add comments
+        const authResult = await authenticateAdminRequest(undefined, { adminOnly: false });
         if (!authResult.success) {
             return authResult.response;
         }

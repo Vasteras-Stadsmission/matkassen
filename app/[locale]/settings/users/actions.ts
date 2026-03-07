@@ -86,7 +86,16 @@ export const updateUserRole = protectedAdminAction(
                     }
                 }
 
-                await tx.update(users).set({ role }).where(eq(users.id, userId));
+                const updated = await tx
+                    .update(users)
+                    .set({ role })
+                    .where(eq(users.id, userId))
+                    .returning({ id: users.id });
+                if (updated.length === 0) {
+                    throw Object.assign(new Error("User not found"), {
+                        code: "USER_NOT_FOUND",
+                    });
+                }
             });
 
             revalidateUsersPage();
@@ -100,6 +109,12 @@ export const updateUserRole = protectedAdminAction(
                     code: "CANNOT_DEMOTE_LAST_ADMIN",
                     message: "Cannot demote the last admin",
                 });
+            }
+            if (
+                error instanceof Error &&
+                (error as Error & { code?: string }).code === "USER_NOT_FOUND"
+            ) {
+                return failure({ code: "USER_NOT_FOUND", message: "User not found" });
             }
             logError("Error updating user role", error);
             return failure({ code: "UPDATE_FAILED", message: "Failed to update user role" });

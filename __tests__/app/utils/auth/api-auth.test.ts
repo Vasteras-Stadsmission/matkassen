@@ -70,7 +70,7 @@ describe("API Authentication", () => {
             expect(result.response.status).toBe(401);
         });
 
-        it("should return 403 when organization eligibility is missing", async () => {
+        it("should return 401 when organization eligibility is missing (stale session)", async () => {
             const { authenticateAdminRequest } = await import("@/app/utils/auth/api-auth");
 
             const mockSession = createMockSession();
@@ -80,7 +80,8 @@ describe("API Authentication", () => {
             const result = await authenticateAdminRequest();
 
             if (result.success) throw new Error("Expected failure");
-            expect(result.response.status).toBe(403);
+            // Stale session triggers redirect to sign-in, not an access-denied error
+            expect(result.response.status).toBe(401);
         });
 
         it("should return 403 when organization eligibility is not ok", async () => {

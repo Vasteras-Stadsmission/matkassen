@@ -11,6 +11,7 @@ interface CommentSectionProps {
     comments: Comment[];
     onAddComment?: (comment: string) => Promise<Comment | null | undefined>;
     onDeleteComment?: (commentId: string) => Promise<void>;
+    canDelete?: boolean;
     showTitle?: boolean;
     entityType?: "household" | "parcel";
     placeholder?: string;
@@ -21,6 +22,7 @@ export default function CommentSection({
     comments = [],
     onAddComment,
     onDeleteComment,
+    canDelete = true,
     showTitle = true,
     entityType = "household",
     placeholder,
@@ -89,7 +91,7 @@ export default function CommentSection({
                         <CommentHtml
                             key={comment.id || index}
                             comment={comment}
-                            onDelete={comment.id ? handleDeleteComment : undefined}
+                            onDelete={comment.id && canDelete ? handleDeleteComment : undefined}
                         />
                     ))}
                 </Stack>

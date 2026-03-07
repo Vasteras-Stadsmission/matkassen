@@ -49,11 +49,13 @@ export async function authenticateAdminRequest(
         const username = session.user.githubUsername;
         const eligibility = session.user.orgEligibility;
         if (!eligibility) {
+            // Stale session (missing orgEligibility) — user must re-authenticate.
+            // Return 401 so adminFetch redirects to sign-in automatically.
             return {
                 success: false,
                 response: NextResponse.json(
                     { error: "Re-authentication required" },
-                    { status: 403 },
+                    { status: 401 },
                 ),
             };
         }

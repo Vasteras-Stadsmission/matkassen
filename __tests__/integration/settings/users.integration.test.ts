@@ -282,7 +282,7 @@ describe("updateUserRole — edge cases", () => {
         expect(row.role).toBe("admin");
     });
 
-    it("returns success for a non-existent userId (silent no-op)", async () => {
+    it("returns USER_NOT_FOUND for a non-existent userId", async () => {
         // Phantom caller bypasses the self-demotion DB look-up
         callerUsername = "phantom-caller-not-in-db";
         // One admin must exist so the last-admin guard doesn't fire
@@ -291,7 +291,9 @@ describe("updateUserRole — edge cases", () => {
         const nonExistentId = "00000000-0000-0000-0000-000000000000";
         const result = await updateUserRole(nonExistentId, "handout_staff");
 
-        // The UPDATE matches 0 rows, but that's not considered an error
-        expect(result.success).toBe(true);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.code).toBe("USER_NOT_FOUND");
+        }
     });
 });
