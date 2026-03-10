@@ -17,30 +17,46 @@ export interface UserRow {
     role: UserRole;
 }
 
+export interface FormerUserRow extends UserRow {
+    deactivated_at: Date;
+}
+
 function revalidateUsersPage() {
     routing.locales.forEach(locale => {
         revalidatePath(`/${locale}/settings/users`, "page");
     });
 }
 
-export const getUsers = protectedAdminAction(async (): Promise<ActionResult<UserRow[]>> => {
-    try {
-        const rows = await db
-            .select({
-                id: users.id,
-                github_username: users.github_username,
-                display_name: users.display_name,
-                avatar_url: users.avatar_url,
-                role: users.role,
-            })
-            .from(users)
-            .orderBy(users.display_name, users.github_username);
-        return success(rows);
-    } catch (error) {
-        logError("Error fetching users", error);
-        return failure({ code: "FETCH_FAILED", message: "Failed to fetch users" });
-    }
-});
+export const getUsersWithStatus = protectedAdminAction(
+    async (): Promise<ActionResult<{ active: UserRow[]; former: FormerUserRow[] }>> => {
+        try {
+            const rows = await db
+                .select({
+                    id: users.id,
+                    github_username: users.github_username,
+                    display_name: users.display_name,
+                    avatar_url: users.avatar_url,
+                    role: users.role,
+                    deactivated_at: users.deactivated_at,
+                })
+                .from(users)
+                .orderBy(users.display_name, users.github_username);
+
+            const active: UserRow[] = rows
+                .filter(r => r.deactivated_at === null)
+                .map(({ deactivated_at: _, ...rest }) => rest);
+
+            const former: FormerUserRow[] = rows
+                .filter(r => r.deactivated_at !== null)
+                .map(r => ({ ...r, deactivated_at: r.deactivated_at as Date }));
+
+            return success({ active, former });
+        } catch (error) {
+            logError("Error fetching users", error);
+            return failure({ code: "FETCH_FAILED", message: "Failed to fetch users" });
+        }
+    },
+);
 
 export const updateUserRole = protectedAdminAction(
     async (session, userId: string, role: UserRole): Promise<ActionResult<void>> => {

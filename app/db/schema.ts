@@ -545,6 +545,7 @@ export const users = pgTable("users", {
         { onDelete: "set null" },
     ),
     role: userRoleEnum("role").notNull().default("handout_staff"),
+    deactivated_at: timestamp({ precision: 1, withTimezone: true }), // Set when user is removed from GitHub org; cleared on successful sign-in
 });
 
 // User agreements for GDPR compliance (confidentiality commitment / sekretessförbindelse)

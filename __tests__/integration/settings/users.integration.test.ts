@@ -26,12 +26,12 @@ vi.mock("@/app/utils/auth/server-action-auth", () => ({
 }));
 
 type UsersActionsModule = typeof import("@/app/[locale]/settings/users/actions");
-let getUsers: UsersActionsModule["getUsers"];
+let getUsersWithStatus: UsersActionsModule["getUsersWithStatus"];
 let updateUserRole: UsersActionsModule["updateUserRole"];
 
 beforeAll(async () => {
     const mod = await import("@/app/[locale]/settings/users/actions");
-    getUsers = mod.getUsers;
+    getUsersWithStatus = mod.getUsersWithStatus;
     updateUserRole = mod.updateUserRole;
 });
 
@@ -46,10 +46,10 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("role-based access control", () => {
-    it("getUsers — rejects handout_staff callers with FORBIDDEN", async () => {
+    it("getUsersWithStatus — rejects handout_staff callers with FORBIDDEN", async () => {
         callerRole = "handout_staff";
 
-        const result = await getUsers();
+        const result = await getUsersWithStatus();
 
         expect(result.success).toBe(false);
         if (!result.success) {
@@ -79,19 +79,19 @@ describe("role-based access control", () => {
 });
 
 // ---------------------------------------------------------------------------
-// getUsers — data integrity
+// getUsersWithStatus — data integrity
 // ---------------------------------------------------------------------------
 
-describe("getUsers", () => {
-    it("returns all users", async () => {
+describe("getUsersWithStatus", () => {
+    it("returns active users", async () => {
         const user = await createTestUser({ github_username: "listed-user" });
 
-        const result = await getUsers();
+        const result = await getUsersWithStatus();
 
         expect(result.success).toBe(true);
         if (!result.success) return;
 
-        const found = result.data.find(u => u.id === user.id);
+        const found = result.data.active.find((u: { id: string }) => u.id === user.id);
         expect(found).toBeDefined();
         expect(found!.github_username).toBe("listed-user");
     });
@@ -104,12 +104,12 @@ describe("getUsers", () => {
             role: "handout_staff",
         });
 
-        const result = await getUsers();
+        const result = await getUsersWithStatus();
 
         expect(result.success).toBe(true);
         if (!result.success) return;
 
-        const found = result.data.find(u => u.id === created.id);
+        const found = result.data.active.find((u: { id: string }) => u.id === created.id);
         expect(found).toBeDefined();
         expect(found!.github_username).toBe("fields-test-user");
         expect(found!.display_name).toBe("Fields Test");
@@ -123,31 +123,58 @@ describe("getUsers", () => {
             display_name: null,
         });
 
-        const result = await getUsers();
+        const result = await getUsersWithStatus();
 
         expect(result.success).toBe(true);
         if (!result.success) return;
 
-        const found = result.data.find(u => u.id === created.id);
+        const found = result.data.active.find((u: { id: string }) => u.id === created.id);
         expect(found).toBeDefined();
         expect(found!.display_name).toBeNull();
     });
 
-    it("returns users sorted alphabetically by display_name", async () => {
+    it("returns active users sorted alphabetically by display_name", async () => {
         await createTestUser({ github_username: "z-user", display_name: "Zelda" });
         await createTestUser({ github_username: "a-user", display_name: "Alice" });
         await createTestUser({ github_username: "m-user", display_name: "Mike" });
 
-        const result = await getUsers();
+        const result = await getUsersWithStatus();
 
         expect(result.success).toBe(true);
         if (!result.success) return;
 
-        const names = result.data
-            .filter(u => ["Zelda", "Alice", "Mike"].includes(u.display_name ?? ""))
-            .map(u => u.display_name);
+        const names = result.data.active
+            .filter((u: { display_name: string | null }) =>
+                ["Zelda", "Alice", "Mike"].includes(u.display_name ?? ""),
+            )
+            .map((u: { display_name: string | null }) => u.display_name);
 
         expect(names).toEqual(["Alice", "Mike", "Zelda"]);
+    });
+
+    it("separates deactivated users into former list", async () => {
+        const active = await createTestUser({ github_username: "active-user" });
+        const db = await getTestDb();
+        const former = await createTestUser({ github_username: "former-user" });
+        // Mark former user as deactivated
+        await db
+            .update(users)
+            .set({ deactivated_at: new Date("2024-01-01") })
+            .where(eq(users.id, former.id));
+
+        const result = await getUsersWithStatus();
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+
+        const foundActive = result.data.active.find((u: { id: string }) => u.id === active.id);
+        const foundFormer = result.data.former.find((u: { id: string }) => u.id === former.id);
+        const notInActive = result.data.active.find((u: { id: string }) => u.id === former.id);
+
+        expect(foundActive).toBeDefined();
+        expect(foundFormer).toBeDefined();
+        expect(foundFormer!.deactivated_at).toBeInstanceOf(Date);
+        expect(notInActive).toBeUndefined();
     });
 });
 

@@ -1536,6 +1536,11 @@
                 "cannotChangeSelfRole": "Du kan inte ändra din egen roll",
                 "cannotDemoteLastAdmin": "Kan inte nedgradera den sista administratören — minst en administratör måste finnas kvar",
                 "updateFailed": "Det gick inte att uppdatera rollen, försök igen"
+            },
+            "formerStaff": {
+                "title": "Tidigare personal",
+                "description": "Användare som inte längre är med i organisationen.",
+                "deactivatedSince": "Slutade"
             }
         }
     },

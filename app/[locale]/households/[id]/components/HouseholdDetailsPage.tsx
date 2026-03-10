@@ -32,6 +32,7 @@ import {
     IconAlertCircle,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
+import { useSession } from "next-auth/react";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import CommentSection from "@/components/CommentSection";
 import { getHouseholdDetails, addHouseholdComment, deleteHouseholdComment } from "../../actions";
@@ -63,6 +64,8 @@ export default function HouseholdDetailsPage({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { data: session, status: sessionStatus } = useSession();
+    const isAdmin = sessionStatus !== "loading" && session?.user?.role === "admin";
     const t = useTranslations("householdDetail");
     const tNav = useTranslations("navigation");
     const tWeekdays = useTranslations("weekdays");
@@ -388,6 +391,7 @@ export default function HouseholdDetailsPage({
                             comments={householdData.comments || []}
                             onAddComment={handleAddComment}
                             onDeleteComment={handleDeleteComment}
+                            canDelete={isAdmin}
                             showTitle={false}
                             entityType="household"
                         />

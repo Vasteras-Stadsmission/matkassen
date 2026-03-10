@@ -1536,6 +1536,11 @@
                 "cannotChangeSelfRole": "You cannot change your own role",
                 "cannotDemoteLastAdmin": "Cannot demote the last admin — at least one admin must remain",
                 "updateFailed": "Failed to update role, please try again"
+            },
+            "formerStaff": {
+                "title": "Former staff",
+                "description": "Users no longer in the organisation.",
+                "deactivatedSince": "Left"
             }
         }
     },
