@@ -264,6 +264,33 @@ describe("updateUserRole — anti-lockout guards", () => {
         expect(row.role).toBe("admin");
     });
 
+    it("rejects demoting the last active admin even when a deactivated admin exists", async () => {
+        callerUsername = "phantom-caller-not-in-db";
+
+        const active = await createTestUser({
+            github_username: "sole-active-admin",
+            role: "admin",
+        });
+        const db = await getTestDb();
+        // A former admin still has role='admin' but is deactivated — must not count
+        await createTestUser({ github_username: "former-admin", role: "admin" });
+        const [former] = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.github_username, "former-admin"));
+        await db
+            .update(users)
+            .set({ deactivated_at: new Date("2024-01-01") })
+            .where(eq(users.id, former.id));
+
+        const result = await updateUserRole(active.id, "handout_staff");
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.code).toBe("CANNOT_DEMOTE_LAST_ADMIN");
+        }
+    });
+
     it("allows demoting an admin when other admins exist", async () => {
         const caller = await createTestUser({ github_username: "caller-admin", role: "admin" });
         const target = await createTestUser({ github_username: "target-admin", role: "admin" });

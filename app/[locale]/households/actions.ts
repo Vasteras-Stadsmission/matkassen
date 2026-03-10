@@ -22,6 +22,7 @@ import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAdminAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
+import { HOUSEHOLD_ID_REGEX } from "@/app/constants/noshow-settings";
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
@@ -320,6 +321,10 @@ export const addHouseholdComment = protectedAgreementAction(
         householdId: string,
         comment: string,
     ): Promise<ActionResult<Comment | null>> => {
+        if (!HOUSEHOLD_ID_REGEX.test(householdId)) {
+            return failure({ code: "INVALID_INPUT", message: "Invalid household ID" });
+        }
+
         if (!comment.trim()) {
             return success(null);
         }

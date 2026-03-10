@@ -356,14 +356,13 @@ async function runOrgMembershipSync(): Promise<{
         return { deactivated: 0, errors: [] };
     }
 
-    schedulerState.orgSyncInFlight = true;
-    logCron("org-membership-sync", "started", {});
-    schedulerState.lastOrgSyncRun = new Date();
-
     const errors: string[] = [];
     let deactivated = 0;
 
     try {
+        schedulerState.orgSyncInFlight = true;
+        schedulerState.lastOrgSyncRun = new Date();
+
         const { db } = await import("@/app/db/drizzle");
         const { users } = await import("@/app/db/schema");
         const { isNull, eq, and } = await import("drizzle-orm");

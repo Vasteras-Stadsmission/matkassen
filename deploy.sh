@@ -247,6 +247,8 @@ echo "ANONYMIZATION_SCHEDULE=\"${ANONYMIZATION_SCHEDULE:-0 2 * * 0}\"" >> "$APP_
 echo "ANONYMIZATION_INACTIVE_DURATION=\"${ANONYMIZATION_INACTIVE_DURATION:-1 year}\"" >> "$APP_DIR/.env"
 # SMS health report schedule (daily at 8 AM Stockholm time)
 echo "SMS_REPORT_SCHEDULE=\"${SMS_REPORT_SCHEDULE:-0 8 * * *}\"" >> "$APP_DIR/.env"
+# Org membership sync schedule (daily at 3 AM Stockholm time)
+echo "ORG_SYNC_SCHEDULE=\"${ORG_SYNC_SCHEDULE:-0 3 * * *}\"" >> "$APP_DIR/.env"
 # Slack notifications (optional - alerts only sent when ENV_NAME=production)
 if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
   echo "SLACK_BOT_TOKEN=\"${SLACK_BOT_TOKEN}\"" >> "$APP_DIR/.env"
