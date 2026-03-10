@@ -44,7 +44,13 @@ export const getUsersWithStatus = protectedAdminAction(
 
             const active: UserRow[] = rows
                 .filter(r => r.deactivated_at === null)
-                .map(({ deactivated_at: _, ...rest }) => rest);
+                .map(r => ({
+                    id: r.id,
+                    github_username: r.github_username,
+                    display_name: r.display_name,
+                    avatar_url: r.avatar_url,
+                    role: r.role,
+                }));
 
             const former: FormerUserRow[] = rows
                 .filter(r => r.deactivated_at !== null)
