@@ -100,12 +100,18 @@ export const updateUserRole = protectedAdminAction(
                         .where(and(eq(users.role, "admin"), isNull(users.deactivated_at)));
 
                     const targetRows = await tx
-                        .select({ role: users.role })
+                        .select({ role: users.role, deactivated_at: users.deactivated_at })
                         .from(users)
                         .where(eq(users.id, userId))
                         .limit(1);
 
-                    if (targetRows[0]?.role === "admin" && count <= 1) {
+                    // Only guard active admins: a deactivated admin is not in `count`,
+                    // so changing their role cannot remove the last active admin.
+                    if (
+                        targetRows[0]?.role === "admin" &&
+                        targetRows[0]?.deactivated_at === null &&
+                        count <= 1
+                    ) {
                         throw Object.assign(new Error("Cannot demote the last admin"), {
                             code: "CANNOT_DEMOTE_LAST_ADMIN",
                         });

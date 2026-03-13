@@ -381,7 +381,8 @@ async function runOrgMembershipSync(): Promise<{
 
         logCron("org-membership-sync", "started", { totalUsers: activeUsers.length, organization });
 
-        for (const user of activeUsers) {
+        for (let i = 0; i < activeUsers.length; i++) {
+            const user = activeUsers[i];
             try {
                 const isMember = await checkOrganizationMembership(
                     user.github_username,
@@ -415,8 +416,11 @@ async function runOrgMembershipSync(): Promise<{
                 );
             }
 
-            // 1 s delay between API calls to stay within GitHub App rate limits
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // 1 s delay between API calls to stay within GitHub App rate limits.
+            // Skipped after the last user — no subsequent call to throttle.
+            if (i < activeUsers.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
 
         if (errors.length > 0 || deactivated > 0) {
