@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import { createTestUser, resetUserCounter } from "../../factories";
 import { users } from "@/app/db/schema";
@@ -44,6 +44,13 @@ beforeEach(async () => {
         const mod = await import("@/app/utils/scheduler");
         triggerOrgSync = mod.triggerOrgSync;
     }
+});
+
+afterEach(() => {
+    // Reset the scheduler singleton so the in-flight guard doesn't bleed between tests.
+    // Safe to do here because pool: "forks" gives each test file its own process, but
+    // tests within a file share the module registry and globalThis.
+    delete (globalThis as { __matkassenSchedulerState?: unknown }).__matkassenSchedulerState;
 });
 
 // ---------------------------------------------------------------------------
