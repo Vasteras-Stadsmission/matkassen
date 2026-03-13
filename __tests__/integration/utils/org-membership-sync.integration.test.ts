@@ -9,8 +9,10 @@ import { eq, isNotNull } from "drizzle-orm";
 // vi.hoisted() ensures the variables exist before vi.mock() is hoisted.
 // ---------------------------------------------------------------------------
 
-const mockVerifyOrgExists = vi.hoisted(() => vi.fn<[], Promise<void>>());
-const mockCheckMembership = vi.hoisted(() => vi.fn<[string, string], Promise<boolean>>());
+const mockVerifyOrgExists = vi.hoisted(() => vi.fn<() => Promise<void>>());
+const mockCheckMembership = vi.hoisted(() =>
+    vi.fn<(username: string, org: string) => Promise<boolean>>(),
+);
 
 vi.mock("@/app/utils/github-app", () => ({
     verifyOrganizationExists: mockVerifyOrgExists,
