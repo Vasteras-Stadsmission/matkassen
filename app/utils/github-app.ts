@@ -42,7 +42,51 @@ export async function getGitHubAppToken(): Promise<string> {
 }
 
 /**
- * Check if a user is a member of the organization using GitHub App token
+ * Verify that the GitHub organization exists and is accessible via the App token.
+ * @throws Error if the org is not found (404) — indicates GITHUB_ORG misconfiguration.
+ * @throws Error for auth/network issues.
+ *
+ * Call this once before bulk-checking individual members to guard against a
+ * misconfigured GITHUB_ORG causing every member check to return 404 (false),
+ * which would mass-deactivate all users.
+ */
+export async function verifyOrganizationExists(organization: string): Promise<void> {
+    try {
+        const token = await getGitHubAppToken();
+
+        const response = await fetch(`https://api.github.com/orgs/${organization}`, {
+            headers: {
+                "Accept": "application/vnd.github+json",
+                "Authorization": `Bearer ${token}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        });
+
+        if (response.status === 200) {
+            return; // org exists
+        }
+
+        if (response.status === 404) {
+            throw new Error(`GitHub org '${organization}' not found — check GITHUB_ORG env var`);
+        }
+
+        throw new Error(
+            `GitHub API returned unexpected status ${response.status} when verifying org`,
+        );
+    } catch (error) {
+        if (error instanceof Error && error.message.startsWith("GitHub")) {
+            throw error;
+        }
+        logError("Failed to verify GitHub organization existence", error);
+        throw new Error("Unable to verify GitHub organization — please try again");
+    }
+}
+
+/**
+ * Check if a user is a member of the organization using GitHub App token.
+ * Call verifyOrganizationExists() first when checking many users in bulk —
+ * this prevents a misconfigured org name from causing a 404 here to be
+ * misread as "user not a member".
  * @throws Error for configuration/network issues (mapped to Auth.js Configuration error)
  * @returns true if user is a member, false if not a member
  */
@@ -71,7 +115,8 @@ export async function checkOrganizationMembership(
         }
 
         if (response.status === 404) {
-            // User is definitely not a member or org doesn't exist
+            // User is not a member. If called after verifyOrganizationExists(),
+            // the org is known to exist, so this is a definitive non-membership.
             return false;
         }
 

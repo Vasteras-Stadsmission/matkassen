@@ -366,12 +366,18 @@ async function runOrgMembershipSync(): Promise<{
         const { db } = await import("@/app/db/drizzle");
         const { users } = await import("@/app/db/schema");
         const { isNull, eq, and } = await import("drizzle-orm");
-        const { checkOrganizationMembership } = await import("@/app/utils/github-app");
+        const { checkOrganizationMembership, verifyOrganizationExists } =
+            await import("@/app/utils/github-app");
 
         const organization = process.env.GITHUB_ORG ?? "";
         if (!organization) {
             throw new Error("GITHUB_ORG env var is not set — cannot sync org membership");
         }
+
+        // Pre-flight: confirm the org exists before touching any user records.
+        // A misconfigured GITHUB_ORG would otherwise cause every member check
+        // to return false (404), silently deactivating all users.
+        await verifyOrganizationExists(organization);
 
         // Fetch all active (non-deactivated) users
         const activeUsers = await db
