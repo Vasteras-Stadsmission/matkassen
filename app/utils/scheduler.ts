@@ -809,6 +809,34 @@ export async function triggerAnonymization(): Promise<{
 }
 
 /**
+ * Manual trigger for org membership sync (for testing/admin).
+ * Uses the same in-progress guard as the scheduled run.
+ */
+export async function triggerOrgSync(): Promise<{
+    success: boolean;
+    deactivated?: number;
+    errors?: string[];
+    skipped?: boolean;
+    error?: string;
+}> {
+    const alreadyRunning = schedulerState.orgSyncInFlight;
+    try {
+        const result = await runOrgMembershipSync();
+        return {
+            success: true,
+            deactivated: result.deactivated,
+            errors: result.errors,
+            skipped: alreadyRunning,
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+        };
+    }
+}
+
+/**
  * Manual trigger for SMS processing (for testing/admin)
  *
  * Processes both:
