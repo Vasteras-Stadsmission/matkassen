@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { AgreementProtection } from "@/components/AgreementProtection";
 import { UsersManager } from "./components/UsersManager";
-import { getUsers } from "./actions";
+import { getUsersWithStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export default async function UsersSettingsPage() {
         );
     }
 
-    const result = await getUsers();
+    const result = await getUsersWithStatus();
 
     if (!result.success) {
         throw new Error(result.error.message);
@@ -26,7 +26,7 @@ export default async function UsersSettingsPage() {
 
     return (
         <AgreementProtection adminOnly>
-            <UsersManager initialUsers={result.data} />
+            <UsersManager initialActive={result.data.active} initialFormer={result.data.former} />
         </AgreementProtection>
     );
 }

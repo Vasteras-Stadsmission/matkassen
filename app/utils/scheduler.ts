@@ -24,6 +24,7 @@ type SchedulerState = {
     smsInterval: NodeJS.Timeout | null; // Single interval for pure JIT
     anonymizationTask: ScheduledTask | null;
     smsReportTask: ScheduledTask | null; // Daily SMS health report
+    orgSyncTask: ScheduledTask | null; // Daily org membership sync
     healthCheckInterval: NodeJS.Timeout | null;
     lastHealthLog: number;
     hasEverStarted: boolean;
@@ -31,7 +32,10 @@ type SchedulerState = {
     lastAnonymizationStatus: "success" | "error" | null;
     lastSmsReportRun: Date | null;
     lastSmsReportStatus: "success" | "skipped" | "error" | null;
+    lastOrgSyncRun: Date | null;
+    lastOrgSyncStatus: "success" | "error" | null;
     smsProcessingInFlight: boolean; // Prevents concurrent SMS processing
+    orgSyncInFlight: boolean; // Prevents concurrent org sync runs
 };
 
 const GLOBAL_STATE_KEY = "__matkassenSchedulerState";
@@ -47,6 +51,7 @@ function getSchedulerState(): SchedulerState {
             smsInterval: null,
             anonymizationTask: null,
             smsReportTask: null,
+            orgSyncTask: null,
             healthCheckInterval: null,
             lastHealthLog: 0,
             hasEverStarted: false,
@@ -54,7 +59,10 @@ function getSchedulerState(): SchedulerState {
             lastAnonymizationStatus: null,
             lastSmsReportRun: null,
             lastSmsReportStatus: null,
+            lastOrgSyncRun: null,
+            lastOrgSyncStatus: null,
             smsProcessingInFlight: false,
+            orgSyncInFlight: false,
         };
     }
 
@@ -91,6 +99,10 @@ const ANONYMIZATION_INACTIVE_DURATION = process.env.ANONYMIZATION_INACTIVE_DURAT
 // SMS Health Report Configuration (from env vars)
 // Default: 8:00 AM daily in Stockholm timezone
 const SMS_REPORT_SCHEDULE = process.env.SMS_REPORT_SCHEDULE || "0 8 * * *";
+
+// Org Membership Sync Configuration (from env vars)
+// Default: 3:00 AM daily — checks all active users against GitHub org
+const ORG_SYNC_SCHEDULE = process.env.ORG_SYNC_SCHEDULE || "0 3 * * *";
 
 // Timezone for all cron jobs - ensures consistent scheduling regardless of server timezone
 const CRON_TIMEZONE = "Europe/Stockholm";
@@ -327,6 +339,154 @@ async function runSmsHealthReport(): Promise<{
 }
 
 /**
+ * Sync org membership: deactivate users no longer in the GitHub org.
+ *
+ * - Queries all users with deactivated_at IS NULL
+ * - Checks each against GitHub org (1 s delay between calls to stay within rate limits)
+ * - Definitive non-membership (returns false) → sets deactivated_at WHERE still NULL
+ * - API errors (network, auth, rate-limit) → skips user, never deactivates on ambiguity
+ * - Returns { deactivated, errors }
+ */
+async function runOrgMembershipSync(): Promise<{
+    deactivated: number;
+    errors: string[];
+}> {
+    if (schedulerState.orgSyncInFlight) {
+        logger.debug("Org membership sync already in flight, skipping this run");
+        return { deactivated: 0, errors: [] };
+    }
+
+    const errors: string[] = [];
+    let deactivated = 0;
+
+    try {
+        schedulerState.orgSyncInFlight = true;
+        schedulerState.lastOrgSyncRun = new Date();
+
+        const { db } = await import("@/app/db/drizzle");
+        const { users } = await import("@/app/db/schema");
+        const { isNull, eq, and } = await import("drizzle-orm");
+        const { checkOrganizationMembership, verifyOrganizationExists } =
+            await import("@/app/utils/github-app");
+
+        const organization = process.env.GITHUB_ORG ?? "";
+        if (!organization) {
+            throw new Error("GITHUB_ORG env var is not set — cannot sync org membership");
+        }
+
+        // Pre-flight: confirm the org exists before touching any user records.
+        // A misconfigured GITHUB_ORG would otherwise cause every member check
+        // to return false (404), silently deactivating all users.
+        await verifyOrganizationExists(organization);
+
+        // Fetch all active (non-deactivated) users
+        const activeUsers = await db
+            .select({ id: users.id, github_username: users.github_username })
+            .from(users)
+            .where(isNull(users.deactivated_at));
+
+        logCron("org-membership-sync", "started", { totalUsers: activeUsers.length, organization });
+
+        for (let i = 0; i < activeUsers.length; i++) {
+            const user = activeUsers[i];
+            try {
+                const isMember = await checkOrganizationMembership(
+                    user.github_username,
+                    organization,
+                );
+
+                if (!isMember) {
+                    // Definitive non-membership — deactivate, preserving first timestamp
+                    await db
+                        .update(users)
+                        .set({ deactivated_at: new Date() })
+                        .where(
+                            and(
+                                eq(users.github_username, user.github_username),
+                                isNull(users.deactivated_at),
+                            ),
+                        );
+                    deactivated++;
+                    logger.info(
+                        { username: user.github_username },
+                        "User deactivated: no longer in GitHub org",
+                    );
+                }
+            } catch (err) {
+                // API error — skip this user, never deactivate on ambiguous result
+                const errMsg = err instanceof Error ? err.message : String(err);
+                errors.push(`${user.github_username}: ${errMsg}`);
+                logger.warn(
+                    { err, username: user.github_username },
+                    "Skipping user during org sync — API error",
+                );
+            }
+
+            // 1 s delay between API calls to stay within GitHub App rate limits.
+            // Skipped after the last user — no subsequent call to throttle.
+            if (i < activeUsers.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        if (errors.length > 0 || deactivated > 0) {
+            logCron("org-membership-sync", "completed", {
+                deactivated,
+                errors: errors.length,
+            });
+            schedulerState.lastOrgSyncStatus = errors.length > 0 ? "error" : "success";
+
+            // Slack alert in production when anything interesting happened
+            if (process.env.NODE_ENV === "production") {
+                await notifyOrgSyncResult({ deactivated, errors });
+            }
+        } else {
+            logCron("org-membership-sync", "completed", { deactivated: 0, errors: 0 });
+            schedulerState.lastOrgSyncStatus = "success";
+        }
+
+        return { deactivated, errors };
+    } catch (error) {
+        const errMsg = error instanceof Error ? error.message : "Unknown error";
+        logError("Failed to run org membership sync", error);
+        schedulerState.lastOrgSyncStatus = "error";
+        errors.push(errMsg);
+
+        if (process.env.NODE_ENV === "production") {
+            await notifyOrgSyncResult({ deactivated, errors });
+        }
+
+        return { deactivated, errors };
+    } finally {
+        schedulerState.orgSyncInFlight = false;
+    }
+}
+
+async function notifyOrgSyncResult(result: {
+    deactivated: number;
+    errors: string[];
+}): Promise<void> {
+    try {
+        const { sendSlackAlert } = await import("@/app/utils/notifications/slack");
+        await sendSlackAlert({
+            title: result.errors.length > 0 ? "⚠️ Org Membership Sync" : "👤 Org Membership Sync",
+            message: `Deactivated: ${result.deactivated} user(s). Errors: ${result.errors.length}.`,
+            status: result.errors.length > 0 ? "error" : "success",
+            details: {
+                Deactivated: result.deactivated.toString(),
+                Errors: result.errors.length.toString(),
+                ...(result.errors.length > 0 && {
+                    "Error Details": result.errors.slice(0, 5).join("\n"),
+                }),
+                Timestamp: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        logError("Failed to send org sync Slack notification", error);
+    }
+}
+
+/**
  * Start the unified scheduler
  */
 export function startScheduler(): void {
@@ -431,6 +591,30 @@ export function startScheduler(): void {
         );
     }
 
+    // Start org membership sync cron job (daily)
+    try {
+        schedulerState.orgSyncTask = cron.schedule(
+            ORG_SYNC_SCHEDULE,
+            async () => {
+                await runOrgMembershipSync();
+            },
+            { timezone: CRON_TIMEZONE },
+        );
+        logger.info(
+            { schedule: ORG_SYNC_SCHEDULE, timezone: CRON_TIMEZONE },
+            "Org membership sync cron job scheduled",
+        );
+    } catch (error) {
+        logError(
+            "Failed to schedule org membership sync cron job - invalid schedule format.",
+            error,
+            {
+                invalidSchedule: ORG_SYNC_SCHEDULE,
+                expectedFormat: "Cron syntax (e.g., '0 3 * * *' for 3 AM daily)",
+            },
+        );
+    }
+
     // Start health check loop
     schedulerState.healthCheckInterval = setInterval(async () => {
         const now = Date.now();
@@ -510,6 +694,11 @@ export function stopScheduler(): void {
         schedulerState.smsReportTask = null;
     }
 
+    if (schedulerState.orgSyncTask) {
+        schedulerState.orgSyncTask.stop();
+        schedulerState.orgSyncTask = null;
+    }
+
     if (schedulerState.healthCheckInterval) {
         clearInterval(schedulerState.healthCheckInterval);
         schedulerState.healthCheckInterval = null;
@@ -549,15 +738,19 @@ export async function schedulerHealthCheck(): Promise<{
                 smsSchedulerRunning: schedulerState.smsInterval !== null,
                 anonymizationSchedulerRunning,
                 smsReportSchedulerRunning,
+                orgSyncSchedulerRunning: schedulerState.orgSyncTask !== null,
                 smsTestMode: getHelloSmsConfig().testMode,
                 lastAnonymizationRun: schedulerState.lastAnonymizationRun?.toISOString() || "Never",
                 lastAnonymizationStatus: schedulerState.lastAnonymizationStatus,
                 lastSmsReportRun: schedulerState.lastSmsReportRun?.toISOString() || "Never",
                 lastSmsReportStatus: schedulerState.lastSmsReportStatus,
+                lastOrgSyncRun: schedulerState.lastOrgSyncRun?.toISOString() || "Never",
+                lastOrgSyncStatus: schedulerState.lastOrgSyncStatus,
                 // Configuration visibility for debugging
                 anonymizationSchedule: ANONYMIZATION_SCHEDULE,
                 anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
                 smsReportSchedule: SMS_REPORT_SCHEDULE,
+                orgSyncSchedule: ORG_SYNC_SCHEDULE,
                 smsInterval: SMS_INTERVAL,
                 smsMode: "pure JIT",
                 timestamp: new Date().toISOString(),

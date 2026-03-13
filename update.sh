@@ -111,6 +111,8 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
     # SMS health report schedule (daily at 8 AM Stockholm time)
     printf 'SMS_REPORT_SCHEDULE="%s"\n' "${SMS_REPORT_SCHEDULE:-0 8 * * *}"
+    # Org membership sync schedule (daily at 3 AM Stockholm time)
+    printf 'ORG_SYNC_SCHEDULE="%s"\n' "${ORG_SYNC_SCHEDULE:-0 3 * * *}"
     # Slack notifications (optional - alerts only sent when ENV_NAME=production)
     if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
         printf 'SLACK_BOT_TOKEN="%s"\n' "${SLACK_BOT_TOKEN}"

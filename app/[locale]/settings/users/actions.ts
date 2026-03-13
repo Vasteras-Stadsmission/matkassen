@@ -4,7 +4,7 @@ import { protectedAdminAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
 import { users, type UserRole } from "@/app/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
@@ -17,30 +17,52 @@ export interface UserRow {
     role: UserRole;
 }
 
+export interface FormerUserRow extends UserRow {
+    deactivated_at: Date | string; // Date from DB; serialized to ISO string across Next.js Server→Client boundary
+}
+
 function revalidateUsersPage() {
     routing.locales.forEach(locale => {
         revalidatePath(`/${locale}/settings/users`, "page");
     });
 }
 
-export const getUsers = protectedAdminAction(async (): Promise<ActionResult<UserRow[]>> => {
-    try {
-        const rows = await db
-            .select({
-                id: users.id,
-                github_username: users.github_username,
-                display_name: users.display_name,
-                avatar_url: users.avatar_url,
-                role: users.role,
-            })
-            .from(users)
-            .orderBy(users.display_name, users.github_username);
-        return success(rows);
-    } catch (error) {
-        logError("Error fetching users", error);
-        return failure({ code: "FETCH_FAILED", message: "Failed to fetch users" });
-    }
-});
+export const getUsersWithStatus = protectedAdminAction(
+    async (): Promise<ActionResult<{ active: UserRow[]; former: FormerUserRow[] }>> => {
+        try {
+            const rows = await db
+                .select({
+                    id: users.id,
+                    github_username: users.github_username,
+                    display_name: users.display_name,
+                    avatar_url: users.avatar_url,
+                    role: users.role,
+                    deactivated_at: users.deactivated_at,
+                })
+                .from(users)
+                .orderBy(users.display_name, users.github_username);
+
+            const active: UserRow[] = rows
+                .filter(r => r.deactivated_at === null)
+                .map(r => ({
+                    id: r.id,
+                    github_username: r.github_username,
+                    display_name: r.display_name,
+                    avatar_url: r.avatar_url,
+                    role: r.role,
+                }));
+
+            const former: FormerUserRow[] = rows
+                .filter(r => r.deactivated_at !== null)
+                .map(r => ({ ...r, deactivated_at: r.deactivated_at as Date }));
+
+            return success({ active, former });
+        } catch (error) {
+            logError("Error fetching users", error);
+            return failure({ code: "FETCH_FAILED", message: "Failed to fetch users" });
+        }
+    },
+);
 
 export const updateUserRole = protectedAdminAction(
     async (session, userId: string, role: UserRole): Promise<ActionResult<void>> => {
@@ -65,21 +87,31 @@ export const updateUserRole = protectedAdminAction(
             // two concurrent demotions from both passing the count check.
             await db.transaction(async tx => {
                 if (role !== "admin") {
-                    // Lock all admin rows before counting to serialise concurrent demotions
-                    await tx.execute(sql`SELECT id FROM ${users} WHERE role = 'admin' FOR UPDATE`);
+                    // Lock all active admin rows before counting to serialise concurrent demotions.
+                    // Deactivated admins (deactivated_at IS NOT NULL) are excluded — they can't
+                    // act as admins, so they must not count toward the last-admin guard.
+                    await tx.execute(
+                        sql`SELECT id FROM ${users} WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE`,
+                    );
 
                     const [{ count }] = await tx
                         .select({ count: sql<number>`count(*)::int` })
                         .from(users)
-                        .where(eq(users.role, "admin"));
+                        .where(and(eq(users.role, "admin"), isNull(users.deactivated_at)));
 
                     const targetRows = await tx
-                        .select({ role: users.role })
+                        .select({ role: users.role, deactivated_at: users.deactivated_at })
                         .from(users)
                         .where(eq(users.id, userId))
                         .limit(1);
 
-                    if (targetRows[0]?.role === "admin" && count <= 1) {
+                    // Only guard active admins: a deactivated admin is not in `count`,
+                    // so changing their role cannot remove the last active admin.
+                    if (
+                        targetRows[0]?.role === "admin" &&
+                        targetRows[0]?.deactivated_at === null &&
+                        count <= 1
+                    ) {
                         throw Object.assign(new Error("Cannot demote the last admin"), {
                             code: "CANNOT_DEMOTE_LAST_ADMIN",
                         });

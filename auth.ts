@@ -84,6 +84,31 @@ const authConfig: NextAuthConfig = {
                     if (eligibility.status === "configuration_error") {
                         return `/auth/error?error=configuration`;
                     }
+                    // Definitive non-membership: mark user deactivated (preserves first timestamp)
+                    if (
+                        eligibility.status === "not_member" ||
+                        eligibility.status === "membership_inactive"
+                    ) {
+                        try {
+                            const { db } = await import("./app/db/drizzle");
+                            const { users } = await import("./app/db/schema");
+                            const { and, eq, isNull } = await import("drizzle-orm");
+                            await db
+                                .update(users)
+                                .set({ deactivated_at: new Date() })
+                                .where(
+                                    and(
+                                        eq(users.github_username, username),
+                                        isNull(users.deactivated_at),
+                                    ),
+                                );
+                        } catch (err) {
+                            logger.warn(
+                                { err, username },
+                                "Failed to set deactivated_at on failed sign-in",
+                            );
+                        }
+                    }
                     // Redirect to access-denied page with specific reason
                     return `/auth/access-denied?reason=${encodeURIComponent(eligibility.status)}`;
                 }
@@ -106,6 +131,7 @@ const authConfig: NextAuthConfig = {
                             set: {
                                 display_name: githubProfile.name || null,
                                 avatar_url: githubProfile.avatar_url || null,
+                                deactivated_at: null, // Clear on successful sign-in (re-activates returning members)
                             },
                         });
                 } catch (error) {
