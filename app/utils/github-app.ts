@@ -62,7 +62,7 @@ export async function verifyOrganizationExists(organization: string): Promise<vo
             },
         });
 
-        if (response.status === 200) {
+        if (response.ok) {
             return; // org exists
         }
 
