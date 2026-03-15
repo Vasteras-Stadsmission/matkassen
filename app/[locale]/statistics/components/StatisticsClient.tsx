@@ -343,7 +343,9 @@ export function StatisticsClient() {
                                     {t("households.title")}
                                 </Title>
                                 <Text c="dimmed" size="sm" mb="md">
-                                    {t("households.description")}
+                                    {selectedLocationId
+                                        ? t("households.descriptionGlobal")
+                                        : t("households.description")}
                                 </Text>
                                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                                     {stats.households.byLocale.length > 0 && (

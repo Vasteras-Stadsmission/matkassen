@@ -796,10 +796,7 @@ async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promi
     // When filtering by location, join SMS to parcels to filter by parcel's location
     // Not all SMS have a parcel_id (e.g. enrolment), so location filter only applies to parcel-linked SMS
     const smsLocationJoin = locationId
-        ? {
-              join: true as const,
-              filter: eq(foodParcels.pickup_location_id, locationId),
-          }
+        ? { filter: eq(foodParcels.pickup_location_id, locationId) }
         : null;
 
     // Total sent in period
