@@ -1777,6 +1777,11 @@
             },
             "pendingLabel": "Pending (Current)"
         },
+        "locationFilter": {
+            "label": "Filter by location",
+            "allLocations": "All locations",
+            "filtering": "Showing statistics for {location}"
+        },
         "loading": "Loading statistics...",
         "error": "Failed to load statistics",
         "chartLabels": {

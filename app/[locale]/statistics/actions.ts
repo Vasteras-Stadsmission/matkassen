@@ -22,6 +22,12 @@ import { logError } from "@/app/utils/logger";
 import { setToStartOfDay, toStockholmTime } from "@/app/utils/date-utils";
 import { addDays } from "date-fns";
 
+// Location filter type
+export interface LocationOption {
+    id: string;
+    name: string;
+}
+
 // Types
 export interface StatisticsPeriod {
     start: Date;
@@ -151,39 +157,90 @@ const stockholmTodaySQL = sql`(now() AT TIME ZONE 'Europe/Stockholm')::date`;
 // OVERVIEW STATS (internal)
 // ========================
 
-async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats> {
-    // Total active households
-    const [totalResult] = await db
-        .select({ count: count() })
-        .from(households)
-        .where(isNull(households.anonymized_at));
-    const totalHouseholds = totalResult?.count ?? 0;
+async function getOverviewStats(
+    period: StatisticsPeriod,
+    locationId?: string,
+): Promise<OverviewStats> {
+    // Helper: optional location filter for parcel queries
+    const locationFilter = locationId ? eq(foodParcels.pickup_location_id, locationId) : undefined;
 
-    // New households in period
-    const [newResult] = await db
-        .select({ count: count() })
-        .from(households)
-        .where(
-            and(
-                isNull(households.anonymized_at),
-                gte(households.created_at, period.start),
-                lt(households.created_at, period.end),
-            ),
-        );
-    const newHouseholds = newResult?.count ?? 0;
+    // When filtering by location, household counts are scoped to households that have parcels at this location
+    let totalHouseholds: number;
+    let newHouseholds: number;
+    let removedHouseholds: number;
 
-    // Removed households in period (by anonymized_at date)
-    const [removedResult] = await db
-        .select({ count: count() })
-        .from(households)
-        .where(
-            and(
-                isNotNull(households.anonymized_at),
-                gte(households.anonymized_at, period.start),
-                lt(households.anonymized_at, period.end),
-            ),
-        );
-    const removedHouseholds = removedResult?.count ?? 0;
+    if (locationId) {
+        // Unique active households with parcels at this location
+        const [totalResult] = await db
+            .select({ count: sql<number>`count(distinct ${foodParcels.household_id})::int` })
+            .from(foodParcels)
+            .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .where(and(notDeleted(), isNull(households.anonymized_at), locationFilter));
+        totalHouseholds = totalResult?.count ?? 0;
+
+        // New households in period that have parcels at this location
+        const [newResult] = await db
+            .select({ count: sql<number>`count(distinct ${foodParcels.household_id})::int` })
+            .from(foodParcels)
+            .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .where(
+                and(
+                    notDeleted(),
+                    isNull(households.anonymized_at),
+                    gte(households.created_at, period.start),
+                    lt(households.created_at, period.end),
+                    locationFilter,
+                ),
+            );
+        newHouseholds = newResult?.count ?? 0;
+
+        // Removed households in period that had parcels at this location
+        const [removedResult] = await db
+            .select({ count: sql<number>`count(distinct ${foodParcels.household_id})::int` })
+            .from(foodParcels)
+            .innerJoin(households, eq(foodParcels.household_id, households.id))
+            .where(
+                and(
+                    notDeleted(),
+                    isNotNull(households.anonymized_at),
+                    gte(households.anonymized_at, period.start),
+                    lt(households.anonymized_at, period.end),
+                    locationFilter,
+                ),
+            );
+        removedHouseholds = removedResult?.count ?? 0;
+    } else {
+        // Global: original queries
+        const [totalResult] = await db
+            .select({ count: count() })
+            .from(households)
+            .where(isNull(households.anonymized_at));
+        totalHouseholds = totalResult?.count ?? 0;
+
+        const [newResult] = await db
+            .select({ count: count() })
+            .from(households)
+            .where(
+                and(
+                    isNull(households.anonymized_at),
+                    gte(households.created_at, period.start),
+                    lt(households.created_at, period.end),
+                ),
+            );
+        newHouseholds = newResult?.count ?? 0;
+
+        const [removedResult] = await db
+            .select({ count: count() })
+            .from(households)
+            .where(
+                and(
+                    isNotNull(households.anonymized_at),
+                    gte(households.anonymized_at, period.start),
+                    lt(households.anonymized_at, period.end),
+                ),
+            );
+        removedHouseholds = removedResult?.count ?? 0;
+    }
 
     // Parcels in period (by pickup date)
     const [parcelsResult] = await db
@@ -194,6 +251,7 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         );
     const totalParcels = parcelsResult?.count ?? 0;
@@ -208,6 +266,7 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 eq(foodParcels.is_picked_up, true),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         );
     const pickedUpParcels = pickedUpResult?.count ?? 0;
@@ -225,6 +284,7 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
                 // Exclude unresolved handouts: require a resolved outcome (picked up OR no-show)
                 or(eq(foodParcels.is_picked_up, true), isNotNull(foodParcels.no_show_at)),
+                locationFilter,
             ),
         );
     const eligibleResolvedParcels = eligibleResolvedResult?.count ?? 0;
@@ -240,6 +300,7 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
+                locationFilter,
             ),
         );
     const pickedUpEligible = pickedUpEligibleResult?.count ?? 0;
@@ -247,24 +308,45 @@ async function getOverviewStats(period: StatisticsPeriod): Promise<OverviewStats
     const pickupRate =
         eligibleResolvedParcels > 0 ? (pickedUpEligible / eligibleResolvedParcels) * 100 : null;
 
-    // SMS delivery rate
-    const [smsResult] = await db
-        .select({
-            delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
-            confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
-        })
-        .from(outgoingSms)
-        .where(
-            and(
-                eq(outgoingSms.status, "sent"),
-                gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end),
-            ),
-        );
-
-    const smsDelivered = smsResult?.delivered ?? 0;
-    const smsConfirmed = smsResult?.confirmed ?? 0;
-    const smsDeliveryRate = smsConfirmed > 0 ? (smsDelivered / smsConfirmed) * 100 : null;
+    // SMS delivery rate - filter by parcel's location when locationId is set
+    let smsDeliveryRate: number | null;
+    if (locationId) {
+        const [smsResult] = await db
+            .select({
+                delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+            })
+            .from(outgoingSms)
+            .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                    eq(foodParcels.pickup_location_id, locationId),
+                ),
+            );
+        const smsDelivered = smsResult?.delivered ?? 0;
+        const smsConfirmed = smsResult?.confirmed ?? 0;
+        smsDeliveryRate = smsConfirmed > 0 ? (smsDelivered / smsConfirmed) * 100 : null;
+    } else {
+        const [smsResult] = await db
+            .select({
+                delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+            })
+            .from(outgoingSms)
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                ),
+            );
+        const smsDelivered = smsResult?.delivered ?? 0;
+        const smsConfirmed = smsResult?.confirmed ?? 0;
+        smsDeliveryRate = smsConfirmed > 0 ? (smsDelivered / smsConfirmed) * 100 : null;
+    }
 
     return {
         totalHouseholds,
@@ -410,7 +492,12 @@ async function getHouseholdStats(): Promise<HouseholdStats> {
 // PARCEL STATS (internal)
 // ========================
 
-async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
+async function getParcelStats(
+    period: StatisticsPeriod,
+    locationId?: string,
+): Promise<ParcelStats> {
+    const locationFilter = locationId ? eq(foodParcels.pickup_location_id, locationId) : undefined;
+
     // Total active parcels in period
     const [totalResult] = await db
         .select({ count: count() })
@@ -420,6 +507,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         );
     const total = totalResult?.count ?? 0;
@@ -434,6 +522,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 eq(foodParcels.is_picked_up, true),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         );
     const pickedUp = pickedUpResult?.count ?? 0;
@@ -450,6 +539,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL}`,
+                locationFilter,
             ),
         );
     const notPickedUp = notPickedUpResult?.count ?? 0;
@@ -463,32 +553,40 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 isNotNull(foodParcels.deleted_at),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         );
     const cancelled = cancelledResult?.count ?? 0;
 
-    // By location
-    const byLocationResult = await db
-        .select({
-            locationId: pickupLocations.id,
-            locationName: pickupLocations.name,
-            count: sql<number>`count(*)::int`,
-        })
-        .from(foodParcels)
-        .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
-        .where(
-            and(
-                notDeleted(),
-                gte(foodParcels.pickup_date_time_earliest, period.start),
-                lt(foodParcels.pickup_date_time_earliest, period.end),
-            ),
-        )
-        .groupBy(pickupLocations.id, pickupLocations.name)
-        .orderBy(sql`count(*) desc`);
-    const byLocation = byLocationResult.map(r => ({
-        locationName: r.locationName,
-        count: r.count,
-    }));
+    // By location (only shown when not filtering by location)
+    const byLocation = locationId
+        ? []
+        : await (async () => {
+              const byLocationResult = await db
+                  .select({
+                      locationId: pickupLocations.id,
+                      locationName: pickupLocations.name,
+                      count: sql<number>`count(*)::int`,
+                  })
+                  .from(foodParcels)
+                  .innerJoin(
+                      pickupLocations,
+                      eq(foodParcels.pickup_location_id, pickupLocations.id),
+                  )
+                  .where(
+                      and(
+                          notDeleted(),
+                          gte(foodParcels.pickup_date_time_earliest, period.start),
+                          lt(foodParcels.pickup_date_time_earliest, period.end),
+                      ),
+                  )
+                  .groupBy(pickupLocations.id, pickupLocations.name)
+                  .orderBy(sql`count(*) desc`);
+              return byLocationResult.map(r => ({
+                  locationName: r.locationName,
+                  count: r.count,
+              }));
+          })();
 
     // By weekday (Stockholm time) - return dayNum for client-side translation
     const byWeekdayResult = await db
@@ -502,6 +600,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         )
         .groupBy(sql`1`)
@@ -520,6 +619,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         )
         .groupBy(sql`1`)
@@ -527,7 +627,6 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
     const dailyTrend = dailyTrendResult.map(r => ({ date: r.date, count: r.count }));
 
     // Avg parcels per household (active households with parcels in period)
-    // Get parcel counts per household, then calculate average in JavaScript
     const parcelCountsPerHousehold = await db
         .select({
             householdId: foodParcels.household_id,
@@ -541,6 +640,7 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
                 isNull(households.anonymized_at),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         )
         .groupBy(foodParcels.household_id);
@@ -567,9 +667,16 @@ async function getParcelStats(period: StatisticsPeriod): Promise<ParcelStats> {
 // LOCATION STATS (internal)
 // ========================
 
-async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats> {
-    // Get all locations
-    const locations = await db.select().from(pickupLocations);
+async function getLocationStats(
+    period: StatisticsPeriod,
+    locationId?: string,
+): Promise<LocationStats> {
+    // Get locations - filter to single location if specified
+    const locations = locationId
+        ? await db.select().from(pickupLocations).where(eq(pickupLocations.id, locationId))
+        : await db.select().from(pickupLocations);
+
+    const locationFilter = locationId ? eq(foodParcels.pickup_location_id, locationId) : undefined;
 
     // Optimized: Get capacity usage for next 7 days in a single query
     const capacityResult = await db
@@ -584,6 +691,7 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
                 notDeleted(),
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') >= ${stockholmTodaySQL}`,
                 sql`DATE(${foodParcels.pickup_date_time_earliest} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}') < ${stockholmTodaySQL} + interval '7 days'`,
+                locationFilter,
             ),
         )
         .groupBy(sql`1, 2`);
@@ -602,7 +710,6 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
     const nearCapacityAlerts: LocationStats["nearCapacityAlerts"] = [];
 
     // Generate dates in Stockholm timezone
-    // Use Intl.DateTimeFormat to format dates consistently in Stockholm timezone
     const stockholmFormatter = new Intl.DateTimeFormat("sv-SE", {
         timeZone: STOCKHOLM_TZ,
         year: "numeric",
@@ -613,7 +720,7 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
     for (let i = 0; i < 7; i++) {
         const date = new Date(now);
         date.setDate(date.getDate() + i);
-        const dateStr = stockholmFormatter.format(date); // YYYY-MM-DD format in Stockholm TZ
+        const dateStr = stockholmFormatter.format(date);
 
         for (const location of locations) {
             const scheduled = capacityMap.get(location.id)?.get(dateStr) ?? 0;
@@ -641,7 +748,6 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
     }
 
     // Pickup rate by location (for the period)
-    // Fixed: count pickedUpEligible (picked up AND eligible) separately
     const pickupRateResult = await db
         .select({
             locationId: pickupLocations.id,
@@ -663,6 +769,7 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
                 notDeleted(),
                 gte(foodParcels.pickup_date_time_earliest, period.start),
                 lt(foodParcels.pickup_date_time_earliest, period.end),
+                locationFilter,
             ),
         )
         .groupBy(pickupLocations.id, pickupLocations.name);
@@ -685,106 +792,239 @@ async function getLocationStats(period: StatisticsPeriod): Promise<LocationStats
 // SMS STATS (internal)
 // ========================
 
-async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
+async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promise<SmsStats> {
+    // When filtering by location, join SMS to parcels to filter by parcel's location
+    // Not all SMS have a parcel_id (e.g. enrolment), so location filter only applies to parcel-linked SMS
+    const smsLocationJoin = locationId
+        ? {
+              join: true as const,
+              filter: eq(foodParcels.pickup_location_id, locationId),
+          }
+        : null;
+
     // Total sent in period
-    const [totalSentResult] = await db
-        .select({ count: count() })
-        .from(outgoingSms)
-        .where(
-            and(
-                eq(outgoingSms.status, "sent"),
-                gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end),
-            ),
-        );
+    const [totalSentResult] = await (() => {
+        if (smsLocationJoin) {
+            return db
+                .select({ count: count() })
+                .from(outgoingSms)
+                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+                .where(
+                    and(
+                        eq(outgoingSms.status, "sent"),
+                        gte(outgoingSms.sent_at, period.start),
+                        lt(outgoingSms.sent_at, period.end),
+                        smsLocationJoin.filter,
+                    ),
+                );
+        }
+        return db
+            .select({ count: count() })
+            .from(outgoingSms)
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                ),
+            );
+    })();
     const totalSent = totalSentResult?.count ?? 0;
 
     // Delivery stats
-    const [deliveryResult] = await db
-        .select({
-            delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
-            confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
-        })
-        .from(outgoingSms)
-        .where(
-            and(
-                eq(outgoingSms.status, "sent"),
-                gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end),
-            ),
-        );
+    const [deliveryResult] = await (() => {
+        if (smsLocationJoin) {
+            return db
+                .select({
+                    delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
+                    confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+                })
+                .from(outgoingSms)
+                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+                .where(
+                    and(
+                        eq(outgoingSms.status, "sent"),
+                        gte(outgoingSms.sent_at, period.start),
+                        lt(outgoingSms.sent_at, period.end),
+                        smsLocationJoin.filter,
+                    ),
+                );
+        }
+        return db
+            .select({
+                delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+            })
+            .from(outgoingSms)
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                ),
+            );
+    })();
     const delivered = deliveryResult?.delivered ?? 0;
     const confirmed = deliveryResult?.confirmed ?? 0;
     const deliveryRate = confirmed > 0 ? (delivered / confirmed) * 100 : null;
 
     // Failed (internal)
-    const [failedInternalResult] = await db
-        .select({ count: count() })
-        .from(outgoingSms)
-        .where(
-            and(
-                eq(outgoingSms.status, "failed"),
-                gte(outgoingSms.created_at, period.start),
-                lt(outgoingSms.created_at, period.end),
-            ),
-        );
+    const [failedInternalResult] = await (() => {
+        if (smsLocationJoin) {
+            return db
+                .select({ count: count() })
+                .from(outgoingSms)
+                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+                .where(
+                    and(
+                        eq(outgoingSms.status, "failed"),
+                        gte(outgoingSms.created_at, period.start),
+                        lt(outgoingSms.created_at, period.end),
+                        smsLocationJoin.filter,
+                    ),
+                );
+        }
+        return db
+            .select({ count: count() })
+            .from(outgoingSms)
+            .where(
+                and(
+                    eq(outgoingSms.status, "failed"),
+                    gte(outgoingSms.created_at, period.start),
+                    lt(outgoingSms.created_at, period.end),
+                ),
+            );
+    })();
     const failedInternal = failedInternalResult?.count ?? 0;
 
     // Failed (provider)
-    const [failedProviderResult] = await db
-        .select({ count: count() })
-        .from(outgoingSms)
-        .where(
-            and(
-                eq(outgoingSms.status, "sent"),
-                sql`${outgoingSms.provider_status} in ('failed', 'not delivered')`,
-                gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end),
-            ),
-        );
+    const [failedProviderResult] = await (() => {
+        if (smsLocationJoin) {
+            return db
+                .select({ count: count() })
+                .from(outgoingSms)
+                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+                .where(
+                    and(
+                        eq(outgoingSms.status, "sent"),
+                        sql`${outgoingSms.provider_status} in ('failed', 'not delivered')`,
+                        gte(outgoingSms.sent_at, period.start),
+                        lt(outgoingSms.sent_at, period.end),
+                        smsLocationJoin.filter,
+                    ),
+                );
+        }
+        return db
+            .select({ count: count() })
+            .from(outgoingSms)
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    sql`${outgoingSms.provider_status} in ('failed', 'not delivered')`,
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                ),
+            );
+    })();
     const failedProvider = failedProviderResult?.count ?? 0;
 
     // Pending
-    const [pendingResult] = await db
-        .select({ count: count() })
-        .from(outgoingSms)
-        .where(sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`);
+    const [pendingResult] = await (() => {
+        if (smsLocationJoin) {
+            return db
+                .select({ count: count() })
+                .from(outgoingSms)
+                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+                .where(
+                    and(
+                        sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`,
+                        smsLocationJoin.filter,
+                    ),
+                );
+        }
+        return db
+            .select({ count: count() })
+            .from(outgoingSms)
+            .where(sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`);
+    })();
     const pending = pendingResult?.count ?? 0;
 
     // By intent
-    const byIntentResult = await db
-        .select({
-            intent: outgoingSms.intent,
-            count: sql<number>`count(*)::int`,
-        })
-        .from(outgoingSms)
-        .where(
-            and(
-                eq(outgoingSms.status, "sent"),
-                gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end),
-            ),
-        )
-        .groupBy(outgoingSms.intent)
-        .orderBy(sql`count(*) desc`);
+    const byIntentResult = await (() => {
+        if (smsLocationJoin) {
+            return db
+                .select({
+                    intent: outgoingSms.intent,
+                    count: sql<number>`count(*)::int`,
+                })
+                .from(outgoingSms)
+                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+                .where(
+                    and(
+                        eq(outgoingSms.status, "sent"),
+                        gte(outgoingSms.sent_at, period.start),
+                        lt(outgoingSms.sent_at, period.end),
+                        smsLocationJoin.filter,
+                    ),
+                )
+                .groupBy(outgoingSms.intent)
+                .orderBy(sql`count(*) desc`);
+        }
+        return db
+            .select({
+                intent: outgoingSms.intent,
+                count: sql<number>`count(*)::int`,
+            })
+            .from(outgoingSms)
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                ),
+            )
+            .groupBy(outgoingSms.intent)
+            .orderBy(sql`count(*) desc`);
+    })();
     const byIntent = byIntentResult.map(r => ({ intent: r.intent, count: r.count }));
 
     // Daily volume (Stockholm time)
-    const dailyVolumeResult = await db
-        .select({
-            date: sql<string>`to_char(${outgoingSms.sent_at} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}', 'YYYY-MM-DD')`,
-            count: sql<number>`count(*)::int`,
-        })
-        .from(outgoingSms)
-        .where(
-            and(
-                eq(outgoingSms.status, "sent"),
-                gte(outgoingSms.sent_at, period.start),
-                lt(outgoingSms.sent_at, period.end),
-            ),
-        )
-        .groupBy(sql`1`)
-        .orderBy(sql`1`);
+    const dailyVolumeResult = await (() => {
+        if (smsLocationJoin) {
+            return db
+                .select({
+                    date: sql<string>`to_char(${outgoingSms.sent_at} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}', 'YYYY-MM-DD')`,
+                    count: sql<number>`count(*)::int`,
+                })
+                .from(outgoingSms)
+                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+                .where(
+                    and(
+                        eq(outgoingSms.status, "sent"),
+                        gte(outgoingSms.sent_at, period.start),
+                        lt(outgoingSms.sent_at, period.end),
+                        smsLocationJoin.filter,
+                    ),
+                )
+                .groupBy(sql`1`)
+                .orderBy(sql`1`);
+        }
+        return db
+            .select({
+                date: sql<string>`to_char(${outgoingSms.sent_at} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}', 'YYYY-MM-DD')`,
+                count: sql<number>`count(*)::int`,
+            })
+            .from(outgoingSms)
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                ),
+            )
+            .groupBy(sql`1`)
+            .orderBy(sql`1`);
+    })();
     const dailyVolume = dailyVolumeResult.map(r => ({ date: r.date, count: r.count }));
 
     return {
@@ -804,20 +1044,24 @@ async function getSmsStats(period: StatisticsPeriod): Promise<SmsStats> {
 // ========================
 
 /**
- * Get all statistics for the given period.
+ * Get all statistics for the given period, optionally filtered by location.
  * Protected action that requires authentication.
  */
 export const getAllStatistics = protectedAction(
-    async (_session, periodOption: PeriodOption): Promise<ActionResult<AllStatistics>> => {
+    async (
+        _session,
+        periodOption: PeriodOption,
+        locationId?: string,
+    ): Promise<ActionResult<AllStatistics>> => {
         try {
             const period = parsePeriod(periodOption);
 
             const [overview, householdStats, parcels, locations, sms] = await Promise.all([
-                getOverviewStats(period),
+                getOverviewStats(period, locationId),
                 getHouseholdStats(),
-                getParcelStats(period),
-                getLocationStats(period),
-                getSmsStats(period),
+                getParcelStats(period, locationId),
+                getLocationStats(period, locationId),
+                getSmsStats(period, locationId),
             ]);
 
             return success({
@@ -829,11 +1073,29 @@ export const getAllStatistics = protectedAction(
                 sms,
             });
         } catch (error) {
-            logError("Failed to fetch statistics", error, { periodOption });
+            logError("Failed to fetch statistics", error, { periodOption, locationId });
             return failure({
                 code: "LOAD_ERROR",
-                message: "LOAD_ERROR", // Client will translate using t("error")
+                message: "LOAD_ERROR",
             });
+        }
+    },
+);
+
+/**
+ * Get the list of pickup locations for the location filter dropdown.
+ */
+export const getLocationsList = protectedAction(
+    async (_session): Promise<ActionResult<LocationOption[]>> => {
+        try {
+            const locations = await db
+                .select({ id: pickupLocations.id, name: pickupLocations.name })
+                .from(pickupLocations)
+                .orderBy(pickupLocations.name);
+            return success(locations);
+        } catch (error) {
+            logError("Failed to fetch locations list", error);
+            return failure({ code: "LOAD_ERROR", message: "LOAD_ERROR" });
         }
     },
 );

@@ -15,6 +15,7 @@ import {
     Card,
     ThemeIcon,
     Divider,
+    Select,
 } from "@mantine/core";
 import {
     IconAlertCircle,
@@ -25,10 +26,17 @@ import {
     IconUserMinus,
     IconCheck,
     IconPercentage,
+    IconMapPin,
 } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import { BarChart, PieChart, LineChart } from "@mantine/charts";
-import { getAllStatistics, type PeriodOption, type AllStatistics } from "../actions";
+import {
+    getAllStatistics,
+    getLocationsList,
+    type PeriodOption,
+    type AllStatistics,
+    type LocationOption,
+} from "../actions";
 
 // Privacy threshold: suppress demographic data with fewer than this many entries
 const MIN_COUNT_THRESHOLD = 5;
@@ -161,9 +169,26 @@ function getWeekdayName(
 export function StatisticsClient() {
     const t = useTranslations("statistics");
     const [period, setPeriod] = useState<PeriodOption>("30d");
+    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+    const [locations, setLocations] = useState<LocationOption[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<AllStatistics | null>(null);
+
+    // Load locations list once on mount
+    useEffect(() => {
+        async function loadLocations() {
+            try {
+                const result = await getLocationsList();
+                if (result.success) {
+                    setLocations(result.data);
+                }
+            } catch {
+                // Silently fail - locations dropdown just won't show
+            }
+        }
+        loadLocations();
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -173,13 +198,16 @@ export function StatisticsClient() {
             setError(null);
 
             try {
-                const result = await getAllStatistics(period);
+                const result = await getAllStatistics(
+                    period,
+                    selectedLocationId ?? undefined,
+                );
                 if (cancelled) return;
 
                 if (result.success) {
                     setStats(result.data);
                 } else {
-                    setError(t("error")); // Translate error on client
+                    setError(t("error"));
                 }
             } catch {
                 if (!cancelled) {
@@ -196,7 +224,7 @@ export function StatisticsClient() {
         return () => {
             cancelled = true;
         };
-    }, [period, t]);
+    }, [period, selectedLocationId, t]);
 
     const periodOptions = [
         { value: "7d", label: t("periods.7d") },
@@ -216,12 +244,36 @@ export function StatisticsClient() {
                     </Text>
                 </div>
 
-                <SegmentedControl
-                    value={period}
-                    onChange={value => setPeriod(value as PeriodOption)}
-                    data={periodOptions}
-                    aria-label={t("title")}
-                />
+                <Group align="flex-end" gap="md">
+                    <SegmentedControl
+                        value={period}
+                        onChange={value => setPeriod(value as PeriodOption)}
+                        data={periodOptions}
+                        aria-label={t("title")}
+                    />
+                    {locations.length > 0 && (
+                        <Select
+                            leftSection={<IconMapPin size={16} />}
+                            placeholder={t("locationFilter.allLocations")}
+                            data={locations.map(l => ({ value: l.id, label: l.name }))}
+                            value={selectedLocationId}
+                            onChange={setSelectedLocationId}
+                            clearable
+                            searchable
+                            w={250}
+                            aria-label={t("locationFilter.label")}
+                        />
+                    )}
+                </Group>
+
+                {selectedLocationId && (
+                    <Alert icon={<IconMapPin />} color="blue" variant="light">
+                        {t("locationFilter.filtering", {
+                            location:
+                                locations.find(l => l.id === selectedLocationId)?.name ?? "",
+                        })}
+                    </Alert>
+                )}
 
                 {error && (
                     <Alert icon={<IconAlertCircle />} color="red" variant="light">

@@ -1777,6 +1777,11 @@
             },
             "pendingLabel": "Väntande (Aktuellt)"
         },
+        "locationFilter": {
+            "label": "Filtrera per plats",
+            "allLocations": "Alla platser",
+            "filtering": "Visar statistik för {location}"
+        },
         "loading": "Laddar statistik...",
         "error": "Kunde inte ladda statistik",
         "chartLabels": {
