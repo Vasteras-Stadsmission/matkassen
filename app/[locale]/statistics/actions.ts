@@ -14,7 +14,7 @@ import {
     pickupLocations,
     outgoingSms,
 } from "@/app/db/schema";
-import { sql, eq, and, or, isNull, isNotNull, gte, lt, count } from "drizzle-orm";
+import { sql, eq, and, or, isNull, isNotNull, gte, lt, count, type SQL } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { protectedAdminAction as protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
@@ -492,10 +492,7 @@ async function getHouseholdStats(): Promise<HouseholdStats> {
 // PARCEL STATS (internal)
 // ========================
 
-async function getParcelStats(
-    period: StatisticsPeriod,
-    locationId?: string,
-): Promise<ParcelStats> {
+async function getParcelStats(period: StatisticsPeriod, locationId?: string): Promise<ParcelStats> {
     const locationFilter = locationId ? eq(foodParcels.pickup_location_id, locationId) : undefined;
 
     // Total active parcels in period
@@ -558,35 +555,31 @@ async function getParcelStats(
         );
     const cancelled = cancelledResult?.count ?? 0;
 
-    // By location (only shown when not filtering by location)
-    const byLocation = locationId
-        ? []
-        : await (async () => {
-              const byLocationResult = await db
-                  .select({
-                      locationId: pickupLocations.id,
-                      locationName: pickupLocations.name,
-                      count: sql<number>`count(*)::int`,
-                  })
-                  .from(foodParcels)
-                  .innerJoin(
-                      pickupLocations,
-                      eq(foodParcels.pickup_location_id, pickupLocations.id),
-                  )
-                  .where(
-                      and(
-                          notDeleted(),
-                          gte(foodParcels.pickup_date_time_earliest, period.start),
-                          lt(foodParcels.pickup_date_time_earliest, period.end),
-                      ),
-                  )
-                  .groupBy(pickupLocations.id, pickupLocations.name)
-                  .orderBy(sql`count(*) desc`);
-              return byLocationResult.map(r => ({
-                  locationName: r.locationName,
-                  count: r.count,
-              }));
-          })();
+    // By location (only shown when not filtering by location — redundant for single location)
+    let byLocation: { locationName: string; count: number }[] = [];
+    if (!locationId) {
+        const byLocationResult = await db
+            .select({
+                locationId: pickupLocations.id,
+                locationName: pickupLocations.name,
+                count: sql<number>`count(*)::int`,
+            })
+            .from(foodParcels)
+            .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
+            .where(
+                and(
+                    notDeleted(),
+                    gte(foodParcels.pickup_date_time_earliest, period.start),
+                    lt(foodParcels.pickup_date_time_earliest, period.end),
+                ),
+            )
+            .groupBy(pickupLocations.id, pickupLocations.name)
+            .orderBy(sql`count(*) desc`);
+        byLocation = byLocationResult.map(r => ({
+            locationName: r.locationName,
+            count: r.count,
+        }));
+    }
 
     // By weekday (Stockholm time) - return dayNum for client-side translation
     const byWeekdayResult = await db
@@ -793,61 +786,58 @@ async function getLocationStats(
 // ========================
 
 async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promise<SmsStats> {
-    // When filtering by location, join SMS to parcels to filter by parcel's location
-    // Not all SMS have a parcel_id (e.g. enrolment), so location filter only applies to parcel-linked SMS
-    const smsLocationJoin = locationId
-        ? { filter: eq(foodParcels.pickup_location_id, locationId) }
-        : null;
+    // When filtering by location, join SMS to parcels to filter by parcel's location.
+    // Not all SMS have a parcel_id (e.g. enrolment), so location-filtered SMS stats
+    // only include parcel-linked SMS.
+    const locationFilter = locationId ? eq(foodParcels.pickup_location_id, locationId) : undefined;
 
-    // Total sent in period
-    const [totalSentResult] = await (() => {
-        if (smsLocationJoin) {
-            return db
+    /** Count SMS rows, with optional location join when locationId is set. */
+    async function countSms(...conditions: (SQL | undefined)[]): Promise<number> {
+        if (locationId) {
+            const [result] = await db
                 .select({ count: count() })
                 .from(outgoingSms)
                 .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-                .where(
-                    and(
-                        eq(outgoingSms.status, "sent"),
-                        gte(outgoingSms.sent_at, period.start),
-                        lt(outgoingSms.sent_at, period.end),
-                        smsLocationJoin.filter,
-                    ),
-                );
+                .where(and(...conditions, locationFilter));
+            return result?.count ?? 0;
         }
-        return db
+        const [result] = await db
             .select({ count: count() })
             .from(outgoingSms)
+            .where(and(...conditions));
+        return result?.count ?? 0;
+    }
+
+    // Total sent in period
+    const totalSent = await countSms(
+        eq(outgoingSms.status, "sent"),
+        gte(outgoingSms.sent_at, period.start),
+        lt(outgoingSms.sent_at, period.end),
+    );
+
+    // Delivery stats (custom select — not using countSms)
+    let delivered: number;
+    let confirmed: number;
+    if (locationId) {
+        const [result] = await db
+            .select({
+                delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+            })
+            .from(outgoingSms)
+            .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
             .where(
                 and(
                     eq(outgoingSms.status, "sent"),
                     gte(outgoingSms.sent_at, period.start),
                     lt(outgoingSms.sent_at, period.end),
+                    locationFilter,
                 ),
             );
-    })();
-    const totalSent = totalSentResult?.count ?? 0;
-
-    // Delivery stats
-    const [deliveryResult] = await (() => {
-        if (smsLocationJoin) {
-            return db
-                .select({
-                    delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
-                    confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
-                })
-                .from(outgoingSms)
-                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-                .where(
-                    and(
-                        eq(outgoingSms.status, "sent"),
-                        gte(outgoingSms.sent_at, period.start),
-                        lt(outgoingSms.sent_at, period.end),
-                        smsLocationJoin.filter,
-                    ),
-                );
-        }
-        return db
+        delivered = result?.delivered ?? 0;
+        confirmed = result?.confirmed ?? 0;
+    } else {
+        const [result] = await db
             .select({
                 delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
                 confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
@@ -860,114 +850,51 @@ async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promi
                     lt(outgoingSms.sent_at, period.end),
                 ),
             );
-    })();
-    const delivered = deliveryResult?.delivered ?? 0;
-    const confirmed = deliveryResult?.confirmed ?? 0;
+        delivered = result?.delivered ?? 0;
+        confirmed = result?.confirmed ?? 0;
+    }
     const deliveryRate = confirmed > 0 ? (delivered / confirmed) * 100 : null;
 
     // Failed (internal)
-    const [failedInternalResult] = await (() => {
-        if (smsLocationJoin) {
-            return db
-                .select({ count: count() })
-                .from(outgoingSms)
-                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-                .where(
-                    and(
-                        eq(outgoingSms.status, "failed"),
-                        gte(outgoingSms.created_at, period.start),
-                        lt(outgoingSms.created_at, period.end),
-                        smsLocationJoin.filter,
-                    ),
-                );
-        }
-        return db
-            .select({ count: count() })
-            .from(outgoingSms)
-            .where(
-                and(
-                    eq(outgoingSms.status, "failed"),
-                    gte(outgoingSms.created_at, period.start),
-                    lt(outgoingSms.created_at, period.end),
-                ),
-            );
-    })();
-    const failedInternal = failedInternalResult?.count ?? 0;
+    const failedInternal = await countSms(
+        eq(outgoingSms.status, "failed"),
+        gte(outgoingSms.created_at, period.start),
+        lt(outgoingSms.created_at, period.end),
+    );
 
     // Failed (provider)
-    const [failedProviderResult] = await (() => {
-        if (smsLocationJoin) {
-            return db
-                .select({ count: count() })
-                .from(outgoingSms)
-                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-                .where(
-                    and(
-                        eq(outgoingSms.status, "sent"),
-                        sql`${outgoingSms.provider_status} in ('failed', 'not delivered')`,
-                        gte(outgoingSms.sent_at, period.start),
-                        lt(outgoingSms.sent_at, period.end),
-                        smsLocationJoin.filter,
-                    ),
-                );
-        }
-        return db
-            .select({ count: count() })
+    const failedProvider = await countSms(
+        eq(outgoingSms.status, "sent"),
+        sql`${outgoingSms.provider_status} in ('failed', 'not delivered')`,
+        gte(outgoingSms.sent_at, period.start),
+        lt(outgoingSms.sent_at, period.end),
+    );
+
+    // Pending
+    const pending = await countSms(sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`);
+
+    // By intent (custom select with groupBy — not using countSms)
+    let byIntentResult: { intent: string; count: number }[];
+    if (locationId) {
+        byIntentResult = await db
+            .select({
+                intent: outgoingSms.intent,
+                count: sql<number>`count(*)::int`,
+            })
             .from(outgoingSms)
+            .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
             .where(
                 and(
                     eq(outgoingSms.status, "sent"),
-                    sql`${outgoingSms.provider_status} in ('failed', 'not delivered')`,
                     gte(outgoingSms.sent_at, period.start),
                     lt(outgoingSms.sent_at, period.end),
+                    locationFilter,
                 ),
-            );
-    })();
-    const failedProvider = failedProviderResult?.count ?? 0;
-
-    // Pending
-    const [pendingResult] = await (() => {
-        if (smsLocationJoin) {
-            return db
-                .select({ count: count() })
-                .from(outgoingSms)
-                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-                .where(
-                    and(
-                        sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`,
-                        smsLocationJoin.filter,
-                    ),
-                );
-        }
-        return db
-            .select({ count: count() })
-            .from(outgoingSms)
-            .where(sql`${outgoingSms.status} in ('queued', 'sending', 'retrying')`);
-    })();
-    const pending = pendingResult?.count ?? 0;
-
-    // By intent
-    const byIntentResult = await (() => {
-        if (smsLocationJoin) {
-            return db
-                .select({
-                    intent: outgoingSms.intent,
-                    count: sql<number>`count(*)::int`,
-                })
-                .from(outgoingSms)
-                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-                .where(
-                    and(
-                        eq(outgoingSms.status, "sent"),
-                        gte(outgoingSms.sent_at, period.start),
-                        lt(outgoingSms.sent_at, period.end),
-                        smsLocationJoin.filter,
-                    ),
-                )
-                .groupBy(outgoingSms.intent)
-                .orderBy(sql`count(*) desc`);
-        }
-        return db
+            )
+            .groupBy(outgoingSms.intent)
+            .orderBy(sql`count(*) desc`);
+    } else {
+        byIntentResult = await db
             .select({
                 intent: outgoingSms.intent,
                 count: sql<number>`count(*)::int`,
@@ -982,31 +909,31 @@ async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promi
             )
             .groupBy(outgoingSms.intent)
             .orderBy(sql`count(*) desc`);
-    })();
+    }
     const byIntent = byIntentResult.map(r => ({ intent: r.intent, count: r.count }));
 
-    // Daily volume (Stockholm time)
-    const dailyVolumeResult = await (() => {
-        if (smsLocationJoin) {
-            return db
-                .select({
-                    date: sql<string>`to_char(${outgoingSms.sent_at} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}', 'YYYY-MM-DD')`,
-                    count: sql<number>`count(*)::int`,
-                })
-                .from(outgoingSms)
-                .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
-                .where(
-                    and(
-                        eq(outgoingSms.status, "sent"),
-                        gte(outgoingSms.sent_at, period.start),
-                        lt(outgoingSms.sent_at, period.end),
-                        smsLocationJoin.filter,
-                    ),
-                )
-                .groupBy(sql`1`)
-                .orderBy(sql`1`);
-        }
-        return db
+    // Daily volume (Stockholm time — custom select with groupBy)
+    let dailyVolumeResult: { date: string; count: number }[];
+    if (locationId) {
+        dailyVolumeResult = await db
+            .select({
+                date: sql<string>`to_char(${outgoingSms.sent_at} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}', 'YYYY-MM-DD')`,
+                count: sql<number>`count(*)::int`,
+            })
+            .from(outgoingSms)
+            .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
+            .where(
+                and(
+                    eq(outgoingSms.status, "sent"),
+                    gte(outgoingSms.sent_at, period.start),
+                    lt(outgoingSms.sent_at, period.end),
+                    locationFilter,
+                ),
+            )
+            .groupBy(sql`1`)
+            .orderBy(sql`1`);
+    } else {
+        dailyVolumeResult = await db
             .select({
                 date: sql<string>`to_char(${outgoingSms.sent_at} AT TIME ZONE '${sql.raw(STOCKHOLM_TZ)}', 'YYYY-MM-DD')`,
                 count: sql<number>`count(*)::int`,
@@ -1021,7 +948,7 @@ async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promi
             )
             .groupBy(sql`1`)
             .orderBy(sql`1`);
-    })();
+    }
     const dailyVolume = dailyVolumeResult.map(r => ({ date: r.date, count: r.count }));
 
     return {
@@ -1083,7 +1010,7 @@ export const getAllStatistics = protectedAction(
  * Get the list of pickup locations for the location filter dropdown.
  */
 export const getLocationsList = protectedAction(
-    async (_session): Promise<ActionResult<LocationOption[]>> => {
+    async (): Promise<ActionResult<LocationOption[]>> => {
         try {
             const locations = await db
                 .select({ id: pickupLocations.id, name: pickupLocations.name })

@@ -168,9 +168,12 @@ function getWeekdayName(
 
 export function StatisticsClient() {
     const t = useTranslations("statistics");
+    const tLocFilter = useTranslations("statistics.locationFilter");
+    const tHouseholds = useTranslations("statistics.households");
     const [period, setPeriod] = useState<PeriodOption>("30d");
     const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
     const [locations, setLocations] = useState<LocationOption[]>([]);
+    const [locationsLoading, setLocationsLoading] = useState(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<AllStatistics | null>(null);
@@ -183,8 +186,10 @@ export function StatisticsClient() {
                 if (result.success) {
                     setLocations(result.data);
                 }
-            } catch {
-                // Silently fail - locations dropdown just won't show
+            } catch (err) {
+                console.error("Failed to load locations for filter", err);
+            } finally {
+                setLocationsLoading(false);
             }
         }
         loadLocations();
@@ -198,10 +203,7 @@ export function StatisticsClient() {
             setError(null);
 
             try {
-                const result = await getAllStatistics(
-                    period,
-                    selectedLocationId ?? undefined,
-                );
+                const result = await getAllStatistics(period, selectedLocationId ?? undefined);
                 if (cancelled) return;
 
                 if (result.success) {
@@ -249,28 +251,33 @@ export function StatisticsClient() {
                         value={period}
                         onChange={value => setPeriod(value as PeriodOption)}
                         data={periodOptions}
-                        aria-label={t("title")}
+                        aria-label={tLocFilter("periodSelector")}
                     />
-                    {locations.length > 0 && (
+                    {(locationsLoading || locations.length > 0) && (
                         <Select
                             leftSection={<IconMapPin size={16} />}
-                            placeholder={t("locationFilter.allLocations")}
+                            placeholder={tLocFilter("allLocations")}
                             data={locations.map(l => ({ value: l.id, label: l.name }))}
                             value={selectedLocationId}
                             onChange={setSelectedLocationId}
                             clearable
                             searchable
+                            disabled={locationsLoading}
                             w={250}
-                            aria-label={t("locationFilter.label")}
+                            aria-label={tLocFilter("label")}
                         />
                     )}
                 </Group>
 
                 {selectedLocationId && (
-                    <Alert icon={<IconMapPin />} color="blue" variant="light">
-                        {t("locationFilter.filtering", {
-                            location:
-                                locations.find(l => l.id === selectedLocationId)?.name ?? "",
+                    <Alert
+                        icon={<IconMapPin />}
+                        color="blue"
+                        variant="light"
+                        title={tLocFilter("label")}
+                    >
+                        {tLocFilter("filtering", {
+                            location: locations.find(l => l.id === selectedLocationId)?.name ?? "",
                         })}
                     </Alert>
                 )}
@@ -344,8 +351,8 @@ export function StatisticsClient() {
                                 </Title>
                                 <Text c="dimmed" size="sm" mb="md">
                                     {selectedLocationId
-                                        ? t("households.descriptionGlobal")
-                                        : t("households.description")}
+                                        ? tHouseholds("descriptionGlobal")
+                                        : tHouseholds("description")}
                                 </Text>
                                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                                     {stats.households.byLocale.length > 0 && (
@@ -819,6 +826,11 @@ export function StatisticsClient() {
                                 <Title order={2} mb="md">
                                     {t("sms.title")}
                                 </Title>
+                                {selectedLocationId && (
+                                    <Text c="dimmed" size="sm" mb="md">
+                                        {tLocFilter("smsNote")}
+                                    </Text>
+                                )}
                                 <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md" mb="md">
                                     <StatCard
                                         title={t("sms.totalSent")}

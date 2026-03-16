@@ -1781,7 +1781,9 @@
         "locationFilter": {
             "label": "Filter by location",
             "allLocations": "All locations",
-            "filtering": "Showing statistics for {location}"
+            "filtering": "Showing statistics for {location}",
+            "smsNote": "Only shows SMS linked to parcels at this location",
+            "periodSelector": "Select time period"
         },
         "loading": "Loading statistics...",
         "error": "Failed to load statistics",
