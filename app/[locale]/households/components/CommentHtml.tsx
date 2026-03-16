@@ -108,8 +108,11 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
     const githubUser = comment.githubUserData;
     const avatarUrl = githubUser?.avatar_url;
 
-    // Display "Unknown Name" if no full name is available
+    // Display first+last name, fall back to GitHub display name, then "Unknown Name"
+    const hasRealName = !!(githubUser?.name);
     const displayName = githubUser?.name || t("unknownName");
+    // Only show @username as fallback when we don't have a real name
+    const showUsername = !hasRealName && !!comment.author_github_username;
 
     return (
         <>
@@ -120,7 +123,7 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
                         <div>
                             <Text fz="sm">
                                 {displayName}
-                                {comment.author_github_username && (
+                                {showUsername && (
                                     <Text span c="dimmed" ml={5}>
                                         @{comment.author_github_username}
                                     </Text>

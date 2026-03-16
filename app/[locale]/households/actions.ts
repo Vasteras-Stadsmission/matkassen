@@ -215,6 +215,8 @@ export async function getHouseholdDetails(householdId: string) {
                 comment: householdComments.comment,
                 author_display_name: users.display_name,
                 author_avatar_url: users.avatar_url,
+                author_first_name: users.first_name,
+                author_last_name: users.last_name,
             })
             .from(householdComments)
             .leftJoin(users, eq(householdComments.author_github_username, users.github_username))
@@ -228,10 +230,15 @@ export async function getHouseholdDetails(householdId: string) {
             author_github_username: comment.author_github_username,
             comment: comment.comment,
             githubUserData:
-                comment.author_display_name || comment.author_avatar_url
+                comment.author_first_name || comment.author_display_name || comment.author_avatar_url
                     ? {
-                          name: comment.author_display_name || null,
+                          name:
+                              comment.author_first_name && comment.author_last_name
+                                  ? `${comment.author_first_name} ${comment.author_last_name}`
+                                  : comment.author_display_name || null,
                           avatar_url: comment.author_avatar_url || null,
+                          first_name: comment.author_first_name || null,
+                          last_name: comment.author_last_name || null,
                       }
                     : null,
         }));
@@ -243,15 +250,22 @@ export async function getHouseholdDetails(householdId: string) {
                 .select({
                     display_name: users.display_name,
                     avatar_url: users.avatar_url,
+                    first_name: users.first_name,
+                    last_name: users.last_name,
                 })
                 .from(users)
                 .where(eq(users.github_username, household.created_by))
                 .limit(1);
 
-            if (creator && (creator.display_name || creator.avatar_url)) {
+            if (creator && (creator.first_name || creator.display_name || creator.avatar_url)) {
                 creatorGithubData = {
-                    name: creator.display_name || null,
+                    name:
+                        creator.first_name && creator.last_name
+                            ? `${creator.first_name} ${creator.last_name}`
+                            : creator.display_name || null,
                     avatar_url: creator.avatar_url || null,
+                    first_name: creator.first_name || null,
+                    last_name: creator.last_name || null,
                 };
             }
         }
@@ -357,15 +371,22 @@ export const addHouseholdComment = protectedAgreementAction(
                     .select({
                         display_name: users.display_name,
                         avatar_url: users.avatar_url,
+                        first_name: users.first_name,
+                        last_name: users.last_name,
                     })
                     .from(users)
                     .where(eq(users.github_username, githubUsername))
                     .limit(1);
 
-                if (user && (user.display_name || user.avatar_url)) {
+                if (user && (user.first_name || user.display_name || user.avatar_url)) {
                     newComment.githubUserData = {
-                        name: user.display_name || null,
+                        name:
+                            user.first_name && user.last_name
+                                ? `${user.first_name} ${user.last_name}`
+                                : user.display_name || null,
                         avatar_url: user.avatar_url || null,
+                        first_name: user.first_name || null,
+                        last_name: user.last_name || null,
                     };
                 }
             }

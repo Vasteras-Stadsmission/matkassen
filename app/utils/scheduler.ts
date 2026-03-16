@@ -17,6 +17,7 @@ import {
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { parseDuration } from "@/app/utils/duration-parser";
 import { anonymizeInactiveHouseholds } from "@/app/utils/anonymization/anonymize-household";
+import { anonymizeDeactivatedUsers } from "@/app/utils/anonymization/anonymize-user";
 import { logger, logError, logCron } from "@/app/utils/logger";
 
 type SchedulerState = {
@@ -223,22 +224,36 @@ async function runAnonymizationSchedule(): Promise<{
 
         const result = await anonymizeInactiveHouseholds(durationMs);
 
+        // Also anonymize user personal data (GDPR: 12 months after deactivation)
+        const userResult = await anonymizeDeactivatedUsers();
+        const combinedAnonymized = result.anonymized + userResult.anonymized;
+        const combinedErrors = [...result.errors, ...userResult.errors];
+
         // Set status based on whether any errors occurred
         // Any failure is critical for GDPR compliance and requires investigation
-        if (result.errors.length > 0) {
+        if (combinedErrors.length > 0) {
             logCron("anonymization", "failed", {
-                anonymized: result.anonymized,
-                failed: result.errors.length,
-                errors: result.errors,
+                anonymized: combinedAnonymized,
+                householdsAnonymized: result.anonymized,
+                usersAnonymized: userResult.anonymized,
+                failed: combinedErrors.length,
+                errors: combinedErrors,
             });
             schedulerState.lastAnonymizationStatus = "error";
-            await notifyAnonymizationError(result);
+            await notifyAnonymizationError({
+                anonymized: combinedAnonymized,
+                errors: combinedErrors,
+            });
         } else {
-            logCron("anonymization", "completed", { anonymized: result.anonymized });
+            logCron("anonymization", "completed", {
+                anonymized: combinedAnonymized,
+                householdsAnonymized: result.anonymized,
+                usersAnonymized: userResult.anonymized,
+            });
             schedulerState.lastAnonymizationStatus = "success";
         }
 
-        return result;
+        return { anonymized: combinedAnonymized, errors: combinedErrors };
     } catch (error) {
         logError("Failed to run scheduled anonymization", error);
         schedulerState.lastAnonymizationStatus = "error";

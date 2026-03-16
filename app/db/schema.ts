@@ -540,6 +540,10 @@ export const users = pgTable("users", {
     github_username: varchar("github_username", { length: 100 }).notNull().unique(),
     display_name: varchar("display_name", { length: 255 }), // Full name from GitHub, updated on login
     avatar_url: text("avatar_url"), // GitHub avatar URL, updated on login
+    first_name: varchar("first_name", { length: 100 }), // User-provided first name (mandatory after first login)
+    last_name: varchar("last_name", { length: 100 }), // User-provided last name (mandatory after first login)
+    email: varchar("email", { length: 255 }), // User-provided email (optional)
+    phone: varchar("phone", { length: 50 }), // User-provided phone number (optional)
     favorite_pickup_location_id: text("favorite_pickup_location_id").references(
         () => pickupLocations.id,
         { onDelete: "set null" },

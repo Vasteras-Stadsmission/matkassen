@@ -22,6 +22,7 @@
         "account": "Konto",
         "profile": "Profil",
         "user": "Användare",
+        "userAgreement": "Användaråtagande",
         "protection": {
             "signInRequired": "Logga in för att komma åt den här sidan."
         },
@@ -95,7 +96,11 @@
             "success": "Klart",
             "error": "Fel",
             "accepted": "Du har accepterat användaravtalet"
-        }
+        },
+        "viewTitle": "Användaråtagande",
+        "viewSubtitle": "Det aktuella användaråtagandet som du har accepterat",
+        "noAgreement": "Inget användaråtagande har publicerats ännu.",
+        "back": "Tillbaka"
     },
     "navigation": {
         "brandName": "Matcentralen",
@@ -1793,5 +1798,24 @@
         "retryButton": "Skicka om saldofel",
         "retrySuccess": "{count, plural, one {# meddelande har} other {# meddelanden har}} lagts i kö för att skickas.",
         "retryError": "Det gick inte att skicka om. Försök igen."
+    },
+    "profile": {
+        "completeProfile": "Komplettera din profil",
+        "completeProfileDescription": "Fyll i ditt för- och efternamn för att fortsätta använda systemet. E-post och telefonnummer är valfria.",
+        "firstName": "Förnamn",
+        "firstNamePlaceholder": "Ditt förnamn",
+        "lastName": "Efternamn",
+        "lastNamePlaceholder": "Ditt efternamn",
+        "email": "E-post (valfritt)",
+        "emailPlaceholder": "din.epost@exempel.se",
+        "phone": "Telefon (valfritt)",
+        "phonePlaceholder": "+46 70 123 45 67",
+        "save": "Spara",
+        "notifications": {
+            "success": "Klart",
+            "saved": "Profilen har sparats",
+            "error": "Fel",
+            "saveFailed": "Det gick inte att spara profilen, försök igen"
+        }
     }
 }

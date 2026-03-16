@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Container, Title, Text, Table, Avatar, Group, Select, Stack, Badge } from "@mantine/core";
+import {
+    Container,
+    Title,
+    Text,
+    Table,
+    Avatar,
+    Group,
+    Select,
+    Stack,
+    Badge,
+    Tooltip,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -50,25 +61,35 @@ export function UsersManager({ initialActive, initialFormer }: UsersManagerProps
         });
     }
 
+    function getUserDisplayName(user: UserRow): string {
+        if (user.first_name && user.last_name) {
+            return `${user.first_name} ${user.last_name}`;
+        }
+        return user.display_name || user.github_username;
+    }
+
     const activeRows = userList.map(user => {
         const isSelf = user.github_username === currentUsername;
-        const displayName = user.display_name || user.github_username;
+        const displayName = getUserDisplayName(user);
+        const hasRealName = !!(user.first_name && user.last_name);
 
         return (
             <Table.Tr key={user.id}>
                 <Table.Td>
                     <Group gap="sm">
                         <Avatar src={user.avatar_url} size="sm" radius="xl" alt={displayName} />
-                        <Stack gap={0}>
-                            <Text size="sm" fw={500}>
-                                {displayName}
-                            </Text>
-                            {user.display_name && (
-                                <Text size="xs" c="dimmed">
-                                    @{user.github_username}
+                        <Tooltip label={`@${user.github_username}`} position="top-start">
+                            <Stack gap={0}>
+                                <Text size="sm" fw={500}>
+                                    {displayName}
                                 </Text>
-                            )}
-                        </Stack>
+                                {hasRealName && user.email && (
+                                    <Text size="xs" c="dimmed">
+                                        {user.email}
+                                    </Text>
+                                )}
+                            </Stack>
+                        </Tooltip>
                     </Group>
                 </Table.Td>
                 <Table.Td>
@@ -135,7 +156,7 @@ export function UsersManager({ initialActive, initialFormer }: UsersManagerProps
                             </Table.Thead>
                             <Table.Tbody>
                                 {initialFormer.map(user => {
-                                    const displayName = user.display_name || user.github_username;
+                                    const displayName = getUserDisplayName(user);
                                     return (
                                         <Table.Tr key={user.id}>
                                             <Table.Td>
@@ -146,16 +167,16 @@ export function UsersManager({ initialActive, initialFormer }: UsersManagerProps
                                                         radius="xl"
                                                         alt={displayName}
                                                     />
-                                                    <Stack gap={0}>
-                                                        <Text size="sm" fw={500} c="dimmed">
-                                                            {displayName}
-                                                        </Text>
-                                                        {user.display_name && (
-                                                            <Text size="xs" c="dimmed">
-                                                                @{user.github_username}
+                                                    <Tooltip
+                                                        label={`@${user.github_username}`}
+                                                        position="top-start"
+                                                    >
+                                                        <Stack gap={0}>
+                                                            <Text size="sm" fw={500} c="dimmed">
+                                                                {displayName}
                                                             </Text>
-                                                        )}
-                                                    </Stack>
+                                                        </Stack>
+                                                    </Tooltip>
                                                 </Group>
                                             </Table.Td>
                                             <Table.Td>
