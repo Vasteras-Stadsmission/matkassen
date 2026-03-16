@@ -1723,7 +1723,8 @@
                 "en": "Engelska"
             },
             "members": "{count, plural, =0 {0 medlemmar} =1 {1 medlem} other {# medlemmar}}",
-            "description": "Fördelningsdata inkluderar alla registrerade hushåll (aktiva och historiska)"
+            "description": "Fördelningsdata inkluderar alla registrerade hushåll (aktiva och historiska)",
+            "descriptionGlobal": "Demografiska uppgifter visas för samtliga platser (påverkas inte av platsfiltret)"
         },
         "parcels": {
             "title": "Kassar",
@@ -1776,6 +1777,13 @@
                 "food_parcels_ended": "Matkassar avslutade"
             },
             "pendingLabel": "Väntande (Aktuellt)"
+        },
+        "locationFilter": {
+            "label": "Filtrera efter plats",
+            "allLocations": "Alla platser",
+            "filtering": "Visar statistik för {location}",
+            "smsNote": "Visar bara SMS kopplade till kassar på denna plats",
+            "periodSelector": "Välj tidsperiod"
         },
         "loading": "Laddar statistik...",
         "error": "Kunde inte ladda statistik",

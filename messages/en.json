@@ -1723,7 +1723,8 @@
                 "en": "English"
             },
             "members": "{count, plural, =0 {0 members} =1 {1 member} other {# members}}",
-            "description": "Distribution data includes all registered households (active and historical)"
+            "description": "Distribution data includes all registered households (active and historical)",
+            "descriptionGlobal": "Demographic data is shown for all locations (not filtered by selected location)"
         },
         "parcels": {
             "title": "Parcels",
@@ -1776,6 +1777,13 @@
                 "food_parcels_ended": "Food Parcels Ended"
             },
             "pendingLabel": "Pending (Current)"
+        },
+        "locationFilter": {
+            "label": "Filter by location",
+            "allLocations": "All locations",
+            "filtering": "Showing statistics for {location}",
+            "smsNote": "Only shows SMS linked to parcels at this location",
+            "periodSelector": "Select time period"
         },
         "loading": "Loading statistics...",
         "error": "Failed to load statistics",

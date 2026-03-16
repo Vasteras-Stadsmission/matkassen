@@ -15,6 +15,7 @@ import {
     Card,
     ThemeIcon,
     Divider,
+    Select,
 } from "@mantine/core";
 import {
     IconAlertCircle,
@@ -25,10 +26,17 @@ import {
     IconUserMinus,
     IconCheck,
     IconPercentage,
+    IconMapPin,
 } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import { BarChart, PieChart, LineChart } from "@mantine/charts";
-import { getAllStatistics, type PeriodOption, type AllStatistics } from "../actions";
+import {
+    getAllStatistics,
+    getLocationsList,
+    type PeriodOption,
+    type AllStatistics,
+    type LocationOption,
+} from "../actions";
 
 // Privacy threshold: suppress demographic data with fewer than this many entries
 const MIN_COUNT_THRESHOLD = 5;
@@ -160,10 +168,32 @@ function getWeekdayName(
 
 export function StatisticsClient() {
     const t = useTranslations("statistics");
+    const tLocFilter = useTranslations("statistics.locationFilter");
+    const tHouseholds = useTranslations("statistics.households");
     const [period, setPeriod] = useState<PeriodOption>("30d");
+    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+    const [locations, setLocations] = useState<LocationOption[]>([]);
+    const [locationsLoading, setLocationsLoading] = useState(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<AllStatistics | null>(null);
+
+    // Load locations list once on mount
+    useEffect(() => {
+        async function loadLocations() {
+            try {
+                const result = await getLocationsList();
+                if (result.success) {
+                    setLocations(result.data);
+                }
+            } catch (err) {
+                console.error("Failed to load locations for filter", err);
+            } finally {
+                setLocationsLoading(false);
+            }
+        }
+        loadLocations();
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -173,13 +203,13 @@ export function StatisticsClient() {
             setError(null);
 
             try {
-                const result = await getAllStatistics(period);
+                const result = await getAllStatistics(period, selectedLocationId ?? undefined);
                 if (cancelled) return;
 
                 if (result.success) {
                     setStats(result.data);
                 } else {
-                    setError(t("error")); // Translate error on client
+                    setError(t("error"));
                 }
             } catch {
                 if (!cancelled) {
@@ -196,7 +226,7 @@ export function StatisticsClient() {
         return () => {
             cancelled = true;
         };
-    }, [period, t]);
+    }, [period, selectedLocationId, t]);
 
     const periodOptions = [
         { value: "7d", label: t("periods.7d") },
@@ -216,12 +246,41 @@ export function StatisticsClient() {
                     </Text>
                 </div>
 
-                <SegmentedControl
-                    value={period}
-                    onChange={value => setPeriod(value as PeriodOption)}
-                    data={periodOptions}
-                    aria-label={t("title")}
-                />
+                <Group align="flex-end" gap="md">
+                    <SegmentedControl
+                        value={period}
+                        onChange={value => setPeriod(value as PeriodOption)}
+                        data={periodOptions}
+                        aria-label={tLocFilter("periodSelector")}
+                    />
+                    {(locationsLoading || locations.length > 0) && (
+                        <Select
+                            leftSection={<IconMapPin size={16} />}
+                            placeholder={tLocFilter("allLocations")}
+                            data={locations.map(l => ({ value: l.id, label: l.name }))}
+                            value={selectedLocationId}
+                            onChange={setSelectedLocationId}
+                            clearable
+                            searchable
+                            disabled={locationsLoading}
+                            w={250}
+                            aria-label={tLocFilter("label")}
+                        />
+                    )}
+                </Group>
+
+                {selectedLocationId && (
+                    <Alert
+                        icon={<IconMapPin />}
+                        color="blue"
+                        variant="light"
+                        title={tLocFilter("label")}
+                    >
+                        {tLocFilter("filtering", {
+                            location: locations.find(l => l.id === selectedLocationId)?.name ?? "",
+                        })}
+                    </Alert>
+                )}
 
                 {error && (
                     <Alert icon={<IconAlertCircle />} color="red" variant="light">
@@ -291,7 +350,9 @@ export function StatisticsClient() {
                                     {t("households.title")}
                                 </Title>
                                 <Text c="dimmed" size="sm" mb="md">
-                                    {t("households.description")}
+                                    {selectedLocationId
+                                        ? tHouseholds("descriptionGlobal")
+                                        : tHouseholds("description")}
                                 </Text>
                                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                                     {stats.households.byLocale.length > 0 && (
@@ -765,6 +826,11 @@ export function StatisticsClient() {
                                 <Title order={2} mb="md">
                                     {t("sms.title")}
                                 </Title>
+                                {selectedLocationId && (
+                                    <Text c="dimmed" size="sm" mb="md">
+                                        {tLocFilter("smsNote")}
+                                    </Text>
+                                )}
                                 <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md" mb="md">
                                     <StatCard
                                         title={t("sms.totalSent")}
