@@ -222,10 +222,26 @@ async function runAnonymizationSchedule(): Promise<{
         // Parse duration to milliseconds
         const durationMs = parseDuration(ANONYMIZATION_INACTIVE_DURATION);
 
-        const result = await anonymizeInactiveHouseholds(durationMs);
+        // Run household and user anonymization independently so a failure
+        // in one does not block the other (both are GDPR-critical).
+        let result = { anonymized: 0, errors: [] as string[] };
+        try {
+            result = await anonymizeInactiveHouseholds(durationMs);
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            logError("Household anonymization threw", err);
+            result.errors.push(`household: ${errMsg}`);
+        }
 
-        // Also anonymize user personal data (GDPR: 12 months after deactivation)
-        const userResult = await anonymizeDeactivatedUsers();
+        let userResult = { anonymized: 0, errors: [] as string[] };
+        try {
+            userResult = await anonymizeDeactivatedUsers();
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            logError("User anonymization threw", err);
+            userResult.errors.push(`user: ${errMsg}`);
+        }
+
         const combinedAnonymized = result.anonymized + userResult.anonymized;
         const combinedErrors = [...result.errors, ...userResult.errors];
 
@@ -287,7 +303,7 @@ async function notifyAnonymizationError(result: {
         const errorList = result.errors.map(e => `• ${e}`).join("\n");
 
         await sendSlackAlert({
-            title: "🚨 Household Anonymization Error",
+            title: "🚨 GDPR Anonymization Error",
             message:
                 `Anonymization task completed with errors.\n` +
                 `Success: ${result.anonymized}, Failed: ${result.errors.length}`,

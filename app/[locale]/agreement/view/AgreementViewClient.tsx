@@ -15,13 +15,14 @@ import {
     Button,
 } from "@mantine/core";
 import { IconAlertCircle, IconArrowLeft } from "@tabler/icons-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "@/app/i18n/navigation";
 import { getAgreementForAcceptance, type AgreementForAcceptance } from "../actions";
 import { markdownToHtml } from "@/app/utils/markdown-to-html";
 
 export function AgreementViewClient() {
     const t = useTranslations("agreement");
+    const locale = useLocale();
     const router = useRouter();
 
     const [agreement, setAgreement] = useState<AgreementForAcceptance | null>(null);
@@ -100,7 +101,9 @@ export function AgreementViewClient() {
                     </Badge>
                     <Badge variant="light" color="gray">
                         {t("effectiveFrom", {
-                            date: new Date(agreement.effectiveFrom).toLocaleDateString("sv-SE"),
+                            date: new Date(agreement.effectiveFrom).toLocaleDateString(
+                                locale === "sv" ? "sv-SE" : "en-GB",
+                            ),
                         })}
                     </Badge>
                 </Group>

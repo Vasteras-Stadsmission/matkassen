@@ -22,6 +22,7 @@ import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAdminAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { HOUSEHOLD_ID_REGEX } from "@/app/constants/noshow-settings";
 
 // Function to get all households with their first and last food parcel dates
@@ -230,12 +231,15 @@ export async function getHouseholdDetails(householdId: string) {
             author_github_username: comment.author_github_username,
             comment: comment.comment,
             githubUserData:
-                comment.author_first_name || comment.author_display_name || comment.author_avatar_url
+                comment.author_first_name ||
+                comment.author_display_name ||
+                comment.author_avatar_url
                     ? {
-                          name:
-                              comment.author_first_name && comment.author_last_name
-                                  ? `${comment.author_first_name} ${comment.author_last_name}`
-                                  : comment.author_display_name || null,
+                          name: formatUserDisplayName({
+                              first_name: comment.author_first_name,
+                              last_name: comment.author_last_name,
+                              display_name: comment.author_display_name,
+                          }),
                           avatar_url: comment.author_avatar_url || null,
                           first_name: comment.author_first_name || null,
                           last_name: comment.author_last_name || null,
@@ -259,10 +263,7 @@ export async function getHouseholdDetails(householdId: string) {
 
             if (creator && (creator.first_name || creator.display_name || creator.avatar_url)) {
                 creatorGithubData = {
-                    name:
-                        creator.first_name && creator.last_name
-                            ? `${creator.first_name} ${creator.last_name}`
-                            : creator.display_name || null,
+                    name: formatUserDisplayName(creator),
                     avatar_url: creator.avatar_url || null,
                     first_name: creator.first_name || null,
                     last_name: creator.last_name || null,
@@ -380,10 +381,7 @@ export const addHouseholdComment = protectedAgreementAction(
 
                 if (user && (user.first_name || user.display_name || user.avatar_url)) {
                     newComment.githubUserData = {
-                        name:
-                            user.first_name && user.last_name
-                                ? `${user.first_name} ${user.last_name}`
-                                : user.display_name || null,
+                        name: formatUserDisplayName(user),
                         avatar_url: user.avatar_url || null,
                         first_name: user.first_name || null,
                         last_name: user.last_name || null,

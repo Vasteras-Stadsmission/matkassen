@@ -15,9 +15,10 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useSession } from "next-auth/react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import type { UserRole } from "@/app/db/schema";
 import { updateUserRole, type UserRow, type FormerUserRow } from "../actions";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 
 interface UsersManagerProps {
     initialActive: UserRow[];
@@ -26,6 +27,7 @@ interface UsersManagerProps {
 
 export function UsersManager({ initialActive, initialFormer }: UsersManagerProps) {
     const t = useTranslations("settings.usersSection");
+    const locale = useLocale();
     const { data: session } = useSession();
     const currentUsername = (session?.user as { githubUsername?: string })?.githubUsername;
 
@@ -62,10 +64,7 @@ export function UsersManager({ initialActive, initialFormer }: UsersManagerProps
     }
 
     function getUserDisplayName(user: UserRow): string {
-        if (user.first_name && user.last_name) {
-            return `${user.first_name} ${user.last_name}`;
-        }
-        return user.display_name || user.github_username;
+        return formatUserDisplayName(user, user.github_username) ?? user.github_username;
     }
 
     const activeRows = userList.map(user => {
@@ -188,7 +187,9 @@ export function UsersManager({ initialActive, initialFormer }: UsersManagerProps
                                                 <Text size="xs" c="dimmed">
                                                     {new Date(
                                                         user.deactivated_at,
-                                                    ).toLocaleDateString("sv-SE")}
+                                                    ).toLocaleDateString(
+                                                        locale === "sv" ? "sv-SE" : "en-GB",
+                                                    )}
                                                 </Text>
                                             </Table.Td>
                                         </Table.Tr>

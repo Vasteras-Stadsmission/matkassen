@@ -22,7 +22,8 @@
         "account": "Konto",
         "profile": "Profil",
         "user": "Användare",
-        "userAgreement": "Användaråtagande",
+        "editProfile": "Redigera profil",
+        "userAgreement": "Användaravtal",
         "protection": {
             "signInRequired": "Logga in för att komma åt den här sidan."
         },
@@ -97,9 +98,9 @@
             "error": "Fel",
             "accepted": "Du har accepterat användaravtalet"
         },
-        "viewTitle": "Användaråtagande",
-        "viewSubtitle": "Det aktuella användaråtagandet som du har accepterat",
-        "noAgreement": "Inget användaråtagande har publicerats ännu.",
+        "viewTitle": "Användaravtal",
+        "viewSubtitle": "Det aktuella användaravtalet som du har accepterat",
+        "noAgreement": "Inget användaravtal har publicerats ännu.",
         "back": "Tillbaka"
     },
     "navigation": {
@@ -1802,6 +1803,9 @@
     "profile": {
         "completeProfile": "Komplettera din profil",
         "completeProfileDescription": "Fyll i ditt för- och efternamn för att fortsätta använda systemet. E-post och telefonnummer är valfria.",
+        "editProfile": "Redigera din profil",
+        "editProfileDescription": "Uppdatera ditt namn, e-post eller telefonnummer.",
+        "logout": "Logga ut istället",
         "firstName": "Förnamn",
         "firstNamePlaceholder": "Ditt förnamn",
         "lastName": "Efternamn",
@@ -1815,7 +1819,10 @@
             "success": "Klart",
             "saved": "Profilen har sparats",
             "error": "Fel",
-            "saveFailed": "Det gick inte att spara profilen, försök igen"
+            "saveFailed": "Det gick inte att spara profilen, försök igen",
+            "invalidEmail": "Ange en giltig e-postadress",
+            "nameTooLong": "Namnet får vara högst 100 tecken",
+            "nameRequired": "Förnamn och efternamn krävs"
         }
     }
 }

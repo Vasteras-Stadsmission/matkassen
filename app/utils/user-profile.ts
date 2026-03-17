@@ -76,13 +76,44 @@ export const saveUserProfile = protectedAction(
                 });
             }
 
+            if (firstName.length > 100 || lastName.length > 100) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Name must be 100 characters or less",
+                });
+            }
+
+            const emailValue = data.email?.trim() || null;
+            if (emailValue) {
+                if (emailValue.length > 255) {
+                    return failure({
+                        code: "VALIDATION_ERROR",
+                        message: "Email must be 255 characters or less",
+                    });
+                }
+                if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(emailValue)) {
+                    return failure({
+                        code: "VALIDATION_ERROR",
+                        message: "Invalid email format",
+                    });
+                }
+            }
+
+            const phoneValue = data.phone?.trim() || null;
+            if (phoneValue && phoneValue.length > 50) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Phone number must be 50 characters or less",
+                });
+            }
+
             await db
                 .update(users)
                 .set({
                     first_name: firstName,
                     last_name: lastName,
-                    email: data.email?.trim() || null,
-                    phone: data.phone?.trim() || null,
+                    email: emailValue,
+                    phone: phoneValue,
                 })
                 .where(eq(users.github_username, githubUsername));
 

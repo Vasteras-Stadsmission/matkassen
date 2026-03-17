@@ -145,7 +145,7 @@ const authConfig: NextAuthConfig = {
             return `/auth/error?error=invalid-provider`;
         },
         // JWT callback: Store GitHub login in token during sign-in
-        async jwt({ token, profile, account }) {
+        async jwt({ token, profile, account, trigger }) {
             // On initial sign-in, capture the GitHub login (username)
             if (account?.provider === "github" && profile) {
                 token.githubUsername = (profile as any).login;
@@ -189,9 +189,11 @@ const authConfig: NextAuthConfig = {
 
             // Re-check role and profile every 5 minutes from DB.
             // On DB failure, preserve existing role so admins aren't silently downgraded.
+            // Also force-refresh on trigger==="update" (e.g. after profile save).
             const now = Date.now();
             const roleNextCheckAt = token.roleNextCheckAt ?? 0;
-            if (!token.role || now >= roleNextCheckAt) {
+            const forceRefresh = trigger === "update";
+            if (!token.role || now >= roleNextCheckAt || forceRefresh) {
                 const githubUsername = token.githubUsername as string | undefined;
                 if (githubUsername) {
                     try {

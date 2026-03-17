@@ -25,6 +25,7 @@ import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
 
@@ -301,10 +302,11 @@ async function getHouseholdEditData(householdId: string) {
         githubUserData:
             comment.author_first_name || comment.author_display_name || comment.author_avatar_url
                 ? {
-                      name:
-                          comment.author_first_name && comment.author_last_name
-                              ? `${comment.author_first_name} ${comment.author_last_name}`
-                              : comment.author_display_name,
+                      name: formatUserDisplayName({
+                          first_name: comment.author_first_name,
+                          last_name: comment.author_last_name,
+                          display_name: comment.author_display_name,
+                      }),
                       avatar_url: comment.author_avatar_url,
                       first_name: comment.author_first_name || null,
                       last_name: comment.author_last_name || null,
@@ -707,10 +709,7 @@ export const addComment = protectedAdminHouseholdAction(
 
                 if (user && (user.first_name || user.display_name || user.avatar_url)) {
                     githubUserData = {
-                        name:
-                            user.first_name && user.last_name
-                                ? `${user.first_name} ${user.last_name}`
-                                : user.display_name,
+                        name: formatUserDisplayName(user),
                         avatar_url: user.avatar_url,
                         first_name: user.first_name || null,
                         last_name: user.last_name || null,

@@ -35,6 +35,7 @@
         "account": "Account",
         "profile": "Profile",
         "user": "User",
+        "editProfile": "Edit Profile",
         "userAgreement": "User Agreement",
         "protection": {
             "signInRequired": "Please sign in to access this page."
@@ -1802,6 +1803,9 @@
     "profile": {
         "completeProfile": "Complete your profile",
         "completeProfileDescription": "Please enter your first and last name to continue using the system. Email and phone number are optional.",
+        "editProfile": "Edit your profile",
+        "editProfileDescription": "Update your name, email, or phone number.",
+        "logout": "Log out instead",
         "firstName": "First name",
         "firstNamePlaceholder": "Your first name",
         "lastName": "Last name",
@@ -1815,7 +1819,10 @@
             "success": "Success",
             "saved": "Profile saved",
             "error": "Error",
-            "saveFailed": "Failed to save profile, please try again"
+            "saveFailed": "Failed to save profile, please try again",
+            "invalidEmail": "Please enter a valid email address",
+            "nameTooLong": "Name must be 100 characters or less",
+            "nameRequired": "First name and last name are required"
         }
     }
 }

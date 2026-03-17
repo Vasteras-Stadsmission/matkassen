@@ -6,7 +6,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { users } from "@/app/db/schema";
-import { and, isNotNull, lte, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { logger, logError } from "@/app/utils/logger";
 
 const RETENTION_MONTHS = 12;
@@ -35,7 +35,7 @@ export async function anonymizeDeactivatedUsers(): Promise<{
                     isNotNull(users.deactivated_at),
                     lte(users.deactivated_at, cutoffDate),
                     // Only anonymize users who still have personal data
-                    sql`(${users.first_name} IS NOT NULL OR ${users.last_name} IS NOT NULL OR ${users.email} IS NOT NULL OR ${users.phone} IS NOT NULL OR ${users.display_name} IS NOT NULL)`,
+                    sql`(${users.first_name} IS NOT NULL OR ${users.last_name} IS NOT NULL OR ${users.email} IS NOT NULL OR ${users.phone} IS NOT NULL OR ${users.display_name} IS NOT NULL OR ${users.avatar_url} IS NOT NULL)`,
                 ),
             );
 
@@ -50,7 +50,7 @@ export async function anonymizeDeactivatedUsers(): Promise<{
 
         for (const user of eligibleUsers) {
             try {
-                await db
+                const updated = await db
                     .update(users)
                     .set({
                         first_name: null,
@@ -60,13 +60,27 @@ export async function anonymizeDeactivatedUsers(): Promise<{
                         display_name: null,
                         avatar_url: null,
                     })
-                    .where(sql`${users.id} = ${user.id}`);
+                    .where(
+                        and(
+                            eq(users.id, user.id),
+                            isNotNull(users.deactivated_at),
+                            lte(users.deactivated_at, cutoffDate),
+                        ),
+                    )
+                    .returning({ id: users.id });
 
-                anonymized++;
-                logger.info(
-                    { userId: user.id },
-                    "User personal data anonymized (GDPR retention expired)",
-                );
+                if (updated.length > 0) {
+                    anonymized++;
+                    logger.info(
+                        { userId: user.id },
+                        "User personal data anonymized (GDPR retention expired)",
+                    );
+                } else {
+                    logger.info(
+                        { userId: user.id },
+                        "User anonymization skipped (no longer eligible)",
+                    );
+                }
             } catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
                 errors.push(`${user.id}: ${errMsg}`);

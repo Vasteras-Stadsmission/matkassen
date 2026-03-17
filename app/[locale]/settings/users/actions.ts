@@ -17,7 +17,6 @@ export interface UserRow {
     first_name: string | null;
     last_name: string | null;
     email: string | null;
-    phone: string | null;
     role: UserRole;
 }
 
@@ -43,7 +42,6 @@ export const getUsersWithStatus = protectedAdminAction(
                     first_name: users.first_name,
                     last_name: users.last_name,
                     email: users.email,
-                    phone: users.phone,
                     role: users.role,
                     deactivated_at: users.deactivated_at,
                 })
@@ -60,7 +58,6 @@ export const getUsersWithStatus = protectedAdminAction(
                     first_name: r.first_name,
                     last_name: r.last_name,
                     email: r.email,
-                    phone: r.phone,
                     role: r.role,
                 }));
 
