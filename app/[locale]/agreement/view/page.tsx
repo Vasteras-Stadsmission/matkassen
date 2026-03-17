@@ -10,11 +10,7 @@ type Params = {
  * Read-only view of the current user agreement.
  * Accessible from the user dropdown menu so users can review the agreement at any time (GDPR requirement).
  */
-export default async function AgreementViewPage({
-    params,
-}: {
-    params: Params | Promise<Params>;
-}) {
+export default async function AgreementViewPage({ params }: { params: Params | Promise<Params> }) {
     const session = await auth();
     const { locale } = await params;
 

@@ -109,7 +109,7 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
     const avatarUrl = githubUser?.avatar_url;
 
     // Display first+last name, fall back to GitHub display name, then "Unknown Name"
-    const hasRealName = !!(githubUser?.name);
+    const hasRealName = !!githubUser?.name;
     const displayName = githubUser?.name || t("unknownName");
     // Only show @username as fallback when we don't have a real name
     const showUsername = !hasRealName && !!comment.author_github_username;
