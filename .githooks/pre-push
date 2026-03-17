@@ -1,18 +1,14 @@
 #!/bin/sh
 set -e
 
-pnpm lint &
-pid_lint=$!
-
-pnpm typecheck &
-pid_type=$!
+pnpm run validate &
+pid_validate=$!
 
 pnpm test &
 pid_test=$!
 
 fail=""
-wait $pid_lint || fail="$fail lint"
-wait $pid_type || fail="$fail typecheck"
+wait $pid_validate || fail="$fail validate"
 wait $pid_test || fail="$fail test"
 
 if [ -n "$fail" ]; then
