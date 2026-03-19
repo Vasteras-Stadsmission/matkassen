@@ -48,7 +48,7 @@ export function ProfileCompletionGuard() {
         async function checkProfile() {
             try {
                 const result = await getUserProfile();
-                if (result.success && result.data && !result.data.profileComplete) {
+                if (result.success && result.data !== null && !result.data.profileComplete) {
                     setFirstName(result.data.first_name || "");
                     setLastName(result.data.last_name || "");
                     setEmail(result.data.email || "");
@@ -79,7 +79,9 @@ export function ProfileCompletionGuard() {
 
     function validationMessage(code: string, serverMessage: string): string {
         if (code === "VALIDATION_ERROR") {
-            if (serverMessage.includes("email")) return t("notifications.invalidEmail");
+            if (serverMessage.includes("phone")) return t("notifications.invalidPhone");
+            if (serverMessage.includes("Invalid email")) return t("notifications.invalidEmail");
+            if (serverMessage.includes("Email must")) return t("notifications.invalidEmail");
             if (serverMessage.includes("100")) return t("notifications.nameTooLong");
             if (serverMessage.includes("required")) return t("notifications.nameRequired");
         }

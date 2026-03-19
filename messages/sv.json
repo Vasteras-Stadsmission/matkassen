@@ -1821,6 +1821,7 @@
             "error": "Fel",
             "saveFailed": "Det gick inte att spara profilen, försök igen",
             "invalidEmail": "Ange en giltig e-postadress",
+            "invalidPhone": "Ange ett giltigt svenskt telefonnummer (+467... eller 07...)",
             "nameTooLong": "Namnet får vara högst 100 tecken",
             "nameRequired": "Förnamn och efternamn krävs"
         }

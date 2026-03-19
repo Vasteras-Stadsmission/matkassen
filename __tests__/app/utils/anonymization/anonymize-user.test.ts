@@ -22,13 +22,12 @@ describe("anonymize-user", () => {
              * ELIGIBLE USERS must satisfy ALL conditions:
              * 1. deactivated_at IS NOT NULL (user has been deactivated)
              * 2. deactivated_at <= cutoffDate (deactivated >= 12 months ago)
-             * 3. At least one personal data field is non-null:
-             *    - first_name, last_name, email, phone, display_name, avatar_url
+             * 3. github_username does NOT start with 'anon-' (not yet anonymized)
              *
              * NOT ELIGIBLE:
              * - Active users (deactivated_at IS NULL)
              * - Recently deactivated users (within 12 months)
-             * - Already anonymized users (all personal fields null)
+             * - Already anonymized users (github_username starts with 'anon-')
              */
             expect(true).toBe(true);
         });
@@ -55,24 +54,25 @@ describe("anonymize-user", () => {
     describe("Anonymized Fields", () => {
         it("should document which fields are cleared", () => {
             /**
-             * CLEARED (set to null):
-             * - first_name
-             * - last_name
-             * - email
-             * - phone
-             * - display_name
-             * - avatar_url
+             * ANONYMIZED:
+             * - github_username → replaced with 'anon-<id>' (breaks link to GitHub profile)
+             * - first_name → null
+             * - last_name → null
+             * - email → null
+             * - phone → null
+             * - display_name → null
+             * - avatar_url → null
              *
              * PRESERVED (for audit integrity):
              * - id (primary key)
-             * - github_username (public identifier, needed for audit log FK)
              * - created_at
              * - deactivated_at
              * - role
              * - favorite_pickup_location_id
              *
-             * Note: github_username is a publicly visible GitHub handle,
-             * not traditional PII. Documented as a deliberate design decision.
+             * The 'anon-<id>' marker also serves as the eligibility check:
+             * users whose github_username starts with 'anon-' are skipped
+             * on subsequent runs (idempotent).
              */
             expect(true).toBe(true);
         });

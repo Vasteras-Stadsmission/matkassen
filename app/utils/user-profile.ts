@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
+import { normalizePhoneToE164, isValidE164 } from "@/app/utils/validation/phone-validation";
 
 export interface UserProfile {
     first_name: string | null;
@@ -38,7 +39,15 @@ export const getUserProfile = protectedAction(
                 .limit(1);
 
             if (!user) {
-                return success(null);
+                // User row missing (e.g. DB upsert failed at sign-in).
+                // Treat as incomplete so the profile modal still opens.
+                return success({
+                    first_name: null,
+                    last_name: null,
+                    email: null,
+                    phone: null,
+                    profileComplete: false,
+                });
             }
 
             return success({
@@ -99,12 +108,33 @@ export const saveUserProfile = protectedAction(
                 }
             }
 
-            const phoneValue = data.phone?.trim() || null;
-            if (phoneValue && phoneValue.length > 50) {
-                return failure({
-                    code: "VALIDATION_ERROR",
-                    message: "Phone number must be 50 characters or less",
-                });
+            // Validate and normalize phone to E.164 (+46XXXXXXXXX).
+            // Accepts +467XXXXXXXX or 07XXXXXXXX input formats.
+            let phoneValue: string | null = null;
+            const rawPhone = data.phone?.trim() || null;
+            if (rawPhone) {
+                // Strip spaces/dashes for normalization
+                const cleaned = rawPhone.replace(/[\s-]/g, "");
+
+                // Accept +46... or 0... (Swedish formats only)
+                if (!cleaned.startsWith("+46") && !cleaned.startsWith("0")) {
+                    return failure({
+                        code: "VALIDATION_ERROR",
+                        message: "Invalid phone format",
+                    });
+                }
+
+                // Normalize to E.164 and validate
+                phoneValue = cleaned.startsWith("+46")
+                    ? cleaned // already has prefix
+                    : normalizePhoneToE164(cleaned);
+
+                if (!isValidE164(phoneValue)) {
+                    return failure({
+                        code: "VALIDATION_ERROR",
+                        message: "Invalid phone format",
+                    });
+                }
             }
 
             await db

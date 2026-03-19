@@ -1,7 +1,8 @@
 /**
  * Anonymize user personal data for users deactivated longer than the retention period.
  * GDPR compliance: personal data is scrubbed 12 months after deactivation.
- * The user record is kept (for audit log integrity) but personal fields are cleared.
+ * The user record is kept (for audit log integrity) but all identifying fields are
+ * cleared, including github_username which is replaced with 'anon-<id>'.
  */
 
 import { db } from "@/app/db/drizzle";
@@ -34,8 +35,9 @@ export async function anonymizeDeactivatedUsers(): Promise<{
                 and(
                     isNotNull(users.deactivated_at),
                     lte(users.deactivated_at, cutoffDate),
-                    // Only anonymize users who still have personal data
-                    sql`(${users.first_name} IS NOT NULL OR ${users.last_name} IS NOT NULL OR ${users.email} IS NOT NULL OR ${users.phone} IS NOT NULL OR ${users.display_name} IS NOT NULL OR ${users.avatar_url} IS NOT NULL)`,
+                    // Only target users who haven't been anonymized yet.
+                    // github_username starting with 'anon-' is the anonymization marker.
+                    sql`${users.github_username} NOT LIKE 'anon-%'`,
                 ),
             );
 
@@ -50,9 +52,11 @@ export async function anonymizeDeactivatedUsers(): Promise<{
 
         for (const user of eligibleUsers) {
             try {
+                const anonUsername = `anon-${user.id}`;
                 const updated = await db
                     .update(users)
                     .set({
+                        github_username: anonUsername,
                         first_name: null,
                         last_name: null,
                         email: null,

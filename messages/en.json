@@ -1821,6 +1821,7 @@
             "error": "Error",
             "saveFailed": "Failed to save profile, please try again",
             "invalidEmail": "Please enter a valid email address",
+            "invalidPhone": "Please enter a valid Swedish phone number (+467... or 07...)",
             "nameTooLong": "Name must be 100 characters or less",
             "nameRequired": "First name and last name are required"
         }
