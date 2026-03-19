@@ -25,6 +25,7 @@ import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
 import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
 
@@ -284,6 +285,8 @@ async function getHouseholdEditData(householdId: string) {
             author_github_username: householdComments.author_github_username,
             author_display_name: users.display_name,
             author_avatar_url: users.avatar_url,
+            author_first_name: users.first_name,
+            author_last_name: users.last_name,
         })
         .from(householdComments)
         .leftJoin(users, eq(householdComments.author_github_username, users.github_username))
@@ -297,10 +300,16 @@ async function getHouseholdEditData(householdId: string) {
         created_at: comment.created_at,
         author_github_username: comment.author_github_username,
         githubUserData:
-            comment.author_display_name || comment.author_avatar_url
+            comment.author_first_name || comment.author_display_name || comment.author_avatar_url
                 ? {
-                      name: comment.author_display_name,
+                      name: formatUserDisplayName({
+                          first_name: comment.author_first_name,
+                          last_name: comment.author_last_name,
+                          display_name: comment.author_display_name,
+                      }),
                       avatar_url: comment.author_avatar_url,
+                      first_name: comment.author_first_name || null,
+                      last_name: comment.author_last_name || null,
                   }
                 : null,
     }));
@@ -691,15 +700,19 @@ export const addComment = protectedAdminHouseholdAction(
                     .select({
                         display_name: users.display_name,
                         avatar_url: users.avatar_url,
+                        first_name: users.first_name,
+                        last_name: users.last_name,
                     })
                     .from(users)
                     .where(eq(users.github_username, username))
                     .limit(1);
 
-                if (user && (user.display_name || user.avatar_url)) {
+                if (user && (user.first_name || user.display_name || user.avatar_url)) {
                     githubUserData = {
-                        name: user.display_name,
+                        name: formatUserDisplayName(user),
                         avatar_url: user.avatar_url,
+                        first_name: user.first_name || null,
+                        last_name: user.last_name || null,
                     };
                 }
             }

@@ -18,6 +18,7 @@ import { eq, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 
 export interface ParcelDetails {
     parcel: {
@@ -179,6 +180,8 @@ export async function GET(
                 createdAt: householdComments.created_at,
                 author_display_name: users.display_name,
                 author_avatar_url: users.avatar_url,
+                author_first_name: users.first_name,
+                author_last_name: users.last_name,
             })
             .from(householdComments)
             .leftJoin(users, eq(householdComments.author_github_username, users.github_username))
@@ -192,9 +195,15 @@ export async function GET(
             comment: comment.comment,
             createdAt: comment.createdAt,
             githubUserData:
-                comment.author_display_name || comment.author_avatar_url
+                comment.author_first_name ||
+                comment.author_display_name ||
+                comment.author_avatar_url
                     ? {
-                          name: comment.author_display_name,
+                          name: formatUserDisplayName({
+                              first_name: comment.author_first_name,
+                              last_name: comment.author_last_name,
+                              display_name: comment.author_display_name,
+                          }),
                           avatar_url: comment.author_avatar_url,
                       }
                     : null,

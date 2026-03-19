@@ -35,6 +35,8 @@
         "account": "Account",
         "profile": "Profile",
         "user": "User",
+        "editProfile": "Edit Profile",
+        "userAgreement": "User Agreement",
         "protection": {
             "signInRequired": "Please sign in to access this page."
         },
@@ -108,7 +110,11 @@
             "success": "Done",
             "error": "Error",
             "accepted": "You have accepted the user agreement"
-        }
+        },
+        "viewTitle": "User Agreement",
+        "viewSubtitle": "The current user agreement that you have accepted",
+        "noAgreement": "No user agreement has been published yet.",
+        "back": "Back"
     },
     "households": {
         "title": "Households",
@@ -1801,5 +1807,31 @@
         "retryButton": "Retry balance failures",
         "retrySuccess": "{count, plural, one {# message was} other {# messages were}} re-queued for sending.",
         "retryError": "Failed to retry. Please try again."
+    },
+    "profile": {
+        "completeProfile": "Complete your profile",
+        "completeProfileDescription": "Please enter your first and last name to continue using the system. Email and phone number are optional.",
+        "editProfile": "Edit your profile",
+        "editProfileDescription": "Update your name, email, or phone number.",
+        "logout": "Log out instead",
+        "firstName": "First name",
+        "firstNamePlaceholder": "Your first name",
+        "lastName": "Last name",
+        "lastNamePlaceholder": "Your last name",
+        "email": "Email (optional)",
+        "emailPlaceholder": "your.email@example.com",
+        "phone": "Phone (optional)",
+        "phonePlaceholder": "+46 70 123 45 67",
+        "save": "Save",
+        "notifications": {
+            "success": "Success",
+            "saved": "Profile saved",
+            "error": "Error",
+            "saveFailed": "Failed to save profile, please try again",
+            "invalidEmail": "Please enter a valid email address",
+            "invalidPhone": "Please enter a valid Swedish phone number (+467... or 07...)",
+            "nameTooLong": "Name must be 100 characters or less",
+            "nameRequired": "First name and last name are required"
+        }
     }
 }

@@ -9,6 +9,7 @@ import { AppShell, Box } from "@mantine/core";
 import { Suspense } from "react";
 import { PageTransitionSkeleton } from "@/components/PageTransitionSkeleton";
 import { SmsBalanceBanner } from "@/components/SmsBalanceBanner";
+import { ProfileCompletionGuard } from "@/components/ProfileCompletionGuard/ProfileCompletionGuard";
 
 // This is a specialized component to handle client-side navigation
 // related hooks like useSearchParams
@@ -29,6 +30,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
                         </AppShell.Header>
                         <AppShell.Main>
                             <SmsBalanceBanner />
+                            <ProfileCompletionGuard />
                             <Box style={{ position: "relative" }}>
                                 <SearchParamsProvider>{children}</SearchParamsProvider>
                             </Box>

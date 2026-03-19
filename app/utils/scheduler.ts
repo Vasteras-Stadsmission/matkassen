@@ -17,6 +17,7 @@ import {
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { parseDuration } from "@/app/utils/duration-parser";
 import { anonymizeInactiveHouseholds } from "@/app/utils/anonymization/anonymize-household";
+import { anonymizeDeactivatedUsers } from "@/app/utils/anonymization/anonymize-user";
 import { logger, logError, logCron } from "@/app/utils/logger";
 
 type SchedulerState = {
@@ -221,24 +222,54 @@ async function runAnonymizationSchedule(): Promise<{
         // Parse duration to milliseconds
         const durationMs = parseDuration(ANONYMIZATION_INACTIVE_DURATION);
 
-        const result = await anonymizeInactiveHouseholds(durationMs);
+        // Run household and user anonymization independently so a failure
+        // in one does not block the other (both are GDPR-critical).
+        let result = { anonymized: 0, errors: [] as string[] };
+        try {
+            result = await anonymizeInactiveHouseholds(durationMs);
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            logError("Household anonymization threw", err);
+            result.errors.push(`household: ${errMsg}`);
+        }
+
+        let userResult = { anonymized: 0, errors: [] as string[] };
+        try {
+            userResult = await anonymizeDeactivatedUsers();
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            logError("User anonymization threw", err);
+            userResult.errors.push(`user: ${errMsg}`);
+        }
+
+        const combinedAnonymized = result.anonymized + userResult.anonymized;
+        const combinedErrors = [...result.errors, ...userResult.errors];
 
         // Set status based on whether any errors occurred
         // Any failure is critical for GDPR compliance and requires investigation
-        if (result.errors.length > 0) {
+        if (combinedErrors.length > 0) {
             logCron("anonymization", "failed", {
-                anonymized: result.anonymized,
-                failed: result.errors.length,
-                errors: result.errors,
+                anonymized: combinedAnonymized,
+                householdsAnonymized: result.anonymized,
+                usersAnonymized: userResult.anonymized,
+                failed: combinedErrors.length,
+                errors: combinedErrors,
             });
             schedulerState.lastAnonymizationStatus = "error";
-            await notifyAnonymizationError(result);
+            await notifyAnonymizationError({
+                anonymized: combinedAnonymized,
+                errors: combinedErrors,
+            });
         } else {
-            logCron("anonymization", "completed", { anonymized: result.anonymized });
+            logCron("anonymization", "completed", {
+                anonymized: combinedAnonymized,
+                householdsAnonymized: result.anonymized,
+                usersAnonymized: userResult.anonymized,
+            });
             schedulerState.lastAnonymizationStatus = "success";
         }
 
-        return result;
+        return { anonymized: combinedAnonymized, errors: combinedErrors };
     } catch (error) {
         logError("Failed to run scheduled anonymization", error);
         schedulerState.lastAnonymizationStatus = "error";
@@ -272,7 +303,7 @@ async function notifyAnonymizationError(result: {
         const errorList = result.errors.map(e => `• ${e}`).join("\n");
 
         await sendSlackAlert({
-            title: "🚨 Household Anonymization Error",
+            title: "🚨 GDPR Anonymization Error",
             message:
                 `Anonymization task completed with errors.\n` +
                 `Success: ${result.anonymized}, Failed: ${result.errors.length}`,

@@ -386,6 +386,13 @@
       "when": 1772803803505,
       "tag": "0054_fearless_maelstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1773878400000,
+      "tag": "0055_add_user_profile_fields",
+      "breakpoints": true
     }
   ]
 }

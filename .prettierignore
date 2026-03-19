@@ -18,5 +18,5 @@ playwright/.cache/
 *.log
 pnpm-lock.yaml
 
-# Claude Code settings
-.claude/settings.local.json
+# Claude Code
+.claude/

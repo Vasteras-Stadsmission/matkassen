@@ -72,6 +72,8 @@ export interface LocationCapacity {
 export interface GithubUserData {
     avatar_url: string | null;
     name: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
 }
 
 export interface Comment {

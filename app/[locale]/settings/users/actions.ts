@@ -14,6 +14,9 @@ export interface UserRow {
     github_username: string;
     display_name: string | null;
     avatar_url: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
     role: UserRole;
 }
 
@@ -36,11 +39,14 @@ export const getUsersWithStatus = protectedAdminAction(
                     github_username: users.github_username,
                     display_name: users.display_name,
                     avatar_url: users.avatar_url,
+                    first_name: users.first_name,
+                    last_name: users.last_name,
+                    email: users.email,
                     role: users.role,
                     deactivated_at: users.deactivated_at,
                 })
                 .from(users)
-                .orderBy(users.display_name, users.github_username);
+                .orderBy(users.first_name, users.last_name, users.github_username);
 
             const active: UserRow[] = rows
                 .filter(r => r.deactivated_at === null)
@@ -49,6 +55,9 @@ export const getUsersWithStatus = protectedAdminAction(
                     github_username: r.github_username,
                     display_name: r.display_name,
                     avatar_url: r.avatar_url,
+                    first_name: r.first_name,
+                    last_name: r.last_name,
+                    email: r.email,
                     role: r.role,
                 }));
 

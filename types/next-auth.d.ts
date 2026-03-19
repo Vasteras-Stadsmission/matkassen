@@ -42,6 +42,10 @@ declare module "next-auth" {
             name?: string | null;
             email?: string | null;
             image?: string | null;
+            /** User-provided first name (from profile completion) */
+            firstName?: string | null;
+            /** User-provided last name (from profile completion) */
+            lastName?: string | null;
         };
     }
 
@@ -74,5 +78,9 @@ declare module "next-auth/jwt" {
         name?: string | null;
         email?: string | null;
         picture?: string | null;
+        /** User-provided first name (from profile completion) */
+        firstName?: string | null;
+        /** User-provided last name (from profile completion) */
+        lastName?: string | null;
     }
 }

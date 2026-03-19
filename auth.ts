@@ -145,7 +145,7 @@ const authConfig: NextAuthConfig = {
             return `/auth/error?error=invalid-provider`;
         },
         // JWT callback: Store GitHub login in token during sign-in
-        async jwt({ token, profile, account }) {
+        async jwt({ token, profile, account, trigger }) {
             // On initial sign-in, capture the GitHub login (username)
             if (account?.provider === "github" && profile) {
                 token.githubUsername = (profile as any).login;
@@ -187,11 +187,13 @@ const authConfig: NextAuthConfig = {
                 }
             }
 
-            // Re-check role every 5 minutes from DB.
+            // Re-check role and profile every 5 minutes from DB.
             // On DB failure, preserve existing role so admins aren't silently downgraded.
+            // Also force-refresh on trigger==="update" (e.g. after profile save).
             const now = Date.now();
             const roleNextCheckAt = token.roleNextCheckAt ?? 0;
-            if (!token.role || now >= roleNextCheckAt) {
+            const forceRefresh = trigger === "update";
+            if (!token.role || now >= roleNextCheckAt || forceRefresh) {
                 const githubUsername = token.githubUsername as string | undefined;
                 if (githubUsername) {
                     try {
@@ -199,7 +201,11 @@ const authConfig: NextAuthConfig = {
                         const { users } = await import("./app/db/schema");
                         const { eq } = await import("drizzle-orm");
                         const row = await db
-                            .select({ role: users.role })
+                            .select({
+                                role: users.role,
+                                first_name: users.first_name,
+                                last_name: users.last_name,
+                            })
                             .from(users)
                             .where(eq(users.github_username, githubUsername))
                             .limit(1)
@@ -207,6 +213,8 @@ const authConfig: NextAuthConfig = {
                         // row may be undefined on first login (signIn callback upserts user first,
                         // but jwt callback may race). Fall back to handout_staff; next check will resolve.
                         token.role = row?.role ?? "handout_staff";
+                        token.firstName = row?.first_name ?? null;
+                        token.lastName = row?.last_name ?? null;
                     } catch (err) {
                         logger.warn(
                             { err, githubUsername },
@@ -230,6 +238,8 @@ const authConfig: NextAuthConfig = {
             }
             session.user.orgEligibility = token.orgEligibility;
             session.user.role = token.role;
+            session.user.firstName = token.firstName;
+            session.user.lastName = token.lastName;
             return session;
         },
         // Redirect callback: Handle deep links and callbackUrls after authentication

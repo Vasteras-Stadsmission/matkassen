@@ -2,14 +2,17 @@
 
 import React from "react";
 import { Menu, UnstyledButton, Avatar, Text, Button } from "@mantine/core";
-import { IconLogout, IconLogin } from "@tabler/icons-react";
+import { IconLogout, IconLogin, IconFileText, IconUser } from "@tabler/icons-react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/app/i18n/navigation";
+import { OPEN_PROFILE_EVENT } from "@/components/ProfileCompletionGuard/ProfileCompletionGuard";
 import classes from "./AuthDropdown.module.css";
 
 export function AuthDropdown() {
     const { data: session, status } = useSession();
     const t = useTranslations("auth");
+    const router = useRouter();
 
     // Loading state
     if (status === "loading") {
@@ -33,16 +36,14 @@ export function AuthDropdown() {
         return <Avatar size="md" radius="xl" color="blue" />;
     }
 
+    const fullName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : null;
+    const displayName = fullName || user.name || t("user");
+
     return (
         <Menu shadow="md" width={200} position="bottom-end" withArrow>
             <Menu.Target>
                 <UnstyledButton className={classes.avatarButton} data-testid="user-avatar">
-                    <Avatar
-                        src={user.image ?? undefined}
-                        radius="xl"
-                        size="md"
-                        alt={user.name || t("user")}
-                    />
+                    <Avatar src={user.image ?? undefined} radius="xl" size="md" alt={displayName} />
                 </UnstyledButton>
             </Menu.Target>
 
@@ -51,9 +52,23 @@ export function AuthDropdown() {
 
                 <div className={classes.usernameItem}>
                     <Text size="sm" fw={500} p="xs">
-                        {user.name || t("user")}
+                        {displayName}
                     </Text>
                 </div>
+
+                <Menu.Item
+                    leftSection={<IconUser size={16} stroke={1.5} />}
+                    onClick={() => window.dispatchEvent(new CustomEvent(OPEN_PROFILE_EVENT))}
+                >
+                    {t("editProfile")}
+                </Menu.Item>
+
+                <Menu.Item
+                    leftSection={<IconFileText size={16} stroke={1.5} />}
+                    onClick={() => router.push("/agreement/view")}
+                >
+                    {t("userAgreement")}
+                </Menu.Item>
 
                 <Menu.Divider />
 
