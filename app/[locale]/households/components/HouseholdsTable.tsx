@@ -35,6 +35,7 @@ export interface Household {
     phone_number: string;
     locale: string;
     created_by: string | null;
+    created_by_display?: string | null;
     primaryPickupLocationName: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
@@ -77,15 +78,15 @@ export default function HouseholdsTable({ households }: { households: Household[
             .map(name => ({ value: name, label: name }));
     }, [households]);
 
-    // Compute unique creator options from household data
+    // Compute unique creator options from household data (using display names)
     const creatorOptions = useMemo(() => {
-        const creators = new Set<string>();
+        const creators = new Map<string, string>(); // created_by -> display name
         households.forEach(h => {
-            if (h.created_by) creators.add(h.created_by);
+            if (h.created_by) creators.set(h.created_by, h.created_by_display || h.created_by);
         });
-        return Array.from(creators)
-            .sort()
-            .map(name => ({ value: name, label: name }));
+        return Array.from(creators.entries())
+            .sort((a, b) => a[1].localeCompare(b[1]))
+            .map(([value, label]) => ({ value, label }));
     }, [households]);
 
     // Column visibility state with localStorage persistence
@@ -472,7 +473,8 @@ export default function HouseholdsTable({ households }: { households: Household[
                                   accessor: "created_by",
                                   title: t("table.createdBy"),
                                   sortable: true,
-                                  render: (household: Household) => household.created_by || "-",
+                                  render: (household: Household) =>
+                                      household.created_by_display || household.created_by || "-",
                               },
                           ]
                         : []),

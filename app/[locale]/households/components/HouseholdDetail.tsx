@@ -28,6 +28,7 @@ interface HouseholdDetailProps {
             phone_number: string;
             locale: string;
             created_by: string | null;
+            created_by_display?: string | null;
         };
         members: Array<{
             id?: string;
@@ -187,7 +188,9 @@ export default function InternationalizedHouseholdDetail({
                                 </ThemeIcon>
                                 <Text>
                                     {t("createdBy", {
-                                        username: householdDetail.household.created_by,
+                                        username:
+                                            householdDetail.household.created_by_display ||
+                                            householdDetail.household.created_by,
                                     })}
                                 </Text>
                             </Group>
