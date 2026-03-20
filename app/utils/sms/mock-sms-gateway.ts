@@ -5,7 +5,14 @@
  * for testing various success and failure scenarios.
  */
 
-import type { SmsGateway, SendSmsRequest, SendSmsResponse, BalanceResult } from "./sms-gateway";
+import type {
+    SmsGateway,
+    SendSmsRequest,
+    SendSmsResponse,
+    BalanceResult,
+    ConversationResponse,
+    ConversationMessage,
+} from "./sms-gateway";
 
 export interface MockSmsCall {
     request: SendSmsRequest;
@@ -25,6 +32,8 @@ export class MockSmsGateway implements SmsGateway {
     private messageIdCounter = 0;
     private balanceCredits: number = 999;
     private balanceError: string | null = null;
+    private conversationMessages: ConversationMessage[] = [];
+    private conversationError: string | null = null;
 
     /**
      * Configure the balance check to return a specific credit count
@@ -44,6 +53,23 @@ export class MockSmsGateway implements SmsGateway {
     }
 
     /**
+     * Configure fetchConversation to return specific messages
+     */
+    mockConversation(messages: ConversationMessage[]): this {
+        this.conversationMessages = messages;
+        this.conversationError = null;
+        return this;
+    }
+
+    /**
+     * Configure fetchConversation to return an error
+     */
+    mockConversationError(error: string): this {
+        this.conversationError = error;
+        return this;
+    }
+
+    /**
      * Check balance (mock implementation)
      */
     async checkBalance(): Promise<BalanceResult> {
@@ -51,6 +77,16 @@ export class MockSmsGateway implements SmsGateway {
             return { success: false, error: this.balanceError };
         }
         return { success: true, credits: this.balanceCredits };
+    }
+
+    /**
+     * Fetch conversation (mock implementation)
+     */
+    async fetchConversation(): Promise<ConversationResponse> {
+        if (this.conversationError) {
+            return { success: false, messages: [], error: this.conversationError };
+        }
+        return { success: true, messages: this.conversationMessages };
     }
 
     /**
@@ -88,6 +124,8 @@ export class MockSmsGateway implements SmsGateway {
         this.messageIdCounter = 0;
         this.balanceCredits = 999;
         this.balanceError = null;
+        this.conversationMessages = [];
+        this.conversationError = null;
         return this;
     }
 

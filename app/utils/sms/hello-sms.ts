@@ -316,3 +316,74 @@ export async function checkBalance(): Promise<BalanceResult> {
         };
     }
 }
+
+// --- Conversation API (for delivery status reconciliation) ---
+
+// Re-export types from sms-gateway.ts for backwards compatibility
+import type { ConversationMessage, ConversationResponse } from "./sms-gateway";
+export type { ConversationMessage, ConversationResponse };
+
+/**
+ * Fetch the conversation history for a phone number from HelloSMS.
+ *
+ * GET https://api.hellosms.se/api/v1/sms/conversation?number=<e164>
+ * Returns up to 200 messages per page (pagination not needed for our use case).
+ *
+ * Used by the reconciliation job to cross-check delivery status for messages
+ * where we never received a callback.
+ */
+export async function fetchConversation(e164Number: string): Promise<ConversationResponse> {
+    if (!isValidE164(e164Number)) {
+        return { success: false, messages: [], error: `Invalid E.164 number: ${e164Number}` };
+    }
+
+    const config = getHelloSmsConfig();
+
+    if (config.testMode) {
+        return { success: true, messages: [] };
+    }
+
+    if (!config.username || !config.password) {
+        return { success: false, messages: [], error: "HelloSMS credentials not configured" };
+    }
+
+    // Derive conversation URL from the configured API URL
+    // Default send URL: https://api.hellosms.se/api/v1/sms/send
+    // Conversation URL: https://api.hellosms.se/api/v1/sms/conversation
+    const baseUrl = config.apiUrl.replace(/\/sms\/send\/?$/, "");
+    const conversationUrl = `${baseUrl}/sms/conversation?number=${encodeURIComponent(e164Number)}`;
+
+    try {
+        const response = await fetch(conversationUrl, {
+            method: "GET",
+            headers: {
+                Authorization: `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`,
+            },
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            const statusText =
+                (body as { statusText?: string }).statusText || `HTTP ${response.status}`;
+            return { success: false, messages: [], error: statusText };
+        }
+
+        const data = await response.json().catch(() => null);
+        if (!data || typeof data !== "object") {
+            return { success: false, messages: [], error: "Invalid JSON response" };
+        }
+
+        const typed = data as { status?: string; messages?: ConversationMessage[] };
+        if (typed.status === "success" && Array.isArray(typed.messages)) {
+            return { success: true, messages: typed.messages };
+        }
+
+        return { success: false, messages: [], error: "Unexpected response format" };
+    } catch (error) {
+        return {
+            success: false,
+            messages: [],
+            error: error instanceof Error ? error.message : "Unknown error fetching conversation",
+        };
+    }
+}

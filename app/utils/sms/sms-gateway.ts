@@ -14,9 +14,24 @@ export interface BalanceResult {
     error?: string;
 }
 
+export interface ConversationMessage {
+    ts: number; // Unix timestamp
+    subject: string;
+    text: string;
+    direction: "in" | "out";
+    status: string;
+}
+
+export interface ConversationResponse {
+    success: boolean;
+    messages: ConversationMessage[];
+    error?: string;
+}
+
 export interface SmsGateway {
     send(request: SendSmsRequest): Promise<SendSmsResponse>;
     checkBalance(): Promise<BalanceResult>;
+    fetchConversation(e164Number: string): Promise<ConversationResponse>;
 }
 
 export interface SendSmsRequest {
@@ -77,4 +92,13 @@ export async function sendSmsViaGateway(request: SendSmsRequest): Promise<SendSm
  */
 export async function checkBalanceViaGateway(): Promise<BalanceResult> {
     return getSmsGateway().checkBalance();
+}
+
+/**
+ * Fetch conversation history via the current gateway.
+ */
+export async function fetchConversationViaGateway(
+    e164Number: string,
+): Promise<ConversationResponse> {
+    return getSmsGateway().fetchConversation(e164Number);
 }
