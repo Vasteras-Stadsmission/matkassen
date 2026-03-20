@@ -17,6 +17,7 @@ import {
     outgoingSms,
 } from "@/app/db/schema";
 import { asc, desc, eq, and, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import { protectedAdminAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
@@ -27,14 +28,19 @@ import { HOUSEHOLD_ID_REGEX } from "@/app/constants/noshow-settings";
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
-    // Get all households with primary location name via left join (excluding anonymized ones)
+    // Get all households with primary location name and creator display name via left joins
+    const creatorUsers = alias(users, "creator_users");
     const householdsData = await db
         .select({
             household: households,
             primaryPickupLocationName: pickupLocations.name,
+            creator_first_name: creatorUsers.first_name,
+            creator_last_name: creatorUsers.last_name,
+            creator_display_name: creatorUsers.display_name,
         })
         .from(households)
         .leftJoin(pickupLocations, eq(households.primary_pickup_location_id, pickupLocations.id))
+        .leftJoin(creatorUsers, eq(households.created_by, creatorUsers.github_username))
         .where(isNull(households.anonymized_at)); // Filter out anonymized households
 
     // For each household, get the food parcels
@@ -61,8 +67,19 @@ export async function getHouseholds() {
             );
             const nextParcel = upcomingParcels.length > 0 ? upcomingParcels[0] : null;
 
+            // Resolve creator display name: first+last > display_name > github_username
+            const creatorDisplayName = formatUserDisplayName(
+                {
+                    first_name: row.creator_first_name,
+                    last_name: row.creator_last_name,
+                    display_name: row.creator_display_name,
+                },
+                household.created_by,
+            );
+
             return {
                 ...household,
+                created_by_display: creatorDisplayName,
                 primaryPickupLocationName: row.primaryPickupLocationName,
                 firstParcelDate: firstParcel ? firstParcel.pickup_date_time_latest : null,
                 lastParcelDate: lastParcel ? lastParcel.pickup_date_time_latest : null,

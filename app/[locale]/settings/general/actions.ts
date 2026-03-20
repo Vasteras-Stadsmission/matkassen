@@ -9,12 +9,14 @@ import {
     globalSettings,
     userAgreements,
     userAgreementAcceptances,
+    users,
 } from "@/app/db/schema";
 import { eq, and, asc, max, sql, inArray, desc } from "drizzle-orm";
 import { nanoid } from "@/app/db/schema";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import {
     NOSHOW_FOLLOWUP_ENABLED_KEY,
     NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
@@ -578,8 +580,19 @@ export const getAllUserAgreements = protectedAction(
     async (): Promise<ActionResult<UserAgreementWithStats[]>> => {
         try {
             const agreements = await db
-                .select()
+                .select({
+                    id: userAgreements.id,
+                    content: userAgreements.content,
+                    version: userAgreements.version,
+                    effective_from: userAgreements.effective_from,
+                    created_at: userAgreements.created_at,
+                    created_by: userAgreements.created_by,
+                    creator_first_name: users.first_name,
+                    creator_last_name: users.last_name,
+                    creator_display_name: users.display_name,
+                })
                 .from(userAgreements)
+                .leftJoin(users, eq(userAgreements.created_by, users.github_username))
                 .orderBy(desc(userAgreements.version));
 
             // Get acceptance counts for all agreements
@@ -607,7 +620,15 @@ export const getAllUserAgreements = protectedAction(
                     version: a.version,
                     effectiveFrom: a.effective_from,
                     createdAt: a.created_at,
-                    createdBy: a.created_by,
+                    createdBy:
+                        formatUserDisplayName(
+                            {
+                                first_name: a.creator_first_name,
+                                last_name: a.creator_last_name,
+                                display_name: a.creator_display_name,
+                            },
+                            a.created_by,
+                        ) || a.created_by,
                     acceptanceCount: countMap.get(a.id) ?? 0,
                 })),
             );

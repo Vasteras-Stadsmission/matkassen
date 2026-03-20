@@ -18,7 +18,7 @@ import {
 } from "@mantine/core";
 import { IconAlertTriangle, IconInfoCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
     getCurrentUserAgreement,
     getAllUserAgreements,
@@ -29,6 +29,7 @@ import { markdownToHtml } from "@/app/utils/markdown-to-html";
 
 export function UserAgreementEditor() {
     const t = useTranslations("settings.userAgreement");
+    const locale = useLocale();
 
     const [currentAgreement, setCurrentAgreement] = useState<UserAgreementWithStats | null>(null);
     const [allAgreements, setAllAgreements] = useState<UserAgreementWithStats[]>([]);
@@ -229,7 +230,7 @@ export function UserAgreementEditor() {
                                         </Table.Td>
                                         <Table.Td>
                                             {new Date(agreement.createdAt).toLocaleDateString(
-                                                "sv-SE",
+                                                locale === "sv" ? "sv-SE" : "en-GB",
                                             )}
                                         </Table.Td>
                                         <Table.Td>{agreement.createdBy || "-"}</Table.Td>
