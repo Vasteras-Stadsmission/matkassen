@@ -1211,6 +1211,8 @@ export async function getSmsHealthStats(): Promise<{
     delivered: number;
     providerFailed: number;
     notDelivered: number;
+    expired: number;
+    outOfCredits: number;
     awaiting: number;
     internalFailed: number;
     staleUnconfirmed: number;
@@ -1227,6 +1229,8 @@ export async function getSmsHealthStats(): Promise<{
             delivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'delivered')`,
             providerFailed: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'failed')`,
             notDelivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'not delivered')`,
+            expired: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'expired')`,
+            outOfCredits: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'out_of_credits')`,
             awaiting: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} IS NULL)`,
         })
         .from(outgoingSms)
@@ -1273,6 +1277,8 @@ export async function getSmsHealthStats(): Promise<{
         delivered: 0,
         providerFailed: 0,
         notDelivered: 0,
+        expired: 0,
+        outOfCredits: 0,
         awaiting: 0,
     };
     const internalFailed = Number(failedStatsResult[0]?.internalFailed || 0);
@@ -1283,6 +1289,8 @@ export async function getSmsHealthStats(): Promise<{
         internalFailed > 0 ||
         Number(sentStats.providerFailed) > 0 ||
         Number(sentStats.notDelivered) > 0 ||
+        Number(sentStats.expired) > 0 ||
+        Number(sentStats.outOfCredits) > 0 ||
         Number(staleUnconfirmed) > 0;
 
     return {
@@ -1290,6 +1298,8 @@ export async function getSmsHealthStats(): Promise<{
         delivered: Number(sentStats.delivered),
         providerFailed: Number(sentStats.providerFailed),
         notDelivered: Number(sentStats.notDelivered),
+        expired: Number(sentStats.expired),
+        outOfCredits: Number(sentStats.outOfCredits),
         awaiting: Number(sentStats.awaiting),
         internalFailed,
         staleUnconfirmed: Number(staleUnconfirmed),

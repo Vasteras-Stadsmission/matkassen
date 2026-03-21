@@ -1584,6 +1584,8 @@
             "failedSms": "SMS delivery failed",
             "failedSmsStale": "SMS delivery unconfirmed",
             "failedSmsProvider": "SMS delivery rejected",
+            "failedSmsExpired": "SMS delivery expired",
+            "failedSmsOutOfCredits": "SMS not sent — out of credits",
             "failedSmsInternal": "SMS sending failed",
             "noShowFollowup": "No-show follow-up needed"
         },
@@ -1613,6 +1615,8 @@
         "failureDescription": {
             "internal": "Could not send. Contact technical support.",
             "provider": "SMS not delivered. This usually means the phone number is not in use.",
+            "expired": "SMS could not be delivered — the phone was unreachable within the time limit.",
+            "out_of_credits": "SMS was not sent — insufficient credits with the SMS provider.",
             "stale": "No delivery confirmation received. Contact technical support."
         },
         "toast": {
