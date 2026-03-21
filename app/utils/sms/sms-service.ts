@@ -9,7 +9,12 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { POSTGRES_ERROR_CODES } from "@/app/db/postgres-error-codes";
 import { eq, and, lte, lt, sql, gt, gte } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
-import { sendSmsViaGateway, checkBalanceViaGateway, type SendSmsResponse } from "./sms-gateway";
+import {
+    sendSmsViaGateway,
+    checkBalanceViaGateway,
+    fetchConversationViaGateway,
+    type SendSmsResponse,
+} from "./sms-gateway";
 import { formatPickupSms, formatFoodParcelsEndedSms } from "./templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
@@ -1206,6 +1211,8 @@ export async function getSmsHealthStats(): Promise<{
     delivered: number;
     providerFailed: number;
     notDelivered: number;
+    expired: number;
+    outOfCredits: number;
     awaiting: number;
     internalFailed: number;
     staleUnconfirmed: number;
@@ -1222,6 +1229,8 @@ export async function getSmsHealthStats(): Promise<{
             delivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'delivered')`,
             providerFailed: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'failed')`,
             notDelivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'not delivered')`,
+            expired: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'expired')`,
+            outOfCredits: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'out_of_credits')`,
             awaiting: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} IS NULL)`,
         })
         .from(outgoingSms)
@@ -1268,6 +1277,8 @@ export async function getSmsHealthStats(): Promise<{
         delivered: 0,
         providerFailed: 0,
         notDelivered: 0,
+        expired: 0,
+        outOfCredits: 0,
         awaiting: 0,
     };
     const internalFailed = Number(failedStatsResult[0]?.internalFailed || 0);
@@ -1278,6 +1289,8 @@ export async function getSmsHealthStats(): Promise<{
         internalFailed > 0 ||
         Number(sentStats.providerFailed) > 0 ||
         Number(sentStats.notDelivered) > 0 ||
+        Number(sentStats.expired) > 0 ||
+        Number(sentStats.outOfCredits) > 0 ||
         Number(staleUnconfirmed) > 0;
 
     return {
@@ -1285,6 +1298,8 @@ export async function getSmsHealthStats(): Promise<{
         delivered: Number(sentStats.delivered),
         providerFailed: Number(sentStats.providerFailed),
         notDelivered: Number(sentStats.notDelivered),
+        expired: Number(sentStats.expired),
+        outOfCredits: Number(sentStats.outOfCredits),
         awaiting: Number(sentStats.awaiting),
         internalFailed,
         staleUnconfirmed: Number(staleUnconfirmed),
@@ -2076,6 +2091,180 @@ const BALANCE_ALERT_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
 /** Reset Slack alert cooldown. Used by tests. */
 export function resetBalanceAlertCooldown(): void {
     lastBalanceAlertAt = 0;
+}
+
+/**
+ * Reconcile stale SMS delivery statuses via the HelloSMS conversation API.
+ *
+ * Finds SMS records where we sent successfully but never received a delivery
+ * status callback (provider_status IS NULL, sent > 1h ago). For each unique
+ * phone number, queries the HelloSMS conversation API and matches outgoing
+ * messages by text content and timestamp proximity (±60s).
+ *
+ * This resolves false "Ingen leveransbekräftelse mottagen" alerts when
+ * HelloSMS delivered the message but failed to send us a callback.
+ */
+// Delivery statuses we accept from the HelloSMS conversation API for reconciliation.
+// Excludes "waiting" — that's a transient state, and writing it would permanently
+// block future reconciliation (compare-and-set requires provider_status IS NULL).
+const KNOWN_PROVIDER_STATUSES = [
+    "delivered",
+    "failed",
+    "not delivered",
+    "expired",
+    "out_of_credits",
+] as const;
+
+export async function reconcileStaleMessages(): Promise<{
+    reconciled: number;
+    checked: number;
+    errors: string[];
+}> {
+    const { getHelloSmsConfig } = await import("./hello-sms");
+
+    // Skip in test mode
+    if (getHelloSmsConfig().testMode) {
+        return { reconciled: 0, checked: 0, errors: [] };
+    }
+
+    const now = Time.now().toUTC();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Find stale SMS: sent, no callback, between 1h and 7 days old, not dismissed.
+    // Upper bound avoids re-querying ancient records that will never be reconcilable.
+    const staleRecords = await db
+        .select({
+            id: outgoingSms.id,
+            to_e164: outgoingSms.to_e164,
+            text: outgoingSms.text,
+            sent_at: outgoingSms.sent_at,
+        })
+        .from(outgoingSms)
+        .where(
+            and(
+                eq(outgoingSms.status, "sent"),
+                sql`${outgoingSms.provider_status} IS NULL`,
+                lt(outgoingSms.sent_at, oneHourAgo),
+                gt(outgoingSms.sent_at, sevenDaysAgo),
+                sql`${outgoingSms.dismissed_at} IS NULL`,
+            ),
+        );
+
+    if (staleRecords.length === 0) {
+        return { reconciled: 0, checked: 0, errors: [] };
+    }
+
+    // Group by phone number
+    const byPhone = new Map<string, typeof staleRecords>();
+    for (const record of staleRecords) {
+        const existing = byPhone.get(record.to_e164) || [];
+        existing.push(record);
+        byPhone.set(record.to_e164, existing);
+    }
+
+    let reconciled = 0;
+    const errors: string[] = [];
+
+    for (const [phone, records] of byPhone) {
+        const conversation = await fetchConversationViaGateway(phone);
+
+        if (!conversation.success) {
+            errors.push(`${phone}: ${conversation.error}`);
+            continue;
+        }
+
+        // Filter to outgoing messages only; copy into mutable array so we can
+        // remove matched entries to prevent one API message matching multiple DB records.
+        const outgoing = conversation.messages.filter(m => m.direction === "out");
+
+        for (const record of records) {
+            if (!record.sent_at) continue;
+
+            const recordEpoch = record.sent_at.getTime() / 1000;
+
+            // Find matching message: same text + timestamp within 60s
+            const matchIndex = outgoing.findIndex(
+                m => m.text === record.text && Math.abs(m.ts - recordEpoch) <= 60,
+            );
+
+            if (matchIndex === -1) continue;
+
+            const match = outgoing[matchIndex];
+            // Remove matched message so it can't match another stale record
+            outgoing.splice(matchIndex, 1);
+
+            // Normalize status to known values; skip unknown statuses to avoid
+            // storing values the rest of the app doesn't understand.
+            const normalizedStatus = match.status?.toLowerCase();
+            if (
+                !KNOWN_PROVIDER_STATUSES.includes(
+                    normalizedStatus as (typeof KNOWN_PROVIDER_STATUSES)[number],
+                )
+            ) {
+                logger.warn(
+                    { smsId: record.id, phone, rawStatus: match.status },
+                    "SMS reconciliation: unknown provider status from conversation API, skipping",
+                );
+                continue;
+            }
+
+            // Compare-and-set: only update if provider_status is still NULL.
+            // A callback may have arrived between our SELECT and this UPDATE.
+            try {
+                const updated = await db
+                    .update(outgoingSms)
+                    .set({
+                        provider_status: normalizedStatus,
+                        provider_status_updated_at: now,
+                    })
+                    .where(
+                        and(
+                            eq(outgoingSms.id, record.id),
+                            sql`${outgoingSms.provider_status} IS NULL`,
+                        ),
+                    )
+                    .returning({ id: outgoingSms.id });
+
+                if (updated.length > 0) {
+                    reconciled++;
+                    logger.info(
+                        { smsId: record.id, phone, providerStatus: normalizedStatus },
+                        "SMS delivery status reconciled via conversation API (callback was missing)",
+                    );
+                } else {
+                    logger.debug(
+                        { smsId: record.id },
+                        "SMS reconciliation: callback arrived before reconciliation update, skipping",
+                    );
+                }
+            } catch (updateError) {
+                logError("SMS reconciliation: failed to update record", updateError, {
+                    smsId: record.id,
+                });
+                errors.push(
+                    `${record.id}: ${updateError instanceof Error ? updateError.message : "DB update failed"}`,
+                );
+            }
+        }
+
+        // Small delay between API calls to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    if (reconciled > 0 || errors.length > 0) {
+        logger.info(
+            {
+                reconciled,
+                checked: staleRecords.length,
+                phonesQueried: byPhone.size,
+                errors: errors.length,
+            },
+            "SMS reconciliation completed",
+        );
+    }
+
+    return { reconciled, checked: staleRecords.length, errors };
 }
 
 export async function sendInsufficientBalanceSlackAlert(): Promise<void> {

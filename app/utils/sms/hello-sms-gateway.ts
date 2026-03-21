@@ -5,8 +5,14 @@
  * The actual API call logic is delegated to the sendSms function in hello-sms.ts.
  */
 
-import type { SmsGateway, SendSmsRequest, SendSmsResponse, BalanceResult } from "./sms-gateway";
-import { sendSms, checkBalance } from "./hello-sms";
+import type {
+    SmsGateway,
+    SendSmsRequest,
+    SendSmsResponse,
+    BalanceResult,
+    ConversationResponse,
+} from "./sms-gateway";
+import { sendSms, checkBalance, fetchConversation } from "./hello-sms";
 
 export class HelloSmsGateway implements SmsGateway {
     async send(request: SendSmsRequest): Promise<SendSmsResponse> {
@@ -15,5 +21,9 @@ export class HelloSmsGateway implements SmsGateway {
 
     async checkBalance(): Promise<BalanceResult> {
         return checkBalance();
+    }
+
+    async fetchConversation(e164Number: string): Promise<ConversationResponse> {
+        return fetchConversation(e164Number);
     }
 }

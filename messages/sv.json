@@ -1584,6 +1584,8 @@
             "failedSms": "SMS-leverans misslyckades",
             "failedSmsStale": "SMS-leverans obekräftad",
             "failedSmsProvider": "SMS-leverans avvisad",
+            "failedSmsExpired": "SMS-leverans utgången",
+            "failedSmsOutOfCredits": "SMS ej skickat — slut på saldo",
             "failedSmsInternal": "SMS-sändning misslyckades",
             "noShowFollowup": "Uppföljning behövs"
         },
@@ -1613,6 +1615,8 @@
         "failureDescription": {
             "internal": "Kunde inte skickas. Kontakta teknisk support.",
             "provider": "SMS ej levererat. Detta betyder vanligtvis att telefonnumret inte är i bruk.",
+            "expired": "SMS kunde inte levereras — telefonen var inte nåbar inom tidsfristen.",
+            "out_of_credits": "SMS skickades inte — otillräckligt saldo hos SMS-leverantören.",
             "stale": "Ingen leveransbekräftelse mottagen. Kontakta teknisk support."
         },
         "toast": {

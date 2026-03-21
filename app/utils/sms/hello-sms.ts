@@ -23,12 +23,12 @@ import type { SendSmsRequest, SendSmsResponse } from "./sms-gateway";
 export type { SendSmsRequest, SendSmsResponse };
 
 export interface HelloSmsApiResponse {
-    status?: string;
+    status?: "success" | "failed";
     statusText?: string;
     messageIds?: Array<{
         apiMessageId: string;
         to: string;
-        status: number;
+        status: number; // 0 = accepted, non-zero = rejection (e.g. -5 = invalid number)
         message: string;
     }>;
 }
@@ -209,10 +209,9 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
             const messageId = firstRecipient?.apiMessageId || "unknown";
 
             // Check per-recipient status for immediate rejection errors
-            // Status codes: 0 = pending/queued, 1 = sent, >= 2 typically indicates failure
-            // This catches cases where API returns success but recipient is rejected
-            // (e.g., invalid phone format, blocked number)
-            if (firstRecipient && firstRecipient.status >= 2) {
+            // Status 0 = accepted, any non-zero value = rejection
+            // (e.g., -5 for invalid/unsupported phone number)
+            if (firstRecipient && firstRecipient.status !== 0) {
                 const errorMsg =
                     firstRecipient.message ||
                     `Recipient rejected (status: ${firstRecipient.status})`;
@@ -313,6 +312,79 @@ export async function checkBalance(): Promise<BalanceResult> {
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error checking balance",
+        };
+    }
+}
+
+// --- Conversation API (for delivery status reconciliation) ---
+
+// Re-export types from sms-gateway.ts for backwards compatibility
+import type { ConversationMessage, ConversationResponse } from "./sms-gateway";
+export type { ConversationMessage, ConversationResponse };
+
+/**
+ * Fetch the conversation history for a phone number from HelloSMS.
+ *
+ * GET https://api.hellosms.se/api/v1/sms/conversation?number=<e164>
+ * Returns up to 200 messages per page (pagination not needed for our use case).
+ *
+ * Used by the reconciliation job to cross-check delivery status for messages
+ * where we never received a callback.
+ */
+export async function fetchConversation(e164Number: string): Promise<ConversationResponse> {
+    if (!isValidE164(e164Number)) {
+        return { success: false, messages: [], error: `Invalid E.164 number: ${e164Number}` };
+    }
+
+    const config = getHelloSmsConfig();
+
+    if (config.testMode) {
+        return { success: true, messages: [] };
+    }
+
+    if (!config.username || !config.password) {
+        return { success: false, messages: [], error: "HelloSMS credentials not configured" };
+    }
+
+    // Derive conversation URL from the configured API URL
+    // Default send URL: https://api.hellosms.se/api/v1/sms/send
+    // Conversation URL: https://api.hellosms.se/api/v1/sms/conversation
+    // Note: conversation API expects number without '+' prefix (e.g. "46700000000")
+    const baseUrl = config.apiUrl.replace(/\/sms\/send\/?$/, "");
+    const numberWithoutPlus = e164Number.replace(/^\+/, "");
+    const conversationUrl = `${baseUrl}/sms/conversation?number=${encodeURIComponent(numberWithoutPlus)}`;
+
+    try {
+        const response = await fetch(conversationUrl, {
+            method: "GET",
+            headers: {
+                Authorization: `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`,
+            },
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            const statusText =
+                (body as { statusText?: string }).statusText || `HTTP ${response.status}`;
+            return { success: false, messages: [], error: statusText };
+        }
+
+        const data = await response.json().catch(() => null);
+        if (!data || typeof data !== "object") {
+            return { success: false, messages: [], error: "Invalid JSON response" };
+        }
+
+        const typed = data as { status?: string; messages?: ConversationMessage[] };
+        if (typed.status === "success" && Array.isArray(typed.messages)) {
+            return { success: true, messages: typed.messages };
+        }
+
+        return { success: false, messages: [], error: "Unexpected response format" };
+    } catch (error) {
+        return {
+            success: false,
+            messages: [],
+            error: error instanceof Error ? error.message : "Unknown error fetching conversation",
         };
     }
 }
