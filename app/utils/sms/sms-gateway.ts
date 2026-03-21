@@ -14,12 +14,14 @@ export interface BalanceResult {
     error?: string;
 }
 
+export type ConversationMessageStatus = "received" | "delivered" | "failed" | "not delivered";
+
 export interface ConversationMessage {
     ts: number; // Unix timestamp
     subject: string;
     text: string;
     direction: "in" | "out";
-    status: string;
+    status: ConversationMessageStatus;
 }
 
 export interface ConversationResponse {
