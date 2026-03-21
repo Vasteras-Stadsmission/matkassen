@@ -349,8 +349,10 @@ export async function fetchConversation(e164Number: string): Promise<Conversatio
     // Derive conversation URL from the configured API URL
     // Default send URL: https://api.hellosms.se/api/v1/sms/send
     // Conversation URL: https://api.hellosms.se/api/v1/sms/conversation
+    // Note: conversation API expects number without '+' prefix (e.g. "46700000000")
     const baseUrl = config.apiUrl.replace(/\/sms\/send\/?$/, "");
-    const conversationUrl = `${baseUrl}/sms/conversation?number=${encodeURIComponent(e164Number)}`;
+    const numberWithoutPlus = e164Number.replace(/^\+/, "");
+    const conversationUrl = `${baseUrl}/sms/conversation?number=${encodeURIComponent(numberWithoutPlus)}`;
 
     try {
         const response = await fetch(conversationUrl, {

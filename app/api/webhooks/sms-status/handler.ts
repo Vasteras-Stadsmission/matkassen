@@ -15,8 +15,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateSmsProviderStatus } from "@/app/utils/sms/sms-service";
 import { logger, logError } from "@/app/utils/logger";
 
-// Valid status values from HelloSMS
-const VALID_STATUSES = ["delivered", "failed", "not delivered"] as const;
+// Valid status values from HelloSMS callbacks.
+// Docs list: delivered, failed, not delivered.
+// Conversation API also uses: waiting, expired, out_of_credits — accept these
+// defensively in case HelloSMS starts sending them as callbacks too.
+const VALID_STATUSES = [
+    "delivered",
+    "failed",
+    "not delivered",
+    "waiting",
+    "expired",
+    "out_of_credits",
+] as const;
 
 // Validate that status is a known HelloSMS status value
 function isValidStatus(status: unknown): status is (typeof VALID_STATUSES)[number] {

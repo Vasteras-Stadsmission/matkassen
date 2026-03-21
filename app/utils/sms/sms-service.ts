@@ -2094,8 +2094,16 @@ export function resetBalanceAlertCooldown(): void {
  * This resolves false "Ingen leveransbekräftelse mottagen" alerts when
  * HelloSMS delivered the message but failed to send us a callback.
  */
-// Known delivery statuses from HelloSMS (must match handler.ts VALID_STATUSES)
-const KNOWN_PROVIDER_STATUSES = ["delivered", "failed", "not delivered"] as const;
+// Delivery statuses we accept from the HelloSMS conversation API for reconciliation.
+// Superset of callback statuses — conversation API also reports waiting/expired/out_of_credits.
+const KNOWN_PROVIDER_STATUSES = [
+    "delivered",
+    "failed",
+    "not delivered",
+    "waiting",
+    "expired",
+    "out_of_credits",
+] as const;
 
 export async function reconcileStaleMessages(): Promise<{
     reconciled: number;

@@ -14,7 +14,14 @@ export interface BalanceResult {
     error?: string;
 }
 
-export type ConversationMessageStatus = "received" | "delivered" | "failed" | "not delivered";
+export type ConversationMessageStatus =
+    | "received" // Incoming message received by the system
+    | "delivered" // Successfully delivered to recipient
+    | "failed" // Permanent failure (invalid/inactive number)
+    | "not delivered" // Temporary failure (phone off/offline)
+    | "waiting" // Queued, not yet delivered
+    | "expired" // Delivery window exceeded, gave up
+    | "out_of_credits"; // Not sent due to insufficient credits
 
 export interface ConversationMessage {
     ts: number; // Unix timestamp
