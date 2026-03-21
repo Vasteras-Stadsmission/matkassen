@@ -93,7 +93,9 @@ export async function POST(
         const isProviderFailed =
             originalSms.status === "sent" &&
             (originalSms.providerStatus === "failed" ||
-                originalSms.providerStatus === "not delivered");
+                originalSms.providerStatus === "not delivered" ||
+                originalSms.providerStatus === "expired" ||
+                originalSms.providerStatus === "out_of_credits");
         const isStale =
             originalSms.status === "sent" &&
             !originalSms.providerStatus &&

@@ -2105,12 +2105,12 @@ export function resetBalanceAlertCooldown(): void {
  * HelloSMS delivered the message but failed to send us a callback.
  */
 // Delivery statuses we accept from the HelloSMS conversation API for reconciliation.
-// Superset of callback statuses — conversation API also reports waiting/expired/out_of_credits.
+// Excludes "waiting" — that's a transient state, and writing it would permanently
+// block future reconciliation (compare-and-set requires provider_status IS NULL).
 const KNOWN_PROVIDER_STATUSES = [
     "delivered",
     "failed",
     "not delivered",
-    "waiting",
     "expired",
     "out_of_credits",
 ] as const;
