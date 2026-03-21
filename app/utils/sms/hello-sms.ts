@@ -23,12 +23,12 @@ import type { SendSmsRequest, SendSmsResponse } from "./sms-gateway";
 export type { SendSmsRequest, SendSmsResponse };
 
 export interface HelloSmsApiResponse {
-    status?: string;
+    status?: "success" | "failed";
     statusText?: string;
     messageIds?: Array<{
         apiMessageId: string;
         to: string;
-        status: number;
+        status: number; // 0 = accepted, non-zero = rejection (e.g. -5 = invalid number)
         message: string;
     }>;
 }
@@ -209,10 +209,9 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
             const messageId = firstRecipient?.apiMessageId || "unknown";
 
             // Check per-recipient status for immediate rejection errors
-            // Status codes: 0 = pending/queued, 1 = sent, >= 2 typically indicates failure
-            // This catches cases where API returns success but recipient is rejected
-            // (e.g., invalid phone format, blocked number)
-            if (firstRecipient && firstRecipient.status >= 2) {
+            // Status 0 = accepted, any non-zero value = rejection
+            // (e.g., -5 for invalid/unsupported phone number)
+            if (firstRecipient && firstRecipient.status !== 0) {
                 const errorMsg =
                     firstRecipient.message ||
                     `Recipient rejected (status: ${firstRecipient.status})`;
