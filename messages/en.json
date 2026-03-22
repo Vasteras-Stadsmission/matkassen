@@ -1617,7 +1617,7 @@
             "provider": "SMS not delivered. This usually means the phone number is not in use.",
             "expired": "SMS could not be delivered — the phone was unreachable within the time limit.",
             "out_of_credits": "SMS was not sent — insufficient credits with the SMS provider.",
-            "stale": "No delivery confirmation received. Contact technical support."
+            "stale": "No delivery confirmation received. The SMS may not have reached the recipient."
         },
         "toast": {
             "handedOut": "Marked as handed out",

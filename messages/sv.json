@@ -1617,7 +1617,7 @@
             "provider": "SMS ej levererat. Detta betyder vanligtvis att telefonnumret inte är i bruk.",
             "expired": "SMS kunde inte levereras — telefonen var inte nåbar inom tidsfristen.",
             "out_of_credits": "SMS skickades inte — otillräckligt saldo hos SMS-leverantören.",
-            "stale": "Ingen leveransbekräftelse mottagen. Kontakta teknisk support."
+            "stale": "Ingen leveransbekräftelse mottagen. SMS:et kanske inte nådde mottagaren."
         },
         "toast": {
             "handedOut": "Markerad som utlämnad",
