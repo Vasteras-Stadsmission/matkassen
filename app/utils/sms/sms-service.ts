@@ -2252,17 +2252,15 @@ export async function reconcileStaleMessages(): Promise<{
         await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    if (reconciled > 0 || errors.length > 0) {
-        logger.info(
-            {
-                reconciled,
-                checked: staleRecords.length,
-                phonesQueried: byPhone.size,
-                errors: errors.length,
-            },
-            "SMS reconciliation completed",
-        );
-    }
+    logger.info(
+        {
+            reconciled,
+            checked: staleRecords.length,
+            phonesQueried: byPhone.size,
+            errors: errors.length,
+        },
+        "SMS reconciliation completed",
+    );
 
     return { reconciled, checked: staleRecords.length, errors };
 }
