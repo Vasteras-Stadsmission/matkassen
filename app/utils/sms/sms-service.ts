@@ -2104,16 +2104,13 @@ export function resetBalanceAlertCooldown(): void {
  * This resolves false "Ingen leveransbekräftelse mottagen" alerts when
  * HelloSMS delivered the message but failed to send us a callback.
  */
-// Delivery statuses we accept from the HelloSMS conversation API for reconciliation.
-// Excludes "waiting" — that's a transient state, and writing it would permanently
-// block future reconciliation (compare-and-set requires provider_status IS NULL).
-const KNOWN_PROVIDER_STATUSES = [
-    "delivered",
-    "failed",
-    "not delivered",
-    "expired",
-    "out_of_credits",
-] as const;
+// Statuses we write during reconciliation. Derived from ALL_PROVIDER_STATUSES but
+// excludes transient states: "waiting" (would permanently block re-reconciliation
+// because compare-and-set requires provider_status IS NULL) and "received" (inbound only).
+import { ALL_PROVIDER_STATUSES } from "./sms-gateway";
+const RECONCILABLE_STATUSES = ALL_PROVIDER_STATUSES.filter(
+    s => s !== "waiting" && s !== "received",
+);
 
 export async function reconcileStaleMessages(): Promise<{
     reconciled: number;
@@ -2133,6 +2130,7 @@ export async function reconcileStaleMessages(): Promise<{
 
     // Find stale SMS: sent, no callback, between 1h and 7 days old, not dismissed.
     // Upper bound avoids re-querying ancient records that will never be reconcilable.
+    // Limit to 100 records per run to bound API calls and execution time.
     const staleRecords = await db
         .select({
             id: outgoingSms.id,
@@ -2149,7 +2147,9 @@ export async function reconcileStaleMessages(): Promise<{
                 gt(outgoingSms.sent_at, sevenDaysAgo),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
             ),
-        );
+        )
+        .orderBy(outgoingSms.sent_at)
+        .limit(100);
 
     if (staleRecords.length === 0) {
         return { reconciled: 0, checked: 0, errors: [] };
@@ -2198,8 +2198,8 @@ export async function reconcileStaleMessages(): Promise<{
             // storing values the rest of the app doesn't understand.
             const normalizedStatus = match.status?.toLowerCase();
             if (
-                !KNOWN_PROVIDER_STATUSES.includes(
-                    normalizedStatus as (typeof KNOWN_PROVIDER_STATUSES)[number],
+                !RECONCILABLE_STATUSES.includes(
+                    normalizedStatus as (typeof RECONCILABLE_STATUSES)[number],
                 )
             ) {
                 logger.warn(

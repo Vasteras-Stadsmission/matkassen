@@ -32,7 +32,8 @@ export class MockSmsGateway implements SmsGateway {
     private messageIdCounter = 0;
     private balanceCredits: number = 999;
     private balanceError: string | null = null;
-    private conversationMessages: ConversationMessage[] = [];
+    private conversationsByPhone: Map<string, ConversationMessage[]> = new Map();
+    private defaultConversationMessages: ConversationMessage[] = [];
     private conversationError: string | null = null;
 
     /**
@@ -53,10 +54,16 @@ export class MockSmsGateway implements SmsGateway {
     }
 
     /**
-     * Configure fetchConversation to return specific messages
+     * Configure fetchConversation to return specific messages.
+     * If phone is provided, only returns these messages for that number.
+     * Without phone, sets the default response for all numbers.
      */
-    mockConversation(messages: ConversationMessage[]): this {
-        this.conversationMessages = messages;
+    mockConversation(messages: ConversationMessage[], phone?: string): this {
+        if (phone) {
+            this.conversationsByPhone.set(phone, messages);
+        } else {
+            this.defaultConversationMessages = messages;
+        }
         this.conversationError = null;
         return this;
     }
@@ -82,11 +89,13 @@ export class MockSmsGateway implements SmsGateway {
     /**
      * Fetch conversation (mock implementation)
      */
-    async fetchConversation(): Promise<ConversationResponse> {
+    async fetchConversation(e164Number: string): Promise<ConversationResponse> {
         if (this.conversationError) {
             return { success: false, messages: [], error: this.conversationError };
         }
-        return { success: true, messages: this.conversationMessages };
+        const messages =
+            this.conversationsByPhone.get(e164Number) ?? this.defaultConversationMessages;
+        return { success: true, messages };
     }
 
     /**
@@ -124,7 +133,8 @@ export class MockSmsGateway implements SmsGateway {
         this.messageIdCounter = 0;
         this.balanceCredits = 999;
         this.balanceError = null;
-        this.conversationMessages = [];
+        this.conversationsByPhone = new Map();
+        this.defaultConversationMessages = [];
         this.conversationError = null;
         return this;
     }

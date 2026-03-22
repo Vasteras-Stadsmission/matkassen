@@ -14,14 +14,21 @@ export interface BalanceResult {
     error?: string;
 }
 
-export type ConversationMessageStatus =
-    | "received" // Incoming message received by the system
-    | "delivered" // Successfully delivered to recipient
-    | "failed" // Permanent failure (invalid/inactive number)
-    | "not delivered" // Temporary failure (phone off/offline)
-    | "waiting" // Queued, not yet delivered
-    | "expired" // Delivery window exceeded, gave up
-    | "out_of_credits"; // Not sent due to insufficient credits
+/**
+ * All known delivery statuses from the HelloSMS conversation API.
+ * Single source of truth — callback handler and reconciliation derive from this.
+ */
+export const ALL_PROVIDER_STATUSES = [
+    "received", // Incoming message received by the system
+    "delivered", // Successfully delivered to recipient
+    "failed", // Permanent failure (invalid/inactive number)
+    "not delivered", // Temporary failure (phone off/offline)
+    "waiting", // Queued, not yet delivered
+    "expired", // Delivery window exceeded, gave up
+    "out_of_credits", // Not sent due to insufficient credits
+] as const;
+
+export type ConversationMessageStatus = (typeof ALL_PROVIDER_STATUSES)[number];
 
 export interface ConversationMessage {
     ts: number; // Unix timestamp
