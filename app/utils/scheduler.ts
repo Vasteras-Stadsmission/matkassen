@@ -13,6 +13,7 @@ import {
     getSmsHealthStats,
     getAvailableCredits,
     sendInsufficientBalanceSlackAlert,
+    reconcileStaleMessages,
 } from "@/app/utils/sms/sms-service";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { parseDuration } from "@/app/utils/duration-parser";
@@ -23,6 +24,7 @@ import { logger, logError, logCron } from "@/app/utils/logger";
 type SchedulerState = {
     isRunning: boolean;
     smsInterval: NodeJS.Timeout | null; // Single interval for pure JIT
+    smsReconciliationInterval: NodeJS.Timeout | null; // Hourly delivery status reconciliation
     anonymizationTask: ScheduledTask | null;
     smsReportTask: ScheduledTask | null; // Daily SMS health report
     orgSyncTask: ScheduledTask | null; // Daily org membership sync
@@ -35,7 +37,10 @@ type SchedulerState = {
     lastSmsReportStatus: "success" | "skipped" | "error" | null;
     lastOrgSyncRun: Date | null;
     lastOrgSyncStatus: "success" | "error" | null;
+    lastSmsReconciliationRun: Date | null;
+    lastSmsReconciliationStatus: "success" | "error" | null;
     smsProcessingInFlight: boolean; // Prevents concurrent SMS processing
+    smsReconciliationInFlight: boolean; // Prevents concurrent reconciliation runs
     orgSyncInFlight: boolean; // Prevents concurrent org sync runs
 };
 
@@ -50,6 +55,7 @@ function getSchedulerState(): SchedulerState {
         globalObj[GLOBAL_STATE_KEY] = {
             isRunning: false,
             smsInterval: null,
+            smsReconciliationInterval: null,
             anonymizationTask: null,
             smsReportTask: null,
             orgSyncTask: null,
@@ -62,7 +68,10 @@ function getSchedulerState(): SchedulerState {
             lastSmsReportStatus: null,
             lastOrgSyncRun: null,
             lastOrgSyncStatus: null,
+            lastSmsReconciliationRun: null,
+            lastSmsReconciliationStatus: null,
             smsProcessingInFlight: false,
+            smsReconciliationInFlight: false,
             orgSyncInFlight: false,
         };
     }
@@ -109,6 +118,9 @@ const ORG_SYNC_SCHEDULE = process.env.ORG_SYNC_SCHEDULE || "0 3 * * *";
 const CRON_TIMEZONE = "Europe/Stockholm";
 
 const SMS_SEND_BATCH_SIZE = 5;
+
+// SMS Reconciliation: cross-check delivery status via HelloSMS conversation API
+const SMS_RECONCILIATION_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Process SMS: Pure JIT for reminders + ended notifications + queued SMS for other intents
@@ -518,6 +530,65 @@ async function notifyOrgSyncResult(result: {
 }
 
 /**
+ * Reconcile stale SMS delivery statuses with concurrency guard.
+ * Queries HelloSMS conversation API for messages where we never got a callback.
+ */
+async function runSmsReconciliation(): Promise<void> {
+    if (schedulerState.smsReconciliationInFlight) {
+        logger.debug("SMS reconciliation already in flight, skipping this run");
+        return;
+    }
+
+    schedulerState.smsReconciliationInFlight = true;
+    schedulerState.lastSmsReconciliationRun = new Date();
+
+    try {
+        logCron("sms-reconciliation", "started", {});
+        const result = await reconcileStaleMessages();
+
+        if (result.errors.length > 0) {
+            logCron("sms-reconciliation", "completed", {
+                reconciled: result.reconciled,
+                checked: result.checked,
+                errors: result.errors.length,
+            });
+            schedulerState.lastSmsReconciliationStatus = "error";
+
+            // Slack alert in production when reconciliation has errors
+            // (e.g., HelloSMS API key expired, conversation endpoint unreachable)
+            if (process.env.NODE_ENV === "production") {
+                import("@/app/utils/notifications/slack")
+                    .then(({ sendSlackAlert }) =>
+                        sendSlackAlert({
+                            title: "SMS Reconciliation Errors",
+                            message: `Reconciled ${result.reconciled} of ${result.checked} stale SMS, but ${result.errors.length} phone(s) failed.`,
+                            status: "error",
+                            details: {
+                                Reconciled: result.reconciled.toString(),
+                                Checked: result.checked.toString(),
+                                Errors: result.errors.slice(0, 5).join("\n"),
+                                Timestamp: new Date().toISOString(),
+                            },
+                        }),
+                    )
+                    .catch(err => logError("Failed to send reconciliation Slack alert", err));
+            }
+        } else {
+            logCron("sms-reconciliation", "completed", {
+                reconciled: result.reconciled,
+                checked: result.checked,
+            });
+            schedulerState.lastSmsReconciliationStatus = "success";
+        }
+    } catch (error) {
+        logError("Failed to run SMS reconciliation", error);
+        schedulerState.lastSmsReconciliationStatus = "error";
+    } finally {
+        schedulerState.smsReconciliationInFlight = false;
+    }
+}
+
+/**
  * Start the unified scheduler
  */
 export function startScheduler(): void {
@@ -550,6 +621,15 @@ export function startScheduler(): void {
             logError("Error in SMS JIT loop", error);
         }
     }, SMS_INTERVAL_MS);
+
+    // Start SMS reconciliation loop (hourly: cross-check delivery status via conversation API)
+    schedulerState.smsReconciliationInterval = setInterval(async () => {
+        try {
+            await runSmsReconciliation();
+        } catch (error) {
+            logError("Error in SMS reconciliation loop", error);
+        }
+    }, SMS_RECONCILIATION_INTERVAL_MS);
 
     // Start anonymization cron job
     try {
@@ -683,6 +763,7 @@ export function startScheduler(): void {
                         "Anonymization Schedule": ANONYMIZATION_SCHEDULE,
                         "Anonymization Duration": ANONYMIZATION_INACTIVE_DURATION,
                         "SMS Report Schedule": SMS_REPORT_SCHEDULE,
+                        "SMS Reconciliation Interval": `${SMS_RECONCILIATION_INTERVAL_MS / 60000} minutes`,
                         "Environment": process.env.NODE_ENV || "development",
                     },
                 });
@@ -713,6 +794,11 @@ export function stopScheduler(): void {
     if (schedulerState.smsInterval) {
         clearInterval(schedulerState.smsInterval);
         schedulerState.smsInterval = null;
+    }
+
+    if (schedulerState.smsReconciliationInterval) {
+        clearInterval(schedulerState.smsReconciliationInterval);
+        schedulerState.smsReconciliationInterval = null;
     }
 
     if (schedulerState.anonymizationTask) {
@@ -770,6 +856,7 @@ export async function schedulerHealthCheck(): Promise<{
                 anonymizationSchedulerRunning,
                 smsReportSchedulerRunning,
                 orgSyncSchedulerRunning: schedulerState.orgSyncTask !== null,
+                smsReconciliationRunning: schedulerState.smsReconciliationInterval !== null,
                 smsTestMode: getHelloSmsConfig().testMode,
                 lastAnonymizationRun: schedulerState.lastAnonymizationRun?.toISOString() || "Never",
                 lastAnonymizationStatus: schedulerState.lastAnonymizationStatus,
@@ -777,6 +864,9 @@ export async function schedulerHealthCheck(): Promise<{
                 lastSmsReportStatus: schedulerState.lastSmsReportStatus,
                 lastOrgSyncRun: schedulerState.lastOrgSyncRun?.toISOString() || "Never",
                 lastOrgSyncStatus: schedulerState.lastOrgSyncStatus,
+                lastSmsReconciliationRun:
+                    schedulerState.lastSmsReconciliationRun?.toISOString() || "Never",
+                lastSmsReconciliationStatus: schedulerState.lastSmsReconciliationStatus,
                 // Configuration visibility for debugging
                 anonymizationSchedule: ANONYMIZATION_SCHEDULE,
                 anonymizationInactiveDuration: ANONYMIZATION_INACTIVE_DURATION,
@@ -891,6 +981,27 @@ export async function triggerSmsJIT(): Promise<{
             processedCount: result.processed,
             skipped: result.skipped,
         };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+        };
+    }
+}
+
+/**
+ * Manual trigger for SMS reconciliation (for testing/admin)
+ * Uses the same in-progress guard as the scheduled run.
+ */
+export async function triggerSmsReconciliation(): Promise<{
+    success: boolean;
+    skipped?: boolean;
+    error?: string;
+}> {
+    const alreadyRunning = schedulerState.smsReconciliationInFlight;
+    try {
+        await runSmsReconciliation();
+        return { success: true, skipped: alreadyRunning };
     } catch (error) {
         return {
             success: false,

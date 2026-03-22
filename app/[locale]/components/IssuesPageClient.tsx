@@ -65,7 +65,7 @@ interface FailedSms {
     parcelId: string | null;
     pickupEarliest: string | null;
     errorMessage: string | null;
-    failureType: "internal" | "provider" | "stale";
+    failureType: "internal" | "provider" | "expired" | "out_of_credits" | "stale";
     createdAt: string;
 }
 
@@ -848,11 +848,15 @@ export default function IssuesPageClient() {
                                 const failureColors: Record<string, string> = {
                                     stale: "grape",
                                     provider: "red",
+                                    expired: "red",
+                                    out_of_credits: "red",
                                     internal: "orange",
                                 };
                                 const failureLabels: Record<string, string> = {
                                     stale: t("cardType.failedSmsStale"),
                                     provider: t("cardType.failedSmsProvider"),
+                                    expired: t("cardType.failedSmsExpired"),
+                                    out_of_credits: t("cardType.failedSmsOutOfCredits"),
                                     internal: t("cardType.failedSmsInternal"),
                                 };
                                 const failureColor = failureColors[sms.failureType] ?? "grape";
@@ -993,6 +997,10 @@ export default function IssuesPageClient() {
                                                     {
                                                         internal: t("failureDescription.internal"),
                                                         provider: t("failureDescription.provider"),
+                                                        expired: t("failureDescription.expired"),
+                                                        out_of_credits: t(
+                                                            "failureDescription.out_of_credits",
+                                                        ),
                                                         stale: t("failureDescription.stale"),
                                                     }[sms.failureType]
                                                 }

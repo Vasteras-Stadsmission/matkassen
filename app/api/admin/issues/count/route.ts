@@ -56,6 +56,7 @@ export async function GET() {
                         and(
                             isNull(outgoingSms.dismissed_at),
                             isNull(households.anonymized_at),
+                            eq(outgoingSms.balance_failure, false),
                             or(
                                 eq(outgoingSms.status, "failed"),
                                 and(
@@ -63,6 +64,8 @@ export async function GET() {
                                     or(
                                         eq(outgoingSms.provider_status, "failed"),
                                         eq(outgoingSms.provider_status, "not delivered"),
+                                        eq(outgoingSms.provider_status, "expired"),
+                                        eq(outgoingSms.provider_status, "out_of_credits"),
                                     ),
                                 ),
                                 and(

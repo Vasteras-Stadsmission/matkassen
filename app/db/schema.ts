@@ -394,7 +394,7 @@ export const outgoingSms = pgTable(
         last_error_message: text("last_error_message"), // Helpful for debugging failures
         idempotency_key: varchar("idempotency_key", { length: 100 }).notNull(), // Stable key for deduplication
         provider_message_id: varchar("provider_message_id", { length: 50 }), // ID from SMS provider
-        provider_status: varchar("provider_status", { length: 100 }), // Delivery status text from provider (e.g., "Delivered", "Failed")
+        provider_status: varchar("provider_status", { length: 100 }), // Delivery status from provider (e.g., "delivered", "failed", "expired")
         provider_status_updated_at: timestamp({ precision: 1, withTimezone: true }), // When provider last updated status
         balance_failure: boolean("balance_failure").notNull().default(false), // True if SMS failed due to insufficient balance (pre-batch credit check)
         dismissed_at: timestamp({ precision: 1, withTimezone: true }), // When admin marked failure as handled

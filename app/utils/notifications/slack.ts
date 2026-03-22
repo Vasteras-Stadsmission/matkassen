@@ -324,6 +324,8 @@ export interface SmsHealthStats {
     delivered: number;
     providerFailed: number;
     notDelivered: number;
+    expired: number;
+    outOfCredits: number;
     awaiting: number;
     internalFailed: number;
     staleUnconfirmed: number;
@@ -349,6 +351,8 @@ export async function sendSmsHealthReport(stats: SmsHealthStats): Promise<boolea
         `├─ Delivered: ${stats.delivered}`,
         `├─ Provider Failed: ${stats.providerFailed}`,
         `├─ Not Delivered: ${stats.notDelivered}`,
+        `├─ Expired: ${stats.expired}`,
+        `├─ Out of Credits: ${stats.outOfCredits}`,
         `└─ Awaiting: ${stats.awaiting}`,
         "",
         `*Internal Failures:* ${stats.internalFailed}`,
@@ -368,6 +372,8 @@ export async function sendSmsHealthReport(stats: SmsHealthStats): Promise<boolea
             "Delivered": stats.delivered.toString(),
             "Provider Failed": stats.providerFailed.toString(),
             "Not Delivered": stats.notDelivered.toString(),
+            "Expired": stats.expired.toString(),
+            "Out of Credits": stats.outOfCredits.toString(),
             "Internal Failed": stats.internalFailed.toString(),
             "Stale Unconfirmed": stats.staleUnconfirmed.toString(),
         },

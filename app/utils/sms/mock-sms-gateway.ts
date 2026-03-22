@@ -5,7 +5,14 @@
  * for testing various success and failure scenarios.
  */
 
-import type { SmsGateway, SendSmsRequest, SendSmsResponse, BalanceResult } from "./sms-gateway";
+import type {
+    SmsGateway,
+    SendSmsRequest,
+    SendSmsResponse,
+    BalanceResult,
+    ConversationResponse,
+    ConversationMessage,
+} from "./sms-gateway";
 
 export interface MockSmsCall {
     request: SendSmsRequest;
@@ -25,6 +32,9 @@ export class MockSmsGateway implements SmsGateway {
     private messageIdCounter = 0;
     private balanceCredits: number = 999;
     private balanceError: string | null = null;
+    private conversationsByPhone: Map<string, ConversationMessage[]> = new Map();
+    private defaultConversationMessages: ConversationMessage[] = [];
+    private conversationError: string | null = null;
 
     /**
      * Configure the balance check to return a specific credit count
@@ -44,6 +54,29 @@ export class MockSmsGateway implements SmsGateway {
     }
 
     /**
+     * Configure fetchConversation to return specific messages.
+     * If phone is provided, only returns these messages for that number.
+     * Without phone, sets the default response for all numbers.
+     */
+    mockConversation(messages: ConversationMessage[], phone?: string): this {
+        if (phone) {
+            this.conversationsByPhone.set(phone, messages);
+        } else {
+            this.defaultConversationMessages = messages;
+        }
+        this.conversationError = null;
+        return this;
+    }
+
+    /**
+     * Configure fetchConversation to return an error
+     */
+    mockConversationError(error: string): this {
+        this.conversationError = error;
+        return this;
+    }
+
+    /**
      * Check balance (mock implementation)
      */
     async checkBalance(): Promise<BalanceResult> {
@@ -51,6 +84,18 @@ export class MockSmsGateway implements SmsGateway {
             return { success: false, error: this.balanceError };
         }
         return { success: true, credits: this.balanceCredits };
+    }
+
+    /**
+     * Fetch conversation (mock implementation)
+     */
+    async fetchConversation(e164Number: string): Promise<ConversationResponse> {
+        if (this.conversationError) {
+            return { success: false, messages: [], error: this.conversationError };
+        }
+        const messages =
+            this.conversationsByPhone.get(e164Number) ?? this.defaultConversationMessages;
+        return { success: true, messages };
     }
 
     /**
@@ -88,6 +133,9 @@ export class MockSmsGateway implements SmsGateway {
         this.messageIdCounter = 0;
         this.balanceCredits = 999;
         this.balanceError = null;
+        this.conversationsByPhone = new Map();
+        this.defaultConversationMessages = [];
+        this.conversationError = null;
         return this;
     }
 

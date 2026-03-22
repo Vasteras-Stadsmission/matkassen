@@ -14,9 +14,40 @@ export interface BalanceResult {
     error?: string;
 }
 
+/**
+ * All known delivery statuses from the HelloSMS conversation API.
+ * Single source of truth — callback handler and reconciliation derive from this.
+ */
+export const ALL_PROVIDER_STATUSES = [
+    "received", // Incoming message received by the system
+    "delivered", // Successfully delivered to recipient
+    "failed", // Permanent failure (invalid/inactive number)
+    "not delivered", // Temporary failure (phone off/offline)
+    "waiting", // Queued, not yet delivered
+    "expired", // Delivery window exceeded, gave up
+    "out_of_credits", // Not sent due to insufficient credits
+] as const;
+
+export type ConversationMessageStatus = (typeof ALL_PROVIDER_STATUSES)[number];
+
+export interface ConversationMessage {
+    ts: number; // Unix timestamp
+    subject: string;
+    text: string;
+    direction: "in" | "out";
+    status: ConversationMessageStatus;
+}
+
+export interface ConversationResponse {
+    success: boolean;
+    messages: ConversationMessage[];
+    error?: string;
+}
+
 export interface SmsGateway {
     send(request: SendSmsRequest): Promise<SendSmsResponse>;
     checkBalance(): Promise<BalanceResult>;
+    fetchConversation(e164Number: string): Promise<ConversationResponse>;
 }
 
 export interface SendSmsRequest {
@@ -77,4 +108,13 @@ export async function sendSmsViaGateway(request: SendSmsRequest): Promise<SendSm
  */
 export async function checkBalanceViaGateway(): Promise<BalanceResult> {
     return getSmsGateway().checkBalance();
+}
+
+/**
+ * Fetch conversation history via the current gateway.
+ */
+export async function fetchConversationViaGateway(
+    e164Number: string,
+): Promise<ConversationResponse> {
+    return getSmsGateway().fetchConversation(e164Number);
 }
