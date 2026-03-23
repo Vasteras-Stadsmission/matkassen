@@ -349,16 +349,18 @@ describe("Issues API - Integration Tests", () => {
     });
 
     describe("SMS Failure Classification", () => {
-        it("should classify failures as internal/provider/stale", async () => {
+        it("should classify failures as internal/provider_rejected/provider_unreachable/stale", async () => {
             const household = await createTestHousehold({ first_name: "Fail" });
-            const createdAtBase = new Date(TEST_NOW.getTime() - 3 * 60 * 1000);
+            const createdAtBase = new Date(TEST_NOW.getTime() - 4 * 60 * 1000);
 
+            // Internal failure (app-level status: "failed")
             await createTestSms({
                 household_id: household.id,
                 status: "failed",
                 created_at: new Date(createdAtBase.getTime() + 0),
             });
 
+            // Provider rejected (provider_status: "failed" — instant rejection, bad number)
             await createTestSms({
                 household_id: household.id,
                 status: "sent",
@@ -367,20 +369,31 @@ describe("Issues API - Integration Tests", () => {
                 created_at: new Date(createdAtBase.getTime() + 1000),
             });
 
+            // Provider unreachable (provider_status: "not delivered" — 48h timeout, phone off)
+            await createTestSms({
+                household_id: household.id,
+                status: "sent",
+                provider_status: "not delivered",
+                sent_at: new Date(TEST_NOW.getTime() - 49 * 60 * 60 * 1000),
+                created_at: new Date(createdAtBase.getTime() + 2000),
+            });
+
+            // Stale (sent but no provider status after 24h)
             await createTestSms({
                 household_id: household.id,
                 status: "sent",
                 sent_at: new Date(TEST_NOW.getTime() - 25 * 60 * 60 * 1000),
-                created_at: new Date(createdAtBase.getTime() + 2000),
+                created_at: new Date(createdAtBase.getTime() + 3000),
             });
 
             const response = await GET();
             const data = await response.json();
 
-            expect(data.failedSms).toHaveLength(3);
+            expect(data.failedSms).toHaveLength(4);
             expect(data.failedSms.map((s: { failureType: string }) => s.failureType)).toEqual([
                 "internal",
-                "provider",
+                "provider_rejected",
+                "provider_unreachable",
                 "stale",
             ]);
         });
@@ -453,7 +466,7 @@ describe("Issues API - Integration Tests", () => {
             const data = await response.json();
 
             expect(data.failedSms).toHaveLength(1);
-            expect(data.failedSms[0].failureType).toBe("provider");
+            expect(data.failedSms[0].failureType).toBe("provider_rejected");
 
             // Count endpoint should also exclude waiting
             const countResponse = await GET_COUNT();

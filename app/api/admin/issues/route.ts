@@ -36,7 +36,14 @@ function getFailureType(
     providerStatus: string | null,
     sentAt: Date | null,
     staleThreshold: Date,
-): "internal" | "provider" | "expired" | "out_of_credits" | "waiting" | "stale" {
+):
+    | "internal"
+    | "provider_rejected"
+    | "provider_unreachable"
+    | "expired"
+    | "out_of_credits"
+    | "waiting"
+    | "stale" {
     if (status === "failed") {
         return "internal";
     }
@@ -46,8 +53,11 @@ function getFailureType(
     if (providerStatus === "out_of_credits") {
         return "out_of_credits";
     }
-    if (providerStatus === "failed" || providerStatus === "not delivered") {
-        return "provider";
+    if (providerStatus === "failed") {
+        return "provider_rejected";
+    }
+    if (providerStatus === "not delivered") {
+        return "provider_unreachable";
     }
     if (providerStatus === "waiting") {
         return "waiting";
