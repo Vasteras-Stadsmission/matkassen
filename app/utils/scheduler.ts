@@ -747,6 +747,9 @@ export function startScheduler(): void {
     // Run SMS JIT once immediately on startup (uses lock)
     processSmsJITWithLock().catch(err => logError("Error in immediate SMS JIT", err));
 
+    // Run SMS reconciliation once immediately on startup (uses lock)
+    runSmsReconciliation().catch(err => logError("Error in immediate SMS reconciliation", err));
+
     logger.debug("Scheduler started successfully (pure JIT SMS)");
 
     // Send Slack notification on startup (production only, first startup)

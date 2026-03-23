@@ -23,7 +23,14 @@ interface SmsRecord {
     id: string;
     status: "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
     intent: string;
-    providerStatus?: "delivered" | "failed" | "not delivered" | null;
+    providerStatus?:
+        | "delivered"
+        | "failed"
+        | "not delivered"
+        | "waiting"
+        | "expired"
+        | "out_of_credits"
+        | null;
     sentAt?: string;
     createdAt: string;
 }
@@ -121,18 +128,24 @@ export function SmsConfirmDialog({
 
     const getStatusBadge = (sms: SmsRecord) => {
         if (sms.status === "sent" && sms.providerStatus) {
-            const color =
-                sms.providerStatus === "delivered"
-                    ? "green"
-                    : sms.providerStatus === "failed"
-                      ? "red"
-                      : "orange";
-            const label =
-                sms.providerStatus === "delivered"
-                    ? t("admin.parcelDialog.smsStatus.provider.delivered")
-                    : sms.providerStatus === "failed"
-                      ? t("admin.parcelDialog.smsStatus.provider.failed")
-                      : t("admin.parcelDialog.smsStatus.provider.notDelivered");
+            const colorMap: Record<string, string> = {
+                "delivered": "green",
+                "failed": "red",
+                "not delivered": "orange",
+                "waiting": "yellow",
+                "expired": "red",
+                "out_of_credits": "red",
+            };
+            const labelMap: Record<string, string> = {
+                "delivered": t("admin.parcelDialog.smsStatus.provider.delivered"),
+                "failed": t("admin.parcelDialog.smsStatus.provider.failed"),
+                "not delivered": t("admin.parcelDialog.smsStatus.provider.notDelivered"),
+                "waiting": t("admin.parcelDialog.smsStatus.provider.waiting"),
+                "expired": t("admin.parcelDialog.smsStatus.provider.expired"),
+                "out_of_credits": t("admin.parcelDialog.smsStatus.provider.outOfCredits"),
+            };
+            const color = colorMap[sms.providerStatus] ?? "orange";
+            const label = labelMap[sms.providerStatus] ?? sms.providerStatus;
             return (
                 <Badge color={color} size="sm">
                     {label}

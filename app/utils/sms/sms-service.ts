@@ -1231,7 +1231,7 @@ export async function getSmsHealthStats(): Promise<{
             notDelivered: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'not delivered')`,
             expired: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'expired')`,
             outOfCredits: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} = 'out_of_credits')`,
-            awaiting: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND ${outgoingSms.provider_status} IS NULL)`,
+            awaiting: sql<number>`COUNT(*) FILTER (WHERE ${outgoingSms.status} = 'sent' AND (${outgoingSms.provider_status} IS NULL OR ${outgoingSms.provider_status} = 'waiting'))`,
         })
         .from(outgoingSms)
         .where(
@@ -1256,7 +1256,7 @@ export async function getSmsHealthStats(): Promise<{
             ),
         );
 
-    // Query 2: Stale unconfirmed (sent > 24h ago, no provider status, not dismissed)
+    // Query 2: Stale unconfirmed (sent > 24h ago, no provider status or still waiting, not dismissed)
     // Using lt (strictly older than 24h) so boundary case falls into "awaiting" not "stale"
     const staleResult = await db
         .select({
@@ -1266,7 +1266,7 @@ export async function getSmsHealthStats(): Promise<{
         .where(
             and(
                 eq(outgoingSms.status, "sent"),
-                sql`${outgoingSms.provider_status} IS NULL`,
+                sql`(${outgoingSms.provider_status} IS NULL OR ${outgoingSms.provider_status} = 'waiting')`,
                 lt(outgoingSms.sent_at, twentyFourHoursAgo),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
             ),
@@ -2105,12 +2105,11 @@ export function resetBalanceAlertCooldown(): void {
  * HelloSMS delivered the message but failed to send us a callback.
  */
 // Statuses we write during reconciliation. Derived from ALL_PROVIDER_STATUSES but
-// excludes transient states: "waiting" (would permanently block re-reconciliation
-// because compare-and-set requires provider_status IS NULL) and "received" (inbound only).
+// excludes "received" (inbound only). "waiting" is included as a non-terminal state:
+// the reconciliation query and compare-and-set both match NULL or "waiting",
+// so "waiting" records will be re-checked on subsequent runs until they reach a terminal state.
 import { ALL_PROVIDER_STATUSES } from "./sms-gateway";
-const RECONCILABLE_STATUSES = ALL_PROVIDER_STATUSES.filter(
-    s => s !== "waiting" && s !== "received",
-);
+const RECONCILABLE_STATUSES = ALL_PROVIDER_STATUSES.filter(s => s !== "received");
 
 export async function reconcileStaleMessages(): Promise<{
     reconciled: number;
@@ -2128,9 +2127,10 @@ export async function reconcileStaleMessages(): Promise<{
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Find stale SMS: sent, no callback, between 1h and 7 days old, not dismissed.
+    // Find stale SMS: sent, no callback or still waiting, between 1h and 7 days old, not dismissed.
     // Upper bound avoids re-querying ancient records that will never be reconcilable.
     // Limit to 100 records per run to bound API calls and execution time.
+    // Prioritize NULL (never checked) over "waiting" (already checked, re-checking for terminal status).
     const staleRecords = await db
         .select({
             id: outgoingSms.id,
@@ -2142,13 +2142,13 @@ export async function reconcileStaleMessages(): Promise<{
         .where(
             and(
                 eq(outgoingSms.status, "sent"),
-                sql`${outgoingSms.provider_status} IS NULL`,
+                sql`(${outgoingSms.provider_status} IS NULL OR ${outgoingSms.provider_status} = 'waiting')`,
                 lt(outgoingSms.sent_at, oneHourAgo),
                 gt(outgoingSms.sent_at, sevenDaysAgo),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
             ),
         )
-        .orderBy(outgoingSms.sent_at)
+        .orderBy(sql`${outgoingSms.provider_status} NULLS FIRST`, outgoingSms.sent_at)
         .limit(100);
 
     if (staleRecords.length === 0) {
@@ -2209,7 +2209,7 @@ export async function reconcileStaleMessages(): Promise<{
                 continue;
             }
 
-            // Compare-and-set: only update if provider_status is still NULL.
+            // Compare-and-set: only update if provider_status is still NULL or "waiting".
             // A callback may have arrived between our SELECT and this UPDATE.
             try {
                 const updated = await db
@@ -2221,7 +2221,7 @@ export async function reconcileStaleMessages(): Promise<{
                     .where(
                         and(
                             eq(outgoingSms.id, record.id),
-                            sql`${outgoingSms.provider_status} IS NULL`,
+                            sql`(${outgoingSms.provider_status} IS NULL OR ${outgoingSms.provider_status} = 'waiting')`,
                         ),
                     )
                     .returning({ id: outgoingSms.id });
@@ -2252,17 +2252,15 @@ export async function reconcileStaleMessages(): Promise<{
         await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    if (reconciled > 0 || errors.length > 0) {
-        logger.info(
-            {
-                reconciled,
-                checked: staleRecords.length,
-                phonesQueried: byPhone.size,
-                errors: errors.length,
-            },
-            "SMS reconciliation completed",
-        );
-    }
+    logger.info(
+        {
+            reconciled,
+            checked: staleRecords.length,
+            phonesQueried: byPhone.size,
+            errors: errors.length,
+        },
+        "SMS reconciliation completed",
+    );
 
     return { reconciled, checked: staleRecords.length, errors };
 }

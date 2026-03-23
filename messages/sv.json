@@ -1151,7 +1151,10 @@
                     "delivered": "Levererat",
                     "failed": "Misslyckades",
                     "notDelivered": "Ej levererat",
-                    "awaiting": "Inväntar bekräftelse"
+                    "awaiting": "Inväntar bekräftelse",
+                    "waiting": "Väntar på leverans",
+                    "expired": "Utgången",
+                    "outOfCredits": "Slut på saldo"
                 },
                 "deliveryStatusAt": "Leveransstatus kl"
             }
@@ -1582,6 +1585,7 @@
             "unresolvedHandout": "Oregistrerad utlämning",
             "outsideHours": "Utanför öppettider",
             "failedSms": "SMS-leverans misslyckades",
+            "failedSmsWaiting": "SMS väntar på leverans",
             "failedSmsStale": "SMS-leverans obekräftad",
             "failedSmsProvider": "SMS-leverans avvisad",
             "failedSmsExpired": "SMS-leverans utgången",
@@ -1617,7 +1621,8 @@
             "provider": "SMS ej levererat. Detta betyder vanligtvis att telefonnumret inte är i bruk.",
             "expired": "SMS kunde inte levereras — telefonen var inte nåbar inom tidsfristen.",
             "out_of_credits": "SMS skickades inte — otillräckligt saldo hos SMS-leverantören.",
-            "stale": "Ingen leveransbekräftelse mottagen. Kontakta teknisk support."
+            "waiting": "SMS:et väntar på leverans. Mottagarens telefon kan vara avstängd eller onåbar.",
+            "stale": "Ingen leveransbekräftelse mottagen. SMS:et kanske inte nådde mottagaren."
         },
         "toast": {
             "handedOut": "Markerad som utlämnad",

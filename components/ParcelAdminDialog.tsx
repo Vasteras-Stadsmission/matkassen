@@ -54,7 +54,14 @@ interface SmsRecord {
     status: "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
     intent: string;
     nextAttemptAt?: string; // ISO date string for retry scheduling
-    providerStatus?: "delivered" | "failed" | "not delivered" | null;
+    providerStatus?:
+        | "delivered"
+        | "failed"
+        | "not delivered"
+        | "waiting"
+        | "expired"
+        | "out_of_credits"
+        | null;
     providerStatusUpdatedAt?: string;
     sentAt?: string;
     createdAt: string;
