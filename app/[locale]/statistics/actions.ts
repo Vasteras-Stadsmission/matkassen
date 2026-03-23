@@ -314,7 +314,7 @@ async function getOverviewStats(
         const [smsResult] = await db
             .select({
                 delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
-                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null and ${outgoingSms.provider_status} != 'waiting')::int`,
             })
             .from(outgoingSms)
             .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
@@ -333,7 +333,7 @@ async function getOverviewStats(
         const [smsResult] = await db
             .select({
                 delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
-                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null and ${outgoingSms.provider_status} != 'waiting')::int`,
             })
             .from(outgoingSms)
             .where(
@@ -822,7 +822,7 @@ async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promi
         const [result] = await db
             .select({
                 delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
-                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null and ${outgoingSms.provider_status} != 'waiting')::int`,
             })
             .from(outgoingSms)
             .innerJoin(foodParcels, eq(outgoingSms.parcel_id, foodParcels.id))
@@ -840,7 +840,7 @@ async function getSmsStats(period: StatisticsPeriod, locationId?: string): Promi
         const [result] = await db
             .select({
                 delivered: sql<number>`count(*) filter (where ${outgoingSms.provider_status} = 'delivered')::int`,
-                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null)::int`,
+                confirmed: sql<number>`count(*) filter (where ${outgoingSms.provider_status} is not null and ${outgoingSms.provider_status} != 'waiting')::int`,
             })
             .from(outgoingSms)
             .where(

@@ -66,6 +66,7 @@ export async function GET() {
                                         eq(outgoingSms.provider_status, "not delivered"),
                                         eq(outgoingSms.provider_status, "expired"),
                                         eq(outgoingSms.provider_status, "out_of_credits"),
+                                        eq(outgoingSms.provider_status, "waiting"),
                                     ),
                                 ),
                                 and(

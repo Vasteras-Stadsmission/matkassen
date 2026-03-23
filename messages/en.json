@@ -1151,7 +1151,10 @@
                     "delivered": "Delivered",
                     "failed": "Failed",
                     "notDelivered": "Not Delivered",
-                    "awaiting": "Awaiting confirmation"
+                    "awaiting": "Awaiting confirmation",
+                    "waiting": "Queued for delivery",
+                    "expired": "Expired",
+                    "outOfCredits": "Out of credits"
                 },
                 "deliveryStatusAt": "Delivery status at"
             }
@@ -1582,6 +1585,7 @@
             "unresolvedHandout": "Unresolved handout",
             "outsideHours": "Outside opening hours",
             "failedSms": "SMS delivery failed",
+            "failedSmsWaiting": "SMS queued for delivery",
             "failedSmsStale": "SMS delivery unconfirmed",
             "failedSmsProvider": "SMS delivery rejected",
             "failedSmsExpired": "SMS delivery expired",
@@ -1617,6 +1621,7 @@
             "provider": "SMS not delivered. This usually means the phone number is not in use.",
             "expired": "SMS could not be delivered — the phone was unreachable within the time limit.",
             "out_of_credits": "SMS was not sent — insufficient credits with the SMS provider.",
+            "waiting": "SMS is queued for delivery. The phone may be off or unreachable.",
             "stale": "No delivery confirmation received. The SMS may not have reached the recipient."
         },
         "toast": {

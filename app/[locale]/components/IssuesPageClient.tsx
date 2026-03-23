@@ -65,7 +65,7 @@ interface FailedSms {
     parcelId: string | null;
     pickupEarliest: string | null;
     errorMessage: string | null;
-    failureType: "internal" | "provider" | "expired" | "out_of_credits" | "stale";
+    failureType: "internal" | "provider" | "expired" | "out_of_credits" | "waiting" | "stale";
     createdAt: string;
 }
 
@@ -847,6 +847,7 @@ export default function IssuesPageClient() {
                             issues.failedSms.map(sms => {
                                 const failureColors: Record<string, string> = {
                                     stale: "grape",
+                                    waiting: "yellow",
                                     provider: "red",
                                     expired: "red",
                                     out_of_credits: "red",
@@ -854,6 +855,7 @@ export default function IssuesPageClient() {
                                 };
                                 const failureLabels: Record<string, string> = {
                                     stale: t("cardType.failedSmsStale"),
+                                    waiting: t("cardType.failedSmsWaiting"),
                                     provider: t("cardType.failedSmsProvider"),
                                     expired: t("cardType.failedSmsExpired"),
                                     out_of_credits: t("cardType.failedSmsOutOfCredits"),
@@ -876,7 +878,9 @@ export default function IssuesPageClient() {
                                 const isNonParcelRetry = nonParcelRetryableIntents.includes(
                                     sms.intent,
                                 );
-                                const canRetry = isParcelRetry || isNonParcelRetry;
+                                const canRetry =
+                                    sms.failureType !== "waiting" &&
+                                    (isParcelRetry || isNonParcelRetry);
                                 const pickupPassed =
                                     isParcelRetry &&
                                     (!sms.pickupEarliest ||
@@ -1001,6 +1005,7 @@ export default function IssuesPageClient() {
                                                         out_of_credits: t(
                                                             "failureDescription.out_of_credits",
                                                         ),
+                                                        waiting: t("failureDescription.waiting"),
                                                         stale: t("failureDescription.stale"),
                                                     }[sms.failureType]
                                                 }
