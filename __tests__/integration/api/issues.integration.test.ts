@@ -426,6 +426,41 @@ describe("Issues API - Integration Tests", () => {
             expect(data.failedSms[0].errorMessage).toContain("Network timeout");
         });
 
+        it("should exclude 'waiting' provider status from issues (non-terminal)", async () => {
+            const household = await createTestHousehold({ first_name: "WaitExcl" });
+
+            // SMS with provider_status "waiting" — should NOT appear on Issues page
+            await createTestSms({
+                household_id: household.id,
+                status: "sent",
+                provider_status: "waiting",
+                sent_at: new Date(TEST_NOW.getTime() - 60 * 60 * 1000),
+                provider_message_id: "msg_waiting_test",
+                provider_status_updated_at: new Date(TEST_NOW.getTime() - 30 * 60 * 1000),
+            });
+
+            // Provider-failed SMS — should appear
+            await createTestSms({
+                household_id: household.id,
+                status: "sent",
+                provider_status: "failed",
+                sent_at: new Date(TEST_NOW.getTime() - 60 * 60 * 1000),
+                provider_message_id: "msg_failed_test",
+                provider_status_updated_at: new Date(TEST_NOW.getTime() - 30 * 60 * 1000),
+            });
+
+            const response = await GET();
+            const data = await response.json();
+
+            expect(data.failedSms).toHaveLength(1);
+            expect(data.failedSms[0].failureType).toBe("provider");
+
+            // Count endpoint should also exclude waiting
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+            expect(countData.failedSms).toBe(1);
+        });
+
         it("should include pickupEarliest in the response", async () => {
             const household = await createTestHousehold({ first_name: "Pickup" });
             const { location } = await createTestLocationWithSchedule();
