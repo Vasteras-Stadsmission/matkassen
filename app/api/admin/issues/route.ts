@@ -62,6 +62,9 @@ function getFailureType(
     if (providerStatus === "waiting") {
         return "waiting";
     }
+    if (providerStatus === "waiting") {
+        return "waiting";
+    }
     if (status === "sent" && !providerStatus && sentAt && sentAt < staleThreshold) {
         return "stale";
     }
