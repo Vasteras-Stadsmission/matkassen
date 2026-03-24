@@ -67,7 +67,6 @@ interface FailedSms {
     errorMessage: string | null;
     failureType:
         | "internal"
-        | "provider"
         | "provider_rejected"
         | "provider_unreachable"
         | "expired"
@@ -856,7 +855,6 @@ export default function IssuesPageClient() {
                                 const failureColors: Record<string, string> = {
                                     stale: "grape",
                                     waiting: "yellow",
-                                    provider: "red",
                                     provider_rejected: "red",
                                     provider_unreachable: "orange",
                                     expired: "red",
@@ -866,7 +864,6 @@ export default function IssuesPageClient() {
                                 const failureLabels: Record<string, string> = {
                                     stale: t("cardType.failedSmsStale"),
                                     waiting: t("cardType.failedSmsWaiting"),
-                                    provider: t("cardType.failedSmsProvider"),
                                     provider_rejected: t("cardType.failedSmsProviderRejected"),
                                     provider_unreachable: t(
                                         "cardType.failedSmsProviderUnreachable",
@@ -1015,7 +1012,6 @@ export default function IssuesPageClient() {
                                                 {
                                                     {
                                                         internal: t("failureDescription.internal"),
-                                                        provider: t("failureDescription.provider"),
                                                         provider_rejected: t(
                                                             "failureDescription.provider_rejected",
                                                         ),

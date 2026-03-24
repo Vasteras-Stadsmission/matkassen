@@ -1587,7 +1587,6 @@
             "failedSms": "SMS delivery failed",
             "failedSmsWaiting": "SMS queued for delivery",
             "failedSmsStale": "SMS delivery unconfirmed",
-            "failedSmsProvider": "SMS delivery rejected",
             "failedSmsProviderRejected": "SMS delivery rejected",
             "failedSmsProviderUnreachable": "SMS could not be delivered",
             "failedSmsExpired": "SMS delivery expired",
@@ -1620,7 +1619,6 @@
         },
         "failureDescription": {
             "internal": "Could not send. Contact technical support.",
-            "provider": "SMS not delivered. This usually means the phone number is not in use.",
             "provider_rejected": "The phone number was rejected by the carrier. The number is likely not in use.",
             "provider_unreachable": "SMS could not be delivered — the phone was off or unreachable. May be worth retrying.",
             "expired": "SMS could not be delivered — the phone was unreachable within the time limit.",
