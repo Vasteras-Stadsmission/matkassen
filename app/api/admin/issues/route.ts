@@ -36,7 +36,14 @@ function getFailureType(
     providerStatus: string | null,
     sentAt: Date | null,
     staleThreshold: Date,
-): "internal" | "provider" | "expired" | "out_of_credits" | "waiting" | "stale" {
+):
+    | "internal"
+    | "provider_rejected"
+    | "provider_unreachable"
+    | "expired"
+    | "out_of_credits"
+    | "waiting"
+    | "stale" {
     if (status === "failed") {
         return "internal";
     }
@@ -46,8 +53,11 @@ function getFailureType(
     if (providerStatus === "out_of_credits") {
         return "out_of_credits";
     }
-    if (providerStatus === "failed" || providerStatus === "not delivered") {
-        return "provider";
+    if (providerStatus === "failed") {
+        return "provider_rejected";
+    }
+    if (providerStatus === "not delivered") {
+        return "provider_unreachable";
     }
     if (providerStatus === "waiting") {
         return "waiting";
@@ -110,7 +120,6 @@ export async function GET() {
                                 eq(outgoingSms.provider_status, "not delivered"),
                                 eq(outgoingSms.provider_status, "expired"),
                                 eq(outgoingSms.provider_status, "out_of_credits"),
-                                eq(outgoingSms.provider_status, "waiting"),
                             ),
                         ),
                         and(
@@ -301,7 +310,6 @@ export async function GET() {
                                 eq(outgoingSms.provider_status, "not delivered"),
                                 eq(outgoingSms.provider_status, "expired"),
                                 eq(outgoingSms.provider_status, "out_of_credits"),
-                                eq(outgoingSms.provider_status, "waiting"),
                             ),
                         ),
                         and(

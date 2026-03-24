@@ -65,7 +65,14 @@ interface FailedSms {
     parcelId: string | null;
     pickupEarliest: string | null;
     errorMessage: string | null;
-    failureType: "internal" | "provider" | "expired" | "out_of_credits" | "waiting" | "stale";
+    failureType:
+        | "internal"
+        | "provider_rejected"
+        | "provider_unreachable"
+        | "expired"
+        | "out_of_credits"
+        | "waiting"
+        | "stale";
     createdAt: string;
 }
 
@@ -848,7 +855,8 @@ export default function IssuesPageClient() {
                                 const failureColors: Record<string, string> = {
                                     stale: "grape",
                                     waiting: "yellow",
-                                    provider: "red",
+                                    provider_rejected: "red",
+                                    provider_unreachable: "orange",
                                     expired: "red",
                                     out_of_credits: "red",
                                     internal: "orange",
@@ -856,7 +864,10 @@ export default function IssuesPageClient() {
                                 const failureLabels: Record<string, string> = {
                                     stale: t("cardType.failedSmsStale"),
                                     waiting: t("cardType.failedSmsWaiting"),
-                                    provider: t("cardType.failedSmsProvider"),
+                                    provider_rejected: t("cardType.failedSmsProviderRejected"),
+                                    provider_unreachable: t(
+                                        "cardType.failedSmsProviderUnreachable",
+                                    ),
                                     expired: t("cardType.failedSmsExpired"),
                                     out_of_credits: t("cardType.failedSmsOutOfCredits"),
                                     internal: t("cardType.failedSmsInternal"),
@@ -878,8 +889,9 @@ export default function IssuesPageClient() {
                                 const isNonParcelRetry = nonParcelRetryableIntents.includes(
                                     sms.intent,
                                 );
+                                const noRetryTypes = ["waiting", "provider_rejected"];
                                 const canRetry =
-                                    sms.failureType !== "waiting" &&
+                                    !noRetryTypes.includes(sms.failureType) &&
                                     (isParcelRetry || isNonParcelRetry);
                                 const pickupPassed =
                                     isParcelRetry &&
@@ -1000,7 +1012,12 @@ export default function IssuesPageClient() {
                                                 {
                                                     {
                                                         internal: t("failureDescription.internal"),
-                                                        provider: t("failureDescription.provider"),
+                                                        provider_rejected: t(
+                                                            "failureDescription.provider_rejected",
+                                                        ),
+                                                        provider_unreachable: t(
+                                                            "failureDescription.provider_unreachable",
+                                                        ),
                                                         expired: t("failureDescription.expired"),
                                                         out_of_credits: t(
                                                             "failureDescription.out_of_credits",
