@@ -748,11 +748,10 @@ export default function WeeklyScheduleGrid({
                 });
                 onParcelRescheduled();
             } else {
-                // Use structured error if available, fall back to generic error
-                let errorMessage = result.error || t("reschedule.genericError", {});
+                // Use error codes for i18n translations
+                let errorMessage = t("reschedule.genericError", {});
 
-                // Check for specific error codes to provide better messages
-                if (!result.success && result.errorCode) {
+                if (result.errorCode) {
                     if (
                         result.errorCode === "AGREEMENT_REQUIRED" ||
                         result.errorCode === "AGREEMENT_CHECK_FAILED"
@@ -762,24 +761,19 @@ export default function WeeklyScheduleGrid({
                     }
                     switch (result.errorCode) {
                         case "MAX_DAILY_CAPACITY_REACHED":
-                            errorMessage = t("reschedule.capacityError", {
-                                default: result.error,
-                            });
+                            errorMessage = t("reschedule.capacityError", {});
                             break;
                         case "MAX_SLOT_CAPACITY_REACHED":
-                            errorMessage = t("reschedule.slotCapacityError", {
-                                default: "This time slot is fully booked",
-                            });
+                            errorMessage = t("reschedule.slotCapacityError", {});
                             break;
                         case "HOUSEHOLD_DOUBLE_BOOKING":
-                            errorMessage = t("reschedule.doubleBookingError", {
-                                default: "Household already has a parcel scheduled for this date",
-                            });
+                            errorMessage = t("reschedule.doubleBookingError", {});
                             break;
                         case "OUTSIDE_OPERATING_HOURS":
-                            errorMessage = t("reschedule.operatingHoursError", {
-                                default: result.error,
-                            });
+                            errorMessage = t("reschedule.operatingHoursError", {});
+                            break;
+                        case "PAST_TIME_SLOT":
+                            errorMessage = t("reschedule.pastError", {});
                             break;
                     }
                 }

@@ -538,6 +538,65 @@ export async function getTimeslotCounts(
 }
 
 /**
+ * Get dates that are fully booked (daily capacity reached) for a location within a date range.
+ * Returns an array of ISO date strings (YYYY-MM-DD) that are at or over capacity.
+ */
+export async function getFullyBookedDates(
+    locationId: string,
+    startDate: Date,
+    endDate: Date,
+): Promise<string[]> {
+    try {
+        // Get location's daily capacity
+        const [location] = await db
+            .select({
+                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+            })
+            .from(pickupLocations)
+            .where(eq(pickupLocations.id, locationId))
+            .limit(1);
+
+        // If no daily limit is set, no dates are fully booked
+        if (!location || location.maxParcelsPerDay === null) {
+            return [];
+        }
+
+        const maxPerDay = location.maxParcelsPerDay;
+
+        // Convert date range to Stockholm timezone boundaries
+        const rangeStart = Time.fromDate(startDate).startOfDay().toUTC();
+        const rangeEnd = Time.fromDate(endDate).endOfDay().toUTC();
+
+        // Count parcels per date within the range
+        const results = await db
+            .select({
+                date: sql<string>`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
+                count: sql<number>`count(*)`,
+            })
+            .from(foodParcels)
+            .where(
+                and(
+                    eq(foodParcels.pickup_location_id, locationId),
+                    gte(foodParcels.pickup_date_time_earliest, rangeStart),
+                    lte(foodParcels.pickup_date_time_earliest, rangeEnd),
+                    notDeleted(),
+                ),
+            )
+            .groupBy(
+                sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
+            );
+
+        // Filter to only dates at or over capacity
+        return results
+            .filter(row => row.count >= maxPerDay)
+            .map(row => row.date);
+    } catch (error) {
+        logError("Error fetching fully booked dates", error, { locationId });
+        return [];
+    }
+}
+
+/**
  * Update a food parcel's schedule (used when dragging to a new timeslot)
  */
 export const updateFoodParcelSchedule = protectedAdminAction(
@@ -619,10 +678,13 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                     // Return the first error for display
                     const errors = validationResult.errors || [];
                     const primaryError = errors[0];
-                    const { formatValidationError } =
-                        await import("@/app/utils/validation/parcel-assignment");
+                    const { ParcelValidationError } =
+                        await import("@/app/utils/errors/validation-errors");
 
-                    throw new Error(formatValidationError(primaryError));
+                    throw new ParcelValidationError(
+                        primaryError.message,
+                        errors,
+                    );
                 }
 
                 // Update the food parcel's schedule using the calculated endTime
@@ -669,6 +731,17 @@ export const updateFoodParcelSchedule = protectedAdminAction(
 
             return success(undefined);
         } catch (error) {
+            // Preserve validation error codes for i18n on the client
+            const { ParcelValidationError } =
+                await import("@/app/utils/errors/validation-errors");
+            if (error instanceof ParcelValidationError) {
+                const primaryError = error.validationErrors[0];
+                return failure({
+                    code: primaryError?.code ?? "VALIDATION_ERROR",
+                    message: error.message,
+                });
+            }
+
             logError("Error updating food parcel schedule", error, { parcelId });
             return failure({
                 code: "INTERNAL_ERROR",

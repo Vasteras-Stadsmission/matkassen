@@ -6,11 +6,12 @@ import { IconCalendar, IconClock, IconCheck } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
 import { useTranslations } from "next-intl";
 import { FoodParcel, type LocationScheduleInfo } from "../types";
-import { updateFoodParcelScheduleAction, getLocationSlotDurationAction } from "../client-actions";
+import { updateFoodParcelScheduleAction, getLocationSlotDurationAction, getFullyBookedDatesAction } from "../client-actions";
 import { TranslationFunction } from "../../types";
 import {
     formatStockholmDate,
     formatTime,
+    formatDateToYMD,
     toStockholmDate,
     generateTimeSlotsBetween,
 } from "@/app/utils/date-utils";
@@ -47,23 +48,38 @@ export default function ReschedulePickupModal({
     >([]);
     const [error, setError] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
+    const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
 
-    // Fetch the slot duration when the modal opens with a food parcel
+    // Fetch the slot duration and fully booked dates when the modal opens
     useEffect(() => {
-        async function fetchSlotDuration() {
+        async function fetchLocationData() {
             if (foodParcel && foodParcel.locationId) {
                 try {
-                    // Use the client action to call the server action
                     const duration = await getLocationSlotDurationAction(foodParcel.locationId);
                     setSlotDuration(duration);
                 } catch {
                     // Use default duration on error
                 }
+
+                try {
+                    // Fetch fully booked dates for the next 3 months
+                    const now = new Date();
+                    const threeMonthsLater = new Date(now);
+                    threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+                    const dates = await getFullyBookedDatesAction(
+                        foodParcel.locationId,
+                        now,
+                        threeMonthsLater,
+                    );
+                    setFullyBookedDates(new Set(dates));
+                } catch {
+                    // On error, don't block any dates
+                }
             }
         }
 
         if (opened && foodParcel) {
-            fetchSlotDuration();
+            fetchLocationData();
         }
     }, [opened, foodParcel]);
 
@@ -164,7 +180,28 @@ export default function ReschedulePickupModal({
                 onRescheduled();
                 onClose();
             } else {
-                setError(result.error || t("reschedule.genericError"));
+                // Use error codes for i18n translations
+                let errorMessage = t("reschedule.genericError");
+                if (result.errorCode) {
+                    switch (result.errorCode) {
+                        case "MAX_DAILY_CAPACITY_REACHED":
+                            errorMessage = t("reschedule.capacityError");
+                            break;
+                        case "MAX_SLOT_CAPACITY_REACHED":
+                            errorMessage = t("reschedule.slotCapacityError");
+                            break;
+                        case "HOUSEHOLD_DOUBLE_BOOKING":
+                            errorMessage = t("reschedule.doubleBookingError");
+                            break;
+                        case "OUTSIDE_OPERATING_HOURS":
+                            errorMessage = t("reschedule.operatingHoursError");
+                            break;
+                        case "PAST_TIME_SLOT":
+                            errorMessage = t("reschedule.pastError");
+                            break;
+                    }
+                }
+                setError(errorMessage);
             }
         } catch {
             // Error boundary will handle critical errors
@@ -174,10 +211,16 @@ export default function ReschedulePickupModal({
         }
     };
 
-    // Check if a date is available according to the location schedule
+    // Check if a date is available according to the location schedule and capacity
     const isDateAvailableForPickup = (date: Date): boolean => {
         if (!locationSchedules) return true; // If no schedule info, assume available
-        return isDateAvailable(date, locationSchedules).isAvailable;
+        if (!isDateAvailable(date, locationSchedules).isAvailable) return false;
+
+        // Check if the date is fully booked (daily capacity reached)
+        const dateStr = formatDateToYMD(date);
+        if (fullyBookedDates.has(dateStr)) return false;
+
+        return true;
     };
 
     return (

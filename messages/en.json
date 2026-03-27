@@ -549,6 +549,7 @@
             "selectDate": "Select date",
             "selectTime": "Select time",
             "dateUnavailable": "This date is not available for pickup",
+            "dateFullyBooked": "This date is fully booked",
             "noTimesAvailable": "No available times on this date",
             "requiredFields": "Please fill all required fields"
         },

@@ -7,6 +7,7 @@ import {
     recomputeOutsideHoursCount,
     bulkRescheduleParcels,
     getOutsideHoursParcelsForLocation,
+    getFullyBookedDates,
 } from "./actions";
 import type { FoodParcel, LocationScheduleInfo } from "./types";
 import { logError } from "@/app/utils/logger";
@@ -119,6 +120,22 @@ export async function getOutsideHoursParcelsAction(locationId: string): Promise<
         return await getOutsideHoursParcelsForLocation(locationId);
     } catch (error) {
         logError("Error fetching outside-hours parcels", error, { locationId });
+        return [];
+    }
+}
+
+/**
+ * Client wrapper for getting fully booked dates for a location
+ */
+export async function getFullyBookedDatesAction(
+    locationId: string,
+    startDate: Date,
+    endDate: Date,
+): Promise<string[]> {
+    try {
+        return await getFullyBookedDates(locationId, startDate, endDate);
+    } catch (error) {
+        logError("Error fetching fully booked dates", error, { locationId });
         return [];
     }
 }

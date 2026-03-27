@@ -549,6 +549,7 @@
             "selectDate": "Välj datum",
             "selectTime": "Välj tid",
             "dateUnavailable": "Detta datum är inte tillgängligt för upphämtning",
+            "dateFullyBooked": "Detta datum är fullbokat",
             "noTimesAvailable": "Inga tillgängliga tider på detta datum",
             "requiredFields": "Fyll i alla obligatoriska fält"
         },
