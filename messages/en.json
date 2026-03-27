@@ -549,7 +549,6 @@
             "selectDate": "Select date",
             "selectTime": "Select time",
             "dateUnavailable": "This date is not available for pickup",
-            "dateFullyBooked": "This date is fully booked",
             "noTimesAvailable": "No available times on this date",
             "requiredFields": "Please fill all required fields"
         },
@@ -1692,7 +1691,12 @@
             "noTimesAvailable": "No available time slots",
             "requiredFields": "Please select both date and time",
             "genericError": "Failed to reschedule. Please try again.",
-            "loadError": "Failed to load schedule"
+            "loadError": "Failed to load schedule",
+            "capacityError": "This location has reached its maximum capacity for the selected date.",
+            "slotCapacityError": "This time slot is fully booked. Please select a different time.",
+            "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
+            "operatingHoursError": "The selected time is outside the location's operating hours.",
+            "pastError": "Cannot schedule food support in the past."
         }
     },
     "smsConfirm": {

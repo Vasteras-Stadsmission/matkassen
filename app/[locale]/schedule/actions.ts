@@ -571,7 +571,7 @@ export async function getFullyBookedDates(
         const results = await db
             .select({
                 date: sql<string>`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
-                count: sql<number>`count(*)`,
+                count: sql<number>`count(*)::int`,
             })
             .from(foodParcels)
             .where(
@@ -682,7 +682,7 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                         await import("@/app/utils/errors/validation-errors");
 
                     throw new ParcelValidationError(
-                        primaryError.message,
+                        primaryError?.message ?? "Validation failed",
                         errors,
                     );
                 }

@@ -160,7 +160,28 @@ export default function RescheduleInline({
             if (result.success) {
                 onSuccess();
             } else {
-                setError(result.error || t("reschedule.genericError"));
+                // Use error codes for i18n translations
+                let errorMessage = t("reschedule.genericError");
+                if (result.errorCode) {
+                    switch (result.errorCode) {
+                        case "MAX_DAILY_CAPACITY_REACHED":
+                            errorMessage = t("reschedule.capacityError");
+                            break;
+                        case "MAX_SLOT_CAPACITY_REACHED":
+                            errorMessage = t("reschedule.slotCapacityError");
+                            break;
+                        case "HOUSEHOLD_DOUBLE_BOOKING":
+                            errorMessage = t("reschedule.doubleBookingError");
+                            break;
+                        case "OUTSIDE_OPERATING_HOURS":
+                            errorMessage = t("reschedule.operatingHoursError");
+                            break;
+                        case "PAST_TIME_SLOT":
+                            errorMessage = t("reschedule.pastError");
+                            break;
+                    }
+                }
+                setError(errorMessage);
             }
         } catch {
             setError(t("reschedule.genericError"));
