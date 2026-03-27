@@ -52,11 +52,13 @@ export default function ReschedulePickupModal({
 
     // Fetch the slot duration and fully booked dates when the modal opens
     useEffect(() => {
+        let cancelled = false;
+
         async function fetchLocationData() {
             if (foodParcel && foodParcel.locationId) {
                 try {
                     const duration = await getLocationSlotDurationAction(foodParcel.locationId);
-                    setSlotDuration(duration);
+                    if (!cancelled) setSlotDuration(duration);
                 } catch {
                     // Use default duration on error
                 }
@@ -71,7 +73,7 @@ export default function ReschedulePickupModal({
                         now,
                         threeMonthsLater,
                     );
-                    setFullyBookedDates(new Set(dates));
+                    if (!cancelled) setFullyBookedDates(new Set(dates));
                 } catch {
                     // On error, don't block any dates
                 }
@@ -81,6 +83,10 @@ export default function ReschedulePickupModal({
         if (opened && foodParcel) {
             fetchLocationData();
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [opened, foodParcel]);
 
     // Prepare available time slots based on location schedule
@@ -146,6 +152,7 @@ export default function ReschedulePickupModal({
             setSelectedTime(null);
             setError(null);
             setIsSubmitting(false);
+            setFullyBookedDates(new Set());
         }
     }, [opened, foodParcel]);
 
