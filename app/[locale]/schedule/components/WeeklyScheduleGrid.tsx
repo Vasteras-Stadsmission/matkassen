@@ -775,6 +775,9 @@ export default function WeeklyScheduleGrid({
                         case "PAST_TIME_SLOT":
                             errorMessage = t("reschedule.pastError", {});
                             break;
+                        default:
+                            errorMessage = result.error || t("reschedule.genericError", {});
+                            break;
                     }
                 }
 

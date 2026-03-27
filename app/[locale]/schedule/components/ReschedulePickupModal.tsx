@@ -206,6 +206,9 @@ export default function ReschedulePickupModal({
                         case "PAST_TIME_SLOT":
                             errorMessage = t("reschedule.pastError");
                             break;
+                        default:
+                            errorMessage = result.error || t("reschedule.genericError");
+                            break;
                     }
                 }
                 setError(errorMessage);
