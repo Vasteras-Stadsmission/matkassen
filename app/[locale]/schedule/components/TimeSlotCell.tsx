@@ -21,6 +21,10 @@ interface TimeSlotCellProps {
     /** Maximum parcels per slot. null = no limit */
     maxParcelsPerSlot: number | null;
     isOverCapacity?: boolean;
+    /** Slot or day is at capacity — no more drops allowed */
+    isAtCapacity?: boolean;
+    /** Tooltip text explaining why the slot is at capacity */
+    capacityReason?: string;
     dayIndex?: number;
     isUnavailable?: boolean;
     unavailableReason?: string;
@@ -33,6 +37,8 @@ function TimeSlotCell({
     parcels,
     maxParcelsPerSlot,
     isOverCapacity = false,
+    isAtCapacity = false,
+    capacityReason,
     dayIndex = 0,
     isUnavailable = false,
     unavailableReason,
@@ -49,7 +55,7 @@ function TimeSlotCell({
     // Setup droppable container with day index included
     const { setNodeRef, isOver } = useDroppable({
         id: droppableId,
-        disabled: isPast || isUnavailable, // Disable dropping on past or unavailable time slots
+        disabled: isPast || isUnavailable || isAtCapacity, // Disable dropping on past, unavailable, or at-capacity time slots
     });
 
     // Memoize background color calculation - simplified for better performance
@@ -57,11 +63,20 @@ function TimeSlotCell({
         if (isPast || isUnavailable) return "gray.2";
         if (isOver) return "blue.1"; // Slightly more noticeable drop zone
         if (isOverCapacity) return "red.0";
+        if (isAtCapacity) return "orange.0"; // At capacity — no more drops
         // null = no limit, so never show approaching-capacity warning
         if (maxParcelsPerSlot !== null && parcels.length >= maxParcelsPerSlot * 0.75)
             return "yellow.0";
         return "white";
-    }, [isPast, isUnavailable, isOver, isOverCapacity, parcels.length, maxParcelsPerSlot]);
+    }, [
+        isPast,
+        isUnavailable,
+        isOver,
+        isOverCapacity,
+        isAtCapacity,
+        parcels.length,
+        maxParcelsPerSlot,
+    ]);
 
     // Create the cell content
     const cellContent = (
@@ -77,7 +92,7 @@ function TimeSlotCell({
                 position: "relative",
                 minHeight: 40,
                 opacity: isPast || isUnavailable ? 0.7 : 1,
-                cursor: isPast || isUnavailable ? "not-allowed" : "default",
+                cursor: isPast || isUnavailable || isAtCapacity ? "not-allowed" : "default",
                 backgroundImage: isUnavailable
                     ? "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.05) 5px, rgba(0,0,0,0.05) 10px)"
                     : "none",
@@ -108,6 +123,15 @@ function TimeSlotCell({
     if (isUnavailable && unavailableReason) {
         return (
             <Tooltip label={unavailableReason} position="top" withArrow>
+                {cellContent}
+            </Tooltip>
+        );
+    }
+
+    // If the slot is at or over capacity, show a tooltip explaining why
+    if (isAtCapacity && capacityReason) {
+        return (
+            <Tooltip label={capacityReason} position="top" withArrow>
                 {cellContent}
             </Tooltip>
         );

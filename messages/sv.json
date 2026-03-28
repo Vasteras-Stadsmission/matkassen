@@ -535,6 +535,7 @@
             "doubleBookingError": "Detta hushåll har redan en matkasse schemalagd för det valda datumet.",
             "operatingHoursError": "Den valda tiden är utanför platsens öppettider.",
             "genericError": "Ett oväntat fel inträffade.",
+            "full": "fullbokad",
             "outsideWeek": "Schemalägg utanför vecka",
             "selectDateError": "Du måste välja ett datum",
             "timeError": "Tidigast tid måste vara före senast tid",
@@ -1691,7 +1692,13 @@
             "noTimesAvailable": "Inga lediga tider",
             "requiredFields": "Välj både datum och tid",
             "genericError": "Ombokningen misslyckades. Försök igen.",
-            "loadError": "Kunde inte ladda schema"
+            "loadError": "Kunde inte ladda schema",
+            "capacityError": "Denna plats har nått sin maximala kapacitet för det valda datumet.",
+            "slotCapacityError": "Denna tidsslot är fullbokad. Välj en annan tid.",
+            "doubleBookingError": "Detta hushåll har redan en matkasse schemalagd för det valda datumet.",
+            "operatingHoursError": "Den valda tiden är utanför platsens öppettider.",
+            "pastError": "Det går inte att boka matstöd i det förflutna.",
+            "full": "fullbokad"
         }
     },
     "smsConfirm": {

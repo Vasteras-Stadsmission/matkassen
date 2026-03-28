@@ -48,6 +48,10 @@ import {
 } from "@/app/utils/date-utils";
 import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
 import { filterOutsideHoursParcels } from "@/app/utils/schedule/outside-hours-filter";
+import {
+    getRescheduleErrorMessage,
+    isAgreementRequiredCode,
+} from "@/app/utils/schedule/reschedule-errors";
 import { useTranslations } from "next-intl";
 import { TranslationFunction } from "../../types";
 
@@ -712,6 +716,29 @@ export default function WeeklyScheduleGrid({
                 return;
             }
 
+            // Check if target slot or day is at capacity
+            const targetSlotParcels = parcelsBySlot[targetDateYMD]?.[timeStr] || [];
+            const slotAtCapacity =
+                effectiveMaxParcelsPerSlot !== null &&
+                targetSlotParcels.length >= effectiveMaxParcelsPerSlot;
+            // Same-day moves don't change the daily total, so skip the day check
+            const isSameDay = parcelDateYMD === targetDateYMD;
+            const dayAtCapacity =
+                !isSameDay &&
+                maxParcelsPerDay > 0 &&
+                (parcelCountByDate[targetDateYMD] || 0) >= maxParcelsPerDay;
+
+            if (slotAtCapacity || dayAtCapacity) {
+                showNotification({
+                    title: t("reschedule.error", {}),
+                    message: slotAtCapacity
+                        ? t("reschedule.slotCapacityError", {})
+                        : t("reschedule.capacityError", {}),
+                    color: "red",
+                });
+                return;
+            }
+
             // Store info for confirmation modal
             setDraggedParcel(parcel);
             setTargetSlot({
@@ -748,45 +775,14 @@ export default function WeeklyScheduleGrid({
                 });
                 onParcelRescheduled();
             } else {
-                // Use structured error if available, fall back to generic error
-                let errorMessage = result.error || t("reschedule.genericError", {});
-
-                // Check for specific error codes to provide better messages
-                if (!result.success && result.errorCode) {
-                    if (
-                        result.errorCode === "AGREEMENT_REQUIRED" ||
-                        result.errorCode === "AGREEMENT_CHECK_FAILED"
-                    ) {
-                        window.location.href = "/agreement";
-                        return;
-                    }
-                    switch (result.errorCode) {
-                        case "MAX_DAILY_CAPACITY_REACHED":
-                            errorMessage = t("reschedule.capacityError", {
-                                default: result.error,
-                            });
-                            break;
-                        case "MAX_SLOT_CAPACITY_REACHED":
-                            errorMessage = t("reschedule.slotCapacityError", {
-                                default: "This time slot is fully booked",
-                            });
-                            break;
-                        case "HOUSEHOLD_DOUBLE_BOOKING":
-                            errorMessage = t("reschedule.doubleBookingError", {
-                                default: "Household already has a parcel scheduled for this date",
-                            });
-                            break;
-                        case "OUTSIDE_OPERATING_HOURS":
-                            errorMessage = t("reschedule.operatingHoursError", {
-                                default: result.error,
-                            });
-                            break;
-                    }
+                if (result.errorCode && isAgreementRequiredCode(result.errorCode)) {
+                    window.location.href = "/agreement";
+                    return;
                 }
 
                 showNotification({
                     title: t("reschedule.error", {}),
-                    message: errorMessage,
+                    message: getRescheduleErrorMessage(t, result.errorCode, result.error),
                     color: "red",
                 });
             }
@@ -1261,6 +1257,25 @@ export default function WeeklyScheduleGrid({
                                                             parcelsInSlot.length >
                                                                 effectiveMaxParcelsPerSlot;
 
+                                                        // At capacity: slot is full (>=) or day is full
+                                                        const isSlotAtCapacity =
+                                                            effectiveMaxParcelsPerSlot !== null &&
+                                                            parcelsInSlot.length >=
+                                                                effectiveMaxParcelsPerSlot;
+                                                        // Same-day moves don't change daily total, so skip day check when dragging within the same day
+                                                        const isDraggingSameDay =
+                                                            activeDragParcel &&
+                                                            formatDateToYMD(
+                                                                activeDragParcel.pickupDate,
+                                                            ) === dateKey;
+                                                        const isDayAtCapacity =
+                                                            !isDraggingSameDay &&
+                                                            maxParcelsPerDay > 0 &&
+                                                            (parcelCountByDate[dateKey] || 0) >=
+                                                                maxParcelsPerDay;
+                                                        const isAtCapacity =
+                                                            isSlotAtCapacity || isDayAtCapacity;
+
                                                         // Check if this specific time slot is unavailable
                                                         const isSlotUnavailable =
                                                             isSlotUnavailableForDay(date, timeSlot);
@@ -1318,6 +1333,20 @@ export default function WeeklyScheduleGrid({
                                                                         effectiveMaxParcelsPerSlot
                                                                     }
                                                                     isOverCapacity={isOverCapacity}
+                                                                    isAtCapacity={isAtCapacity}
+                                                                    capacityReason={
+                                                                        isAtCapacity
+                                                                            ? isSlotAtCapacity
+                                                                                ? t(
+                                                                                      "reschedule.slotCapacityError",
+                                                                                      {},
+                                                                                  )
+                                                                                : t(
+                                                                                      "reschedule.capacityError",
+                                                                                      {},
+                                                                                  )
+                                                                            : undefined
+                                                                    }
                                                                     dayIndex={dayIndex}
                                                                     isUnavailable={
                                                                         isSlotUnavailable

@@ -1,16 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Modal, Button, Group, Text, Select, Stack, Paper, Box } from "@mantine/core";
 import { IconCalendar, IconClock, IconCheck } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
 import { useTranslations } from "next-intl";
 import { FoodParcel, type LocationScheduleInfo } from "../types";
-import { updateFoodParcelScheduleAction, getLocationSlotDurationAction } from "../client-actions";
+import {
+    updateFoodParcelScheduleAction,
+    getLocationSlotConfigAction,
+    getFullyBookedDatesAction,
+    getTimeslotCountsAction,
+} from "../client-actions";
 import { TranslationFunction } from "../../types";
 import {
     formatStockholmDate,
     formatTime,
+    formatDateToYMD,
     toStockholmDate,
     generateTimeSlotsBetween,
 } from "@/app/utils/date-utils";
@@ -19,6 +25,10 @@ import {
     isTimeAvailable,
     getAvailableTimeRange,
 } from "@/app/utils/schedule/location-availability";
+import {
+    getRescheduleErrorMessage,
+    isAgreementRequiredCode,
+} from "@/app/utils/schedule/reschedule-errors";
 
 interface ReschedulePickupModalProps {
     opened: boolean;
@@ -41,97 +51,156 @@ export default function ReschedulePickupModal({
     // State for the form
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
+    const selectedTimeRef = useRef(selectedTime);
+    selectedTimeRef.current = selectedTime;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [availableTimes, setAvailableTimes] = useState<
         { value: string; label: string; disabled: boolean }[]
     >([]);
     const [error, setError] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
+    const [maxParcelsPerSlot, setMaxParcelsPerSlot] = useState<number | null>(null);
+    const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
+    const [maxDate, setMaxDate] = useState<Date | undefined>(undefined);
 
-    // Fetch the slot duration when the modal opens with a food parcel
+    // Derive stable values from foodParcel to avoid re-running effects on object reference changes
+    const parcelId = foodParcel?.id;
+    const parcelLocationId = foodParcel?.locationId;
+
+    // Reset form state and fetch location data when the modal opens
     useEffect(() => {
-        async function fetchSlotDuration() {
-            if (foodParcel && foodParcel.locationId) {
-                try {
-                    // Use the client action to call the server action
-                    const duration = await getLocationSlotDurationAction(foodParcel.locationId);
-                    setSlotDuration(duration);
-                } catch {
-                    // Use default duration on error
-                }
+        if (!opened || !parcelId || !parcelLocationId) return;
+
+        // Reset form state synchronously before fetching
+        setSelectedDate(null);
+        setSelectedTime(null);
+        setError(null);
+        setIsSubmitting(false);
+        setFullyBookedDates(new Set());
+        setMaxDate(undefined);
+        setMaxParcelsPerSlot(null);
+
+        let cancelled = false;
+
+        async function fetchLocationData() {
+            const now = new Date();
+            const threeMonthsLater = new Date(now);
+            threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+
+            const [configResult, datesResult] = await Promise.allSettled([
+                getLocationSlotConfigAction(parcelLocationId!),
+                getFullyBookedDatesAction(parcelLocationId!, now, threeMonthsLater, parcelId),
+            ]);
+
+            if (cancelled) return;
+
+            if (configResult.status === "fulfilled") {
+                setSlotDuration(configResult.value.slotDuration);
+                setMaxParcelsPerSlot(configResult.value.maxParcelsPerSlot);
+            }
+            if (datesResult.status === "fulfilled") {
+                setFullyBookedDates(new Set(datesResult.value));
+                setMaxDate(threeMonthsLater);
             }
         }
 
-        if (opened && foodParcel) {
-            fetchSlotDuration();
-        }
-    }, [opened, foodParcel]);
+        fetchLocationData();
 
-    // Prepare available time slots based on location schedule
+        return () => {
+            cancelled = true;
+        };
+    }, [opened, parcelId, parcelLocationId]);
+
+    // Prepare available time slots based on location schedule and slot capacity
     useEffect(() => {
-        if (selectedDate && locationSchedules) {
-            // Get the available time range for the selected date
-            const dateAvailability = isDateAvailable(selectedDate, locationSchedules);
+        if (!selectedDate || !locationSchedules) return;
 
-            if (!dateAvailability.isAvailable) {
-                setError(t("reschedule.dateUnavailable"));
-                setAvailableTimes([]);
-                return;
-            }
+        const dateAvailability = isDateAvailable(selectedDate, locationSchedules);
+        if (!dateAvailability.isAvailable) {
+            setError(t("reschedule.dateUnavailable"));
+            setAvailableTimes([]);
+            return;
+        }
 
-            // Get the specific time range for this date
-            const timeRange = getAvailableTimeRange(selectedDate, locationSchedules);
+        const timeRange = getAvailableTimeRange(selectedDate, locationSchedules);
+        if (!timeRange.earliestTime || !timeRange.latestTime) {
+            setError(t("reschedule.noTimesAvailable"));
+            setAvailableTimes([]);
+            return;
+        }
 
-            if (!timeRange.earliestTime || !timeRange.latestTime) {
-                setError(t("reschedule.noTimesAvailable"));
-                setAvailableTimes([]);
-                return;
-            }
+        setError(null);
 
-            // Clear any previous errors
-            setError(null);
+        // Align start time to the slot grid (ceil to nearest slot boundary from midnight)
+        // This ensures picker slots match server-side slot rounding without going before opening
+        const [eh, em] = timeRange.earliestTime.split(":").map(Number);
+        const totalAligned = eh * 60 + Math.ceil(em / slotDuration) * slotDuration;
+        const alignedH = Math.floor(totalAligned / 60);
+        const alignedM = totalAligned % 60;
+        const alignedStart = `${String(alignedH).padStart(2, "0")}:${String(alignedM).padStart(2, "0")}`;
 
-            const allTimes = generateTimeSlotsBetween(
-                timeRange.earliestTime,
-                timeRange.latestTime,
-                slotDuration,
-                true,
-            );
-            const slots = allTimes.map(timeString => {
+        const allTimes = generateTimeSlotsBetween(
+            alignedStart,
+            timeRange.latestTime,
+            slotDuration,
+            true,
+        );
+
+        // Build initial slots from schedule availability
+        const buildSlots = (counts: Record<string, number>) =>
+            allTimes.map(timeString => {
                 const timeAvailability = isTimeAvailable(
                     selectedDate,
                     timeString,
                     locationSchedules,
                 );
+                const slotCount = counts[timeString] || 0;
+                const slotFull = maxParcelsPerSlot !== null && slotCount >= maxParcelsPerSlot;
                 return {
                     value: timeString,
-                    label: timeString,
-                    disabled: !timeAvailability.isAvailable,
+                    label: slotFull ? `${timeString} (${t("reschedule.full")})` : timeString,
+                    disabled: !timeAvailability.isAvailable || slotFull,
                 };
             });
 
-            setAvailableTimes(slots);
+        // Set slots immediately with schedule-only data (empty counts), then refine with capacity data
+        setAvailableTimes(buildSlots({}));
 
-            // Auto-select the first available time if there are any
-            const firstAvailable = slots.find(slot => !slot.disabled);
-            if (firstAvailable && !selectedTime) {
+        let cancelled = false;
+
+        // Fetch actual timeslot counts for the selected date
+        if (parcelLocationId) {
+            getTimeslotCountsAction(parcelLocationId, selectedDate, parcelId)
+                .then(counts => {
+                    if (!cancelled) {
+                        const slots = buildSlots(counts);
+                        setAvailableTimes(slots);
+
+                        const firstAvailable = slots.find(slot => !slot.disabled);
+                        if (firstAvailable && !selectedTimeRef.current) {
+                            setSelectedTime(firstAvailable.value);
+                        } else if (!firstAvailable) {
+                            setError(t("reschedule.noTimesAvailable"));
+                        }
+                    }
+                })
+                .catch(() => {
+                    // On error, keep schedule-only slots without capacity data
+                });
+        } else {
+            const firstAvailable = buildSlots({}).find(slot => !slot.disabled);
+            if (firstAvailable && !selectedTimeRef.current) {
                 setSelectedTime(firstAvailable.value);
             } else if (!firstAvailable) {
                 setError(t("reschedule.noTimesAvailable"));
             }
         }
-    }, [selectedDate, locationSchedules, t, selectedTime, slotDuration]);
 
-    // Reset form when modal opens or parcel changes
-    useEffect(() => {
-        if (opened && foodParcel) {
-            // Reset form state
-            setSelectedDate(null);
-            setSelectedTime(null);
-            setError(null);
-            setIsSubmitting(false);
-        }
-    }, [opened, foodParcel]);
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- t and selectedTime are intentionally excluded
+    }, [selectedDate, locationSchedules, slotDuration, maxParcelsPerSlot, parcelLocationId]);
 
     const handleConfirm = async () => {
         if (!foodParcel || !selectedDate || !selectedTime) {
@@ -164,7 +233,11 @@ export default function ReschedulePickupModal({
                 onRescheduled();
                 onClose();
             } else {
-                setError(result.error || t("reschedule.genericError"));
+                if (result.errorCode && isAgreementRequiredCode(result.errorCode)) {
+                    window.location.href = "/agreement";
+                    return;
+                }
+                setError(getRescheduleErrorMessage(t, result.errorCode, result.error));
             }
         } catch {
             // Error boundary will handle critical errors
@@ -174,10 +247,16 @@ export default function ReschedulePickupModal({
         }
     };
 
-    // Check if a date is available according to the location schedule
+    // Check if a date is available according to the location schedule and capacity
     const isDateAvailableForPickup = (date: Date): boolean => {
         if (!locationSchedules) return true; // If no schedule info, assume available
-        return isDateAvailable(date, locationSchedules).isAvailable;
+        if (!isDateAvailable(date, locationSchedules).isAvailable) return false;
+
+        // Check if the date is fully booked (daily capacity reached)
+        const dateStr = formatDateToYMD(date);
+        if (fullyBookedDates.has(dateStr)) return false;
+
+        return true;
     };
 
     return (
@@ -217,9 +296,13 @@ export default function ReschedulePickupModal({
                                 label={t("reschedule.newDate")}
                                 placeholder={t("reschedule.selectDate")}
                                 value={selectedDate}
-                                onChange={value => setSelectedDate(value ? new Date(value) : null)}
+                                onChange={value => {
+                                    setSelectedDate(value ? new Date(value) : null);
+                                    setSelectedTime(null);
+                                }}
                                 leftSection={<IconCalendar size="1rem" />}
                                 minDate={toStockholmDate(new Date())}
+                                maxDate={maxDate}
                                 excludeDate={date => !isDateAvailableForPickup(new Date(date))}
                                 required
                             />

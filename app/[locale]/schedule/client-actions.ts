@@ -4,9 +4,12 @@ import {
     updateFoodParcelSchedule,
     getPickupLocationSchedules,
     getLocationSlotDuration,
+    getLocationSlotConfig,
     recomputeOutsideHoursCount,
     bulkRescheduleParcels,
     getOutsideHoursParcelsForLocation,
+    getFullyBookedDates,
+    getTimeslotCounts,
 } from "./actions";
 import type { FoodParcel, LocationScheduleInfo } from "./types";
 import { logError } from "@/app/utils/logger";
@@ -112,6 +115,20 @@ export async function bulkRescheduleParcelsAction(
 }
 
 /**
+ * Client wrapper for getting location slot configuration (duration + max per slot).
+ */
+export async function getLocationSlotConfigAction(
+    locationId: string,
+): Promise<{ slotDuration: number; maxParcelsPerSlot: number | null }> {
+    try {
+        return await getLocationSlotConfig(locationId);
+    } catch (error) {
+        logError("Error fetching location slot config", error, { locationId });
+        return { slotDuration: 15, maxParcelsPerSlot: null };
+    }
+}
+
+/**
  * Client wrapper for getting all future outside-hours parcels for a location
  */
 export async function getOutsideHoursParcelsAction(locationId: string): Promise<FoodParcel[]> {
@@ -120,6 +137,41 @@ export async function getOutsideHoursParcelsAction(locationId: string): Promise<
     } catch (error) {
         logError("Error fetching outside-hours parcels", error, { locationId });
         return [];
+    }
+}
+
+/**
+ * Client wrapper for getting fully booked dates for a location.
+ * Optionally excludes a specific parcel from the count (e.g. the one being rescheduled).
+ */
+export async function getFullyBookedDatesAction(
+    locationId: string,
+    startDate: Date,
+    endDate: Date,
+    excludeParcelId?: string,
+): Promise<string[]> {
+    try {
+        return await getFullyBookedDates(locationId, startDate, endDate, excludeParcelId);
+    } catch (error) {
+        logError("Error fetching fully booked dates", error, { locationId });
+        return [];
+    }
+}
+
+/**
+ * Client wrapper for getting timeslot counts for a location on a specific date.
+ * Returns a map of time slot (HH:mm) to parcel count.
+ */
+export async function getTimeslotCountsAction(
+    locationId: string,
+    date: Date,
+    excludeParcelId?: string,
+): Promise<Record<string, number>> {
+    try {
+        return await getTimeslotCounts(locationId, date, excludeParcelId);
+    } catch (error) {
+        logError("Error fetching timeslot counts", error, { locationId });
+        return {};
     }
 }
 
