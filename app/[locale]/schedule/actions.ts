@@ -469,132 +469,151 @@ export async function getFoodParcelsForWeek(
 /**
  * Get the number of food parcels for each timeslot on a specific date
  */
-export async function getTimeslotCounts(
-    locationId: string,
-    date: Date,
-): Promise<Record<string, number>> {
-    try {
-        // Get start and end of the date in Stockholm timezone, then convert to UTC for DB query
-        const dateInStockholm = Time.fromDate(date);
-        const startTimeStockholm = dateInStockholm.startOfDay();
-        const endTimeStockholm = dateInStockholm.endOfDay();
+export const getTimeslotCounts = protectedReadAction(
+    async (
+        _session,
+        locationId: string,
+        date: Date,
+        excludeParcelId?: string,
+    ): Promise<Record<string, number>> => {
+        try {
+            // Get start and end of the date in Stockholm timezone, then convert to UTC for DB query
+            const dateInStockholm = Time.fromDate(date);
+            const startTimeStockholm = dateInStockholm.startOfDay();
+            const endTimeStockholm = dateInStockholm.endOfDay();
 
-        // Convert to UTC for database query
-        const startDate = startTimeStockholm.toDate();
-        const endDate = endTimeStockholm.toDate();
+            // Convert to UTC for database query
+            const startDate = startTimeStockholm.toUTC();
+            const endDate = endTimeStockholm.toUTC();
 
-        // Fetch the location settings to get the slot duration
-        const [locationSettings] = await db
-            .select({
-                slotDuration: pickupLocations.default_slot_duration_minutes,
-            })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, locationId))
-            .limit(1);
+            // Fetch the location settings to get the slot duration
+            const [locationSettings] = await db
+                .select({
+                    slotDuration: pickupLocations.default_slot_duration_minutes,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, locationId))
+                .limit(1);
 
-        // Default to 30 minutes if setting is not found
-        const slotDurationMinutes = locationSettings?.slotDuration;
+            // Default to 30 minutes if setting is not found
+            const slotDurationMinutes = locationSettings?.slotDuration ?? 30;
 
-        // Query food parcels for this location and date
-        const parcels = await db
-            .select({
-                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-            })
-            .from(foodParcels)
-            .where(
-                and(
-                    eq(foodParcels.pickup_location_id, locationId),
-                    between(foodParcels.pickup_date_time_earliest, startDate, endDate),
-                    notDeleted(),
-                ),
-            );
+            // Build WHERE conditions
+            const conditions = [
+                eq(foodParcels.pickup_location_id, locationId),
+                between(foodParcels.pickup_date_time_earliest, startDate, endDate),
+                notDeleted(),
+            ];
 
-        // Count parcels by time slot using the location's slot duration
-        const timeslotCounts: Record<string, number> = {};
-
-        parcels.forEach(parcel => {
-            const time = Time.fromDate(new Date(parcel.pickupEarliestTime));
-            const hour = parseInt(time.format("HH"), 10);
-
-            // Round to the nearest slot based on the location's slot duration
-            const totalMinutes = parseInt(time.format("mm"), 10);
-            const slotIndex = Math.floor(totalMinutes / slotDurationMinutes);
-            const minutes = slotIndex * slotDurationMinutes;
-
-            const key = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-
-            if (!timeslotCounts[key]) {
-                timeslotCounts[key] = 0;
+            // Exclude the parcel being rescheduled from the count
+            if (excludeParcelId) {
+                conditions.push(ne(foodParcels.id, excludeParcelId));
             }
 
-            timeslotCounts[key] += 1;
-        });
+            // Query food parcels for this location and date
+            const parcels = await db
+                .select({
+                    pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+                })
+                .from(foodParcels)
+                .where(and(...conditions));
 
-        return timeslotCounts;
-    } catch (error) {
-        logError("Error fetching timeslot counts", error, { locationId });
-        return {};
-    }
-}
+            // Count parcels by time slot using the location's slot duration
+            const timeslotCounts: Record<string, number> = {};
+
+            parcels.forEach(parcel => {
+                const time = Time.fromDate(new Date(parcel.pickupEarliestTime));
+                const hour = parseInt(time.format("HH"), 10);
+
+                // Round to the nearest slot based on the location's slot duration
+                const totalMinutes = parseInt(time.format("mm"), 10);
+                const slotIndex = Math.floor(totalMinutes / slotDurationMinutes);
+                const minutes = slotIndex * slotDurationMinutes;
+
+                const key = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+
+                if (!timeslotCounts[key]) {
+                    timeslotCounts[key] = 0;
+                }
+
+                timeslotCounts[key] += 1;
+            });
+
+            return timeslotCounts;
+        } catch (error) {
+            logError("Error fetching timeslot counts", error, { locationId });
+            return {};
+        }
+    },
+);
 
 /**
  * Get dates that are fully booked (daily capacity reached) for a location within a date range.
  * Returns an array of ISO date strings (YYYY-MM-DD) that are at or over capacity.
+ * Optionally excludes a specific parcel from the count (e.g. the one being rescheduled).
  */
-export async function getFullyBookedDates(
-    locationId: string,
-    startDate: Date,
-    endDate: Date,
-): Promise<string[]> {
-    try {
-        // Get location's daily capacity
-        const [location] = await db
-            .select({
-                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-            })
-            .from(pickupLocations)
-            .where(eq(pickupLocations.id, locationId))
-            .limit(1);
+export const getFullyBookedDates = protectedReadAction(
+    async (
+        _session,
+        locationId: string,
+        startDate: Date,
+        endDate: Date,
+        excludeParcelId?: string,
+    ): Promise<string[]> => {
+        try {
+            // Get location's daily capacity
+            const [location] = await db
+                .select({
+                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, locationId))
+                .limit(1);
 
-        // If no daily limit is set, no dates are fully booked
-        if (!location || location.maxParcelsPerDay === null) {
+            // If no daily limit is set (null or <= 0), no dates are fully booked
+            if (!location || !location.maxParcelsPerDay || location.maxParcelsPerDay <= 0) {
+                return [];
+            }
+
+            const maxPerDay = location.maxParcelsPerDay;
+
+            // Convert date range to Stockholm timezone boundaries
+            const rangeStart = Time.fromDate(startDate).startOfDay().toUTC();
+            const rangeEnd = Time.fromDate(endDate).endOfDay().toUTC();
+
+            // Build WHERE conditions
+            const conditions = [
+                eq(foodParcels.pickup_location_id, locationId),
+                gte(foodParcels.pickup_date_time_earliest, rangeStart),
+                lte(foodParcels.pickup_date_time_earliest, rangeEnd),
+                notDeleted(),
+            ];
+
+            // Exclude the parcel being rescheduled from the count
+            if (excludeParcelId) {
+                conditions.push(ne(foodParcels.id, excludeParcelId));
+            }
+
+            // Count parcels per date within the range
+            const results = await db
+                .select({
+                    date: sql<string>`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
+                    count: sql<number>`count(*)::int`,
+                })
+                .from(foodParcels)
+                .where(and(...conditions))
+                .groupBy(
+                    sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
+                );
+
+            // Filter to only dates at or over capacity
+            return results.filter(row => row.count >= maxPerDay).map(row => row.date);
+        } catch (error) {
+            logError("Error fetching fully booked dates", error, { locationId });
             return [];
         }
-
-        const maxPerDay = location.maxParcelsPerDay;
-
-        // Convert date range to Stockholm timezone boundaries
-        const rangeStart = Time.fromDate(startDate).startOfDay().toUTC();
-        const rangeEnd = Time.fromDate(endDate).endOfDay().toUTC();
-
-        // Count parcels per date within the range
-        const results = await db
-            .select({
-                date: sql<string>`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
-                count: sql<number>`count(*)::int`,
-            })
-            .from(foodParcels)
-            .where(
-                and(
-                    eq(foodParcels.pickup_location_id, locationId),
-                    gte(foodParcels.pickup_date_time_earliest, rangeStart),
-                    lte(foodParcels.pickup_date_time_earliest, rangeEnd),
-                    notDeleted(),
-                ),
-            )
-            .groupBy(
-                sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
-            );
-
-        // Filter to only dates at or over capacity
-        return results
-            .filter(row => row.count >= maxPerDay)
-            .map(row => row.date);
-    } catch (error) {
-        logError("Error fetching fully booked dates", error, { locationId });
-        return [];
-    }
-}
+    },
+);
 
 /**
  * Update a food parcel's schedule (used when dragging to a new timeslot)
@@ -732,8 +751,7 @@ export const updateFoodParcelSchedule = protectedAdminAction(
             return success(undefined);
         } catch (error) {
             // Preserve validation error codes for i18n on the client
-            const { ParcelValidationError } =
-                await import("@/app/utils/errors/validation-errors");
+            const { ParcelValidationError } = await import("@/app/utils/errors/validation-errors");
             if (error instanceof ParcelValidationError) {
                 const primaryError = error.validationErrors[0];
                 return failure({
@@ -1065,6 +1083,36 @@ export const getLocationSlotDuration = protectedReadAction(
             logError("Error fetching location slot duration", error, { locationId });
             // Default to 15 minutes in case of error
             return 15;
+        }
+    },
+);
+
+/**
+ * Get slot configuration for a pickup location (duration and max per slot).
+ * Requires authentication.
+ */
+export const getLocationSlotConfig = protectedReadAction(
+    async (
+        _session,
+        locationId: string,
+    ): Promise<{ slotDuration: number; maxParcelsPerSlot: number | null }> => {
+        try {
+            const [settings] = await db
+                .select({
+                    slotDuration: pickupLocations.default_slot_duration_minutes,
+                    maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
+                })
+                .from(pickupLocations)
+                .where(eq(pickupLocations.id, locationId))
+                .limit(1);
+
+            return {
+                slotDuration: settings?.slotDuration ?? 15,
+                maxParcelsPerSlot: settings?.maxParcelsPerSlot ?? null,
+            };
+        } catch (error) {
+            logError("Error fetching location slot config", error, { locationId });
+            return { slotDuration: 15, maxParcelsPerSlot: null };
         }
     },
 );

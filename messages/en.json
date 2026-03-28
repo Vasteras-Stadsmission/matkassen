@@ -535,6 +535,7 @@
             "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
             "operatingHoursError": "The selected time is outside the location's operating hours.",
             "genericError": "An unexpected error occurred.",
+            "full": "full",
             "outsideWeek": "Schedule outside of current week",
             "selectDateError": "You must select a date",
             "timeError": "Earliest time must be before latest time",
@@ -1696,7 +1697,8 @@
             "slotCapacityError": "This time slot is fully booked. Please select a different time.",
             "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
             "operatingHoursError": "The selected time is outside the location's operating hours.",
-            "pastError": "Cannot schedule food support in the past."
+            "pastError": "Cannot schedule food support in the past.",
+            "full": "full"
         }
     },
     "smsConfirm": {
