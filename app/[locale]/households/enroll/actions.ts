@@ -53,11 +53,9 @@ function dedupeIds(ids: string[]): string[] {
 
 async function ensureResponsibleUserIsAssignable(
     tx: DbTransaction,
-    responsibleUserId: string | null,
+    responsibleUserId: string,
     currentResponsibleUserId?: string | null,
 ) {
-    if (!responsibleUserId) return;
-
     const [user] = await tx
         .select({
             id: users.id,
@@ -79,7 +77,10 @@ async function ensureResponsibleUserIsAssignable(
     }
 }
 
-async function getCurrentStaffUserId(tx: DbTransaction, githubUsername: string | null | undefined) {
+async function getCurrentStaffUserId(
+    tx: DbTransaction | typeof db,
+    githubUsername: string | null | undefined,
+) {
     if (!githubUsername) return null;
 
     const [currentUser] = await tx
@@ -173,6 +174,18 @@ export const enrollHousehold = protectedAdminAction(
 
             // Normalize empty string to null (Mantine Select uses "" for no selection)
             const primaryLocationId = data.primaryPickupLocationId || null;
+            const fallbackResponsibleUserId = await getCurrentStaffUserId(
+                db,
+                session.user?.githubUsername,
+            );
+            const responsibleUserId = data.responsibleUserId || fallbackResponsibleUserId;
+
+            if (!responsibleUserId) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "validation.responsibleStaffRequired",
+                });
+            }
 
             // Use a transaction to ensure all operations succeed or fail together
             const result = await db.transaction(async tx => {
@@ -180,12 +193,6 @@ export const enrollHousehold = protectedAdminAction(
                 if (primaryLocationId) {
                     await ensurePickupLocationExists(tx, primaryLocationId);
                 }
-
-                const fallbackResponsibleUserId = await getCurrentStaffUserId(
-                    tx,
-                    session.user?.githubUsername,
-                );
-                const responsibleUserId = data.responsibleUserId || fallbackResponsibleUserId;
 
                 await ensureResponsibleUserIsAssignable(tx, responsibleUserId);
 

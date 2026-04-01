@@ -151,6 +151,7 @@ export default function HouseholdForm({
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 return error ? t(error as any) : null;
             },
+            responsible_user_id: value => (value ? null : t("validation.responsibleStaffRequired")),
         },
         validateInputOnBlur: true,
         validateInputOnChange: false,
@@ -341,8 +342,8 @@ export default function HouseholdForm({
                             description={t("responsibleStaffDescription")}
                             placeholder={t("selectResponsibleStaff")}
                             data={responsibleStaffSelectOptions}
-                            clearable
                             searchable
+                            withAsterisk
                             nothingFoundMessage={t("noResponsibleStaffFound")}
                             {...form.getInputProps("responsible_user_id")}
                         />

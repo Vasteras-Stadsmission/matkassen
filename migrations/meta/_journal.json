@@ -400,6 +400,13 @@
       "when": 1775067726153,
       "tag": "0056_reflective_misty_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1775071882950,
+      "tag": "0057_bright_praxagora",
+      "breakpoints": true
     }
   ]
 }

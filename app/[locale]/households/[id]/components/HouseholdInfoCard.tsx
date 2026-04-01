@@ -22,6 +22,7 @@ interface HouseholdInfoCardProps {
     createdAt: Date | string | null;
     creatorGithubData?: GithubUserData | null;
     responsibleStaffName?: string | null;
+    responsibleStaffGithubUsername?: string | null;
     responsibleStaffIsFormer?: boolean;
     enrollmentSmsDelivered?: boolean;
     primaryPickupLocationName?: string | null;
@@ -37,6 +38,7 @@ export function HouseholdInfoCard({
     createdAt,
     creatorGithubData,
     responsibleStaffName,
+    responsibleStaffGithubUsername,
     responsibleStaffIsFormer,
     enrollmentSmsDelivered,
     primaryPickupLocationName,
@@ -53,6 +55,10 @@ export function HouseholdInfoCard({
             day: "numeric",
         });
     };
+
+    const shouldShowResponsibleStaff =
+        !!responsibleStaffName &&
+        (responsibleStaffIsFormer || !createdBy || responsibleStaffGithubUsername !== createdBy);
 
     return (
         <Paper withBorder p="lg" radius="md">
@@ -92,7 +98,7 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
-                {responsibleStaffName && (
+                {shouldShowResponsibleStaff && (
                     <Group gap="sm">
                         <ThemeIcon size="lg" variant="light" color="teal">
                             <IconUserCheck size={20} />

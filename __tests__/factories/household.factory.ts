@@ -1,5 +1,6 @@
 import { getTestDb } from "../db/test-db";
 import { households, householdMembers, pets, householdDietaryRestrictions } from "@/app/db/schema";
+import { createTestUser } from "./user.factory";
 
 let householdCounter = 0;
 
@@ -17,12 +18,14 @@ export function resetHouseholdCounter() {
 export async function createTestHousehold(overrides: Partial<typeof households.$inferInsert> = {}) {
     const db = await getTestDb();
     householdCounter++;
+    const responsibleUser = await createTestUser();
 
     const defaults: typeof households.$inferInsert = {
         first_name: `Test${householdCounter}`,
         last_name: `User${householdCounter}`,
         phone_number: `+4670000${String(householdCounter).padStart(4, "0")}`,
         locale: "sv",
+        responsible_user_id: responsibleUser.id,
     };
 
     const [household] = await db

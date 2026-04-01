@@ -407,6 +407,13 @@ export const updateHousehold = protectedAdminHouseholdAction(
             const primaryLocationId = data.household.primary_pickup_location_id || null;
             const responsibleUserId = data.household.responsible_user_id || null;
 
+            if (!responsibleUserId) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "validation.responsibleStaffRequired",
+                });
+            }
+
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
                 // 0. Validate primary pickup location exists (if provided)
@@ -420,27 +427,25 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     .where(eq(households.id, household.id))
                     .limit(1);
 
-                if (responsibleUserId) {
-                    const [responsibleUser] = await tx
-                        .select({
-                            id: users.id,
-                            deactivated_at: users.deactivated_at,
-                        })
-                        .from(users)
-                        .where(eq(users.id, responsibleUserId))
-                        .limit(1);
+                const [responsibleUser] = await tx
+                    .select({
+                        id: users.id,
+                        deactivated_at: users.deactivated_at,
+                    })
+                    .from(users)
+                    .where(eq(users.id, responsibleUserId))
+                    .limit(1);
 
-                    const currentResponsibleUserId = existingResponsibleUser?.responsible_user_id;
-                    const isCurrentFormerResponsibleUser =
-                        responsibleUser?.deactivated_at !== null &&
-                        currentResponsibleUserId === responsibleUserId;
+                const currentResponsibleUserId = existingResponsibleUser?.responsible_user_id;
+                const isCurrentFormerResponsibleUser =
+                    responsibleUser?.deactivated_at !== null &&
+                    currentResponsibleUserId === responsibleUserId;
 
-                    if (
-                        !responsibleUser ||
-                        (!isCurrentFormerResponsibleUser && responsibleUser.deactivated_at)
-                    ) {
-                        throw new OptionNotAvailableError();
-                    }
+                if (
+                    !responsibleUser ||
+                    (!isCurrentFormerResponsibleUser && responsibleUser.deactivated_at)
+                ) {
+                    throw new OptionNotAvailableError();
                 }
 
                 // 1. Update the household basic information
