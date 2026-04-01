@@ -22,6 +22,7 @@ import {
     createTestUser,
     resetHouseholdCounter,
     resetLocationCounter,
+    resetUserCounter,
 } from "../../factories";
 import { getTestDb } from "../../db/test-db";
 import { households, pickupLocations } from "@/app/db/schema";
@@ -95,9 +96,14 @@ vi.mock("@/app/utils/sms/sms-service", () => ({
     createSmsRecord: vi.fn(),
 }));
 
-beforeEach(() => {
+beforeEach(async () => {
     resetHouseholdCounter();
     resetLocationCounter();
+    resetUserCounter();
+    await createTestUser({
+        github_username: mockSession.user.githubUsername,
+        display_name: mockSession.user.name,
+    });
 });
 
 describe("Primary handout location - Schema and persistence", () => {
@@ -465,6 +471,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phone_number: strippedPhone,
                 locale: household.locale,
                 primary_pickup_location_id: "nonexistent-location-id",
+                responsible_user_id: household.responsible_user_id,
             },
             members: [],
             dietaryRestrictions: [],
@@ -497,6 +504,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phone_number: strippedPhone,
                 locale: household.locale,
                 primary_pickup_location_id: locationB.id,
+                responsible_user_id: household.responsible_user_id,
             },
             members: [],
             dietaryRestrictions: [],
@@ -533,6 +541,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phone_number: strippedPhone,
                 locale: household.locale,
                 primary_pickup_location_id: null,
+                responsible_user_id: household.responsible_user_id,
             },
             members: [],
             dietaryRestrictions: [],
