@@ -470,6 +470,10 @@
         "currentWeek": "Aktuell vecka",
         "todayLabel": "Idag",
         "weekLabel": "Vecka {week}, {year}",
+        "summary": {
+            "selectedDayTitle": "Sammanfattning för vald dag",
+            "selectedDayDescription": "Visar packningssammanfattning för {date}. Klicka på en dag i veckoschemat för att byta."
+        },
         "loading": "Laddar schema...",
         "noFoodSupport": "Ingen matutdelning schemalagd den här veckan",
         "refresh": "Uppdatera",

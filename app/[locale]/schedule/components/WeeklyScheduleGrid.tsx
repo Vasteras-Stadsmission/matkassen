@@ -23,6 +23,7 @@ import {
     Button,
     Tooltip,
     Alert,
+    UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
@@ -108,6 +109,8 @@ interface WeeklyScheduleGridProps {
     onParcelRescheduled: () => void;
     locationId?: string | null;
     onOpenAdminDialog?: (parcelId: string) => void;
+    selectedDate?: Date | null;
+    onSelectDate?: (date: Date) => void;
 }
 
 export default function WeeklyScheduleGrid({
@@ -119,6 +122,8 @@ export default function WeeklyScheduleGrid({
     onParcelRescheduled,
     locationId,
     onOpenAdminDialog,
+    selectedDate,
+    onSelectDate,
 }: WeeklyScheduleGridProps) {
     // null = no limit (from database), undefined = use default of 3
     const effectiveMaxParcelsPerSlot = maxParcelsPerSlot === null ? null : (maxParcelsPerSlot ?? 3);
@@ -1133,6 +1138,9 @@ export default function WeeklyScheduleGrid({
 
                                 {weekDates.map(date => {
                                     const isPast = isPastDate(date);
+                                    const isSelected =
+                                        !!selectedDate &&
+                                        formatDateToYMD(selectedDate) === formatDateToYMD(date);
 
                                     // Check if this day is available in the location schedule
                                     const isDateUnavailable = locationSchedules
@@ -1149,58 +1157,77 @@ export default function WeeklyScheduleGrid({
 
                                     return (
                                         <Grid.Col span={30 / 7} key={date.toISOString()}>
-                                            <Paper
-                                                p="xs"
-                                                radius="sm"
-                                                withBorder
-                                                bg={getBgColor()}
-                                                c="white"
+                                            <UnstyledButton
+                                                type="button"
+                                                onClick={() => onSelectDate?.(new Date(date))}
                                                 style={{
-                                                    height: "100%",
-                                                    position: "relative",
-                                                    opacity: isPast || isDateUnavailable ? 0.8 : 1,
+                                                    display: "block",
+                                                    width: "100%",
+                                                    textAlign: "inherit",
+                                                    cursor: onSelectDate ? "pointer" : "default",
                                                 }}
                                             >
-                                                {/* Capacity indicator in top-right corner */}
-                                                <Text
-                                                    size="xs"
-                                                    c="gray.2"
+                                                <Paper
+                                                    p="xs"
+                                                    radius="sm"
+                                                    withBorder
+                                                    bg={getBgColor()}
+                                                    c="white"
                                                     style={{
-                                                        position: "absolute",
-                                                        top: 4,
-                                                        right: 4,
+                                                        height: "100%",
+                                                        position: "relative",
+                                                        opacity:
+                                                            isPast || isDateUnavailable ? 0.8 : 1,
+                                                        borderColor: isSelected
+                                                            ? "var(--mantine-color-yellow-4)"
+                                                            : undefined,
+                                                        boxShadow: isSelected
+                                                            ? "inset 0 0 0 1px var(--mantine-color-yellow-4)"
+                                                            : undefined,
                                                     }}
-                                                    data-testid="capacity-indicator"
                                                 >
-                                                    {parcelCountByDate[formatDateToYMD(date)] || 0}/
-                                                    {maxParcelsPerDay || "∞"}
-                                                </Text>
-
-                                                <Text fw={500} ta="center" size="sm">
-                                                    {t(`days.${getWeekdayName(date)}`)}
-                                                </Text>
-                                                <Text size="xs" ta="center">
-                                                    {formatDate(date)}
-                                                </Text>
-
-                                                {isDateUnavailable && (
-                                                    <Tooltip
-                                                        label={t("unavailableDay", {})}
-                                                        position="bottom"
-                                                        withArrow
+                                                    {/* Capacity indicator in top-right corner */}
+                                                    <Text
+                                                        size="xs"
+                                                        c="gray.2"
+                                                        style={{
+                                                            position: "absolute",
+                                                            top: 4,
+                                                            right: 4,
+                                                        }}
+                                                        data-testid="capacity-indicator"
                                                     >
-                                                        <IconInfoCircle
-                                                            size="0.9rem"
-                                                            style={{
-                                                                position: "absolute",
-                                                                bottom: 4,
-                                                                right: 4,
-                                                                opacity: 0.8,
-                                                            }}
-                                                        />
-                                                    </Tooltip>
-                                                )}
-                                            </Paper>
+                                                        {parcelCountByDate[formatDateToYMD(date)] ||
+                                                            0}
+                                                        /{maxParcelsPerDay || "∞"}
+                                                    </Text>
+
+                                                    <Text fw={500} ta="center" size="sm">
+                                                        {t(`days.${getWeekdayName(date)}`)}
+                                                    </Text>
+                                                    <Text size="xs" ta="center">
+                                                        {formatDate(date)}
+                                                    </Text>
+
+                                                    {isDateUnavailable && (
+                                                        <Tooltip
+                                                            label={t("unavailableDay", {})}
+                                                            position="bottom"
+                                                            withArrow
+                                                        >
+                                                            <IconInfoCircle
+                                                                size="0.9rem"
+                                                                style={{
+                                                                    position: "absolute",
+                                                                    bottom: 4,
+                                                                    right: 4,
+                                                                    opacity: 0.8,
+                                                                }}
+                                                            />
+                                                        </Tooltip>
+                                                    )}
+                                                </Paper>
+                                            </UnstyledButton>
                                         </Grid.Col>
                                     );
                                 })}

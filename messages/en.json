@@ -470,6 +470,10 @@
         "currentWeek": "Current Week",
         "todayLabel": "Today",
         "weekLabel": "Week {week}, {year}",
+        "summary": {
+            "selectedDayTitle": "Selected day summary",
+            "selectedDayDescription": "Showing packing summary for {date}. Click a day in the weekly schedule to change it."
+        },
         "loading": "Loading schedule...",
         "noFoodSupport": "No food support scheduled this week",
         "refresh": "Refresh",
