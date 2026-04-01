@@ -450,6 +450,10 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                     </Stack>
                 </Paper>
 
+                <Text size="sm" c="dimmed">
+                    {t("schedule.summary.gridHint")}
+                </Text>
+
                 {/* Schedule grid */}
                 <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
                     {isLoadingParcels ? (

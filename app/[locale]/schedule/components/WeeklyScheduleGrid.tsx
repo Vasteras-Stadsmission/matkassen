@@ -1141,6 +1141,9 @@ export default function WeeklyScheduleGrid({
                                     const isSelected =
                                         !!selectedDate &&
                                         formatDateToYMD(selectedDate) === formatDateToYMD(date);
+                                    const isInteractive = !!onSelectDate;
+                                    const weekdayLabel = t(`days.${getWeekdayName(date)}`);
+                                    const formattedDate = formatDate(date);
 
                                     // Check if this day is available in the location schedule
                                     const isDateUnavailable = locationSchedules
@@ -1160,11 +1163,19 @@ export default function WeeklyScheduleGrid({
                                             <UnstyledButton
                                                 type="button"
                                                 onClick={() => onSelectDate?.(new Date(date))}
+                                                aria-pressed={isSelected}
+                                                title={
+                                                    isInteractive
+                                                        ? t("summary.dayHeaderAriaLabel", {
+                                                              date: `${weekdayLabel}, ${formattedDate}`,
+                                                          })
+                                                        : undefined
+                                                }
                                                 style={{
                                                     display: "block",
                                                     width: "100%",
                                                     textAlign: "inherit",
-                                                    cursor: onSelectDate ? "pointer" : "default",
+                                                    cursor: isInteractive ? "pointer" : "default",
                                                 }}
                                             >
                                                 <Paper
@@ -1173,17 +1184,43 @@ export default function WeeklyScheduleGrid({
                                                     withBorder
                                                     bg={getBgColor()}
                                                     c="white"
-                                                    style={{
-                                                        height: "100%",
-                                                        position: "relative",
-                                                        opacity:
-                                                            isPast || isDateUnavailable ? 0.8 : 1,
-                                                        borderColor: isSelected
-                                                            ? "var(--mantine-color-yellow-4)"
-                                                            : undefined,
-                                                        boxShadow: isSelected
-                                                            ? "inset 0 0 0 1px var(--mantine-color-yellow-4)"
-                                                            : undefined,
+                                                    styles={{
+                                                        root: {
+                                                            height: "100%",
+                                                            position: "relative",
+                                                            opacity:
+                                                                isPast || isDateUnavailable
+                                                                    ? 0.8
+                                                                    : 1,
+                                                            borderColor: isSelected
+                                                                ? "var(--mantine-color-yellow-4)"
+                                                                : undefined,
+                                                            boxShadow: isSelected
+                                                                ? "inset 0 0 0 2px var(--mantine-color-yellow-4), var(--mantine-shadow-sm)"
+                                                                : undefined,
+                                                            transform: isSelected
+                                                                ? "translateY(-1px)"
+                                                                : undefined,
+                                                            transition:
+                                                                "transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, opacity 120ms ease",
+                                                            ...(isInteractive
+                                                                ? {
+                                                                      "&:hover": {
+                                                                          borderColor:
+                                                                              "var(--mantine-color-blue-2)",
+                                                                          boxShadow: isSelected
+                                                                              ? "inset 0 0 0 2px var(--mantine-color-yellow-4), var(--mantine-shadow-md)"
+                                                                              : "var(--mantine-shadow-sm)",
+                                                                          transform:
+                                                                              "translateY(-1px)",
+                                                                      },
+                                                                      "&:active": {
+                                                                          transform:
+                                                                              "translateY(0)",
+                                                                      },
+                                                                  }
+                                                                : {}),
+                                                        },
                                                     }}
                                                 >
                                                     {/* Capacity indicator in top-right corner */}
@@ -1203,10 +1240,25 @@ export default function WeeklyScheduleGrid({
                                                     </Text>
 
                                                     <Text fw={500} ta="center" size="sm">
-                                                        {t(`days.${getWeekdayName(date)}`)}
+                                                        {weekdayLabel}
                                                     </Text>
                                                     <Text size="xs" ta="center">
-                                                        {formatDate(date)}
+                                                        {formattedDate}
+                                                    </Text>
+                                                    <Text
+                                                        size="10px"
+                                                        fw={700}
+                                                        ta="center"
+                                                        c={isSelected ? "yellow.1" : "gray.2"}
+                                                        mt={6}
+                                                        style={{
+                                                            letterSpacing: "0.04em",
+                                                            textTransform: "uppercase",
+                                                        }}
+                                                    >
+                                                        {isSelected
+                                                            ? t("summary.dayHeaderSelected")
+                                                            : t("summary.dayHeaderAction")}
                                                     </Text>
 
                                                     {isDateUnavailable && (

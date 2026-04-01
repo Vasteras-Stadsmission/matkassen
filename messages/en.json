@@ -472,7 +472,11 @@
         "weekLabel": "Week {week}, {year}",
         "summary": {
             "selectedDayTitle": "Selected day summary",
-            "selectedDayDescription": "Showing packing summary for {date}. Click a day in the weekly schedule to change it."
+            "selectedDayDescription": "Showing packing summary for {date}.",
+            "gridHint": "Tap or click a day header in the weekly schedule to view a different packing summary.",
+            "dayHeaderAction": "View summary",
+            "dayHeaderSelected": "Selected",
+            "dayHeaderAriaLabel": "View packing summary for {date}"
         },
         "loading": "Loading schedule...",
         "noFoodSupport": "No food support scheduled this week",
