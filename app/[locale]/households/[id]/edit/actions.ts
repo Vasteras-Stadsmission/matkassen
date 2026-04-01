@@ -340,6 +340,7 @@ async function getHouseholdEditData(householdId: string) {
             // Re-consent is only required if the phone number changes (handled by wizard validation).
             sms_consent: true,
             primary_pickup_location_id: household.primary_pickup_location_id,
+            responsible_user_id: household.responsible_user_id,
         },
         members: members.map(member => ({
             id: member.id,
@@ -404,12 +405,42 @@ export const updateHousehold = protectedAdminHouseholdAction(
 
             // Normalize empty string to null (Mantine Select uses "" for no selection)
             const primaryLocationId = data.household.primary_pickup_location_id || null;
+            const responsibleUserId = data.household.responsible_user_id || null;
 
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
                 // 0. Validate primary pickup location exists (if provided)
                 if (primaryLocationId) {
                     await ensurePickupLocationExists(tx, primaryLocationId);
+                }
+
+                const [existingResponsibleUser] = await tx
+                    .select({ responsible_user_id: households.responsible_user_id })
+                    .from(households)
+                    .where(eq(households.id, household.id))
+                    .limit(1);
+
+                if (responsibleUserId) {
+                    const [responsibleUser] = await tx
+                        .select({
+                            id: users.id,
+                            deactivated_at: users.deactivated_at,
+                        })
+                        .from(users)
+                        .where(eq(users.id, responsibleUserId))
+                        .limit(1);
+
+                    const currentResponsibleUserId = existingResponsibleUser?.responsible_user_id;
+                    const isCurrentFormerResponsibleUser =
+                        responsibleUser?.deactivated_at !== null &&
+                        currentResponsibleUserId === responsibleUserId;
+
+                    if (
+                        !responsibleUser ||
+                        (!isCurrentFormerResponsibleUser && responsibleUser.deactivated_at)
+                    ) {
+                        throw new OptionNotAvailableError();
+                    }
                 }
 
                 // 1. Update the household basic information
@@ -421,6 +452,7 @@ export const updateHousehold = protectedAdminHouseholdAction(
                         phone_number: newPhoneE164,
                         locale: data.household.locale,
                         primary_pickup_location_id: primaryLocationId,
+                        responsible_user_id: responsibleUserId,
                     })
                     .where(eq(households.id, household.id));
 

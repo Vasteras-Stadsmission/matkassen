@@ -24,9 +24,10 @@ import {
     IconCalendarEvent,
     IconClock,
     IconMapPin,
+    IconUserCheck,
 } from "@tabler/icons-react";
 import { FormData, Comment } from "../types";
-import { getPickupLocationsAction } from "../client-actions";
+import { getPickupLocationsAction, getResponsibleStaffOptionsAction } from "../client-actions";
 import CommentSection from "@/components/CommentSection";
 import { useTranslations } from "next-intl";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
@@ -66,6 +67,8 @@ export default function ReviewForm({
 
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
     const [primaryLocationName, setPrimaryLocationName] = useState<string>("");
+    const [responsibleStaffName, setResponsibleStaffName] = useState<string>("");
+    const [responsibleStaffIsFormer, setResponsibleStaffIsFormer] = useState(false);
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
 
     // Format time for display
@@ -168,6 +171,27 @@ export default function ReviewForm({
         tHouseholdForm,
     ]);
 
+    useEffect(() => {
+        const responsibleUserId = formData.household?.responsible_user_id;
+
+        if (!responsibleUserId) {
+            setResponsibleStaffName("");
+            setResponsibleStaffIsFormer(false);
+            return;
+        }
+
+        getResponsibleStaffOptionsAction(responsibleUserId)
+            .then(options => {
+                const responsibleUser = options.find(option => option.id === responsibleUserId);
+                setResponsibleStaffName(responsibleUser?.displayName || "");
+                setResponsibleStaffIsFormer(responsibleUser?.isFormer || false);
+            })
+            .catch(() => {
+                setResponsibleStaffName("");
+                setResponsibleStaffIsFormer(false);
+            });
+    }, [formData.household?.responsible_user_id]);
+
     return (
         <Card withBorder p="md" radius="md" shadow="sm">
             <Title order={3} mb="xs">
@@ -199,6 +223,24 @@ export default function ReviewForm({
                             </ThemeIcon>
                             <Text>{formatPhoneForDisplay(formData.household.phone_number)}</Text>
                         </Group>
+                        {responsibleStaffName && (
+                            <Group gap="xs" mb="xs">
+                                <ThemeIcon size="md" variant="light" color="teal">
+                                    <IconUserCheck size={16} />
+                                </ThemeIcon>
+                                <Text>
+                                    {tHouseholdDetail("responsibleStaff", {
+                                        username: responsibleStaffName,
+                                    })}
+                                    {responsibleStaffIsFormer && (
+                                        <Text span c="dimmed" size="sm">
+                                            {" · "}
+                                            {tHouseholdDetail("formerStaff")}
+                                        </Text>
+                                    )}
+                                </Text>
+                            </Group>
+                        )}
                         {primaryLocationName && (
                             <Group gap="xs">
                                 <ThemeIcon size="md" variant="light" color="grape">

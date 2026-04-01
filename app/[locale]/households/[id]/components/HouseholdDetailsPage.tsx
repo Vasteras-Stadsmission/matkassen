@@ -311,6 +311,8 @@ export default function HouseholdDetailsPage({
                         createdBy={householdData.household.created_by}
                         createdAt={householdData.household.created_at}
                         creatorGithubData={householdData.creatorGithubData}
+                        responsibleStaffName={householdData.responsibleStaffData?.name}
+                        responsibleStaffIsFormer={householdData.responsibleStaffData?.isFormer}
                         enrollmentSmsDelivered={householdData.enrollmentSmsDelivered}
                         primaryPickupLocationName={householdData.primaryPickupLocation?.name}
                         getLanguageName={getLanguageName}

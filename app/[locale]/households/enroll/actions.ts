@@ -15,8 +15,9 @@ import {
     pickupLocationSchedules as pickupLocationSchedulesTable,
     pickupLocationScheduleDays as pickupLocationScheduleDaysTable,
     householdComments,
+    users,
 } from "@/app/db/schema";
-import { eq, and, sql, gte, lte, count, inArray, asc, desc } from "drizzle-orm";
+import { eq, and, sql, gte, lte, count, inArray, asc, desc, isNull, or } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { getStockholmDayUtcRange, getStockholmDateKey } from "@/app/utils/date-utils";
 import { protectedAdminAction } from "@/app/utils/auth/protected-action";
@@ -28,6 +29,7 @@ import {
     type ActionResult,
 } from "@/app/utils/auth/action-result";
 import { logger, logError } from "@/app/utils/logger";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 import { createSmsRecord } from "@/app/utils/sms/sms-service";
 import { formatEnrolmentSms } from "@/app/utils/sms/templates";
@@ -39,6 +41,7 @@ import {
     HouseholdMemberData,
     DietaryRestrictionData,
     AdditionalNeedData,
+    ResponsibleStaffOption,
 } from "./types";
 import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
 
@@ -46,6 +49,46 @@ type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
+}
+
+async function ensureResponsibleUserIsAssignable(
+    tx: DbTransaction,
+    responsibleUserId: string | null,
+    currentResponsibleUserId?: string | null,
+) {
+    if (!responsibleUserId) return;
+
+    const [user] = await tx
+        .select({
+            id: users.id,
+            deactivatedAt: users.deactivated_at,
+        })
+        .from(users)
+        .where(eq(users.id, responsibleUserId))
+        .limit(1);
+
+    if (!user) {
+        throw new OptionNotAvailableError();
+    }
+
+    const isCurrentFormerUser =
+        user.deactivatedAt !== null && currentResponsibleUserId === responsibleUserId;
+
+    if (user.deactivatedAt !== null && !isCurrentFormerUser) {
+        throw new OptionNotAvailableError();
+    }
+}
+
+async function getCurrentStaffUserId(tx: DbTransaction, githubUsername: string | null | undefined) {
+    if (!githubUsername) return null;
+
+    const [currentUser] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.github_username, githubUsername))
+        .limit(1);
+
+    return currentUser?.id ?? null;
 }
 
 async function ensureActiveDietaryRestrictions(
@@ -138,6 +181,14 @@ export const enrollHousehold = protectedAdminAction(
                     await ensurePickupLocationExists(tx, primaryLocationId);
                 }
 
+                const fallbackResponsibleUserId = await getCurrentStaffUserId(
+                    tx,
+                    session.user?.githubUsername,
+                );
+                const responsibleUserId = data.responsibleUserId || fallbackResponsibleUserId;
+
+                await ensureResponsibleUserIsAssignable(tx, responsibleUserId);
+
                 // 1. Create household
                 const [household] = await tx
                     .insert(households)
@@ -148,6 +199,7 @@ export const enrollHousehold = protectedAdminAction(
                         locale: data.headOfHousehold.locale || "sv",
                         created_by: session.user?.githubUsername ?? null,
                         primary_pickup_location_id: primaryLocationId,
+                        responsible_user_id: responsibleUserId,
                     })
                     .returning();
 
@@ -411,6 +463,51 @@ export async function getPickupLocations() {
     } catch (error) {
         logError("Error fetching pickup locations", error, {
             action: "getPickupLocations",
+        });
+        return [];
+    }
+}
+
+export async function getResponsibleStaffOptions(
+    currentResponsibleUserId?: string | null,
+): Promise<ResponsibleStaffOption[]> {
+    try {
+        const conditions = [isNull(users.deactivated_at)];
+        if (currentResponsibleUserId) {
+            conditions.push(eq(users.id, currentResponsibleUserId));
+        }
+
+        const rows = await db
+            .select({
+                id: users.id,
+                github_username: users.github_username,
+                display_name: users.display_name,
+                first_name: users.first_name,
+                last_name: users.last_name,
+                deactivated_at: users.deactivated_at,
+            })
+            .from(users)
+            .where(or(...conditions))
+            .orderBy(users.first_name, users.last_name, users.github_username);
+
+        return rows.map(user => ({
+            id: user.id,
+            displayName:
+                formatUserDisplayName(
+                    {
+                        first_name: user.first_name,
+                        last_name: user.last_name,
+                        display_name: user.display_name,
+                    },
+                    user.github_username,
+                ) ?? user.github_username,
+            githubUsername: user.github_username,
+            isFormer: user.deactivated_at !== null,
+        }));
+    } catch (error) {
+        logError("Error fetching responsible staff options", error, {
+            action: "getResponsibleStaffOptions",
+            currentResponsibleUserId,
         });
         return [];
     }

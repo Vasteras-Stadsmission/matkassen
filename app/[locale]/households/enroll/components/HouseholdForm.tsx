@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
+import { useSession } from "next-auth/react";
 import { Household } from "../types";
 import deepEqual from "fast-deep-equal";
 import { getLanguageSelectOptions } from "@/app/constants/languages";
@@ -23,8 +24,8 @@ import {
     stripSwedishPrefix,
     formatPhoneInputWithSpaces,
 } from "@/app/utils/validation/phone-validation";
-import { getPickupLocationsAction } from "../client-actions";
-import type { PickupLocation } from "../types";
+import { getPickupLocationsAction, getResponsibleStaffOptionsAction } from "../client-actions";
+import type { PickupLocation, ResponsibleStaffOption } from "../types";
 
 interface ValidationError {
     field: string;
@@ -49,6 +50,7 @@ interface FormValues {
     locale: string;
     sms_consent: boolean;
     primary_pickup_location_id: string;
+    responsible_user_id: string;
 }
 
 // Normalize nullable string to empty string for form values (null and "" are equivalent)
@@ -70,11 +72,17 @@ export default function HouseholdForm({
 }: HouseholdFormProps) {
     const t = useTranslations("householdForm");
     const currentLocale = useLocale();
+    const { data: session } = useSession();
+    const currentGithubUsername = (session?.user as { githubUsername?: string } | undefined)
+        ?.githubUsername;
 
     // Pickup locations state - use pre-fetched data if available, otherwise fetch
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>(
         pickupLocationsData || [],
     );
+    const [responsibleStaffOptions, setResponsibleStaffOptions] = useState<
+        ResponsibleStaffOption[]
+    >([]);
 
     // Fetch pickup locations on mount only if not provided by parent
     useEffect(() => {
@@ -89,6 +97,14 @@ export default function HouseholdForm({
             });
     }, [pickupLocationsData]);
 
+    useEffect(() => {
+        getResponsibleStaffOptionsAction(data.responsible_user_id || null)
+            .then(setResponsibleStaffOptions)
+            .catch(() => {
+                // Silently fail - staff selector will just be empty
+            });
+    }, [data.responsible_user_id]);
+
     // Memoize location options for the Select
     const locationOptions = useMemo(
         () =>
@@ -97,6 +113,17 @@ export default function HouseholdForm({
                 label: loc.name,
             })),
         [pickupLocations],
+    );
+
+    const responsibleStaffSelectOptions = useMemo(
+        () =>
+            responsibleStaffOptions.map(user => ({
+                value: user.id,
+                label: user.isFormer
+                    ? t("responsibleStaffFormerOption", { name: user.displayName })
+                    : user.displayName,
+            })),
+        [responsibleStaffOptions, t],
     );
 
     // Standardized field container style
@@ -113,6 +140,7 @@ export default function HouseholdForm({
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
             primary_pickup_location_id: data.primary_pickup_location_id || "",
+            responsible_user_id: data.responsible_user_id || "",
         },
         validate: {
             first_name: value => (value.trim().length < 2 ? t("validation.firstNameLength") : null),
@@ -127,6 +155,18 @@ export default function HouseholdForm({
         validateInputOnBlur: true,
         validateInputOnChange: false,
     });
+
+    useEffect(() => {
+        if (form.values.responsible_user_id || !currentGithubUsername) return;
+
+        const currentUser = responsibleStaffOptions.find(
+            option => option.githubUsername === currentGithubUsername && !option.isFormer,
+        );
+
+        if (currentUser) {
+            form.setFieldValue("responsible_user_id", currentUser.id);
+        }
+    }, [currentGithubUsername, responsibleStaffOptions, form]);
 
     // Memoize the language options to prevent unnecessary recalculations on re-renders
     // Use the current locale when generating the language options
@@ -151,6 +191,7 @@ export default function HouseholdForm({
             // Normalize null→"" so clearing the Select (which sets null) doesn't
             // trigger an infinite null↔"" update cycle with toFormString on dataValues
             primary_pickup_location_id: toFormString(currentForm.values.primary_pickup_location_id),
+            responsible_user_id: toFormString(currentForm.values.responsible_user_id),
         };
 
         // Strip +46 prefix from phone for display (same as initialValues)
@@ -162,6 +203,7 @@ export default function HouseholdForm({
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
             primary_pickup_location_id: toFormString(data.primary_pickup_location_id),
+            responsible_user_id: toFormString(data.responsible_user_id),
         };
 
         // Only update form values if they are actually different
@@ -188,6 +230,7 @@ export default function HouseholdForm({
             locale: data.locale || "sv",
             sms_consent: data.sms_consent || false,
             primary_pickup_location_id: toFormString(data.primary_pickup_location_id),
+            responsible_user_id: toFormString(data.responsible_user_id),
         };
 
         // Normalize null→"" on debouncedValues for comparison only, so that
@@ -195,6 +238,7 @@ export default function HouseholdForm({
         const normalizedDebouncedValues = {
             ...debouncedValues,
             primary_pickup_location_id: toFormString(debouncedValues.primary_pickup_location_id),
+            responsible_user_id: toFormString(debouncedValues.responsible_user_id),
         };
 
         // Only call updateData if the debounced values actually changed
@@ -288,6 +332,19 @@ export default function HouseholdForm({
                             placeholder={t("selectLanguage")}
                             data={languageOptions}
                             {...form.getInputProps("locale")}
+                        />
+                    </Box>
+
+                    <Box style={fieldContainerStyle}>
+                        <Select
+                            label={t("responsibleStaff")}
+                            description={t("responsibleStaffDescription")}
+                            placeholder={t("selectResponsibleStaff")}
+                            data={responsibleStaffSelectOptions}
+                            clearable
+                            searchable
+                            nothingFoundMessage={t("noResponsibleStaffFound")}
+                            {...form.getInputProps("responsible_user_id")}
                         />
                     </Box>
 

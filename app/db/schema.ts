@@ -49,6 +49,9 @@ export const households = pgTable(
             .$defaultFn(() => nanoid(8)),
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(), // will determine end of lifecycle
         created_by: varchar("created_by", { length: 50 }), // GitHub username of user who created household (NULL = unknown)
+        responsible_user_id: text("responsible_user_id").references(() => users.id, {
+            onDelete: "set null",
+        }), // Current staff member responsible for this household
         first_name: varchar("first_name", { length: 50 }).notNull(),
         last_name: varchar("last_name", { length: 50 }).notNull(),
         phone_number: varchar("phone_number", { length: 20 }).notNull(), // E.164 format (e.g., +46701234567), unique per active household
@@ -72,6 +75,9 @@ export const households = pgTable(
         index("idx_households_primary_location")
             .on(table.primary_pickup_location_id)
             .where(sql`${table.primary_pickup_location_id} IS NOT NULL`),
+        index("idx_households_responsible_user")
+            .on(table.responsible_user_id)
+            .where(sql`${table.responsible_user_id} IS NOT NULL`),
     ],
 );
 

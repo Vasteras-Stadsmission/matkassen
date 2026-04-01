@@ -21,6 +21,8 @@ interface HouseholdInfoCardProps {
     createdBy: string | null;
     createdAt: Date | string | null;
     creatorGithubData?: GithubUserData | null;
+    responsibleStaffName?: string | null;
+    responsibleStaffIsFormer?: boolean;
     enrollmentSmsDelivered?: boolean;
     primaryPickupLocationName?: string | null;
     getLanguageName: (locale: string) => string;
@@ -34,6 +36,8 @@ export function HouseholdInfoCard({
     createdBy,
     createdAt,
     creatorGithubData,
+    responsibleStaffName,
+    responsibleStaffIsFormer,
     enrollmentSmsDelivered,
     primaryPickupLocationName,
     getLanguageName,
@@ -88,6 +92,24 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
+                {responsibleStaffName && (
+                    <Group gap="sm">
+                        <ThemeIcon size="lg" variant="light" color="teal">
+                            <IconUserCheck size={20} />
+                        </ThemeIcon>
+                        <Text size="md">
+                            {t("responsibleStaff", {
+                                username: responsibleStaffName,
+                            })}
+                            {responsibleStaffIsFormer && (
+                                <Text span c="dimmed" size="sm">
+                                    {" · "}
+                                    {t("formerStaff")}
+                                </Text>
+                            )}
+                        </Text>
+                    </Group>
+                )}
                 {primaryPickupLocationName && (
                     <Group gap="sm">
                         <ThemeIcon size="lg" variant="light" color="grape">
