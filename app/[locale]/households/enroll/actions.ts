@@ -20,7 +20,7 @@ import {
 import { eq, and, sql, gte, lte, count, inArray, asc, desc, isNull, or } from "drizzle-orm";
 import { notDeleted } from "@/app/db/query-helpers";
 import { getStockholmDayUtcRange, getStockholmDateKey } from "@/app/utils/date-utils";
-import { protectedAdminAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAction, protectedReadAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
     success,
@@ -475,50 +475,53 @@ export async function getPickupLocations() {
     }
 }
 
-export async function getResponsibleStaffOptions(
-    currentResponsibleUserId?: string | null,
-): Promise<ResponsibleStaffOption[]> {
-    try {
-        const conditions = [isNull(users.deactivated_at)];
-        if (currentResponsibleUserId) {
-            conditions.push(eq(users.id, currentResponsibleUserId));
+export const getResponsibleStaffOptions = protectedReadAction(
+    async (
+        _session,
+        currentResponsibleUserId?: string | null,
+    ): Promise<ResponsibleStaffOption[]> => {
+        try {
+            const conditions = [isNull(users.deactivated_at)];
+            if (currentResponsibleUserId) {
+                conditions.push(eq(users.id, currentResponsibleUserId));
+            }
+
+            const rows = await db
+                .select({
+                    id: users.id,
+                    github_username: users.github_username,
+                    display_name: users.display_name,
+                    first_name: users.first_name,
+                    last_name: users.last_name,
+                    deactivated_at: users.deactivated_at,
+                })
+                .from(users)
+                .where(or(...conditions))
+                .orderBy(users.first_name, users.last_name, users.github_username);
+
+            return rows.map(user => ({
+                id: user.id,
+                displayName:
+                    formatUserDisplayName(
+                        {
+                            first_name: user.first_name,
+                            last_name: user.last_name,
+                            display_name: user.display_name,
+                        },
+                        user.github_username,
+                    ) ?? user.github_username,
+                githubUsername: user.github_username,
+                isFormer: user.deactivated_at !== null,
+            }));
+        } catch (error) {
+            logError("Error fetching responsible staff options", error, {
+                action: "getResponsibleStaffOptions",
+                currentResponsibleUserId,
+            });
+            return [];
         }
-
-        const rows = await db
-            .select({
-                id: users.id,
-                github_username: users.github_username,
-                display_name: users.display_name,
-                first_name: users.first_name,
-                last_name: users.last_name,
-                deactivated_at: users.deactivated_at,
-            })
-            .from(users)
-            .where(or(...conditions))
-            .orderBy(users.first_name, users.last_name, users.github_username);
-
-        return rows.map(user => ({
-            id: user.id,
-            displayName:
-                formatUserDisplayName(
-                    {
-                        first_name: user.first_name,
-                        last_name: user.last_name,
-                        display_name: user.display_name,
-                    },
-                    user.github_username,
-                ) ?? user.github_username,
-            githubUsername: user.github_username,
-            isFormer: user.deactivated_at !== null,
-        }));
-    } catch (error) {
-        logError("Error fetching responsible staff options", error, {
-            action: "getResponsibleStaffOptions",
-            currentResponsibleUserId,
-        });
-        return [];
-    }
-}
+    },
+);
 
 /**
  * Fetches all available pet species from the database
