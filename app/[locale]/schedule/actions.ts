@@ -263,7 +263,10 @@ export const getTodaysParcelsWithPhone = protectedAgreementReadAction(
 /**
  * Get summary stats for today's parcels at a specific location
  */
-export async function getTodaysSummaryStats(locationId: string): Promise<TodaySummaryStats> {
+async function querySummaryStatsForDate(
+    locationId: string,
+    date: Date,
+): Promise<TodaySummaryStats> {
     const empty: TodaySummaryStats = {
         householdCount: 0,
         memberCount: 0,
@@ -273,10 +276,9 @@ export async function getTodaysSummaryStats(locationId: string): Promise<TodaySu
     };
 
     try {
-        const today = new Date();
-        const todayInStockholm = Time.fromDate(today);
-        const startDate = todayInStockholm.startOfDay().toDate();
-        const endDate = todayInStockholm.endOfDay().toDate();
+        const targetDate = Time.fromDate(date);
+        const startDate = targetDate.startOfDay().toDate();
+        const endDate = targetDate.endOfDay().toDate();
 
         // Get distinct household IDs for today's parcels at this location
         const parcelsData = await db
@@ -385,9 +387,19 @@ export async function getTodaysSummaryStats(locationId: string): Promise<TodaySu
             })),
         };
     } catch (error) {
-        logError("Error fetching today's summary stats", error);
+        logError("Error fetching summary stats for date", error, { locationId });
         return empty;
     }
+}
+
+export const getSummaryStatsForDate = protectedAgreementReadAction(
+    async (_session, locationId: string, date: Date): Promise<TodaySummaryStats> => {
+        return querySummaryStatsForDate(locationId, date);
+    },
+);
+
+export async function getTodaysSummaryStats(locationId: string): Promise<TodaySummaryStats> {
+    return querySummaryStatsForDate(locationId, Time.now().toDate());
 }
 
 /**

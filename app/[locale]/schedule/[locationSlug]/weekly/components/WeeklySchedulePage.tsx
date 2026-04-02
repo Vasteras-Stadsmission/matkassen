@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "@/app/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
     Container,
     Title,
@@ -27,15 +27,20 @@ import {
     IconCalendarDue,
     IconExclamationCircle,
 } from "@tabler/icons-react";
-import { getFoodParcelsForWeek, getPickupLocations } from "../../../actions";
+import {
+    getFoodParcelsForWeek,
+    getPickupLocations,
+    getSummaryStatsForDate,
+} from "../../../actions";
 import { getOutsideHoursParcelsAction } from "../../../client-actions";
 import { findLocationBySlug } from "../../../utils/location-slugs";
 import WeeklyScheduleGrid from "../../../components/WeeklyScheduleGrid";
-import { getISOWeekNumber, getWeekDates } from "../../../../../utils/date-utils";
+import { formatDateToYMD, getISOWeekNumber, getWeekDates } from "../../../../../utils/date-utils";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { LocationHeader } from "../../../components/LocationHeader";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
-import type { FoodParcel, PickupLocation } from "../../../types";
+import { TodaySummaryCard } from "../../today/components/TodaySummaryCard";
+import type { FoodParcel, PickupLocation, TodaySummaryStats } from "../../../types";
 
 interface WeeklySchedulePageProps {
     locationSlug: string;
@@ -43,6 +48,7 @@ interface WeeklySchedulePageProps {
 
 export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
     const router = useRouter();
+    const locale = useLocale();
     const t = useTranslations();
 
     // State for current location
@@ -54,11 +60,14 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
     const [weekDates, setWeekDates] = useState<Date[]>([]);
     const [weekNumber, setWeekNumber] = useState<number>(0);
     const [year, setYear] = useState<number>(0);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
     // State for food parcels
     const [foodParcels, setFoodParcels] = useState<FoodParcel[]>([]);
     const [outsideHoursParcels, setOutsideHoursParcels] = useState<FoodParcel[]>([]);
     const lastParcelsRequestRef = useRef<string | null>(null);
+    const [summaryStats, setSummaryStats] = useState<TodaySummaryStats | null>(null);
+    const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
     // Loading states
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
@@ -191,6 +200,50 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         }
     }, [currentLocation, loadOutsideHoursParcels]);
 
+    useEffect(() => {
+        if (weekDates.length === 0) return;
+
+        const nextSelectedDate =
+            weekDates.find(date => formatDateToYMD(date) === formatDateToYMD(selectedDate)) ??
+            weekDates.find(date => formatDateToYMD(date) === formatDateToYMD(currentDate)) ??
+            weekDates[0];
+
+        if (formatDateToYMD(nextSelectedDate) !== formatDateToYMD(selectedDate)) {
+            setSelectedDate(nextSelectedDate);
+        }
+    }, [weekDates, currentDate, selectedDate]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadSummary() {
+            if (!currentLocation) return;
+
+            setIsLoadingSummary(true);
+
+            try {
+                const stats = await getSummaryStatsForDate(currentLocation.id, selectedDate);
+                if (!cancelled) {
+                    setSummaryStats(stats);
+                }
+            } catch {
+                if (!cancelled) {
+                    setSummaryStats(null);
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingSummary(false);
+                }
+            }
+        }
+
+        loadSummary();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentLocation, selectedDate]);
+
     // Navigation functions
     const goToToday = useCallback(() => {
         setCurrentDate(new Date());
@@ -255,6 +308,20 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         // (which may be null for "no limit" or a number for an explicit limit)
         return currentLocation?.maxParcelsPerSlot;
     }, [currentLocation]);
+
+    const selectedDateLabel = selectedDate.toLocaleDateString(locale === "sv" ? "sv-SE" : "en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+    });
+
+    const emptySummaryStats: TodaySummaryStats = {
+        householdCount: 0,
+        memberCount: 0,
+        dietaryRestrictions: [],
+        pets: [],
+        additionalNeeds: [],
+    };
 
     if (isLoadingLocation) {
         return (
@@ -363,6 +430,30 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                     </div>
                 </Paper>
 
+                <Paper p="md" withBorder>
+                    <Stack gap="sm">
+                        <div>
+                            <Text fw={600}>{t("schedule.summary.selectedDayTitle")}</Text>
+                            <Text size="sm" c="dimmed">
+                                {t("schedule.summary.selectedDayDescription", {
+                                    date: selectedDateLabel,
+                                })}
+                            </Text>
+                        </div>
+                        {isLoadingSummary ? (
+                            <Center py="md">
+                                <Loader size="sm" />
+                            </Center>
+                        ) : (
+                            <TodaySummaryCard stats={summaryStats ?? emptySummaryStats} />
+                        )}
+                    </Stack>
+                </Paper>
+
+                <Text size="sm" c="dimmed">
+                    {t("schedule.summary.gridHint")}
+                </Text>
+
                 {/* Schedule grid */}
                 <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
                     {isLoadingParcels ? (
@@ -381,6 +472,8 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                             maxParcelsPerSlot={getMaxParcelsPerSlot()}
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={currentLocation.id}
+                            selectedDate={selectedDate}
+                            onSelectDate={setSelectedDate}
                         />
                     )}
                 </Paper>

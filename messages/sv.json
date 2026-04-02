@@ -470,6 +470,14 @@
         "currentWeek": "Aktuell vecka",
         "todayLabel": "Idag",
         "weekLabel": "Vecka {week}, {year}",
+        "summary": {
+            "selectedDayTitle": "Sammanfattning för vald dag",
+            "selectedDayDescription": "Visar packningssammanfattning för {date}.",
+            "gridHint": "Tryck eller klicka på en dagsrubrik i veckoschemat för att visa en annan packningssammanfattning.",
+            "dayHeaderAction": "Visa sammanfattning",
+            "dayHeaderSelected": "Vald",
+            "dayHeaderAriaLabel": "Visa packningssammanfattning för {date}"
+        },
         "loading": "Laddar schema...",
         "noFoodSupport": "Ingen matutdelning schemalagd den här veckan",
         "refresh": "Uppdatera",
