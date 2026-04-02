@@ -1,6 +1,17 @@
 "use client";
 
-import { Paper, Title, Stack, Group, ThemeIcon, Text, Avatar, Tooltip } from "@mantine/core";
+import { useEffect, useState, useTransition } from "react";
+import {
+    Paper,
+    Title,
+    Stack,
+    Group,
+    ThemeIcon,
+    Text,
+    Tooltip,
+    ActionIcon,
+    Select,
+} from "@mantine/core";
 import {
     IconUser,
     IconPhone,
@@ -8,12 +19,19 @@ import {
     IconUserCheck,
     IconCircleCheck,
     IconMapPin,
+    IconPencil,
+    IconCheck,
+    IconX,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
+import { notifications } from "@mantine/notifications";
 import type { GithubUserData } from "@/app/[locale]/households/enroll/types";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
+import { getResponsibleStaffOptionsAction } from "../../enroll/client-actions";
+import { updateResponsibleStaff } from "../edit/actions";
 
 interface HouseholdInfoCardProps {
+    householdId: string;
     firstName: string;
     lastName: string;
     phoneNumber: string;
@@ -21,15 +39,18 @@ interface HouseholdInfoCardProps {
     createdBy: string | null;
     createdAt: Date | string | null;
     creatorGithubData?: GithubUserData | null;
+    responsibleStaffUserId?: string | null;
     responsibleStaffName?: string | null;
     responsibleStaffGithubUsername?: string | null;
     responsibleStaffIsFormer?: boolean;
     enrollmentSmsDelivered?: boolean;
     primaryPickupLocationName?: string | null;
     getLanguageName: (locale: string) => string;
+    onResponsibleStaffUpdated?: () => Promise<void> | void;
 }
 
 export function HouseholdInfoCard({
+    householdId,
     firstName,
     lastName,
     phoneNumber,
@@ -37,15 +58,26 @@ export function HouseholdInfoCard({
     createdBy,
     createdAt,
     creatorGithubData,
+    responsibleStaffUserId,
     responsibleStaffName,
     responsibleStaffGithubUsername,
     responsibleStaffIsFormer,
     enrollmentSmsDelivered,
     primaryPickupLocationName,
     getLanguageName,
+    onResponsibleStaffUpdated,
 }: HouseholdInfoCardProps) {
     const t = useTranslations("householdDetail");
+    const tForm = useTranslations("householdForm");
     const currentLocale = useLocale();
+    const [isEditingResponsibleStaff, setIsEditingResponsibleStaff] = useState(false);
+    const [selectedResponsibleUserId, setSelectedResponsibleUserId] = useState(
+        responsibleStaffUserId || "",
+    );
+    const [responsibleStaffOptions, setResponsibleStaffOptions] = useState<
+        Array<{ value: string; label: string }>
+    >([]);
+    const [isPending, startTransition] = useTransition();
 
     const formatDate = (date: Date | string | null) => {
         if (!date) return "";
@@ -56,9 +88,64 @@ export function HouseholdInfoCard({
         });
     };
 
-    const shouldShowResponsibleStaff =
-        !!responsibleStaffName &&
-        (responsibleStaffIsFormer || !createdBy || responsibleStaffGithubUsername !== createdBy);
+    useEffect(() => {
+        setSelectedResponsibleUserId(responsibleStaffUserId || "");
+    }, [responsibleStaffUserId]);
+
+    useEffect(() => {
+        getResponsibleStaffOptionsAction(responsibleStaffUserId || null)
+            .then(options => {
+                setResponsibleStaffOptions(
+                    options.map(option => ({
+                        value: option.id,
+                        label: option.isFormer
+                            ? tForm("responsibleStaffFormerOption", { name: option.displayName })
+                            : option.displayName,
+                    })),
+                );
+            })
+            .catch(() => {
+                setResponsibleStaffOptions([]);
+            });
+    }, [responsibleStaffUserId, tForm]);
+
+    const creatorName = creatorGithubData?.name || createdBy;
+    const createdLabel =
+        creatorName && createdBy && createdBy !== responsibleStaffGithubUsername
+            ? t("createdBy", { username: creatorName })
+            : t("created");
+
+    const handleSaveResponsibleStaff = () => {
+        if (!selectedResponsibleUserId || selectedResponsibleUserId === responsibleStaffUserId) {
+            setIsEditingResponsibleStaff(false);
+            return;
+        }
+
+        startTransition(async () => {
+            const result = await updateResponsibleStaff(householdId, {
+                responsibleUserId: selectedResponsibleUserId,
+            });
+
+            if (result.success) {
+                setIsEditingResponsibleStaff(false);
+                notifications.show({
+                    title: t("responsibleStaffUpdateSuccess"),
+                    message: "",
+                    color: "green",
+                });
+                await onResponsibleStaffUpdated?.();
+            } else {
+                notifications.show({
+                    title: t("responsibleStaffUpdateError"),
+                    message:
+                        result.error.message === "validation.responsibleStaffRequired"
+                            ? tForm("validation.responsibleStaffRequired")
+                            : t("responsibleStaffUpdateErrorDescription"),
+                    color: "red",
+                });
+            }
+        });
+    };
 
     return (
         <Paper withBorder p="lg" radius="md">
@@ -98,22 +185,88 @@ export function HouseholdInfoCard({
                     </ThemeIcon>
                     <Text size="md">{getLanguageName(locale)}</Text>
                 </Group>
-                {shouldShowResponsibleStaff && (
+                {responsibleStaffName && (
                     <Group gap="sm">
                         <ThemeIcon size="lg" variant="light" color="teal">
                             <IconUserCheck size={20} />
                         </ThemeIcon>
-                        <Text size="md">
-                            {t("responsibleStaff", {
-                                username: responsibleStaffName,
-                            })}
-                            {responsibleStaffIsFormer && (
-                                <Text span c="dimmed" size="sm">
-                                    {" · "}
-                                    {t("formerStaff")}
+                        <Stack gap={2} style={{ flex: 1 }}>
+                            {!isEditingResponsibleStaff ? (
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text size="md">
+                                        {t("responsibleStaff", {
+                                            username: responsibleStaffName,
+                                        })}
+                                        {responsibleStaffIsFormer && (
+                                            <Text span c="dimmed" size="sm">
+                                                {" · "}
+                                                {t("formerStaff")}
+                                            </Text>
+                                        )}
+                                    </Text>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        onClick={() => setIsEditingResponsibleStaff(true)}
+                                        aria-label={t("editResponsibleStaff")}
+                                    >
+                                        <IconPencil size={16} />
+                                    </ActionIcon>
+                                </Group>
+                            ) : (
+                                <Group gap="xs" wrap="nowrap" align="flex-start">
+                                    <Select
+                                        data={responsibleStaffOptions}
+                                        value={selectedResponsibleUserId}
+                                        onChange={value =>
+                                            setSelectedResponsibleUserId(value || "")
+                                        }
+                                        placeholder={tForm("selectResponsibleStaff")}
+                                        nothingFoundMessage={tForm("noResponsibleStaffFound")}
+                                        searchable
+                                        flex={1}
+                                        size="sm"
+                                        disabled={isPending}
+                                        aria-label={t("editResponsibleStaff")}
+                                    />
+                                    <ActionIcon
+                                        color="green"
+                                        variant="light"
+                                        onClick={handleSaveResponsibleStaff}
+                                        loading={isPending}
+                                        disabled={!selectedResponsibleUserId}
+                                        aria-label={t("saveResponsibleStaff")}
+                                    >
+                                        <IconCheck size={16} />
+                                    </ActionIcon>
+                                    <ActionIcon
+                                        color="gray"
+                                        variant="subtle"
+                                        onClick={() => {
+                                            setSelectedResponsibleUserId(
+                                                responsibleStaffUserId || "",
+                                            );
+                                            setIsEditingResponsibleStaff(false);
+                                        }}
+                                        disabled={isPending}
+                                        aria-label={t("cancelResponsibleStaff")}
+                                    >
+                                        <IconX size={16} />
+                                    </ActionIcon>
+                                </Group>
+                            )}
+                            {(createdBy || createdAt) && (
+                                <Text size="sm" c="dimmed">
+                                    {createdLabel}
+                                    {createdAt && (
+                                        <Text span c="dimmed" size="sm">
+                                            {" · "}
+                                            {formatDate(createdAt)}
+                                        </Text>
+                                    )}
                                 </Text>
                             )}
-                        </Text>
+                        </Stack>
                     </Group>
                 )}
                 {primaryPickupLocationName && (
@@ -122,35 +275,6 @@ export function HouseholdInfoCard({
                             <IconMapPin size={20} />
                         </ThemeIcon>
                         <Text size="md">{primaryPickupLocationName}</Text>
-                    </Group>
-                )}
-                {(createdBy || createdAt) && (
-                    <Group gap="sm">
-                        {creatorGithubData ? (
-                            <Avatar
-                                src={creatorGithubData.avatar_url}
-                                alt={creatorGithubData.name || createdBy || ""}
-                                size="md"
-                                radius="xl"
-                            />
-                        ) : (
-                            <ThemeIcon size="lg" variant="light" color="blue">
-                                <IconUserCheck size={20} />
-                            </ThemeIcon>
-                        )}
-                        <Text size="md">
-                            {createdBy
-                                ? t("createdBy", {
-                                      username: creatorGithubData?.name || createdBy,
-                                  })
-                                : t("created")}
-                            {createdAt && (
-                                <Text span c="dimmed" size="sm">
-                                    {" · "}
-                                    {formatDate(createdAt)}
-                                </Text>
-                            )}
-                        </Text>
                     </Group>
                 )}
             </Stack>

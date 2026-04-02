@@ -599,6 +599,12 @@
     "householdDetail": {
         "basics": "Grunduppgifter",
         "responsibleStaff": "Ansvarig personal: {username}",
+        "editResponsibleStaff": "Redigera ansvarig personal",
+        "saveResponsibleStaff": "Spara ansvarig personal",
+        "cancelResponsibleStaff": "Avbryt ändring av ansvarig personal",
+        "responsibleStaffUpdateSuccess": "Ansvarig personal uppdaterad",
+        "responsibleStaffUpdateError": "Det gick inte att uppdatera ansvarig personal",
+        "responsibleStaffUpdateErrorDescription": "Försök igen om en stund.",
         "formerStaff": "Tidigare personal",
         "createdBy": "Skapad av {username}",
         "created": "Skapad",

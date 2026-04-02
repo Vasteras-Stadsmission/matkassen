@@ -35,6 +35,10 @@ export interface HouseholdUpdateResult {
     error?: string;
 }
 
+export interface ResponsibleStaffUpdateData {
+    responsibleUserId: string;
+}
+
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function dedupeIds(ids: string[]): string[] {
@@ -130,6 +134,28 @@ async function ensureSelectableAdditionalNeeds(
     });
 
     if (invalid) {
+        throw new OptionNotAvailableError();
+    }
+}
+
+async function ensureResponsibleUserIsAssignable(
+    tx: DbTransaction,
+    responsibleUserId: string,
+    currentResponsibleUserId?: string | null,
+) {
+    const [responsibleUser] = await tx
+        .select({
+            id: users.id,
+            deactivated_at: users.deactivated_at,
+        })
+        .from(users)
+        .where(eq(users.id, responsibleUserId))
+        .limit(1);
+
+    const isCurrentFormerResponsibleUser =
+        responsibleUser?.deactivated_at !== null && currentResponsibleUserId === responsibleUserId;
+
+    if (!responsibleUser || (!isCurrentFormerResponsibleUser && responsibleUser.deactivated_at)) {
         throw new OptionNotAvailableError();
     }
 }
@@ -427,26 +453,12 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     .where(eq(households.id, household.id))
                     .limit(1);
 
-                const [responsibleUser] = await tx
-                    .select({
-                        id: users.id,
-                        deactivated_at: users.deactivated_at,
-                    })
-                    .from(users)
-                    .where(eq(users.id, responsibleUserId))
-                    .limit(1);
-
                 const currentResponsibleUserId = existingResponsibleUser?.responsible_user_id;
-                const isCurrentFormerResponsibleUser =
-                    responsibleUser?.deactivated_at !== null &&
-                    currentResponsibleUserId === responsibleUserId;
-
-                if (
-                    !responsibleUser ||
-                    (!isCurrentFormerResponsibleUser && responsibleUser.deactivated_at)
-                ) {
-                    throw new OptionNotAvailableError();
-                }
+                await ensureResponsibleUserIsAssignable(
+                    tx,
+                    responsibleUserId,
+                    currentResponsibleUserId,
+                );
 
                 // 1. Update the household basic information
                 await tx
@@ -672,6 +684,71 @@ export const updateHousehold = protectedAdminHouseholdAction(
             return failure({
                 code: "DATABASE_ERROR",
                 message: error instanceof Error ? error.message : "Unknown error occurred",
+            });
+        }
+    },
+);
+
+export const updateResponsibleStaff = protectedAdminHouseholdAction(
+    async (
+        session,
+        household,
+        data: ResponsibleStaffUpdateData,
+    ): Promise<ActionResult<{ householdId: string }>> => {
+        try {
+            if (!data.responsibleUserId) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "validation.responsibleStaffRequired",
+                });
+            }
+
+            await db.transaction(async tx => {
+                const [existingResponsibleUser] = await tx
+                    .select({ responsible_user_id: households.responsible_user_id })
+                    .from(households)
+                    .where(eq(households.id, household.id))
+                    .limit(1);
+
+                await ensureResponsibleUserIsAssignable(
+                    tx,
+                    data.responsibleUserId,
+                    existingResponsibleUser?.responsible_user_id,
+                );
+
+                await tx
+                    .update(households)
+                    .set({
+                        responsible_user_id: data.responsibleUserId,
+                    })
+                    .where(eq(households.id, household.id));
+            });
+
+            logger.info(
+                {
+                    householdId: household.id,
+                    responsibleUserId: data.responsibleUserId,
+                    changedBy: session.user?.githubUsername,
+                },
+                "Household responsible staff updated",
+            );
+
+            return success({ householdId: household.id });
+        } catch (error) {
+            if (error instanceof OptionNotAvailableError) {
+                return failure({
+                    code: error.code,
+                    message: error.message,
+                });
+            }
+
+            logError("Error updating responsible staff", error, {
+                action: "updateResponsibleStaff",
+                householdId: household.id,
+            });
+            return failure({
+                code: "DATABASE_ERROR",
+                message: "Failed to update responsible staff",
             });
         }
     },

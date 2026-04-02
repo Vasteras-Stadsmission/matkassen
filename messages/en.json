@@ -599,6 +599,12 @@
     "householdDetail": {
         "basics": "Basic Information",
         "responsibleStaff": "Responsible staff member: {username}",
+        "editResponsibleStaff": "Edit responsible staff member",
+        "saveResponsibleStaff": "Save responsible staff member",
+        "cancelResponsibleStaff": "Cancel responsible staff update",
+        "responsibleStaffUpdateSuccess": "Responsible staff member updated",
+        "responsibleStaffUpdateError": "Could not update responsible staff member",
+        "responsibleStaffUpdateErrorDescription": "Try again in a moment.",
         "formerStaff": "Former staff",
         "createdBy": "Created by {username}",
         "created": "Created",
