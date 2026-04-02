@@ -11,6 +11,8 @@ import {
     Tooltip,
     ActionIcon,
     Select,
+    Popover,
+    Divider,
 } from "@mantine/core";
 import {
     IconUser,
@@ -22,6 +24,7 @@ import {
     IconPencil,
     IconCheck,
     IconX,
+    IconInfoCircle,
 } from "@tabler/icons-react";
 import { useTranslations, useLocale } from "next-intl";
 import { notifications } from "@mantine/notifications";
@@ -41,7 +44,6 @@ interface HouseholdInfoCardProps {
     creatorGithubData?: GithubUserData | null;
     responsibleStaffUserId?: string | null;
     responsibleStaffName?: string | null;
-    responsibleStaffGithubUsername?: string | null;
     responsibleStaffIsFormer?: boolean;
     enrollmentSmsDelivered?: boolean;
     primaryPickupLocationName?: string | null;
@@ -60,7 +62,6 @@ export function HouseholdInfoCard({
     creatorGithubData,
     responsibleStaffUserId,
     responsibleStaffName,
-    responsibleStaffGithubUsername,
     responsibleStaffIsFormer,
     enrollmentSmsDelivered,
     primaryPickupLocationName,
@@ -110,10 +111,7 @@ export function HouseholdInfoCard({
     }, [responsibleStaffUserId, tForm]);
 
     const creatorName = creatorGithubData?.name || createdBy;
-    const createdLabel =
-        creatorName && createdBy && createdBy !== responsibleStaffGithubUsername
-            ? t("createdBy", { username: creatorName })
-            : t("created");
+    const shouldShowInfoIcon = Boolean(createdBy || createdAt);
 
     const handleSaveResponsibleStaff = () => {
         if (!selectedResponsibleUserId || selectedResponsibleUserId === responsibleStaffUserId) {
@@ -204,14 +202,57 @@ export function HouseholdInfoCard({
                                             </Text>
                                         )}
                                     </Text>
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
-                                        onClick={() => setIsEditingResponsibleStaff(true)}
-                                        aria-label={t("editResponsibleStaff")}
-                                    >
-                                        <IconPencil size={16} />
-                                    </ActionIcon>
+                                    <Group gap={4} wrap="nowrap">
+                                        {shouldShowInfoIcon && (
+                                            <Popover width={260} position="bottom-end" withArrow>
+                                                <Popover.Target>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color="gray"
+                                                        aria-label={t("showSecondaryInfo")}
+                                                    >
+                                                        <IconInfoCircle size={16} />
+                                                    </ActionIcon>
+                                                </Popover.Target>
+                                                <Popover.Dropdown>
+                                                    <Stack gap="xs">
+                                                        <Text size="sm" fw={500}>
+                                                            {t("secondaryInfo")}
+                                                        </Text>
+                                                        {creatorName && (
+                                                            <div>
+                                                                <Text size="xs" c="dimmed">
+                                                                    {t("createdByLabel")}
+                                                                </Text>
+                                                                <Text size="sm">{creatorName}</Text>
+                                                            </div>
+                                                        )}
+                                                        {createdAt && (
+                                                            <>
+                                                                {creatorName && <Divider />}
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">
+                                                                        {t("created")}
+                                                                    </Text>
+                                                                    <Text size="sm">
+                                                                        {formatDate(createdAt)}
+                                                                    </Text>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </Stack>
+                                                </Popover.Dropdown>
+                                            </Popover>
+                                        )}
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            onClick={() => setIsEditingResponsibleStaff(true)}
+                                            aria-label={t("editResponsibleStaff")}
+                                        >
+                                            <IconPencil size={16} />
+                                        </ActionIcon>
+                                    </Group>
                                 </Group>
                             ) : (
                                 <Group gap="xs" wrap="nowrap" align="flex-start">
@@ -254,17 +295,6 @@ export function HouseholdInfoCard({
                                         <IconX size={16} />
                                     </ActionIcon>
                                 </Group>
-                            )}
-                            {(createdBy || createdAt) && (
-                                <Text size="sm" c="dimmed">
-                                    {createdLabel}
-                                    {createdAt && (
-                                        <Text span c="dimmed" size="sm">
-                                            {" · "}
-                                            {formatDate(createdAt)}
-                                        </Text>
-                                    )}
-                                </Text>
                             )}
                         </Stack>
                     </Group>
