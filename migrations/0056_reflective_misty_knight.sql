@@ -1,0 +1,3 @@
+ALTER TABLE "households" ADD COLUMN "responsible_user_id" text;--> statement-breakpoint
+ALTER TABLE "households" ADD CONSTRAINT "households_responsible_user_id_users_id_fk" FOREIGN KEY ("responsible_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_households_responsible_user" ON "households" USING btree ("responsible_user_id") WHERE "households"."responsible_user_id" IS NOT NULL;
