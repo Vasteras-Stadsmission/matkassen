@@ -77,10 +77,15 @@ function createLogger(context) {
  * logError('Failed to process SMS', error, { parcelId: '123', userId: 'abc' })
  */
 function logError(message, error, context) {
+    // Use `err` for real Error objects (Pino's stdSerializers.err preserves cause, code, stack).
+    // Keep non-Error values as raw `error` field to avoid wrapping strings/objects
+    // in synthetic Error instances that lose the original value.
+    const errorField = error instanceof Error ? { err: error } : { error };
+
     logger.error(
         {
             ...context,
-            err: error instanceof Error ? error : new Error(String(error)),
+            ...errorField,
         },
         message,
     );
@@ -91,10 +96,12 @@ function logError(message, error, context) {
  * Use this sparingly for issues that need investigation
  */
 function logCritical(message, error, context) {
+    const errorField = error ? (error instanceof Error ? { err: error } : { error }) : {};
+
     logger.fatal(
         {
             ...context,
-            ...(error ? { err: error instanceof Error ? error : new Error(String(error)) } : {}),
+            ...errorField,
         },
         message,
     );

@@ -12,7 +12,7 @@ import {
     processQueuedSms,
     getSmsHealthStats,
     getAvailableCredits,
-    sendInsufficientBalanceSlackAlert,
+    sendBalanceSlackAlert,
     reconcileStaleMessages,
 } from "@/app/utils/sms/sms-service";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
@@ -140,12 +140,10 @@ async function processSmsJIT(): Promise<{ processed: number }> {
 
     if (credits === 0) {
         logger.warn("SMS balance is zero - fail-fasting all eligible SMS as balance failures");
-        sendInsufficientBalanceSlackAlert(0).catch(err =>
-            logError("Failed to send balance Slack alert", err),
-        );
+        sendBalanceSlackAlert(0).catch(err => logError("Failed to send balance Slack alert", err));
     } else if (credits !== null && credits < 100) {
         logger.warn({ credits }, "SMS balance is low");
-        sendInsufficientBalanceSlackAlert(credits).catch(err =>
+        sendBalanceSlackAlert(credits).catch(err =>
             logError("Failed to send low balance Slack alert", err),
         );
     }
@@ -478,7 +476,8 @@ async function runOrgMembershipSync(): Promise<{
                 { toDeactivate: toDeactivate.length, totalActive: activeUsers.length, pct },
                 "Org sync aborted: too many deactivations, possible misconfiguration",
             );
-            errors.push(
+            // Prepend so it's never truncated by errors.slice(0, 5) in Slack notification
+            errors.unshift(
                 `Aborted: ${toDeactivate.length}/${activeUsers.length} (${pct}%) users would be deactivated — possible GITHUB_ORG misconfiguration`,
             );
         } else {
@@ -541,6 +540,19 @@ async function notifySmsProcessingError(error: unknown): Promise<void> {
         smsTestMode: getHelloSmsConfig().testMode,
         error: error instanceof Error ? error.message : String(error),
     });
+}
+
+/**
+ * Notify SMS health recovery after a successful processing run.
+ * Only sends a Slack alert if state transitions from ALARM → OK.
+ */
+async function notifySmsProcessingRecovery(): Promise<void> {
+    if (process.env.NODE_ENV !== "production") {
+        return;
+    }
+
+    const { sendSmsHealthAlert } = await import("@/app/utils/notifications/slack");
+    await sendSmsHealthAlert(true, {});
 }
 
 async function notifyOrgSyncResult(result: {
@@ -655,6 +667,10 @@ export function startScheduler(): void {
     schedulerState.smsInterval = setInterval(async () => {
         try {
             await processSmsJITWithLock();
+            // Reset SMS health state to OK on success (triggers recovery alert if previously in ALARM)
+            notifySmsProcessingRecovery().catch(err =>
+                logError("Failed to send SMS processing recovery Slack alert", err),
+            );
         } catch (error) {
             logError("Error in SMS JIT loop", error);
             notifySmsProcessingError(error).catch(err =>

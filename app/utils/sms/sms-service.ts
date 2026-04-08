@@ -2081,16 +2081,20 @@ export async function getAvailableCredits(): Promise<number | null> {
 }
 
 /**
- * Send Slack alert when SMS sending fails due to insufficient balance.
+ * Send Slack alert when SMS balance is low or depleted.
  * Rate-limited to at most once per 10 minutes to avoid spam when
  * multiple SMS fail in the same batch.
+ * Depleted (credits=0) always bypasses the cooldown so it is never
+ * suppressed by a prior low-balance warning.
  */
 let lastBalanceAlertAt = 0;
+let lastBalanceAlertWasDepleted = false;
 const BALANCE_ALERT_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
 
 /** Reset Slack alert cooldown. Used by tests. */
 export function resetBalanceAlertCooldown(): void {
     lastBalanceAlertAt = 0;
+    lastBalanceAlertWasDepleted = false;
 }
 
 /**
@@ -2265,16 +2269,27 @@ export async function reconcileStaleMessages(): Promise<{
     return { reconciled, checked: staleRecords.length, errors };
 }
 
-export async function sendInsufficientBalanceSlackAlert(credits: number): Promise<void> {
+export async function sendBalanceSlackAlert(credits: number): Promise<void> {
     const now = Date.now();
-    if (now - lastBalanceAlertAt < BALANCE_ALERT_COOLDOWN_MS) {
+    const isDepleted = credits === 0;
+
+    // Depleted alerts always go through — a low-balance warning must never
+    // suppress the more urgent depleted error.
+    if (!isDepleted && now - lastBalanceAlertAt < BALANCE_ALERT_COOLDOWN_MS) {
         return; // Already alerted recently
     }
+    // If we already sent a depleted alert, don't send another one within the cooldown
+    if (
+        isDepleted &&
+        lastBalanceAlertWasDepleted &&
+        now - lastBalanceAlertAt < BALANCE_ALERT_COOLDOWN_MS
+    ) {
+        return;
+    }
     lastBalanceAlertAt = now;
+    lastBalanceAlertWasDepleted = isDepleted;
 
     const { sendSlackAlert } = await import("@/app/utils/notifications/slack");
-
-    const isDepleted = credits === 0;
 
     await sendSlackAlert({
         title: isDepleted ? "SMS Credits Depleted" : "SMS Credits Low",

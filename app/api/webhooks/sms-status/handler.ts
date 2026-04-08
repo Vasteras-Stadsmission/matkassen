@@ -87,19 +87,13 @@ export async function handleSmsStatusCallback(
             path: logPath,
         });
 
-        // Alert to Slack so webhook processing failures are visible
+        // Alert to Slack so webhook processing failures are visible.
+        // Uses state-transition pattern to avoid flooding Slack during a DB outage.
         import("@/app/utils/notifications/slack")
-            .then(({ sendSlackAlert }) =>
-                sendSlackAlert({
-                    title: "SMS Webhook Processing Error",
-                    message:
-                        "Failed to process an SMS status callback from HelloSMS. " +
-                        "Delivery status for this message may be stale until reconciliation runs.",
-                    status: "error",
-                    details: {
-                        Error: error instanceof Error ? error.message : String(error),
-                        Path: logPath,
-                    },
+            .then(({ sendSmsHealthAlert }) =>
+                sendSmsHealthAlert(false, {
+                    error: error instanceof Error ? error.message : String(error),
+                    component: "sms-webhook",
                 }),
             )
             .catch(err => logError("Failed to send webhook error Slack alert", err));
