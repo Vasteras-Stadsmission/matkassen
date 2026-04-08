@@ -1282,13 +1282,6 @@
     },
     "settings": {
         "settings": "Settings",
-        "general": "General Settings",
-        "generalDescription": "Configure privacy policy, enrollment checklist, parcel limits, and follow-up settings.",
-        "locations": "Handout Location Settings",
-        "parcels": "Parcel Limits",
-        "aria": {
-            "settingsMenu": "Settings menu"
-        },
         "nav": {
             "privacyPolicy": "Privacy Policy",
             "userAgreement": "User Agreement",
@@ -1559,11 +1552,6 @@
                 "saveFailedTitle": "Error",
                 "saveFailedMessage": "Failed to save no-show follow-up settings"
             }
-        },
-        "smsTemplates": {
-            "title": "Default SMS Templates",
-            "description": "Customize the text messages sent to households",
-            "comingSoon": "Coming Soon..."
         },
         "users": "Users",
         "usersSection": {
