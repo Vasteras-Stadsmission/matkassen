@@ -1636,8 +1636,8 @@
             "noShowFollowup": "No-show follow-up needed"
         },
         "actions": {
-            "handedOut": "Handed out",
-            "noShow": "No-show",
+            "handedOut": "Mark as handed out",
+            "noShow": "Mark as no-show",
             "cancelParcel": "Cancel parcel",
             "reschedule": "Reschedule",
             "retry": "Retry",

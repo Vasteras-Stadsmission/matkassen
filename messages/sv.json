@@ -1636,8 +1636,8 @@
             "noShowFollowup": "Uppföljning behövs"
         },
         "actions": {
-            "handedOut": "Utlämnad",
-            "noShow": "Uteblev",
+            "handedOut": "Markera utlämnad",
+            "noShow": "Markera utebliven",
             "cancelParcel": "Avboka paket",
             "reschedule": "Omboka",
             "retry": "Försök igen",
