@@ -609,7 +609,11 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                                             <Tooltip
                                                                 label={t(
                                                                     "todayHandouts.createdByTooltip",
-                                                                    { username: parcel.createdBy },
+                                                                    {
+                                                                        username:
+                                                                            parcel.createdByName ??
+                                                                            parcel.createdBy,
+                                                                    },
                                                                 )}
                                                                 withArrow
                                                                 position="top"
@@ -628,7 +632,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                                                         whiteSpace: "nowrap",
                                                                     }}
                                                                 >
-                                                                    {parcel.createdBy}
+                                                                    {parcel.createdByName ??
+                                                                        parcel.createdBy}
                                                                 </Badge>
                                                             </Tooltip>
                                                         )}

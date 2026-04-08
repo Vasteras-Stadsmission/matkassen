@@ -121,7 +121,7 @@ function PickupCard({
             )}
             {foodParcel.createdBy && (
                 <Text size="sm">
-                    {t("createdByLabel")}: {foodParcel.createdBy}
+                    {t("createdByLabel")}: {foodParcel.createdByName ?? foodParcel.createdBy}
                 </Text>
             )}
         </div>
