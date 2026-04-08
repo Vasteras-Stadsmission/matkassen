@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Group, Title, Text, Chip, Loader, Badge, Stack } from "@mantine/core";
+import { Group, Title, Text, Chip, Loader, Stack } from "@mantine/core";
 import { getAdditionalNeeds } from "../actions";
 import { AdditionalNeed } from "../types";
 import { useTranslations } from "next-intl";
@@ -34,6 +34,8 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
 
     const isSelected = (id: string) => data.some(item => item.id === id);
 
+    const visibleNeeds = availableNeeds.filter(n => n.isActive !== false || isSelected(n.id));
+
     const toggleNeed = (need: AdditionalNeed) => {
         if (isSelected(need.id)) {
             updateData(data.filter(item => item.id !== need.id));
@@ -64,27 +66,20 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
             <Title order={5}>{t("title")}</Title>
 
             <Group gap="xs">
-                {availableNeeds.map(item => {
+                {visibleNeeds.map(item => {
                     const selected = isSelected(item.id);
-                    const disabledForSelection = item.isActive === false && !selected;
 
                     return (
                         <Chip
                             key={item.id}
                             checked={selected}
                             onChange={() => toggleNeed(item)}
-                            disabled={disabledForSelection}
                             variant={selected ? "filled" : "outline"}
                             color={selected ? "cyan" : "gray"}
                             radius="sm"
                             size="sm"
                         >
                             {item.need}
-                            {item.isActive === false && (
-                                <Badge ml={8} color="orange" variant="light" size="xs">
-                                    {t("disabledLabel")}
-                                </Badge>
-                            )}
                         </Chip>
                     );
                 })}

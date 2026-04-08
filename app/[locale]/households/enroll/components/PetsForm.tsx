@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Group, Title, Text, Loader, Stack, Badge } from "@mantine/core";
+import { Group, Title, Text, Loader, Stack } from "@mantine/core";
 import { getPetSpecies } from "../actions";
 import CounterInput from "@/components/CounterInput";
 import { Pet, PetSpecies } from "../types";
@@ -133,42 +133,38 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
             <Title order={5}>{t("title")}</Title>
 
             <Stack gap="xs">
-                {petTypes.map(petType => {
-                    const currentCount = petCounts[petType.id] || 0;
-                    const isInactive = petType.isActive === false;
+                {petTypes
+                    .filter(
+                        petType => petType.isActive !== false || (petCounts[petType.id] || 0) > 0,
+                    )
+                    .map(petType => {
+                        const currentCount = petCounts[petType.id] || 0;
+                        const isInactive = petType.isActive === false;
 
-                    return (
-                        <Group
-                            key={petType.id}
-                            justify="space-between"
-                            gap="xs"
-                            style={{
-                                borderBottom: "1px solid var(--mantine-color-gray-1)",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Group gap="xs">
+                        return (
+                            <Group
+                                key={petType.id}
+                                justify="space-between"
+                                gap="xs"
+                                style={{
+                                    borderBottom: "1px solid var(--mantine-color-gray-1)",
+                                    paddingBottom: "6px",
+                                }}
+                            >
                                 <Text size="sm" fw={500}>
                                     {petType.name}
                                 </Text>
-                                {isInactive && (
-                                    <Badge color="orange" variant="light" size="xs">
-                                        {t("disabledLabel")}
-                                    </Badge>
-                                )}
+                                <CounterInput
+                                    value={currentCount}
+                                    onChange={value => setCount(petType.id, value)}
+                                    min={0}
+                                    max={99}
+                                    disableIncrement={isInactive}
+                                    disableDirectInput={isInactive}
+                                />
                             </Group>
-                            <CounterInput
-                                value={currentCount}
-                                onChange={value => setCount(petType.id, value)}
-                                min={0}
-                                max={99}
-                                disabled={isInactive && currentCount === 0}
-                                disableIncrement={isInactive}
-                                disableDirectInput={isInactive}
-                            />
-                        </Group>
-                    );
-                })}
+                        );
+                    })}
             </Stack>
         </Stack>
     );

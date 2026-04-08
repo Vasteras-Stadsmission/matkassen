@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Group, Title, Text, Chip, Loader, Badge, Stack } from "@mantine/core";
+import { Group, Title, Text, Chip, Loader, Stack } from "@mantine/core";
 import { getDietaryRestrictions } from "../actions";
 import { DietaryRestriction } from "../types";
 import { useTranslations } from "next-intl";
@@ -38,6 +38,10 @@ export default function DietaryRestrictionsForm({
 
     const isSelected = (id: string) => data.some(item => item.id === id);
 
+    const visibleRestrictions = availableRestrictions.filter(
+        r => r.isActive !== false || isSelected(r.id),
+    );
+
     const toggleRestriction = (restriction: DietaryRestriction) => {
         if (isSelected(restriction.id)) {
             updateData(data.filter(item => item.id !== restriction.id));
@@ -68,27 +72,20 @@ export default function DietaryRestrictionsForm({
             <Title order={5}>{t("title")}</Title>
 
             <Group gap="xs">
-                {availableRestrictions.map(restriction => {
+                {visibleRestrictions.map(restriction => {
                     const selected = isSelected(restriction.id);
-                    const disabledForSelection = restriction.isActive === false && !selected;
 
                     return (
                         <Chip
                             key={restriction.id}
                             checked={selected}
                             onChange={() => toggleRestriction(restriction)}
-                            disabled={disabledForSelection}
                             variant={selected ? "filled" : "outline"}
                             color={selected ? severityToColor(restriction.color) : "gray"}
                             radius="sm"
                             size="sm"
                         >
                             {restriction.name}
-                            {restriction.isActive === false && (
-                                <Badge ml={8} color="orange" variant="light" size="xs">
-                                    {t("disabledLabel")}
-                                </Badge>
-                            )}
                         </Chip>
                     );
                 })}
