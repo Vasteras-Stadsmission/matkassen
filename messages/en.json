@@ -1747,7 +1747,9 @@
         },
         "overview": {
             "title": "Overview",
-            "totalHouseholds": "Active Households",
+            "totalHouseholds": "Registered Households",
+            "activeHouseholds": "Active Households",
+            "activeHouseholdsInfo": "Households with at least one food parcel scheduled within the past week or in the future.",
             "newHouseholds": "New Households",
             "removedHouseholds": "Removed Households",
             "totalParcels": "Total Parcels",

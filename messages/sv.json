@@ -1747,7 +1747,9 @@
         },
         "overview": {
             "title": "Översikt",
-            "totalHouseholds": "Aktiva hushåll",
+            "totalHouseholds": "Registrerade hushåll",
+            "activeHouseholds": "Aktiva hushåll",
+            "activeHouseholdsInfo": "Hushåll med minst en matkasse planerad inom den senaste veckan eller i framtiden.",
             "newHouseholds": "Nya hushåll",
             "removedHouseholds": "Borttagna hushåll",
             "totalParcels": "Totalt antal kassar",
