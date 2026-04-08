@@ -1098,15 +1098,17 @@ export default function WeeklyScheduleGrid({
                                                             }}
                                                         />
                                                     )}
-                                                    <PickupCard
-                                                        foodParcel={parcel}
-                                                        isCompact={true}
-                                                        onReschedule={
-                                                            hasValidSlots
-                                                                ? handleRescheduleClick
-                                                                : undefined
-                                                        }
-                                                    />
+                                                    <Box pl={hasValidSlots ? 20 : 0}>
+                                                        <PickupCard
+                                                            foodParcel={parcel}
+                                                            isCompact={true}
+                                                            onReschedule={
+                                                                hasValidSlots
+                                                                    ? handleRescheduleClick
+                                                                    : undefined
+                                                            }
+                                                        />
+                                                    </Box>
                                                 </Box>
                                             ))}
                                         </Group>

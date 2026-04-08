@@ -471,6 +471,10 @@
                 "placeholder": "Search by name or phone number",
                 "noResults": "No match for \"{query}\"",
                 "clear": "Clear search"
+            },
+            "allDone": {
+                "title": "All households addressed",
+                "description": "Every household has a status set for today. Nothing more to do."
             }
         },
         "currentWeek": "Current Week",
