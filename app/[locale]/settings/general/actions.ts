@@ -30,12 +30,12 @@ import {
 } from "@/app/constants/noshow-settings";
 
 /**
- * Revalidates the settings/general page for all supported locales.
- * Call this after any mutation to verification questions.
+ * Revalidates settings pages for all supported locales.
+ * Call this after any mutation that affects settings data.
  */
 function revalidateSettingsPage() {
     routing.locales.forEach(locale => {
-        revalidatePath(`/${locale}/settings/general`, "page");
+        revalidatePath(`/${locale}/settings`, "layout");
     });
 }
 

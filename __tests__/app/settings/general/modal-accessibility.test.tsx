@@ -52,33 +52,22 @@ describe("EnrollmentChecklist - Modal Accessibility", () => {
     });
 });
 
-describe("SettingsDropdown - Icon Accessibility", () => {
+describe("SettingsDropdown - Link Accessibility", () => {
     const componentPath = join(process.cwd(), "components/SettingsDropdown/SettingsDropdown.tsx");
     const componentSource = readFileSync(componentPath, "utf-8");
 
-    it("should have aria-hidden on all decorative menu icons", () => {
-        // All icons in menu items should be aria-hidden
-        const iconPattern = /<Icon\w+[^>]*\/>/g;
-        const icons = componentSource.match(iconPattern) || [];
-
-        // Filter out the main settings icon (which should have aria-label on parent)
-        const menuItemIcons = icons.filter(icon => !icon.includes("IconSettings"));
-
-        menuItemIcons.forEach(icon => {
-            expect(icon).toContain('aria-hidden="true"');
-        });
-    });
-
     it("should have aria-label on settings button", () => {
-        // The main ActionIcon should have aria-label
-        expect(componentSource).toMatch(/aria-label=\{t\(["']aria\.settingsMenu["']\)\}/);
+        // The ActionIcon should have aria-label
+        expect(componentSource).toMatch(/aria-label=\{t\(["']settings["']\)\}/);
     });
 
-    it("should use semantic menu structure", () => {
-        // Should use Mantine Menu components
-        expect(componentSource).toContain("<Menu");
-        expect(componentSource).toContain("Menu.Target");
-        expect(componentSource).toContain("Menu.Dropdown");
-        expect(componentSource).toContain("Menu.Item");
+    it("should link to the settings page", () => {
+        // Should be a simple link to /settings
+        expect(componentSource).toContain('href="/settings"');
+        expect(componentSource).toContain("component={Link}");
+    });
+
+    it("should have a tooltip for discoverability", () => {
+        expect(componentSource).toContain("<Tooltip");
     });
 });

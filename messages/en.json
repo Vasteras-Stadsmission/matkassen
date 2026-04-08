@@ -1291,8 +1291,17 @@
             "privacyPolicy": "Privacy Policy",
             "userAgreement": "User Agreement",
             "enrollmentChecklist": "Enrollment Checklist",
-            "parcelThreshold": "Parcel Limits",
-            "noshowFollowup": "No-Show Follow-up"
+            "parcelThreshold": "Parcel Warning Threshold",
+            "noshowFollowup": "No-Show Follow-up",
+            "locations": "Handout Locations",
+            "householdOptions": "Household Form Options",
+            "users": "Users",
+            "groups": {
+                "operations": "Operations",
+                "reviewAndFollowUp": "Review & Follow-up",
+                "administration": "Administration",
+                "legalAndCompliance": "Legal & Compliance"
+            }
         },
         "enrollmentChecklist": {
             "title": "Enrollment Checklist",
