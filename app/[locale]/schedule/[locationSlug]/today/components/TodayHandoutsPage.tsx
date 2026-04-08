@@ -34,6 +34,7 @@ import {
     IconUser,
     IconSearch,
     IconX,
+    IconCircleCheck,
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -300,7 +301,9 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     // Calculate progress for current location (always based on full list)
     const totalParcels = parcels.length;
-    const completedParcels = parcels.filter(p => p.status === "pickedUp").length;
+    const completedParcels = parcels.filter(
+        p => p.status === "pickedUp" || p.status === "noShow",
+    ).length;
 
     const filteredParcels = filterParcelsByQuery(parcels, searchQuery);
 
@@ -494,6 +497,22 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                     {/* Summary card — only shown when there are parcels */}
                     {totalParcels > 0 && summaryStats !== null && (
                         <TodaySummaryCard stats={summaryStats} />
+                    )}
+
+                    {/* All done banner */}
+                    {totalParcels > 0 && completedParcels === totalParcels && (
+                        <Alert
+                            variant="light"
+                            color="green"
+                            icon={<IconCircleCheck size={20} />}
+                            p="sm"
+                            radius="md"
+                        >
+                            <Text size="sm" fw={500}>
+                                {t("todayHandouts.allDone.title")}
+                            </Text>
+                            <Text size="xs">{t("todayHandouts.allDone.description")}</Text>
+                        </Alert>
                     )}
 
                     {/* Food Parcels List */}
