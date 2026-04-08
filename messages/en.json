@@ -135,7 +135,8 @@
         },
         "filters": {
             "location": "Filter by location",
-            "createdBy": "Filter by creator"
+            "createdBy": "Filter by creator",
+            "responsibleStaff": "Filter by responsible"
         },
         "table": {
             "firstName": "First Name",
@@ -143,6 +144,7 @@
             "phoneNumber": "Phone Number",
             "language": "Language",
             "createdBy": "Created By",
+            "responsibleStaff": "Responsible",
             "primaryLocation": "Primary Location",
             "firstParcel": "First Food Parcel",
             "lastParcel": "Last Food Parcel",

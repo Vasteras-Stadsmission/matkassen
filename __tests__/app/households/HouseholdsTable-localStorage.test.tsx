@@ -25,7 +25,7 @@ vi.mock("@/app/i18n/navigation", () => ({
 
 // Mock Mantine DataTable to avoid complex rendering
 vi.mock("mantine-datatable", () => ({
-    DataTable: ({ columns, records }: any) => (
+    DataTable: ({ columns, records }: { columns?: unknown[]; records?: unknown[] }) => (
         <div data-testid="data-table">
             <div data-testid="column-count">{columns?.length || 0}</div>
             <div data-testid="record-count">{records?.length || 0}</div>
@@ -53,6 +53,7 @@ describe("HouseholdsTable - localStorage Integration Tests", () => {
             phone_number: "0701234567",
             locale: "sv",
             created_by: "testuser",
+            responsible_user_id: "user-1",
             primaryPickupLocationName: null,
             firstParcelDate: new Date("2025-01-01"),
             lastParcelDate: new Date("2025-12-31"),

@@ -135,7 +135,8 @@
         },
         "filters": {
             "location": "Filtrera på plats",
-            "createdBy": "Filtrera på skapare"
+            "createdBy": "Filtrera på skapare",
+            "responsibleStaff": "Filtrera på ansvarig"
         },
         "table": {
             "firstName": "Förnamn",
@@ -143,6 +144,7 @@
             "phoneNumber": "Telefonnummer",
             "language": "Språk",
             "createdBy": "Skapad av",
+            "responsibleStaff": "Ansvarig",
             "primaryLocation": "Huvudutlämningsplats",
             "firstParcel": "Första matkasse",
             "lastParcel": "Sista matkasse",
