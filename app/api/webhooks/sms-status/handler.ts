@@ -87,6 +87,23 @@ export async function handleSmsStatusCallback(
             path: logPath,
         });
 
+        // Alert to Slack so webhook processing failures are visible
+        import("@/app/utils/notifications/slack")
+            .then(({ sendSlackAlert }) =>
+                sendSlackAlert({
+                    title: "SMS Webhook Processing Error",
+                    message:
+                        "Failed to process an SMS status callback from HelloSMS. " +
+                        "Delivery status for this message may be stale until reconciliation runs.",
+                    status: "error",
+                    details: {
+                        Error: error instanceof Error ? error.message : String(error),
+                        Path: logPath,
+                    },
+                }),
+            )
+            .catch(err => logError("Failed to send webhook error Slack alert", err));
+
         // Return 200 even on errors to prevent HelloSMS from retrying
         return NextResponse.json(
             { received: true, error: "Processing failed but acknowledged" },

@@ -23,6 +23,9 @@ if (isServer) {
                 return { level: label.toUpperCase() };
             },
         },
+        serializers: {
+            err: pino.stdSerializers.err,
+        },
         timestamp: pino.stdTimeFunctions.isoTime,
     };
 
@@ -74,13 +77,10 @@ function createLogger(context) {
  * logError('Failed to process SMS', error, { parcelId: '123', userId: 'abc' })
  */
 function logError(message, error, context) {
-    const errorInfo =
-        error instanceof Error ? { error: error.message, stack: error.stack } : { error };
-
     logger.error(
         {
             ...context,
-            ...errorInfo,
+            err: error instanceof Error ? error : new Error(String(error)),
         },
         message,
     );
@@ -91,17 +91,10 @@ function logError(message, error, context) {
  * Use this sparingly for issues that need investigation
  */
 function logCritical(message, error, context) {
-    const errorInfo =
-        error instanceof Error
-            ? { error: error.message, stack: error.stack }
-            : error
-              ? { error }
-              : {};
-
     logger.fatal(
         {
             ...context,
-            ...errorInfo,
+            ...(error ? { err: error instanceof Error ? error : new Error(String(error)) } : {}),
         },
         message,
     );

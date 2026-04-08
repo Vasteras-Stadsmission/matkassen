@@ -140,8 +140,13 @@ async function processSmsJIT(): Promise<{ processed: number }> {
 
     if (credits === 0) {
         logger.warn("SMS balance is zero - fail-fasting all eligible SMS as balance failures");
-        sendInsufficientBalanceSlackAlert().catch(err =>
+        sendInsufficientBalanceSlackAlert(0).catch(err =>
             logError("Failed to send balance Slack alert", err),
+        );
+    } else if (credits !== null && credits < 100) {
+        logger.warn({ credits }, "SMS balance is low");
+        sendInsufficientBalanceSlackAlert(credits).catch(err =>
+            logError("Failed to send low balance Slack alert", err),
         );
     }
 
@@ -430,6 +435,9 @@ async function runOrgMembershipSync(): Promise<{
 
         logCron("org-membership-sync", "started", { totalUsers: activeUsers.length, organization });
 
+        // Phase 1: Check membership for all users, collecting non-members
+        const toDeactivate: string[] = [];
+
         for (let i = 0; i < activeUsers.length; i++) {
             const user = activeUsers[i];
             try {
@@ -439,21 +447,7 @@ async function runOrgMembershipSync(): Promise<{
                 );
 
                 if (!isMember) {
-                    // Definitive non-membership — deactivate, preserving first timestamp
-                    await db
-                        .update(users)
-                        .set({ deactivated_at: new Date() })
-                        .where(
-                            and(
-                                eq(users.github_username, user.github_username),
-                                isNull(users.deactivated_at),
-                            ),
-                        );
-                    deactivated++;
-                    logger.info(
-                        { username: user.github_username },
-                        "User deactivated: no longer in GitHub org",
-                    );
+                    toDeactivate.push(user.github_username);
                 }
             } catch (err) {
                 // API error — skip this user, never deactivate on ambiguous result
@@ -469,6 +463,33 @@ async function runOrgMembershipSync(): Promise<{
             // Skipped after the last user — no subsequent call to throttle.
             if (i < activeUsers.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        // Phase 2: Safety guard — abort if deactivation count looks like misconfiguration.
+        // >50% AND >2 users would be deactivated → likely a config or API issue, not real churn.
+        if (
+            toDeactivate.length > 2 &&
+            activeUsers.length > 0 &&
+            toDeactivate.length / activeUsers.length > 0.5
+        ) {
+            const pct = Math.round((toDeactivate.length / activeUsers.length) * 100);
+            logger.error(
+                { toDeactivate: toDeactivate.length, totalActive: activeUsers.length, pct },
+                "Org sync aborted: too many deactivations, possible misconfiguration",
+            );
+            errors.push(
+                `Aborted: ${toDeactivate.length}/${activeUsers.length} (${pct}%) users would be deactivated — possible GITHUB_ORG misconfiguration`,
+            );
+        } else {
+            // Phase 3: Apply deactivations
+            for (const username of toDeactivate) {
+                await db
+                    .update(users)
+                    .set({ deactivated_at: new Date() })
+                    .where(and(eq(users.github_username, username), isNull(users.deactivated_at)));
+                deactivated++;
+                logger.info({ username }, "User deactivated: no longer in GitHub org");
             }
         }
 
@@ -503,6 +524,23 @@ async function runOrgMembershipSync(): Promise<{
     } finally {
         schedulerState.orgSyncInFlight = false;
     }
+}
+
+/**
+ * Send Slack alert when SMS processing loop throws an exception.
+ * Uses state-transition pattern to avoid spamming on repeated failures.
+ */
+async function notifySmsProcessingError(error: unknown): Promise<void> {
+    if (process.env.NODE_ENV !== "production") {
+        return;
+    }
+
+    const { sendSmsHealthAlert } = await import("@/app/utils/notifications/slack");
+    await sendSmsHealthAlert(false, {
+        schedulerRunning: schedulerState.isRunning,
+        smsTestMode: getHelloSmsConfig().testMode,
+        error: error instanceof Error ? error.message : String(error),
+    });
 }
 
 async function notifyOrgSyncResult(result: {
@@ -619,6 +657,9 @@ export function startScheduler(): void {
             await processSmsJITWithLock();
         } catch (error) {
             logError("Error in SMS JIT loop", error);
+            notifySmsProcessingError(error).catch(err =>
+                logError("Failed to send SMS processing error Slack alert", err),
+            );
         }
     }, SMS_INTERVAL_MS);
 
@@ -750,38 +791,18 @@ export function startScheduler(): void {
     // Run SMS reconciliation once immediately on startup (uses lock)
     runSmsReconciliation().catch(err => logError("Error in immediate SMS reconciliation", err));
 
-    logger.debug("Scheduler started successfully (pure JIT SMS)");
-
-    // Send Slack notification on startup (production only, first startup)
-    if (process.env.NODE_ENV === "production" && isFirstStartup) {
-        import("@/app/utils/notifications/slack")
-            .then(({ sendSlackAlert }) => {
-                return sendSlackAlert({
-                    title: "🚀 Scheduler Started",
-                    message: "Unified background scheduler started successfully (pure JIT SMS)",
-                    status: "success",
-                    details: {
-                        "SMS Test Mode": testMode ? "Enabled (no real SMS)" : "Disabled (live SMS)",
-                        "SMS Interval": SMS_INTERVAL,
-                        "Anonymization Schedule": ANONYMIZATION_SCHEDULE,
-                        "Anonymization Duration": ANONYMIZATION_INACTIVE_DURATION,
-                        "SMS Report Schedule": SMS_REPORT_SCHEDULE,
-                        "SMS Reconciliation Interval": `${SMS_RECONCILIATION_INTERVAL_MS / 60000} minutes`,
-                        "Environment": process.env.NODE_ENV || "development",
-                    },
-                });
-            })
-            .then(success => {
-                if (success) {
-                    logger.debug("Scheduler startup notification sent to Slack");
-                } else {
-                    logger.debug("Failed to send Slack startup notification");
-                }
-            })
-            .catch(error => {
-                logError("Error sending Slack startup notification", error);
-            });
-    }
+    logger.info(
+        {
+            smsTestMode: testMode,
+            smsInterval: SMS_INTERVAL,
+            anonymizationSchedule: ANONYMIZATION_SCHEDULE,
+            anonymizationDuration: ANONYMIZATION_INACTIVE_DURATION,
+            smsReportSchedule: SMS_REPORT_SCHEDULE,
+            smsReconciliationInterval: `${SMS_RECONCILIATION_INTERVAL_MS / 60000} minutes`,
+            firstStartup: isFirstStartup,
+        },
+        "Scheduler started successfully (pure JIT SMS)",
+    );
 }
 
 /**
