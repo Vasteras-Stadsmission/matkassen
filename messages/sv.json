@@ -1282,13 +1282,6 @@
     },
     "settings": {
         "settings": "Inställningar",
-        "general": "Allmänna inställningar",
-        "generalDescription": "Konfigurera integritetspolicy, registreringsformulär, matkassegränser och uppföljningsinställningar.",
-        "locations": "Utlämningsställen",
-        "parcels": "Matkassegränser",
-        "aria": {
-            "settingsMenu": "Inställningsmeny"
-        },
         "nav": {
             "privacyPolicy": "Integritetspolicy",
             "userAgreement": "Användaravtal",
@@ -1559,11 +1552,6 @@
                 "saveFailedTitle": "Fel",
                 "saveFailedMessage": "Kunde inte spara inställningar för uppföljning vid uteblivna"
             }
-        },
-        "smsTemplates": {
-            "title": "Standard SMS-mallar",
-            "description": "Anpassa textmeddelanden som skickas till hushåll",
-            "comingSoon": "Kommer snart..."
         },
         "users": "Användare",
         "usersSection": {
