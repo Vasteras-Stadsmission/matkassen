@@ -1861,9 +1861,9 @@
     },
     "profile": {
         "completeProfile": "Complete your profile",
-        "completeProfileDescription": "Please enter your first and last name to continue using the system. Email and phone number are optional.",
+        "completeProfileDescription": "Please enter your first and last name to continue using the system. Email and phone number are optional. This information is only visible to other staff members and will not be shown to households.",
         "editProfile": "Edit your profile",
-        "editProfileDescription": "Update your name, email, or phone number.",
+        "editProfileDescription": "Update your name, email, or phone number. This information is only visible to other staff members and will not be shown to households.",
         "logout": "Log out instead",
         "firstName": "First name",
         "firstNamePlaceholder": "Your first name",

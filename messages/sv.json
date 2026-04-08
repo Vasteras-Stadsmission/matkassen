@@ -1861,9 +1861,9 @@
     },
     "profile": {
         "completeProfile": "Komplettera din profil",
-        "completeProfileDescription": "Fyll i ditt för- och efternamn för att fortsätta använda systemet. E-post och telefonnummer är valfria.",
+        "completeProfileDescription": "Fyll i ditt för- och efternamn för att fortsätta använda systemet. E-post och telefonnummer är valfria. Denna information visas bara för andra medarbetare och visas inte för hushållen.",
         "editProfile": "Redigera din profil",
-        "editProfileDescription": "Uppdatera ditt namn, e-post eller telefonnummer.",
+        "editProfileDescription": "Uppdatera ditt namn, e-post eller telefonnummer. Denna information visas bara för andra medarbetare och visas inte för hushållen.",
         "logout": "Logga ut istället",
         "firstName": "Förnamn",
         "firstNamePlaceholder": "Ditt förnamn",
