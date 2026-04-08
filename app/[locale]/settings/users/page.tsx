@@ -1,5 +1,4 @@
 import { auth } from "@/auth";
-import { AgreementProtection } from "@/components/AgreementProtection";
 import { UsersManager } from "./components/UsersManager";
 import { getUsersWithStatus } from "./actions";
 
@@ -8,14 +7,11 @@ export const dynamic = "force-dynamic";
 export default async function UsersSettingsPage() {
     const session = await auth();
 
-    // Guard the data fetch: non-admins let AgreementProtection render the
-    // access-denied screen without throwing a 500 from the server action.
+    // Guard the data fetch: non-admins would be blocked by the layout's
+    // AgreementProtection, but we still guard here to avoid a 500 from
+    // the server action if the session hasn't loaded yet.
     if (session?.user?.role !== "admin") {
-        return (
-            <AgreementProtection adminOnly>
-                <div />
-            </AgreementProtection>
-        );
+        return <div />;
     }
 
     const result = await getUsersWithStatus();
@@ -24,9 +20,5 @@ export default async function UsersSettingsPage() {
         throw new Error(result.error.message);
     }
 
-    return (
-        <AgreementProtection adminOnly>
-            <UsersManager initialActive={result.data.active} initialFormer={result.data.former} />
-        </AgreementProtection>
-    );
+    return <UsersManager initialActive={result.data.active} initialFormer={result.data.former} />;
 }

@@ -1293,8 +1293,17 @@
             "privacyPolicy": "Integritetspolicy",
             "userAgreement": "Användaravtal",
             "enrollmentChecklist": "Registreringsformulär",
-            "parcelThreshold": "Matkassegränser",
-            "noshowFollowup": "Uppföljning vid uteblivna"
+            "parcelThreshold": "Varningsgräns för matkassar",
+            "noshowFollowup": "Uppföljning vid uteblivna",
+            "locations": "Utlämningsställen",
+            "householdOptions": "Hushållsformulär",
+            "users": "Användare",
+            "groups": {
+                "operations": "Drift",
+                "reviewAndFollowUp": "Granskning & uppföljning",
+                "administration": "Administration",
+                "legalAndCompliance": "Juridik & efterlevnad"
+            }
         },
         "enrollmentChecklist": {
             "title": "Registreringsformulär",

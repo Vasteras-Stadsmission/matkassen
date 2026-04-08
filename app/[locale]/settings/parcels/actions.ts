@@ -12,11 +12,11 @@ import { logError } from "@/app/utils/logger";
 const PARCEL_WARNING_THRESHOLD_KEY = "parcel_warning_threshold";
 
 /**
- * Revalidates the settings/parcels page for all supported locales.
+ * Revalidates settings pages for all supported locales.
  */
 function revalidateSettingsPage() {
     routing.locales.forEach(locale => {
-        revalidatePath(`/${locale}/settings/parcels`, "page");
+        revalidatePath(`/${locale}/settings`, "layout");
     });
 }
 
