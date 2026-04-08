@@ -167,6 +167,7 @@ export const createLocation = protectedAgreementAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Return the created location with empty schedules array
             return success({
@@ -220,6 +221,7 @@ export const updateLocation = protectedAgreementAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            revalidatePath(`/${locale}/settings/locations`, "page");
             return success(undefined);
         } catch (error) {
             logError("Error updating location", error, {
@@ -248,6 +250,7 @@ export const deleteLocation = protectedAgreementAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            revalidatePath(`/${locale}/settings/locations`, "page");
             return success(undefined);
         } catch (error) {
             logError("Error deleting location", error, {
@@ -348,6 +351,7 @@ export const createSchedule = protectedAgreementAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Recompute outside-hours count after schedule change
             try {
@@ -508,6 +512,7 @@ export const updateSchedule = protectedAgreementAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Recompute outside-hours count with fresh data
             try {
@@ -576,6 +581,7 @@ export const deleteSchedule = protectedAgreementAction(
 
             // Revalidate the path to update the UI
             revalidatePath(`/${locale}/handout-locations`, "page");
+            revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Recompute outside-hours count with fresh data
             try {
