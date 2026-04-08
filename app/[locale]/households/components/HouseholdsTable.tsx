@@ -36,6 +36,8 @@ export interface Household {
     locale: string;
     created_by: string | null;
     created_by_display?: string | null;
+    responsible_user_id: string;
+    responsible_staff_display?: string | null;
     primaryPickupLocationName: string | null;
     firstParcelDate: string | Date | null;
     lastParcelDate: string | Date | null;
@@ -78,13 +80,15 @@ export default function HouseholdsTable({ households }: { households: Household[
             .map(name => ({ value: name, label: name }));
     }, [households]);
 
-    // Compute unique creator options from household data (using display names)
-    const creatorOptions = useMemo(() => {
-        const creators = new Map<string, string>(); // created_by -> display name
+    // Compute unique staff options from household data (responsible staff display names)
+    const staffOptions = useMemo(() => {
+        const staff = new Map<string, string>(); // responsible_user_id -> display name
         households.forEach(h => {
-            if (h.created_by) creators.set(h.created_by, h.created_by_display || h.created_by);
+            const display =
+                h.responsible_staff_display || h.created_by_display || h.created_by || "-";
+            staff.set(h.responsible_user_id, display);
         });
-        return Array.from(creators.entries())
+        return Array.from(staff.entries())
             .sort((a, b) => a[1].localeCompare(b[1]))
             .map(([value, label]) => ({ value, label }));
     }, [households]);
@@ -204,9 +208,9 @@ export default function HouseholdsTable({ households }: { households: Household[
             filtered = filtered.filter(h => h.primaryPickupLocationName === locationFilter);
         }
 
-        // Apply creator filter
+        // Apply responsible staff filter
         if (creatorFilter) {
-            filtered = filtered.filter(h => h.created_by === creatorFilter);
+            filtered = filtered.filter(h => h.responsible_user_id === creatorFilter);
         }
 
         // Apply text search
@@ -297,8 +301,8 @@ export default function HouseholdsTable({ households }: { households: Household[
                         style={{ minWidth: "180px", maxWidth: "220px" }}
                     />
                     <Select
-                        placeholder={t("filters.createdBy")}
-                        data={creatorOptions}
+                        placeholder={t("filters.responsibleStaff")}
+                        data={staffOptions}
                         value={creatorFilter}
                         onChange={setCreatorFilter}
                         clearable
@@ -342,7 +346,7 @@ export default function HouseholdsTable({ households }: { households: Household[
                                     onChange={() => toggleColumn("locale")}
                                 />
                                 <Checkbox
-                                    label={t("table.createdBy")}
+                                    label={t("table.responsibleStaff")}
                                     checked={visibleColumns.created_by}
                                     onChange={() => toggleColumn("created_by")}
                                 />
@@ -471,10 +475,13 @@ export default function HouseholdsTable({ households }: { households: Household[
                         ? [
                               {
                                   accessor: "created_by",
-                                  title: t("table.createdBy"),
+                                  title: t("table.responsibleStaff"),
                                   sortable: true,
                                   render: (household: Household) =>
-                                      household.created_by_display || household.created_by || "-",
+                                      household.responsible_staff_display ||
+                                      household.created_by_display ||
+                                      household.created_by ||
+                                      "-",
                               },
                           ]
                         : []),

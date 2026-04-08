@@ -28,8 +28,9 @@ import { HOUSEHOLD_ID_REGEX } from "@/app/constants/noshow-settings";
 
 // Function to get all households with their first and last food parcel dates
 export async function getHouseholds() {
-    // Get all households with primary location name and creator display name via left joins
+    // Get all households with primary location name, responsible staff, and creator display name via left joins
     const creatorUsers = alias(users, "creator_users");
+    const responsibleUsers = alias(users, "responsible_users");
     const householdsData = await db
         .select({
             household: households,
@@ -37,10 +38,14 @@ export async function getHouseholds() {
             creator_first_name: creatorUsers.first_name,
             creator_last_name: creatorUsers.last_name,
             creator_display_name: creatorUsers.display_name,
+            responsible_first_name: responsibleUsers.first_name,
+            responsible_last_name: responsibleUsers.last_name,
+            responsible_display_name: responsibleUsers.display_name,
         })
         .from(households)
         .leftJoin(pickupLocations, eq(households.primary_pickup_location_id, pickupLocations.id))
         .leftJoin(creatorUsers, eq(households.created_by, creatorUsers.github_username))
+        .leftJoin(responsibleUsers, eq(households.responsible_user_id, responsibleUsers.id))
         .where(isNull(households.anonymized_at)); // Filter out anonymized households
 
     // For each household, get the food parcels
@@ -77,9 +82,20 @@ export async function getHouseholds() {
                 household.created_by,
             );
 
+            // Resolve responsible staff display name
+            const responsibleStaffDisplay = formatUserDisplayName(
+                {
+                    first_name: row.responsible_first_name,
+                    last_name: row.responsible_last_name,
+                    display_name: row.responsible_display_name,
+                },
+                null,
+            );
+
             return {
                 ...household,
                 created_by_display: creatorDisplayName,
+                responsible_staff_display: responsibleStaffDisplay,
                 primaryPickupLocationName: row.primaryPickupLocationName,
                 firstParcelDate: firstParcel ? firstParcel.pickup_date_time_latest : null,
                 lastParcelDate: lastParcel ? lastParcel.pickup_date_time_latest : null,
