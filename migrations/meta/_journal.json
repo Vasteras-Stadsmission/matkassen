@@ -407,6 +407,13 @@
       "when": 1775071882950,
       "tag": "0057_bright_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1775854408013,
+      "tag": "0058_late_victor_mancha",
+      "breakpoints": true
     }
   ]
 }

@@ -69,6 +69,7 @@ export async function cleanupTestDb() {
     // Order matters due to foreign key constraints - CASCADE handles it
     await pglite.exec(`
         TRUNCATE TABLE
+            audit_log,
             outgoing_sms,
             food_parcels,
             household_verification_status,
