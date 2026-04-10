@@ -407,6 +407,13 @@
       "when": 1775071882950,
       "tag": "0057_bright_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1775851677129,
+      "tag": "0058_typical_blackheart",
+      "breakpoints": true
     }
   ]
 }

@@ -231,7 +231,9 @@ export const pickupLocationScheduleDays = pgTable(
     ],
 );
 
-// Audit log for schedule changes — preserves history after deletion
+// Audit log for schedule changes — preserves history after deletion.
+// Both schedule_id and pickup_location_id are plain text (no FK) so audit
+// rows survive deletion of either the schedule or its parent location.
 export const scheduleAuditLog = pgTable(
     "schedule_audit_log",
     {
@@ -239,10 +241,8 @@ export const scheduleAuditLog = pgTable(
             .primaryKey()
             .notNull()
             .$defaultFn(() => nanoid(8)),
-        schedule_id: text("schedule_id"), // Plain text, not FK — preserves history after deletion
-        pickup_location_id: text("pickup_location_id")
-            .notNull()
-            .references(() => pickupLocations.id, { onDelete: "cascade" }),
+        schedule_id: text("schedule_id"), // Plain text, not FK — preserves history after schedule deletion
+        pickup_location_id: text("pickup_location_id").notNull(), // Plain text, not FK — preserves history after location deletion
         action: text("action").notNull(), // 'created' | 'updated' | 'deleted'
         changed_by: varchar("changed_by", { length: 50 }).notNull(), // GitHub username from session
         changed_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
