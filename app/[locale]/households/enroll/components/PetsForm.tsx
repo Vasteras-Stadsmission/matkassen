@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Group, Title, Text, Loader, Stack, Badge } from "@mantine/core";
+import { Group, Title, Text, Loader, Stack } from "@mantine/core";
 import { getPetSpecies } from "../actions";
 import CounterInput from "@/components/CounterInput";
 import { Pet, PetSpecies } from "../types";
@@ -116,6 +116,10 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
         updatePetsData(updatedCounts);
     };
 
+    const visiblePetTypes = petTypes.filter(
+        petType => petType.isActive !== false || (petCounts[petType.id] || 0) > 0,
+    );
+
     if (isLoading) {
         return (
             <Stack>
@@ -133,7 +137,7 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
             <Title order={5}>{t("title")}</Title>
 
             <Stack gap="xs">
-                {petTypes.map(petType => {
+                {visiblePetTypes.map(petType => {
                     const currentCount = petCounts[petType.id] || 0;
                     const isInactive = petType.isActive === false;
 
@@ -147,22 +151,14 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                                 paddingBottom: "6px",
                             }}
                         >
-                            <Group gap="xs">
-                                <Text size="sm" fw={500}>
-                                    {petType.name}
-                                </Text>
-                                {isInactive && (
-                                    <Badge color="orange" variant="light" size="xs">
-                                        {t("disabledLabel")}
-                                    </Badge>
-                                )}
-                            </Group>
+                            <Text size="sm" fw={500}>
+                                {petType.name}
+                            </Text>
                             <CounterInput
                                 value={currentCount}
                                 onChange={value => setCount(petType.id, value)}
                                 min={0}
                                 max={99}
-                                disabled={isInactive && currentCount === 0}
                                 disableIncrement={isInactive}
                                 disableDirectInput={isInactive}
                             />

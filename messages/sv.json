@@ -277,7 +277,6 @@
         "removeConfirmQuestion": "Vill du ta bort följande matrestriktion från din ansökan?",
         "cancel": "Avbryt",
         "remove": "Ta bort",
-        "disabledLabel": "Inaktiv",
         "validation": {
             "minLength": "Matrestriktion måste vara minst 2 tecken"
         }
@@ -297,7 +296,6 @@
         "removeConfirmQuestion": "Vill du ta bort följande husdjurstyp från din ansökan?",
         "cancel": "Avbryt",
         "remove": "Ta bort",
-        "disabledLabel": "Inaktiv",
         "defaultPetType": "Husdjurstyp {index}",
         "unknownPetType": "Okänd",
         "validation": {
@@ -313,7 +311,6 @@
         "newNeed": "Nytt behov",
         "placeholderExample": "T.ex. Rakhyvlar, Schampo, etc.",
         "add": "Lägg till",
-        "disabledLabel": "Inaktiv",
         "validation": {
             "minLength": "Behov måste vara minst 2 tecken"
         }
