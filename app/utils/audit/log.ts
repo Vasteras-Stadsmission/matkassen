@@ -60,9 +60,26 @@ export interface AuditActorSession {
 }
 
 /**
+ * Recursive JSON-serializable value type. The `details` column is `jsonb`,
+ * so anything passed to it must round-trip through `JSON.stringify` without
+ * loss. Typing `details` as `JsonObject` (instead of `Record<string,
+ * unknown>`) lets the compiler reject `Date`, `Map`, `Set`, `BigInt`, and
+ * functions at the call site — values that would otherwise either silently
+ * corrupt audit data (`Map` → `{}`) or throw at insert time and roll back
+ * the surrounding business mutation (`BigInt`).
+ */
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonValue[] | JsonObject;
+export type JsonObject = { [key: string]: JsonValue };
+
+/**
  * Sentinel actor used when an authenticated session was passed but the
  * username could not be resolved. This indicates a bug — alert on it,
  * never accept as normal.
+ *
+ * Double-underscored to be provably non-colliding with real GitHub
+ * usernames (GitHub usernames are alphanumeric plus single internal
+ * hyphens, max 39 chars — no underscores allowed).
  */
 export const MISSING_ACTOR_SENTINEL = "__missing__";
 
@@ -70,8 +87,13 @@ export const MISSING_ACTOR_SENTINEL = "__missing__";
  * Sentinel actor used when the caller explicitly passes `null` for the
  * session, signalling an automated/system action (cron job, scheduled task,
  * webhook handler with no user context).
+ *
+ * Double-underscored for the same reason as `MISSING_ACTOR_SENTINEL` —
+ * `system` (without the underscores) is a valid GitHub username and is
+ * already used as a free-text fallback in a few places in this codebase,
+ * so a non-colliding sentinel is required to keep audit queries unambiguous.
  */
-export const SYSTEM_ACTOR = "system";
+export const SYSTEM_ACTOR = "__system__";
 
 export interface RecordAuditEventArgs {
     /**
@@ -116,9 +138,12 @@ export interface RecordAuditEventArgs {
 
     /**
      * Optional structured before/after blob. Log real values — see
-     * philosophy point 2 at the top of this file.
+     * philosophy point 2 at the top of this file. The recursive
+     * `JsonObject` type rejects values that don't round-trip through
+     * `JSON.stringify` (`Date`, `Map`, `Set`, `BigInt`, functions) at
+     * compile time; convert them yourself before passing.
      */
-    details?: Record<string, unknown>;
+    details?: JsonObject;
 }
 
 /**

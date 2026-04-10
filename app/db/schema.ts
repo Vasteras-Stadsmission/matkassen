@@ -281,8 +281,10 @@ export const auditLog = pgTable(
         entity_type: text("entity_type").notNull(), // 'household' | 'user_role' | 'parcel' | ...
         entity_id: text("entity_id"),
         action: text("action").notNull(), // 'created' | 'updated' | 'deleted' | 'role_changed' | ...
-        // Human-readable summary for direct UI display, plus a structured
-        // before/after blob for richer queries. Both are populated.
+        // Human-readable one-line summary for direct UI display (always
+        // present), plus an optional structured before/after blob in
+        // jsonb for richer queries. Writers populate `details` only when
+        // there is a meaningful diff to record.
         summary: text("summary").notNull(),
         details: jsonb("details"),
     },
