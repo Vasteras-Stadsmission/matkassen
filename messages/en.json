@@ -277,7 +277,6 @@
         "removeConfirmQuestion": "Do you want to remove the following dietary restriction from your application?",
         "cancel": "Cancel",
         "remove": "Remove",
-        "disabledLabel": "Disabled",
         "validation": {
             "minLength": "Dietary restriction must be at least 2 characters"
         }
@@ -297,7 +296,6 @@
         "removeConfirmQuestion": "Do you want to remove the following pet type from your application?",
         "cancel": "Cancel",
         "remove": "Remove",
-        "disabledLabel": "Disabled",
         "defaultPetType": "Pet type {index}",
         "unknownPetType": "Unknown",
         "validation": {
@@ -313,7 +311,6 @@
         "newNeed": "New need",
         "placeholderExample": "E.g. Razors, Shampoo, etc.",
         "add": "Add",
-        "disabledLabel": "Disabled",
         "validation": {
             "minLength": "Need must be at least 2 characters"
         }

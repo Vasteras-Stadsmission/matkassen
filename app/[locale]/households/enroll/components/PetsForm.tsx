@@ -116,6 +116,10 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
         updatePetsData(updatedCounts);
     };
 
+    const visiblePetTypes = petTypes.filter(
+        petType => petType.isActive !== false || (petCounts[petType.id] || 0) > 0,
+    );
+
     if (isLoading) {
         return (
             <Stack>
@@ -133,38 +137,34 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
             <Title order={5}>{t("title")}</Title>
 
             <Stack gap="xs">
-                {petTypes
-                    .filter(
-                        petType => petType.isActive !== false || (petCounts[petType.id] || 0) > 0,
-                    )
-                    .map(petType => {
-                        const currentCount = petCounts[petType.id] || 0;
-                        const isInactive = petType.isActive === false;
+                {visiblePetTypes.map(petType => {
+                    const currentCount = petCounts[petType.id] || 0;
+                    const isInactive = petType.isActive === false;
 
-                        return (
-                            <Group
-                                key={petType.id}
-                                justify="space-between"
-                                gap="xs"
-                                style={{
-                                    borderBottom: "1px solid var(--mantine-color-gray-1)",
-                                    paddingBottom: "6px",
-                                }}
-                            >
-                                <Text size="sm" fw={500}>
-                                    {petType.name}
-                                </Text>
-                                <CounterInput
-                                    value={currentCount}
-                                    onChange={value => setCount(petType.id, value)}
-                                    min={0}
-                                    max={99}
-                                    disableIncrement={isInactive}
-                                    disableDirectInput={isInactive}
-                                />
-                            </Group>
-                        );
-                    })}
+                    return (
+                        <Group
+                            key={petType.id}
+                            justify="space-between"
+                            gap="xs"
+                            style={{
+                                borderBottom: "1px solid var(--mantine-color-gray-1)",
+                                paddingBottom: "6px",
+                            }}
+                        >
+                            <Text size="sm" fw={500}>
+                                {petType.name}
+                            </Text>
+                            <CounterInput
+                                value={currentCount}
+                                onChange={value => setCount(petType.id, value)}
+                                min={0}
+                                max={99}
+                                disableIncrement={isInactive}
+                                disableDirectInput={isInactive}
+                            />
+                        </Group>
+                    );
+                })}
             </Stack>
         </Stack>
     );

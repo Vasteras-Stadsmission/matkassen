@@ -39,14 +39,9 @@ export default function AdditionalNeedsForm({ data, updateData }: AdditionalNeed
     const toggleNeed = (need: AdditionalNeed) => {
         if (isSelected(need.id)) {
             updateData(data.filter(item => item.id !== need.id));
-            return;
+        } else {
+            updateData([...data, need]);
         }
-
-        if (need.isActive === false) {
-            return;
-        }
-
-        updateData([...data, need]);
     };
 
     if (loading) {

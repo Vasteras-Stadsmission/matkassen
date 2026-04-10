@@ -45,14 +45,9 @@ export default function DietaryRestrictionsForm({
     const toggleRestriction = (restriction: DietaryRestriction) => {
         if (isSelected(restriction.id)) {
             updateData(data.filter(item => item.id !== restriction.id));
-            return;
+        } else {
+            updateData([...data, restriction]);
         }
-
-        if (restriction.isActive === false) {
-            return;
-        }
-
-        updateData([...data, restriction]);
     };
 
     if (loading) {
