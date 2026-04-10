@@ -180,6 +180,103 @@ describe("recordAuditEvent — integration", () => {
         });
     });
 
+    describe("type safety on details", () => {
+        // These assertions are verified by `tsc --noEmit` (and by the
+        // pre-push validation hook), not at runtime. Each `@ts-expect-error`
+        // is a contract: removing one without also widening the `details`
+        // type will fail compilation. The body of this test is never
+        // executed (`it.skip`); we just need TypeScript to type-check it.
+        it.skip("rejects non-JSON values at the type level (compile-time check)", () => {
+            const dummyTx = null as unknown as AuditTransaction;
+            const dummySession = { user: { githubUsername: "alice" } };
+
+            // Date silently becomes an ISO string under JSON.stringify —
+            // the audit log should never accept Date so callers convert
+            // explicitly and the recorded value is unambiguous.
+            void recordAuditEvent(dummyTx, {
+                session: dummySession,
+                entityType: "test",
+                entityId: null,
+                action: "test",
+                summary: "test",
+                details: {
+                    // @ts-expect-error — Date is not a JsonValue
+                    when: new Date(),
+                },
+            });
+
+            // BigInt throws inside JSON.stringify, which would roll back
+            // the surrounding business mutation. Compile-time rejection
+            // is the only safe option.
+            void recordAuditEvent(dummyTx, {
+                session: dummySession,
+                entityType: "test",
+                entityId: null,
+                action: "test",
+                summary: "test",
+                details: {
+                    // @ts-expect-error — BigInt is not a JsonValue
+                    big: 42n,
+                },
+            });
+
+            // Map and Set serialize to {} silently — worst-case data
+            // loss in an audit log.
+            void recordAuditEvent(dummyTx, {
+                session: dummySession,
+                entityType: "test",
+                entityId: null,
+                action: "test",
+                summary: "test",
+                details: {
+                    // @ts-expect-error — Map is not a JsonValue
+                    cache: new Map<string, string>(),
+                },
+            });
+
+            void recordAuditEvent(dummyTx, {
+                session: dummySession,
+                entityType: "test",
+                entityId: null,
+                action: "test",
+                summary: "test",
+                details: {
+                    // @ts-expect-error — Set is not a JsonValue
+                    members: new Set<string>(),
+                },
+            });
+
+            // Functions don't serialize at all.
+            void recordAuditEvent(dummyTx, {
+                session: dummySession,
+                entityType: "test",
+                entityId: null,
+                action: "test",
+                summary: "test",
+                details: {
+                    // @ts-expect-error — function is not a JsonValue
+                    callback: () => "nope",
+                },
+            });
+
+            // Sanity: legitimate nested JSON values must still compile.
+            void recordAuditEvent(dummyTx, {
+                session: dummySession,
+                entityType: "test",
+                entityId: null,
+                action: "test",
+                summary: "test",
+                details: {
+                    name: { from: "Alice", to: "Bob" },
+                    counts: [1, 2, 3],
+                    flag: true,
+                    optional: null,
+                    nested: { deep: { deeper: { value: "ok" } } },
+                },
+            });
+        });
+    });
+
     describe("optional fields", () => {
         it("accepts a null entity_id for actions without a single subject", async () => {
             const db = await getTestDb();
