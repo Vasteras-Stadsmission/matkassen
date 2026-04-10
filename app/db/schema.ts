@@ -40,6 +40,11 @@ export const weekdayEnum = pgEnum("weekday", [
     "sunday",
 ]);
 
+// Household record. Anonymization replaces name/phone in-place but leaves
+// the row, so historical statistics tied to food_parcels remain meaningful.
+// Any NEW child table keyed to household_id that stores free-text PII must
+// also be hard-deleted in app/utils/anonymization/anonymize-household.ts —
+// the schema does not enforce this invariant.
 export const households = pgTable(
     "households",
     {
@@ -282,7 +287,10 @@ export const verificationQuestions = pgTable(
     ],
 );
 
-// Household verification status tracking
+// Household verification status tracking. The `notes` column is free-text
+// authored by staff and may contain identifying information, so rows are
+// HARD-DELETED on household anonymization — see
+// app/utils/anonymization/anonymize-household.ts.
 export const householdVerificationStatus = pgTable(
     "household_verification_status",
     {
