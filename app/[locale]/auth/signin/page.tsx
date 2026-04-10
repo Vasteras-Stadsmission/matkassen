@@ -4,7 +4,6 @@ import { SignInClient } from "./SignInClient";
 
 type SearchParams = {
     callbackUrl?: string;
-    error?: string;
 };
 
 type Params = {
@@ -79,7 +78,7 @@ export default async function SignInPage({
     const session = await auth();
 
     // Destructure once to avoid multiple awaits
-    const { callbackUrl: rawCallbackUrl = "/", error } = await searchParams;
+    const { callbackUrl: rawCallbackUrl = "/" } = await searchParams;
     const { locale } = await params;
 
     // Sanitize callback URL to prevent open redirect
@@ -103,5 +102,6 @@ export default async function SignInPage({
         });
     }
 
-    return <SignInClient callbackUrl={callbackUrl} errorType={error} />;
+    const organization = process.env.GITHUB_ORG || undefined;
+    return <SignInClient callbackUrl={callbackUrl} organization={organization} />;
 }

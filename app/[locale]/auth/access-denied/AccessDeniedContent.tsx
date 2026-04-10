@@ -15,6 +15,7 @@ import {
     Anchor,
 } from "@mantine/core";
 import { useTranslations } from "next-intl";
+import { Link } from "@/app/i18n/navigation";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 import {
@@ -25,6 +26,8 @@ import {
     IconDeviceMobile,
     IconFingerprint,
     IconLogout,
+    IconMailForward,
+    IconArrowLeft,
 } from "@tabler/icons-react";
 
 const GITHUB_SECURITY_URL = "https://github.com/settings/security";
@@ -35,7 +38,8 @@ type DenialReason =
     | "org_resource_forbidden"
     | "unauthenticated"
     | "rate_limited"
-    | "github_error";
+    | "github_error"
+    | "admin_required";
 
 function isDenialReason(value: string | undefined): value is DenialReason {
     return [
@@ -45,10 +49,17 @@ function isDenialReason(value: string | undefined): value is DenialReason {
         "unauthenticated",
         "rate_limited",
         "github_error",
+        "admin_required",
     ].includes(value ?? "");
 }
 
-export default function AccessDeniedContent({ reason }: { reason?: string }) {
+export default function AccessDeniedContent({
+    reason,
+    organization,
+}: {
+    reason?: string;
+    organization?: string;
+}) {
     const t = useTranslations("auth");
     const denialReason = isDenialReason(reason) ? reason : undefined;
 
@@ -61,6 +72,14 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
         denialReason === "not_member" || denialReason === "membership_inactive";
     const isTransientError = denialReason === "rate_limited" || denialReason === "github_error";
     const isUnauthenticated = denialReason === "unauthenticated";
+    const isAdminRequired = denialReason === "admin_required";
+
+    // Only show org-specific text/links when the org is configured. Falls back
+    // gracefully if GITHUB_ORG is unset (e.g. in a misconfigured environment).
+    const hasOrganization = !!organization;
+    const invitationsUrl = hasOrganization
+        ? `https://github.com/orgs/${encodeURIComponent(organization)}/invitation`
+        : undefined;
 
     return (
         <Container size="sm" py="xl">
@@ -85,9 +104,18 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                             />
                         </Center>
 
-                        {/* Title */}
-                        <Title id="access-denied-title" order={1} size="h2" ta="center" c="red.8">
-                            {t("accessDenied.title")}
+                        {/* Title — admin_required uses a calmer color since it's a
+                            wrong-role informational screen, not an actual auth denial */}
+                        <Title
+                            id="access-denied-title"
+                            order={1}
+                            size="h2"
+                            ta="center"
+                            c={isAdminRequired ? "orange.8" : "red.8"}
+                        >
+                            {isAdminRequired
+                                ? t("accessDenied.adminRequired.title")
+                                : t("accessDenied.title")}
                         </Title>
 
                         {/* Targeted explanation based on reason */}
@@ -99,12 +127,19 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                         denialReason === "membership_inactive"
                                             ? "accessDenied.explanations.membershipInactive"
                                             : "accessDenied.explanations.notMember",
+                                        {
+                                            organization:
+                                                organization ||
+                                                t("signInRequirements.authorizedOrgFallback"),
+                                        },
                                     )
                                   : isUnauthenticated
                                     ? t("accessDenied.explanations.unauthenticated")
                                     : isTransientError
                                       ? t("accessDenied.explanations.temporaryError")
-                                      : t("accessDenied.subtitle")}
+                                      : isAdminRequired
+                                        ? t("accessDenied.adminRequired.explanation")
+                                        : t("accessDenied.subtitle")}
                         </Alert>
 
                         {/* 2FA-specific content */}
@@ -223,10 +258,10 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                             </>
                         )}
 
-                        {/* Membership-specific content */}
-                        {isMembershipIssue && (
+                        {/* Admin-required-specific content */}
+                        {isAdminRequired && (
                             <Text size="sm" c="dimmed">
-                                {t("accessDenied.explanations.membershipHelp")}
+                                {t("accessDenied.adminRequired.howToFix")}
                             </Text>
                         )}
 
@@ -246,14 +281,43 @@ export default function AccessDeniedContent({ reason }: { reason?: string }) {
                                     {t("accessDenied.buttons.githubSettings")}
                                 </Button>
                             )}
-                            <Button
-                                onClick={handleSignOutAndRetry}
-                                leftSection={<IconLogout size={16} aria-hidden="true" />}
-                                variant={is2faIssue ? "light" : "filled"}
-                                fullWidth
-                            >
-                                {t("accessDenied.buttons.signOutAndRetry")}
-                            </Button>
+                            {isMembershipIssue && hasOrganization && invitationsUrl && (
+                                <Button
+                                    component="a"
+                                    href={invitationsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    leftSection={<IconMailForward size={16} aria-hidden="true" />}
+                                    variant="filled"
+                                    fullWidth
+                                    aria-label={t("accessDenied.buttons.checkInvitationsAria", {
+                                        organization,
+                                    })}
+                                >
+                                    {t("accessDenied.buttons.checkInvitations")}
+                                </Button>
+                            )}
+                            {isAdminRequired && (
+                                <Button
+                                    component={Link}
+                                    href="/schedule"
+                                    leftSection={<IconArrowLeft size={16} aria-hidden="true" />}
+                                    variant="filled"
+                                    fullWidth
+                                >
+                                    {t("accessDenied.buttons.backToSchedule")}
+                                </Button>
+                            )}
+                            {!isAdminRequired && (
+                                <Button
+                                    onClick={handleSignOutAndRetry}
+                                    leftSection={<IconLogout size={16} aria-hidden="true" />}
+                                    variant={is2faIssue || isMembershipIssue ? "light" : "filled"}
+                                    fullWidth
+                                >
+                                    {t("accessDenied.buttons.signOutAndRetry")}
+                                </Button>
+                            )}
                         </Stack>
 
                         {/* Support info */}

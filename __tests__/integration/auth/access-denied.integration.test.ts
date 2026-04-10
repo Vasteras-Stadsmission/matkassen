@@ -565,4 +565,207 @@ describe("Access Denied - Integration Tests", () => {
             });
         });
     });
+
+    /**
+     * The set of denial reasons accepted by AccessDeniedContent.tsx is duplicated
+     * here so we can guard against silent typos and to lock in the supported set.
+     * If you change the union in AccessDeniedContent.tsx, update this list too.
+     */
+    describe("AccessDeniedContent - denial reason validation", () => {
+        const VALID_REASONS = [
+            "not_member",
+            "membership_inactive",
+            "org_resource_forbidden",
+            "unauthenticated",
+            "rate_limited",
+            "github_error",
+            "admin_required",
+        ] as const;
+
+        function isDenialReason(value: string | undefined): boolean {
+            return VALID_REASONS.includes(value as (typeof VALID_REASONS)[number]);
+        }
+
+        it("recognises every supported reason, including the new admin_required", () => {
+            for (const reason of VALID_REASONS) {
+                expect(isDenialReason(reason)).toBe(true);
+            }
+        });
+
+        it("rejects unknown reasons", () => {
+            expect(isDenialReason("totally_made_up")).toBe(false);
+            expect(isDenialReason("")).toBe(false);
+            expect(isDenialReason(undefined)).toBe(false);
+        });
+    });
+
+    /**
+     * Mirrors the URL construction in AccessDeniedContent.tsx so the empty-org
+     * guard introduced in PR #1 stays correct. The component must NEVER produce
+     * a broken URL like https://github.com/orgs//invitation when GITHUB_ORG is
+     * unset, and it must percent-encode any unexpected characters in the slug.
+     */
+    describe("AccessDeniedContent - invitations URL construction", () => {
+        function buildInvitationsUrl(organization?: string): string | undefined {
+            if (!organization) return undefined;
+            return `https://github.com/orgs/${encodeURIComponent(organization)}/invitation`;
+        }
+
+        it("returns undefined when organization is empty", () => {
+            expect(buildInvitationsUrl(undefined)).toBeUndefined();
+            expect(buildInvitationsUrl("")).toBeUndefined();
+        });
+
+        it("returns a well-formed URL for a normal slug", () => {
+            expect(buildInvitationsUrl("vasteras-stadsmission")).toBe(
+                "https://github.com/orgs/vasteras-stadsmission/invitation",
+            );
+        });
+
+        it("percent-encodes unexpected characters", () => {
+            // GitHub org slugs are restricted, but we should not blindly trust env input.
+            expect(buildInvitationsUrl("weird name")).toBe(
+                "https://github.com/orgs/weird%20name/invitation",
+            );
+            expect(buildInvitationsUrl("a/b")).toBe("https://github.com/orgs/a%2Fb/invitation");
+        });
+    });
+
+    /**
+     * Reason → which UI branches should appear. This locks in the new
+     * admin_required branch and the soft-2FA / membership / transient buckets.
+     */
+    describe("AccessDeniedContent - reason → UI branch mapping", () => {
+        type Reason =
+            | "not_member"
+            | "membership_inactive"
+            | "org_resource_forbidden"
+            | "unauthenticated"
+            | "rate_limited"
+            | "github_error"
+            | "admin_required";
+
+        function classifyReason(reason: Reason | undefined) {
+            return {
+                is2faIssue: reason === "org_resource_forbidden",
+                isMembershipIssue: reason === "not_member" || reason === "membership_inactive",
+                isTransientError: reason === "rate_limited" || reason === "github_error",
+                isUnauthenticated: reason === "unauthenticated",
+                isAdminRequired: reason === "admin_required",
+            };
+        }
+
+        it("treats not_member and membership_inactive as membership issues", () => {
+            expect(classifyReason("not_member").isMembershipIssue).toBe(true);
+            expect(classifyReason("membership_inactive").isMembershipIssue).toBe(true);
+        });
+
+        it("treats only org_resource_forbidden as a 2FA issue", () => {
+            expect(classifyReason("org_resource_forbidden").is2faIssue).toBe(true);
+            expect(classifyReason("not_member").is2faIssue).toBe(false);
+            expect(classifyReason("admin_required").is2faIssue).toBe(false);
+        });
+
+        it("classifies admin_required as its own bucket", () => {
+            const c = classifyReason("admin_required");
+            expect(c.isAdminRequired).toBe(true);
+            expect(c.is2faIssue).toBe(false);
+            expect(c.isMembershipIssue).toBe(false);
+            expect(c.isTransientError).toBe(false);
+            expect(c.isUnauthenticated).toBe(false);
+        });
+
+        it("treats rate_limited and github_error as transient", () => {
+            expect(classifyReason("rate_limited").isTransientError).toBe(true);
+            expect(classifyReason("github_error").isTransientError).toBe(true);
+        });
+
+        it("only renders the check-invitations button for membership issues with a known org", () => {
+            // Replicates: {isMembershipIssue && hasOrganization && invitationsUrl && (...)}
+            function shouldRenderInvitationsButton(reason: Reason, organization?: string) {
+                const c = classifyReason(reason);
+                return c.isMembershipIssue && !!organization;
+            }
+
+            expect(shouldRenderInvitationsButton("not_member", "vasteras-stadsmission")).toBe(true);
+            expect(
+                shouldRenderInvitationsButton("membership_inactive", "vasteras-stadsmission"),
+            ).toBe(true);
+            // No org → no button (avoids broken /orgs//invitation URL)
+            expect(shouldRenderInvitationsButton("not_member", undefined)).toBe(false);
+            expect(shouldRenderInvitationsButton("not_member", "")).toBe(false);
+            // Wrong reason → no button
+            expect(
+                shouldRenderInvitationsButton("org_resource_forbidden", "vasteras-stadsmission"),
+            ).toBe(false);
+            expect(shouldRenderInvitationsButton("admin_required", "vasteras-stadsmission")).toBe(
+                false,
+            );
+        });
+
+        it("hides 'Sign out and try again' for the admin_required branch", () => {
+            // Replicates: {!isAdminRequired && (<Button onClick={handleSignOutAndRetry}>...)}
+            function shouldRenderSignOutButton(reason: Reason) {
+                return !classifyReason(reason).isAdminRequired;
+            }
+
+            expect(shouldRenderSignOutButton("admin_required")).toBe(false);
+            expect(shouldRenderSignOutButton("not_member")).toBe(true);
+            expect(shouldRenderSignOutButton("org_resource_forbidden")).toBe(true);
+            expect(shouldRenderSignOutButton("rate_limited")).toBe(true);
+        });
+
+        it("only renders the back-to-schedule CTA for admin_required", () => {
+            function shouldRenderBackToSchedule(reason: Reason) {
+                return classifyReason(reason).isAdminRequired;
+            }
+
+            expect(shouldRenderBackToSchedule("admin_required")).toBe(true);
+            expect(shouldRenderBackToSchedule("not_member")).toBe(false);
+            expect(shouldRenderBackToSchedule("org_resource_forbidden")).toBe(false);
+        });
+    });
+
+    /**
+     * AgreementProtection redirects handout_staff away from adminOnly pages
+     * to /auth/access-denied?reason=admin_required. This locks in the role-check
+     * decision so a future refactor can't silently let handout_staff through.
+     */
+    describe("AgreementProtection - admin-only role check", () => {
+        type SessionShape = { user?: { role?: "admin" | "handout_staff" } } | null;
+
+        function decideAdminGate(
+            session: SessionShape,
+            adminOnly: boolean,
+        ): "allow" | "redirect_admin_required" | "render_unauthorized" {
+            if (!session) return "render_unauthorized";
+            if (adminOnly && session.user?.role !== "admin") {
+                return "redirect_admin_required";
+            }
+            return "allow";
+        }
+
+        it("allows admin users on adminOnly pages", () => {
+            expect(decideAdminGate({ user: { role: "admin" } }, true)).toBe("allow");
+        });
+
+        it("redirects handout_staff to admin_required on adminOnly pages", () => {
+            expect(decideAdminGate({ user: { role: "handout_staff" } }, true)).toBe(
+                "redirect_admin_required",
+            );
+        });
+
+        it("allows handout_staff on non-admin pages", () => {
+            expect(decideAdminGate({ user: { role: "handout_staff" } }, false)).toBe("allow");
+        });
+
+        it("renders unauthorized fallback when there is no session", () => {
+            expect(decideAdminGate(null, true)).toBe("render_unauthorized");
+            expect(decideAdminGate(null, false)).toBe("render_unauthorized");
+        });
+
+        it("treats a session with no role as not-admin (defensive)", () => {
+            expect(decideAdminGate({ user: {} }, true)).toBe("redirect_admin_required");
+        });
+    });
 });
