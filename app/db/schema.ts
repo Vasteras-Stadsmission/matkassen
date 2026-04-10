@@ -14,6 +14,7 @@ import {
     index,
     uniqueIndex,
     unique,
+    jsonb,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -259,6 +260,44 @@ export const scheduleAuditLog = pgTable(
     table => [
         index("idx_schedule_audit_log_location").on(table.pickup_location_id),
         index("idx_schedule_audit_log_schedule").on(table.schedule_id),
+    ],
+);
+
+// Generic audit log for business mutations across the app.
+//
+// Same plain-text-id pattern as scheduleAuditLog so audit rows survive
+// deletion of the entity they describe. Writes go through the helper at
+// app/utils/audit/log.ts — see that file for the philosophy (log-and-
+// continue, log values not redactions, always inside a transaction).
+//
+// scheduleAuditLog stays as-is; it predates this table and the two can
+// converge later if it ever matters.
+export const auditLog = pgTable(
+    "audit_log",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        // Username only — no FK to users, no separate snapshot column.
+        // Matches the rest of the schema's actor convention. Username
+        // instability is a theoretical problem we have not observed.
+        actor_username: varchar("actor_username", { length: 100 }).notNull(),
+        // What was acted on. entity_id is plain text (no FK) so audit rows
+        // outlive deletion of the entity they describe.
+        entity_type: text("entity_type").notNull(), // 'household' | 'user_role' | 'parcel' | ...
+        entity_id: text("entity_id"),
+        action: text("action").notNull(), // 'created' | 'updated' | 'deleted' | 'role_changed' | ...
+        // Human-readable summary for direct UI display, plus a structured
+        // before/after blob for richer queries. Both are populated.
+        summary: text("summary").notNull(),
+        details: jsonb("details"),
+    },
+    table => [
+        index("idx_audit_log_entity").on(table.entity_type, table.entity_id),
+        index("idx_audit_log_actor").on(table.actor_username),
+        index("idx_audit_log_created").on(table.created_at),
     ],
 );
 
