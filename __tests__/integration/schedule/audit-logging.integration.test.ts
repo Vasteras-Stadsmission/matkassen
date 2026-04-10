@@ -16,6 +16,7 @@ import {
     scheduleAuditLog,
     pickupLocationSchedules,
     pickupLocationScheduleDays,
+    pickupLocations,
 } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -233,6 +234,61 @@ describe("Schedule Audit Logging - Integration Tests", () => {
             const deleteLog = logs.find(l => l.action === "deleted");
             expect(deleteLog).toBeDefined();
             expect(deleteLog!.schedule_id).toBe(schedule.id);
+        });
+    });
+
+    describe("location deletion", () => {
+        it("should preserve audit log after parent location is deleted", async () => {
+            // Regression test: pickup_location_id used to be a cascading FK,
+            // which wiped audit history when a location was deleted, defeating
+            // the design intent of using plain-text schedule_id to preserve
+            // history. Both columns are now plain text.
+            const db = await getTestDb();
+            const location = await createTestPickupLocation();
+
+            // Create a schedule via the action so we get a real audit row
+            const createResult = await createSchedule(location.id, {
+                name: "Schedule to outlive its location",
+                start_date: new Date("2024-07-01"),
+                end_date: new Date("2024-12-31"),
+                days: [
+                    {
+                        weekday: "monday",
+                        is_open: true,
+                        opening_time: "09:00",
+                        closing_time: "17:00",
+                    },
+                ],
+            });
+            expect(createResult.success).toBe(true);
+
+            // Sanity: audit row exists before location deletion
+            const beforeLogs = await db
+                .select()
+                .from(scheduleAuditLog)
+                .where(eq(scheduleAuditLog.pickup_location_id, location.id));
+            expect(beforeLogs).toHaveLength(1);
+            expect(beforeLogs[0].action).toBe("created");
+
+            // Delete the location directly. Schedules and schedule_days
+            // cascade away, but the audit log must NOT.
+            await db.delete(pickupLocations).where(eq(pickupLocations.id, location.id));
+
+            // Schedules are gone (cascade)
+            const remainingSchedules = await db
+                .select()
+                .from(pickupLocationSchedules)
+                .where(eq(pickupLocationSchedules.pickup_location_id, location.id));
+            expect(remainingSchedules).toHaveLength(0);
+
+            // Audit log survives — this is the regression we're guarding
+            const afterLogs = await db
+                .select()
+                .from(scheduleAuditLog)
+                .where(eq(scheduleAuditLog.pickup_location_id, location.id));
+            expect(afterLogs).toHaveLength(1);
+            expect(afterLogs[0].action).toBe("created");
+            expect(afterLogs[0].changed_by).toBe("audit-test-user");
         });
     });
 });
