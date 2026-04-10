@@ -21,35 +21,36 @@ interface AgreementProtectionProps {
  * A server component that protects content behind both authentication AND agreement acceptance
  * Renders the unauthorized content if the user is not authenticated
  * Redirects to /agreement if the user hasn't accepted the current agreement
- * When adminOnly=true, renders access-denied if the user has the handout_staff role
+ * When adminOnly=true, redirects handout_staff to /auth/access-denied?reason=admin_required
  * Works alongside the middleware protection for defense in depth
  */
 export async function AgreementProtection({
     children,
-    unauthorized = (
-        <Container size="xl" py="xl">
-            <div className="flex justify-center items-center h-[calc(100vh-180px)]">
-                <p className="text-xl font-medium">Please sign in to access this page</p>
-            </div>
-        </Container>
-    ),
+    unauthorized,
     adminOnly = false,
 }: AgreementProtectionProps) {
     const session = await auth();
 
     if (!session) {
-        return unauthorized;
-    }
-
-    if (adminOnly && session.user?.role !== "admin") {
-        const t = await getTranslations("auth.accessDenied");
+        if (unauthorized) {
+            return unauthorized;
+        }
+        const t = await getTranslations("auth.protection");
         return (
             <Container size="xl" py="xl">
                 <div className="flex justify-center items-center h-[calc(100vh-180px)]">
-                    <p className="text-xl font-medium">{t("title")}</p>
+                    <p className="text-xl font-medium">{t("signInRequired")}</p>
                 </div>
             </Container>
         );
+    }
+
+    if (adminOnly && session.user?.role !== "admin") {
+        const locale = await getLocale();
+        return redirect({
+            href: `/auth/access-denied?reason=admin_required`,
+            locale,
+        });
     }
 
     // Check if there's a current agreement that needs to be accepted
