@@ -81,6 +81,9 @@ export const households = pgTable(
     ],
 );
 
+// Free-text staff notes about a household. Contains PII (may reference the
+// person by name or describe their situation), so rows are HARD-DELETED on
+// household anonymization — see app/utils/anonymization/anonymize-household.ts.
 export const householdComments = pgTable("household_comments", {
     id: text("id")
         .primaryKey()
@@ -380,6 +383,9 @@ export const foodParcels = pgTable(
     ],
 );
 
+// Outbound SMS records. Contains PII (recipient phone number and the exact
+// rendered message body), so rows are HARD-DELETED on household anonymization
+// — see app/utils/anonymization/anonymize-household.ts.
 export const outgoingSms = pgTable(
     "outgoing_sms",
     {

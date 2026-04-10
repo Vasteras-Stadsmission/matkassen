@@ -119,10 +119,24 @@ async function anonymizeHousehold(
             .where(eq(householdAdditionalNeeds.household_id, householdId));
         await tx.delete(pets).where(eq(pets.household_id, householdId));
 
-        // 3. Delete comments (hard delete)
+        // 3. Hard-delete free-text PII associated with the household.
+        //
+        // This is deliberate, not an oversight. Both household_comments and
+        // outgoing_sms can contain identifying information that placeholder
+        // values cannot meaningfully obscure: comments are free-text staff
+        // notes that may reference the person by name or describe their
+        // situation, and SMS rows hold the recipient phone number plus the
+        // exact rendered message body. GDPR right-to-erasure requires this
+        // data to actually disappear.
+        //
+        // What is preserved: the households row itself (with anonymized
+        // name/phone) and all food_parcels rows, so historical statistics
+        // (parcels handed out per location, per month, etc.) remain intact.
+        //
+        // If you add a new table that stores PII keyed to household_id,
+        // delete it here too. See also schema.ts comments on the affected
+        // tables.
         await tx.delete(householdComments).where(eq(householdComments.household_id, householdId));
-
-        // 4. Delete SMS records (hard delete)
         await tx.delete(outgoingSms).where(eq(outgoingSms.household_id, householdId));
     });
 
