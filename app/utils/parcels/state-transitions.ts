@@ -381,24 +381,26 @@ export async function softDeleteParcel(
     tx: ParcelTransaction,
     args: { parcelId: string; session: ParcelActorSession | null },
 ): Promise<SoftDeleteParcelResult> {
-    const [existing] = await tx
-        .select({
-            id: foodParcels.id,
-            isPickedUp: foodParcels.is_picked_up,
-            pickupLatest: foodParcels.pickup_date_time_latest,
-        })
+    // Validation select shape matches the previous softDeleteParcel action
+    // (select the whole parcel row under `parcel`) so the existing unit
+    // tests in __tests__/app/parcels/softDeleteParcel.test.ts — which mock
+    // the drizzle select call sequence — keep working without rewrites.
+    const parcelResult = await tx
+        .select({ parcel: foodParcels })
         .from(foodParcels)
         .where(and(eq(foodParcels.id, args.parcelId), notDeleted()))
         .limit(1);
 
-    if (!existing) {
+    if (parcelResult.length === 0) {
         return {
             ok: false,
             error: { code: "NOT_FOUND", message: "Parcel not found or already deleted" },
         };
     }
 
-    if (existing.isPickedUp) {
+    const { parcel } = parcelResult[0];
+
+    if (parcel.is_picked_up) {
         return {
             ok: false,
             error: {
@@ -409,7 +411,7 @@ export async function softDeleteParcel(
     }
 
     const now = Time.now();
-    const pickupEnd = Time.fromDate(existing.pickupLatest);
+    const pickupEnd = Time.fromDate(parcel.pickup_date_time_latest);
     if (now.isAfter(pickupEnd)) {
         return {
             ok: false,
