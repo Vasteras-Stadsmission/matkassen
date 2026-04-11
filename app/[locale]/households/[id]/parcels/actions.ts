@@ -93,9 +93,10 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                             is_picked_up: false,
                         }));
 
-                    // Use centralized helper for proper conflict handling
-                    const { insertParcels } = await import("@/app/db/insert-parcels");
-                    await insertParcels(tx, parcelsToSave);
+                    // Route through the parcel state-transitions helper so all
+                    // mutations of food_parcels go through one place.
+                    const { createParcels } = await import("@/app/utils/parcels/state-transitions");
+                    await createParcels(tx, { parcels: parcelsToSave, session });
                 }
 
                 // Delete parcels that are no longer in the desired schedule
@@ -139,16 +140,28 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                 );
 
                 if (parcelsToDelete.length > 0) {
-                    // Import helper function for SMS-aware soft deletion
-                    const { softDeleteParcelInTransaction } =
-                        await import("@/app/[locale]/parcels/actions");
+                    // Lenient soft-delete. This matches the pre-refactor
+                    // behaviour of the old softDeleteParcelInTransaction
+                    // helper: it silently skips parcels that are already
+                    // deleted (handles the race where another process
+                    // removed the parcel between the pre-fetch above and
+                    // now), and — importantly — does NOT validate that
+                    // the parcel is still un-picked-up. The pre-fetch
+                    // above only filters on notDeleted() and
+                    // pickup_date_time_latest > now; it does not filter
+                    // on is_picked_up = false. This is a known
+                    // pre-existing race where a picked-up future parcel
+                    // can be silently soft-deleted through the edit
+                    // flow. Preserved as-is in PR 4; a follow-up can
+                    // tighten it if the race ever manifests.
+                    const { softDeleteParcelLenient } =
+                        await import("@/app/utils/parcels/state-transitions");
 
                     for (const parcel of parcelsToDelete) {
-                        await softDeleteParcelInTransaction(
-                            tx,
-                            parcel.id,
-                            session.user?.githubUsername || "system",
-                        );
+                        await softDeleteParcelLenient(tx, {
+                            parcelId: parcel.id,
+                            session,
+                        });
                     }
                 }
             });
