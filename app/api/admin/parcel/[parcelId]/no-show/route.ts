@@ -1,11 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
-import { foodParcels } from "@/app/db/schema";
-import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, sql } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
-import { Time } from "@/app/utils/time-provider";
+import {
+    markNoShow,
+    undoNoShow,
+    type ParcelTransitionError,
+} from "@/app/utils/parcels/state-transitions";
+
+/**
+ * Map a state-transition error code to the HTTP status the no-show
+ * routes have always returned. Centralised so PATCH and DELETE stay
+ * consistent and the mapping is easy to audit.
+ */
+function noShowErrorStatus(code: ParcelTransitionError["code"]): number {
+    switch (code) {
+        case "NOT_FOUND":
+            return 404;
+        case "ALREADY_DELETED":
+        case "ALREADY_PICKED_UP":
+        case "ALREADY_NO_SHOW":
+        case "FUTURE_PARCEL":
+            return 400;
+        default:
+            return 500;
+    }
+}
 
 // PATCH /api/admin/parcel/[parcelId]/no-show - Mark parcel as no-show
 export async function PATCH(
@@ -21,73 +41,19 @@ export async function PATCH(
             return authResult.response;
         }
 
-        const now = Time.now().toUTC();
-        const todayStockholm = Time.now().toDateString(); // YYYY-MM-DD in Stockholm timezone
+        const result = await db.transaction(async tx =>
+            markNoShow(tx, { parcelId, session: authResult.session }),
+        );
 
-        // First, fetch the parcel to check its state and provide specific error messages
-        const [parcel] = await db
-            .select({
-                id: foodParcels.id,
-                isPickedUp: foodParcels.is_picked_up,
-                deletedAt: foodParcels.deleted_at,
-                noShowAt: foodParcels.no_show_at,
-                pickupDateTimeEarliest: foodParcels.pickup_date_time_earliest,
-            })
-            .from(foodParcels)
-            .where(eq(foodParcels.id, parcelId))
-            .limit(1);
-
-        if (!parcel) {
+        if (!result.ok) {
             return NextResponse.json(
-                { error: "Parcel not found", code: "NOT_FOUND" },
-                { status: 404 },
+                { error: result.error.message, code: result.error.code },
+                { status: noShowErrorStatus(result.error.code) },
             );
         }
-
-        if (parcel.deletedAt) {
-            return NextResponse.json(
-                { error: "Cannot mark a cancelled parcel as no-show", code: "ALREADY_CANCELLED" },
-                { status: 400 },
-            );
-        }
-
-        if (parcel.isPickedUp) {
-            return NextResponse.json(
-                { error: "Cannot mark a picked up parcel as no-show", code: "ALREADY_PICKED_UP" },
-                { status: 400 },
-            );
-        }
-
-        if (parcel.noShowAt) {
-            return NextResponse.json(
-                { error: "Parcel is already marked as no-show", code: "ALREADY_NO_SHOW" },
-                { status: 400 },
-            );
-        }
-
-        // Only block future parcels - same-day no-show is intentionally allowed.
-        // Users may receive late "I won't come" notifications on pickup day itself,
-        // and staff need to be able to record these as no-shows immediately.
-        const pickupDateStockholm = Time.fromDate(parcel.pickupDateTimeEarliest).toDateString();
-        if (pickupDateStockholm > todayStockholm) {
-            return NextResponse.json(
-                { error: "Cannot mark future parcel as no-show", code: "FUTURE_PARCEL" },
-                { status: 400 },
-            );
-        }
-
-        // Now update the parcel
-        await db
-            .update(foodParcels)
-            .set({
-                no_show_at: now,
-                no_show_by_user_id: authResult.session.user.githubUsername,
-            })
-            .where(eq(foodParcels.id, parcelId));
 
         return NextResponse.json({
             success: true,
-            noShowAt: now.toISOString(),
             noShowBy: authResult.session.user.githubUsername,
             message: "Parcel marked as no-show",
         });
@@ -115,28 +81,14 @@ export async function DELETE(
             return authResult.response;
         }
 
-        // Update the parcel to clear no-show status - only if:
-        // - Not deleted
-        // - Currently marked as no-show
-        const result = await db
-            .update(foodParcels)
-            .set({
-                no_show_at: null,
-                no_show_by_user_id: null,
-            })
-            .where(
-                and(
-                    eq(foodParcels.id, parcelId),
-                    notDeleted(),
-                    sql`${foodParcels.no_show_at} IS NOT NULL`,
-                ),
-            )
-            .returning({ id: foodParcels.id });
+        const result = await db.transaction(async tx =>
+            undoNoShow(tx, { parcelId, session: authResult.session }),
+        );
 
-        if (result.length === 0) {
+        if (!result.ok) {
             return NextResponse.json(
-                { error: "Parcel not found, deleted, or not marked as no-show" },
-                { status: 404 },
+                { error: result.error.message },
+                { status: noShowErrorStatus(result.error.code) },
             );
         }
 

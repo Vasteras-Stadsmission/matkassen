@@ -11,9 +11,12 @@
 // Helper functions that are called from other protected actions, not directly from clients.
 // These don't need protectedAction wrapper because their callers are already protected.
 // Format: "relativePath:functionName"
+//
+// NOTE: Parcel state transitions used to live here as
+// `softDeleteParcelInTransaction`. They have moved to
+// `app/utils/parcels/state-transitions.ts`, which is a non-server-action
+// utility module and therefore not scanned by this validator at all.
 const ALLOWED_INTERNAL_HELPERS = [
-    // Transaction helper - takes tx as first param, called within db.transaction() from protected actions
-    "app/[locale]/parcels/actions.ts:softDeleteParcelInTransaction",
     // Utility called from protected actions after schedule changes to update counts
     "app/[locale]/schedule/actions.ts:recomputeOutsideHoursCount",
 ];

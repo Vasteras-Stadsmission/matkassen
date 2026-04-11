@@ -24,7 +24,14 @@ import {
 } from "../../factories";
 import { foodParcels, outgoingSms } from "@/app/db/schema";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
-import { softDeleteParcelInTransaction } from "@/app/[locale]/parcels/actions";
+import { softDeleteParcelLenient } from "@/app/utils/parcels/state-transitions";
+
+// Helper: the new state-transitions module accepts a session object,
+// not a username string. Wrap each test's username in the minimal
+// session shape the helper expects.
+function withUser(githubUsername: string) {
+    return { user: { githubUsername } };
+}
 
 describe("softDeleteParcel - Integration Tests", () => {
     beforeEach(() => {
@@ -47,7 +54,10 @@ describe("softDeleteParcel - Integration Tests", () => {
             // Note: Type assertion needed because PGlite and postgres-js have different HKT types
             // but are runtime-compatible for Drizzle operations
             await db.transaction(async tx => {
-                await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+                await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel.id,
+                    session: withUser("test-admin"),
+                });
             });
 
             // Verify parcel is soft-deleted
@@ -84,7 +94,10 @@ describe("softDeleteParcel - Integration Tests", () => {
             // Try to delete again
             let result: { smsCancelled: boolean; smsSent: boolean } | undefined;
             await db.transaction(async tx => {
-                result = await softDeleteParcelInTransaction(tx as any, parcel.id, "second-admin");
+                result = await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel.id,
+                    session: withUser("second-admin"),
+                });
             });
 
             // Should return silently without changes
@@ -120,7 +133,10 @@ describe("softDeleteParcel - Integration Tests", () => {
 
             // Soft delete it
             await db.transaction(async tx => {
-                await softDeleteParcelInTransaction(tx as any, parcel1.id, "test-admin");
+                await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel1.id,
+                    session: withUser("test-admin"),
+                });
             });
 
             // Create second parcel with SAME slot - should succeed due to partial index
@@ -166,7 +182,10 @@ describe("softDeleteParcel - Integration Tests", () => {
                 });
 
                 await db.transaction(async tx => {
-                    await softDeleteParcelInTransaction(tx as any, parcel.id, `admin-${i}`);
+                    await softDeleteParcelLenient(tx as any, {
+                        parcelId: parcel.id,
+                        session: withUser(`admin-${i}`),
+                    });
                 });
             }
 
@@ -206,7 +225,10 @@ describe("softDeleteParcel - Integration Tests", () => {
             // Delete the parcel
             let result: { smsCancelled: boolean; smsSent: boolean } | undefined;
             await db.transaction(async tx => {
-                result = await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+                result = await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel.id,
+                    session: withUser("test-admin"),
+                });
             });
 
             expect(result?.smsCancelled).toBe(true);
@@ -242,7 +264,10 @@ describe("softDeleteParcel - Integration Tests", () => {
             // Delete the parcel
             let result: { smsCancelled: boolean; smsSent: boolean } | undefined;
             await db.transaction(async tx => {
-                result = await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+                result = await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel.id,
+                    session: withUser("test-admin"),
+                });
             });
 
             expect(result?.smsCancelled).toBe(false);
@@ -273,7 +298,10 @@ describe("softDeleteParcel - Integration Tests", () => {
 
             let result: { smsCancelled: boolean; smsSent: boolean } | undefined;
             await db.transaction(async tx => {
-                result = await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+                result = await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel.id,
+                    session: withUser("test-admin"),
+                });
             });
 
             expect(result?.smsCancelled).toBe(false);
@@ -315,7 +343,10 @@ describe("softDeleteParcel - Integration Tests", () => {
 
             // Delete the parcel
             await db.transaction(async tx => {
-                await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+                await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel.id,
+                    session: withUser("test-admin"),
+                });
             });
 
             // Verify pickup_updated SMS is cancelled
@@ -347,7 +378,10 @@ describe("softDeleteParcel - Integration Tests", () => {
 
             // Delete the parcel
             await db.transaction(async tx => {
-                await softDeleteParcelInTransaction(tx as any, parcel.id, "test-admin");
+                await softDeleteParcelLenient(tx as any, {
+                    parcelId: parcel.id,
+                    session: withUser("test-admin"),
+                });
             });
 
             // Verify pickup_updated SMS is cancelled and next_attempt_at is cleared

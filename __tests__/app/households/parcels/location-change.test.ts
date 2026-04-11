@@ -101,11 +101,16 @@ vi.mock("@/app/[locale]/schedule/actions", () => ({
     recomputeOutsideHoursCount: vi.fn(async () => {}),
 }));
 
-// Mock the parcels actions (soft delete helper)
-vi.mock("@/app/[locale]/parcels/actions", () => ({
-    softDeleteParcelInTransaction: vi.fn(async (tx, parcelId, deletedBy) => {
-        // Mock SMS-aware soft delete - just track that it was called
-        return { smsCancelled: false, smsSent: false };
+// Mock the parcel state-transitions module (createParcels + lenient soft delete)
+vi.mock("@/app/utils/parcels/state-transitions", () => ({
+    createParcels: vi.fn(async (_tx, args) => {
+        // Mock insert — just track that it was called via the helper
+        insertedParcels.push(...args.parcels);
+        return [];
+    }),
+    softDeleteParcelLenient: vi.fn(async () => {
+        // Mock SMS-aware lenient soft delete — just track that it was called
+        return { skipped: false, smsCancelled: false, smsSent: false };
     }),
 }));
 
