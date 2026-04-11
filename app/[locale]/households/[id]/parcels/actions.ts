@@ -140,10 +140,20 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                 );
 
                 if (parcelsToDelete.length > 0) {
-                    // Lenient soft-delete: silently skips parcels that have
-                    // already been removed by another process between the
-                    // pre-fetch above and now. The bulk-edit context has
-                    // already validated which parcels should go.
+                    // Lenient soft-delete. This matches the pre-refactor
+                    // behaviour of the old softDeleteParcelInTransaction
+                    // helper: it silently skips parcels that are already
+                    // deleted (handles the race where another process
+                    // removed the parcel between the pre-fetch above and
+                    // now), and — importantly — does NOT validate that
+                    // the parcel is still un-picked-up. The pre-fetch
+                    // above only filters on notDeleted() and
+                    // pickup_date_time_latest > now; it does not filter
+                    // on is_picked_up = false. This is a known
+                    // pre-existing race where a picked-up future parcel
+                    // can be silently soft-deleted through the edit
+                    // flow. Preserved as-is in PR 4; a follow-up can
+                    // tighten it if the race ever manifests.
                     const { softDeleteParcelLenient } =
                         await import("@/app/utils/parcels/state-transitions");
 

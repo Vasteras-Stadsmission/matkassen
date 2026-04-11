@@ -17,7 +17,7 @@ function noShowErrorStatus(code: ParcelTransitionError["code"]): number {
     switch (code) {
         case "NOT_FOUND":
             return 404;
-        case "ALREADY_DELETED":
+        case "ALREADY_CANCELLED":
         case "ALREADY_PICKED_UP":
         case "ALREADY_NO_SHOW":
         case "FUTURE_PARCEL":

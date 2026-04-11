@@ -102,7 +102,7 @@ export interface NewParcelInput {
  */
 export type ParcelTransitionError =
     | { code: "NOT_FOUND"; message: string }
-    | { code: "ALREADY_DELETED"; message: string }
+    | { code: "ALREADY_CANCELLED"; message: string }
     | { code: "ALREADY_PICKED_UP"; message: string }
     | { code: "ALREADY_NO_SHOW"; message: string }
     | { code: "FUTURE_PARCEL"; message: string }
@@ -116,23 +116,24 @@ export type SoftDeleteParcelResult =
 
 /**
  * Internal: extract the username string for `food_parcels.*_by_user_id`
- * columns. Preserves the existing call-site fallback conventions:
+ * columns. Matches the pre-refactor fallback convention exactly:
  *
  *   - explicit `null` session  → `"system"` (cron / scheduled actions)
  *   - session with username    → that username
- *   - session without username → `"unknown"` (caller bug — when audit
- *                                wiring lands in PR 5, this will surface
- *                                a Pino alarm via recordAuditEvent's
- *                                `__missing__` sentinel without changing
- *                                the column value here)
+ *   - session without username → `"system"` (matches the old bulk
+ *                                callers' `session.user?.githubUsername
+ *                                || "system"` fallback; the API routes
+ *                                never hit this fallback because the
+ *                                auth wrapper guarantees a username)
  *
- * The food_parcels columns are operational state ("who picked this up
- * now"), not the audit log — they keep the existing username convention
- * with no underscored sentinels.
+ * PR 5's audit wiring will surface a Pino alarm via recordAuditEvent's
+ * `__missing__` sentinel when a session-scoped action loses its
+ * username unexpectedly, without changing the column value here — the
+ * food_parcels columns are operational state, not the audit log.
  */
 function extractUsername(session: ParcelActorSession | null): string {
     if (session === null) return "system";
-    return session.user?.githubUsername || "unknown";
+    return session.user?.githubUsername || "system";
 }
 
 // ============================================================================
@@ -270,7 +271,7 @@ export async function markNoShow(
         return {
             ok: false,
             error: {
-                code: "ALREADY_DELETED",
+                code: "ALREADY_CANCELLED",
                 message: "Cannot mark a cancelled parcel as no-show",
             },
         };
