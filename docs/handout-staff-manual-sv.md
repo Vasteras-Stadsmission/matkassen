@@ -37,17 +37,6 @@ Registrera när mottagaren inte hämtar sin matkasse.
 - Kan endast göras för dagens eller tidigare bokningar.
 - Hjälper till att hålla statistiken korrekt och rensa olösta utlämningar.
 
-## Behöver uppföljning
-
-Ärenden som kräver åtgärd visas på startsidan.
-
-- Röd siffra i navigationen visar antalet olösta ärenden.
-- Tre kategorier:
-    1. **Olösta utlämningar** – tidigare bokningar utan utfall (markera som hämtad eller ej hämtad)
-    2. **Utanför öppettiderna** – kommande bokningar utanför platsens öppettider (omboka)
-    3. **Misslyckade SMS** – sändningsfel att hantera
-- När alla ärenden är åtgärdade försvinner länken från navigationen.
-
 ## Hitta hushåll och boka
 
 Sök upp hushåll och hantera deras bokningar.
@@ -99,6 +88,6 @@ Snabb identifiering av mottagare vid utlämning.
 
 **Kan inte markera hämtad** – Kontrollera att bokningen inte redan är markerad eller borttagen.
 
-**Mottagaren fick inget SMS** – Kolla `Behöver uppföljning` eller hushållets SMS-historik. Dela annars länken direkt.
+**Mottagaren fick inget SMS** – Kontrollera hushållets SMS-historik via hushållskortet, eller be en administratör titta i uppföljningsvyn. Dela annars länken direkt.
 
 **QR-kod skannar inte** – Höj skärmljusstyrkan, testa annan vinkel, eller sök fram bokningen manuellt i `Dagens utlämningar`.

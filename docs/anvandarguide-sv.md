@@ -109,17 +109,14 @@ flowchart TD
     subgraph Steg för steg
         S1["Steg 1: Grunduppgifter<br/>Namn, telefon, språk"]
         S2["Steg 2: Medlemmar<br/>Ålder och kön för alla i hushållet"]
-        S3["Steg 3: Matrestriktioner<br/>Halal, vegetariskt, allergier..."]
-        S4["Steg 4: Husdjur<br/>Hund, katt, annat"]
-        S5["Steg 5: Ytterligare behov<br/>Hygienartiklar, barnartiklar..."]
-        S6["Steg 6: Verifiering<br/>Bekräfta checklista"]
-        S7["Steg 7: Matkassar<br/>Välj datum och tider"]
-        S8["Steg 8: Sammanfattning<br/>Granska och bekräfta"]
+        S3["Steg 3: Preferenser<br/>Matrestriktioner, husdjur, övriga behov"]
+        S4["Steg 4: Verifiering<br/>Bekräfta checklista (om admin konfigurerat)"]
+        S5["Steg 5: Sammanfattning<br/>Granska och bekräfta"]
     end
 
-    H1 --> H2 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
+    H1 --> H2 --> S1 --> S2 --> S3 --> S4 --> S5
 
-    S8 --> Klar["✅ Hushållet är registrerat!<br/>SMS skickas automatiskt"]
+    S5 --> Klar["✅ Hushållet är registrerat!<br/>SMS skickas automatiskt<br/>Schemalägg matkassar efter att ha sparat"]
 ```
 
 ### Tips vid registrering
