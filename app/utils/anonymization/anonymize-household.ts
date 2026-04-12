@@ -3,8 +3,8 @@
  *
  * Implements GDPR-compliant data anonymization:
  * - Replaces personal identifiers with placeholders
- * - Deletes comments and SMS records
- * - Preserves statistical data (parcels, locale)
+ * - Hard-deletes free-text PII (comments, SMS, verification notes)
+ * - Preserves statistical data (parcels, locale, member demographics)
  */
 
 import { db } from "@/app/db/drizzle";
@@ -15,6 +15,7 @@ import {
     foodParcels,
     householdDietaryRestrictions,
     householdAdditionalNeeds,
+    householdVerificationStatus,
     pets,
 } from "@/app/db/schema";
 import { eq, and, gte, isNull, sql, desc } from "drizzle-orm";
@@ -98,7 +99,8 @@ async function anonymizeHousehold(
     const phoneNumber = `000000${sequence.toString().padStart(4, "0")}`; // e.g., "0000000001"
 
     await db.transaction(async tx => {
-        // 1. Anonymize household record
+        // Anonymize the household record itself — name and phone become
+        // placeholders, anonymized_at marks the row as inactive.
         await tx
             .update(households)
             .set({
@@ -110,7 +112,9 @@ async function anonymizeHousehold(
             })
             .where(eq(households.id, householdId));
 
-        // 2. Remove option/pet links so anonymized households never block option pruning
+        // Remove option/pet links so anonymized households never block option
+        // pruning. These rows hold no PII themselves; the deletion is purely
+        // operational, not GDPR-driven.
         await tx
             .delete(householdDietaryRestrictions)
             .where(eq(householdDietaryRestrictions.household_id, householdId));
@@ -119,11 +123,30 @@ async function anonymizeHousehold(
             .where(eq(householdAdditionalNeeds.household_id, householdId));
         await tx.delete(pets).where(eq(pets.household_id, householdId));
 
-        // 3. Delete comments (hard delete)
+        // Hard-delete free-text PII keyed to the household. Placeholder values
+        // cannot meaningfully obscure free-text content, so GDPR right-to-
+        // erasure requires the rows to actually disappear:
+        //
+        //   - household_comments: staff notes that may reference the person
+        //     by name, family situation, or other identifying details.
+        //   - outgoing_sms: recipient phone number plus the rendered message
+        //     body, which often contains the recipient's name.
+        //   - household_verification_status: free-text `notes` column for
+        //     enrollment verification, which may describe the household.
+        //
+        // Preserved: the households row (with anonymized name/phone),
+        // household_members (age + sex demographics, no direct identifiers),
+        // and all food_parcels rows — these support aggregate statistics and
+        // are not personally identifying once name and phone are placeholders.
+        //
+        // INVARIANT for future contributors: any new table that stores
+        // free-text PII keyed to household_id must be hard-deleted here.
+        // See also the comments on the affected tables in schema.ts.
         await tx.delete(householdComments).where(eq(householdComments.household_id, householdId));
-
-        // 4. Delete SMS records (hard delete)
         await tx.delete(outgoingSms).where(eq(outgoingSms.household_id, householdId));
+        await tx
+            .delete(householdVerificationStatus)
+            .where(eq(householdVerificationStatus.household_id, householdId));
     });
 
     logger.info(
