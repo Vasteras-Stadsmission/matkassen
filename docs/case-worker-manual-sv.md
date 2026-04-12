@@ -19,11 +19,12 @@ Gå till `Hushåll` → `Nytt hushåll`. Guiden har följande steg:
     - SMS-samtycke (obligatoriskt för att kunna skicka påminnelser)
     - Språk (standard: svenska)
 2. **Medlemmar** – Lägg till hushållsmedlemmar med ålder och kön.
-3. **Matrestriktioner** – Välj från lista eller lägg till egna.
-4. **Husdjur** – Välj från lista eller lägg till egna.
-5. **Ytterligare behov** – Rullstolsanpassning, tolk, etc.
-6. **Verifiering** – Bekräfta obligatoriska kontroller (visas endast om admin har konfigurerat frågor).
-7. **Sammanfattning** – Granska och spara.
+3. **Preferenser** – Kost, husdjur och övriga behov i ett och samma steg:
+    - Matrestriktioner (t.ex. halal, vegetariskt, allergier) – välj från lista eller lägg till egna.
+    - Husdjur – välj från lista eller lägg till egna.
+    - Ytterligare behov – rullstolsanpassning, tolk, hygienartiklar, barnartiklar, etc.
+4. **Verifiering** – Bekräfta obligatoriska kontroller (visas endast om admin har konfigurerat frågor).
+5. **Sammanfattning** – Granska och spara.
 
 Innan hushållet sparas visas en bekräftelsedialog om att du har informerat hushållet om hur deras personuppgifter behandlas.
 
@@ -97,4 +98,4 @@ Startsidan visar ärenden som behöver åtgärdas:
 
 **Kan inte boka på viss tid** – Kontrollera att utlämningsstället har öppet den dagen/tiden i `Schema`.
 
-**SMS skickades inte** – Kontrollera att SMS-samtycke är markerat. Kolla `Behöver uppföljning` på startsidan.
+**SMS skickades inte** – Kontrollera att SMS-samtycke är markerat. Kontakta din administratör om felet kvarstår.
