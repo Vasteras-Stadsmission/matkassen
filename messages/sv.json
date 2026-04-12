@@ -15,8 +15,15 @@
         "login": "Logga in",
         "logout": "Logga ut",
         "signInTitle": "Logga in på Matcentralen",
-        "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matcentralens administrationssystem.",
+        "signInDescription": "Logga in med ditt GitHub-konto.",
         "signInWithGitHub": "Logga in med GitHub",
+        "signInRequirements": {
+            "title": "Innan du loggar in, se till att du har:",
+            "account": "Ett GitHub-konto som är medlem i {organization}",
+            "twofa": "Tvåfaktorsautentisering via autentiseringsapp, passkey eller GitHub Mobile (SMS godkänns inte)",
+            "newStaffHint": "Ny här? Be din administratör att bjuda in dig till GitHub-organisationen först.",
+            "authorizedOrgFallback": "den auktoriserade organisationen"
+        },
         "errorTitle": "Autentiseringsfel",
         "tryAgain": "Försök igen",
         "account": "Konto",
@@ -31,7 +38,6 @@
             "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen och följa dess säkerhetspolicy (säker tvåfaktorsautentisering krävs) för att få åtkomst till appen.",
             "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
             "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
-            "accessDenied": "Åtkomst nekad. Du har inte behörighet att logga in.",
             "verification": "Verifiering misslyckades. Försök logga in igen.",
             "default": "Ett fel uppstod vid inloggningen. Försök igen."
         },
@@ -39,12 +45,16 @@
             "title": "Åtkomst nekad",
             "subtitle": "Vi kunde inte logga in dig. Detta beror vanligtvis på att ditt GitHub-konto behöver ytterligare säkerhetsinställningar.",
             "explanations": {
-                "notMember": "Ditt GitHub-konto är inte medlem i organisationen. Be din administratör att skicka en inbjudan till dig.",
-                "membershipInactive": "Du har en väntande inbjudan till organisationen. Kolla din e-post eller GitHub-notiser och acceptera inbjudan.",
-                "insecure2fa": "Ditt GitHub-konto använder SMS för tvåfaktorsautentisering. Organisationen kräver en säkrare metod. Följ stegen nedan för att åtgärda detta.",
+                "notMember": "Ditt GitHub-konto är inte medlem i {organization}. Be din administratör att skicka en inbjudan till dig, eller kontrollera nedan om du redan har en väntande inbjudan.",
+                "membershipInactive": "Du har en väntande inbjudan till {organization}. Öppna den på GitHub och acceptera den för att fortsätta.",
+                "insecure2fa": "GitHub nekade åtkomst till ditt konto. Den vanligaste orsaken är att ditt GitHub-konto inte har en säker tvåfaktorsmetod aktiverad. Om du redan använder en av de säkra metoderna nedan, kontakta din organisationsadministratör.",
                 "unauthenticated": "Din inloggning är inte längre giltig. Logga ut och logga in igen.",
-                "temporaryError": "Vi kunde inte verifiera ditt konto på grund av ett tillfälligt problem hos GitHub. Försök igen om några minuter.",
-                "membershipHelp": "Om du anser att du borde ha åtkomst, kontakta din organisationsadministratör för att få en inbjudan."
+                "temporaryError": "Vi kunde inte verifiera ditt konto på grund av ett tillfälligt problem hos GitHub. Försök igen om några minuter."
+            },
+            "adminRequired": {
+                "title": "Administratörsrollen krävs",
+                "explanation": "Den här sidan är endast tillgänglig för administratörer. Du är inloggad som Utlämningspersonal.",
+                "howToFix": "Be en befintlig administratör att ändra din roll under Inställningar → Användare. Ändringen träder i kraft inom några minuter efter att du loggat in igen."
             },
             "reasons": {
                 "title": "Varför ser jag detta?",
@@ -64,16 +74,19 @@
             },
             "howToFix": {
                 "title": "Så här åtgärdar du detta",
-                "step1": "Gå till dina GitHub-säkerhetsinställningar",
-                "step1Aria": "Gå till dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
-                "step2": "Hitta \"Password and authentication\" i menyn",
-                "step3": "Lägg till en av de godkända metoderna ovan",
+                "step1": "Öppna dina GitHub-säkerhetsinställningar",
+                "step1Aria": "Öppna dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
+                "step2": "Under \"Two-factor authentication\", klicka på \"Enable two-factor authentication\" (eller \"Edit\" om det redan är aktiverat)",
+                "step3": "Välj en av de godkända metoderna ovan och följ GitHubs instruktioner",
                 "step4": "Kom tillbaka hit och logga in igen"
             },
             "buttons": {
                 "githubSettings": "Öppna GitHub-säkerhetsinställningar",
                 "githubSettingsAria": "Öppna GitHub-säkerhetsinställningar (öppnas i ny flik)",
-                "signOutAndRetry": "Logga ut och försök igen"
+                "checkInvitations": "Kontrollera väntande inbjudningar på GitHub",
+                "checkInvitationsAria": "Öppna inbjudningssidan för organisationen {organization} på GitHub (öppnas i ny flik)",
+                "signOutAndRetry": "Logga ut och försök igen",
+                "backToSchedule": "Tillbaka till schemat"
             },
             "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
         }

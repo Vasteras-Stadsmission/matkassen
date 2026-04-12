@@ -28,8 +28,15 @@
         "login": "Log in",
         "logout": "Log out",
         "signInTitle": "Sign in to Matcentralen",
-        "signInDescription": "Sign in with your GitHub account to access the Matcentralen administration system.",
+        "signInDescription": "Sign in with your GitHub account.",
         "signInWithGitHub": "Sign in with GitHub",
+        "signInRequirements": {
+            "title": "Before you sign in, make sure you have:",
+            "account": "A GitHub account that is a member of the {organization} organization",
+            "twofa": "Two-factor authentication via authenticator app, passkey, or GitHub Mobile (SMS is not accepted)",
+            "newStaffHint": "New here? Ask your administrator to invite you to the GitHub organization first.",
+            "authorizedOrgFallback": "authorized"
+        },
         "errorTitle": "Authentication Error",
         "tryAgain": "Try Again",
         "account": "Account",
@@ -44,7 +51,6 @@
             "notOrgMember": "You must be a member of the authorized organization and comply with its security policies (secure 2FA required) to access this app.",
             "invalidProvider": "Invalid account provider. Please use GitHub.",
             "configuration": "There is a problem with the authentication configuration. Please contact support.",
-            "accessDenied": "Access denied. You don't have permission to sign in.",
             "verification": "Verification failed. Please try signing in again.",
             "default": "An error occurred while signing in. Please try again."
         },
@@ -52,12 +58,16 @@
             "title": "Access Denied",
             "subtitle": "We couldn't log you in. This is usually because your GitHub account needs additional security setup.",
             "explanations": {
-                "notMember": "Your GitHub account is not a member of the organization. Ask your administrator to send you an invitation.",
-                "membershipInactive": "You have a pending invitation to the organization. Check your email or GitHub notifications and accept the invitation.",
-                "insecure2fa": "Your GitHub account uses SMS for two-factor authentication. The organization requires a more secure method. Follow the steps below to fix this.",
+                "notMember": "Your GitHub account is not a member of the {organization} organization. Ask your administrator to send you an invitation, or check below if you already have one waiting.",
+                "membershipInactive": "You have a pending invitation to the {organization} organization. Open it on GitHub and accept it to continue.",
+                "insecure2fa": "GitHub denied access to your account. The most common reason is that your GitHub account does not have a secure two-factor authentication method enabled. If you already use one of the secure methods listed below, contact your organization administrator.",
                 "unauthenticated": "Your login is no longer valid. Please sign out and sign in again.",
-                "temporaryError": "We could not verify your account due to a temporary problem with GitHub. Please try again in a few minutes.",
-                "membershipHelp": "If you believe you should have access, contact your organization administrator to get an invitation."
+                "temporaryError": "We could not verify your account due to a temporary problem with GitHub. Please try again in a few minutes."
+            },
+            "adminRequired": {
+                "title": "Administrator role required",
+                "explanation": "This page is only available to administrators. You are signed in as Handout Staff.",
+                "howToFix": "Ask an existing administrator to change your role under Settings → Users. The change takes effect within a few minutes after you sign back in."
             },
             "reasons": {
                 "title": "Why am I seeing this?",
@@ -77,16 +87,19 @@
             },
             "howToFix": {
                 "title": "How to Fix This",
-                "step1": "Go to your GitHub Security Settings",
-                "step1Aria": "Go to your GitHub Security Settings (opens in new tab)",
-                "step2": "Find \"Password and authentication\" in the menu",
-                "step3": "Add one of the accepted methods listed above",
+                "step1": "Open your GitHub security settings",
+                "step1Aria": "Open your GitHub security settings (opens in new tab)",
+                "step2": "Under \"Two-factor authentication\", click \"Enable two-factor authentication\" (or \"Edit\" if it is already enabled)",
+                "step3": "Choose one of the accepted methods above and follow GitHub's setup instructions",
                 "step4": "Come back here and sign in again"
             },
             "buttons": {
-                "githubSettings": "Open GitHub Security Settings",
-                "githubSettingsAria": "Open GitHub Security Settings (opens in new tab)",
-                "signOutAndRetry": "Sign Out and Try Again"
+                "githubSettings": "Open GitHub security settings",
+                "githubSettingsAria": "Open GitHub security settings (opens in new tab)",
+                "checkInvitations": "Check pending invitations on GitHub",
+                "checkInvitationsAria": "Open the {organization} organization invitation page on GitHub (opens in new tab)",
+                "signOutAndRetry": "Sign out and try again",
+                "backToSchedule": "Back to schedule"
             },
             "support": "Still having trouble? Contact your organization administrator."
         }

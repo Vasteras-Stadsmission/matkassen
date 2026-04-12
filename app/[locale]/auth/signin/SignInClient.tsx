@@ -1,31 +1,33 @@
 "use client";
 
-import { Container, Paper, Title, Text, Button, Group, Center, Stack } from "@mantine/core";
+import {
+    Container,
+    Paper,
+    Title,
+    Text,
+    Button,
+    Group,
+    Center,
+    Stack,
+    List,
+    ThemeIcon,
+} from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
+import { IconCheck } from "@tabler/icons-react";
 import { Github } from "@/components/Icons";
 
 export function SignInClient({
     callbackUrl,
-    errorType,
+    organization,
 }: {
     callbackUrl: string;
-    errorType?: string;
+    organization?: string;
 }) {
     const t = useTranslations("auth");
     const [isLoading, setIsLoading] = useState(false);
-
-    const errorMessages = new Map<string, string>([
-        ["not-org-member", t("errors.notOrgMember")],
-        ["invalid-account-provider", t("errors.invalidProvider")],
-        ["default", t("errors.default")],
-    ]);
-
-    const errorMessage = errorType
-        ? (errorMessages.get(errorType) ?? errorMessages.get("default"))
-        : null;
 
     // Handle GitHub sign-in
     const handleGitHubSignIn = async () => {
@@ -62,17 +64,54 @@ export function SignInClient({
                             {t("signInTitle")}
                         </Title>
 
-                        {errorMessage && (
-                            <Text c="red" size="sm" ta="center">
-                                {errorMessage}
-                            </Text>
-                        )}
-
-                        <Text c="dimmed" size="sm" ta="center" mb="xl">
+                        <Text c="dimmed" size="sm" ta="center">
                             {t("signInDescription")}
                         </Text>
 
-                        <Group grow mb="md">
+                        <Stack gap="xs" mt="md">
+                            <Text size="sm" fw={600}>
+                                {t("signInRequirements.title")}
+                            </Text>
+                            <List spacing="xs" size="sm" center>
+                                <List.Item
+                                    icon={
+                                        <ThemeIcon
+                                            color="green"
+                                            size={20}
+                                            radius="xl"
+                                            variant="light"
+                                        >
+                                            <IconCheck size={14} aria-hidden="true" />
+                                        </ThemeIcon>
+                                    }
+                                >
+                                    {t("signInRequirements.account", {
+                                        organization:
+                                            organization ||
+                                            t("signInRequirements.authorizedOrgFallback"),
+                                    })}
+                                </List.Item>
+                                <List.Item
+                                    icon={
+                                        <ThemeIcon
+                                            color="green"
+                                            size={20}
+                                            radius="xl"
+                                            variant="light"
+                                        >
+                                            <IconCheck size={14} aria-hidden="true" />
+                                        </ThemeIcon>
+                                    }
+                                >
+                                    {t("signInRequirements.twofa")}
+                                </List.Item>
+                            </List>
+                            <Text size="xs" c="dimmed">
+                                {t("signInRequirements.newStaffHint")}
+                            </Text>
+                        </Stack>
+
+                        <Group grow mt="lg">
                             <Button
                                 onClick={handleGitHubSignIn}
                                 leftSection={<Github size={16} />}
