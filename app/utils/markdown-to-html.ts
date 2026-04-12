@@ -30,7 +30,10 @@ export function markdownToHtml(markdown: string): string {
     // Parse markdown to HTML
     const rawHtml = marked.parse(markdown, { async: false }) as string;
 
-    // Sanitize to prevent XSS - allow safe HTML elements and attributes
+    // Sanitize to prevent XSS - allow safe HTML elements and attributes.
+    // Table/hr support is needed by the /help manuals (which include status
+    // tables and section dividers). Agreement/privacy content won't be
+    // affected since they don't use those markdown features.
     const sanitized = DOMPurify.sanitize(rawHtml, {
         ALLOWED_TAGS: [
             "h1",
@@ -41,6 +44,7 @@ export function markdownToHtml(markdown: string): string {
             "h6",
             "p",
             "br",
+            "hr",
             "strong",
             "em",
             "ul",
@@ -50,6 +54,12 @@ export function markdownToHtml(markdown: string): string {
             "blockquote",
             "code",
             "pre",
+            "table",
+            "thead",
+            "tbody",
+            "tr",
+            "th",
+            "td",
         ],
         ALLOWED_ATTR: ["href", "title", "target", "rel"],
         // Ensure links keep their security attributes after sanitization

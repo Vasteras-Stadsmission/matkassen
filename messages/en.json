@@ -22,7 +22,9 @@
         "statistics": "Statistics",
         "scanQrCode": "Scan QR Code",
         "navigation": "Navigation",
-        "issues": "Needs Follow-up"
+        "issues": "Needs Follow-up",
+        "help": "Help",
+        "helpAria": "Open help manuals"
     },
     "auth": {
         "login": "Log in",
@@ -102,6 +104,31 @@
                 "backToSchedule": "Back to schedule"
             },
             "support": "Still having trouble? Contact your organization administrator."
+        }
+    },
+    "help": {
+        "title": "Help",
+        "subtitle": "Manuals and guides for staff. Pick a topic below to read it.",
+        "languageNote": "The staff manuals are currently only available in Swedish.",
+        "empty": "No manuals are available for your account.",
+        "backToIndex": "Back to help",
+        "manuals": {
+            "overview": {
+                "title": "Overview guide",
+                "description": "A high-level walkthrough of the app with diagrams for both staff and household recipients."
+            },
+            "handoutStaff": {
+                "title": "Handout staff manual",
+                "description": "Day-to-day operations: today's handouts, no-shows, QR scanning, and SMS basics."
+            },
+            "caseWorker": {
+                "title": "Case worker manual",
+                "description": "Registering households and scheduling food parcels."
+            },
+            "admin": {
+                "title": "Administrator manual",
+                "description": "Settings, locations, schedules, verification checklist, and onboarding new staff."
+            }
         }
     },
     "agreement": {

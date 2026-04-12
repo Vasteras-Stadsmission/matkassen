@@ -91,6 +91,31 @@
             "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
         }
     },
+    "help": {
+        "title": "Hjälp",
+        "subtitle": "Manualer och vägledningar för personal. Välj ett ämne nedan för att läsa.",
+        "languageNote": "Personalmanualerna finns för närvarande endast på svenska.",
+        "empty": "Det finns inga manualer tillgängliga för ditt konto.",
+        "backToIndex": "Tillbaka till hjälp",
+        "manuals": {
+            "overview": {
+                "title": "Översikt",
+                "description": "En övergripande genomgång av appen med flödesdiagram för personal och mottagare."
+            },
+            "handoutStaff": {
+                "title": "Handbok för utlämningspersonal",
+                "description": "Vardagliga uppgifter: dagens utlämningar, uteblivna, QR-skanning och SMS."
+            },
+            "caseWorker": {
+                "title": "Handbok för handläggare",
+                "description": "Registrering av hushåll och schemaläggning av matkassar."
+            },
+            "admin": {
+                "title": "Handbok för administratörer",
+                "description": "Inställningar, utlämningsställen, scheman, registreringsformulär och ny personal."
+            }
+        }
+    },
     "agreement": {
         "title": "Användaravtal för behandling av personuppgifter",
         "subtitle": "Läs igenom och acceptera avtalet för att fortsätta använda systemet",
@@ -127,7 +152,9 @@
         "statistics": "Statistik",
         "scanQrCode": "Skanna QR-kod",
         "navigation": "Navigation",
-        "issues": "Behöver uppföljning"
+        "issues": "Behöver uppföljning",
+        "help": "Hjälp",
+        "helpAria": "Öppna hjälpmanualer"
     },
     "households": {
         "title": "Hushåll",
