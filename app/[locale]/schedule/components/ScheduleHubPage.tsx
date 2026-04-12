@@ -24,6 +24,7 @@ import { createLocationSlug } from "../utils/location-slugs";
 import { getUserFavoriteLocation } from "../utils/user-preferences";
 import { FavoriteStar } from "./FavoriteStar";
 import { NoUpcomingScheduleBadge } from "./NoUpcomingScheduleBadge";
+import { WelcomeBanner } from "./WelcomeBanner";
 import type { PickupLocation, FoodParcel } from "../types";
 import type { TranslationFunction } from "../../types";
 
@@ -37,9 +38,10 @@ interface LocationSummary {
 
 interface ScheduleHubPageProps {
     testMode: boolean;
+    userRole?: string;
 }
 
-export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) {
+export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubPageProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const t = useTranslations("schedule") as TranslationFunction;
@@ -164,6 +166,9 @@ export function ScheduleHubPage({ testMode: isTestMode }: ScheduleHubPageProps) 
     return (
         <Container size="xl" py="md">
             <Stack gap="md">
+                {/* First-login welcome banner (handout_staff only, dismissible) */}
+                <WelcomeBanner userRole={userRole} />
+
                 {/* Test Mode Warning Banner */}
                 {isTestMode && (
                     <Alert variant="light" color="yellow">

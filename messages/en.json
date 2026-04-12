@@ -392,6 +392,12 @@
         "today": "Today",
         "todayTab": "Today",
         "weeklyTab": "Weekly",
+        "welcomeBanner": {
+            "title": "Welcome to Matcentralen!",
+            "body": "You are signed in as Handout Staff. This is where you find all handout locations — open one to see today's handouts or the weekly schedule.",
+            "dismiss": "Got it",
+            "dismissAria": "Dismiss the welcome message"
+        },
         "hub": {
             "title": "Schedule",
             "subtitle": "Select a handout location to view schedules",
