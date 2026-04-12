@@ -379,6 +379,12 @@
         "today": "Idag",
         "todayTab": "Idag",
         "weeklyTab": "Vecka",
+        "welcomeBanner": {
+            "title": "Välkommen till Matcentralen!",
+            "body": "Du är inloggad som Utlämningspersonal. Här hittar du alla utlämningsställen — öppna ett för att se dagens utlämningar eller veckoschemat.",
+            "dismiss": "Uppfattat",
+            "dismissAria": "Dölj välkomstmeddelandet"
+        },
         "hub": {
             "title": "Schema",
             "subtitle": "Välj en utlämningsplats för att visa scheman",
