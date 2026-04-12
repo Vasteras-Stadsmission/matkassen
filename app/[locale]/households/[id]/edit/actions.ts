@@ -604,9 +604,10 @@ export const updateHousehold = protectedAdminHouseholdAction(
 
                 // Execute CREATE operations
                 if (operations.toCreate.length > 0) {
-                    // Use centralized helper for proper conflict handling
-                    const { insertParcels } = await import("@/app/db/insert-parcels");
-                    await insertParcels(tx, operations.toCreate);
+                    // Route through the parcel state-transitions helper so all
+                    // mutations of food_parcels go through one place.
+                    const { createParcels } = await import("@/app/utils/parcels/state-transitions");
+                    await createParcels(tx, { parcels: operations.toCreate, session });
                 }
 
                 // Execute UPDATE operations (same-day time changes)
@@ -622,16 +623,16 @@ export const updateHousehold = protectedAdminHouseholdAction(
 
                 // Execute DELETE operations (soft delete with SMS cancellation handling)
                 if (operations.toDelete.length > 0) {
-                    // Import helper function for SMS-aware soft deletion
-                    const { softDeleteParcelInTransaction } =
-                        await import("@/app/[locale]/parcels/actions");
+                    // Lenient soft-delete: silently skips parcels that have
+                    // already been removed by another process between the
+                    // pre-fetch above and now. The household edit flow has
+                    // pre-filtered to is_picked_up = false so we don't expect
+                    // already-completed parcels here.
+                    const { softDeleteParcelLenient } =
+                        await import("@/app/utils/parcels/state-transitions");
 
                     for (const parcelId of operations.toDelete) {
-                        await softDeleteParcelInTransaction(
-                            tx,
-                            parcelId,
-                            session.user?.githubUsername || "system",
-                        );
+                        await softDeleteParcelLenient(tx, { parcelId, session });
                     }
                 }
 

@@ -241,6 +241,38 @@ describe("Issues actions - Route handler integration", () => {
             expect(after.counts.unresolvedHandouts).toBe(0);
         });
 
+        it("should return ALREADY_CANCELLED when marking a soft-deleted parcel as no-show", async () => {
+            // Regression test for PR #357: the state-transitions refactor
+            // temporarily collapsed the deleted-parcel case under a new
+            // ALREADY_DELETED code, which broke the i18n mapping on
+            // IssuesPageClient (different toast copy). The original route
+            // returned ALREADY_CANCELLED for this case and we must
+            // preserve that contract.
+            const household = await createTestHousehold({ first_name: "DeletedNoShow" });
+            const { location } = await createTestLocationWithSchedule();
+            const yesterday = daysFromTestNow(-1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: yesterday,
+                pickup_date_time_latest: new Date(yesterday.getTime() + 30 * 60 * 1000),
+                is_picked_up: false,
+                deleted_at: new Date(),
+                deleted_by_user_id: "prior-admin",
+            });
+
+            const response = await noShowPATCH(
+                makeRequest(`http://localhost/api/admin/parcel/${parcel.id}/no-show`, {
+                    method: "PATCH",
+                }),
+                { params: Promise.resolve({ parcelId: parcel.id }) },
+            );
+            expect(response.status).toBe(400);
+            const data = await response.json();
+            expect(data.code).toBe("ALREADY_CANCELLED");
+            expect(data.error).toContain("cancelled");
+        });
+
         it("should reject no-show for future parcels (date-only rule)", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold({ first_name: "FutureNoShow" });

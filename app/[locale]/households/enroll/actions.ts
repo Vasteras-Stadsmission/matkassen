@@ -311,9 +311,12 @@ export const enrollHousehold = protectedAdminAction(
                         }),
                     );
 
-                    // Use centralized helper for proper conflict handling
-                    const { insertParcels } = await import("@/app/db/insert-parcels");
-                    await insertParcels(tx, parcelsToInsert);
+                    // Route through the parcel state-transitions helper so all
+                    // mutations of food_parcels go through one place. The helper
+                    // delegates to insertParcels for the partial-unique-index
+                    // conflict handling.
+                    const { createParcels } = await import("@/app/utils/parcels/state-transitions");
+                    await createParcels(tx, { parcels: parcelsToInsert, session });
                 }
 
                 // 7. Add comments if provided
