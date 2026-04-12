@@ -25,7 +25,8 @@ import { SettingsDropdown } from "../SettingsDropdown";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
-import { IconQrcode } from "@tabler/icons-react";
+import { IconQrcode, IconHelpCircle } from "@tabler/icons-react";
+import { Link as LocalizedLink } from "@/app/i18n/navigation";
 import { useSession } from "next-auth/react";
 
 import classes from "./HeaderSimple.module.css";
@@ -160,6 +161,30 @@ export function HeaderSimple() {
         );
     };
 
+    // In-app help link — points at /help index where role-filtered manuals
+    // are listed. Visible to every authenticated user regardless of role;
+    // the index itself filters which manuals to show.
+    const helpLabel = t("navigation.help");
+    const helpAriaLabel = t("navigation.helpAria");
+    const HelpLink = () => {
+        // Always render as an icon-only button to keep the header compact.
+        // The ScanQR button already carries text, so stacking two labelled
+        // buttons would eat into the nav area.
+        return (
+            <Tooltip label={helpLabel} position="bottom" withArrow>
+                <ActionIcon
+                    component={LocalizedLink}
+                    href="/help"
+                    variant="subtle"
+                    aria-label={helpAriaLabel}
+                    size="lg"
+                >
+                    <IconHelpCircle size={20} stroke={1.8} />
+                </ActionIcon>
+            </Tooltip>
+        );
+    };
+
     const handleNavigation = () => {
         // Close mobile menu if open
         if (opened) {
@@ -248,6 +273,7 @@ export function HeaderSimple() {
                         visibleFrom="md"
                     >
                         <LanguageSwitcher />
+                        <HelpLink />
                         <AuthDropdown />
                         {isAdmin && <SettingsDropdown />}
                         <ScanQRCodeLink />
@@ -269,6 +295,7 @@ export function HeaderSimple() {
                     {mobileLinks}
                     <div className={classes.mobileActions}>
                         <LanguageSwitcher />
+                        <HelpLink />
                         <ScanQRCodeLink />
                         {isAdmin && <SettingsDropdown />}
                         <AuthDropdown />

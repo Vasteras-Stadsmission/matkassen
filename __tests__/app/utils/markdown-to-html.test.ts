@@ -157,4 +157,48 @@ This is a **bold** paragraph with a [link](https://example.com).
             expect(result).toContain("<li>");
         });
     });
+
+    describe("Manual-specific markdown features", () => {
+        // These tags were added so the /help manuals can render tables and
+        // section dividers. They must survive DOMPurify sanitisation.
+        it("should render GFM tables with thead/tbody/tr/th/td", () => {
+            const input = [
+                "| Column A | Column B |",
+                "| --- | --- |",
+                "| Cell 1 | Cell 2 |",
+                "| Cell 3 | Cell 4 |",
+            ].join("\n");
+
+            const result = markdownToHtml(input);
+
+            expect(result).toContain("<table>");
+            expect(result).toContain("<thead>");
+            expect(result).toContain("<tbody>");
+            expect(result).toContain("<tr>");
+            expect(result).toContain("<th>");
+            expect(result).toContain("<td>");
+            expect(result).toContain("Column A");
+            expect(result).toContain("Cell 4");
+        });
+
+        it("should render horizontal rules", () => {
+            const input = "Before\n\n---\n\nAfter";
+            const result = markdownToHtml(input);
+            expect(result).toContain("<hr>");
+        });
+
+        it("should still sanitize dangerous content inside tables", () => {
+            const input = ["| Col |", "| --- |", "| <script>alert(1)</script> |"].join("\n");
+
+            const result = markdownToHtml(input);
+            expect(result).not.toContain("<script>");
+            expect(result).toContain("<table>");
+        });
+
+        it("should not allow raw <style> tags even when markdown lets them through", () => {
+            const input = "Before\n\n<style>body{display:none}</style>\n\nAfter";
+            const result = markdownToHtml(input);
+            expect(result).not.toContain("<style>");
+        });
+    });
 });
