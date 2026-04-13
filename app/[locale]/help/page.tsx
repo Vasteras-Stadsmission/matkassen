@@ -74,25 +74,25 @@ function ManualCard({
     manual: ManualMeta;
     t: Awaited<ReturnType<typeof getTranslations<"help">>>;
 }) {
+    // We wrap Card in Link rather than using `component={Link}` because
+    // this file is a server component and passing a component reference
+    // as a prop to a Mantine client component fails serialization
+    // ("Only plain objects can be passed to Client Components").
     return (
-        <Card
-            withBorder
-            shadow="sm"
-            component={Link}
-            href={`/help/${manual.slug}`}
-            style={{ textDecoration: "none" }}
-        >
-            <Group align="flex-start" wrap="nowrap" gap="md">
-                <IconBook2 size={28} color="var(--mantine-color-blue-6)" />
-                <Stack gap={4} style={{ flex: 1 }}>
-                    <Title order={3} size="h4">
-                        {getManualTitle(t, manual.slug)}
-                    </Title>
-                    <Text size="sm" c="dimmed">
-                        {getManualDescription(t, manual.slug)}
-                    </Text>
-                </Stack>
-            </Group>
-        </Card>
+        <Link href={`/help/${manual.slug}`} style={{ textDecoration: "none", display: "block" }}>
+            <Card withBorder shadow="sm">
+                <Group align="flex-start" wrap="nowrap" gap="md">
+                    <IconBook2 size={28} color="var(--mantine-color-blue-6)" />
+                    <Stack gap={4} style={{ flex: 1 }}>
+                        <Title order={3} size="h4">
+                            {getManualTitle(t, manual.slug)}
+                        </Title>
+                        <Text size="sm" c="dimmed">
+                            {getManualDescription(t, manual.slug)}
+                        </Text>
+                    </Stack>
+                </Group>
+            </Card>
+        </Link>
     );
 }

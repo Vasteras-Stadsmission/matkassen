@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import {
     Container,
@@ -12,7 +11,7 @@ import {
 } from "@mantine/core";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { auth } from "@/auth";
-import { redirect, Link } from "@/app/i18n/navigation";
+import { redirect } from "@/app/i18n/navigation";
 import { AgreementProtection } from "@/components/AgreementProtection";
 import { markdownToHtml } from "@/app/utils/markdown-to-html";
 import { getManualBySlug, canRoleReadManual, loadManualContent } from "../manual-registry";
@@ -62,6 +61,7 @@ async function ManualContent({ params }: { params: Promise<{ slug: string; local
     }
 
     const t = await getTranslations("help");
+    const locale = await getLocale();
     const rawMarkdown = loadManualContent(manual);
     const html = markdownToHtml(rawMarkdown);
 
@@ -72,9 +72,13 @@ async function ManualContent({ params }: { params: Promise<{ slug: string; local
                     <Title order={1} size="h2">
                         {getManualTitle(t, manual.slug)}
                     </Title>
+                    {/* Plain <a> with a locale-prefixed href — server components
+                        cannot pass the next-intl Link component through as a
+                        prop (React serialization across server/client boundary
+                        rejects component references). */}
                     <Button
-                        component={Link}
-                        href="/help"
+                        component="a"
+                        href={`/${locale}/help`}
                         variant="subtle"
                         leftSection={<IconArrowLeft size={16} />}
                         size="sm"
