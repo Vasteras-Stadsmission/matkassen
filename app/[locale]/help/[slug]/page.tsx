@@ -17,6 +17,7 @@ import { markdownToHtml } from "@/app/utils/markdown-to-html";
 import { getManualBySlug, canRoleReadManual, loadManualContent } from "../manual-registry";
 import { getManualTitle } from "../manual-labels";
 import { MermaidRenderer } from "./MermaidRenderer";
+import { HashScroller } from "./HashScroller";
 
 /**
  * Manual detail page — renders a single markdown manual from /docs.
@@ -96,6 +97,7 @@ async function ManualContent({ params }: { params: Promise<{ slug: string; local
                     </TypographyStylesProvider>
                 </Paper>
                 <MermaidRenderer />
+                <HashScroller />
             </Stack>
         </Container>
     );
