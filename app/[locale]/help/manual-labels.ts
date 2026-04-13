@@ -12,11 +12,11 @@ type HelpTranslator = ReturnType<typeof useTranslations<"help">>;
 
 export function getManualTitle(t: HelpTranslator, slug: ManualSlug): string {
     switch (slug) {
-        case "oversikt":
+        case "overview":
             return t("manuals.overview.title");
-        case "utlamningspersonal":
+        case "handout-staff":
             return t("manuals.handoutStaff.title");
-        case "handlaggare":
+        case "case-worker":
             return t("manuals.caseWorker.title");
         case "administrator":
             return t("manuals.admin.title");
@@ -25,11 +25,11 @@ export function getManualTitle(t: HelpTranslator, slug: ManualSlug): string {
 
 export function getManualDescription(t: HelpTranslator, slug: ManualSlug): string {
     switch (slug) {
-        case "oversikt":
+        case "overview":
             return t("manuals.overview.description");
-        case "utlamningspersonal":
+        case "handout-staff":
             return t("manuals.handoutStaff.description");
-        case "handlaggare":
+        case "case-worker":
             return t("manuals.caseWorker.description");
         case "administrator":
             return t("manuals.admin.description");

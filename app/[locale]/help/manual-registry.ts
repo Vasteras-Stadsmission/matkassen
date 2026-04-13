@@ -20,7 +20,7 @@ import path from "path";
  *      `app/[locale]/help/manual-labels.ts`.
  */
 
-export type ManualSlug = "utlamningspersonal" | "handlaggare" | "administrator" | "oversikt";
+export type ManualSlug = "overview" | "handout-staff" | "case-worker" | "administrator";
 
 export type ManualRole = "admin" | "handout_staff";
 
@@ -35,17 +35,17 @@ export interface ManualMeta {
 
 export const MANUALS: readonly ManualMeta[] = [
     {
-        slug: "oversikt",
+        slug: "overview",
         filename: "anvandarguide-sv.md",
         roles: ["handout_staff", "admin"],
     },
     {
-        slug: "utlamningspersonal",
+        slug: "handout-staff",
         filename: "handout-staff-manual-sv.md",
         roles: ["handout_staff", "admin"],
     },
     {
-        slug: "handlaggare",
+        slug: "case-worker",
         filename: "case-worker-manual-sv.md",
         roles: ["admin"],
     },

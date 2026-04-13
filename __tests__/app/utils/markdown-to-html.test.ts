@@ -201,4 +201,36 @@ This is a **bold** paragraph with a [link](https://example.com).
             expect(result).not.toContain("<style>");
         });
     });
+
+    describe("Mermaid diagram placeholders", () => {
+        it('renders ```mermaid blocks as <div class="mermaid"> for client-side hydration', () => {
+            const input = "```mermaid\nflowchart TD\n    A --> B\n```";
+            const result = markdownToHtml(input);
+
+            expect(result).toContain('<div class="mermaid">');
+            expect(result).toContain("flowchart TD");
+            // The source must be HTML-escaped so mermaid reads it as text
+            // rather than marked parsing arrows like `-->` as HTML comments.
+            expect(result).toContain("A --&gt; B");
+        });
+
+        it("leaves non-mermaid code blocks as <pre><code>", () => {
+            const input = "```ts\nconst x = 1;\n```";
+            const result = markdownToHtml(input);
+
+            expect(result).toContain("<pre>");
+            expect(result).toContain("<code");
+            expect(result).not.toContain('class="mermaid"');
+        });
+
+        it("strips non-mermaid class values so the class allowance can't be abused", () => {
+            // Raw HTML inside markdown goes through DOMPurify; if someone
+            // injects a <div class="something-else">, the class should be
+            // removed even though the <div> itself is allowed.
+            const input = 'Before\n\n<div class="injected">x</div>\n\nAfter';
+            const result = markdownToHtml(input);
+
+            expect(result).not.toContain('class="injected"');
+        });
+    });
 });

@@ -8,6 +8,14 @@ import DOMPurify from "isomorphic-dompurify";
  * Links are configured to open in new tabs with security attributes.
  */
 
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
 // Configure marked for security and UX
 marked.use({
     renderer: {
@@ -15,6 +23,16 @@ marked.use({
         link({ href, title, text }) {
             const titleAttr = title ? ` title="${title}"` : "";
             return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`;
+        },
+        // Emit a placeholder div for ```mermaid fenced blocks; the
+        // MermaidRenderer client component hydrates these into SVG
+        // diagrams on the client. Non-mermaid code blocks fall through
+        // to marked's default <pre><code> rendering.
+        code({ text, lang }) {
+            if (lang === "mermaid") {
+                return `<div class="mermaid">${escapeHtml(text)}</div>\n`;
+            }
+            return false;
         },
     },
 });
@@ -60,11 +78,19 @@ export function markdownToHtml(markdown: string): string {
             "tr",
             "th",
             "td",
+            // <div class="mermaid"> placeholders are produced by the code
+            // renderer above and hydrated client-side by MermaidRenderer.
+            "div",
         ],
-        ALLOWED_ATTR: ["href", "title", "target", "rel"],
+        ALLOWED_ATTR: ["href", "title", "target", "rel", "class"],
         // Ensure links keep their security attributes after sanitization
         ADD_ATTR: ["target", "rel"],
     });
 
-    return sanitized;
+    // Only the `mermaid` class is used by this pipeline; strip any other
+    // class values DOMPurify let through so the `class` allowance can't
+    // be abused by crafted markdown input to attach arbitrary CSS.
+    return sanitized.replace(/class="([^"]*)"/g, (match, value) =>
+        value === "mermaid" ? match : "",
+    );
 }
