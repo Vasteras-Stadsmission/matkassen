@@ -14,6 +14,14 @@ services:
         depends_on:
             nextjs:
                 condition: service_healthy
+        # Security hardening - prevent privilege escalation and drop all Linux
+        # capabilities. The container already runs as the unprivileged `nginx`
+        # user (see nginx/Dockerfile) and listens on port 8080, so neither
+        # CAP_NET_BIND_SERVICE nor CAP_SETUID/SETGID are required.
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
         healthcheck:
             test: ["CMD", "nginx", "-t"]
             interval: 30s

@@ -92,10 +92,23 @@ if (!process.env.DATABASE_URL) {
     }
 }
 
+// SSL configuration for postgres connections.
+// DATABASE_SSL controls whether TLS is required:
+//   - "require" / "true": require TLS (use for external/managed DBs)
+//   - "verify-full": require TLS and verify the server certificate
+//   - unset/"disable": no TLS (appropriate for trusted internal Docker networks)
+// The postgres-js library also honors sslmode=... in the DATABASE_URL itself.
+const sslOption = (() => {
+    const mode = (process.env.DATABASE_SSL ?? "").toLowerCase();
+    if (mode === "require" || mode === "true") return "require" as const;
+    if (mode === "verify-full") return "verify-full" as const;
+    return undefined;
+})();
+
 // Export appropriate client and db based on environment
 export const client =
     isTestEnvironment || isBuildTime
         ? createMockClient()
-        : postgres(process.env.DATABASE_URL as string);
+        : postgres(process.env.DATABASE_URL as string, sslOption ? { ssl: sslOption } : {});
 
 export const db = isTestEnvironment || isBuildTime ? createMockDb() : drizzle(client);
