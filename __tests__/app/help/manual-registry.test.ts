@@ -25,17 +25,17 @@ interface ManualMeta {
 
 const MANUALS: readonly ManualMeta[] = [
     {
-        slug: "oversikt",
+        slug: "overview",
         filename: "anvandarguide-sv.md",
         roles: ["handout_staff", "admin"],
     },
     {
-        slug: "utlamningspersonal",
+        slug: "handout-staff",
         filename: "handout-staff-manual-sv.md",
         roles: ["handout_staff", "admin"],
     },
     {
-        slug: "handlaggare",
+        slug: "case-worker",
         filename: "case-worker-manual-sv.md",
         roles: ["admin"],
     },
@@ -65,20 +65,15 @@ describe("Manual registry — role filtering", () => {
         it("returns overview + handout staff manual for handout_staff, NOT case worker or admin", () => {
             const manuals = getManualsForRole("handout_staff");
             const slugs = manuals.map(m => m.slug).sort();
-            expect(slugs).toEqual(["oversikt", "utlamningspersonal"]);
-            expect(slugs).not.toContain("handlaggare");
+            expect(slugs).toEqual(["handout-staff", "overview"]);
+            expect(slugs).not.toContain("case-worker");
             expect(slugs).not.toContain("administrator");
         });
 
         it("returns all four manuals for admin", () => {
             const manuals = getManualsForRole("admin");
             const slugs = manuals.map(m => m.slug).sort();
-            expect(slugs).toEqual([
-                "administrator",
-                "handlaggare",
-                "oversikt",
-                "utlamningspersonal",
-            ]);
+            expect(slugs).toEqual(["administrator", "case-worker", "handout-staff", "overview"]);
         });
 
         it("returns an empty list for undefined role (unauthenticated)", () => {
@@ -95,19 +90,17 @@ describe("Manual registry — role filtering", () => {
 
         it("puts overview first so new staff see the big-picture guide at the top", () => {
             const staff = getManualsForRole("handout_staff");
-            expect(staff[0]?.slug).toBe("oversikt");
+            expect(staff[0]?.slug).toBe("overview");
             const admin = getManualsForRole("admin");
-            expect(admin[0]?.slug).toBe("oversikt");
+            expect(admin[0]?.slug).toBe("overview");
         });
     });
 
     describe("getManualBySlug", () => {
         it("resolves every real slug to its filename", () => {
-            expect(getManualBySlug("oversikt")?.filename).toBe("anvandarguide-sv.md");
-            expect(getManualBySlug("utlamningspersonal")?.filename).toBe(
-                "handout-staff-manual-sv.md",
-            );
-            expect(getManualBySlug("handlaggare")?.filename).toBe("case-worker-manual-sv.md");
+            expect(getManualBySlug("overview")?.filename).toBe("anvandarguide-sv.md");
+            expect(getManualBySlug("handout-staff")?.filename).toBe("handout-staff-manual-sv.md");
+            expect(getManualBySlug("case-worker")?.filename).toBe("case-worker-manual-sv.md");
             expect(getManualBySlug("administrator")?.filename).toBe("admin-manual-sv.md");
         });
 
@@ -120,7 +113,7 @@ describe("Manual registry — role filtering", () => {
 
     describe("canRoleReadManual", () => {
         const adminOnlyManual = MANUALS.find(m => m.slug === "administrator")!;
-        const sharedManual = MANUALS.find(m => m.slug === "utlamningspersonal")!;
+        const sharedManual = MANUALS.find(m => m.slug === "handout-staff")!;
 
         it("allows admin to read an admin-only manual", () => {
             expect(canRoleReadManual("admin", adminOnlyManual)).toBe(true);

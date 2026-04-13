@@ -16,6 +16,7 @@ import { AgreementProtection } from "@/components/AgreementProtection";
 import { markdownToHtml } from "@/app/utils/markdown-to-html";
 import { getManualBySlug, canRoleReadManual, loadManualContent } from "../manual-registry";
 import { getManualTitle } from "../manual-labels";
+import { MermaidRenderer } from "./MermaidRenderer";
 
 /**
  * Manual detail page — renders a single markdown manual from /docs.
@@ -94,6 +95,7 @@ async function ManualContent({ params }: { params: Promise<{ slug: string; local
                         <div dangerouslySetInnerHTML={{ __html: html }} />
                     </TypographyStylesProvider>
                 </Paper>
+                <MermaidRenderer />
             </Stack>
         </Container>
     );
