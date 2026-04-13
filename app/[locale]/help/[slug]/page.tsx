@@ -18,6 +18,7 @@ import { getManualBySlug, canRoleReadManual, loadManualContent } from "../manual
 import { getManualTitle } from "../manual-labels";
 import { MermaidRenderer } from "./MermaidRenderer";
 import { HashScroller } from "./HashScroller";
+import classes from "./ManualContent.module.css";
 
 /**
  * Manual detail page — renders a single markdown manual from /docs.
@@ -93,7 +94,10 @@ async function ManualContent({ params }: { params: Promise<{ slug: string; local
                     <TypographyStylesProvider>
                         {/* Content is generated from trusted repo markdown and
                             sanitized by DOMPurify in markdownToHtml. */}
-                        <div dangerouslySetInnerHTML={{ __html: html }} />
+                        <div
+                            className={classes.content}
+                            dangerouslySetInnerHTML={{ __html: html }}
+                        />
                     </TypographyStylesProvider>
                 </Paper>
                 <MermaidRenderer />

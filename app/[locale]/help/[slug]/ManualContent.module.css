@@ -1,0 +1,13 @@
+/*
+ * Reserve space at the top of the viewport when scrolling to an
+ * anchor inside a manual. Mantine's AppShell renders a fixed 60 px
+ * header that would otherwise cover the target heading; without
+ * this, deep-links land with the heading text clipped.
+ *
+ * Applied to every heading that has an id (i.e. every heading the
+ * search UI can link to) so both JS scrollIntoView and native
+ * browser hash-scroll on refresh behave the same way.
+ */
+.content :is(h1, h2, h3, h4, h5, h6)[id] {
+    scroll-margin-top: 80px;
+}
