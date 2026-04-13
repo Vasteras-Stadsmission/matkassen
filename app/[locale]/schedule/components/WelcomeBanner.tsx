@@ -72,7 +72,7 @@ export function WelcomeBanner({ userRole }: WelcomeBannerProps) {
                 <Stack gap={4} style={{ flex: 1 }}>
                     <Text fw={600}>{t("title")}</Text>
                     <Text size="sm">{t("body")}</Text>
-                    <Anchor component={Link} href="/help/utlamningspersonal" size="sm" fw={500}>
+                    <Anchor component={Link} href="/help/handout-staff" size="sm" fw={500}>
                         {t("readManual")}
                     </Anchor>
                 </Stack>
