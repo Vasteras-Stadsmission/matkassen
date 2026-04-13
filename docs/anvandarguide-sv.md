@@ -4,19 +4,33 @@ Den här guiden visar hur Matcentralen fungerar för personal och mottagare.
 
 ---
 
+## Fler manualer under Hjälp
+
+Klicka på **Hjälp** i toppmenyn för att se alla manualer. Den här översikten är en av flera.
+
+Vilka manualer som visas beror på din roll:
+
+- **Administratör** – du som planerar utlämningar, registrerar hushåll och ändrar inställningar. Ser alla manualer.
+- **Utlämningspersonal** – du som arbetar med dagens utlämningar vid ett utlämningsställe. Ser översikten och handboken för utlämningspersonal.
+
+Om du tror att du borde se fler manualer än du gör, kontakta en administratör.
+
+---
+
 ## Navigationsöversikt
 
-Så här är webbplatsen uppbyggd:
+Så här är webbplatsen uppbyggd. Diagrammet visar alla sidor. Utlämningspersonal ser endast **Schema** och **Hjälp** i menyn – övriga sidor kräver administratörsbehörighet.
 
 ```mermaid
 flowchart TB
     subgraph Personalens sidor
-        Start["🏠 Startsida<br/>(Uppföljning)"]
+        Start["🏠 Startsida (Uppföljning)<br/>— endast administratörer"]
 
         Schema["📅 Schema"]
-        Hushall["👥 Hushåll"]
-        Statistik["📊 Statistik"]
-        Installningar["⚙️ Inställningar"]
+        Hjalp["❓ Hjälp"]
+        Hushall["👥 Hushåll<br/>— endast administratörer"]
+        Statistik["📊 Statistik<br/>— endast administratörer"]
+        Installningar["⚙️ Inställningar<br/>— endast administratörer"]
 
         Start --> Schema
         Start --> Hushall
@@ -24,16 +38,19 @@ flowchart TB
         Start --> Installningar
 
         Schema --> DagensUtlamningar["Dagens utlämningar"]
-        Schema --> Veckoschema["Veckoschema"]
+        Schema --> Veckoschema["Veckoschema<br/>— endast administratörer"]
 
         Hushall --> NyttHushall["Nytt hushåll"]
         Hushall --> HushallDetalj["Hushållsdetaljer"]
         HushallDetalj --> RedigeraHushall["Redigera hushåll"]
         HushallDetalj --> HanteraMatkassar["Hantera matkassar"]
 
-        Installningar --> AllmannaInst["Allmänna"]
         Installningar --> Platser["Utlämningsställen"]
-        Installningar --> Matkassegranser["Matkassegränser"]
+        Installningar --> Registreringsformular["Registreringsformulär"]
+        Installningar --> Matkassegranser["Varningsgräns för matkassar"]
+        Installningar --> Anvandare["Användare"]
+
+        Hjalp --> Manualer["Manualer för din roll"]
     end
 
     subgraph Mottagarens sida
@@ -130,6 +147,8 @@ flowchart TD
 
 ## Uppgift 3: Hantera problem (Uppföljning)
 
+> Endast administratörer. Utlämningspersonal ser inte startsidan och behöver inte göra uppföljning.
+
 Startsidan visar saker som behöver åtgärdas.
 
 ```mermaid
@@ -223,17 +242,20 @@ Mottagaren kan välja bland många språk: svenska, engelska, arabiska, somalisk
 
 ## Snabbreferens: Alla sidor
 
-| Sida                        | Vad du gör där                    |
-| --------------------------- | --------------------------------- |
-| **Uppföljning** (Startsida) | Se och åtgärda problem            |
-| **Schema**                  | Välj utlämningsställe             |
-| **Dagens utlämningar**      | Lämna ut matkassar, skanna QR     |
-| **Veckoschema**             | Se hela veckans bokningar, omboka |
-| **Hushåll**                 | Sök och visa alla hushåll         |
-| **Nytt hushåll**            | Registrera nytt hushåll           |
-| **Hushållsdetaljer**        | Se all info om ett hushåll        |
-| **Statistik**               | Se diagram och siffror            |
-| **Inställningar**           | Ändra systemkonfiguration         |
+Sidor markerade med _(admin)_ visas endast för administratörer.
+
+| Sida                                  | Vad du gör där                    |
+| ------------------------------------- | --------------------------------- |
+| **Uppföljning** (Startsida) _(admin)_ | Se och åtgärda problem            |
+| **Schema**                            | Välj utlämningsställe             |
+| **Dagens utlämningar**                | Lämna ut matkassar, skanna QR     |
+| **Veckoschema** _(admin)_             | Se hela veckans bokningar, omboka |
+| **Hushåll** _(admin)_                 | Sök och visa alla hushåll         |
+| **Nytt hushåll** _(admin)_            | Registrera nytt hushåll           |
+| **Hushållsdetaljer** _(admin)_        | Se all info om ett hushåll        |
+| **Statistik** _(admin)_               | Se diagram och siffror            |
+| **Inställningar** _(admin)_           | Ändra systemkonfiguration         |
+| **Hjälp**                             | Läs manualer för din roll         |
 
 ---
 
@@ -257,4 +279,4 @@ Mottagaren kan välja bland många språk: svenska, engelska, arabiska, somalisk
 
 ---
 
-_Dokumentet uppdaterat: 2025_
+_Dokumentet uppdaterat: 2026_
