@@ -111,6 +111,10 @@
         "languageNote": "The staff manuals are currently only available in Swedish.",
         "empty": "No manuals are available for your account.",
         "backToIndex": "Back to help",
+        "search": {
+            "placeholder": "Search the manuals…",
+            "noResults": "No matches. Try a different word."
+        },
         "manuals": {
             "overview": {
                 "title": "Overview guide",

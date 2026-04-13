@@ -96,6 +96,10 @@
         "languageNote": "Personalmanualerna finns för närvarande endast på svenska.",
         "empty": "Det finns inga manualer tillgängliga för ditt konto.",
         "backToIndex": "Tillbaka till hjälp",
+        "search": {
+            "placeholder": "Sök i manualerna…",
+            "noResults": "Inga träffar. Prova ett annat ord."
+        },
         "manuals": {
             "overview": {
                 "title": "Översikt",
