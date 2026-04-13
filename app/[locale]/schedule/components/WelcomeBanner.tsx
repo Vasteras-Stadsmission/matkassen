@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Text, Stack, CloseButton, Group } from "@mantine/core";
+import { Alert, Text, Stack, CloseButton, Group, Anchor } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/app/i18n/navigation";
 
 // localStorage key used to remember that the user has dismissed the first-login
 // welcome banner on this device. Using a simple string flag (not a timestamp)
@@ -71,6 +72,9 @@ export function WelcomeBanner({ userRole }: WelcomeBannerProps) {
                 <Stack gap={4} style={{ flex: 1 }}>
                     <Text fw={600}>{t("title")}</Text>
                     <Text size="sm">{t("body")}</Text>
+                    <Anchor component={Link} href="/help/utlamningspersonal" size="sm" fw={500}>
+                        {t("readManual")}
+                    </Anchor>
                 </Stack>
                 <CloseButton
                     onClick={handleDismiss}

@@ -35,7 +35,6 @@
             "signInRequired": "Logga in för att komma åt den här sidan."
         },
         "errors": {
-            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen och följa dess säkerhetspolicy (säker tvåfaktorsautentisering krävs) för att få åtkomst till appen.",
             "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
             "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
             "verification": "Verifiering misslyckades. Försök logga in igen.",
@@ -422,6 +421,7 @@
         "welcomeBanner": {
             "title": "Välkommen till Matcentralen!",
             "body": "Du är inloggad som Utlämningspersonal. Här hittar du alla utlämningsställen — öppna ett för att se dagens utlämningar eller veckoschemat.",
+            "readManual": "Läs handboken för utlämningspersonal →",
             "dismiss": "Uppfattat",
             "dismissAria": "Dölj välkomstmeddelandet"
         },

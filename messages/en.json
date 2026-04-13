@@ -50,7 +50,6 @@
             "signInRequired": "Please sign in to access this page."
         },
         "errors": {
-            "notOrgMember": "You must be a member of the authorized organization and comply with its security policies (secure 2FA required) to access this app.",
             "invalidProvider": "Invalid account provider. Please use GitHub.",
             "configuration": "There is a problem with the authentication configuration. Please contact support.",
             "verification": "Verification failed. Please try signing in again.",
@@ -422,6 +421,7 @@
         "welcomeBanner": {
             "title": "Welcome to Matcentralen!",
             "body": "You are signed in as Handout Staff. This is where you find all handout locations — open one to see today's handouts or the weekly schedule.",
+            "readManual": "Read the handout staff manual →",
             "dismiss": "Got it",
             "dismissAria": "Dismiss the welcome message"
         },

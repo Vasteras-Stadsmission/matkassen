@@ -8,32 +8,50 @@
 
 ### Server Components
 
+Wrap every staff-facing page in `<AgreementProtection>`. It renders a "please sign in" fallback for unauthenticated requests (defense-in-depth — `middleware.ts` normally redirects them to sign-in before the page renders), redirects users who haven't accepted the current user agreement to `/agreement`, and (optionally) restricts pages to administrators via the `adminOnly` prop (redirects handout staff to `/auth/access-denied?reason=admin_required`).
+
 ```typescript
 // app/[locale]/example/page.tsx
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 
 export default function ExamplePage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <div>Protected content</div>
-        </AuthProtection>
+        </AgreementProtection>
+    );
+}
+```
+
+For admin-only pages, pass `adminOnly={true}`. Handout staff who visit get redirected to `/auth/access-denied?reason=admin_required` with a role-specific explanation.
+
+```typescript
+// app/[locale]/households/page.tsx
+import { AgreementProtection } from "@/components/AgreementProtection";
+
+export default function HouseholdsPage() {
+    return (
+        <AgreementProtection adminOnly>
+            <div>Admin-only content</div>
+        </AgreementProtection>
     );
 }
 ```
 
 ### Client Components
 
+Client components that need to gate UI on auth state read the session directly via `useSession()` from `next-auth/react`. The surrounding page is expected to already be wrapped in `<AgreementProtection>`, so this is for conditional rendering inside an already-protected page, not for adding a new auth boundary.
+
 ```typescript
 // components/ExampleClient.tsx
 "use client";
-import { AuthProtectionClient } from "@/components/AuthProtection/client";
+import { useSession } from "next-auth/react";
 
 export function ExampleClient() {
-    return (
-        <AuthProtectionClient>
-            <div>Protected client content</div>
-        </AuthProtectionClient>
-    );
+    const { data: session, status } = useSession();
+    if (status === "loading") return null;
+    if (!session) return null;
+    return <div>Authenticated content for {session.user?.githubUsername}</div>;
 }
 ```
 
@@ -173,7 +191,7 @@ GITHUB_ORG_NAME=your-organization-name
 
 Before deploying any feature:
 
-- [ ] All pages protected with `<AuthProtection>` or `<AuthProtectionClient>`
+- [ ] All staff pages wrapped in `<AgreementProtection>` (with `adminOnly` where appropriate)
 - [ ] All server actions use `protectedAction()` wrapper
 - [ ] All `/api/admin/*` routes use `authenticateAdminRequest()`
 - [ ] `pnpm run validate` passes (enforces security patterns)
