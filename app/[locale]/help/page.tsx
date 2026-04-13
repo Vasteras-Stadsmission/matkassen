@@ -7,6 +7,8 @@ import { AgreementProtection } from "@/components/AgreementProtection";
 import { Link } from "@/app/i18n/navigation";
 import { getManualsForRole, type ManualMeta } from "./manual-registry";
 import { getManualTitle, getManualDescription } from "./manual-labels";
+import { filterSectionsForRole, loadAllHelpSections } from "./help-sections";
+import { HelpSearch, type HelpSearchSection } from "./HelpSearch";
 
 /**
  * Help index page — lists the staff manuals the current user is allowed
@@ -30,6 +32,21 @@ async function HelpIndex() {
     const manuals = getManualsForRole(role);
     const t = await getTranslations("help");
 
+    // Filter sections by role on the server so admin-only content never
+    // reaches a handout_staff browser. The manual title is resolved here
+    // (not on the client) because translations require a server context.
+    const searchSections: HelpSearchSection[] = filterSectionsForRole(
+        loadAllHelpSections(),
+        role,
+    ).map(s => ({
+        id: s.id,
+        manualSlug: s.manualSlug,
+        anchor: s.anchor,
+        sectionTitle: s.sectionTitle,
+        manualTitle: getManualTitle(t, s.manualSlug),
+        body: s.body,
+    }));
+
     return (
         <Container size="md" py="xl">
             <Stack gap="lg">
@@ -41,6 +58,14 @@ async function HelpIndex() {
                         {t("subtitle")}
                     </Text>
                 </div>
+
+                {searchSections.length > 0 && (
+                    <HelpSearch
+                        sections={searchSections}
+                        placeholder={t("search.placeholder")}
+                        noResultsLabel={t("search.noResults")}
+                    />
+                )}
 
                 <Paper withBorder p="md" bg="blue.0">
                     <Group gap="sm" align="flex-start" wrap="nowrap">
