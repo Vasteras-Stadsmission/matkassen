@@ -251,7 +251,16 @@ export function HeaderSimple() {
     return (
         <>
             <header className={classes.header} data-compact={isCompactDesktop || undefined}>
-                <Container size="md" className={classes.inner}>
+                {/* `md` (960 px) was just barely enough for logo + four admin
+                    nav items + four right-side actions. Adding the help icon
+                    pushed the row past 960 px — Mantine's Group defaults to
+                    `wrap="wrap"`, so the last nav item ("Statistik" for
+                    admins) dropped to a second row instead of overflowing.
+                    Bumping to `lg` (1140 px) gives the row the ~180 px of
+                    slack it needs without making the header feel detached
+                    from the `md`-sized content containers on the pages
+                    below. */}
+                <Container size="lg" className={classes.inner}>
                     <Box className={classes.logoContainer}>
                         <TransitionLink
                             href={HOME_LINK}
