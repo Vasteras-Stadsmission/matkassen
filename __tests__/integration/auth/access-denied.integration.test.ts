@@ -12,62 +12,7 @@ import { getTestDb } from "../../db/test-db";
 import { createTestUser, resetUserCounter } from "../../factories";
 import { users } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
-
-// Import the sanitizeCallbackUrl function by importing the module
-// Since it's not exported, we'll test the behavior through the page component
-// For now, we'll recreate the function logic for direct testing
-function sanitizeCallbackUrl(url: string): string {
-    const fallback = "/";
-
-    const hasUnsafeChars = (value: string) =>
-        value.includes("\\") || /[\u0000-\u001F\u007F]/.test(value);
-
-    const containsPercentEscapes = (value: string) => /%[0-9A-Fa-f]{2}/.test(value);
-
-    // Reject whitespace/control chars and obvious non-path values early.
-    if (url !== url.trim() || hasUnsafeChars(url)) {
-        return fallback;
-    }
-
-    // Decode up to twice to catch common double-encoding bypasses.
-    let decoded = url;
-    for (let i = 0; i < 2; i++) {
-        if (!containsPercentEscapes(decoded)) break;
-        try {
-            const next = decodeURIComponent(decoded);
-            if (next === decoded) break;
-            decoded = next;
-            if (hasUnsafeChars(decoded)) {
-                return fallback;
-            }
-        } catch {
-            return fallback;
-        }
-    }
-
-    // Only allow absolute paths (same-origin) and reject protocol-relative URLs.
-    if (!decoded.startsWith("/") || decoded.startsWith("//")) {
-        return fallback;
-    }
-
-    // Ensure URL parsing can't reinterpret the value as an external origin (e.g. "/\\evil.com").
-    try {
-        const base = new URL("https://example.invalid");
-        const parsed = new URL(decoded, base);
-        if (parsed.origin !== base.origin) {
-            return fallback;
-        }
-
-        const relative = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-        if (!relative.startsWith("/") || relative.startsWith("//") || hasUnsafeChars(relative)) {
-            return fallback;
-        }
-
-        return relative;
-    } catch {
-        return fallback;
-    }
-}
+import { sanitizeCallbackUrl } from "@/app/utils/auth/sanitize-callback-url";
 
 describe("Access Denied - Integration Tests", () => {
     beforeEach(() => {

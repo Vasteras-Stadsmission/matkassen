@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "@/app/i18n/navigation";
+import { sanitizeCallbackUrl } from "@/app/utils/auth/sanitize-callback-url";
 import { SignInClient } from "./SignInClient";
 
 type SearchParams = {
@@ -10,63 +11,6 @@ type SearchParams = {
 type Params = {
     locale: string;
 };
-
-/**
- * Validates a callback URL to prevent open redirect vulnerabilities.
- * Only allows relative paths that don't escape to external domains.
- */
-function sanitizeCallbackUrl(url: string): string {
-    const fallback = "/";
-
-    const hasUnsafeChars = (value: string) =>
-        value.includes("\\") || /[\u0000-\u001F\u007F]/.test(value);
-
-    const containsPercentEscapes = (value: string) => /%[0-9A-Fa-f]{2}/.test(value);
-
-    // Reject whitespace/control chars and obvious non-path values early.
-    if (url !== url.trim() || hasUnsafeChars(url)) {
-        return fallback;
-    }
-
-    // Decode up to twice to catch common double-encoding bypasses.
-    let decoded = url;
-    for (let i = 0; i < 2; i++) {
-        if (!containsPercentEscapes(decoded)) break;
-        try {
-            const next = decodeURIComponent(decoded);
-            if (next === decoded) break;
-            decoded = next;
-            if (hasUnsafeChars(decoded)) {
-                return fallback;
-            }
-        } catch {
-            return fallback;
-        }
-    }
-
-    // Only allow absolute paths (same-origin) and reject protocol-relative URLs.
-    if (!decoded.startsWith("/") || decoded.startsWith("//")) {
-        return fallback;
-    }
-
-    // Ensure URL parsing can't reinterpret the value as an external origin (e.g. "/\\evil.com").
-    try {
-        const base = new URL("https://example.invalid");
-        const parsed = new URL(decoded, base);
-        if (parsed.origin !== base.origin) {
-            return fallback;
-        }
-
-        const relative = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-        if (!relative.startsWith("/") || relative.startsWith("//") || hasUnsafeChars(relative)) {
-            return fallback;
-        }
-
-        return relative;
-    } catch {
-        return fallback;
-    }
-}
 
 // Server component for handling authentication redirect
 export default async function SignInPage({
