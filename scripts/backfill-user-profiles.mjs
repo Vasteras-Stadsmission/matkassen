@@ -90,7 +90,25 @@ async function backfillUserProfiles() {
         throw new Error("DATABASE_URL environment variable is required");
     }
 
-    const pool = new Pool({ connectionString });
+    // Mirrors the DATABASE_SSL parser in app/db/drizzle.ts. node-postgres has
+    // a different SSL option shape than postgres-js and also different defaults
+    // — `ssl: true` actually VERIFIES the CA via Node's tls defaults, so we
+    // can't use it for the lax "encrypt only" mode. Translate:
+    //   `require`     → { rejectUnauthorized: false } (encrypt, don't verify)
+    //   `verify-full` → { rejectUnauthorized: true }  (encrypt + verify)
+    const ssl = (() => {
+        const raw = process.env.DATABASE_SSL;
+        const mode = (raw || "").toLowerCase();
+        if (!mode || mode === "disable" || mode === "false") return undefined;
+        if (mode === "require" || mode === "true") return { rejectUnauthorized: false };
+        if (mode === "verify-full") return { rejectUnauthorized: true };
+        throw new Error(
+            `Unsupported DATABASE_SSL value: ${JSON.stringify(raw)}. ` +
+                `Expected one of: "require", "verify-full", "disable", or unset.`,
+        );
+    })();
+
+    const pool = new Pool({ connectionString, ...(ssl ? { ssl } : {}) });
     const db = drizzle(pool);
 
     try {

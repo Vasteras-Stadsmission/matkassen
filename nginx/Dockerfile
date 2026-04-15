@@ -19,12 +19,16 @@ RUN cd /tmp && \
 
 # The official nginx:alpine image already ships with an nginx user/group (uid 101)
 # and symlinks access/error logs to /dev/stdout and /dev/stderr. We only need to
-# drop the `user` directive (ignored/errored when master doesn't run as root)
-# and move the pid file to a writable path so nginx can run entirely as uid 101.
+# silence the `user` directive (it just logs a warning when the master isn't
+# running as root anyway) and move the pid file to a writable path so nginx can
+# run entirely as uid 101. The base image's nginx.conf uses `pid /run/nginx.pid;`
+# — match the filename rather than the full path to stay robust across image
+# updates (and verify with `grep` so a silent no-op fails the build).
 RUN sed -i \
-        -e 's/^user  *nginx;/# user directive disabled — running as non-root/' \
-        -e 's|/var/run/nginx.pid|/tmp/nginx.pid|' \
+        -e 's/^user[[:space:]]\+nginx;/# user directive disabled — running as non-root/' \
+        -e 's|[^[:space:]]*nginx\.pid|/tmp/nginx.pid|' \
         /etc/nginx/nginx.conf && \
+    grep -q '^pid  */tmp/nginx.pid;' /etc/nginx/nginx.conf && \
     chown -R nginx:nginx /var/cache/nginx /etc/nginx/conf.d /etc/nginx/shared.conf
 
 # Run as non-root. Port 8080 is used (see NGINX_PORT in generate-nginx-config.sh),

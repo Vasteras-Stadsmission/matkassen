@@ -92,17 +92,25 @@ if (!process.env.DATABASE_URL) {
     }
 }
 
-// SSL configuration for postgres connections.
-// DATABASE_SSL controls whether TLS is required:
+// SSL configuration for postgres connections. DATABASE_SSL controls whether
+// TLS is required:
 //   - "require" / "true": require TLS (use for external/managed DBs)
 //   - "verify-full": require TLS and verify the server certificate
-//   - unset/"disable": no TLS (appropriate for trusted internal Docker networks)
-// The postgres-js library also honors sslmode=... in the DATABASE_URL itself.
-const sslOption = (() => {
-    const mode = (process.env.DATABASE_SSL ?? "").toLowerCase();
-    if (mode === "require" || mode === "true") return "require" as const;
-    if (mode === "verify-full") return "verify-full" as const;
-    return undefined;
+//   - unset / "disable" / "false": no TLS (appropriate for trusted internal
+//     Docker networks)
+// Any other value throws — a silent fallback on a typo like "required" would
+// downgrade production to plaintext. The postgres-js library also honors
+// sslmode=... in the DATABASE_URL itself; options passed here take precedence.
+const sslOption = ((): "require" | "verify-full" | undefined => {
+    const raw = process.env.DATABASE_SSL;
+    const mode = (raw ?? "").toLowerCase();
+    if (!mode || mode === "disable" || mode === "false") return undefined;
+    if (mode === "require" || mode === "true") return "require";
+    if (mode === "verify-full") return "verify-full";
+    throw new Error(
+        `Unsupported DATABASE_SSL value: ${JSON.stringify(raw)}. ` +
+            `Expected one of: "require", "verify-full", "disable", or unset.`,
+    );
 })();
 
 // Export appropriate client and db based on environment
