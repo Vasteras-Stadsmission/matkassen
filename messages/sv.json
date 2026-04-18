@@ -107,15 +107,15 @@
             },
             "handoutStaff": {
                 "title": "Handbok för utlämningspersonal",
-                "description": "Vardagliga uppgifter: dagens utlämningar, uteblivna, QR-skanning och SMS."
+                "description": "För dig vid dörren — dagens utlämningar, uteblivna och SMS."
             },
             "caseWorker": {
                 "title": "Handbok för handläggare",
-                "description": "Registrering av hushåll och schemaläggning av matkassar."
+                "description": "För dig som tar emot nya hushåll, schemalägger matkassar och följer upp ärenden. Kräver administratörsrollen."
             },
             "admin": {
                 "title": "Handbok för administratörer",
-                "description": "Inställningar, utlämningsställen, scheman, registreringsformulär och ny personal."
+                "description": "För dig som sätter upp systemet — utlämningsställen, öppettider, registreringsformulär och ny personal. Kräver administratörsrollen."
             }
         }
     },

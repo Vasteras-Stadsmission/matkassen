@@ -122,15 +122,15 @@
             },
             "handoutStaff": {
                 "title": "Handout staff manual",
-                "description": "Day-to-day operations: today's handouts, no-shows, QR scanning, and SMS basics."
+                "description": "For you at the door — today's handouts, no-shows, and SMS."
             },
             "caseWorker": {
                 "title": "Case worker manual",
-                "description": "Registering households and scheduling food parcels."
+                "description": "For you welcoming new households, scheduling food parcels, and following up on issues. Requires the administrator role."
             },
             "admin": {
                 "title": "Administrator manual",
-                "description": "Settings, locations, schedules, verification checklist, and onboarding new staff."
+                "description": "For you setting up the system — locations, opening hours, enrollment checklist, and new staff. Requires the administrator role."
             }
         }
     },

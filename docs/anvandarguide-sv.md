@@ -11,7 +11,7 @@ Så här är webbplatsen uppbyggd:
 ```mermaid
 flowchart TB
     subgraph Personalens sidor
-        Start["🏠 Startsida<br/>(Uppföljning)"]
+        Start["🏠 Startsida<br/>(Behöver uppföljning)"]
 
         Schema["📅 Schema"]
         Hushall["👥 Hushåll"]
@@ -33,11 +33,11 @@ flowchart TB
 
         Installningar --> AllmannaInst["Allmänna"]
         Installningar --> Platser["Utlämningsställen"]
-        Installningar --> Matkassegranser["Matkassegränser"]
+        Installningar --> Matkassegranser["Varningsgräns för matkassar"]
     end
 
     subgraph Mottagarens sida
-        Mottagare["📱 Matpaket-sida<br/>(öppen för alla)"]
+        Mottagare["📱 Matkasse-sida<br/>(öppen för alla)"]
     end
 
     DagensUtlamningar -.->|"QR-kod<br/>kopplar ihop"| Mottagare
@@ -128,13 +128,13 @@ flowchart TD
 
 ---
 
-## Uppgift 3: Hantera problem (Uppföljning)
+## Uppgift 3: Hantera problem (Behöver uppföljning)
 
 Startsidan visar saker som behöver åtgärdas.
 
 ```mermaid
 flowchart TD
-    Start["🏠 Startsida (Uppföljning)"]
+    Start["🏠 Startsida (Behöver uppföljning)"]
 
     Start --> Problem1
     Start --> Problem2
@@ -144,7 +144,7 @@ flowchart TD
         O1["Matkasse som borde<br/>ha lämnats ut igår"]
         O1 --> O2{"Vad hände?"}
         O2 -->|"Glömde registrera"| O3["Klicka 'Utlämnad'"]
-        O2 -->|"Kom aldrig"| O4["Klicka 'Uteblev'"]
+        O2 -->|"Kom aldrig"| O4["Klicka 'Markera utebliven'"]
     end
 
     subgraph Problem2["Utanför öppettider"]
@@ -182,7 +182,7 @@ flowchart TD
     subgraph Mottagarens upplevelse
         R1["📱 Får SMS ca 48h innan<br/>med länk till sin sida"]
         R2["Klickar på länken"]
-        R3["Ser sin matpaket-sida"]
+        R3["Ser sin matkasse-sida"]
 
         subgraph Sidan visar
             I1["📍 Plats och adress"]
@@ -207,13 +207,13 @@ flowchart TD
 
 ### Statusar som mottagaren kan se
 
-| Status               | Färg   | Betydelse                |
-| -------------------- | ------ | ------------------------ |
-| Planerad             | Grå    | Väntar på hämtningsdagen |
-| Redo för upphämtning | Grön   | Dags att hämta!          |
-| Upphämtad            | Blå    | Redan hämtad             |
-| Förfallen            | Orange | Tiden har gått ut        |
-| Inställd             | Röd    | Avbokad                  |
+| Status             | Färg   | Betydelse                 |
+| ------------------ | ------ | ------------------------- |
+| Planerad           | Grå    | Väntar på utlämningsdagen |
+| Redo för utlämning | Grön   | Dags att hämta!           |
+| Utlämnad           | Blå    | Redan hämtad              |
+| Förfallen          | Orange | Tiden har gått ut         |
+| Inställd           | Röd    | Avbokad                   |
 
 ### Språkstöd
 
@@ -223,17 +223,17 @@ Mottagaren kan välja bland många språk: svenska, engelska, arabiska, somalisk
 
 ## Snabbreferens: Alla sidor
 
-| Sida                        | Vad du gör där                    |
-| --------------------------- | --------------------------------- |
-| **Uppföljning** (Startsida) | Se och åtgärda problem            |
-| **Schema**                  | Välj utlämningsställe             |
-| **Dagens utlämningar**      | Lämna ut matkassar, skanna QR     |
-| **Veckoschema**             | Se hela veckans bokningar, omboka |
-| **Hushåll**                 | Sök och visa alla hushåll         |
-| **Nytt hushåll**            | Registrera nytt hushåll           |
-| **Hushållsdetaljer**        | Se all info om ett hushåll        |
-| **Statistik**               | Se diagram och siffror            |
-| **Inställningar**           | Ändra systemkonfiguration         |
+| Sida                                | Vad du gör där                    |
+| ----------------------------------- | --------------------------------- |
+| **Behöver uppföljning** (Startsida) | Se och åtgärda problem            |
+| **Schema**                          | Välj utlämningsställe             |
+| **Dagens utlämningar**              | Lämna ut matkassar, skanna QR     |
+| **Veckoschema**                     | Se hela veckans bokningar, omboka |
+| **Hushåll**                         | Sök och visa alla hushåll         |
+| **Nytt hushåll**                    | Registrera nytt hushåll           |
+| **Hushållsdetaljer**                | Se all info om ett hushåll        |
+| **Statistik**                       | Se diagram och siffror            |
+| **Inställningar**                   | Ändra systemkonfiguration         |
 
 ---
 
@@ -242,7 +242,7 @@ Mottagaren kan välja bland många språk: svenska, engelska, arabiska, somalisk
 ### Före utdelningen
 
 - [ ] Logga in och gå till "Dagens utlämningar"
-- [ ] Kolla om det finns något under "Uppföljning"
+- [ ] Kolla om det finns något under "Behöver uppföljning"
 - [ ] Ha mobilen redo för QR-skanning
 
 ### Under utdelningen
@@ -253,7 +253,7 @@ Mottagaren kan välja bland många språk: svenska, engelska, arabiska, somalisk
 ### Efter utdelningen
 
 - [ ] Hantera eventuella uteblivna
-- [ ] Kolla "Uppföljning" nästa dag för missade registreringar
+- [ ] Kolla "Behöver uppföljning" nästa dag för missade registreringar
 
 ---
 
