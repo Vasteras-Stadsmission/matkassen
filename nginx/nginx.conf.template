@@ -23,30 +23,39 @@ server {
     # Include shared configuration (rate limiting, gzip, security headers, proxy settings)
     include /etc/nginx/shared.conf;
 
+    # NOTE: nginx's `proxy_set_header` uses "replace, not merge" semantics —
+    # any directives declared inside a location block drop ALL inherited
+    # `proxy_set_header` directives from the server/http scope. So each
+    # location below must list every header we want forwarded to Next.js,
+    # including X-Real-IP and X-Forwarded-For (used for rate limiting and
+    # CSP violation reports). Scalar directives like proxy_http_version do
+    # inherit and live in shared.conf.
+
     # Static assets with smart caching
     location /_next/static/ {
         proxy_pass http://nextjs_backend;
-        # Ensure correct host and forwarded headers reach Next.js (local only)
-        # The shared.conf sets these generally; we duplicate in local to be explicit
         proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header X-Forwarded-Port $server_port;
-        # Proxy settings are inherited from shared.conf
+        proxy_set_header X-Accel-Buffering no;
         # Let Next.js handle caching headers
     }
 
     # Everything else goes to Next.js
     location / {
         proxy_pass http://nextjs_backend;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        # Ensure correct host and forwarded headers reach Next.js (local only)
-        # The shared.conf sets these generally; we duplicate in local to be explicit
         proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header X-Forwarded-Port $server_port;
-        # Other proxy settings are inherited from shared.conf
+        proxy_set_header X-Accel-Buffering no;
+        # WebSocket support (Next.js HMR, server-sent events, etc.)
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
     }
 }
