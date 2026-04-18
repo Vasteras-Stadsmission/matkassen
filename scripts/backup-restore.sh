@@ -81,9 +81,13 @@ EXEC_ENV_ARGS=(-e "BACKUP_FILENAME=$BACKUP_FILENAME")
 if [ -n "${POSTGRES_DB:-}" ]; then
     EXEC_ENV_ARGS+=(-e "POSTGRES_DB=$POSTGRES_DB")
 fi
+# Use bash explicitly rather than sh. On Alpine, /bin/sh is BusyBox ash,
+# which supports the herestring below (3<<<"$PASS") only via the
+# ASH_BASH_COMPAT build flag. The image has bash installed, so pinning
+# to bash removes that implicit dependency.
 $COMPOSE_CMD $COMPOSE_FILES --profile backup exec \
     "${EXEC_ENV_ARGS[@]}" \
-    db-backup sh -c '
+    db-backup bash -c '
     set -euo pipefail
     set +x
 

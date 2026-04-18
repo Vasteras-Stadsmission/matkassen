@@ -306,6 +306,92 @@ exit 0
         expect(notifications).toContain("pg_dump|gpg");
         expect(notifications).toMatch(/"text":\s*"\[matkassen\]/);
     });
+
+    it("notifies Slack when rclone upload fails", () => {
+        // The ERR trap also has to catch rclone failures, not just pg_dump.
+        for (const f of fs.readdirSync(fakeRemote)) {
+            fs.rmSync(path.join(fakeRemote, f));
+        }
+        const realRclone = fs.readFileSync(path.join(mockBin, "rclone"), "utf-8");
+        // Override just the 'copy' verb with a failure; keep the rest working.
+        fs.writeFileSync(
+            path.join(mockBin, "rclone"),
+            `#!/bin/bash
+if [ "$1" = "copy" ]; then
+    echo "simulated rclone upload failure" >&2
+    exit 7
+fi
+${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
+        );
+        fs.chmodSync(path.join(mockBin, "rclone"), 0o755);
+
+        const curlLog = path.join(testRoot, "curl.log");
+        fs.writeFileSync(curlLog, "");
+
+        const { stdout } = runBackup({
+            SLACK_BOT_TOKEN: "xoxb-test",
+            SLACK_CHANNEL_ID: "C_TEST",
+            CURL_LOG: curlLog,
+        });
+
+        fs.writeFileSync(path.join(mockBin, "rclone"), realRclone);
+        fs.chmodSync(path.join(mockBin, "rclone"), 0o755);
+
+        const notifications = fs.readFileSync(curlLog, "utf-8");
+        expect(stdout).toMatch(/Backup aborted in stage '?rclone upload/);
+        expect(notifications).toContain("rclone upload");
+    });
+
+    it("fails validation when the sentinel 'households' table is missing", () => {
+        // The sentinel check protects against a corrupted or truncated dump
+        // that's still technically parseable by `pg_restore --list`. Stub
+        // it to return a TOC that omits the households entry and confirm
+        // validation reports failure.
+        for (const f of fs.readdirSync(fakeRemote)) {
+            fs.rmSync(path.join(fakeRemote, f));
+        }
+        const realPgRestore = fs.readFileSync(path.join(mockBin, "pg_restore"), "utf-8");
+        fs.writeFileSync(
+            path.join(mockBin, "pg_restore"),
+            `#!/bin/bash
+if [ "$1" = "--list" ]; then
+    cat <<'EOF'
+;
+; Archive created at 2026-04-14
+; dbname: matkassen
+;
+1; 0 0 ENCODING - ENCODING
+2; 0 0 STDSTRINGS - STDSTRINGS
+3; 0 0 SEARCHPATH - SEARCHPATH
+4; 200 1259 TABLE public some_other_table matkassen
+EOF
+    exit 0
+fi
+cat >/dev/null
+exit 0
+`,
+        );
+        fs.chmodSync(path.join(mockBin, "pg_restore"), 0o755);
+
+        const curlLog = path.join(testRoot, "curl.log");
+        fs.writeFileSync(curlLog, "");
+
+        const { stdout } = runBackup({
+            SLACK_BOT_TOKEN: "xoxb-test",
+            SLACK_CHANNEL_ID: "C_TEST",
+            CURL_LOG: curlLog,
+        });
+
+        fs.writeFileSync(path.join(mockBin, "pg_restore"), realPgRestore);
+        fs.chmodSync(path.join(mockBin, "pg_restore"), 0o755);
+
+        const notifications = fs.readFileSync(curlLog, "utf-8");
+        expect(stdout).toContain("sentinel table 'households' is missing");
+        // The script exits 1 on validation failure and the final Slack
+        // alert is a "validation failed" message, not the generic ERR
+        // trap — assert on that specific phrasing.
+        expect(notifications).toContain("validation failed");
+    });
 });
 
 describe("Restore script argument handling", () => {
@@ -351,5 +437,87 @@ describe("Restore script argument handling", () => {
         }
         expect(exitCode).not.toBe(0);
         expect(stderr).toMatch(/ENV_NAME=production/);
+    });
+});
+
+describe("Restore script POSTGRES_DB forwarding", () => {
+    // Regression test for the High-severity bug: passing -e POSTGRES_DB=""
+    // clobbered the backup container's own POSTGRES_DB with an empty
+    // string when the operator hadn't exported it locally. The fix only
+    // forwards -e POSTGRES_DB when set. We verify that by stubbing
+    // `docker` on PATH to record its invocation argv.
+    const testRoot = path.join(os.tmpdir(), `backup-restore-test-${Date.now()}`);
+    const mockBin = path.join(testRoot, "bin");
+    const dockerLog = path.join(testRoot, "docker.log");
+    const restoreScript = path.join(process.cwd(), "scripts/backup-restore.sh");
+
+    beforeAll(() => {
+        fs.mkdirSync(mockBin, { recursive: true });
+        // Stub `docker`: print each argv line to DOCKER_LOG and exit 0.
+        // The restore script calls `docker compose version` first (passes
+        // through as success) and then `docker compose ... exec ...` which
+        // we need to capture. We serialise argv per call on one line so
+        // the test can grep for the exec line specifically.
+        fs.writeFileSync(
+            path.join(mockBin, "docker"),
+            `#!/bin/bash
+printf '%s\\n' "docker $*" >> "\${DOCKER_LOG:-/dev/null}"
+# docker compose version — succeed quietly so the wrapper-detection path
+# in backup-restore.sh is a no-op.
+if [ "\${1:-}" = "compose" ] && [ "\${2:-}" = "version" ]; then
+    echo "Docker Compose version v2.stub"
+    exit 0
+fi
+# docker compose exec — just acknowledge success without doing anything.
+exit 0
+`,
+        );
+        fs.chmodSync(path.join(mockBin, "docker"), 0o755);
+    });
+
+    afterAll(() => {
+        if (fs.existsSync(testRoot)) {
+            fs.rmSync(testRoot, { recursive: true, force: true });
+        }
+    });
+
+    function runRestore(extraEnv: Record<string, string> = {}): string {
+        fs.writeFileSync(dockerLog, "");
+        try {
+            execFileSync(restoreScript, ["matkassen_backup_20260101_020000.dump.gpg"], {
+                env: {
+                    ...process.env,
+                    PATH: `${mockBin}:${process.env.PATH}`,
+                    ENV_NAME: "production",
+                    DB_BACKUP_PASSPHRASE: "test-passphrase",
+                    SWIFT_CONTAINER: "test",
+                    DOCKER_LOG: dockerLog,
+                    ...extraEnv,
+                },
+                stdio: "pipe",
+                // "y\n" to the confirm prompt
+                input: "y\n",
+            });
+        } catch {
+            // docker stub exits 0 but the outer script may still fail for
+            // other reasons in ancillary commands — we only care about the
+            // recorded docker argv, which is written regardless.
+        }
+        return fs.readFileSync(dockerLog, "utf-8");
+    }
+
+    it("omits -e POSTGRES_DB when the caller has not exported it", () => {
+        const log = runRestore();
+        const execLine = log.split("\n").find(l => l.includes(" exec "));
+        expect(execLine).toBeDefined();
+        expect(execLine).toContain("-e BACKUP_FILENAME=");
+        expect(execLine).not.toMatch(/-e POSTGRES_DB/);
+    });
+
+    it("forwards -e POSTGRES_DB when the caller has exported it", () => {
+        const log = runRestore({ POSTGRES_DB: "matkassen_restore_drill" });
+        const execLine = log.split("\n").find(l => l.includes(" exec "));
+        expect(execLine).toBeDefined();
+        expect(execLine).toContain("-e POSTGRES_DB=matkassen_restore_drill");
     });
 });
