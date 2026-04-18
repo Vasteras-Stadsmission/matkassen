@@ -1,6 +1,6 @@
-# Handbok för handläggare (sv)
+# Handbok för handläggare
 
-Kort guide för dig som registrerar hushåll och schemalägger matkassar.
+Den här handboken vänder sig till dig som tar emot hushåll och schemalägger matkassar. Du behöver administratörsrollen för att komma åt sidorna nedan, men de flesta handläggare rör sällan inställningssidorna – se [Adminhandboken](./administrator) för det.
 
 ## Snabbstart
 
@@ -42,13 +42,13 @@ Boka in hämtningstider för hushållet. Det finns två sätt att boka – välj
 **Från hushållskortet** – när du vill säkerställa att ett visst hushåll får matkasse:
 
 - Öppna hushållet → `Hantera matkassar`
-- Välj hämtplats och lägg till datum/tider
+- Välj utlämningsställe och lägg till datum/tider
 - Klicka `Spara matkassar`
 
-**Från veckovyn** – när du vill se lediga tider och fylla luckor:
+**Från Veckoschema** – när du vill se lediga tider och fylla luckor:
 
-- Gå till `Schema` → välj utlämningsställe → veckovy
-- Veckovyn visar alla tider och beläggning, även veckor utan bokningar
+- Gå till `Schema` → välj utlämningsställe → `Veckoschema`
+- Veckoschemat visar alla tider och beläggning, även veckor utan bokningar
 - Klicka på en ledig tid och välj hushåll
 - Bra när du vill fördela hushåll jämnt över tillgängliga tider
 
@@ -86,7 +86,7 @@ Intern information kopplad till hushållet.
 
 Startsidan visar ärenden som behöver åtgärdas:
 
-1. **Olösta utlämningar** – tidigare bokningar utan utfall.
+1. **Oregistrerade utlämningar** – tidigare bokningar utan utfall.
 2. **Utanför öppettiderna** – bokningar utanför platsens öppettider.
 3. **Misslyckade SMS** – sändningsfel att hantera.
 

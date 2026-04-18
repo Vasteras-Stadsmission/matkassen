@@ -1,27 +1,27 @@
 {
     "publicParcel": {
-        "title": "Matpaket Upphämtning",
-        "pickupInfo": "Upphämtningsinformation",
+        "title": "Matkasseutlämning",
+        "pickupInfo": "Utlämningsinformation",
         "location": "Plats",
-        "pickupWindow": "Upphämtningstid",
+        "pickupWindow": "Utlämningstid",
         "qrCodeLabel": "QR-kod",
-        "qrCodeDescription": "Visa denna QR-kod när du hämtar ditt matpaket",
+        "qrCodeDescription": "Visa denna QR-kod när du hämtar din matkasse",
         "mapsLabel": "Få vägbeskrivning",
         "googleMaps": "Google Maps",
         "appleMaps": "Apple Maps",
         "status": {
             "scheduled": "Planerad",
-            "ready": "Redo för upphämtning",
-            "collected": "Upphämtad",
+            "ready": "Redo för utlämning",
+            "collected": "Utlämnad",
             "expired": "Förfallen",
             "cancelled": "Inställd"
         },
         "statusDescription": {
-            "scheduled": "Din upphämtning är planerad. Vänligen kom under upphämtningstiden.",
-            "ready": "Ditt matpaket är redo för upphämtning nu!",
-            "collected": "Detta matpaket har redan hämtats.",
-            "expired": "Denna upphämtning är inte längre giltig. Vänligen kontakta personal om du har frågor.",
-            "cancelled": "Denna upphämtning har ställts in. Du behöver inte komma."
+            "scheduled": "Din utlämning är planerad. Vänligen kom under utlämningstiden.",
+            "ready": "Din matkasse är redo att hämtas nu!",
+            "collected": "Denna matkasse har redan hämtats.",
+            "expired": "Denna utlämning är inte längre giltig. Vänligen kontakta personal om du har frågor.",
+            "cancelled": "Denna utlämning har ställts in. Du behöver inte komma."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {

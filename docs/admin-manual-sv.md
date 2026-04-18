@@ -1,6 +1,6 @@
-# Adminhandbok – Inställningar (sv)
+# Adminhandbok – Inställningar
 
-Kort översikt av kugghjulsmenyn. Avsedd för administratörer och koordinatorer.
+Den här handboken vänder sig till dig som sätter upp systemet – utlämningsställen, öppettider, registreringsformulär och liknande. Du behöver administratörsrollen. För det dagliga handläggararbetet (registrera hushåll, schemalägga matkassar, följa upp ärenden), se [Handläggarhandboken](./case-worker).
 
 ## Lägga till ny personal
 
@@ -76,8 +76,8 @@ Varningssystem för att identifiera hushåll med högt antal matkassar.
 ## Rekommenderat arbetssätt
 
 - Gör plats- och schemaändringar på dator för bäst överblick.
-- Efter schemaändringar: kontrollera veckovyn i `Schema` så att tiderna ser rätt ut.
-- Lös ärenden på startsidan regelbundet (olösta utlämningar, fel i SMS osv.).
+- Efter schemaändringar: kontrollera `Veckoschema` i `Schema` så att tiderna ser rätt ut.
+- Lös ärenden på startsidan regelbundet (oregistrerade utlämningar, fel i SMS osv.).
 
 ## Felsökning
 

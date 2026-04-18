@@ -1,4 +1,4 @@
-# Handbok för utlämningspersonal (sv)
+# Handbok för utlämningspersonal
 
 Kort guide för dig som lämnar ut matkassar.
 
@@ -9,45 +9,45 @@ Kort guide för dig som lämnar ut matkassar.
 - För dagen-vid-dörren: mobiltelefon är smidigast (se Dagens utdelningar).
 - För planering och större ändringar: använd dator.
 
-## Veckoplanering (veckovy)
+## Veckoschema
 
 Översikt över kommande bokningar och beläggning.
 
-- Gå till `Schema` → veckovy för valt utlämningsställe.
+- Gå till `Schema` → `Veckoschema` för valt utlämningsställe.
 - Se beläggning per dag, hitta luckor och flytta tider vid behov.
 - Klicka på en ledig tid för att boka in ett hushåll direkt.
-- Veckovyn visar alla tider även veckor utan bokningar – bra för att se tillgängliga tider.
-- Använd veckovy när du planerar kommande dagar/veckor.
+- Veckoschemat visar alla tider även veckor utan bokningar – bra för att se tillgängliga tider.
+- Använd Veckoschema när du planerar kommande dagar/veckor.
 
-## Dagens utlämningar (dagvy)
+## Dagens utlämningar
 
-Arbetsvy för att hantera dagens hämtningar.
+Arbetsvy för att hantera dagens utlämningar.
 
-- Gå till `Schema` → `Dagens utlämningar` för din favoritplats (eller välj plats i listan).
+- Gå till `Schema` → `Dagens utlämningar` för din favoritplats (eller välj utlämningsställe i listan).
 - Visar bara dagens bokningar, grupperade per tidsfönster, med progressräknare.
 - Uppdatera vid behov (dra ner på mobil eller använd uppdatera-knappen).
-- Öppna en rad för att se detaljer och markera "Hämtad" eller "Ej hämtad" (no-show).
+- Öppna en rad för att se detaljer och välj `Markera utlämnad` eller `Markera utebliven`.
 - Bäst på mobil när du står i dörren.
 
-## Markera ej hämtad (no-show)
+## Markera utebliven
 
 Registrera när mottagaren inte hämtar sin matkasse.
 
-- Om mottagaren inte dyker upp: öppna bokningen och markera "Ej hämtad".
+- Om mottagaren inte dyker upp: öppna bokningen och välj `Markera utebliven`.
 - Kan endast göras för dagens eller tidigare bokningar.
-- Hjälper till att hålla statistiken korrekt och rensa olösta utlämningar.
+- Hjälper till att hålla statistiken korrekt och rensa oregistrerade utlämningar.
 
 ## Hitta hushåll och boka
 
 Sök upp hushåll och hantera deras bokningar.
 
 - `Hushåll`: sök på namn/telefon, öppna kortet och se historik och kommentarer.
-- Skapa nytt hushåll när någon är ny; fyll i namn, telefon och hämtningsplats.
+- Skapa nytt hushåll när någon är ny; fyll i namn, telefon och utlämningsställe.
 - Telefonnummer visas alltid som +467... (E.164-standard). Om du anger 07... konverteras det automatiskt – detta är avsiktligt.
 
 **När du bokar från hushållskortet** – bra när du vill säkerställa att ett visst hushåll får matkasse.
 
-**När du bokar från veckovyn** – bra när du vill se lediga tider och fördela hushåll jämnt. Veckovyn visar alla tider och beläggning, även veckor utan bokningar.
+**När du bokar från Veckoschema** – bra när du vill se lediga tider och fördela hushåll jämnt. Veckoschemat visar alla tider och beläggning, även veckor utan bokningar.
 
 ## Kommentarer
 
@@ -71,14 +71,14 @@ Automatiska påminnelser till mottagarna.
 
 Snabb identifiering av mottagare vid utlämning.
 
-- QR-kod är ett hjälpmedel, inte ett krav; du hittar alltid bokningen via `Dagens utlämningar` och kan markera hämtad där.
+- QR-kod är ett hjälpmedel, inte ett krav; du hittar alltid bokningen via `Dagens utlämningar` och kan välja `Markera utlämnad` där.
 - Snabbast: be mottagaren öppna QR-koden i sitt SMS på sin egen mobil och skanna med din mobilkamera.
 - Alternativ (t.ex. vid laptop): använd QR-scannersidan via länk i navigationen.
-- När du öppnar bokningen: kontrollera uppgifter och markera "Hämtad".
+- När du öppnar bokningen: kontrollera uppgifter och välj `Markera utlämnad`.
 
 ## Tips under utdelning
 
-- Håll dig i dagvyn för att undvika att missa sena ankomster; samma dag visas alltid som "kommande" tills du markerar hämtad.
+- Håll dig i `Dagens utlämningar` för att undvika att missa sena ankomster; samma dag visas alltid som "kommande" tills du markerar den utlämnad.
 - Lägg en kommentar i hushållskortet om något avviker (t.ex. fel nummer, bud hämtar).
 - Vid frågor om plats eller tider: öppna länken i SMS:et – den visar adress och karta.
 
@@ -86,8 +86,8 @@ Snabb identifiering av mottagare vid utlämning.
 
 **Hittar inte hushållet** – Rensa sökfältet, uppdatera sidan, kontrollera stavning.
 
-**Kan inte markera hämtad** – Kontrollera att bokningen inte redan är markerad eller borttagen.
+**Kan inte markera utlämnad** – Kontrollera att bokningen inte redan är markerad eller borttagen.
 
-**Mottagaren fick inget SMS** – Kontrollera hushållets SMS-historik via hushållskortet, eller be en administratör titta i uppföljningsvyn. Dela annars länken direkt.
+**Mottagaren fick inget SMS** – Kontrollera hushållets SMS-historik via hushållskortet, eller be en administratör titta i `Behöver uppföljning`. Dela annars länken direkt.
 
 **QR-kod skannar inte** – Höj skärmljusstyrkan, testa annan vinkel, eller sök fram bokningen manuellt i `Dagens utlämningar`.
