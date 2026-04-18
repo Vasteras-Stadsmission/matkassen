@@ -207,13 +207,13 @@ flowchart TD
 
 ### Statusar som mottagaren kan se
 
-| Status             | Färg   | Betydelse                 |
-| ------------------ | ------ | ------------------------- |
-| Planerad           | Grå    | Väntar på utlämningsdagen |
-| Redo för utlämning | Grön   | Dags att hämta!           |
-| Utlämnad           | Blå    | Redan hämtad              |
-| Förfallen          | Orange | Tiden har gått ut         |
-| Inställd           | Röd    | Avbokad                   |
+| Status               | Färg   | Betydelse                |
+| -------------------- | ------ | ------------------------ |
+| Planerad             | Grå    | Väntar på hämtningsdagen |
+| Redo för upphämtning | Grön   | Dags att hämta!          |
+| Upphämtad            | Blå    | Redan hämtad             |
+| Förfallen            | Orange | Tiden har gått ut        |
+| Inställd             | Röd    | Avbokad                  |
 
 ### Språkstöd
 

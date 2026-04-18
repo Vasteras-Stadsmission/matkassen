@@ -1,9 +1,9 @@
 {
     "publicParcel": {
-        "title": "Matkasseutlämning",
-        "pickupInfo": "Utlämningsinformation",
+        "title": "Matkasse – upphämtning",
+        "pickupInfo": "Upphämtningsinformation",
         "location": "Plats",
-        "pickupWindow": "Utlämningstid",
+        "pickupWindow": "Upphämtningstid",
         "qrCodeLabel": "QR-kod",
         "qrCodeDescription": "Visa denna QR-kod när du hämtar din matkasse",
         "mapsLabel": "Få vägbeskrivning",
@@ -11,17 +11,17 @@
         "appleMaps": "Apple Maps",
         "status": {
             "scheduled": "Planerad",
-            "ready": "Redo för utlämning",
-            "collected": "Utlämnad",
+            "ready": "Redo för upphämtning",
+            "collected": "Upphämtad",
             "expired": "Förfallen",
             "cancelled": "Inställd"
         },
         "statusDescription": {
-            "scheduled": "Din utlämning är planerad. Vänligen kom under utlämningstiden.",
-            "ready": "Din matkasse är redo att hämtas nu!",
+            "scheduled": "Din upphämtning är planerad. Vänligen kom under upphämtningstiden.",
+            "ready": "Din matkasse är redo för upphämtning nu!",
             "collected": "Denna matkasse har redan hämtats.",
-            "expired": "Denna utlämning är inte längre giltig. Vänligen kontakta personal om du har frågor.",
-            "cancelled": "Denna utlämning har ställts in. Du behöver inte komma."
+            "expired": "Denna upphämtning är inte längre giltig. Vänligen kontakta personal om du har frågor.",
+            "cancelled": "Denna upphämtning har ställts in. Du behöver inte komma."
         },
         "pickupWindowFormat": "{startTime} - {endTime}",
         "dateFormat": {
