@@ -367,13 +367,7 @@ docker exec -i matkassen-db psql -U matkassen matkassen < backup.sql
 
 ### Production (Encrypted with GPG) 🔒
 
-Production backups are **always encrypted** for GDPR compliance.
-
-#### Prerequisites
-
-1. **DB_BACKUP_PASSPHRASE** - Get from team lead or GitHub Secrets
-2. **Encrypted backup file** - `.sql.gpg` format
-3. **Server access** - SSH to production server
+Production backups are encrypted with symmetric AES256 GPG before they leave the host. The full pipeline (`pg_dump → gpg → rclone → Swift`) plus the round-trip validation that runs after each upload lives in `scripts/backup-db.sh`. See `docs/deployment-guide.md` for setup, monitoring, troubleshooting, and passphrase rotation.
 
 #### Restore Procedure
 
@@ -382,26 +376,19 @@ Production backups are **always encrypted** for GDPR compliance.
 ```bash
 # 1. SSH to production server
 ssh matkassen-production
+cd ~/matkassen
 
-# 2. Set required environment variables
+# 2. Export the same passphrase the backup was encrypted with
 export DB_BACKUP_PASSPHRASE="your-passphrase-from-github-secrets"
-export POSTGRES_HOST=localhost
-export POSTGRES_USER=matkassen
-export POSTGRES_DB=matkassen
-export POSTGRES_PASSWORD="production-db-password"
+export ENV_NAME=production
 
-# 3. Restore from encrypted backup (requires --force flag for safety)
-./scripts/db-restore.sh /var/backups/matkassen/matkassen_backup_20250101_120000.sql.gpg --force
+# 3. List available backups
+./scripts/backup-restore.sh
+# (running with no arg prints the last 20 backups in Swift)
+
+# 4. Restore by filename — the script downloads from Swift and prompts y/N
+./scripts/backup-restore.sh matkassen_backup_20250101_020000.dump.gpg
 ```
-
-#### What the Restore Script Does
-
-1. ✅ Validates all environment variables are set
-2. ✅ Verifies backup file exists
-3. ✅ Checks SHA256 checksum (if `.sha256` file exists)
-4. ✅ Decrypts using GPG (no intermediate plaintext files)
-5. ✅ Pipes directly to `pg_restore` → database
-6. ✅ Uses `--clean --if-exists` (drops existing objects first)
 
 #### Post-Restore Steps
 
@@ -410,80 +397,35 @@ export POSTGRES_PASSWORD="production-db-password"
 curl https://matcentralen.com/api/health
 
 # 2. Run pending migrations (if schema changed)
-cd ~/matkassen
 pnpm run db:migrate
 
 # 3. Restart application containers
 docker compose restart web
 
-# 4. Test critical functionality
-# - Login as admin
-# - View households list
-# - Create test parcel
+# 4. Sanity-check critical flows: login, households list, create parcel
 ```
 
-#### Troubleshooting
+#### Restore Drill
 
-**Wrong passphrase:**
-
-```
-gpg: decryption failed: Bad session key
-```
-
-→ Double-check `DB_BACKUP_PASSPHRASE` value
-
-**Checksum verification failed:**
-
-```
-ERROR: Checksum verification failed
-The backup file may be corrupted or tampered with
-```
-
-→ Re-download backup file from backup storage
-
-**Permission denied:**
-
-```
-ERROR: must be owner of extension plpgsql
-```
-
-→ Use `--no-owner --no-privileges` (already included in script)
-
-#### Creating Manual Backups
+Run a real restore against a scratch database periodically (quarterly is a reasonable cadence) — the nightly `pg_restore --list` validation only proves the dump is structurally parseable, not that an actual `pg_restore` succeeds.
 
 ```bash
-# Set environment variables
-export DB_BACKUP_PASSPHRASE="..."
-export POSTGRES_PASSWORD="..."
+# 1. Create a scratch database alongside the live one
+docker exec -it matkassen-db psql -U matkassen \
+    -c "CREATE DATABASE matkassen_restore_drill"
 
-# Run backup script
-./scripts/db-backup.sh
+# 2. Run the restore against the scratch database
+POSTGRES_DB=matkassen_restore_drill \
+    ./scripts/backup-restore.sh matkassen_backup_<timestamp>.dump.gpg
 
-# Output:
-# /var/backups/matkassen/matkassen_backup_YYYYMMDD_HHMMSS.sql.gpg
-# /var/backups/matkassen/matkassen_backup_YYYYMMDD_HHMMSS.sql.gpg.sha256
+# 3. Confirm data is present
+docker exec -it matkassen-db psql -U matkassen -d matkassen_restore_drill \
+    -c "SELECT COUNT(*) FROM households"
+
+# 4. Tear down
+docker exec -it matkassen-db psql -U matkassen \
+    -c "DROP DATABASE matkassen_restore_drill"
 ```
-
-#### Backup Testing
-
-Test restore procedure every 6 months (GDPR compliance):
-
-```bash
-# 1. Create test database
-docker exec -it matkassen-db psql -U matkassen -c "CREATE DATABASE matkassen_restore_test"
-
-# 2. Restore to test database
-export POSTGRES_DB=matkassen_restore_test
-./scripts/db-restore.sh /path/to/backup.sql.gpg --force
-
-# 3. Verify data integrity
-docker exec -it matkassen-db psql -U matkassen -d matkassen_restore_test -c "SELECT COUNT(*) FROM households"
-
-# 4. Clean up
-docker exec -it matkassen-db psql -U matkassen -c "DROP DATABASE matkassen_restore_test"
-```
-
-**For automated backup configuration and initial setup:** See `docs/deployment-guide.md`
 
 ## Related Documentation
 

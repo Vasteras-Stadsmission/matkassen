@@ -1,11 +1,25 @@
 #!/bin/bash
 
-# PostgreSQL backup script for Elastx Object Store using rclone
-# Performs pg_dump and uploads to OpenStack Swift with automatic expiry headers
-# Uses Swift's X-Delete-After header for reliable retention management
+# PostgreSQL encrypted backup script for Elastx Object Store
+#
+# Pipeline:
+#   pg_dump --format=custom → gpg --symmetric AES256 → /tmp/<file>.dump.gpg
+#   → rclone copy to Swift → set X-Delete-After expiry header
+#   → download → decrypt → pg_restore --list (round-trip validation)
+#   → Slack notify
+#
+# Encryption: symmetric AES256 with DB_BACKUP_PASSPHRASE (passed via fd 3,
+# never via argv). Binary armor (no --armor) since the destination is object
+# storage, not email.
+#
+# Validation runs end-to-end including decryption — a wrong passphrase or
+# corrupted upload fails the same night, before anyone needs the backup.
 
 set -euo pipefail
 set -o errtrace
+
+# Disable command echo to keep the passphrase out of any trace logs
+set +x
 
 notify_slack() {
         # Sends a Slack message via bot API with readable formatting
@@ -40,7 +54,7 @@ notify_slack() {
             {"type":"mrkdwn","text":"*Drill*\\n${drill_emoji} ${_drill}"},\
             {"type":"mrkdwn","text":"*Host*\\n${host}"}\
         ]}\
-    ]\
+    ]
 }
 EOF
 )
@@ -51,42 +65,78 @@ EOF
         fi
 }
 
-# Configuration
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILENAME="matkassen_backup_${TIMESTAMP}.dump"
-TEMP_DIR="/tmp/backups"
-RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-14}
-PREFIX=${SWIFT_PREFIX:-backups}
-RCLONE_REMOTE="elastx:${SWIFT_CONTAINER}/${PREFIX}"
-PGPASS_FILE="/tmp/.pgpass"
-
-# Cleanup function for temporary files
-cleanup() {
-    rm -f "$PGPASS_FILE" "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}" "${VALIDATION_FILE:-}"
-}
-
-# Ensure cleanup happens on exit
-trap 'cleanup' ERR
-trap 'cleanup' EXIT
-
-# Ensure temp directory exists
-mkdir -p "$TEMP_DIR"
-
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-START_TS=$(date +%s)
-log "Starting PostgreSQL backup process"
+# Configuration
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_FILENAME="matkassen_backup_${TIMESTAMP}.dump.gpg"
+TEMP_DIR="/tmp/backups"
+RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-14}
+PREFIX=${SWIFT_PREFIX:-backups}
+RCLONE_REMOTE="elastx:${SWIFT_CONTAINER}/${PREFIX}"
+ENCRYPTED_FILE="$TEMP_DIR/$BACKUP_FILENAME"
+PGPASS_FILE=""
+VALIDATION_DOWNLOAD=""
+VALIDATION_PLAINTEXT=""
+VALIDATION_OUTPUT=""
+VALIDATION_ERRORS=""
+EXPIRY_OK=""
+LOCK_FD=9
+LOCK_FILE="/tmp/backup.lock"
 
-# Create secure .pgpass file instead of using PGPASSWORD environment variable
-# This prevents password exposure in process lists and logs
-echo "${POSTGRES_HOST}:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASS_FILE"
+cleanup() {
+    rm -f "${PGPASS_FILE:-}" "$ENCRYPTED_FILE" \
+        "${VALIDATION_DOWNLOAD:-}" "${VALIDATION_PLAINTEXT:-}" \
+        "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}"
+}
+trap 'cleanup' ERR
+trap 'cleanup' EXIT
+
+# Prevent concurrent runs (cron + manual backup-manage.sh test).
+# flock is available in the Alpine container but not on macOS (dev/test).
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCK_FILE"
+    if ! flock -n $LOCK_FD; then
+        log "ERROR: Another backup is already running (lock held on $LOCK_FILE)"
+        notify_slack failure "Backup aborted - another backup is already running"
+        exit 1
+    fi
+fi
+
+# Fail fast on missing encryption passphrase. The variable is required in
+# both deploy.sh and update.sh for production; if it's unset here the env
+# wiring into the container is broken (see docker-compose.backup.yml).
+if [ -z "${DB_BACKUP_PASSPHRASE:-}" ]; then
+    log "ERROR: DB_BACKUP_PASSPHRASE is not set in the backup container"
+    log "Check docker-compose.backup.yml env block and host .env file"
+    notify_slack failure "Backup aborted - DB_BACKUP_PASSPHRASE missing in container"
+    exit 1
+fi
+
+if ! command -v gpg >/dev/null 2>&1; then
+    log "ERROR: gpg is not installed in the backup image"
+    notify_slack failure "Backup aborted - gpg missing from container"
+    exit 1
+fi
+
+mkdir -p "$TEMP_DIR"
+
+START_TS=$(date +%s)
+log "Starting encrypted PostgreSQL backup process"
+
+# Use a .pgpass file rather than PGPASSWORD to keep the password out of
+# /proc/<pid>/environ for any sibling process inspection. mktemp avoids
+# a fixed filename that would collide if two runs overlap.
+PGPASS_FILE=$(mktemp -t .pgpass.XXXXXX)
 chmod 600 "$PGPASS_FILE"
+echo "${POSTGRES_HOST}:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASS_FILE"
 export PGPASSFILE="$PGPASS_FILE"
 
-# Perform database dump
-log "Creating database dump: $BACKUP_FILENAME"
+# pg_dump → gpg, no intermediate plaintext file. The passphrase is fed on
+# fd 3 so it never lands in argv.
+log "Creating encrypted database dump: $BACKUP_FILENAME"
 pg_dump \
     -h "$POSTGRES_HOST" \
     -U "$POSTGRES_USER" \
@@ -96,31 +146,26 @@ pg_dump \
     --compress=9 \
     --no-owner \
     --no-privileges \
-    --file="$TEMP_DIR/$BACKUP_FILENAME"
+    | gpg --symmetric --cipher-algo AES256 --batch \
+        --passphrase-fd 3 --pinentry-mode loopback \
+        --output "$ENCRYPTED_FILE" \
+        3<<<"$DB_BACKUP_PASSPHRASE"
 
-# Check if dump was successful
-if [ ! -f "$TEMP_DIR/$BACKUP_FILENAME" ] || [ ! -s "$TEMP_DIR/$BACKUP_FILENAME" ]; then
-    log "ERROR: Database dump failed or is empty"
-    notify_slack failure "Database backup failed - dump creation failed"
+if [ ! -f "$ENCRYPTED_FILE" ] || [ ! -s "$ENCRYPTED_FILE" ]; then
+    log "ERROR: Encrypted dump file is missing or empty"
+    notify_slack failure "Database backup failed - dump/encrypt produced no output"
     exit 1
 fi
 
-BACKUP_SIZE_BYTES=$(stat -c %s "$TEMP_DIR/$BACKUP_FILENAME" 2>/dev/null || stat -f %z "$TEMP_DIR/$BACKUP_FILENAME")
-BACKUP_SIZE=$(du -h "$TEMP_DIR/$BACKUP_FILENAME" | cut -f1)
-log "Database dump completed successfully. Size: $BACKUP_SIZE"
+BACKUP_SIZE=$(du -h "$ENCRYPTED_FILE" | cut -f1)
+log "Encrypted dump complete. Size: $BACKUP_SIZE"
 
-# Upload to Elastx Object Store using rclone
 log "Uploading backup to Elastx Object Store container: $SWIFT_CONTAINER"
-
-# Log rclone version for support and debugging
 log "rclone version: $(rclone version --check=false | head -1)"
 
-# Calculate expiry time (RETENTION_DAYS from now)
 EXPIRY_SECONDS=$((RETENTION_DAYS * 24 * 60 * 60))
 
-# Upload with rclone using Swift-optimized settings
-# Swift's concurrency sweet spot is usually modest: --checkers=4 --transfers=1
-rclone copy "$TEMP_DIR/$BACKUP_FILENAME" "$RCLONE_REMOTE" \
+rclone copy "$ENCRYPTED_FILE" "$RCLONE_REMOTE" \
     --checkers=4 \
     --transfers=1 \
     --retries=3 \
@@ -128,92 +173,83 @@ rclone copy "$TEMP_DIR/$BACKUP_FILENAME" "$RCLONE_REMOTE" \
     --stats-one-line \
     --stats=30s
 
-if [ $? -eq 0 ]; then
-    log "Backup uploaded successfully to Object Store"
+log "Backup uploaded successfully"
 
-    # Show remote storage stats for monitoring and support
-    log "Remote storage stats:"
-    rclone about "$RCLONE_REMOTE" 2>/dev/null || log "Remote stats unavailable (not supported by this storage)"
+log "Remote storage stats:"
+rclone about "$RCLONE_REMOTE" 2>/dev/null || log "Remote stats unavailable (not supported by this storage)"
 
-    # Set Swift expiry header using swift client
-    # This ensures the object will be automatically deleted even if cleanup processes fail
-    log "Setting automatic expiry for backup (${RETENTION_DAYS} days)"
-    if swift post "${SWIFT_CONTAINER}" \
-        --header "X-Delete-After:${EXPIRY_SECONDS}" \
-        "${PREFIX}/${BACKUP_FILENAME}"; then
-        log "Automatic expiry set successfully - backup will be deleted in ${RETENTION_DAYS} days"
-    else
-        log "WARNING: Failed to set automatic expiry header, but upload succeeded"
-        log "Manual cleanup may be required for this backup file"
-    fi
-
-    # Clean up local temp file
-    rm -f "$TEMP_DIR/$BACKUP_FILENAME"
+# X-Delete-After is a defense-in-depth retention mechanism. Even if every
+# subsequent run fails, Swift will still GC objects after RETENTION_DAYS.
+log "Setting automatic expiry for backup (${RETENTION_DAYS} days)"
+if swift post "${SWIFT_CONTAINER}" \
+    --header "X-Delete-After:${EXPIRY_SECONDS}" \
+    "${PREFIX}/${BACKUP_FILENAME}"; then
+    EXPIRY_OK="yes"
+    log "Automatic expiry set - backup will be deleted in ${RETENTION_DAYS} days"
 else
-    log "ERROR: Failed to upload backup to Object Store"
-    notify_slack failure "Database backup failed - upload to object store failed"
-    exit 1
+    EXPIRY_OK="no"
+    log "WARNING: Failed to set automatic expiry header (upload still succeeded)"
+    log "Manual cleanup may be required for this backup file"
 fi
 
-# Note: Old backup cleanup is handled automatically by Swift's X-Delete-After headers
-# Each backup is set to expire after RETENTION_DAYS, ensuring cleanup even if this process fails
-log "Backup retention: Swift will automatically delete this backup after $RETENTION_DAYS days"
-
-# Simple backup validation (no full restore drill)
+# Round-trip validation: download → decrypt → pg_restore --list. This also
+# exercises the passphrase, so a wrong passphrase fails the same night.
 DRILL_STATUS="success"
-log "Validating backup integrity..."
+log "Validating backup round-trip (download → decrypt → pg_restore --list)"
 
-# Basic validation: download and verify the backup can be listed by pg_restore
-log "Validating backup by downloading and testing with pg_restore..."
+VALIDATION_DOWNLOAD=$(mktemp -t backup_download.XXXXXX)
+VALIDATION_PLAINTEXT=$(mktemp -t backup_plaintext.XXXXXX)
 VALIDATION_OUTPUT=$(mktemp -t backup_validation.XXXXXX)
 VALIDATION_ERRORS=$(mktemp -t backup_errors.XXXXXX)
-VALIDATION_FILE=$(mktemp -t backup_download.XXXXXX)
-chmod 600 "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS" "$VALIDATION_FILE"
+chmod 600 "$VALIDATION_DOWNLOAD" "$VALIDATION_PLAINTEXT" "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
 
-# Download the backup file temporarily for validation
-# pg_restore --list needs to be able to seek through the file, which doesn't work with piped streams
-if rclone copyto "$RCLONE_REMOTE/$BACKUP_FILENAME" "$VALIDATION_FILE" --retries=2; then
-    if pg_restore --list "$VALIDATION_FILE" > "$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
-        # Check if backup file is valid by counting non-empty, non-comment lines
-        # This is more robust than keyword matching and works across PostgreSQL versions
-        CONTENT_LINES=$(grep -v '^$' "$VALIDATION_OUTPUT" | grep -v '^;' | wc -l)
-        if [ "$CONTENT_LINES" -gt 10 ]; then
-            log "Backup validation OK - file contains valid PostgreSQL data ($CONTENT_LINES entries)"
-            DRILL_STATUS="success"
-        else
-            log "Backup validation FAILED - insufficient content in backup ($CONTENT_LINES entries, expected >10)"
-            DRILL_STATUS="failure"
-        fi
-    else
-        ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
-        log "Backup validation FAILED - file appears corrupted or invalid: $ERROR_MSG"
-        DRILL_STATUS="failure"
-    fi
-else
+if ! rclone copyto "$RCLONE_REMOTE/$BACKUP_FILENAME" "$VALIDATION_DOWNLOAD" --retries=3; then
     log "Backup validation FAILED - unable to download backup file for validation"
     DRILL_STATUS="failure"
+elif ! gpg --decrypt --batch --yes --quiet --passphrase-fd 3 --pinentry-mode loopback \
+        --output "$VALIDATION_PLAINTEXT" "$VALIDATION_DOWNLOAD" \
+        3<<<"$DB_BACKUP_PASSPHRASE" 2>"$VALIDATION_ERRORS"; then
+    ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
+    log "Backup validation FAILED - decryption failed: $ERROR_MSG"
+    DRILL_STATUS="failure"
+elif ! pg_restore --list "$VALIDATION_PLAINTEXT" >"$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
+    ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
+    log "Backup validation FAILED - decrypted file is not a valid pg dump: $ERROR_MSG"
+    DRILL_STATUS="failure"
+else
+    # Count non-empty, non-comment lines as a proxy for "real content"
+    CONTENT_LINES=$(grep -v '^$' "$VALIDATION_OUTPUT" | grep -v '^;' | wc -l)
+    if [ "$CONTENT_LINES" -gt 10 ]; then
+        log "Backup validation OK ($CONTENT_LINES table-of-contents entries)"
+    else
+        log "Backup validation FAILED - dump contains only $CONTENT_LINES entries (expected >10)"
+        DRILL_STATUS="failure"
+    fi
 fi
 
-# Show current backup status
-BACKUP_COUNT=$(rclone lsf "$RCLONE_REMOTE" --include "matkassen_backup_*.dump" | wc -l)
-TOTAL_SIZE=$(rclone size "$RCLONE_REMOTE" --include "matkassen_backup_*.dump" --json | grep -o '"bytes":[0-9]*' | cut -d: -f2)
-TOTAL_SIZE_HUMAN=$(rclone size "$RCLONE_REMOTE" --include "matkassen_backup_*.dump" | grep "Total size" | awk '{print $3}')
+# Per-iteration cleanup so plaintext doesn't sit on tmpfs longer than needed
+rm -f "$VALIDATION_PLAINTEXT" "$VALIDATION_DOWNLOAD"
+
+# Best-effort stats for the log line — don't let a transient rclone failure
+# here prevent the Slack notification from firing.
+BACKUP_COUNT=$(rclone lsf "$RCLONE_REMOTE" --include "matkassen_backup_*.dump.gpg" 2>/dev/null | wc -l) || BACKUP_COUNT="?"
+TOTAL_SIZE_HUMAN=$(rclone size "$RCLONE_REMOTE" --include "matkassen_backup_*.dump.gpg" 2>/dev/null | grep "Total size" | awk '{print $3}') || TOTAL_SIZE_HUMAN="?"
 
 END_TS=$(date +%s)
 ELAPSED=$((END_TS-START_TS))
 
-# Determine final status based on validation results
+EXPIRY_LABEL="${RETENTION_DAYS}d"
+[ "$EXPIRY_OK" != "yes" ] && EXPIRY_LABEL="FAILED"
+
 if [ "$DRILL_STATUS" = "success" ]; then
     log "Backup process completed successfully in ${ELAPSED}s"
-    SUMMARY="Backup success (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${RETENTION_DAYS}d). Validation: ${DRILL_STATUS}."
+    SUMMARY="Encrypted backup success (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${EXPIRY_LABEL}). Validation: ${DRILL_STATUS}."
     notify_slack success "$SUMMARY"
 else
-    log "Backup uploaded successfully but validation failed in ${ELAPSED}s"
-    SUMMARY="Backup uploaded but validation failed (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s). Manual verification recommended."
+    log "Backup uploaded but validation failed in ${ELAPSED}s"
+    SUMMARY="Backup uploaded but validation failed (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${EXPIRY_LABEL}). Manual verification required."
     notify_slack failure "$SUMMARY"
+    exit 1
 fi
 
-log "Current status: $BACKUP_COUNT backups, total size: $TOTAL_SIZE_HUMAN"
-log "All backups have automatic expiry headers and basic validation"
-
-# NOTE: Slack notifications require SLACK_BOT_TOKEN and SLACK_CHANNEL_ID
+log "Current status: $BACKUP_COUNT encrypted backups, total size: $TOTAL_SIZE_HUMAN"
