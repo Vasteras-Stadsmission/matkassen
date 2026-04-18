@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { Metadata } from "next";
 import {
     getPublicParcelData,
@@ -15,6 +16,7 @@ import {
     type SupportedLocale,
 } from "@/app/utils/locale-detection";
 import { logger } from "@/app/utils/logger";
+import { checkRateLimit, PUBLIC_RATE_LIMITS } from "@/app/utils/rate-limit";
 import { QRCodeCanvas } from "@/app/components/QRCodeCanvas";
 import {
     Paper,
@@ -227,6 +229,18 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
     const resolvedSearchParams = (await searchParams) ?? {};
     const rawLocaleParam = resolvedSearchParams.lang;
     const localeParam = Array.isArray(rawLocaleParam) ? rawLocaleParam[0] : rawLocaleParam;
+
+    // Abuse dampener: fail closed with a 404 if the same IP hammers the
+    // endpoint. Parcel IDs are unguessable (nanoid(12) ≈ 72 bits), so this
+    // isn't an enumeration defense — it just blunts scraping and hot-loops.
+    // x-real-ip is set by nginx from $remote_addr (see nginx/shared.conf).
+    const requestHeaders = await headers();
+    const ip = requestHeaders.get("x-real-ip") ?? "unknown";
+    const rateLimit = checkRateLimit(`public-parcel:${ip}`, PUBLIC_RATE_LIMITS.PARCEL_LOOKUP);
+    if (!rateLimit.allowed) {
+        logger.warn({ ip, parcelId }, "Public parcel lookup rate limit exceeded");
+        notFound();
+    }
 
     // Fetch parcel data
     const parcel = await getPublicParcelData(parcelId);

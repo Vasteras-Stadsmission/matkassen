@@ -18,6 +18,7 @@ import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { IconCheck } from "@tabler/icons-react";
 import { Github } from "@/components/Icons";
+import { sanitizeCallbackUrl } from "@/app/utils/auth/sanitize-callback-url";
 
 export function SignInClient({
     callbackUrl,
@@ -35,13 +36,9 @@ export function SignInClient({
 
         setIsLoading(true);
         try {
-            // Using absolute path to make sure we don't have pathname prefixing issues
-            const safeCallbackUrl =
-                callbackUrl.startsWith("/") &&
-                !callbackUrl.startsWith("//") &&
-                !callbackUrl.includes("\\")
-                    ? callbackUrl
-                    : "/";
+            // Defense-in-depth: re-sanitize on the client even though the prop
+            // was already sanitized server-side in signin/page.tsx.
+            const safeCallbackUrl = sanitizeCallbackUrl(callbackUrl);
 
             await signIn("github", {
                 callbackUrl: safeCallbackUrl,

@@ -107,6 +107,12 @@ export default async function middleware(request: NextRequest) {
     // Handle public parcel pages - bypass locale routing completely
     if (isPublicParcelRoute) {
         const response = NextResponse.next();
+        // These pages are reached via per-user SMS links and contain PII
+        // (household name, pickup location/address). Prevent intermediate
+        // caches from storing them and strip the Referer on outbound links
+        // so the parcel URL never leaks to third parties.
+        response.headers.set("Cache-Control", "private, no-store");
+        response.headers.set("Referrer-Policy", "no-referrer");
         return addCSPHeaders(response);
     }
 
