@@ -233,7 +233,9 @@ export default async function PublicParcelPage({ params, searchParams }: PublicP
     // Abuse dampener: fail closed with a 404 if the same IP hammers the
     // endpoint. Parcel IDs are unguessable (nanoid(12) ≈ 72 bits), so this
     // isn't an enumeration defense — it just blunts scraping and hot-loops.
-    // x-real-ip is set by nginx from $remote_addr (see nginx/shared.conf).
+    // x-real-ip is set by nginx from $remote_addr in each `location` block
+    // of nginx/nginx.conf.template (it has to be declared per-location
+    // because nginx's proxy_set_header uses replace-not-merge inheritance).
     const requestHeaders = await headers();
     const ip = requestHeaders.get("x-real-ip") ?? "unknown";
     const rateLimit = checkRateLimit(`public-parcel:${ip}`, PUBLIC_RATE_LIMITS.PARCEL_LOOKUP);

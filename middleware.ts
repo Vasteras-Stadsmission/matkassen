@@ -170,7 +170,13 @@ export default async function middleware(request: NextRequest) {
     return addCSPHeaders(response);
 }
 
-// Configure the matcher to include both page routes and API routes
+// Configure the matcher to include both page routes and API routes.
+// Note: the excluded paths (_next/static, _next/image, favicon.svg, flags/)
+// will not receive a Referrer-Policy header since middleware owns that header
+// and nginx no longer sets it (see addCSPHeaders above). These responses are
+// static assets (JS/CSS/images) that don't originate outbound navigation, so
+// Referer leakage isn't a concern; modern browsers also default to
+// "strict-origin-when-cross-origin" which matches our explicit default.
 export const config = {
     matcher: [
         /*
