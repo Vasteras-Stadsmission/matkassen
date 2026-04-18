@@ -73,12 +73,17 @@ echo "Restoring database from Object Store..."
 # The container already has DB_BACKUP_PASSPHRASE in its env via
 # docker-compose.backup.yml. We do NOT pass it via `-e` because that
 # would put the secret in docker's argv (visible to `ps`).
-# POSTGRES_DB is forwarded so callers can override it for restore drills
-# against a scratch database (e.g. POSTGRES_DB=matkassen_restore_drill).
+# POSTGRES_DB is forwarded ONLY when the caller has explicitly set it
+# (restore drills against a scratch database, e.g.
+# POSTGRES_DB=matkassen_restore_drill). Without the guard, an unset
+# value would clobber the container's own POSTGRES_DB with empty string.
+EXEC_ENV_ARGS=(-e "BACKUP_FILENAME=$BACKUP_FILENAME")
+if [ -n "${POSTGRES_DB:-}" ]; then
+    EXEC_ENV_ARGS+=(-e "POSTGRES_DB=$POSTGRES_DB")
+fi
 $COMPOSE_CMD $COMPOSE_FILES --profile backup exec \
-    -e BACKUP_FILENAME="$BACKUP_FILENAME" \
-    -e POSTGRES_DB="${POSTGRES_DB:-}" \
-    db-backup sh -lc '
+    "${EXEC_ENV_ARGS[@]}" \
+    db-backup sh -c '
     set -euo pipefail
     set +x
 

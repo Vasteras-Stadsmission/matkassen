@@ -91,7 +91,30 @@ cleanup() {
         "${VALIDATION_DOWNLOAD:-}" "${VALIDATION_PLAINTEXT:-}" \
         "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}"
 }
-trap 'cleanup' ERR
+
+# BACKUP_STAGE is updated before each major step. If set -e aborts the
+# script mid-pipeline (pg_dump/gpg/rclone failure), the ERR trap uses this
+# to report which stage failed to Slack. Without this, a pg_dump or rclone
+# failure would kill the script silently — no alert, no log summary.
+BACKUP_STAGE="startup"
+FAIL_NOTIFIED=0
+
+fail() {
+    local msg=$1
+    log "ERROR: $msg"
+    FAIL_NOTIFIED=1
+    notify_slack failure "$msg"
+    exit 1
+}
+
+on_error() {
+    local rc=$?
+    # fail() already notified — don't double-post to Slack
+    [ "$FAIL_NOTIFIED" -eq 1 ] && return
+    log "ERROR: Backup aborted in stage '$BACKUP_STAGE' (exit $rc)"
+    notify_slack failure "Backup aborted in stage '$BACKUP_STAGE' (exit $rc)"
+}
+trap 'on_error' ERR
 trap 'cleanup' EXIT
 
 # Prevent concurrent runs (cron + manual backup-manage.sh test).
@@ -99,9 +122,7 @@ trap 'cleanup' EXIT
 if command -v flock >/dev/null 2>&1; then
     exec 9>"$LOCK_FILE"
     if ! flock -n $LOCK_FD; then
-        log "ERROR: Another backup is already running (lock held on $LOCK_FILE)"
-        notify_slack failure "Backup aborted - another backup is already running"
-        exit 1
+        fail "Backup aborted - another backup is already running (lock held on $LOCK_FILE)"
     fi
 fi
 
@@ -109,16 +130,11 @@ fi
 # both deploy.sh and update.sh for production; if it's unset here the env
 # wiring into the container is broken (see docker-compose.backup.yml).
 if [ -z "${DB_BACKUP_PASSPHRASE:-}" ]; then
-    log "ERROR: DB_BACKUP_PASSPHRASE is not set in the backup container"
-    log "Check docker-compose.backup.yml env block and host .env file"
-    notify_slack failure "Backup aborted - DB_BACKUP_PASSPHRASE missing in container"
-    exit 1
+    fail "Backup aborted - DB_BACKUP_PASSPHRASE missing in container (check docker-compose.backup.yml and host .env)"
 fi
 
 if ! command -v gpg >/dev/null 2>&1; then
-    log "ERROR: gpg is not installed in the backup image"
-    notify_slack failure "Backup aborted - gpg missing from container"
-    exit 1
+    fail "Backup aborted - gpg missing from container image"
 fi
 
 mkdir -p "$TEMP_DIR"
@@ -129,6 +145,7 @@ log "Starting encrypted PostgreSQL backup process"
 # Use a .pgpass file rather than PGPASSWORD to keep the password out of
 # /proc/<pid>/environ for any sibling process inspection. mktemp avoids
 # a fixed filename that would collide if two runs overlap.
+BACKUP_STAGE="pgpass-setup"
 PGPASS_FILE=$(mktemp -t .pgpass.XXXXXX)
 chmod 600 "$PGPASS_FILE"
 echo "${POSTGRES_HOST}:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASS_FILE"
@@ -136,6 +153,7 @@ export PGPASSFILE="$PGPASS_FILE"
 
 # pg_dump → gpg, no intermediate plaintext file. The passphrase is fed on
 # fd 3 so it never lands in argv.
+BACKUP_STAGE="pg_dump|gpg"
 log "Creating encrypted database dump: $BACKUP_FILENAME"
 pg_dump \
     -h "$POSTGRES_HOST" \
@@ -152,14 +170,13 @@ pg_dump \
         3<<<"$DB_BACKUP_PASSPHRASE"
 
 if [ ! -f "$ENCRYPTED_FILE" ] || [ ! -s "$ENCRYPTED_FILE" ]; then
-    log "ERROR: Encrypted dump file is missing or empty"
-    notify_slack failure "Database backup failed - dump/encrypt produced no output"
-    exit 1
+    fail "Database backup failed - dump/encrypt produced no output"
 fi
 
 BACKUP_SIZE=$(du -h "$ENCRYPTED_FILE" | cut -f1)
 log "Encrypted dump complete. Size: $BACKUP_SIZE"
 
+BACKUP_STAGE="rclone upload"
 log "Uploading backup to Elastx Object Store container: $SWIFT_CONTAINER"
 log "rclone version: $(rclone version --check=false | head -1)"
 
@@ -180,6 +197,8 @@ rclone about "$RCLONE_REMOTE" 2>/dev/null || log "Remote stats unavailable (not 
 
 # X-Delete-After is a defense-in-depth retention mechanism. Even if every
 # subsequent run fails, Swift will still GC objects after RETENTION_DAYS.
+# Handled as a soft failure: upload already succeeded, so we continue.
+BACKUP_STAGE="swift expiry header"
 log "Setting automatic expiry for backup (${RETENTION_DAYS} days)"
 if swift post "${SWIFT_CONTAINER}" \
     --header "X-Delete-After:${EXPIRY_SECONDS}" \
@@ -194,6 +213,7 @@ fi
 
 # Round-trip validation: download → decrypt → pg_restore --list. This also
 # exercises the passphrase, so a wrong passphrase fails the same night.
+BACKUP_STAGE="validation"
 DRILL_STATUS="success"
 log "Validating backup round-trip (download → decrypt → pg_restore --list)"
 
@@ -217,12 +237,16 @@ elif ! pg_restore --list "$VALIDATION_PLAINTEXT" >"$VALIDATION_OUTPUT" 2>"$VALID
     log "Backup validation FAILED - decrypted file is not a valid pg dump: $ERROR_MSG"
     DRILL_STATUS="failure"
 else
-    # Count non-empty, non-comment lines as a proxy for "real content"
-    CONTENT_LINES=$(grep -v '^$' "$VALIDATION_OUTPUT" | grep -v '^;' | wc -l)
-    if [ "$CONTENT_LINES" -gt 10 ]; then
-        log "Backup validation OK ($CONTENT_LINES table-of-contents entries)"
+    # Assert a sentinel core table is present in the TOC. A raw line-count
+    # threshold would falsely fail on a small schema and silently pass an
+    # incomplete dump. `households` is a load-bearing table that has
+    # existed since day one — if it's missing, something is genuinely
+    # wrong with the dump.
+    if grep -qE 'TABLE[[:space:]]+public[[:space:]]+households([[:space:]]|$)' "$VALIDATION_OUTPUT"; then
+        TOC_LINES=$(grep -cv -e '^$' -e '^;' "$VALIDATION_OUTPUT" || true)
+        log "Backup validation OK (sentinel table 'households' present, $TOC_LINES TOC entries)"
     else
-        log "Backup validation FAILED - dump contains only $CONTENT_LINES entries (expected >10)"
+        log "Backup validation FAILED - sentinel table 'households' is missing from the dump TOC"
         DRILL_STATUS="failure"
     fi
 fi

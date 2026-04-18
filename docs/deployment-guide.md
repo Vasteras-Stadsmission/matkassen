@@ -207,6 +207,7 @@ The passphrase is automatically exported to the production environment via CI/CD
 To run a backup immediately rather than waiting for the 02:00 schedule:
 
 ```bash
+export ENV_NAME=production   # backup-manage.sh refuses to run without this
 ./scripts/backup-manage.sh test
 ```
 
@@ -272,8 +273,55 @@ sudo docker compose restart web
 1. Generate a new passphrase (`openssl rand -base64 32`).
 2. Update the `DB_BACKUP_PASSPHRASE` GitHub Secret.
 3. Re-deploy: `deploy.sh` / `update.sh` writes the new value into the host `.env`, and recreating the `db-backup` container picks it up.
-4. **Old backups in Swift are still encrypted with the old passphrase.** Either keep the old passphrase archived somewhere recoverable (e.g. a sealed envelope in the office, password manager) until the 14-day retention expires, or re-encrypt them in place if you need a clean cutover. For an NGO-scale setup, simply waiting out the 14 days is fine.
-5. The next nightly backup will be encrypted with the new passphrase and the round-trip validation step will confirm it works end-to-end.
+4. The next nightly backup will be encrypted with the new passphrase and the round-trip validation step will confirm it works end-to-end.
+5. **Old backups in Swift are still encrypted with the old passphrase.** Pick one of the two strategies below.
+
+##### Strategy A: Wait out retention (routine rotation)
+
+For a planned rotation, archive the old passphrase somewhere recoverable (password manager, sealed envelope in the office) and simply wait the 14-day Swift retention window. After that the last old-passphrase backup expires and every backup in Swift is readable with the new passphrase. This is the right approach for scheduled rotations.
+
+##### Strategy B: Re-encrypt in place (emergency rotation / suspected compromise)
+
+If the old passphrase may have been exposed, don't wait — re-encrypt existing Swift objects with the new passphrase. Run this on the production server with both passphrases exported:
+
+```bash
+export OLD_PASS="old-passphrase-from-secret-history"
+export NEW_PASS="new-passphrase-from-github-secrets"
+export ENV_NAME=production
+
+# List the objects that need rekeying
+docker compose -f docker-compose.yml -f docker-compose.backup.yml \
+    --profile backup exec db-backup \
+    rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
+    --include "matkassen_backup_*.dump.gpg" > /tmp/backups_to_rekey.txt
+
+# For each, stream-rekey with no intermediate plaintext on disk. Different
+# fds (3 for old, 4 for new) because fds don't carry across a pipe.
+while read -r FILE; do
+    docker compose -f docker-compose.yml -f docker-compose.backup.yml \
+        --profile backup exec -T \
+        -e OLD_PASS="$OLD_PASS" -e NEW_PASS="$NEW_PASS" -e FILE="$FILE" \
+        db-backup sh -c '
+            set -euo pipefail
+            SRC="elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}/${FILE}"
+            TMPOUT=$(mktemp -t rekey.XXXXXX)
+            trap "rm -f \"$TMPOUT\"" EXIT
+            rclone cat "$SRC" \
+                | gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback 3<<<"$OLD_PASS" \
+                | gpg --symmetric --cipher-algo AES256 --batch \
+                      --passphrase-fd 4 --pinentry-mode loopback \
+                      --output "$TMPOUT" 4<<<"$NEW_PASS"
+            # Verify the new object decrypts before overwriting the old one
+            gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback \
+                "$TMPOUT" 3<<<"$NEW_PASS" | pg_restore --list >/dev/null
+            rclone copyto "$TMPOUT" "$SRC" --retries=3
+        '
+done < /tmp/backups_to_rekey.txt
+
+rm /tmp/backups_to_rekey.txt
+```
+
+After re-encryption, rotate any Swift credentials that shared the compromise window as a separate step, and consider whether to revoke database credentials too.
 
 #### Backup Retention
 

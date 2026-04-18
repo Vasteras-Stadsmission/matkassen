@@ -24,7 +24,11 @@ const hasGpg = (() => {
     }
 })();
 
-describe("Encrypted database backup pipeline", () => {
+// Skip the whole suite (visible in the reporter) when gpg is unavailable,
+// rather than silently returning from each test. If CI loses gpg for any
+// reason, the suite count drops and the skip is obvious — previously a
+// missing gpg just made the suite trivially green.
+describe.skipIf(!hasGpg)("Encrypted database backup pipeline", () => {
     const testRoot = path.join(os.tmpdir(), `backup-db-test-${Date.now()}`);
     const mockBin = path.join(testRoot, "bin");
     const fakeRemote = path.join(testRoot, "swift");
@@ -34,11 +38,6 @@ describe("Encrypted database backup pipeline", () => {
     const mockDumpPayload = "MOCK_PG_DUMP_PAYLOAD_FOR_VITEST_SUITE";
 
     beforeAll(() => {
-        if (!hasGpg) {
-            console.warn("⚠️  Skipping backup pipeline tests: gpg is not installed");
-            return;
-        }
-
         fs.mkdirSync(mockBin, { recursive: true });
         fs.mkdirSync(fakeRemote, { recursive: true });
 
@@ -118,8 +117,22 @@ exit 0
         // Stub swift: X-Delete-After header set is a no-op.
         fs.writeFileSync(path.join(mockBin, "swift"), "#!/bin/bash\nexit 0\n");
 
-        // Stub curl: silence Slack notifications.
-        fs.writeFileSync(path.join(mockBin, "curl"), "#!/bin/bash\necho '{\"ok\":true}'\nexit 0\n");
+        // Stub curl: record the last --data payload to CURL_LOG so tests
+        // can assert a Slack notification was attempted.
+        fs.writeFileSync(
+            path.join(mockBin, "curl"),
+            `#!/bin/bash
+while [ $# -gt 0 ]; do
+    if [ "$1" = "--data" ]; then
+        shift
+        if [ -n "\${CURL_LOG:-}" ]; then printf '%s\\n' "$1" >> "$CURL_LOG"; fi
+    fi
+    shift
+done
+echo '{"ok":true}'
+exit 0
+`,
+        );
 
         for (const exe of ["pg_dump", "pg_restore", "rclone", "swift", "curl"]) {
             fs.chmodSync(path.join(mockBin, exe), 0o755);
@@ -161,8 +174,6 @@ exit 0
     }
 
     it("aborts when DB_BACKUP_PASSPHRASE is missing", () => {
-        if (!hasGpg) return;
-
         const env = { ...process.env, PATH: `${mockBin}:${process.env.PATH}` };
         delete (env as any).DB_BACKUP_PASSPHRASE;
 
@@ -186,8 +197,6 @@ exit 0
     });
 
     it("encrypts the dump, uploads to Swift, and validates the round-trip", () => {
-        if (!hasGpg) return;
-
         // Clean fake remote between tests
         for (const f of fs.readdirSync(fakeRemote)) {
             fs.rmSync(path.join(fakeRemote, f));
@@ -236,8 +245,6 @@ exit 0
     });
 
     it("decryption fails with the wrong passphrase", () => {
-        if (!hasGpg) return;
-
         for (const f of fs.readdirSync(fakeRemote)) {
             fs.rmSync(path.join(fakeRemote, f));
         }
@@ -264,6 +271,40 @@ exit 0
             failed = true;
         }
         expect(failed).toBe(true);
+    });
+
+    it("notifies Slack when pg_dump fails mid-pipeline", () => {
+        // Regression test for the silent-failure bug: set -e previously
+        // killed the script on pg_dump/gpg/rclone failure without ever
+        // calling notify_slack. The ERR trap must now pick up those cases.
+        for (const f of fs.readdirSync(fakeRemote)) {
+            fs.rmSync(path.join(fakeRemote, f));
+        }
+        // Swap pg_dump with a stub that fails
+        const realPgDump = fs.readFileSync(path.join(mockBin, "pg_dump"), "utf-8");
+        fs.writeFileSync(
+            path.join(mockBin, "pg_dump"),
+            `#!/bin/bash\necho "simulated pg_dump failure" >&2\nexit 42\n`,
+        );
+        fs.chmodSync(path.join(mockBin, "pg_dump"), 0o755);
+
+        const curlLog = path.join(testRoot, "curl.log");
+        fs.writeFileSync(curlLog, "");
+
+        const { stdout } = runBackup({
+            SLACK_BOT_TOKEN: "xoxb-test",
+            SLACK_CHANNEL_ID: "C_TEST",
+            CURL_LOG: curlLog,
+        });
+
+        // Restore the working pg_dump stub for later tests
+        fs.writeFileSync(path.join(mockBin, "pg_dump"), realPgDump);
+        fs.chmodSync(path.join(mockBin, "pg_dump"), 0o755);
+
+        const notifications = fs.readFileSync(curlLog, "utf-8");
+        expect(stdout).toMatch(/Backup aborted in stage '?pg_dump\|gpg/);
+        expect(notifications).toContain("pg_dump|gpg");
+        expect(notifications).toMatch(/"text":\s*"\[matkassen\]/);
     });
 });
 
