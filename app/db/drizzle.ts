@@ -92,10 +92,26 @@ if (!process.env.DATABASE_URL) {
     }
 }
 
-// Export appropriate client and db based on environment
-export const client =
-    isTestEnvironment || isBuildTime
-        ? createMockClient()
-        : postgres(process.env.DATABASE_URL as string);
+// SSL parsing lives in a shared CJS helper so the same contract is honored by
+// drizzle-kit, the startup health check, and standalone scripts — see
+// app/db/database-ssl.cjs for the full spec. `postgresJsSslOption()` returns
+// undefined when DATABASE_SSL is unset (URL's sslmode wins), or false when
+// DATABASE_SSL=disable (authoritatively off, beats URL sslmode).
+//
+// Invoked lazily inside buildClient so that the parser's throw on a malformed
+// value never fires during tests or `next build`, which never actually connect.
+const buildClient = (): ReturnType<typeof postgres> => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { postgresJsSslOption } = require("./database-ssl.cjs") as {
+        postgresJsSslOption: () => "require" | "verify-full" | false | undefined;
+    };
+    const sslOption = postgresJsSslOption();
+    return postgres(
+        process.env.DATABASE_URL as string,
+        sslOption !== undefined ? { ssl: sslOption } : {},
+    );
+};
+
+export const client = isTestEnvironment || isBuildTime ? createMockClient() : buildClient();
 
 export const db = isTestEnvironment || isBuildTime ? createMockDb() : drizzle(client);

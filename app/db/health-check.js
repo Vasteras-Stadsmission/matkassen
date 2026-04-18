@@ -12,6 +12,8 @@
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const postgres = require("postgres");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { postgresJsSslOption } = require("./database-ssl.cjs");
 
 /**
  * Test database connectivity with a simple query
@@ -24,11 +26,14 @@ async function checkDatabaseHealth() {
         throw new Error("DATABASE_URL environment variable is not set");
     }
 
+    const sslOption = postgresJsSslOption();
+
     // Create a temporary connection just for the health check
     const sql = postgres(databaseUrl, {
         max: 1, // Only need one connection for health check
         idle_timeout: 5,
         connect_timeout: 10,
+        ...(sslOption !== undefined ? { ssl: sslOption } : {}),
     });
 
     try {

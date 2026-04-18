@@ -21,9 +21,13 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, isNull, or } from "drizzle-orm";
 import pg from "pg";
+import { createRequire } from "node:module";
 import { users } from "../app/db/schema.ts";
 
 const { Pool } = pg;
+const { applyDatabaseSslToUrl } = createRequire(import.meta.url)(
+    "../app/db/database-ssl.cjs",
+);
 
 // GitHub API configuration
 const GITHUB_API_BASE = "https://api.github.com";
@@ -84,13 +88,15 @@ async function backfillUserProfiles() {
         );
     }
 
-    // Connect to database
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
+    // Connect to database. DATABASE_SSL is encoded into the connection string
+    // via applyDatabaseSslToUrl — pg reparses connectionString after options
+    // merge, so URL-level sslmode is the only way to make the knob
+    // authoritative here. See app/db/database-ssl.cjs for the mapping.
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
         throw new Error("DATABASE_URL environment variable is required");
     }
-
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({ connectionString: applyDatabaseSslToUrl(baseUrl) });
     const db = drizzle(pool);
 
     try {

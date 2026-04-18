@@ -81,6 +81,10 @@ jobs:
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_STAGING }}"
                       export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
                       export POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
+                      # Optional: set DATABASE_SSL secret to "require" / "verify-full"
+                      # for managed/external DBs. Leave unset for the current
+                      # trusted-network Docker DB.
+                      export DATABASE_SSL="${{ secrets.DATABASE_SSL }}"
                       export EMAIL="${{ secrets.EMAIL }}"
                       export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
@@ -145,6 +149,10 @@ jobs:
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_PRODUCTION }}"
                       export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
                       export POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
+                      # Optional: set DATABASE_SSL secret to "require" / "verify-full"
+                      # for managed/external DBs. Leave unset for the current
+                      # trusted-network Docker DB.
+                      export DATABASE_SSL="${{ secrets.DATABASE_SSL }}"
                       export EMAIL="${{ secrets.EMAIL }}"
                       export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"

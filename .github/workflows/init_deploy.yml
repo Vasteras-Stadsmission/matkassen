@@ -63,6 +63,10 @@ jobs:
                       export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
                       export GITHUB_ORG="vasteras-stadsmission"
                       export ENV_NAME="${{ github.event.inputs.environment }}"
+                      # Optional: set the DATABASE_SSL repo/environment secret to
+                      # "require" or "verify-full" when the DB is managed/external.
+                      # Leave unset for the current trusted-network Docker DB.
+                      export DATABASE_SSL="${{ secrets.DATABASE_SSL }}"
 
                       if [ "${{ github.event.inputs.environment }}" == "production" ]; then
                         export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_PRODUCTION }}"
