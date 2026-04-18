@@ -78,6 +78,11 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
     printf 'AUTH_URL="https://%s/api/auth"\n' "${DOMAIN_NAME}"
     printf 'DATABASE_URL="%s"\n' "${DATABASE_URL}"
     printf 'DATABASE_URL_EXTERNAL="%s"\n' "${DATABASE_URL_EXTERNAL}"
+    # DATABASE_SSL is optional — only emit when set so unset means "defer to
+    # DATABASE_URL" (the default for the trusted Docker network).
+    if [ -n "${DATABASE_SSL:-}" ]; then
+        printf 'DATABASE_SSL="%s"\n' "${DATABASE_SSL}"
+    fi
     printf 'EMAIL="%s"\n' "${EMAIL}"
     printf 'GITHUB_ORG="%s"\n' "${GITHUB_ORG}"
     printf 'POSTGRES_DB="%s"\n' "${POSTGRES_DB}"

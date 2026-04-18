@@ -92,31 +92,26 @@ if (!process.env.DATABASE_URL) {
     }
 }
 
-// SSL configuration for postgres connections. DATABASE_SSL controls whether
-// TLS is required:
-//   - "require" / "true": require TLS (use for external/managed DBs)
-//   - "verify-full": require TLS and verify the server certificate
-//   - unset / "disable" / "false": no TLS (appropriate for trusted internal
-//     Docker networks)
-// Any other value throws — a silent fallback on a typo like "required" would
-// downgrade production to plaintext. The postgres-js library also honors
-// sslmode=... in the DATABASE_URL itself; options passed here take precedence.
-const sslOption = ((): "require" | "verify-full" | undefined => {
-    const raw = process.env.DATABASE_SSL;
-    const mode = (raw ?? "").toLowerCase();
-    if (!mode || mode === "disable" || mode === "false") return undefined;
-    if (mode === "require" || mode === "true") return "require";
-    if (mode === "verify-full") return "verify-full";
-    throw new Error(
-        `Unsupported DATABASE_SSL value: ${JSON.stringify(raw)}. ` +
-            `Expected one of: "require", "verify-full", "disable", or unset.`,
+// SSL parsing lives in a shared CJS helper so the same contract is honored by
+// drizzle-kit, the startup health check, and standalone scripts — see
+// app/db/database-ssl.cjs for the full spec. `postgresJsSslOption()` returns
+// undefined when DATABASE_SSL is unset (URL's sslmode wins), or false when
+// DATABASE_SSL=disable (authoritatively off, beats URL sslmode).
+//
+// Invoked lazily inside buildClient so that the parser's throw on a malformed
+// value never fires during tests or `next build`, which never actually connect.
+const buildClient = (): ReturnType<typeof postgres> => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { postgresJsSslOption } = require("./database-ssl.cjs") as {
+        postgresJsSslOption: () => "require" | "verify-full" | false | undefined;
+    };
+    const sslOption = postgresJsSslOption();
+    return postgres(
+        process.env.DATABASE_URL as string,
+        sslOption !== undefined ? { ssl: sslOption } : {},
     );
-})();
+};
 
-// Export appropriate client and db based on environment
-export const client =
-    isTestEnvironment || isBuildTime
-        ? createMockClient()
-        : postgres(process.env.DATABASE_URL as string, sslOption ? { ssl: sslOption } : {});
+export const client = isTestEnvironment || isBuildTime ? createMockClient() : buildClient();
 
 export const db = isTestEnvironment || isBuildTime ? createMockDb() : drizzle(client);

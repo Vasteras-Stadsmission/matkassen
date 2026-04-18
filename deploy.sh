@@ -214,6 +214,11 @@ echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
 echo "AUTH_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
 echo "DATABASE_URL=\"$DATABASE_URL\"" >> "$APP_DIR/.env"
 echo "DATABASE_URL_EXTERNAL=\"$DATABASE_URL_EXTERNAL\"" >> "$APP_DIR/.env"
+# DATABASE_SSL is optional — only emit when set so unset/empty means
+# "defer to DATABASE_URL" (the default for the trusted Docker network).
+if [ -n "${DATABASE_SSL:-}" ]; then
+  echo "DATABASE_SSL=\"$DATABASE_SSL\"" >> "$APP_DIR/.env"
+fi
 echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env" # Needed for Certbot
 echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
 echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
