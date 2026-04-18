@@ -397,23 +397,27 @@ openssl rand -base64 32 | tr -d '+/=' | head -c 32
 The system includes automated nightly PostgreSQL backups to Elastx Object Store:
 
 - **Schedule**: 2:00 AM Europe/Stockholm
-- **Format**: PostgreSQL custom format (.dump) with built-in compression
-- **Retention**: 14 days Swift automatic expiry
-- **Validation**: Each backup includes integrity validation
+- **Encryption**: symmetric AES256 GPG, applied before the dump leaves the host
+- **Format**: `matkassen_backup_<timestamp>.dump.gpg` (encrypted PostgreSQL custom-format dump)
+- **Retention**: 14 days via Swift `X-Delete-After`
+- **Validation**: nightly round-trip — re-download, decrypt, and `pg_restore --list` to confirm the backup is decryptable and the archive catalog is intact
 - **Notifications**: Slack alerts on success/failure
 
 ### Setup (Production Only)
 
-1. Create Application Credentials in Elastx Dashboard (Identity → Application Credentials)
-2. Add to `.env`: `OS_APPLICATION_CREDENTIAL_ID`, `OS_APPLICATION_CREDENTIAL_SECRET`, `SWIFT_CONTAINER`
-3. Deploy - backups start automatically on production
+1. Generate a strong passphrase (`openssl rand -base64 32`) and store it as the `DB_BACKUP_PASSPHRASE` GitHub Secret. Backups cannot be restored without it.
+2. Create Application Credentials in Elastx Dashboard (Identity → Application Credentials).
+3. Add to `.env`: `OS_APPLICATION_CREDENTIAL_ID`, `OS_APPLICATION_CREDENTIAL_SECRET`, `SWIFT_CONTAINER`.
+4. Deploy — `deploy.sh` / `update.sh` writes the passphrase into the host `.env` and `docker-compose.backup.yml` injects it into the backup container.
 
 ### Management
 
 ```bash
 ./scripts/backup-manage.sh start|stop|status|logs|test
-./scripts/backup-restore.sh <filename>  # Restore from backup
+./scripts/backup-restore.sh <filename>  # Restore from an encrypted backup
 ```
+
+See `docs/deployment-guide.md` for the full setup, monitoring, and passphrase rotation procedures, and `docs/database-guide.md` for the restore runbook.
 
 ## Production Logs
 

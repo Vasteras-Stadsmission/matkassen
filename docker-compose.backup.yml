@@ -31,6 +31,10 @@ services:
             - SWIFT_CONTAINER=${SWIFT_CONTAINER}
             - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
             - SLACK_CHANNEL_ID=${SLACK_CHANNEL_ID:-}
+            # Symmetric encryption passphrase for backups (required).
+            # Sourced from host .env, written by deploy.sh / update.sh from
+            # the GitHub Secret of the same name. backup-db.sh aborts if unset.
+            - DB_BACKUP_PASSPHRASE=${DB_BACKUP_PASSPHRASE}
         depends_on:
             db:
                 condition: service_healthy
@@ -43,7 +47,11 @@ services:
             - ALL
         read_only: true
         tmpfs:
-            - /tmp:noexec,nosuid,size=100m
+            # Sized to hold simultaneously: encrypted dump, downloaded copy,
+            # and decrypted plaintext used by the validation step (~3× dump
+            # size in worst case). Bumped from 100m when validation became a
+            # full round-trip rather than a header-only check.
+            - /tmp:noexec,nosuid,size=500m
         healthcheck:
             test: ["CMD", "pgrep", "supercronic"]
             interval: 60s
