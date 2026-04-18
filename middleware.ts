@@ -48,10 +48,17 @@ export default async function middleware(request: NextRequest) {
     // Generate nonce for CSP
     const nonce = generateNonce();
 
-    // Helper function to add CSP headers to response
+    // Helper function to add CSP + a default Referrer-Policy to the response.
+    // Referrer-Policy is owned entirely by middleware (not nginx) so routes
+    // like /p/<parcel> can override the default with "no-referrer" without
+    // producing two conflicting headers. We only set the default if a caller
+    // hasn't already set one — that way the stricter per-route value wins.
     const addCSPHeaders = (response: NextResponse) => {
         response.headers.set("Content-Security-Policy", createCSP(nonce));
         response.headers.set("x-nonce", nonce);
+        if (!response.headers.has("Referrer-Policy")) {
+            response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+        }
         return response;
     };
 
@@ -163,7 +170,13 @@ export default async function middleware(request: NextRequest) {
     return addCSPHeaders(response);
 }
 
-// Configure the matcher to include both page routes and API routes
+// Configure the matcher to include both page routes and API routes.
+// Note: the excluded paths (_next/static, _next/image, favicon.svg, flags/)
+// will not receive a Referrer-Policy header since middleware owns that header
+// and nginx no longer sets it (see addCSPHeaders above). These responses are
+// static assets (JS/CSS/images) that don't originate outbound navigation, so
+// Referer leakage isn't a concern; modern browsers also default to
+// "strict-origin-when-cross-origin" which matches our explicit default.
 export const config = {
     matcher: [
         /*
