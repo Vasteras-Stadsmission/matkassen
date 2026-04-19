@@ -407,25 +407,9 @@ docker compose restart web
 
 #### Restore Drill
 
-Run a real restore against a scratch database periodically (quarterly is a reasonable cadence) — the nightly `pg_restore --list` validation only proves the dump is structurally parseable, not that an actual `pg_restore` succeeds.
+The nightly backup job restores every backup into a throwaway `matkassen_nightly_validate` database on the same Postgres instance and runs a sentinel query against it. A failed nightly restore is a Slack alert, so there is no separate manual drill cadence — the drill is the job.
 
-```bash
-# 1. Create a scratch database alongside the live one
-docker exec -it matkassen-db psql -U matkassen \
-    -c "CREATE DATABASE matkassen_restore_drill"
-
-# 2. Run the restore against the scratch database
-POSTGRES_DB=matkassen_restore_drill \
-    ./scripts/backup-restore.sh matkassen_backup_<timestamp>.dump.gpg
-
-# 3. Confirm data is present
-docker exec -it matkassen-db psql -U matkassen -d matkassen_restore_drill \
-    -c "SELECT COUNT(*) FROM households"
-
-# 4. Tear down
-docker exec -it matkassen-db psql -U matkassen \
-    -c "DROP DATABASE matkassen_restore_drill"
-```
+**Caveat**: this validates "the backup is restorable to this Postgres cluster." It does NOT validate "we can rebuild on a fresh host." A true cross-host DR drill (provision a new VPS, install Postgres, restore from Swift, bring the app up against the restored DB) is a separate exercise that is not automated.
 
 ## Related Documentation
 

@@ -79,16 +79,53 @@ RCLONE_REMOTE="elastx:${SWIFT_CONTAINER}/${PREFIX}"
 ENCRYPTED_FILE="$TEMP_DIR/$BACKUP_FILENAME"
 PGPASS_FILE=""
 VALIDATION_DOWNLOAD=""
-VALIDATION_PLAINTEXT=""
 VALIDATION_OUTPUT=""
 VALIDATION_ERRORS=""
 EXPIRY_OK=""
+SCRATCH_CREATED=""
 LOCK_FD=9
 LOCK_FILE="/tmp/backup.lock"
 
+# Fixed scratch DB used by nightly validation. A single constant name makes
+# every callsite assertable (see assert_scratch_db), so a bug that wipes
+# $SCRATCH_DB_NAME cannot silently become `dropdb ""` or, much worse,
+# `pg_restore --clean -d "$POSTGRES_DB"` against prod.
+SCRATCH_DB_NAME="matkassen_nightly_validate"
+
+# Guard against any path accidentally passing an unexpected DB name to
+# createdb/dropdb/pg_restore. This is belt-and-suspenders — every
+# callsite uses $SCRATCH_DB_NAME literally — but the guard means a future
+# refactor that parameterises the name cannot regress into prod-dropping
+# behavior without tripping this check.
+assert_scratch_db() {
+    local name=${1:-}
+    if [ -z "$name" ] \
+        || [ "$name" != "$SCRATCH_DB_NAME" ] \
+        || [ "$name" = "$POSTGRES_DB" ] \
+        || [ "$name" = "postgres" ] \
+        || [ "$name" = "template0" ] \
+        || [ "$name" = "template1" ]; then
+        fail "Refusing DB operation on '$name' - only '$SCRATCH_DB_NAME' is allowed"
+    fi
+}
+
 cleanup() {
+    # Drop the scratch DB FIRST, while $PGPASS_FILE still exists on disk.
+    # assert_scratch_db guarantees this can only target the fixed scratch
+    # name, never $POSTGRES_DB. A failure here is logged but doesn't flip
+    # DRILL_STATUS — the upload and validation already ran; a stuck
+    # scratch DB is a next-run cleanup concern, not "the backup failed".
+    if [ -n "${SCRATCH_CREATED:-}" ] && [ -n "${PGPASS_FILE:-}" ] && [ -f "$PGPASS_FILE" ]; then
+        assert_scratch_db "$SCRATCH_DB_NAME"
+        PGPASSFILE="$PGPASS_FILE" dropdb \
+            --if-exists \
+            -h "$POSTGRES_HOST" \
+            -U "$POSTGRES_USER" \
+            "$SCRATCH_DB_NAME" 2>/dev/null \
+            || log "WARNING: failed to drop scratch DB '$SCRATCH_DB_NAME' on cleanup"
+    fi
     rm -f "${PGPASS_FILE:-}" "$ENCRYPTED_FILE" \
-        "${VALIDATION_DOWNLOAD:-}" "${VALIDATION_PLAINTEXT:-}" \
+        "${VALIDATION_DOWNLOAD:-}" \
         "${VALIDATION_OUTPUT:-}" "${VALIDATION_ERRORS:-}"
 }
 
@@ -145,11 +182,21 @@ log "Starting encrypted PostgreSQL backup process"
 # Use a .pgpass file rather than PGPASSWORD to keep the password out of
 # /proc/<pid>/environ for any sibling process inspection. mktemp avoids
 # a fixed filename that would collide if two runs overlap.
+# The db-name field is '*' (wildcard) so the same credentials work for
+# pg_dump against $POSTGRES_DB, createdb/dropdb against $SCRATCH_DB_NAME,
+# and psql -d $SCRATCH_DB_NAME for the sentinel query.
 BACKUP_STAGE="pgpass-setup"
 PGPASS_FILE=$(mktemp -t .pgpass.XXXXXX)
 chmod 600 "$PGPASS_FILE"
-echo "${POSTGRES_HOST}:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASS_FILE"
+echo "${POSTGRES_HOST}:5432:*:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASS_FILE"
 export PGPASSFILE="$PGPASS_FILE"
+
+# Pre-flight cleanup: if a previous run crashed after creating the scratch
+# DB but before dropping it, remove it now. Exact-name only — this is NOT
+# a prefix-match sweep.
+assert_scratch_db "$SCRATCH_DB_NAME"
+dropdb --if-exists -h "$POSTGRES_HOST" -U "$POSTGRES_USER" "$SCRATCH_DB_NAME" 2>/dev/null \
+    || log "WARNING: pre-flight cleanup of '$SCRATCH_DB_NAME' failed - may not have existed"
 
 # pg_dump → gpg, no intermediate plaintext file. The passphrase is fed on
 # fd 3 so it never lands in argv.
@@ -211,48 +258,84 @@ else
     log "Manual cleanup may be required for this backup file"
 fi
 
-# Round-trip validation: download → decrypt → pg_restore --list. This also
-# exercises the passphrase, so a wrong passphrase fails the same night.
+# Full-restore validation: download → decrypt → pg_restore into a
+# throwaway scratch DB on the same Postgres instance → sentinel query →
+# drop the scratch DB. This is strictly stronger than `pg_restore --list`:
+# pg_restore actually applies every DDL and every COPY block, so DDL
+# version skew, corrupted COPY data, index rebuild failures, and missing
+# extensions all surface here. On success we've proven the backup is
+# actually restorable, not just parseable. This replaces the documented
+# quarterly manual drill.
+#
+# Same-instance caveat: the scratch DB shares postgres_data, WAL, and
+# checkpoint pressure with prod. For matkassen's data size this is
+# immaterial, but note that this is NOT a cross-host disaster-recovery
+# drill — if the whole host is lost, you still need to restore onto a
+# fresh cluster. That scenario is not exercised nightly.
 BACKUP_STAGE="validation"
 DRILL_STATUS="success"
-log "Validating backup round-trip (download → decrypt → pg_restore --list)"
+log "Validating backup by full restore into scratch DB '$SCRATCH_DB_NAME'"
 
 VALIDATION_DOWNLOAD=$(mktemp -t backup_download.XXXXXX)
-VALIDATION_PLAINTEXT=$(mktemp -t backup_plaintext.XXXXXX)
 VALIDATION_OUTPUT=$(mktemp -t backup_validation.XXXXXX)
 VALIDATION_ERRORS=$(mktemp -t backup_errors.XXXXXX)
-chmod 600 "$VALIDATION_DOWNLOAD" "$VALIDATION_PLAINTEXT" "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
+chmod 600 "$VALIDATION_DOWNLOAD" "$VALIDATION_OUTPUT" "$VALIDATION_ERRORS"
 
 if ! rclone copyto "$RCLONE_REMOTE/$BACKUP_FILENAME" "$VALIDATION_DOWNLOAD" --retries=3; then
-    log "Backup validation FAILED - unable to download backup file for validation"
+    log "Validation FAILED - unable to download backup file"
     DRILL_STATUS="failure"
-elif ! gpg --decrypt --batch --yes --quiet --passphrase-fd 3 --pinentry-mode loopback \
-        --output "$VALIDATION_PLAINTEXT" "$VALIDATION_DOWNLOAD" \
-        3<<<"$DB_BACKUP_PASSPHRASE" 2>"$VALIDATION_ERRORS"; then
+elif ! assert_scratch_db "$SCRATCH_DB_NAME" || \
+     ! createdb -h "$POSTGRES_HOST" -U "$POSTGRES_USER" "$SCRATCH_DB_NAME" 2>"$VALIDATION_ERRORS"; then
     ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
-    log "Backup validation FAILED - decryption failed: $ERROR_MSG"
-    DRILL_STATUS="failure"
-elif ! pg_restore --list "$VALIDATION_PLAINTEXT" >"$VALIDATION_OUTPUT" 2>"$VALIDATION_ERRORS"; then
-    ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
-    log "Backup validation FAILED - decrypted file is not a valid pg dump: $ERROR_MSG"
+    log "Validation FAILED - could not create scratch DB: $ERROR_MSG"
+    log "Hint: the backup user needs CREATEDB privilege. Run: ALTER USER $POSTGRES_USER CREATEDB;"
     DRILL_STATUS="failure"
 else
-    # Assert a sentinel core table is present in the TOC. A raw line-count
-    # threshold would falsely fail on a small schema and silently pass an
-    # incomplete dump. `households` is a load-bearing table that has
-    # existed since day one — if it's missing, something is genuinely
-    # wrong with the dump.
-    if grep -qE 'TABLE[[:space:]]+public[[:space:]]+households([[:space:]]|$)' "$VALIDATION_OUTPUT"; then
-        TOC_LINES=$(grep -cv -e '^$' -e '^;' "$VALIDATION_OUTPUT" || true)
-        log "Backup validation OK (sentinel table 'households' present, $TOC_LINES TOC entries)"
+    SCRATCH_CREATED=1
+    # Stream decrypt | pg_restore into the scratch DB. --exit-on-error
+    # means any DDL or COPY failure fails pg_restore, which fails the
+    # pipeline under pipefail. --clean --if-exists is belt-and-suspenders
+    # for a freshly created empty DB. --no-owner/--no-privileges so the
+    # scratch role doesn't need to match the dump's role grants.
+    # Truncate the shared error file once, then both gpg and pg_restore
+    # append — avoids a race where one process opens O_TRUNC while the
+    # other has already written.
+    : >"$VALIDATION_ERRORS"
+    assert_scratch_db "$SCRATCH_DB_NAME"
+    if gpg --decrypt --batch --yes --quiet --passphrase-fd 3 --pinentry-mode loopback \
+            "$VALIDATION_DOWNLOAD" 3<<<"$DB_BACKUP_PASSPHRASE" 2>>"$VALIDATION_ERRORS" \
+        | pg_restore \
+            -h "$POSTGRES_HOST" \
+            -U "$POSTGRES_USER" \
+            -d "$SCRATCH_DB_NAME" \
+            --no-password \
+            --no-owner \
+            --no-privileges \
+            --clean \
+            --if-exists \
+            --exit-on-error 2>>"$VALIDATION_ERRORS"; then
+        # Sentinel: the 'households' table must exist and be queryable
+        # via the same role that restored it. Cheap check (no count scan).
+        SENTINEL=$(psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$SCRATCH_DB_NAME" \
+            -tAc "SELECT to_regclass('public.households') IS NOT NULL" 2>"$VALIDATION_ERRORS" || echo "error")
+        if [ "$SENTINEL" = "t" ]; then
+            log "Validation OK - full restore succeeded, 'households' table present and queryable"
+        else
+            ERROR_MSG=$(head -n 3 "$VALIDATION_ERRORS" | tr '\n' ' ')
+            log "Validation FAILED - sentinel query returned '$SENTINEL': $ERROR_MSG"
+            DRILL_STATUS="failure"
+        fi
     else
-        log "Backup validation FAILED - sentinel table 'households' is missing from the dump TOC"
+        ERROR_MSG=$(head -n 5 "$VALIDATION_ERRORS" | tr '\n' ' ')
+        log "Validation FAILED - pg_restore errored: $ERROR_MSG"
         DRILL_STATUS="failure"
     fi
 fi
 
-# Per-iteration cleanup so plaintext doesn't sit on tmpfs longer than needed
-rm -f "$VALIDATION_PLAINTEXT" "$VALIDATION_DOWNLOAD"
+# The scratch DB gets dropped by the EXIT trap (cleanup()), which runs
+# even on validation failure. Download file is a tmpfs encrypted blob —
+# plaintext never lands on disk in this validation path.
+rm -f "$VALIDATION_DOWNLOAD"
 
 # Best-effort stats for the log line — don't let a transient rclone failure
 # here prevent the Slack notification from firing.

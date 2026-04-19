@@ -47,33 +47,72 @@ describe.skipIf(!hasGpg)("Encrypted database backup pipeline", () => {
             `#!/bin/bash\nprintf '%s' '${mockDumpPayload}'\n`,
         );
 
-        // Stub pg_restore: --list mode prints >10 TOC-looking lines so the
-        // validation content-line check passes; everything else is a no-op.
+        // Stub pg_restore: consume stdin (the streamed dump) and record
+        // the target DB arg for test assertions. Configurable failure via
+        // FAIL_PG_RESTORE env var.
         fs.writeFileSync(
             path.join(mockBin, "pg_restore"),
             `#!/bin/bash
-if [ "$1" = "--list" ]; then
-    cat <<'EOF'
-;
-; Archive created at 2026-04-14
-; dbname: matkassen
-;
-1; 0 0 ENCODING - ENCODING
-2; 0 0 STDSTRINGS - STDSTRINGS
-3; 0 0 SEARCHPATH - SEARCHPATH
-4; 200 1259 TABLE public households matkassen
-5; 200 1259 TABLE public food_parcels matkassen
-6; 200 1259 TABLE public users matkassen
-7; 200 1259 TABLE public pets matkassen
-8; 200 1259 TABLE public pickup_locations matkassen
-9; 200 1259 TABLE public household_members matkassen
-10; 200 1259 TABLE public sessions matkassen
-11; 200 1259 TABLE public accounts matkassen
-12; 200 1259 TABLE public verification_tokens matkassen
-EOF
-    exit 0
-fi
+TARGET_DB=""
+while [ $# -gt 0 ]; do
+    if [ "$1" = "-d" ]; then shift; TARGET_DB="$1"; fi
+    shift
+done
+printf 'pg_restore -d %s\\n' "$TARGET_DB" >> "\${DB_OPS_LOG:-/dev/null}"
 cat >/dev/null
+if [ -n "\${FAIL_PG_RESTORE:-}" ]; then
+    echo "simulated pg_restore failure" >&2
+    exit 1
+fi
+exit 0
+`,
+        );
+
+        // Stub createdb / dropdb: record invocation, exit 0 by default.
+        // Failure paths configurable via FAIL_CREATEDB / FAIL_DROPDB.
+        fs.writeFileSync(
+            path.join(mockBin, "createdb"),
+            `#!/bin/bash
+DB_NAME="\${!#}"
+printf 'createdb %s\\n' "$DB_NAME" >> "\${DB_OPS_LOG:-/dev/null}"
+if [ -n "\${FAIL_CREATEDB:-}" ]; then
+    echo "simulated createdb failure" >&2
+    exit 1
+fi
+exit 0
+`,
+        );
+        fs.writeFileSync(
+            path.join(mockBin, "dropdb"),
+            `#!/bin/bash
+DB_NAME="\${!#}"
+printf 'dropdb %s\\n' "$DB_NAME" >> "\${DB_OPS_LOG:-/dev/null}"
+exit 0
+`,
+        );
+
+        // Stub psql: for the sentinel query (-tAc "SELECT to_regclass..."),
+        // print SENTINEL_RESULT (default "t" = table exists). For any
+        // other invocation, just exit 0. Record the target DB.
+        fs.writeFileSync(
+            path.join(mockBin, "psql"),
+            `#!/bin/bash
+TARGET_DB=""
+QUERY=""
+NEXT_IS_DB=0
+NEXT_IS_QUERY=0
+for arg in "$@"; do
+    if [ "$NEXT_IS_DB" = "1" ]; then TARGET_DB="$arg"; NEXT_IS_DB=0; continue; fi
+    if [ "$NEXT_IS_QUERY" = "1" ]; then QUERY="$arg"; NEXT_IS_QUERY=0; continue; fi
+    case "$arg" in
+        -d) NEXT_IS_DB=1 ;;
+        -c|-tAc) NEXT_IS_QUERY=1 ;;
+    esac
+done
+printf 'psql -d %s\\n' "$TARGET_DB" >> "\${DB_OPS_LOG:-/dev/null}"
+if [[ "$QUERY" == *"to_regclass"* ]]; then
+    echo "\${SENTINEL_RESULT:-t}"
+fi
 exit 0
 `,
         );
@@ -134,7 +173,16 @@ exit 0
 `,
         );
 
-        for (const exe of ["pg_dump", "pg_restore", "rclone", "swift", "curl"]) {
+        for (const exe of [
+            "pg_dump",
+            "pg_restore",
+            "createdb",
+            "dropdb",
+            "psql",
+            "rclone",
+            "swift",
+            "curl",
+        ]) {
             fs.chmodSync(path.join(mockBin, exe), 0o755);
         }
     });
@@ -196,16 +244,32 @@ exit 0
         expect(exitCode).not.toBe(0);
     });
 
-    it("encrypts the dump, uploads to Swift, and validates the round-trip", () => {
+    it("encrypts the dump, uploads to Swift, and validates via full restore", () => {
         // Clean fake remote between tests
         for (const f of fs.readdirSync(fakeRemote)) {
             fs.rmSync(path.join(fakeRemote, f));
         }
 
-        const { stdout } = runBackup();
+        const opsLog = path.join(testRoot, "db-ops.log");
+        fs.writeFileSync(opsLog, "");
+        const { stdout } = runBackup({ DB_OPS_LOG: opsLog });
 
         expect(stdout).toContain("Backup process completed successfully");
-        expect(stdout).toContain("Backup validation OK");
+        expect(stdout).toContain("Validation OK - full restore succeeded");
+
+        // Verify the DB ops happened in the right order: pre-flight dropdb,
+        // then createdb, then pg_restore into the scratch DB, then sentinel
+        // psql, then post-run dropdb. All must target the fixed scratch
+        // name, never $POSTGRES_DB (= "matkassen" in this test).
+        const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
+        expect(ops[0]).toBe("dropdb matkassen_nightly_validate"); // pre-flight
+        expect(ops).toContain("createdb matkassen_nightly_validate");
+        expect(ops).toContain("pg_restore -d matkassen_nightly_validate");
+        expect(ops).toContain("psql -d matkassen_nightly_validate");
+        // Post-run cleanup must also be against the scratch name only.
+        expect(ops[ops.length - 1]).toBe("dropdb matkassen_nightly_validate");
+        // Sanity: nothing in the ops log should reference the real DB name.
+        expect(ops.every(line => !line.endsWith(" matkassen"))).toBe(true);
 
         const uploaded = fs
             .readdirSync(fakeRemote)
@@ -342,37 +406,14 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         expect(notifications).toContain("rclone upload");
     });
 
-    it("fails validation when the sentinel 'households' table is missing", () => {
-        // The sentinel check protects against a corrupted or truncated dump
-        // that's still technically parseable by `pg_restore --list`. Stub
-        // it to return a TOC that omits the households entry and confirm
-        // validation reports failure.
+    it("fails validation when the sentinel query returns 'f' (table missing)", () => {
+        // After full restore, the script runs
+        // `SELECT to_regclass('public.households') IS NOT NULL`.
+        // If that returns 'f', the table didn't survive the restore →
+        // the backup is unreliable and validation must fail.
         for (const f of fs.readdirSync(fakeRemote)) {
             fs.rmSync(path.join(fakeRemote, f));
         }
-        const realPgRestore = fs.readFileSync(path.join(mockBin, "pg_restore"), "utf-8");
-        fs.writeFileSync(
-            path.join(mockBin, "pg_restore"),
-            `#!/bin/bash
-if [ "$1" = "--list" ]; then
-    cat <<'EOF'
-;
-; Archive created at 2026-04-14
-; dbname: matkassen
-;
-1; 0 0 ENCODING - ENCODING
-2; 0 0 STDSTRINGS - STDSTRINGS
-3; 0 0 SEARCHPATH - SEARCHPATH
-4; 200 1259 TABLE public some_other_table matkassen
-EOF
-    exit 0
-fi
-cat >/dev/null
-exit 0
-`,
-        );
-        fs.chmodSync(path.join(mockBin, "pg_restore"), 0o755);
-
         const curlLog = path.join(testRoot, "curl.log");
         fs.writeFileSync(curlLog, "");
 
@@ -380,16 +421,82 @@ exit 0
             SLACK_BOT_TOKEN: "xoxb-test",
             SLACK_CHANNEL_ID: "C_TEST",
             CURL_LOG: curlLog,
+            SENTINEL_RESULT: "f",
         });
 
-        fs.writeFileSync(path.join(mockBin, "pg_restore"), realPgRestore);
-        fs.chmodSync(path.join(mockBin, "pg_restore"), 0o755);
-
         const notifications = fs.readFileSync(curlLog, "utf-8");
-        expect(stdout).toContain("sentinel table 'households' is missing");
-        // The script exits 1 on validation failure and the final Slack
-        // alert is a "validation failed" message, not the generic ERR
-        // trap — assert on that specific phrasing.
+        expect(stdout).toContain("sentinel query returned 'f'");
+        expect(notifications).toContain("validation failed");
+    });
+
+    it("drops the scratch DB even when pg_restore fails", () => {
+        // Regression test for the cleanup contract: a failed full-restore
+        // must not leak the scratch DB. The EXIT trap has to run dropdb
+        // regardless of whether validation succeeded.
+        for (const f of fs.readdirSync(fakeRemote)) {
+            fs.rmSync(path.join(fakeRemote, f));
+        }
+        const opsLog = path.join(testRoot, "db-ops.log");
+        const curlLog = path.join(testRoot, "curl.log");
+        fs.writeFileSync(opsLog, "");
+        fs.writeFileSync(curlLog, "");
+
+        const { stdout } = runBackup({
+            SLACK_BOT_TOKEN: "xoxb-test",
+            SLACK_CHANNEL_ID: "C_TEST",
+            CURL_LOG: curlLog,
+            DB_OPS_LOG: opsLog,
+            FAIL_PG_RESTORE: "1",
+        });
+
+        const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
+        // createdb fired, pg_restore ran (and failed), dropdb still fired
+        // at the end. Exactly one post-run dropdb, plus the pre-flight
+        // one, = two dropdb calls in total.
+        expect(ops.filter(l => l === "createdb matkassen_nightly_validate")).toHaveLength(1);
+        expect(ops.filter(l => l === "pg_restore -d matkassen_nightly_validate")).toHaveLength(1);
+        expect(ops.filter(l => l === "dropdb matkassen_nightly_validate")).toHaveLength(2);
+        expect(stdout).toContain("pg_restore errored");
+    });
+
+    it("runs pre-flight dropdb before any createdb", () => {
+        // If a previous run crashed mid-validation, the scratch DB may
+        // still exist. Pre-flight must drop it so createdb can succeed.
+        for (const f of fs.readdirSync(fakeRemote)) {
+            fs.rmSync(path.join(fakeRemote, f));
+        }
+        const opsLog = path.join(testRoot, "db-ops.log");
+        fs.writeFileSync(opsLog, "");
+
+        runBackup({ DB_OPS_LOG: opsLog });
+
+        const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
+        const firstCreate = ops.indexOf("createdb matkassen_nightly_validate");
+        const firstDrop = ops.indexOf("dropdb matkassen_nightly_validate");
+        expect(firstDrop).toBeGreaterThanOrEqual(0);
+        expect(firstCreate).toBeGreaterThan(firstDrop);
+    });
+
+    it("alerts Slack when createdb fails (missing CREATEDB grant)", () => {
+        // The most operationally likely failure: rollout skipped the
+        // ALTER USER ... CREATEDB step. The script should fail the run
+        // with a clear hint rather than hanging or silently succeeding.
+        for (const f of fs.readdirSync(fakeRemote)) {
+            fs.rmSync(path.join(fakeRemote, f));
+        }
+        const curlLog = path.join(testRoot, "curl.log");
+        fs.writeFileSync(curlLog, "");
+
+        const { stdout } = runBackup({
+            SLACK_BOT_TOKEN: "xoxb-test",
+            SLACK_CHANNEL_ID: "C_TEST",
+            CURL_LOG: curlLog,
+            FAIL_CREATEDB: "1",
+        });
+
+        expect(stdout).toContain("could not create scratch DB");
+        expect(stdout).toContain("CREATEDB");
+        const notifications = fs.readFileSync(curlLog, "utf-8");
         expect(notifications).toContain("validation failed");
     });
 });

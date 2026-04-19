@@ -495,6 +495,24 @@ else
   echo "✅ Database verification successful."
 fi
 
+# Grant CREATEDB to the app user on production so the nightly backup
+# validation can create and drop its scratch DB. Idempotent. See the
+# matching block in update.sh for subsequent deploys.
+if [ "${ENV_NAME:-}" = "production" ]; then
+  echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
+  if sudo docker compose exec -T db bash -c "
+    PGPASS_FILE=\"/tmp/.pgpass_grant\"
+    echo \"localhost:5432:*:$POSTGRES_USER:$POSTGRES_PASSWORD\" > \"\$PGPASS_FILE\"
+    chmod 600 \"\$PGPASS_FILE\"
+    PGPASSFILE=\"\$PGPASS_FILE\" psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'ALTER USER \"$POSTGRES_USER\" CREATEDB;'
+    rm -f \"\$PGPASS_FILE\"
+  " > /dev/null 2>&1; then
+    echo "✅ CREATEDB granted to $POSTGRES_USER."
+  else
+    echo "⚠️ Failed to grant CREATEDB — nightly validation will fail until this is resolved."
+  fi
+fi
+
 # Cleanup old Docker images and containers
 sudo docker system prune -af
 

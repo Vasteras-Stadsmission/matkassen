@@ -157,7 +157,7 @@ docker exec -it matkassen-db psql -U matkassen -d matkassen
 
 ### Backups
 
-**All production database backups are encrypted with symmetric AES256 GPG before leaving the host.** The dump is piped directly from `pg_dump` into `gpg` — no intermediate plaintext file. The nightly validation step does temporarily decrypt the backup to a container-private tmpfs for `pg_restore --list`, but that plaintext is deleted immediately after validation.
+**All production database backups are encrypted with symmetric AES256 GPG before leaving the host.** The dump is piped directly from `pg_dump` into `gpg` — no intermediate plaintext file. The nightly validation step decrypts the backup and does a full `pg_restore` into a throwaway `matkassen_nightly_validate` database on the same Postgres instance; the scratch database is dropped at the end of the run. Plaintext data exists only inside the scratch DB during validation and is destroyed with it.
 
 #### Automated Encrypted Backups
 
@@ -166,8 +166,10 @@ Production backups run automatically via `Dockerfile.db-backup`, which runs `scr
 1. `pg_dump --format=custom --compress=9` piped directly into `gpg --symmetric --cipher-algo AES256` (no intermediate plaintext file).
 2. Uploads the `.dump.gpg` file to the Elastx Swift container via `rclone`.
 3. Sets `X-Delete-After` for 14-day automatic expiry as a defense-in-depth retention guarantee.
-4. Round-trip validates by re-downloading, decrypting, and running `pg_restore --list`. This proves the backup is decryptable and the archive catalog is intact — a wrong passphrase or corrupted upload fails the same night. (It does not prove a full `pg_restore` would succeed; see the quarterly restore drill in the database guide.)
+4. Full-restore validates the upload: creates `matkassen_nightly_validate`, streams `gpg --decrypt | pg_restore --exit-on-error` into it, runs a sentinel query (`SELECT to_regclass('public.households') IS NOT NULL`), drops the scratch DB. A wrong passphrase, corrupted upload, DDL incompatibility, or broken COPY stream fails the same night.
 5. Reports success/failure to Slack.
+
+**Cluster-level requirement**: the backup user needs `CREATEDB` to create and drop the scratch database. `deploy.sh` and `update.sh` apply this grant automatically on production. The widened privilege is cluster-level (the role can now create/drop databases), not app-level (it already owned every table in the app schema).
 
 #### Encryption Details
 
@@ -273,7 +275,7 @@ sudo docker compose restart web
 1. Generate a new passphrase (`openssl rand -base64 32`).
 2. Update the `DB_BACKUP_PASSPHRASE` GitHub Secret.
 3. Re-deploy: `deploy.sh` / `update.sh` writes the new value into the host `.env`, and recreating the `db-backup` container picks it up.
-4. The next nightly backup will be encrypted with the new passphrase and the round-trip validation step will confirm it works end-to-end.
+4. The next nightly backup will be encrypted with the new passphrase and the full-restore validation will confirm it works end-to-end.
 5. **Old backups in Swift are still encrypted with the old passphrase.** Pick one of the two strategies below.
 
 ##### Strategy A: Wait out retention (routine rotation)
@@ -301,7 +303,7 @@ while read -r FILE; do
     docker compose -f docker-compose.yml -f docker-compose.backup.yml \
         --profile backup exec -T \
         -e OLD_PASS="$OLD_PASS" -e NEW_PASS="$NEW_PASS" -e FILE="$FILE" \
-        db-backup sh -c '
+        db-backup bash -c '
             set -euo pipefail
             SRC="elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}/${FILE}"
             TMPOUT=$(mktemp -t rekey.XXXXXX)

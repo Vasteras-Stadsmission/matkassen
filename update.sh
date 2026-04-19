@@ -284,6 +284,26 @@ else
   echo "✅ Database migrations completed successfully."
 fi
 
+# Grant CREATEDB to the app user on production so the nightly backup
+# validation in scripts/backup-db.sh can create and drop its scratch DB
+# (matkassen_nightly_validate). Idempotent — ALTER USER is a no-op if
+# the attribute is already set. Skipped on staging because the backup
+# profile never runs there.
+if [ "${ENV_NAME:-}" = "production" ]; then
+  echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
+  if sudo docker compose exec -T db bash -c "
+    PGPASS_FILE=\"/tmp/.pgpass_grant\"
+    echo \"localhost:5432:*:$POSTGRES_USER:$POSTGRES_PASSWORD\" > \"\$PGPASS_FILE\"
+    chmod 600 \"\$PGPASS_FILE\"
+    PGPASSFILE=\"\$PGPASS_FILE\" psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'ALTER USER \"$POSTGRES_USER\" CREATEDB;'
+    rm -f \"\$PGPASS_FILE\"
+  " > /dev/null 2>&1; then
+    echo "✅ CREATEDB granted to $POSTGRES_USER."
+  else
+    echo "⚠️ Failed to grant CREATEDB — nightly validation will Slack-alert until this is resolved manually."
+  fi
+fi
+
 # Now start nginx — schema is up to date, safe to accept public traffic
 echo "Starting nginx..."
 NGINX_START_ATTEMPTS=0
