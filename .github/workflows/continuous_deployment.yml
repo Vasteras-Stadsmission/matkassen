@@ -77,6 +77,12 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
+                      # Fail fast on errors — this block used to swallow git failures and
+                      # leave the VPS on an outdated commit while reporting success.
+                      # Assumes the remote login shell is bash (`pipefail` is a bashism;
+                      # dash/sh would error out immediately here — fail-loud, not silent).
+                      set -euo pipefail
+
                       echo "Export GitHub secrets into environment variables"
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_STAGING }}"
                       export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
@@ -103,29 +109,29 @@ jobs:
                       export SWIFT_PREFIX="backups/${ENV_NAME}"
 
                       APP_DIR=~/matkassen
-                      if [ -d "$APP_DIR" ]; then
-                          echo "Pulling latest changes from the repository..."
-                          cd $APP_DIR
-                          echo "Discarding any local changes..."
-                          git reset --hard HEAD
-                          git clean -fd
-                          git pull origin main
-
-                          # Run the update.sh script which will apply migrations
-                          chmod +x update.sh
-                          ./update.sh
-                          UPDATE_STATUS=$?
-
-                          if [ $UPDATE_STATUS -ne 0 ]; then
-                              echo "❌ Deployment failed with status: $UPDATE_STATUS"
-                              exit $UPDATE_STATUS
-                          else
-                              echo "✅ Successfully deployed all updates."
-                          fi
-                      else
-                          echo "App directory not found"
+                      if [ ! -d "$APP_DIR" ]; then
+                          echo "❌ App directory not found"
                           exit 1
                       fi
+                      cd "$APP_DIR"
+
+                      # Force-align the repo to origin/main regardless of the branch
+                      # that happens to be checked out on the VPS. `git reset --hard HEAD`
+                      # followed by `git pull origin main` silently fails to update when
+                      # HEAD is on a diverged branch — that's how staging ended up stuck
+                      # on an old feature branch for ~a week.
+                      echo "Aligning VPS repo to origin/main..."
+                      git fetch --prune origin main
+                      git checkout --force -B main origin/main
+                      git clean -fd
+                      echo "HEAD: $(git rev-parse HEAD)  (workflow SHA: ${{ github.sha }})"
+
+                      # Run the update.sh script which will apply migrations.
+                      # `set -euo pipefail` above means a non-zero exit terminates the
+                      # whole script, so the previous UPDATE_STATUS dance is redundant.
+                      chmod +x update.sh
+                      ./update.sh
+                      echo "✅ Successfully deployed all updates."
 
     manual-deploy-to-production:
         needs: deploy-to-staging
@@ -141,6 +147,10 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
+                      # Fail fast on errors — see deploy-to-staging above for context.
+                      # Assumes the remote login shell is bash (`pipefail` is a bashism).
+                      set -euo pipefail
+
                       echo "Export GitHub secrets into environment variables"
                       export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_PRODUCTION }}"
                       export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
@@ -184,26 +194,20 @@ jobs:
                       export SLACK_CHANNEL_ID="${{ secrets.SLACK_CHANNEL_ID }}"
 
                       APP_DIR=~/matkassen
-                      if [ -d "$APP_DIR" ]; then
-                          echo "Pulling latest changes from the repository..."
-                          cd $APP_DIR
-                          echo "Discarding any local changes..."
-                          git reset --hard HEAD
-                          git clean -fd
-                          git pull origin main
-
-                          # Run the update.sh script which will apply migrations
-                          chmod +x update.sh
-                          ./update.sh
-                          UPDATE_STATUS=$?
-
-                          if [ $UPDATE_STATUS -ne 0 ]; then
-                              echo "❌ Deployment failed with status: $UPDATE_STATUS"
-                              exit $UPDATE_STATUS
-                          else
-                              echo "✅ Successfully deployed all updates."
-                          fi
-                      else
-                          echo "App directory not found"
+                      if [ ! -d "$APP_DIR" ]; then
+                          echo "❌ App directory not found"
                           exit 1
                       fi
+                      cd "$APP_DIR"
+
+                      # Force-align the repo to origin/main regardless of the branch
+                      # that happens to be checked out on the VPS (see staging block).
+                      echo "Aligning VPS repo to origin/main..."
+                      git fetch --prune origin main
+                      git checkout --force -B main origin/main
+                      git clean -fd
+                      echo "HEAD: $(git rev-parse HEAD)  (workflow SHA: ${{ github.sha }})"
+
+                      chmod +x update.sh
+                      ./update.sh
+                      echo "✅ Successfully deployed all updates."
