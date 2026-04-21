@@ -75,11 +75,7 @@ function applyDatabaseSslToUrl(databaseUrl) {
     const mode = parseDatabaseSslMode();
     if (mode === null) return databaseUrl;
     const sslmode =
-        mode === "require"
-            ? "no-verify"
-            : mode === "verify-full"
-              ? "verify-full"
-              : "disable";
+        mode === "require" ? "no-verify" : mode === "verify-full" ? "verify-full" : "disable";
     const url = new URL(databaseUrl);
     url.searchParams.set("sslmode", sslmode);
     return url.toString();

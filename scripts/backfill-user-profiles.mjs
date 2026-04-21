@@ -25,9 +25,7 @@ import { createRequire } from "node:module";
 import { users } from "../app/db/schema.ts";
 
 const { Pool } = pg;
-const { applyDatabaseSslToUrl } = createRequire(import.meta.url)(
-    "../app/db/database-ssl.cjs",
-);
+const { applyDatabaseSslToUrl } = createRequire(import.meta.url)("../app/db/database-ssl.cjs");
 
 // GitHub API configuration
 const GITHUB_API_BASE = "https://api.github.com";
