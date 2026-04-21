@@ -8,11 +8,24 @@ import * as os from "os";
  * Tests for the deployed encrypted backup pipeline (scripts/backup-db.sh)
  * and the encrypted-only restore wrapper (scripts/backup-restore.sh).
  *
- * The backup script chains pg_dump → gpg → rclone → swift, none of which
- * are present in CI. We stub each with a tiny shell script on PATH so the
- * pipeline runs end-to-end against a local "fake Swift" directory. The
- * encryption step is real — we then independently decrypt the produced
- * file with the same passphrase to prove the ciphertext round-trips.
+ * The backup script chains pg_dump → gpg → rclone → swift → createdb →
+ * pg_restore → psql → dropdb, none of which are present in CI. We stub
+ * each with a tiny shell script on PATH so the pipeline runs end-to-end
+ * against a local "fake Swift" directory. The encryption step is real
+ * — we then independently decrypt the produced file with the same
+ * passphrase to prove the ciphertext round-trips.
+ *
+ * SCOPE: this suite is intentionally shell/control-flow coverage only.
+ * It verifies that the script invokes the right binaries with the right
+ * flags in the right order, that failure paths set the right exit code,
+ * and that Slack notifications fire. It does NOT exercise real Postgres
+ * semantics — a pg_restore stub that `cat >/dev/null` and exits 0 will
+ * pass even if pg_restore had missing --exit-on-error, bad flag combos,
+ * or ownership/extension issues. Real-binary verification is done via
+ * the local E2E drill (docker build + docker run against a local dev
+ * DB, see the commit message of commit b2ebf7e) and by the first prod
+ * nightly run after deploy. Run the local drill before meaningful
+ * script changes land.
  */
 
 const hasGpg = (() => {
@@ -196,6 +209,7 @@ exit 0
     function runBackup(extraEnv: Record<string, string> = {}): {
         stdout: string;
         stderr: string;
+        status: number;
     } {
         try {
             const result = execFileSync(backupScript, [], {
@@ -215,9 +229,13 @@ exit 0
                 stdio: "pipe",
                 encoding: "utf-8",
             });
-            return { stdout: result, stderr: "" };
+            return { stdout: result, stderr: "", status: 0 };
         } catch (e: any) {
-            return { stdout: e.stdout?.toString() ?? "", stderr: e.stderr?.toString() ?? "" };
+            return {
+                stdout: e.stdout?.toString() ?? "",
+                stderr: e.stderr?.toString() ?? "",
+                status: e.status ?? 1,
+            };
         }
     }
 
@@ -252,8 +270,9 @@ exit 0
 
         const opsLog = path.join(testRoot, "db-ops.log");
         fs.writeFileSync(opsLog, "");
-        const { stdout } = runBackup({ DB_OPS_LOG: opsLog });
+        const { stdout, status } = runBackup({ DB_OPS_LOG: opsLog });
 
+        expect(status).toBe(0);
         expect(stdout).toContain("Backup process completed successfully");
         expect(stdout).toContain("Validation OK - full restore succeeded");
 
@@ -355,7 +374,7 @@ exit 0
         const curlLog = path.join(testRoot, "curl.log");
         fs.writeFileSync(curlLog, "");
 
-        const { stdout } = runBackup({
+        const { stdout, status } = runBackup({
             SLACK_BOT_TOKEN: "xoxb-test",
             SLACK_CHANNEL_ID: "C_TEST",
             CURL_LOG: curlLog,
@@ -366,6 +385,7 @@ exit 0
         fs.chmodSync(path.join(mockBin, "pg_dump"), 0o755);
 
         const notifications = fs.readFileSync(curlLog, "utf-8");
+        expect(status).not.toBe(0);
         expect(stdout).toMatch(/Backup aborted in stage '?pg_dump\|gpg/);
         expect(notifications).toContain("pg_dump|gpg");
         expect(notifications).toMatch(/"text":\s*"\[matkassen\]/);
@@ -392,7 +412,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         const curlLog = path.join(testRoot, "curl.log");
         fs.writeFileSync(curlLog, "");
 
-        const { stdout } = runBackup({
+        const { stdout, status } = runBackup({
             SLACK_BOT_TOKEN: "xoxb-test",
             SLACK_CHANNEL_ID: "C_TEST",
             CURL_LOG: curlLog,
@@ -402,6 +422,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         fs.chmodSync(path.join(mockBin, "rclone"), 0o755);
 
         const notifications = fs.readFileSync(curlLog, "utf-8");
+        expect(status).not.toBe(0);
         expect(stdout).toMatch(/Backup aborted in stage '?rclone upload/);
         expect(notifications).toContain("rclone upload");
     });
@@ -417,7 +438,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         const curlLog = path.join(testRoot, "curl.log");
         fs.writeFileSync(curlLog, "");
 
-        const { stdout } = runBackup({
+        const { stdout, status } = runBackup({
             SLACK_BOT_TOKEN: "xoxb-test",
             SLACK_CHANNEL_ID: "C_TEST",
             CURL_LOG: curlLog,
@@ -425,6 +446,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         });
 
         const notifications = fs.readFileSync(curlLog, "utf-8");
+        expect(status).not.toBe(0);
         expect(stdout).toContain("sentinel query returned 'f'");
         expect(notifications).toContain("validation failed");
     });
@@ -441,7 +463,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         fs.writeFileSync(opsLog, "");
         fs.writeFileSync(curlLog, "");
 
-        const { stdout } = runBackup({
+        const { stdout, status } = runBackup({
             SLACK_BOT_TOKEN: "xoxb-test",
             SLACK_CHANNEL_ID: "C_TEST",
             CURL_LOG: curlLog,
@@ -449,6 +471,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             FAIL_PG_RESTORE: "1",
         });
 
+        expect(status).not.toBe(0);
         const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
         // createdb fired, pg_restore ran (and failed), dropdb still fired
         // at the end. Exactly one post-run dropdb, plus the pre-flight
@@ -487,13 +510,14 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         const curlLog = path.join(testRoot, "curl.log");
         fs.writeFileSync(curlLog, "");
 
-        const { stdout } = runBackup({
+        const { stdout, status } = runBackup({
             SLACK_BOT_TOKEN: "xoxb-test",
             SLACK_CHANNEL_ID: "C_TEST",
             CURL_LOG: curlLog,
             FAIL_CREATEDB: "1",
         });
 
+        expect(status).not.toBe(0);
         expect(stdout).toContain("could not create scratch DB");
         expect(stdout).toContain("CREATEDB");
         const notifications = fs.readFileSync(curlLog, "utf-8");

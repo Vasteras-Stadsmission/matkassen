@@ -110,6 +110,12 @@ assert_scratch_db() {
 }
 
 cleanup() {
+    # Disable errexit inside the trap: we want to run every cleanup
+    # step even if an earlier one fails. Without this, a future addition
+    # (e.g. a second rclone call, another rm on a special path) could
+    # silently skip the remaining cleanup and leak resources.
+    set +e
+
     # Drop the scratch DB FIRST, while $PGPASS_FILE still exists on disk.
     # assert_scratch_db guarantees this can only target the fixed scratch
     # name, never $POSTGRES_DB. A failure here is logged but doesn't flip
@@ -202,6 +208,13 @@ dropdb --if-exists -h "$POSTGRES_HOST" -U "$POSTGRES_USER" "$SCRATCH_DB_NAME" 2>
 # fd 3 so it never lands in argv.
 BACKUP_STAGE="pg_dump|gpg"
 log "Creating encrypted database dump: $BACKUP_FILENAME"
+# Feed the passphrase via process substitution on fd 3 rather than a
+# herestring. `builtin printf` forces the bash builtin (no fork, no
+# argv exposure) even if `printf` is ever shadowed. Process substitution
+# uses /dev/fd/N on Linux (no filesystem spill); herestrings write the
+# expansion to an unlinked file in $TMPDIR which is on the host disk
+# and theoretically recoverable from crash dumps. gpg keeps reading
+# plaintext from fd 0 (the pg_dump pipe).
 pg_dump \
     -h "$POSTGRES_HOST" \
     -U "$POSTGRES_USER" \
@@ -214,7 +227,7 @@ pg_dump \
     | gpg --symmetric --cipher-algo AES256 --batch \
         --passphrase-fd 3 --pinentry-mode loopback \
         --output "$ENCRYPTED_FILE" \
-        3<<<"$DB_BACKUP_PASSPHRASE"
+        3< <(builtin printf '%s' "$DB_BACKUP_PASSPHRASE")
 
 if [ ! -f "$ENCRYPTED_FILE" ] || [ ! -s "$ENCRYPTED_FILE" ]; then
     fail "Database backup failed - dump/encrypt produced no output"
@@ -302,8 +315,9 @@ else
     # other has already written.
     : >"$VALIDATION_ERRORS"
     assert_scratch_db "$SCRATCH_DB_NAME"
-    if gpg --decrypt --batch --yes --quiet --passphrase-fd 3 --pinentry-mode loopback \
-            "$VALIDATION_DOWNLOAD" 3<<<"$DB_BACKUP_PASSPHRASE" 2>>"$VALIDATION_ERRORS" \
+    if builtin printf '%s' "$DB_BACKUP_PASSPHRASE" \
+        | gpg --decrypt --batch --yes --quiet --passphrase-fd 0 --pinentry-mode loopback \
+            "$VALIDATION_DOWNLOAD" 2>>"$VALIDATION_ERRORS" \
         | pg_restore \
             -h "$POSTGRES_HOST" \
             -U "$POSTGRES_USER" \

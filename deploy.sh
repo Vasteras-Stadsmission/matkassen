@@ -500,13 +500,16 @@ fi
 # matching block in update.sh for subsequent deploys.
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
-  if sudo docker compose exec -T db bash -c "
-    PGPASS_FILE=\"/tmp/.pgpass_grant\"
-    echo \"localhost:5432:*:$POSTGRES_USER:$POSTGRES_PASSWORD\" > \"\$PGPASS_FILE\"
-    chmod 600 \"\$PGPASS_FILE\"
-    PGPASSFILE=\"\$PGPASS_FILE\" psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'ALTER USER \"$POSTGRES_USER\" CREATEDB;'
-    rm -f \"\$PGPASS_FILE\"
-  " > /dev/null 2>&1; then
+  # Single-quoted bash -c so $POSTGRES_PASSWORD expands inside the db
+  # container (from its own env), not on the host. The host never sees
+  # the password in argv, so `ps auxfww` during the exec reveals only
+  # the docker command line, not secrets.
+  if sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
+  ' > /dev/null 2>&1; then
     echo "✅ CREATEDB granted to $POSTGRES_USER."
   else
     echo "⚠️ Failed to grant CREATEDB — nightly validation will fail until this is resolved."

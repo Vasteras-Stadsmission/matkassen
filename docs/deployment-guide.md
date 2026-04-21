@@ -159,6 +159,8 @@ docker exec -it matkassen-db psql -U matkassen -d matkassen
 
 **All production database backups are encrypted with symmetric AES256 GPG before leaving the host.** The dump is piped directly from `pg_dump` into `gpg` — no intermediate plaintext file. The nightly validation step decrypts the backup and does a full `pg_restore` into a throwaway `matkassen_nightly_validate` database on the same Postgres instance; the scratch database is dropped at the end of the run. Plaintext data exists only inside the scratch DB during validation and is destroyed with it.
 
+> ⚠️ **Scope caveat.** This proves "the backup is restorable into _this_ Postgres cluster." It is **not** a cross-host disaster-recovery drill: if the whole VPS is lost, you still have to provision a fresh cluster and restore onto it from Swift. That scenario is intentionally not automated.
+
 #### Automated Encrypted Backups
 
 Production backups run automatically via `Dockerfile.db-backup`, which runs `scripts/backup-db.sh` nightly at 02:00 Europe/Stockholm under supercronic. The script:
@@ -240,7 +242,7 @@ The list of available backups is printed when you run the script with no argumen
 
 ##### Restore Process
 
-1. Validates filename is `.dump.gpg`, passphrase is set, and `ENV_NAME=production`.
+1. Validates filename is `.dump.gpg` and `ENV_NAME=production`. The passphrase comes from the running `db-backup` container's env (`docker-compose.backup.yml`), not the caller's shell — no local export needed.
 2. Prompts for interactive `y/N` confirmation.
 3. Inside the `db-backup` container, downloads the encrypted file from Swift to tmpfs.
 4. Streams `gpg --decrypt | pg_restore --clean --if-exists` so the decrypted dump never lands on disk.
@@ -297,8 +299,9 @@ docker compose -f docker-compose.yml -f docker-compose.backup.yml \
     rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
     --include "matkassen_backup_*.dump.gpg" > /tmp/backups_to_rekey.txt
 
-# For each, stream-rekey with no intermediate plaintext on disk. Different
-# fds (3 for old, 4 for new) because fds don't carry across a pipe.
+# For each, stream-rekey with no intermediate plaintext on disk.
+# Passphrases arrive via process substitution / pipe rather than bash
+# herestrings, so they never touch the filesystem even briefly.
 while read -r FILE; do
     docker compose -f docker-compose.yml -f docker-compose.backup.yml \
         --profile backup exec -T \
@@ -309,13 +312,16 @@ while read -r FILE; do
             TMPOUT=$(mktemp -t rekey.XXXXXX)
             trap "rm -f \"$TMPOUT\"" EXIT
             rclone cat "$SRC" \
-                | gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback 3<<<"$OLD_PASS" \
+                | gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback \
+                    3< <(builtin printf "%s" "$OLD_PASS") \
                 | gpg --symmetric --cipher-algo AES256 --batch \
-                      --passphrase-fd 4 --pinentry-mode loopback \
-                      --output "$TMPOUT" 4<<<"$NEW_PASS"
+                      --passphrase-fd 3 --pinentry-mode loopback \
+                      --output "$TMPOUT" \
+                      3< <(builtin printf "%s" "$NEW_PASS")
             # Verify the new object decrypts before overwriting the old one
-            gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback \
-                "$TMPOUT" 3<<<"$NEW_PASS" | pg_restore --list >/dev/null
+            builtin printf "%s" "$NEW_PASS" \
+                | gpg --decrypt --batch --passphrase-fd 0 --pinentry-mode loopback \
+                    "$TMPOUT" | pg_restore --list >/dev/null
             rclone copyto "$TMPOUT" "$SRC" --retries=3
         '
 done < /tmp/backups_to_rekey.txt
@@ -357,7 +363,13 @@ Slack notifications fire on every nightly run (success or failure), with file si
 
 **Slack reports "validation failed" but upload succeeded**
 
-- Most likely a passphrase mismatch between the encrypt and decrypt steps (shouldn't happen — both use the same env var in the same script run, but check for stray edits). Other possibility: tmpfs is full — bump `/tmp` size in `docker-compose.backup.yml`.
+Check the Slack error text for the stage:
+
+- `could not create scratch DB` with `CREATEDB` in the log → the backup role is missing the `CREATEDB` grant. `deploy.sh` and `update.sh` apply it on production, but both soft-fail (with a warning, not an error). Fix manually: `docker compose exec -T db psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'ALTER USER "'$POSTGRES_USER'" CREATEDB;'`.
+- `pg_restore errored` → the decrypted dump didn't apply cleanly. Usually a DDL version skew between the dumping Postgres and the restoring Postgres (both are the same instance, so this only happens if someone bumped the image tag mid-flight). Check `docker compose logs db` around the 02:00 run.
+- `sentinel query returned 'f'` → the `households` table didn't survive the restore. Most commonly an empty or truncated dump; rarer but possible: the schema was renamed and the sentinel check needs updating.
+- `decryption failed` → passphrase mismatch between encrypt and decrypt. Shouldn't happen (same env var in one run) — but check for stray edits and whether the container was restarted mid-run.
+- `unable to download backup file` → transient Swift or network issue, usually self-resolves the next night.
 
 **Restore fails with `gpg: decryption failed: Bad session key`**
 

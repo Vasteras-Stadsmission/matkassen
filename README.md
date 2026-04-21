@@ -400,7 +400,7 @@ The system includes automated nightly PostgreSQL backups to Elastx Object Store:
 - **Encryption**: symmetric AES256 GPG, applied before the dump leaves the host
 - **Format**: `matkassen_backup_<timestamp>.dump.gpg` (encrypted PostgreSQL custom-format dump)
 - **Retention**: 14 days via Swift `X-Delete-After`
-- **Validation**: nightly round-trip — re-download, decrypt, and `pg_restore --list` to confirm the backup is decryptable and the archive catalog is intact
+- **Validation**: nightly full-restore drill — re-download, decrypt, `pg_restore` into a throwaway `matkassen_nightly_validate` database, sentinel query, drop. A failed restore alerts Slack; there is no separate manual drill cadence
 - **Notifications**: Slack alerts on success/failure
 
 ### Setup (Production Only)

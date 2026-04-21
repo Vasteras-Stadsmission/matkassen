@@ -53,11 +53,10 @@ if [[ "$BACKUP_FILENAME" != *.dump.gpg ]]; then
     exit 1
 fi
 
-if [ -z "${DB_BACKUP_PASSPHRASE:-}" ]; then
-    echo "Error: DB_BACKUP_PASSPHRASE is not set in the calling shell."
-    echo "Export it before running: export DB_BACKUP_PASSPHRASE=..."
-    exit 1
-fi
+# Note: the outer shell does NOT need DB_BACKUP_PASSPHRASE — the db-backup
+# container has it in its ambient env via docker-compose.backup.yml. The
+# inner shell below checks that; requiring it here too would block a
+# legitimate restore if the operator just forgot to export it locally.
 
 echo "Starting database restoration process for: $BACKUP_FILENAME"
 echo "WARNING: This will replace all data in the target database."
@@ -116,8 +115,15 @@ $COMPOSE_CMD $COMPOSE_FILES --profile backup exec \
     # Decrypt to stdout, pipe straight into pg_restore. No --jobs because
     # parallel restore needs a seekable file; we accept slower restore in
     # exchange for never writing the decrypted dump to disk.
-    gpg --decrypt --batch --quiet --passphrase-fd 3 --pinentry-mode loopback \
-        "$DOWNLOAD_FILE" 3<<<"$DB_BACKUP_PASSPHRASE" \
+    # --exit-on-error: a broken restore must fail immediately, not limp
+    # through partial DDL/COPY and leave the target DB half-restored.
+    # This matters most here because the target is usually prod.
+    # Passphrase via `builtin printf | --passphrase-fd 0` rather than
+    # herestring — anonymous pipe, no $TMPDIR spill. `builtin` forces
+    # the bash builtin even if printf is shadowed.
+    builtin printf '%s' "$DB_BACKUP_PASSPHRASE" \
+        | gpg --decrypt --batch --quiet --passphrase-fd 0 --pinentry-mode loopback \
+            "$DOWNLOAD_FILE" \
         | pg_restore \
             -h "$POSTGRES_HOST" \
             -U "$POSTGRES_USER" \
@@ -126,7 +132,8 @@ $COMPOSE_CMD $COMPOSE_FILES --profile backup exec \
             --no-owner \
             --no-privileges \
             --clean \
-            --if-exists
+            --if-exists \
+            --exit-on-error
 '
 
 echo "Database restoration completed successfully."

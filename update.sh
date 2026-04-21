@@ -291,16 +291,20 @@ fi
 # profile never runs there.
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
-  if sudo docker compose exec -T db bash -c "
-    PGPASS_FILE=\"/tmp/.pgpass_grant\"
-    echo \"localhost:5432:*:$POSTGRES_USER:$POSTGRES_PASSWORD\" > \"\$PGPASS_FILE\"
-    chmod 600 \"\$PGPASS_FILE\"
-    PGPASSFILE=\"\$PGPASS_FILE\" psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'ALTER USER \"$POSTGRES_USER\" CREATEDB;'
-    rm -f \"\$PGPASS_FILE\"
-  " > /dev/null 2>&1; then
+  # Single-quoted bash -c so $POSTGRES_PASSWORD expands inside the db
+  # container (from its own env), not on the host. The host never sees
+  # the password in argv, so `ps auxfww` during the exec reveals only
+  # the docker command line, not secrets. The container already has
+  # POSTGRES_USER/PASSWORD/DB in its env via docker-compose.yml.
+  if sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
+  ' > /dev/null 2>&1; then
     echo "✅ CREATEDB granted to $POSTGRES_USER."
   else
-    echo "⚠️ Failed to grant CREATEDB — nightly validation will Slack-alert until this is resolved manually."
+    echo "⚠️ Failed to grant CREATEDB — nightly backup validation will fail until this is resolved (run: docker compose exec db psql -U \$POSTGRES_USER -d \$POSTGRES_DB -c 'ALTER USER \"\$POSTGRES_USER\" CREATEDB;')."
   fi
 fi
 

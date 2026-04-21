@@ -47,10 +47,11 @@ services:
             - ALL
         read_only: true
         tmpfs:
-            # Sized to hold simultaneously: encrypted dump, downloaded copy,
-            # and decrypted plaintext used by the validation step (~3× dump
-            # size in worst case). Bumped from 100m when validation became a
-            # full round-trip rather than a header-only check.
+            # Holds the encrypted dump during upload and the encrypted
+            # download during validation (both ~size-of-compressed-dump).
+            # Plaintext no longer touches tmpfs — the validation restore
+            # goes straight into the scratch Postgres DB. 500m is generous
+            # headroom for data growth; current usage is a few MB.
             - /tmp:noexec,nosuid,size=500m
         healthcheck:
             test: ["CMD", "pgrep", "supercronic"]
