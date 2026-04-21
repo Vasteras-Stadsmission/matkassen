@@ -18,8 +18,8 @@ flowchart LR
     subgraph Staff Team
         MW["Middleware<br/>- locale detection & CSP<br/>- redirects unauthenticated -> signin"]
         SignIn["Sign-in /auth/signin<br/>- GitHub OAuth + org membership check<br/>- redirects to callback"]
-        Home["Home /<br/>- AuthProtection ensures session<br/>- shows welcome copy + status"]
-        Header["Header + layout<br/>- nav: Schedule / Households / Locations<br/>- LanguageSwitcher + Auth menu + Scan QR link"]
+        Home["Home /<br/>- admin only (handout staff redirected to /schedule)<br/>- shows Issues Dashboard"]
+        Header["Header + layout<br/>- nav: Schedule (all) + Households / Statistics / Issues (admin only)<br/>- Settings dropdown (admin only) contains Locations, Users, etc.<br/>- LanguageSwitcher + Auth menu + Scan QR link"]
         ScanQR["Scan QR<br/>- Mobile: Use native Camera app (fastest)<br/>- Laptop: Use scanapp.org<br/>- Opens schedule with parcel dialog"]
         MW -- no session --> SignIn
         MW -- session --> Home
@@ -54,19 +54,19 @@ flowchart LR
         HouseholdsList --> HouseholdDetailModal
         HouseholdDetailModal["Household detail modal<br/>- members, needs, parcel history<br/>- comment thread add/delete via API"]
         HouseholdsList --> EnrollWizard
-        EnrollWizard["Household wizard create<br/>- steps: basics → members → needs → review<br/>- submit calls enrollHousehold action<br/>- redirects to schedule page after save"]
+        EnrollWizard["Household wizard create<br/>- steps: basics → members → preferences → verification (conditional) → review<br/>- submit calls enrollHousehold action<br/>- redirects to schedule page after save"]
         HouseholdsList --> EditWizard
         EditWizard["Household wizard edit<br/>- prefilled data & comment hooks<br/>- updateHousehold + add/delete comments"]
 
-        Header --> HandoutLocationsPage
-        HandoutLocationsPage["Handout locations admin<br/>- tab per location with form<br/>- notifications on create/update/delete"]
+        Header -- Settings dropdown, admin only --> HandoutLocationsPage
+        HandoutLocationsPage["Handout locations admin /settings/locations<br/>- tab per location with form<br/>- notifications on create/update/delete"]
         HandoutLocationsPage --> LocationModal
         LocationModal["Add location modal<br/>- LocationForm create mode<br/>- resets after save"]
         HandoutLocationsPage --> SchedulesTab
         SchedulesTab["Schedules tab<br/>- configure opening hours & slot duration<br/>- week picker + validation helpers"]
 
-        Header --> Issues
-        Issues["Issues Dashboard /<br/>- shows unresolved handouts (past parcels)<br/>- shows parcels outside opening hours<br/>- shows failed SMS requiring attention<br/>- navigation badge shows total issue count<br/>- dismiss or resolve issues inline"]
+        Header -- admin only --> Issues
+        Issues["Issues Dashboard / (home page)<br/>- shows unresolved handouts (past parcels)<br/>- shows parcels outside opening hours<br/>- shows failed SMS requiring attention<br/>- navigation badge shows total issue count<br/>- dismiss or resolve issues inline<br/>- handout staff are redirected to /schedule instead"]
         Issues -- view household --> HouseholdDetailModal
     end
 ```

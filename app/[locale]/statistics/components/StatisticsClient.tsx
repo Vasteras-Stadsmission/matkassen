@@ -16,6 +16,8 @@ import {
     ThemeIcon,
     Divider,
     Select,
+    Popover,
+    ActionIcon,
 } from "@mantine/core";
 import {
     IconAlertCircle,
@@ -27,6 +29,8 @@ import {
     IconCheck,
     IconPercentage,
     IconMapPin,
+    IconInfoCircle,
+    IconHeartHandshake,
 } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import { BarChart, PieChart, LineChart } from "@mantine/charts";
@@ -305,6 +309,56 @@ export function StatisticsClient() {
                                         icon={<IconHome size={20} />}
                                         color="blue"
                                     />
+                                    <Card shadow="sm" padding="lg" radius="md" withBorder>
+                                        <Group>
+                                            <ThemeIcon
+                                                size="lg"
+                                                radius="md"
+                                                variant="light"
+                                                color="teal"
+                                            >
+                                                <IconHeartHandshake size={20} />
+                                            </ThemeIcon>
+                                            <div style={{ flex: 1 }}>
+                                                <Group gap={4}>
+                                                    <Text
+                                                        size="xs"
+                                                        c="dimmed"
+                                                        tt="uppercase"
+                                                        fw={700}
+                                                    >
+                                                        {t("overview.activeHouseholds")}
+                                                    </Text>
+                                                    <Popover
+                                                        width={260}
+                                                        position="bottom"
+                                                        withArrow
+                                                    >
+                                                        <Popover.Target>
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="gray"
+                                                                size="xs"
+                                                                aria-label={t(
+                                                                    "overview.activeHouseholdsInfo",
+                                                                )}
+                                                            >
+                                                                <IconInfoCircle size={14} />
+                                                            </ActionIcon>
+                                                        </Popover.Target>
+                                                        <Popover.Dropdown>
+                                                            <Text size="sm">
+                                                                {t("overview.activeHouseholdsInfo")}
+                                                            </Text>
+                                                        </Popover.Dropdown>
+                                                    </Popover>
+                                                </Group>
+                                                <Text size="xl" fw={700}>
+                                                    {stats.overview.activeHouseholds}
+                                                </Text>
+                                            </div>
+                                        </Group>
+                                    </Card>
                                     <StatCard
                                         title={t("overview.newHouseholds")}
                                         value={stats.overview.newHouseholds}

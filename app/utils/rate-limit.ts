@@ -95,6 +95,15 @@ export const SMS_RATE_LIMITS = {
 } as const;
 
 /**
+ * Rate limiting for unauthenticated public lookups. These IDs are unguessable
+ * (72 bits of entropy), so brute force isn't feasible — the limit is a cheap
+ * abuse dampener for scraping / accidental hot-loops.
+ */
+export const PUBLIC_RATE_LIMITS = {
+    PARCEL_LOOKUP: { maxRequests: 30, windowMs: 60 * 1000 },
+} as const;
+
+/**
  * Generate rate limit key for SMS endpoints
  */
 export function getSmsRateLimitKey(endpoint: string, userId: string, identifier?: string): string {

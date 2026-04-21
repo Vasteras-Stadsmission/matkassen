@@ -7,6 +7,7 @@ export interface Household {
     locale: string;
     sms_consent?: boolean; // UI-only field (not persisted); controls whether an enrollment SMS is queued/sent
     primary_pickup_location_id?: string | null; // Optional primary handout location
+    responsible_user_id?: string | null; // Current staff member responsible for this household
 }
 
 export interface HouseholdMember {
@@ -63,6 +64,13 @@ export interface PickupLocation {
     parcels_max_per_day: number | null;
 }
 
+export interface ResponsibleStaffOption {
+    id: string;
+    displayName: string;
+    githubUsername: string;
+    isFormer: boolean;
+}
+
 export interface LocationCapacity {
     hasLimit: boolean;
     maxPerDay: number | null;
@@ -110,6 +118,7 @@ export interface HouseholdCreateData {
     };
     smsConsent: boolean;
     primaryPickupLocationId?: string | null;
+    responsibleUserId?: string | null;
     members: HouseholdMemberData[];
     dietaryRestrictions: DietaryRestrictionData[];
     additionalNeeds: AdditionalNeedData[];

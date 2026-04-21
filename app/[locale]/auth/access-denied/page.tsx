@@ -10,5 +10,6 @@ export default async function AccessDeniedPage({
     searchParams: SearchParams | Promise<SearchParams>;
 }) {
     const { reason } = await searchParams;
-    return <AccessDeniedContent reason={reason} />;
+    const organization = process.env.GITHUB_ORG || undefined;
+    return <AccessDeniedContent reason={reason} organization={organization} />;
 }

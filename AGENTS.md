@@ -91,15 +91,19 @@ export async function GET(request: Request) {
 ### Page Protection
 
 ```typescript
-// Server components
-import { AuthProtection } from "@/components/AuthProtection";
+// Server components — wraps auth + user-agreement + optional admin role check
+import { AgreementProtection } from "@/components/AgreementProtection";
 export default function Page() {
-    return <AuthProtection>{/* content */}</AuthProtection>;
+    return <AgreementProtection>{/* content */}</AgreementProtection>;
 }
 
-// Client components
-"use client";
-import { AuthProtectionClient } from "@/components/AuthProtection/client";
+// Admin-only pages: handout_staff get redirected to the access-denied page
+export default function AdminPage() {
+    return <AgreementProtection adminOnly>{/* content */}</AgreementProtection>;
+}
+
+// Client components gate UI via useSession() from next-auth/react — the
+// surrounding page should already be wrapped in AgreementProtection.
 ```
 
 **All routes require auth except** `/auth/*` and `/p/*` (public parcel pages).

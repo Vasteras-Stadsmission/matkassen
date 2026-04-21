@@ -4,8 +4,10 @@ import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
     createTestLocationWithSchedule,
+    createTestUser,
     resetHouseholdCounter,
     resetLocationCounter,
+    resetUserCounter,
 } from "../../factories";
 import { dietaryRestrictions, householdDietaryRestrictions, households } from "@/app/db/schema";
 import type { HouseholdCreateData, FormData } from "@/app/[locale]/households/enroll/types";
@@ -86,9 +88,14 @@ describe("Household option availability guards - integration", () => {
         updateHousehold = editActions.updateHousehold;
     });
 
-    beforeEach(() => {
+    beforeEach(async () => {
         resetHouseholdCounter();
         resetLocationCounter();
+        resetUserCounter();
+        await createTestUser({
+            id: "test-admin-id",
+            github_username: "test-admin",
+        });
     });
 
     it("rejects enrollment when a disabled option is selected and returns i18n key", async () => {

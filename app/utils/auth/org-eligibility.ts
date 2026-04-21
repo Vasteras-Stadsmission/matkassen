@@ -72,6 +72,50 @@ async function fetchGitHubJson(accessToken: string, path: string) {
     return { response, json };
 }
 
+/**
+ * Extract a human-readable message from a GitHub error response body, if present.
+ * GitHub returns objects like `{ "message": "...", "documentation_url": "..." }` for errors.
+ */
+function extractGitHubMessage(json: unknown): string | undefined {
+    if (!json || typeof json !== "object") return undefined;
+    const record = json as Record<string, unknown>;
+    return typeof record.message === "string" ? record.message : undefined;
+}
+
+/**
+ * Log details of a GitHub 403 so we can later judge whether to add precise classification.
+ * GitHub may include hints in the body message or in headers like X-GitHub-SSO.
+ * Today we still collapse all 403s to `org_resource_forbidden` and present a soft
+ * "GitHub denied access — most common cause is insecure 2FA" message in the UI.
+ */
+function logForbiddenDetails(
+    organization: string,
+    context: string,
+    path: string,
+    response: Response,
+    json: unknown,
+) {
+    logger.warn(
+        {
+            organization,
+            context,
+            path,
+            httpStatus: response.status,
+            githubMessage: extractGitHubMessage(json),
+            // Hints at what kind of 403 this is. Useful for distinguishing
+            // SSO/SAML authorization failures from rate-limit/abuse blocks
+            // and from generic forbidden responses.
+            xGithubSso: response.headers.get("x-github-sso") ?? undefined,
+            xGithubRequestId: response.headers.get("x-github-request-id") ?? undefined,
+            xRatelimitLimit: response.headers.get("x-ratelimit-limit") ?? undefined,
+            xRatelimitRemaining: response.headers.get("x-ratelimit-remaining") ?? undefined,
+            xRatelimitReset: response.headers.get("x-ratelimit-reset") ?? undefined,
+            xRatelimitResource: response.headers.get("x-ratelimit-resource") ?? undefined,
+        },
+        "GitHub returned 403 during org eligibility check",
+    );
+}
+
 export async function checkGitHubOrgEligibility({
     accessToken,
     organization,
@@ -144,12 +188,20 @@ export async function checkGitHubOrgEligibility({
         }
 
         if (membership.response.status === 403) {
+            logForbiddenDetails(
+                organization,
+                context,
+                `/user/memberships/orgs/${organization}`,
+                membership.response,
+                membership.json,
+            );
             const result: OrgEligibility = {
                 ok: false,
                 status: "org_resource_forbidden",
                 checkedAt: now,
                 nextCheckAt: now + recheckMs,
                 httpStatus: 403,
+                message: extractGitHubMessage(membership.json),
             };
             cacheSet(cacheKey, result);
             return result;
@@ -215,12 +267,20 @@ export async function checkGitHubOrgEligibility({
         }
 
         if (orgResource.response.status === 403) {
+            logForbiddenDetails(
+                organization,
+                context,
+                `/orgs/${organization}/teams`,
+                orgResource.response,
+                orgResource.json,
+            );
             const result: OrgEligibility = {
                 ok: false,
                 status: "org_resource_forbidden",
                 checkedAt: now,
                 nextCheckAt: now + recheckMs,
                 httpStatus: 403,
+                message: extractGitHubMessage(orgResource.json),
             };
             cacheSet(cacheKey, result);
             return result;

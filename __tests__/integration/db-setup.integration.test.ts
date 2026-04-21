@@ -12,6 +12,7 @@
 import { describe, it, expect } from "vitest";
 import { getTestDb, getPgliteInstance } from "../db/test-db";
 import { households, dietaryRestrictions, petSpecies } from "@/app/db/schema";
+import { createTestUser } from "../factories/user.factory";
 
 describe("PGlite Test Database Setup", () => {
     it("should initialize PGlite and run migrations", async () => {
@@ -21,6 +22,7 @@ describe("PGlite Test Database Setup", () => {
 
     it("should have created the households table", async () => {
         const db = await getTestDb();
+        const responsibleUser = await createTestUser();
 
         // Insert a test household
         const [inserted] = await db
@@ -30,6 +32,7 @@ describe("PGlite Test Database Setup", () => {
                 last_name: "User",
                 phone_number: "+46701234567",
                 locale: "sv",
+                responsible_user_id: responsibleUser.id,
             })
             .returning();
 

@@ -169,4 +169,49 @@ describe("Middleware API Authentication", () => {
             expect(csp).toContain("script-src 'self' 'nonce-mockedNonce'");
         }
     });
+
+    /**
+     * TEST 6: Regression — /p/<parcel> MUST keep Referrer-Policy: no-referrer
+     *
+     * These pages contain PII (household name, pickup address) and are reached
+     * via unique SMS links. Leaking the parcel URL via Referer would expose
+     * that data to any third-party script a user subsequently visits.
+     *
+     * History: before PR #378, nginx also set a global
+     * `Referrer-Policy: strict-origin-when-cross-origin`. RFC 9110 combined
+     * the two headers into a single comma-separated value, and the W3C
+     * Referrer Policy parser uses the *last valid token*, so the effective
+     * policy was the nginx value — silently defeating the `no-referrer`
+     * intent. Ownership now lives entirely in middleware; nginx no longer
+     * sets Referrer-Policy. This test guards that invariant.
+     */
+    it("should set Referrer-Policy: no-referrer on public parcel routes", async () => {
+        const request = new NextRequest("http://localhost:3000/p/abc123xyz", {
+            method: "GET",
+        });
+
+        const response = await middleware(request);
+
+        expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    });
+
+    /**
+     * TEST 7: Non-/p/ routes get the default Referrer-Policy
+     *
+     * The middleware's addCSPHeaders helper sets
+     * `Referrer-Policy: strict-origin-when-cross-origin` unless a caller has
+     * already set a stricter value. Guards against a regression where the
+     * default is accidentally dropped (leaving no explicit header at all,
+     * which is a behavior change for pre-2021 browsers that defaulted to
+     * `no-referrer-when-downgrade`).
+     */
+    it("should set default Referrer-Policy on non-parcel routes", async () => {
+        const request = new NextRequest("http://localhost:3000/api/health", {
+            method: "GET",
+        });
+
+        const response = await middleware(request);
+
+        expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    });
 });

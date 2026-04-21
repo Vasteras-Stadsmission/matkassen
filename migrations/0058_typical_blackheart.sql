@@ -1,0 +1,1 @@
+ALTER TABLE "schedule_audit_log" DROP CONSTRAINT "schedule_audit_log_pickup_location_id_pickup_locations_id_fk";

@@ -304,6 +304,7 @@ export default function HouseholdDetailsPage({
                 <Stack gap="md">
                     {/* Basic Info */}
                     <HouseholdInfoCard
+                        householdId={householdId}
                         firstName={householdData.household.first_name}
                         lastName={householdData.household.last_name}
                         phoneNumber={householdData.household.phone_number}
@@ -311,9 +312,13 @@ export default function HouseholdDetailsPage({
                         createdBy={householdData.household.created_by}
                         createdAt={householdData.household.created_at}
                         creatorGithubData={householdData.creatorGithubData}
+                        responsibleStaffUserId={householdData.household.responsible_user_id}
+                        responsibleStaffName={householdData.responsibleStaffData?.name}
+                        responsibleStaffIsFormer={householdData.responsibleStaffData?.isFormer}
                         enrollmentSmsDelivered={householdData.enrollmentSmsDelivered}
                         primaryPickupLocationName={householdData.primaryPickupLocation?.name}
                         getLanguageName={getLanguageName}
+                        onResponsibleStaffUpdated={refreshHouseholdData}
                     />
 
                     {/* Dietary Restrictions */}

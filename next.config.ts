@@ -4,6 +4,17 @@ import createNextIntlPlugin from "next-intl/plugin";
 const nextConfig: NextConfig = {
     // Recommended: this will reduce Docker image size by 80%+
     output: "standalone",
+
+    // Ship the Swedish markdown manuals with the standalone build so that
+    // the /help pages can read them via fs.readFileSync at runtime without
+    // extra Dockerfile copy steps. Next.js's file tracer can't follow the
+    // dynamic path.join(process.cwd(), "docs", ...), so we force-include.
+    outputFileTracingIncludes: {
+        // Broad route key avoids picomatch interpreting [locale] as bracket
+        // glob syntax. The docs are small (<50 KB total) so including them
+        // for all routes has no measurable cost.
+        "/**": ["./docs/*-sv.md"],
+    },
     // Optional: bring your own cache handler
     // cacheHandler: path.resolve('./cache-handler.mjs'),
     // cacheMaxMemorySize: 0, // Disable default in-memory caching

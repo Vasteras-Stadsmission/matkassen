@@ -36,6 +36,7 @@ export interface StatisticsPeriod {
 
 export interface OverviewStats {
     totalHouseholds: number;
+    activeHouseholds: number;
     newHouseholds: number;
     removedHouseholds: number;
     totalParcels: number;
@@ -242,6 +243,20 @@ async function getOverviewStats(
         removedHouseholds = removedResult?.count ?? 0;
     }
 
+    // Active households: have at least 1 food parcel with pickup date >= (today - 7 days)
+    const oneWeekAgo = addDays(setToStartOfDay(toStockholmTime(new Date())), -7);
+    const activeFilter = and(
+        notDeleted(),
+        gte(foodParcels.pickup_date_time_earliest, oneWeekAgo),
+        locationFilter,
+    );
+    const [activeResult] = await db
+        .select({ count: sql<number>`count(distinct ${foodParcels.household_id})::int` })
+        .from(foodParcels)
+        .innerJoin(households, eq(foodParcels.household_id, households.id))
+        .where(and(isNull(households.anonymized_at), activeFilter));
+    const activeHouseholds = activeResult?.count ?? 0;
+
     // Parcels in period (by pickup date)
     const [parcelsResult] = await db
         .select({ count: count() })
@@ -350,6 +365,7 @@ async function getOverviewStats(
 
     return {
         totalHouseholds,
+        activeHouseholds,
         newHouseholds,
         removedHouseholds,
         totalParcels,

@@ -27,13 +27,13 @@ describe("Revalidation Pattern - Static Analysis", () => {
 
     it("should NOT use bracket placeholder in revalidation", () => {
         // Should NEVER call revalidatePath with [locale] placeholder
-        expect(source).not.toContain('revalidatePath("/[locale]/settings/general"');
-        expect(source).not.toContain("revalidatePath(`/[locale]/settings/general`");
+        expect(source).not.toContain('revalidatePath("/[locale]/settings"');
+        expect(source).not.toContain("revalidatePath(`/[locale]/settings`");
     });
 
     it("should use locale variable in template literal", () => {
         // Should use ${locale} in template literal for dynamic paths
-        expect(source).toMatch(/revalidatePath\(`\/\$\{locale\}\/settings\/general`/);
+        expect(source).toMatch(/revalidatePath\(`\/\$\{locale\}\/settings`/);
     });
 
     it("should call helper in all mutation actions", () => {

@@ -1,10 +1,11 @@
 "use client";
 
-import type { PickupLocation, LocationCapacity } from "./types";
+import type { PickupLocation, LocationCapacity, ResponsibleStaffOption } from "./types";
 import {
     getPickupLocations,
     getPickupLocationSchedules,
     getPickupLocationCapacityForRange,
+    getResponsibleStaffOptions,
 } from "./actions";
 import { getLocationSlotDuration } from "@/app/[locale]/schedule/actions";
 import { type LocationScheduleInfo } from "@/app/[locale]/schedule/types";
@@ -59,5 +60,18 @@ export async function getPickupLocationCapacityForRangeAction(
         return getPickupLocationCapacityForRange(locationId, startDate, endDate);
     } catch {
         return null;
+    }
+}
+
+/**
+ * Client wrapper for getting assignable staff users
+ */
+export async function getResponsibleStaffOptionsAction(
+    currentResponsibleUserId?: string | null,
+): Promise<ResponsibleStaffOption[]> {
+    try {
+        return getResponsibleStaffOptions(currentResponsibleUserId);
+    } catch {
+        return [];
     }
 }

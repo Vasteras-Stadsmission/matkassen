@@ -15,8 +15,15 @@
         "login": "Logga in",
         "logout": "Logga ut",
         "signInTitle": "Logga in på Matcentralen",
-        "signInDescription": "Logga in med ditt GitHub-konto för att få åtkomst till Matcentralens administrationssystem.",
+        "signInDescription": "Logga in med ditt GitHub-konto.",
         "signInWithGitHub": "Logga in med GitHub",
+        "signInRequirements": {
+            "title": "Innan du loggar in, se till att du har:",
+            "account": "Ett GitHub-konto som är medlem i {organization}",
+            "twofa": "Tvåfaktorsautentisering via autentiseringsapp, passkey eller GitHub Mobile (SMS godkänns inte)",
+            "newStaffHint": "Ny här? Be din administratör att bjuda in dig till GitHub-organisationen först.",
+            "authorizedOrgFallback": "den auktoriserade organisationen"
+        },
         "errorTitle": "Autentiseringsfel",
         "tryAgain": "Försök igen",
         "account": "Konto",
@@ -28,10 +35,8 @@
             "signInRequired": "Logga in för att komma åt den här sidan."
         },
         "errors": {
-            "notOrgMember": "Du måste vara medlem i den auktoriserade organisationen och följa dess säkerhetspolicy (säker tvåfaktorsautentisering krävs) för att få åtkomst till appen.",
             "invalidProvider": "Ogiltig kontoleverantör. Använd GitHub.",
             "configuration": "Det är ett problem med autentiseringskonfigurationen. Kontakta support.",
-            "accessDenied": "Åtkomst nekad. Du har inte behörighet att logga in.",
             "verification": "Verifiering misslyckades. Försök logga in igen.",
             "default": "Ett fel uppstod vid inloggningen. Försök igen."
         },
@@ -39,12 +44,16 @@
             "title": "Åtkomst nekad",
             "subtitle": "Vi kunde inte logga in dig. Detta beror vanligtvis på att ditt GitHub-konto behöver ytterligare säkerhetsinställningar.",
             "explanations": {
-                "notMember": "Ditt GitHub-konto är inte medlem i organisationen. Be din administratör att skicka en inbjudan till dig.",
-                "membershipInactive": "Du har en väntande inbjudan till organisationen. Kolla din e-post eller GitHub-notiser och acceptera inbjudan.",
-                "insecure2fa": "Ditt GitHub-konto använder SMS för tvåfaktorsautentisering. Organisationen kräver en säkrare metod. Följ stegen nedan för att åtgärda detta.",
+                "notMember": "Ditt GitHub-konto är inte medlem i {organization}. Be din administratör att skicka en inbjudan till dig, eller kontrollera nedan om du redan har en väntande inbjudan.",
+                "membershipInactive": "Du har en väntande inbjudan till {organization}. Öppna den på GitHub och acceptera den för att fortsätta.",
+                "insecure2fa": "GitHub nekade åtkomst till ditt konto. Den vanligaste orsaken är att ditt GitHub-konto inte har en säker tvåfaktorsmetod aktiverad. Om du redan använder en av de säkra metoderna nedan, kontakta din organisationsadministratör.",
                 "unauthenticated": "Din inloggning är inte längre giltig. Logga ut och logga in igen.",
-                "temporaryError": "Vi kunde inte verifiera ditt konto på grund av ett tillfälligt problem hos GitHub. Försök igen om några minuter.",
-                "membershipHelp": "Om du anser att du borde ha åtkomst, kontakta din organisationsadministratör för att få en inbjudan."
+                "temporaryError": "Vi kunde inte verifiera ditt konto på grund av ett tillfälligt problem hos GitHub. Försök igen om några minuter."
+            },
+            "adminRequired": {
+                "title": "Administratörsrollen krävs",
+                "explanation": "Den här sidan är endast tillgänglig för administratörer. Du är inloggad som Utlämningspersonal.",
+                "howToFix": "Be en befintlig administratör att ändra din roll under Inställningar → Användare. Ändringen träder i kraft inom några minuter efter att du loggat in igen."
             },
             "reasons": {
                 "title": "Varför ser jag detta?",
@@ -64,18 +73,50 @@
             },
             "howToFix": {
                 "title": "Så här åtgärdar du detta",
-                "step1": "Gå till dina GitHub-säkerhetsinställningar",
-                "step1Aria": "Gå till dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
-                "step2": "Hitta \"Password and authentication\" i menyn",
-                "step3": "Lägg till en av de godkända metoderna ovan",
+                "step1": "Öppna dina GitHub-säkerhetsinställningar",
+                "step1Aria": "Öppna dina GitHub-säkerhetsinställningar (öppnas i ny flik)",
+                "step2": "Under \"Two-factor authentication\", klicka på \"Enable two-factor authentication\" (eller \"Edit\" om det redan är aktiverat)",
+                "step3": "Välj en av de godkända metoderna ovan och följ GitHubs instruktioner",
                 "step4": "Kom tillbaka hit och logga in igen"
             },
             "buttons": {
                 "githubSettings": "Öppna GitHub-säkerhetsinställningar",
                 "githubSettingsAria": "Öppna GitHub-säkerhetsinställningar (öppnas i ny flik)",
-                "signOutAndRetry": "Logga ut och försök igen"
+                "checkInvitations": "Kontrollera väntande inbjudningar på GitHub",
+                "checkInvitationsAria": "Öppna inbjudningssidan för organisationen {organization} på GitHub (öppnas i ny flik)",
+                "signOutAndRetry": "Logga ut och försök igen",
+                "backToSchedule": "Tillbaka till schemat"
             },
             "support": "Har du fortfarande problem? Kontakta din organisationsadministratör."
+        }
+    },
+    "help": {
+        "title": "Hjälp",
+        "subtitle": "Manualer och vägledningar för personal. Välj ett ämne nedan för att läsa.",
+        "languageNote": "Personalmanualerna finns för närvarande endast på svenska.",
+        "empty": "Det finns inga manualer tillgängliga för ditt konto.",
+        "backToIndex": "Tillbaka till hjälp",
+        "search": {
+            "placeholder": "Sök i manualerna…",
+            "noResults": "Inga träffar. Prova ett annat ord."
+        },
+        "manuals": {
+            "overview": {
+                "title": "Översikt",
+                "description": "En övergripande genomgång av appen med flödesdiagram för personal och mottagare."
+            },
+            "handoutStaff": {
+                "title": "Handbok för utlämningspersonal",
+                "description": "För dig vid dörren — dagens utlämningar, uteblivna och SMS."
+            },
+            "caseWorker": {
+                "title": "Handbok för handläggare",
+                "description": "För dig som tar emot nya hushåll, schemalägger matkassar och följer upp ärenden. Kräver administratörsrollen."
+            },
+            "admin": {
+                "title": "Handbok för administratörer",
+                "description": "För dig som sätter upp systemet — utlämningsställen, öppettider, registreringsformulär och ny personal. Kräver administratörsrollen."
+            }
         }
     },
     "agreement": {
@@ -114,7 +155,9 @@
         "statistics": "Statistik",
         "scanQrCode": "Skanna QR-kod",
         "navigation": "Navigation",
-        "issues": "Behöver uppföljning"
+        "issues": "Behöver uppföljning",
+        "help": "Hjälp",
+        "helpAria": "Öppna hjälpmanualer"
     },
     "households": {
         "title": "Hushåll",
@@ -135,7 +178,8 @@
         },
         "filters": {
             "location": "Filtrera på plats",
-            "createdBy": "Filtrera på skapare"
+            "createdBy": "Filtrera på skapare",
+            "responsibleStaff": "Filtrera på ansvarig"
         },
         "table": {
             "firstName": "Förnamn",
@@ -143,6 +187,7 @@
             "phoneNumber": "Telefonnummer",
             "language": "Språk",
             "createdBy": "Skapad av",
+            "responsibleStaff": "Ansvarig",
             "primaryLocation": "Huvudutlämningsplats",
             "firstParcel": "Första matkasse",
             "lastParcel": "Sista matkasse",
@@ -212,6 +257,11 @@
         "smsConsentDescription": "Krävs för att skicka påminnelser och uppdateringar",
         "language": "Språk",
         "selectLanguage": "Välj språk",
+        "responsibleStaff": "Ansvarig personal",
+        "responsibleStaffDescription": "Den personal som för närvarande ansvarar för hushållet",
+        "selectResponsibleStaff": "Välj ansvarig personal",
+        "noResponsibleStaffFound": "Ingen personal hittades",
+        "responsibleStaffFormerOption": "{name} (tidigare personal)",
         "primaryLocation": "Huvudutlämningsplats",
         "primaryLocationDescription": "Hushållets huvudsakliga utlämningsplats",
         "selectPrimaryLocation": "Välj huvudutlämningsplats",
@@ -221,7 +271,8 @@
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
             "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
             "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
-            "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll"
+            "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll",
+            "responsibleStaffRequired": "Välj ansvarig personal"
         },
         "duplicatePhone": {
             "title": "Telefonnumret finns redan",
@@ -269,7 +320,6 @@
         "removeConfirmQuestion": "Vill du ta bort följande matrestriktion från din ansökan?",
         "cancel": "Avbryt",
         "remove": "Ta bort",
-        "disabledLabel": "Inaktiv",
         "validation": {
             "minLength": "Matrestriktion måste vara minst 2 tecken"
         }
@@ -289,7 +339,6 @@
         "removeConfirmQuestion": "Vill du ta bort följande husdjurstyp från din ansökan?",
         "cancel": "Avbryt",
         "remove": "Ta bort",
-        "disabledLabel": "Inaktiv",
         "defaultPetType": "Husdjurstyp {index}",
         "unknownPetType": "Okänd",
         "validation": {
@@ -305,7 +354,6 @@
         "newNeed": "Nytt behov",
         "placeholderExample": "T.ex. Rakhyvlar, Schampo, etc.",
         "add": "Lägg till",
-        "disabledLabel": "Inaktiv",
         "validation": {
             "minLength": "Behov måste vara minst 2 tecken"
         }
@@ -374,6 +422,13 @@
         "today": "Idag",
         "todayTab": "Idag",
         "weeklyTab": "Vecka",
+        "welcomeBanner": {
+            "title": "Välkommen till Matcentralen!",
+            "body": "Du är inloggad som Utlämningspersonal. Här hittar du alla utlämningsställen — öppna ett för att se dagens utlämningar eller veckoschemat.",
+            "readManual": "Läs handboken för utlämningspersonal →",
+            "dismiss": "Uppfattat",
+            "dismissAria": "Dölj välkomstmeddelandet"
+        },
         "hub": {
             "title": "Schema",
             "subtitle": "Välj en utlämningsplats för att visa scheman",
@@ -465,11 +520,23 @@
                 "placeholder": "Sök på namn eller telefonnummer",
                 "noResults": "Ingen matchning för \"{query}\"",
                 "clear": "Rensa sökning"
+            },
+            "allDone": {
+                "title": "Alla hushåll hanterade",
+                "description": "Samtliga hushåll har fått en status idag. Inget mer att åtgärda."
             }
         },
         "currentWeek": "Aktuell vecka",
         "todayLabel": "Idag",
         "weekLabel": "Vecka {week}, {year}",
+        "summary": {
+            "selectedDayTitle": "Sammanfattning för vald dag",
+            "selectedDayDescription": "Visar packningssammanfattning för {date}.",
+            "gridHint": "Tryck eller klicka på en dagsrubrik i veckoschemat för att visa en annan packningssammanfattning.",
+            "dayHeaderAction": "Visa sammanfattning",
+            "dayHeaderSelected": "Vald",
+            "dayHeaderAriaLabel": "Visa packningssammanfattning för {date}"
+        },
         "loading": "Laddar schema...",
         "noFoodSupport": "Ingen matutdelning schemalagd den här veckan",
         "refresh": "Uppdatera",
@@ -592,6 +659,17 @@
     },
     "householdDetail": {
         "basics": "Grunduppgifter",
+        "responsibleStaff": "Ansvarig personal: {username}",
+        "editResponsibleStaff": "Redigera ansvarig personal",
+        "saveResponsibleStaff": "Spara ansvarig personal",
+        "cancelResponsibleStaff": "Avbryt ändring av ansvarig personal",
+        "responsibleStaffUpdateSuccess": "Ansvarig personal uppdaterad",
+        "responsibleStaffUpdateError": "Det gick inte att uppdatera ansvarig personal",
+        "responsibleStaffUpdateErrorDescription": "Försök igen om en stund.",
+        "showSecondaryInfo": "Visa sekundär hushållsinformation",
+        "secondaryInfo": "Hushållsdetaljer",
+        "formerStaff": "Tidigare personal",
+        "createdByLabel": "Skapad av",
         "createdBy": "Skapad av {username}",
         "created": "Skapad",
         "enrollmentSmsDelivered": "Välkomst-SMS levererat",
@@ -1251,19 +1329,21 @@
     },
     "settings": {
         "settings": "Inställningar",
-        "general": "Allmänna inställningar",
-        "generalDescription": "Konfigurera integritetspolicy, registreringsformulär, matkassegränser och uppföljningsinställningar.",
-        "locations": "Utlämningsställen",
-        "parcels": "Matkassegränser",
-        "aria": {
-            "settingsMenu": "Inställningsmeny"
-        },
         "nav": {
             "privacyPolicy": "Integritetspolicy",
             "userAgreement": "Användaravtal",
             "enrollmentChecklist": "Registreringsformulär",
-            "parcelThreshold": "Matkassegränser",
-            "noshowFollowup": "Uppföljning vid uteblivna"
+            "parcelThreshold": "Varningsgräns för matkassar",
+            "noshowFollowup": "Uppföljning vid uteblivna",
+            "locations": "Utlämningsställen",
+            "householdOptions": "Hushållsformulär",
+            "users": "Användare",
+            "groups": {
+                "operations": "Drift",
+                "reviewAndFollowUp": "Granskning & uppföljning",
+                "administration": "Administration",
+                "legalAndCompliance": "Juridik & efterlevnad"
+            }
         },
         "enrollmentChecklist": {
             "title": "Registreringsformulär",
@@ -1520,11 +1600,6 @@
                 "saveFailedMessage": "Kunde inte spara inställningar för uppföljning vid uteblivna"
             }
         },
-        "smsTemplates": {
-            "title": "Standard SMS-mallar",
-            "description": "Anpassa textmeddelanden som skickas till hushåll",
-            "comingSoon": "Kommer snart..."
-        },
         "users": "Användare",
         "usersSection": {
             "title": "Användarhantering",
@@ -1596,8 +1671,8 @@
             "noShowFollowup": "Uppföljning behövs"
         },
         "actions": {
-            "handedOut": "Utlämnad",
-            "noShow": "Uteblev",
+            "handedOut": "Markera utlämnad",
+            "noShow": "Markera utebliven",
             "cancelParcel": "Avboka paket",
             "reschedule": "Omboka",
             "retry": "Försök igen",
@@ -1722,7 +1797,9 @@
         },
         "overview": {
             "title": "Översikt",
-            "totalHouseholds": "Aktiva hushåll",
+            "totalHouseholds": "Registrerade hushåll",
+            "activeHouseholds": "Aktiva hushåll",
+            "activeHouseholdsInfo": "Hushåll med minst en matkasse planerad inom den senaste veckan eller i framtiden.",
             "newHouseholds": "Nya hushåll",
             "removedHouseholds": "Borttagna hushåll",
             "totalParcels": "Totalt antal kassar",
@@ -1828,9 +1905,9 @@
     },
     "profile": {
         "completeProfile": "Komplettera din profil",
-        "completeProfileDescription": "Fyll i ditt för- och efternamn för att fortsätta använda systemet. E-post och telefonnummer är valfria.",
+        "completeProfileDescription": "Fyll i ditt för- och efternamn för att fortsätta använda systemet. E-post och telefonnummer är valfria. Denna information visas bara för andra medarbetare och visas inte för hushållen.",
         "editProfile": "Redigera din profil",
-        "editProfileDescription": "Uppdatera ditt namn, e-post eller telefonnummer.",
+        "editProfileDescription": "Uppdatera ditt namn, e-post eller telefonnummer. Denna information visas bara för andra medarbetare och visas inte för hushållen.",
         "logout": "Logga ut istället",
         "firstName": "Förnamn",
         "firstNamePlaceholder": "Ditt förnamn",

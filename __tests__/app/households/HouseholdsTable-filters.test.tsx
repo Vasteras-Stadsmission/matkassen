@@ -14,7 +14,13 @@ vi.mock("@/app/i18n/navigation", () => ({
 }));
 
 vi.mock("mantine-datatable", () => ({
-    DataTable: ({ records, sortStatus, onSortStatusChange }: any) => (
+    DataTable: ({
+        records,
+        onSortStatusChange,
+    }: {
+        records?: { last_name?: string }[];
+        onSortStatusChange: (status: { columnAccessor: string; direction: string }) => void;
+    }) => (
         <div data-testid="data-table">
             <div data-testid="record-count">{records?.length || 0}</div>
             <div data-testid="first-record-last-name">{records?.[0]?.last_name || ""}</div>
@@ -41,7 +47,19 @@ vi.mock("mantine-datatable", () => ({
 }));
 
 vi.mock("@mantine/core", () => {
-    const SelectMock = ({ placeholder, data, value, onChange, clearable }: any) => (
+    const SelectMock = ({
+        placeholder,
+        data,
+        value,
+        onChange,
+        clearable,
+    }: {
+        placeholder?: string;
+        data?: { value: string; label: string }[];
+        value?: string | null;
+        onChange: (value: string | null) => void;
+        clearable?: boolean;
+    }) => (
         <div>
             <select
                 data-testid={`select-${placeholder}`}
@@ -49,7 +67,7 @@ vi.mock("@mantine/core", () => {
                 onChange={e => onChange(e.target.value || null)}
             >
                 <option value="">{placeholder}</option>
-                {(data || []).map((item: any) => (
+                {(data || []).map((item: { value: string; label: string }) => (
                     <option key={item.value} value={item.value}>
                         {item.label}
                     </option>
@@ -62,8 +80,18 @@ vi.mock("@mantine/core", () => {
     );
 
     return {
-        MantineProvider: ({ children }: any) => <>{children}</>,
-        TextInput: ({ placeholder, value, onChange, rightSection }: any) => (
+        MantineProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+        TextInput: ({
+            placeholder,
+            value,
+            onChange,
+            rightSection,
+        }: {
+            placeholder?: string;
+            value?: string;
+            onChange?: React.ChangeEventHandler<HTMLInputElement>;
+            rightSection?: React.ReactNode;
+        }) => (
             <div>
                 <input
                     data-testid="search-input"
@@ -75,22 +103,41 @@ vi.mock("@mantine/core", () => {
             </div>
         ),
         Select: SelectMock,
-        ActionIcon: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
-        Tooltip: ({ children }: any) => <>{children}</>,
-        Group: ({ children }: any) => <div>{children}</div>,
-        Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
-        Menu: Object.assign(({ children }: any) => <div>{children}</div>, {
-            Target: ({ children }: any) => <div>{children}</div>,
-            Dropdown: ({ children }: any) => <div>{children}</div>,
-            Label: ({ children }: any) => <div>{children}</div>,
-        }),
-        Checkbox: ({ label, checked, onChange }: any) => (
+        ActionIcon: ({
+            children,
+            onClick,
+        }: {
+            children: React.ReactNode;
+            onClick?: () => void;
+        }) => <button onClick={onClick}>{children}</button>,
+        Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+        Group: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+        Button: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+            <button onClick={onClick}>{children}</button>
+        ),
+        Menu: Object.assign(
+            ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+            {
+                Target: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+                Dropdown: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+                Label: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+            },
+        ),
+        Checkbox: ({
+            label,
+            checked,
+            onChange,
+        }: {
+            label: string;
+            checked: boolean;
+            onChange: () => void;
+        }) => (
             <label>
                 <input type="checkbox" checked={checked} onChange={onChange} />
                 {label}
             </label>
         ),
-        Stack: ({ children }: any) => <div>{children}</div>,
+        Stack: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     };
 });
 
@@ -102,6 +149,7 @@ const makeHousehold = (overrides: Partial<Household> & { id: string }): Househol
     phone_number: "0701234567",
     locale: "sv",
     created_by: null,
+    responsible_user_id: "user-1",
     primaryPickupLocationName: null,
     firstParcelDate: null,
     lastParcelDate: null,
@@ -116,6 +164,7 @@ const testHouseholds: Household[] = [
         first_name: "Anna",
         last_name: "Andersson",
         created_by: "admin",
+        responsible_user_id: "staff-admin",
         primaryPickupLocationName: "Centrum",
     }),
     makeHousehold({
@@ -123,6 +172,7 @@ const testHouseholds: Household[] = [
         first_name: "Björn",
         last_name: "Berg",
         created_by: "admin",
+        responsible_user_id: "staff-admin",
         primaryPickupLocationName: "Erikslund",
     }),
     makeHousehold({
@@ -130,6 +180,7 @@ const testHouseholds: Household[] = [
         first_name: "Cecilia",
         last_name: "Carlsson",
         created_by: "volunteer1",
+        responsible_user_id: "staff-volunteer1",
         primaryPickupLocationName: "Centrum",
     }),
     makeHousehold({
@@ -137,6 +188,7 @@ const testHouseholds: Household[] = [
         first_name: "David",
         last_name: "Dahl",
         created_by: "volunteer1",
+        responsible_user_id: "staff-volunteer1",
         primaryPickupLocationName: "Erikslund",
     }),
     makeHousehold({
@@ -144,6 +196,7 @@ const testHouseholds: Household[] = [
         first_name: "Erik",
         last_name: "Ek",
         created_by: "volunteer2",
+        responsible_user_id: "staff-volunteer2",
         primaryPickupLocationName: null,
     }),
 ];
@@ -158,7 +211,7 @@ const selectLocation = (value: string) => {
 };
 
 const selectCreator = (value: string) => {
-    fireEvent.change(screen.getByTestId("select-filters.createdBy"), {
+    fireEvent.change(screen.getByTestId("select-filters.responsibleStaff"), {
         target: { value },
     });
 };
@@ -168,7 +221,7 @@ const clearLocation = () => {
 };
 
 const clearCreator = () => {
-    fireEvent.click(screen.getByTestId("clear-filters.createdBy"));
+    fireEvent.click(screen.getByTestId("clear-filters.responsibleStaff"));
 };
 
 const typeSearch = (value: string) => {
@@ -222,13 +275,13 @@ describe("HouseholdsTable - Filter and Sort", () => {
         it("shows only households created by the selected user", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
-            selectCreator("admin");
+            selectCreator("staff-admin");
             expect(recordCount()).toBe(2);
 
-            selectCreator("volunteer1");
+            selectCreator("staff-volunteer1");
             expect(recordCount()).toBe(2);
 
-            selectCreator("volunteer2");
+            selectCreator("staff-volunteer2");
             expect(recordCount()).toBe(1);
         });
     });
@@ -238,7 +291,7 @@ describe("HouseholdsTable - Filter and Sort", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
             selectLocation("Centrum");
-            selectCreator("admin");
+            selectCreator("staff-admin");
             expect(recordCount()).toBe(1);
         });
 
@@ -246,7 +299,7 @@ describe("HouseholdsTable - Filter and Sort", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
             selectLocation("Centrum");
-            selectCreator("volunteer2");
+            selectCreator("staff-volunteer2");
             expect(recordCount()).toBe(0);
         });
     });
@@ -265,7 +318,7 @@ describe("HouseholdsTable - Filter and Sort", () => {
         it("applies text search on top of creator filter", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
-            selectCreator("admin");
+            selectCreator("staff-admin");
             expect(recordCount()).toBe(2);
 
             typeSearch("Berg");
@@ -276,7 +329,7 @@ describe("HouseholdsTable - Filter and Sort", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
             selectLocation("Erikslund");
-            selectCreator("volunteer1");
+            selectCreator("staff-volunteer1");
             expect(recordCount()).toBe(1);
 
             typeSearch("Dahl");
@@ -302,7 +355,7 @@ describe("HouseholdsTable - Filter and Sort", () => {
         it("keeps creator filter applied after changing sort", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
-            selectCreator("admin");
+            selectCreator("staff-admin");
             expect(recordCount()).toBe(2);
 
             fireEvent.click(screen.getByTestId("sort-by-first-name-asc"));
@@ -314,7 +367,7 @@ describe("HouseholdsTable - Filter and Sort", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
             selectLocation("Erikslund");
-            selectCreator("volunteer1");
+            selectCreator("staff-volunteer1");
             typeSearch("David");
             expect(recordCount()).toBe(1);
 
@@ -337,7 +390,7 @@ describe("HouseholdsTable - Filter and Sort", () => {
         it("shows all records after clearing creator filter", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
-            selectCreator("admin");
+            selectCreator("staff-admin");
             expect(recordCount()).toBe(2);
 
             clearCreator();
@@ -348,13 +401,13 @@ describe("HouseholdsTable - Filter and Sort", () => {
             render(<HouseholdsTable households={testHouseholds} />);
 
             selectLocation("Centrum");
-            selectCreator("admin");
+            selectCreator("staff-admin");
             expect(recordCount()).toBe(1);
 
             clearCreator();
             expect(recordCount()).toBe(2);
 
-            selectCreator("admin");
+            selectCreator("staff-admin");
             clearLocation();
             expect(recordCount()).toBe(2);
         });

@@ -22,14 +22,23 @@
         "statistics": "Statistics",
         "scanQrCode": "Scan QR Code",
         "navigation": "Navigation",
-        "issues": "Needs Follow-up"
+        "issues": "Needs Follow-up",
+        "help": "Help",
+        "helpAria": "Open help manuals"
     },
     "auth": {
         "login": "Log in",
         "logout": "Log out",
         "signInTitle": "Sign in to Matcentralen",
-        "signInDescription": "Sign in with your GitHub account to access the Matcentralen administration system.",
+        "signInDescription": "Sign in with your GitHub account.",
         "signInWithGitHub": "Sign in with GitHub",
+        "signInRequirements": {
+            "title": "Before you sign in, make sure you have:",
+            "account": "A GitHub account that is a member of the {organization} organization",
+            "twofa": "Two-factor authentication via authenticator app, passkey, or GitHub Mobile (SMS is not accepted)",
+            "newStaffHint": "New here? Ask your administrator to invite you to the GitHub organization first.",
+            "authorizedOrgFallback": "authorized"
+        },
         "errorTitle": "Authentication Error",
         "tryAgain": "Try Again",
         "account": "Account",
@@ -41,10 +50,8 @@
             "signInRequired": "Please sign in to access this page."
         },
         "errors": {
-            "notOrgMember": "You must be a member of the authorized organization and comply with its security policies (secure 2FA required) to access this app.",
             "invalidProvider": "Invalid account provider. Please use GitHub.",
             "configuration": "There is a problem with the authentication configuration. Please contact support.",
-            "accessDenied": "Access denied. You don't have permission to sign in.",
             "verification": "Verification failed. Please try signing in again.",
             "default": "An error occurred while signing in. Please try again."
         },
@@ -52,12 +59,16 @@
             "title": "Access Denied",
             "subtitle": "We couldn't log you in. This is usually because your GitHub account needs additional security setup.",
             "explanations": {
-                "notMember": "Your GitHub account is not a member of the organization. Ask your administrator to send you an invitation.",
-                "membershipInactive": "You have a pending invitation to the organization. Check your email or GitHub notifications and accept the invitation.",
-                "insecure2fa": "Your GitHub account uses SMS for two-factor authentication. The organization requires a more secure method. Follow the steps below to fix this.",
+                "notMember": "Your GitHub account is not a member of the {organization} organization. Ask your administrator to send you an invitation, or check below if you already have one waiting.",
+                "membershipInactive": "You have a pending invitation to the {organization} organization. Open it on GitHub and accept it to continue.",
+                "insecure2fa": "GitHub denied access to your account. The most common reason is that your GitHub account does not have a secure two-factor authentication method enabled. If you already use one of the secure methods listed below, contact your organization administrator.",
                 "unauthenticated": "Your login is no longer valid. Please sign out and sign in again.",
-                "temporaryError": "We could not verify your account due to a temporary problem with GitHub. Please try again in a few minutes.",
-                "membershipHelp": "If you believe you should have access, contact your organization administrator to get an invitation."
+                "temporaryError": "We could not verify your account due to a temporary problem with GitHub. Please try again in a few minutes."
+            },
+            "adminRequired": {
+                "title": "Administrator role required",
+                "explanation": "This page is only available to administrators. You are signed in as Handout Staff.",
+                "howToFix": "Ask an existing administrator to change your role under Settings → Users. The change takes effect within a few minutes after you sign back in."
             },
             "reasons": {
                 "title": "Why am I seeing this?",
@@ -77,18 +88,50 @@
             },
             "howToFix": {
                 "title": "How to Fix This",
-                "step1": "Go to your GitHub Security Settings",
-                "step1Aria": "Go to your GitHub Security Settings (opens in new tab)",
-                "step2": "Find \"Password and authentication\" in the menu",
-                "step3": "Add one of the accepted methods listed above",
+                "step1": "Open your GitHub security settings",
+                "step1Aria": "Open your GitHub security settings (opens in new tab)",
+                "step2": "Under \"Two-factor authentication\", click \"Enable two-factor authentication\" (or \"Edit\" if it is already enabled)",
+                "step3": "Choose one of the accepted methods above and follow GitHub's setup instructions",
                 "step4": "Come back here and sign in again"
             },
             "buttons": {
-                "githubSettings": "Open GitHub Security Settings",
-                "githubSettingsAria": "Open GitHub Security Settings (opens in new tab)",
-                "signOutAndRetry": "Sign Out and Try Again"
+                "githubSettings": "Open GitHub security settings",
+                "githubSettingsAria": "Open GitHub security settings (opens in new tab)",
+                "checkInvitations": "Check pending invitations on GitHub",
+                "checkInvitationsAria": "Open the {organization} organization invitation page on GitHub (opens in new tab)",
+                "signOutAndRetry": "Sign out and try again",
+                "backToSchedule": "Back to schedule"
             },
             "support": "Still having trouble? Contact your organization administrator."
+        }
+    },
+    "help": {
+        "title": "Help",
+        "subtitle": "Manuals and guides for staff. Pick a topic below to read it.",
+        "languageNote": "The staff manuals are currently only available in Swedish.",
+        "empty": "No manuals are available for your account.",
+        "backToIndex": "Back to help",
+        "search": {
+            "placeholder": "Search the manuals…",
+            "noResults": "No matches. Try a different word."
+        },
+        "manuals": {
+            "overview": {
+                "title": "Overview guide",
+                "description": "A high-level walkthrough of the app with diagrams for both staff and household recipients."
+            },
+            "handoutStaff": {
+                "title": "Handout staff manual",
+                "description": "For you at the door — today's handouts, no-shows, and SMS."
+            },
+            "caseWorker": {
+                "title": "Case worker manual",
+                "description": "For you welcoming new households, scheduling food parcels, and following up on issues. Requires the administrator role."
+            },
+            "admin": {
+                "title": "Administrator manual",
+                "description": "For you setting up the system — locations, opening hours, enrollment checklist, and new staff. Requires the administrator role."
+            }
         }
     },
     "agreement": {
@@ -135,7 +178,8 @@
         },
         "filters": {
             "location": "Filter by location",
-            "createdBy": "Filter by creator"
+            "createdBy": "Filter by creator",
+            "responsibleStaff": "Filter by responsible"
         },
         "table": {
             "firstName": "First Name",
@@ -143,6 +187,7 @@
             "phoneNumber": "Phone Number",
             "language": "Language",
             "createdBy": "Created By",
+            "responsibleStaff": "Responsible",
             "primaryLocation": "Primary Location",
             "firstParcel": "First Food Parcel",
             "lastParcel": "Last Food Parcel",
@@ -212,6 +257,11 @@
         "smsConsentDescription": "Required to send pickup reminders and updates",
         "language": "Language",
         "selectLanguage": "Select language",
+        "responsibleStaff": "Responsible Staff Member",
+        "responsibleStaffDescription": "The staff member currently responsible for this household",
+        "selectResponsibleStaff": "Select responsible staff member",
+        "noResponsibleStaffFound": "No staff members found",
+        "responsibleStaffFormerOption": "{name} (former staff)",
         "primaryLocation": "Primary Handout Location",
         "primaryLocationDescription": "The household's main handout location",
         "selectPrimaryLocation": "Select primary location",
@@ -221,7 +271,8 @@
             "lastNameLength": "Last name must be at least 2 characters",
             "phoneNumberFormat": "Enter a valid Swedish phone number (7-10 digits)",
             "swedishNumbersOnly": "Only Swedish phone numbers (+46) are supported",
-            "phoneNumberInUse": "This phone number is already registered with another household"
+            "phoneNumberInUse": "This phone number is already registered with another household",
+            "responsibleStaffRequired": "Select a responsible staff member"
         },
         "duplicatePhone": {
             "title": "Phone Number Already Exists",
@@ -269,7 +320,6 @@
         "removeConfirmQuestion": "Do you want to remove the following dietary restriction from your application?",
         "cancel": "Cancel",
         "remove": "Remove",
-        "disabledLabel": "Disabled",
         "validation": {
             "minLength": "Dietary restriction must be at least 2 characters"
         }
@@ -289,7 +339,6 @@
         "removeConfirmQuestion": "Do you want to remove the following pet type from your application?",
         "cancel": "Cancel",
         "remove": "Remove",
-        "disabledLabel": "Disabled",
         "defaultPetType": "Pet type {index}",
         "unknownPetType": "Unknown",
         "validation": {
@@ -305,7 +354,6 @@
         "newNeed": "New need",
         "placeholderExample": "E.g. Razors, Shampoo, etc.",
         "add": "Add",
-        "disabledLabel": "Disabled",
         "validation": {
             "minLength": "Need must be at least 2 characters"
         }
@@ -374,6 +422,13 @@
         "today": "Today",
         "todayTab": "Today",
         "weeklyTab": "Weekly",
+        "welcomeBanner": {
+            "title": "Welcome to Matcentralen!",
+            "body": "You are signed in as Handout Staff. This is where you find all handout locations — open one to see today's handouts or the weekly schedule.",
+            "readManual": "Read the handout staff manual →",
+            "dismiss": "Got it",
+            "dismissAria": "Dismiss the welcome message"
+        },
         "hub": {
             "title": "Schedule",
             "subtitle": "Select a handout location to view schedules",
@@ -465,11 +520,23 @@
                 "placeholder": "Search by name or phone number",
                 "noResults": "No match for \"{query}\"",
                 "clear": "Clear search"
+            },
+            "allDone": {
+                "title": "All households addressed",
+                "description": "Every household has a status set for today. Nothing more to do."
             }
         },
         "currentWeek": "Current Week",
         "todayLabel": "Today",
         "weekLabel": "Week {week}, {year}",
+        "summary": {
+            "selectedDayTitle": "Selected day summary",
+            "selectedDayDescription": "Showing packing summary for {date}.",
+            "gridHint": "Tap or click a day header in the weekly schedule to view a different packing summary.",
+            "dayHeaderAction": "View summary",
+            "dayHeaderSelected": "Selected",
+            "dayHeaderAriaLabel": "View packing summary for {date}"
+        },
         "loading": "Loading schedule...",
         "noFoodSupport": "No food support scheduled this week",
         "refresh": "Refresh",
@@ -592,6 +659,17 @@
     },
     "householdDetail": {
         "basics": "Basic Information",
+        "responsibleStaff": "Responsible staff member: {username}",
+        "editResponsibleStaff": "Edit responsible staff member",
+        "saveResponsibleStaff": "Save responsible staff member",
+        "cancelResponsibleStaff": "Cancel responsible staff update",
+        "responsibleStaffUpdateSuccess": "Responsible staff member updated",
+        "responsibleStaffUpdateError": "Could not update responsible staff member",
+        "responsibleStaffUpdateErrorDescription": "Try again in a moment.",
+        "showSecondaryInfo": "Show secondary household information",
+        "secondaryInfo": "Household details",
+        "formerStaff": "Former staff",
+        "createdByLabel": "Created by",
         "createdBy": "Created by {username}",
         "created": "Created",
         "enrollmentSmsDelivered": "Enrollment SMS delivered",
@@ -1251,19 +1329,21 @@
     },
     "settings": {
         "settings": "Settings",
-        "general": "General Settings",
-        "generalDescription": "Configure privacy policy, enrollment checklist, parcel limits, and follow-up settings.",
-        "locations": "Handout Location Settings",
-        "parcels": "Parcel Limits",
-        "aria": {
-            "settingsMenu": "Settings menu"
-        },
         "nav": {
             "privacyPolicy": "Privacy Policy",
             "userAgreement": "User Agreement",
             "enrollmentChecklist": "Enrollment Checklist",
-            "parcelThreshold": "Parcel Limits",
-            "noshowFollowup": "No-Show Follow-up"
+            "parcelThreshold": "Parcel Warning Threshold",
+            "noshowFollowup": "No-Show Follow-up",
+            "locations": "Handout Locations",
+            "householdOptions": "Household Form Options",
+            "users": "Users",
+            "groups": {
+                "operations": "Operations",
+                "reviewAndFollowUp": "Review & Follow-up",
+                "administration": "Administration",
+                "legalAndCompliance": "Legal & Compliance"
+            }
         },
         "enrollmentChecklist": {
             "title": "Enrollment Checklist",
@@ -1520,11 +1600,6 @@
                 "saveFailedMessage": "Failed to save no-show follow-up settings"
             }
         },
-        "smsTemplates": {
-            "title": "Default SMS Templates",
-            "description": "Customize the text messages sent to households",
-            "comingSoon": "Coming Soon..."
-        },
         "users": "Users",
         "usersSection": {
             "title": "User Management",
@@ -1596,8 +1671,8 @@
             "noShowFollowup": "No-show follow-up needed"
         },
         "actions": {
-            "handedOut": "Handed out",
-            "noShow": "No-show",
+            "handedOut": "Mark as handed out",
+            "noShow": "Mark as no-show",
             "cancelParcel": "Cancel parcel",
             "reschedule": "Reschedule",
             "retry": "Retry",
@@ -1722,7 +1797,9 @@
         },
         "overview": {
             "title": "Overview",
-            "totalHouseholds": "Active Households",
+            "totalHouseholds": "Registered Households",
+            "activeHouseholds": "Active Households",
+            "activeHouseholdsInfo": "Households with at least one food parcel scheduled within the past week or in the future.",
             "newHouseholds": "New Households",
             "removedHouseholds": "Removed Households",
             "totalParcels": "Total Parcels",
@@ -1828,9 +1905,9 @@
     },
     "profile": {
         "completeProfile": "Complete your profile",
-        "completeProfileDescription": "Please enter your first and last name to continue using the system. Email and phone number are optional.",
+        "completeProfileDescription": "Please enter your first and last name to continue using the system. Email and phone number are optional. This information is only visible to other staff members and will not be shown to households.",
         "editProfile": "Edit your profile",
-        "editProfileDescription": "Update your name, email, or phone number.",
+        "editProfileDescription": "Update your name, email, or phone number. This information is only visible to other staff members and will not be shown to households.",
         "logout": "Log out instead",
         "firstName": "First name",
         "firstNamePlaceholder": "Your first name",

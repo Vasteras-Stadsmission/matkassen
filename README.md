@@ -456,6 +456,17 @@ Continuous deployment is configured for staging with manual promotion to product
 
 ## Documentation
 
-- `docs/user-manual.md` – operator guide for the admin portal
-- `docs/user-flows.md` – key workflows for volunteers and staff
+Staff-facing manuals (Swedish):
+
+- `docs/anvandarguide-sv.md` – overall user guide with diagrams
+- `docs/handout-staff-manual-sv.md` – daily handout operations for utlämningspersonal
+- `docs/case-worker-manual-sv.md` – household intake and scheduling for handläggare
+- `docs/admin-manual-sv.md` – settings, configuration, and staff onboarding for administrators
+
+Developer-facing documentation:
+
+- `docs/user-flows.md` – key workflows for volunteers and staff (diagrams)
+- `docs/auth-guide.md` – authentication and authorization patterns
+- `docs/business-logic.md` – domain concepts and rules
+- `docs/i18n-guide.md` – internationalization conventions
 - `AGENTS.md` – contribution guidance for AI assistants

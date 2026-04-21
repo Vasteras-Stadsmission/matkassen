@@ -16,7 +16,7 @@ describe("markdownToHtml", () => {
             const result = markdownToHtml(maliciousInput);
 
             expect(result).not.toContain("<script>");
-            expect(result).toContain("<h1>");
+            expect(result).toMatch(/<h1(?: id="[^"]*")?>/);
         });
 
         it("should sanitize img tags with onerror handlers", () => {
@@ -155,6 +155,125 @@ This is a **bold** paragraph with a [link](https://example.com).
             expect(result).toContain("<a ");
             expect(result).toContain("<ul>");
             expect(result).toContain("<li>");
+        });
+    });
+
+    describe("Manual-specific markdown features", () => {
+        // These tags were added so the /help manuals can render tables and
+        // section dividers. They must survive DOMPurify sanitisation.
+        it("should render GFM tables with thead/tbody/tr/th/td", () => {
+            const input = [
+                "| Column A | Column B |",
+                "| --- | --- |",
+                "| Cell 1 | Cell 2 |",
+                "| Cell 3 | Cell 4 |",
+            ].join("\n");
+
+            const result = markdownToHtml(input);
+
+            expect(result).toContain("<table>");
+            expect(result).toContain("<thead>");
+            expect(result).toContain("<tbody>");
+            expect(result).toContain("<tr>");
+            expect(result).toContain("<th>");
+            expect(result).toContain("<td>");
+            expect(result).toContain("Column A");
+            expect(result).toContain("Cell 4");
+        });
+
+        it("should render horizontal rules", () => {
+            const input = "Before\n\n---\n\nAfter";
+            const result = markdownToHtml(input);
+            expect(result).toContain("<hr>");
+        });
+
+        it("should still sanitize dangerous content inside tables", () => {
+            const input = ["| Col |", "| --- |", "| <script>alert(1)</script> |"].join("\n");
+
+            const result = markdownToHtml(input);
+            expect(result).not.toContain("<script>");
+            expect(result).toContain("<table>");
+        });
+
+        it("should not allow raw <style> tags even when markdown lets them through", () => {
+            const input = "Before\n\n<style>body{display:none}</style>\n\nAfter";
+            const result = markdownToHtml(input);
+            expect(result).not.toContain("<style>");
+        });
+    });
+
+    describe("Heading anchors", () => {
+        // The /help search deep-links into sections by slug, so every
+        // heading needs a stable, URL-safe id.
+        it("adds an id to h2 headings derived from the heading text", () => {
+            const result = markdownToHtml("## Felsökning\n\nText.");
+            expect(result).toContain('<h2 id="felsokning">');
+        });
+
+        it("adds ids to all heading levels (h1–h6)", () => {
+            const result = markdownToHtml(
+                "# Top\n\n## Mid\n\n### Deep\n\n#### Four\n\n##### Five\n\n###### Six",
+            );
+            expect(result).toContain('<h1 id="top">');
+            expect(result).toContain('<h2 id="mid">');
+            expect(result).toContain('<h3 id="deep">');
+            expect(result).toContain('<h4 id="four">');
+            expect(result).toContain('<h5 id="five">');
+            expect(result).toContain('<h6 id="six">');
+        });
+
+        it("de-duplicates repeated heading slugs within a single document", () => {
+            // If two sections happen to have the same title, the second
+            // gets a suffix so anchor links stay unambiguous.
+            const result = markdownToHtml("## Felsökning\n\nA\n\n## Felsökning\n\nB");
+            expect(result).toContain('id="felsokning"');
+            expect(result).toContain('id="felsokning-2"');
+        });
+
+        it("resets the slug counter between calls", () => {
+            markdownToHtml("## Felsökning");
+            const second = markdownToHtml("## Felsökning");
+            // Without the reset, the second doc would get `felsokning-2`.
+            expect(second).toContain('id="felsokning"');
+            expect(second).not.toContain("felsokning-2");
+        });
+
+        it("omits id when the heading has no slug-producing characters", () => {
+            const result = markdownToHtml("## !!!");
+            expect(result).toMatch(/<h2>/);
+            expect(result).not.toContain("id=");
+        });
+    });
+
+    describe("Mermaid diagram placeholders", () => {
+        it('renders ```mermaid blocks as <div class="mermaid"> for client-side hydration', () => {
+            const input = "```mermaid\nflowchart TD\n    A --> B\n```";
+            const result = markdownToHtml(input);
+
+            expect(result).toContain('<div class="mermaid">');
+            expect(result).toContain("flowchart TD");
+            // The source must be HTML-escaped so mermaid reads it as text
+            // rather than marked parsing arrows like `-->` as HTML comments.
+            expect(result).toContain("A --&gt; B");
+        });
+
+        it("leaves non-mermaid code blocks as <pre><code>", () => {
+            const input = "```ts\nconst x = 1;\n```";
+            const result = markdownToHtml(input);
+
+            expect(result).toContain("<pre>");
+            expect(result).toContain("<code");
+            expect(result).not.toContain('class="mermaid"');
+        });
+
+        it("strips non-mermaid class values so the class allowance can't be abused", () => {
+            // Raw HTML inside markdown goes through DOMPurify; if someone
+            // injects a <div class="something-else">, the class should be
+            // removed even though the <div> itself is allowed.
+            const input = 'Before\n\n<div class="injected">x</div>\n\nAfter';
+            const result = markdownToHtml(input);
+
+            expect(result).not.toContain('class="injected"');
         });
     });
 });

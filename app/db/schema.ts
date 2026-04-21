@@ -14,6 +14,7 @@ import {
     index,
     uniqueIndex,
     unique,
+    jsonb,
 } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
@@ -40,6 +41,11 @@ export const weekdayEnum = pgEnum("weekday", [
     "sunday",
 ]);
 
+// Household record. Anonymization replaces name/phone in-place but leaves
+// the row, so historical statistics tied to food_parcels remain meaningful.
+// Any NEW child table keyed to household_id that stores free-text PII must
+// also be hard-deleted in app/utils/anonymization/anonymize-household.ts —
+// the schema does not enforce this invariant.
 export const households = pgTable(
     "households",
     {
@@ -49,6 +55,11 @@ export const households = pgTable(
             .$defaultFn(() => nanoid(8)),
         created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(), // will determine end of lifecycle
         created_by: varchar("created_by", { length: 50 }), // GitHub username of user who created household (NULL = unknown)
+        responsible_user_id: text("responsible_user_id")
+            .notNull()
+            .references(() => users.id, {
+                onDelete: "restrict",
+            }), // Current staff member responsible for this household
         first_name: varchar("first_name", { length: 50 }).notNull(),
         last_name: varchar("last_name", { length: 50 }).notNull(),
         phone_number: varchar("phone_number", { length: 20 }).notNull(), // E.164 format (e.g., +46701234567), unique per active household
@@ -72,9 +83,13 @@ export const households = pgTable(
         index("idx_households_primary_location")
             .on(table.primary_pickup_location_id)
             .where(sql`${table.primary_pickup_location_id} IS NOT NULL`),
+        index("idx_households_responsible_user").on(table.responsible_user_id),
     ],
 );
 
+// Free-text staff notes about a household. Contains PII (may reference the
+// person by name or describe their situation), so rows are HARD-DELETED on
+// household anonymization — see app/utils/anonymization/anonymize-household.ts.
 export const householdComments = pgTable("household_comments", {
     id: text("id")
         .primaryKey()
@@ -225,7 +240,9 @@ export const pickupLocationScheduleDays = pgTable(
     ],
 );
 
-// Audit log for schedule changes — preserves history after deletion
+// Audit log for schedule changes — preserves history after deletion.
+// Both schedule_id and pickup_location_id are plain text (no FK) so audit
+// rows survive deletion of either the schedule or its parent location.
 export const scheduleAuditLog = pgTable(
     "schedule_audit_log",
     {
@@ -233,10 +250,8 @@ export const scheduleAuditLog = pgTable(
             .primaryKey()
             .notNull()
             .$defaultFn(() => nanoid(8)),
-        schedule_id: text("schedule_id"), // Plain text, not FK — preserves history after deletion
-        pickup_location_id: text("pickup_location_id")
-            .notNull()
-            .references(() => pickupLocations.id, { onDelete: "cascade" }),
+        schedule_id: text("schedule_id"), // Plain text, not FK — preserves history after schedule deletion
+        pickup_location_id: text("pickup_location_id").notNull(), // Plain text, not FK — preserves history after location deletion
         action: text("action").notNull(), // 'created' | 'updated' | 'deleted'
         changed_by: varchar("changed_by", { length: 50 }).notNull(), // GitHub username from session
         changed_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
@@ -245,6 +260,46 @@ export const scheduleAuditLog = pgTable(
     table => [
         index("idx_schedule_audit_log_location").on(table.pickup_location_id),
         index("idx_schedule_audit_log_schedule").on(table.schedule_id),
+    ],
+);
+
+// Generic audit log for business mutations across the app.
+//
+// Same plain-text-id pattern as scheduleAuditLog so audit rows survive
+// deletion of the entity they describe. Writes go through the helper at
+// app/utils/audit/log.ts — see that file for the philosophy (log-and-
+// continue, log values not redactions, always inside a transaction).
+//
+// scheduleAuditLog stays as-is; it predates this table and the two can
+// converge later if it ever matters.
+export const auditLog = pgTable(
+    "audit_log",
+    {
+        id: text("id")
+            .primaryKey()
+            .notNull()
+            .$defaultFn(() => nanoid(8)),
+        created_at: timestamp({ precision: 1, withTimezone: true }).defaultNow().notNull(),
+        // Username only — no FK to users, no separate snapshot column.
+        // Matches the rest of the schema's actor convention. Username
+        // instability is a theoretical problem we have not observed.
+        actor_username: varchar("actor_username", { length: 100 }).notNull(),
+        // What was acted on. entity_id is plain text (no FK) so audit rows
+        // outlive deletion of the entity they describe.
+        entity_type: text("entity_type").notNull(), // 'household' | 'user_role' | 'parcel' | ...
+        entity_id: text("entity_id"),
+        action: text("action").notNull(), // 'created' | 'updated' | 'deleted' | 'role_changed' | ...
+        // Human-readable one-line summary for direct UI display (always
+        // present), plus an optional structured before/after blob in
+        // jsonb for richer queries. Writers populate `details` only when
+        // there is a meaningful diff to record.
+        summary: text("summary").notNull(),
+        details: jsonb("details"),
+    },
+    table => [
+        index("idx_audit_log_entity").on(table.entity_type, table.entity_id),
+        index("idx_audit_log_actor").on(table.actor_username),
+        index("idx_audit_log_created").on(table.created_at),
     ],
 );
 
@@ -273,7 +328,10 @@ export const verificationQuestions = pgTable(
     ],
 );
 
-// Household verification status tracking
+// Household verification status tracking. The `notes` column is free-text
+// authored by staff and may contain identifying information, so rows are
+// HARD-DELETED on household anonymization — see
+// app/utils/anonymization/anonymize-household.ts.
 export const householdVerificationStatus = pgTable(
     "household_verification_status",
     {
@@ -374,6 +432,9 @@ export const foodParcels = pgTable(
     ],
 );
 
+// Outbound SMS records. Contains PII (recipient phone number and the exact
+// rendered message body), so rows are HARD-DELETED on household anonymization
+// — see app/utils/anonymization/anonymize-household.ts.
 export const outgoingSms = pgTable(
     "outgoing_sms",
     {

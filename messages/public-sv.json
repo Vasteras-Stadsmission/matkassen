@@ -1,11 +1,11 @@
 {
     "publicParcel": {
-        "title": "Matpaket Upphämtning",
+        "title": "Matkasse – upphämtning",
         "pickupInfo": "Upphämtningsinformation",
         "location": "Plats",
         "pickupWindow": "Upphämtningstid",
         "qrCodeLabel": "QR-kod",
-        "qrCodeDescription": "Visa denna QR-kod när du hämtar ditt matpaket",
+        "qrCodeDescription": "Visa denna QR-kod när du hämtar din matkasse",
         "mapsLabel": "Få vägbeskrivning",
         "googleMaps": "Google Maps",
         "appleMaps": "Apple Maps",
@@ -18,8 +18,8 @@
         },
         "statusDescription": {
             "scheduled": "Din upphämtning är planerad. Vänligen kom under upphämtningstiden.",
-            "ready": "Ditt matpaket är redo för upphämtning nu!",
-            "collected": "Detta matpaket har redan hämtats.",
+            "ready": "Din matkasse är redo för upphämtning nu!",
+            "collected": "Denna matkasse har redan hämtats.",
             "expired": "Denna upphämtning är inte längre giltig. Vänligen kontakta personal om du har frågor.",
             "cancelled": "Denna upphämtning har ställts in. Du behöver inte komma."
         },

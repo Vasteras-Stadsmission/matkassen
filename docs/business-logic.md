@@ -183,14 +183,17 @@ Response:
 
 ### Current Model
 
-- **Single admin role** - All authenticated users have full access
-- **Organization membership** - Must be member of configured GitHub organization
+- **Two roles**: `admin` (full access) and `handout_staff` (schedule + handout operations only).
+- New users default to `handout_staff` on first sign-in. Role is stored on the `users` table (`users.role`) and cached in the JWT for 5 minutes.
+- Admins can change roles via `Inställningar → Användare` (`/settings/users`). Role changes take effect within 5 minutes, or immediately if the user signs out and back in.
+- Admin-only pages are wrapped in `<AgreementProtection adminOnly>`. Non-admins are redirected to `/auth/access-denied?reason=admin_required` with role-specific guidance.
+- **Organization membership** — users must be active members of the configured GitHub organization (`GITHUB_ORG`).
 
 ### Future Considerations
 
-- Location-specific staff roles
-- Read-only reporter role
-- Super admin vs. regular staff
+- Location-specific staff roles (currently any handout_staff sees every location)
+- Read-only reporter role for volunteers who only view statistics
+- Finer-grained permissions within the admin tier (e.g. user management vs. schedule config)
 
 ## Parcel QR Codes
 

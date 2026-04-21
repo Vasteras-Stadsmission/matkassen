@@ -29,6 +29,7 @@ import {
     petSpecies,
     householdAdditionalNeeds,
     additionalNeeds,
+    users,
 } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
 import { isTimeAvailable, isDateAvailable } from "@/app/utils/schedule/location-availability";
@@ -43,6 +44,7 @@ import {
 } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
+import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
 
 import { type DbOrTransaction } from "@/app/db/types";
@@ -170,6 +172,7 @@ async function queryTodaysParcels(locationId?: string): Promise<FoodParcel[]> {
     const endDate = todayInStockholm.endOfDay().toDate();
 
     const primaryLocation = alias(pickupLocations, "primary_location");
+    const creator = alias(users, "creator");
 
     const parcelsData = await db
         .select({
@@ -185,10 +188,14 @@ async function queryTodaysParcels(locationId?: string): Promise<FoodParcel[]> {
             primaryPickupLocationId: households.primary_pickup_location_id,
             primaryPickupLocationName: primaryLocation.name,
             createdBy: households.created_by,
+            creatorFirstName: creator.first_name,
+            creatorLastName: creator.last_name,
+            creatorDisplayName: creator.display_name,
         })
         .from(foodParcels)
         .innerJoin(households, eq(foodParcels.household_id, households.id))
         .leftJoin(primaryLocation, eq(households.primary_pickup_location_id, primaryLocation.id))
+        .leftJoin(creator, eq(households.created_by, creator.github_username))
         .where(
             and(
                 gte(foodParcels.pickup_date_time_earliest, startDate),
@@ -214,6 +221,14 @@ async function queryTodaysParcels(locationId?: string): Promise<FoodParcel[]> {
             primaryPickupLocationId: parcel.primaryPickupLocationId,
             primaryPickupLocationName: parcel.primaryPickupLocationName,
             createdBy: parcel.createdBy,
+            createdByName: formatUserDisplayName(
+                {
+                    first_name: parcel.creatorFirstName,
+                    last_name: parcel.creatorLastName,
+                    display_name: parcel.creatorDisplayName,
+                },
+                parcel.createdBy,
+            ),
         };
     });
 }
@@ -263,7 +278,10 @@ export const getTodaysParcelsWithPhone = protectedAgreementReadAction(
 /**
  * Get summary stats for today's parcels at a specific location
  */
-export async function getTodaysSummaryStats(locationId: string): Promise<TodaySummaryStats> {
+async function querySummaryStatsForDate(
+    locationId: string,
+    date: Date,
+): Promise<TodaySummaryStats> {
     const empty: TodaySummaryStats = {
         householdCount: 0,
         memberCount: 0,
@@ -273,10 +291,9 @@ export async function getTodaysSummaryStats(locationId: string): Promise<TodaySu
     };
 
     try {
-        const today = new Date();
-        const todayInStockholm = Time.fromDate(today);
-        const startDate = todayInStockholm.startOfDay().toDate();
-        const endDate = todayInStockholm.endOfDay().toDate();
+        const targetDate = Time.fromDate(date);
+        const startDate = targetDate.startOfDay().toDate();
+        const endDate = targetDate.endOfDay().toDate();
 
         // Get distinct household IDs for today's parcels at this location
         const parcelsData = await db
@@ -385,9 +402,19 @@ export async function getTodaysSummaryStats(locationId: string): Promise<TodaySu
             })),
         };
     } catch (error) {
-        logError("Error fetching today's summary stats", error);
+        logError("Error fetching summary stats for date", error, { locationId });
         return empty;
     }
+}
+
+export const getSummaryStatsForDate = protectedAgreementReadAction(
+    async (_session, locationId: string, date: Date): Promise<TodaySummaryStats> => {
+        return querySummaryStatsForDate(locationId, date);
+    },
+);
+
+export async function getTodaysSummaryStats(locationId: string): Promise<TodaySummaryStats> {
+    return querySummaryStatsForDate(locationId, Time.now().toDate());
 }
 
 /**

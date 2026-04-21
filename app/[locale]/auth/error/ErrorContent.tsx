@@ -16,22 +16,23 @@ function ErrorContentWithSearchParams({ messageKey }: { messageKey?: string }) {
     const errorType = searchParams.get("error") || messageKey;
     const authT = useTranslations("auth");
 
-    // Map Auth.js official error types to translation keys
+    // Map Auth.js official error types to translation keys.
     // Reference: https://authjs.dev/guides/pages/error
+    //
+    // Note: org-membership and 2FA failures are NOT routed through this page —
+    // auth.ts redirects them straight to /auth/access-denied?reason=X with rich
+    // remediation copy. This page only handles the remaining Auth.js error
+    // categories (configuration, verification, invalid-provider, etc.).
     const getErrorMessage = () => {
         switch (errorType?.toLowerCase()) {
-            case "accessdenied":
-                return authT("errors.notOrgMember"); // Access denied - user not org member
             case "invalid-provider":
                 return authT("errors.invalidProvider"); // Invalid account provider
             case "configuration":
                 return authT("errors.configuration"); // Server configuration problems
             case "verification":
                 return authT("errors.verification"); // Email token expired/used
-            case "default":
-                return authT("errors.default"); // Catch-all error
             default:
-                return authT("errors.default"); // Fallback for any unrecognized errors
+                return authT("errors.default"); // Catch-all for any unrecognized errors
         }
     };
 

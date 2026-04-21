@@ -2,38 +2,56 @@
 
 ## Authentication Requirements
 
-**EVERY page must be protected except `/auth/*` and `/p/*` (public parcel pages).**
+**EVERY page must be protected except `/auth/*` (sign-in/error screens), `/p/*` (public parcel pages), and `/privacy` (privacy policy).** See `middleware.ts` for the authoritative allow-list.
 
 ## Protection Patterns
 
 ### Server Components
 
+Wrap every staff-facing page in `<AgreementProtection>`. It renders a "please sign in" fallback for unauthenticated requests (defense-in-depth — `middleware.ts` normally redirects them to sign-in before the page renders), redirects users who haven't accepted the current user agreement to `/agreement`, and (optionally) restricts pages to administrators via the `adminOnly` prop (redirects handout staff to `/auth/access-denied?reason=admin_required`).
+
 ```typescript
 // app/[locale]/example/page.tsx
-import { AuthProtection } from "@/components/AuthProtection";
+import { AgreementProtection } from "@/components/AgreementProtection";
 
 export default function ExamplePage() {
     return (
-        <AuthProtection>
+        <AgreementProtection>
             <div>Protected content</div>
-        </AuthProtection>
+        </AgreementProtection>
+    );
+}
+```
+
+For admin-only pages, pass `adminOnly={true}`. Handout staff who visit get redirected to `/auth/access-denied?reason=admin_required` with a role-specific explanation.
+
+```typescript
+// app/[locale]/households/page.tsx
+import { AgreementProtection } from "@/components/AgreementProtection";
+
+export default function HouseholdsPage() {
+    return (
+        <AgreementProtection adminOnly>
+            <div>Admin-only content</div>
+        </AgreementProtection>
     );
 }
 ```
 
 ### Client Components
 
+Client components that need to gate UI on auth state read the session directly via `useSession()` from `next-auth/react`. The surrounding page is expected to already be wrapped in `<AgreementProtection>`, so this is for conditional rendering inside an already-protected page, not for adding a new auth boundary.
+
 ```typescript
 // components/ExampleClient.tsx
 "use client";
-import { AuthProtectionClient } from "@/components/AuthProtection/client";
+import { useSession } from "next-auth/react";
 
 export function ExampleClient() {
-    return (
-        <AuthProtectionClient>
-            <div>Protected client content</div>
-        </AuthProtectionClient>
-    );
+    const { data: session, status } = useSession();
+    if (status === "loading") return null;
+    if (!session) return null;
+    return <div>Authenticated content for {session.user?.githubUsername}</div>;
 }
 ```
 
@@ -127,53 +145,60 @@ This script ensures:
 
 ### Public API Routes (Exceptions)
 
-- `/api/auth/*` - NextAuth routes (public by design)
-- `/api/health` - Health check endpoint
-- `/api/csp-report` - CSP violation reporting (browser-initiated)
+Kept in `middleware.ts` as the `publicApiPatterns` allow-list:
+
+- `/api/auth/*` — NextAuth routes (public by design)
+- `/api/health` — Health check endpoint
+- `/api/csp-report` — CSP violation reporting (browser-initiated)
+- `/api/pickup-locations` — Public pickup locations lookup
+- `/api/webhooks/*` — Webhook endpoints (authenticated via URL secret, not session)
 
 ## GitHub OAuth Configuration
 
-The app uses **NextAuth v5** with:
+The app uses **NextAuth v5** with two separate GitHub integrations:
 
-- **GitHub OAuth** for user authentication
-- **GitHub App** for organization membership verification
+- **GitHub OAuth app** — used at sign-in. The user's OAuth access token is what we call against `GET /user/memberships/orgs/{org}` in `app/utils/auth/org-eligibility.ts` to gate the session. Driven by `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`.
+- **GitHub App** — used by the daily org-sync scheduler (`app/utils/scheduler.ts`), which walks every active user and deactivates anyone who has left the org. The App's installation token lets us read org membership without a specific user's OAuth token. Driven by `AUTH_GITHUB_APP_ID` / `AUTH_GITHUB_APP_INSTALLATION_ID` / `AUTH_GITHUB_APP_PRIVATE_KEY`. The login path does **not** use the GitHub App.
 
-### Required GitHub Permissions
+### Required GitHub permissions
 
-Organization must have the GitHub App installed with:
+- **OAuth app** — scopes `read:user`, `user:email`, `read:org` (declared in `auth.ts`).
+- **GitHub App** — organization permission `Members: Read-only` (used by the scheduler).
 
-- `members:read` - Check organization membership
-- `user:email` - Get user email (for admin audit logs)
+### Session validation flow
 
-### Session Validation Flow
+Sessions are **JWT-based** (`strategy: "jwt"` in `auth.ts`), so validation is stateless — there is no server-side session store to match against.
 
-1. User signs in via GitHub OAuth
-2. NextAuth creates session cookie
-3. `authenticateAdminRequest()` validates:
-    - Session is valid and not expired
-    - User is member of configured GitHub organization
-    - Session token matches server-side state
+1. User signs in via GitHub OAuth.
+2. `signIn` callback in `auth.ts` calls `checkGitHubOrgEligibility()` with the user's OAuth access token; result is cached in the JWT alongside the user's role (refreshed every 10 min for eligibility, every 5 min for role).
+3. On every request, `auth()` decodes the JWT cookie.
+4. `authenticateAdminRequest()` in `app/utils/auth/api-auth.ts` reads `auth()` and asserts: session present, `orgEligibility.ok === true`, and (when `adminOnly`) `user.role === "admin"`.
 
-### Environment Variables
+### Environment variables
+
+The actual variable names — see `.env.example` for the full list:
 
 ```bash
-# .env
-NEXTAUTH_URL=https://your-domain.com
-NEXTAUTH_SECRET=random-string-min-32-chars
+# GitHub OAuth (sign-in path)
+AUTH_GITHUB_ID=your_github_oauth_app_id
+AUTH_GITHUB_SECRET=your_github_oauth_app_secret
+AUTH_SECRET=generate_with_npx_auth_secret
+AUTH_TRUST_HOST=true
 
-GITHUB_ID=your-oauth-app-client-id
-GITHUB_SECRET=your-oauth-app-client-secret
+# GitHub organization access control
+GITHUB_ORG=vasteras-stadsmission
 
-GITHUB_APP_ID=your-github-app-id
-GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
-GITHUB_ORG_NAME=your-organization-name
+# GitHub App (scheduled org-sync path)
+AUTH_GITHUB_APP_ID=your_github_app_id
+AUTH_GITHUB_APP_INSTALLATION_ID=your_installation_id
+AUTH_GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 ```
 
 ## Security Checklist
 
 Before deploying any feature:
 
-- [ ] All pages protected with `<AuthProtection>` or `<AuthProtectionClient>`
+- [ ] All staff pages wrapped in `<AgreementProtection>` (with `adminOnly` where appropriate)
 - [ ] All server actions use `protectedAction()` wrapper
 - [ ] All `/api/admin/*` routes use `authenticateAdminRequest()`
 - [ ] `pnpm run validate` passes (enforces security patterns)

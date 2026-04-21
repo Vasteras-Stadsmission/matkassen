@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
-import { foodParcels } from "@/app/db/schema";
-import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
+import { markPickedUp, undoPickup } from "@/app/utils/parcels/state-transitions";
 
 // PATCH /api/admin/parcel/[parcelId]/pickup - Mark parcel as picked up
 export async function PATCH(
@@ -19,33 +17,20 @@ export async function PATCH(
         }
 
         const { parcelId } = await params;
-        const now = new Date();
 
-        // Update the parcel (only if not deleted)
-        // Also clear no_show fields to avoid CHECK constraint violation
-        // (business logic: if picked up, they clearly showed up)
-        const result = await db
-            .update(foodParcels)
-            .set({
-                is_picked_up: true,
-                picked_up_at: now,
-                picked_up_by_user_id: authResult.session.user.githubUsername,
-                no_show_at: null,
-                no_show_by_user_id: null,
-            })
-            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
-            .returning({ id: foodParcels.id });
+        const result = await db.transaction(async tx =>
+            markPickedUp(tx, { parcelId, session: authResult.session }),
+        );
 
-        if (result.length === 0) {
+        if (!result.ok) {
             return NextResponse.json(
-                { error: "Parcel not found or deleted", code: "NOT_FOUND" },
+                { error: result.error.message, code: result.error.code },
                 { status: 404 },
             );
         }
 
         return NextResponse.json({
             success: true,
-            pickedUpAt: now.toISOString(),
             pickedUpBy: authResult.session.user.githubUsername,
             message: "Parcel marked as picked up",
         });
@@ -73,20 +58,13 @@ export async function DELETE(
 
         const { parcelId } = await params;
 
-        // Update the parcel to clear pickup status (only if not deleted)
-        const result = await db
-            .update(foodParcels)
-            .set({
-                is_picked_up: false,
-                picked_up_at: null,
-                picked_up_by_user_id: null,
-            })
-            .where(and(eq(foodParcels.id, parcelId), notDeleted()))
-            .returning({ id: foodParcels.id });
+        const result = await db.transaction(async tx =>
+            undoPickup(tx, { parcelId, session: authResult.session }),
+        );
 
-        if (result.length === 0) {
+        if (!result.ok) {
             return NextResponse.json(
-                { error: "Parcel not found or deleted", code: "NOT_FOUND" },
+                { error: result.error.message, code: result.error.code },
                 { status: 404 },
             );
         }
