@@ -79,6 +79,8 @@ jobs:
                   script: |
                       # Fail fast on errors — this block used to swallow git failures and
                       # leave the VPS on an outdated commit while reporting success.
+                      # Assumes the remote login shell is bash (`pipefail` is a bashism;
+                      # dash/sh would error out immediately here — fail-loud, not silent).
                       set -euo pipefail
 
                       echo "Export GitHub secrets into environment variables"
@@ -146,6 +148,7 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   script: |
                       # Fail fast on errors — see deploy-to-staging above for context.
+                      # Assumes the remote login shell is bash (`pipefail` is a bashism).
                       set -euo pipefail
 
                       echo "Export GitHub secrets into environment variables"

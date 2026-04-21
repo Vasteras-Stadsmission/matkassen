@@ -53,7 +53,8 @@ jobs:
                   script: |
                       # Fail fast on errors (defense in depth — init_deploy re-clones so
                       # the stale-branch bug doesn't apply, but strict mode is the right
-                      # default for deploy scripts).
+                      # default for deploy scripts). Assumes the remote login shell is
+                      # bash (`pipefail` is a bashism).
                       set -euo pipefail
 
                       echo "Export GitHub secrets into environment variables"
