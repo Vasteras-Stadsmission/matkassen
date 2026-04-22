@@ -35,6 +35,14 @@ services:
             # Sourced from host .env, written by deploy.sh / update.sh from
             # the GitHub Secret of the same name. backup-db.sh aborts if unset.
             - DB_BACKUP_PASSPHRASE=${DB_BACKUP_PASSPHRASE}
+            # gpg normally creates and writes state files (keyring, random
+            # seed, socket dir) in ~/.gnupg. With read_only: true that
+            # directory is unwritable and gpg aborts with
+            # `can't create directory '/home/backupuser/.gnupg': Read-only
+            # file system`. Pointing GNUPGHOME at the tmpfs /tmp mount
+            # gives gpg a writable state dir per container run without
+            # widening the filesystem write surface.
+            - GNUPGHOME=/tmp/.gnupg
         depends_on:
             db:
                 condition: service_healthy
