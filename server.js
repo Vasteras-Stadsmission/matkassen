@@ -54,6 +54,13 @@ function loadCompiledModule(request) {
 // Logger is plain JS, require directly
 const { logger, logError } = require("./app/utils/logger");
 
+// Validate DATABASE_SSL at startup. parseDatabaseSslMode() throws on unknown
+// values (e.g. "required" typo'd for "require"). We invoke it here so a
+// misconfiguration surfaces before createServer(...).listen(...) — otherwise
+// the later waitForDatabase retry loop swallows the throw as "not ready yet"
+// and the process boots in a broken state.
+require("./app/db/database-ssl.cjs").parseDatabaseSslMode();
+
 // Scheduler is compiled TypeScript, load from server-build
 ensureServerBuildFile("app/utils/scheduler.js");
 const { startScheduler } = loadCompiledModule("@/app/utils/scheduler");
