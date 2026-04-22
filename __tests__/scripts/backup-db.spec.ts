@@ -60,18 +60,21 @@ describe.skipIf(!hasGpg)("Encrypted database backup pipeline", () => {
             `#!/bin/bash\nprintf '%s' '${mockDumpPayload}'\n`,
         );
 
-        // Stub pg_restore: consume stdin (the streamed dump) and record
-        // the target DB arg for test assertions. Configurable failure via
-        // FAIL_PG_RESTORE env var.
+        // Stub pg_restore: consume stdin (the streamed dump), record the
+        // target DB AND all flags for test assertions. Configurable
+        // failure via FAIL_PG_RESTORE env var.
         fs.writeFileSync(
             path.join(mockBin, "pg_restore"),
             `#!/bin/bash
 TARGET_DB=""
+FLAGS=""
 while [ $# -gt 0 ]; do
-    if [ "$1" = "-d" ]; then shift; TARGET_DB="$1"; fi
+    if [ "$1" = "-d" ]; then shift; TARGET_DB="$1"
+    elif [[ "$1" == --* ]]; then FLAGS="$FLAGS $1"
+    fi
     shift
 done
-printf 'pg_restore -d %s\\n' "$TARGET_DB" >> "\${DB_OPS_LOG:-/dev/null}"
+printf 'pg_restore -d %s flags=%s\\n' "$TARGET_DB" "$FLAGS" >> "\${DB_OPS_LOG:-/dev/null}"
 cat >/dev/null
 if [ -n "\${FAIL_PG_RESTORE:-}" ]; then
     echo "simulated pg_restore failure" >&2
@@ -283,7 +286,13 @@ exit 0
         const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
         expect(ops[0]).toBe("dropdb matkassen_nightly_validate"); // pre-flight
         expect(ops).toContain("createdb matkassen_nightly_validate");
-        expect(ops).toContain("pg_restore -d matkassen_nightly_validate");
+        const pgRestoreLine = ops.find(l =>
+            l.startsWith("pg_restore -d matkassen_nightly_validate"),
+        );
+        expect(pgRestoreLine).toBeDefined();
+        // Regression guard for H2: --exit-on-error must be on the pg_restore
+        // call so a partial restore fails fast instead of limping on.
+        expect(pgRestoreLine).toContain("--exit-on-error");
         expect(ops).toContain("psql -d matkassen_nightly_validate");
         // Post-run cleanup must also be against the scratch name only.
         expect(ops[ops.length - 1]).toBe("dropdb matkassen_nightly_validate");
@@ -477,7 +486,9 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
         // at the end. Exactly one post-run dropdb, plus the pre-flight
         // one, = two dropdb calls in total.
         expect(ops.filter(l => l === "createdb matkassen_nightly_validate")).toHaveLength(1);
-        expect(ops.filter(l => l === "pg_restore -d matkassen_nightly_validate")).toHaveLength(1);
+        expect(
+            ops.filter(l => l.startsWith("pg_restore -d matkassen_nightly_validate")),
+        ).toHaveLength(1);
         expect(ops.filter(l => l === "dropdb matkassen_nightly_validate")).toHaveLength(2);
         expect(stdout).toContain("pg_restore errored");
     });

@@ -230,8 +230,9 @@ This rebuilds the backup image (if needed) and execs the cron script inside the 
 Run this on the production server, with the backup container already up under the `backup` profile:
 
 ```bash
-# Export the same passphrase the backup was encrypted with
-export DB_BACKUP_PASSPHRASE="your-passphrase-from-github-secrets"
+# The passphrase is already in the running db-backup container's env
+# (from the host .env written by deploy.sh/update.sh) — no local export
+# needed. Just gate on the production marker.
 export ENV_NAME=production
 
 # Restore by filename (no path — the script fetches from Swift)
@@ -302,10 +303,14 @@ docker compose -f docker-compose.yml -f docker-compose.backup.yml \
 # For each, stream-rekey with no intermediate plaintext on disk.
 # Passphrases arrive via process substitution / pipe rather than bash
 # herestrings, so they never touch the filesystem even briefly.
+# Value-less `-e OLD_PASS -e NEW_PASS` — docker inherits these from the
+# caller's exported env, so the plaintext passphrases never land in
+# the host's `docker compose` argv (visible to `ps auxfww`). Only FILE
+# is passed by value because it's not a secret.
 while read -r FILE; do
     docker compose -f docker-compose.yml -f docker-compose.backup.yml \
         --profile backup exec -T \
-        -e OLD_PASS="$OLD_PASS" -e NEW_PASS="$NEW_PASS" -e FILE="$FILE" \
+        -e OLD_PASS -e NEW_PASS -e FILE="$FILE" \
         db-backup bash -c '
             set -euo pipefail
             SRC="elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}/${FILE}"
@@ -363,11 +368,18 @@ Slack notifications fire on every nightly run (success or failure), with file si
 
 **Slack reports "validation failed" but upload succeeded**
 
-Check the Slack error text for the stage:
+The Slack alert is a summary; the specific reason is in the backup container logs:
 
-- `could not create scratch DB` with `CREATEDB` in the log → the backup role is missing the `CREATEDB` grant. `deploy.sh` and `update.sh` apply it on production, but both soft-fail (with a warning, not an error). Fix manually: `docker compose exec -T db psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'ALTER USER "'$POSTGRES_USER'" CREATEDB;'`.
-- `pg_restore errored` → the decrypted dump didn't apply cleanly. Usually a DDL version skew between the dumping Postgres and the restoring Postgres (both are the same instance, so this only happens if someone bumped the image tag mid-flight). Check `docker compose logs db` around the 02:00 run.
-- `sentinel query returned 'f'` → the `households` table didn't survive the restore. Most commonly an empty or truncated dump; rarer but possible: the schema was renamed and the sentinel check needs updating.
+```bash
+sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml \
+    --profile backup logs --since 4h db-backup
+```
+
+Match the log output to one of these:
+
+- `could not create scratch DB` and a hint mentioning `CREATEDB` → the backup role is missing the `CREATEDB` grant. `deploy.sh` and `update.sh` apply it on production, but both soft-fail (warning, not error). Fix manually: `docker compose exec -T db bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" CREATEDB;"'`.
+- `pg_restore errored` → the decrypted dump didn't apply cleanly. Usually a DDL version skew between the dumping and restoring Postgres (both are the same instance, so this only happens if someone bumped the image tag mid-flight). Look for the `pg_restore:` error line just above.
+- `sentinel query returned 'f'` → the `households` table didn't survive the restore. Most commonly an empty or truncated dump; rarer: the schema was renamed and the sentinel check needs updating.
 - `decryption failed` → passphrase mismatch between encrypt and decrypt. Shouldn't happen (same env var in one run) — but check for stray edits and whether the container was restarted mid-run.
 - `unable to download backup file` → transient Swift or network issue, usually self-resolves the next night.
 

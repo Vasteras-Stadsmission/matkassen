@@ -478,18 +478,16 @@ fi
 
 echo "✅ Database migrations completed successfully."
 
-# Verify migrations worked by checking if we can connect and query the database
+# Verify migrations worked by checking if we can connect and query the database.
+# Single-quoted bash -c so $POSTGRES_PASSWORD expands inside the db container
+# (from its own env), not on the host — keeps the password out of `ps auxfww`.
 echo "Verifying database setup..."
-if ! sudo docker compose exec -T db bash -c "
-  # Create secure .pgpass file for database verification
-  PGPASS_FILE=\"/tmp/.pgpass_verify\"
-  echo \"localhost:5432:$POSTGRES_DB:$POSTGRES_USER:$POSTGRES_PASSWORD\" > \"\$PGPASS_FILE\"
-  chmod 600 \"\$PGPASS_FILE\"
-  export PGPASSFILE=\"\$PGPASS_FILE\"
-
-  # Run verification query and cleanup
-  psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT COUNT(*) FROM pg_catalog.pg_tables;' && rm -f \"\$PGPASS_FILE\"
-" > /dev/null; then
+if ! sudo docker compose exec -T db bash -c '
+  PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+    -U "${POSTGRES_USER}" \
+    -d "${POSTGRES_DB}" \
+    -c "SELECT COUNT(*) FROM pg_catalog.pg_tables;"
+' > /dev/null; then
   echo "⚠️ Warning: Couldn't verify database setup, but migrations reported success."
 else
   echo "✅ Database verification successful."

@@ -378,8 +378,9 @@ Production backups are encrypted with symmetric AES256 GPG before they leave the
 ssh matkassen-production
 cd ~/matkassen
 
-# 2. Export the same passphrase the backup was encrypted with
-export DB_BACKUP_PASSPHRASE="your-passphrase-from-github-secrets"
+# 2. Gate the restore on the production marker. The passphrase is
+#    already in the db-backup container's env via docker-compose.backup.yml
+#    — no local export needed.
 export ENV_NAME=production
 
 # 3. List available backups

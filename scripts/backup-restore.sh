@@ -81,9 +81,9 @@ if [ -n "${POSTGRES_DB:-}" ]; then
     EXEC_ENV_ARGS+=(-e "POSTGRES_DB=$POSTGRES_DB")
 fi
 # Use bash explicitly rather than sh. On Alpine, /bin/sh is BusyBox ash,
-# which supports the herestring below (3<<<"$PASS") only via the
-# ASH_BASH_COMPAT build flag. The image has bash installed, so pinning
-# to bash removes that implicit dependency.
+# which supports the process-substitution / `builtin printf` patterns
+# below only via ASH_BASH_COMPAT. The image has bash installed, so
+# pinning to bash removes that implicit dependency.
 $COMPOSE_CMD $COMPOSE_FILES --profile backup exec \
     "${EXEC_ENV_ARGS[@]}" \
     db-backup bash -c '
@@ -121,7 +121,7 @@ $COMPOSE_CMD $COMPOSE_FILES --profile backup exec \
     # Passphrase via `builtin printf | --passphrase-fd 0` rather than
     # herestring — anonymous pipe, no $TMPDIR spill. `builtin` forces
     # the bash builtin even if printf is shadowed.
-    builtin printf '%s' "$DB_BACKUP_PASSPHRASE" \
+    builtin printf "%s" "$DB_BACKUP_PASSPHRASE" \
         | gpg --decrypt --batch --quiet --passphrase-fd 0 --pinentry-mode loopback \
             "$DOWNLOAD_FILE" \
         | pg_restore \

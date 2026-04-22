@@ -5,15 +5,18 @@
 # Pipeline:
 #   pg_dump --format=custom → gpg --symmetric AES256 → /tmp/<file>.dump.gpg
 #   → rclone copy to Swift → set X-Delete-After expiry header
-#   → download → decrypt → pg_restore --list (round-trip validation)
+#   → download + decrypt + full pg_restore into matkassen_nightly_validate
+#     → sentinel query → drop scratch DB
 #   → Slack notify
 #
-# Encryption: symmetric AES256 with DB_BACKUP_PASSPHRASE (passed via fd 3,
-# never via argv). Binary armor (no --armor) since the destination is object
-# storage, not email.
+# Encryption: symmetric AES256 with DB_BACKUP_PASSPHRASE fed on a pipe
+# (via `builtin printf`) to gpg's --passphrase-fd, never via argv or a
+# filesystem-backed herestring. Binary armor (no --armor) since the
+# destination is object storage, not email.
 #
-# Validation runs end-to-end including decryption — a wrong passphrase or
-# corrupted upload fails the same night, before anyone needs the backup.
+# Validation does a real pg_restore every night — a wrong passphrase,
+# DDL version skew, corrupted COPY block, or missing sentinel table all
+# fail the same night, before anyone needs the backup.
 
 set -euo pipefail
 set -o errtrace
