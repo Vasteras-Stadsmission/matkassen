@@ -478,21 +478,40 @@ fi
 
 echo "✅ Database migrations completed successfully."
 
-# Verify migrations worked by checking if we can connect and query the database
+# Verify migrations worked by checking if we can connect and query the database.
+# Single-quoted bash -c so $POSTGRES_PASSWORD expands inside the db container
+# (from its own env), not on the host — keeps the password out of `ps auxfww`.
 echo "Verifying database setup..."
-if ! sudo docker compose exec -T db bash -c "
-  # Create secure .pgpass file for database verification
-  PGPASS_FILE=\"/tmp/.pgpass_verify\"
-  echo \"localhost:5432:$POSTGRES_DB:$POSTGRES_USER:$POSTGRES_PASSWORD\" > \"\$PGPASS_FILE\"
-  chmod 600 \"\$PGPASS_FILE\"
-  export PGPASSFILE=\"\$PGPASS_FILE\"
-
-  # Run verification query and cleanup
-  psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT COUNT(*) FROM pg_catalog.pg_tables;' && rm -f \"\$PGPASS_FILE\"
-" > /dev/null; then
+if ! sudo docker compose exec -T db bash -c '
+  PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+    -U "${POSTGRES_USER}" \
+    -d "${POSTGRES_DB}" \
+    -c "SELECT COUNT(*) FROM pg_catalog.pg_tables;"
+' > /dev/null; then
   echo "⚠️ Warning: Couldn't verify database setup, but migrations reported success."
 else
   echo "✅ Database verification successful."
+fi
+
+# Grant CREATEDB to the app user on production so the nightly backup
+# validation can create and drop its scratch DB. Idempotent. See the
+# matching block in update.sh for subsequent deploys.
+if [ "${ENV_NAME:-}" = "production" ]; then
+  echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
+  # Single-quoted bash -c so $POSTGRES_PASSWORD expands inside the db
+  # container (from its own env), not on the host. The host never sees
+  # the password in argv, so `ps auxfww` during the exec reveals only
+  # the docker command line, not secrets.
+  if sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
+  ' > /dev/null 2>&1; then
+    echo "✅ CREATEDB granted to $POSTGRES_USER."
+  else
+    echo "⚠️ Failed to grant CREATEDB — nightly validation will fail until this is resolved."
+  fi
 fi
 
 # Cleanup old Docker images and containers
