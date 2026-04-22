@@ -30,7 +30,7 @@ jobs:
             - name: Validate shell scripts
               run: |
                   echo "Validating shell scripts..."
-                  SCRIPTS=("deploy.sh" "update.sh" "scripts/backup-db.sh" "scripts/backup-manage.sh")
+                  SCRIPTS=("deploy.sh" "update.sh" "scripts/backup-db.sh" "scripts/backup-restore.sh" "scripts/backup-manage.sh")
                   for script in "${SCRIPTS[@]}"; do
                       if [ -f "$script" ]; then
                           echo "Checking $script..."

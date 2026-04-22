@@ -110,7 +110,7 @@ docker compose logs -f app
 docker compose logs -f db
 
 # Restart service
-docker compose restart app
+docker compose restart web
 
 # Full restart
 docker compose down && docker compose up -d
@@ -157,18 +157,28 @@ docker exec -it matkassen-db psql -U matkassen -d matkassen
 
 ### Backups
 
-**All database backups are encrypted for GDPR compliance.**
+**All production database backups are encrypted with symmetric AES256 GPG before leaving the host.** The dump is piped directly from `pg_dump` into `gpg` — no intermediate plaintext file. The nightly validation step decrypts the backup and does a full `pg_restore` into a throwaway `matkassen_nightly_validate` database on the same Postgres instance; the scratch database is dropped at the end of the run. Plaintext data exists only inside the scratch DB during validation and is destroyed with it.
+
+> ⚠️ **Scope caveat.** This proves "the backup is restorable into _this_ Postgres cluster." It is **not** a cross-host disaster-recovery drill: if the whole VPS is lost, you still have to provision a fresh cluster and restore onto it from Swift. That scenario is intentionally not automated.
 
 #### Automated Encrypted Backups
 
-Production backups run automatically via `Dockerfile.db-backup` using `scripts/backup-db.sh` (cloud storage) or the new `scripts/db-backup.sh` for encrypted local/manual backups.
+Production backups run automatically via `Dockerfile.db-backup`, which runs `scripts/backup-db.sh` nightly at 02:00 Europe/Stockholm under supercronic. The script:
+
+1. `pg_dump --format=custom --compress=9` piped directly into `gpg --symmetric --cipher-algo AES256` (no intermediate plaintext file).
+2. Uploads the `.dump.gpg` file to the Elastx Swift container via `rclone`.
+3. Sets `X-Delete-After` for 14-day automatic expiry as a defense-in-depth retention guarantee.
+4. Full-restore validates the upload: creates `matkassen_nightly_validate`, streams `gpg --decrypt | pg_restore --exit-on-error` into it, runs a sentinel query (`SELECT to_regclass('public.households') IS NOT NULL`), drops the scratch DB. A wrong passphrase, corrupted upload, DDL incompatibility, or broken COPY stream fails the same night.
+5. Reports success/failure to Slack.
+
+**Cluster-level requirement**: the backup user needs `CREATEDB` to create and drop the scratch database. `deploy.sh` and `update.sh` apply this grant automatically on production. The widened privilege is cluster-level (the role can now create/drop databases), not app-level (it already owned every table in the app schema).
 
 #### Encryption Details
 
 - **Method**: Symmetric encryption using GPG (GnuPG)
-- **Algorithm**: AES256-CFB (industry standard)
-- **Passphrase**: Stored in GitHub Secrets as `DB_BACKUP_PASSPHRASE`
-- **Output**: `.sql.gpg` encrypted files with `.sql.gpg.sha256` checksums
+- **Algorithm**: AES256
+- **Passphrase**: Stored in GitHub Secrets as `DB_BACKUP_PASSPHRASE`, propagated to the host `.env` by `deploy.sh` / `update.sh`, then injected into the backup container via `docker-compose.backup.yml`
+- **Output filename**: `matkassen_backup_<timestamp>.dump.gpg` (binary GPG, not ASCII-armored — the payload is a PostgreSQL custom-format dump)
 
 #### Setting Up Encrypted Backups
 
@@ -194,59 +204,52 @@ pwgen -s 32 1
 
 ##### 3. Deploy Changes
 
-The passphrase is automatically exported to both staging and production environments via CI/CD workflows.
+The passphrase is automatically exported to the production environment via CI/CD workflows (backups are disabled on staging).
 
-#### Manual Encrypted Backup
+#### Manual Backup Trigger
+
+To run a backup immediately rather than waiting for the 02:00 schedule:
 
 ```bash
-# On the server
-export DB_BACKUP_PASSPHRASE="your-passphrase"
-export POSTGRES_HOST=localhost
-export POSTGRES_USER=matkassen
-export POSTGRES_DB=matkassen
-export POSTGRES_PASSWORD="your-db-password"
-
-./scripts/db-backup.sh
-
-# Output:
-# /var/backups/matkassen/matkassen_backup_20250101_120000.sql.gpg
-# /var/backups/matkassen/matkassen_backup_20250101_120000.sql.gpg.sha256
+export ENV_NAME=production   # backup-manage.sh refuses to run without this
+./scripts/backup-manage.sh test
 ```
 
-**Note**: The script uses `gpg --passphrase-fd` with file descriptor 3 to avoid TTY prompts and process list exposure.
+This rebuilds the backup image (if needed) and execs the cron script inside the running `db-backup` container. The same encryption, upload, and validation steps run as for an automatic nightly backup.
 
 #### Restoring Encrypted Backups
 
 ##### Safety Requirements
 
-- **`--force` flag required** to prevent accidental restores
-- **Checksum verification** (if `.sha256` file exists)
-- **Database will be completely replaced** with backup data
+- **Interactive `y/N` confirmation** before any data is touched
+- **Filename must end in `.dump.gpg`** — older unencrypted backups are not supported
+- **Database will be completely replaced** with backup data (`pg_restore --clean --if-exists`)
 
 ##### Restore Command
 
-```bash
-# Export required environment variables
-export DB_BACKUP_PASSPHRASE="your-passphrase"
-export POSTGRES_HOST=localhost
-export POSTGRES_USER=matkassen
-export POSTGRES_DB=matkassen
-export POSTGRES_PASSWORD="your-db-password"
+Run this on the production server, with the backup container already up under the `backup` profile:
 
-# Restore from encrypted backup
-./scripts/db-restore.sh /var/backups/matkassen/matkassen_backup_20250101_120000.sql.gpg --force
+```bash
+# The passphrase is already in the running db-backup container's env
+# (from the host .env written by deploy.sh/update.sh) — no local export
+# needed. Just gate on the production marker.
+export ENV_NAME=production
+
+# Restore by filename (no path — the script fetches from Swift)
+./scripts/backup-restore.sh matkassen_backup_20250101_020000.dump.gpg
 ```
+
+The list of available backups is printed when you run the script with no arguments.
 
 ##### Restore Process
 
-1. Script validates passphrase and credentials are set
-2. Verifies backup file exists
-3. Checks SHA256 checksum (if available)
-4. Verifies GPG encryption format
-5. Decrypts using non-interactive mode (no TTY prompts)
-6. Pipes directly to `pg_restore` (no intermediate plaintext files)
+1. Validates filename is `.dump.gpg` and `ENV_NAME=production`. The passphrase comes from the running `db-backup` container's env (`docker-compose.backup.yml`), not the caller's shell — no local export needed.
+2. Prompts for interactive `y/N` confirmation.
+3. Inside the `db-backup` container, downloads the encrypted file from Swift to tmpfs.
+4. Streams `gpg --decrypt | pg_restore --clean --if-exists` so the decrypted dump never lands on disk.
+5. Cleans up the encrypted download from tmpfs.
 
-**Note**: The script uses `gpg --passphrase-fd 3` with file descriptor to ensure non-interactive operation.
+**Note**: `pg_restore` runs single-threaded (no `--jobs`) because parallel restore needs a seekable file, and we deliberately avoid writing the decrypted dump to disk. For matkassen-scale data this is well under the time we'd ever care about.
 
 ##### Post-Restore Steps
 
@@ -272,32 +275,66 @@ sudo docker compose restart web
 
 **Rotation procedure**:
 
-1. Generate new passphrase
-2. Update GitHub Secret `DB_BACKUP_PASSPHRASE`
-3. Deploy to all environments
-4. **Re-encrypt old backups** (critical - they use old passphrase):
+1. Generate a new passphrase (`openssl rand -base64 32`).
+2. Update the `DB_BACKUP_PASSPHRASE` GitHub Secret.
+3. Re-deploy: `deploy.sh` / `update.sh` writes the new value into the host `.env`, and recreating the `db-backup` container picks it up.
+4. The next nightly backup will be encrypted with the new passphrase and the full-restore validation will confirm it works end-to-end.
+5. **Old backups in Swift are still encrypted with the old passphrase.** Pick one of the two strategies below.
+
+##### Strategy A: Wait out retention (routine rotation)
+
+For a planned rotation, archive the old passphrase somewhere recoverable (password manager, sealed envelope in the office) and simply wait the 14-day Swift retention window. After that the last old-passphrase backup expires and every backup in Swift is readable with the new passphrase. This is the right approach for scheduled rotations.
+
+##### Strategy B: Re-encrypt in place (emergency rotation / suspected compromise)
+
+If the old passphrase may have been exposed, don't wait — re-encrypt existing Swift objects with the new passphrase. Run this on the production server with both passphrases exported:
 
 ```bash
-# For each old backup - streaming approach (no intermediate plaintext file)
-OLD_PASS="old-passphrase"
-NEW_PASS="new-passphrase"
+export OLD_PASS="old-passphrase-from-secret-history"
+export NEW_PASS="new-passphrase-from-github-secrets"
+export ENV_NAME=production
 
-# Decrypt with old passphrase, re-encrypt with new passphrase
-# Note: Use different file descriptors (3 and 4) since they don't carry through pipes
-gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback old_backup.sql.gpg \
-    3<<<"$OLD_PASS" \
-    | gpg --symmetric --cipher-algo AES256 --armor --batch \
-        --passphrase-fd 4 --pinentry-mode loopback \
-        --output old_backup_rekeyed.sql.gpg \
-    4<<<"$NEW_PASS"
+# List the objects that need rekeying
+docker compose -f docker-compose.yml -f docker-compose.backup.yml \
+    --profile backup exec db-backup \
+    rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
+    --include "matkassen_backup_*.dump.gpg" > /tmp/backups_to_rekey.txt
 
-# Verify and replace
-sha256sum old_backup_rekeyed.sql.gpg > old_backup_rekeyed.sql.gpg.sha256
-mv old_backup_rekeyed.sql.gpg old_backup.sql.gpg
-mv old_backup_rekeyed.sql.gpg.sha256 old_backup.sql.gpg.sha256
+# For each, stream-rekey with no intermediate plaintext on disk.
+# Passphrases arrive via process substitution / pipe rather than bash
+# herestrings, so they never touch the filesystem even briefly.
+# Value-less `-e OLD_PASS -e NEW_PASS` — docker inherits these from the
+# caller's exported env, so the plaintext passphrases never land in
+# the host's `docker compose` argv (visible to `ps auxfww`). Only FILE
+# is passed by value because it's not a secret.
+while read -r FILE; do
+    docker compose -f docker-compose.yml -f docker-compose.backup.yml \
+        --profile backup exec -T \
+        -e OLD_PASS -e NEW_PASS -e FILE="$FILE" \
+        db-backup bash -c '
+            set -euo pipefail
+            SRC="elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}/${FILE}"
+            TMPOUT=$(mktemp -t rekey.XXXXXX)
+            trap "rm -f \"$TMPOUT\"" EXIT
+            rclone cat "$SRC" \
+                | gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback \
+                    3< <(builtin printf "%s" "$OLD_PASS") \
+                | gpg --symmetric --cipher-algo AES256 --batch \
+                      --passphrase-fd 3 --pinentry-mode loopback \
+                      --output "$TMPOUT" \
+                      3< <(builtin printf "%s" "$NEW_PASS")
+            # Verify the new object decrypts before overwriting the old one
+            builtin printf "%s" "$NEW_PASS" \
+                | gpg --decrypt --batch --passphrase-fd 0 --pinentry-mode loopback \
+                    "$TMPOUT" | pg_restore --list >/dev/null
+            rclone copyto "$TMPOUT" "$SRC" --retries=3
+        '
+done < /tmp/backups_to_rekey.txt
+
+rm /tmp/backups_to_rekey.txt
 ```
 
-5. Document rotation date and update runbook
+After re-encryption, rotate any Swift credentials that shared the compromise window as a separate step, and consider whether to revoke database credentials too.
 
 #### Backup Retention
 
@@ -305,76 +342,54 @@ mv old_backup_rekeyed.sql.gpg.sha256 old_backup.sql.gpg.sha256
 
 **Staging**: Optional (test data only)
 
-**Location**: `/var/backups/matkassen/` (local) or cloud object storage
+**Location**: Elastx Swift object storage (cloud). No local backup copies are retained.
 
 #### Monitoring
 
 ```bash
-# Check backup service status
-sudo docker compose logs db-backup
+# Service status / recent logs
+./scripts/backup-manage.sh status
+./scripts/backup-manage.sh logs
 
-# List recent backups
-ls -lh /var/backups/matkassen/
-
-# Verify backup encryption
-file /var/backups/matkassen/matkassen_backup_*.sql.gpg
-# Should show: "data" or "PGP message" (encrypted, not readable)
-
-# Test decrypt (without restoring)
-gpg --decrypt --batch --passphrase-fd 3 --pinentry-mode loopback backup.sql.gpg \
-    3<<<"$DB_BACKUP_PASSPHRASE" | head -c 100
-# Should show: PostgreSQL dump header
+# List recent backups in Swift (from inside the backup container)
+docker compose -f docker-compose.yml -f docker-compose.backup.yml \
+    --profile backup exec db-backup \
+    rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
+    --include "matkassen_backup_*.dump.gpg"
 ```
+
+Slack notifications fire on every nightly run (success or failure), with file size, duration, and the validation result. If validation fails the script still uploads the file but flags the run red — investigate before relying on that backup.
 
 #### Troubleshooting
 
-**"Cannot determine encryption format"**
+**Backup container exits immediately with "DB_BACKUP_PASSPHRASE is not set"**
 
-- Backup file may be corrupted
-- Verify checksum: `sha256sum -c backup.sql.gpg.sha256`
+- The host `.env` does not contain the variable (re-run `deploy.sh` / `update.sh` after confirming the GitHub Secret is set), or the `db-backup` service env block in `docker-compose.backup.yml` is missing the entry.
 
-**"Checksum verification failed"**
+**Slack reports "validation failed" but upload succeeded**
 
-- File corrupted during transfer/storage
-- Do not restore - use previous backup
-
-**Restore fails with authentication error**
-
-- Wrong passphrase (check GitHub Secret)
-- Wrong database credentials (check .env)
-
-#### Legacy Unencrypted Backups
-
-**Old backup format** (pre-encryption):
+The Slack alert is a summary; the specific reason is in the backup container logs:
 
 ```bash
-# Manual backup (DEPRECATED - unencrypted)
-docker exec matkassen-db pg_dump -U matkassen matkassen > backup-$(date +%Y%m%d).sql
-
-# Restore from backup (DEPRECATED)
-docker exec -i matkassen-db psql -U matkassen matkassen < backup-20250101.sql
+sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml \
+    --profile backup logs --since 4h db-backup
 ```
 
-**Migrate old backups to encrypted format**:
+Match the log output to one of these:
 
-```bash
-# Encrypt existing plaintext backup
-export DB_BACKUP_PASSPHRASE="your-passphrase"
+- `could not create scratch DB` and a hint mentioning `CREATEDB` → the backup role is missing the `CREATEDB` grant. `deploy.sh` and `update.sh` apply it on production, but both soft-fail (warning, not error). Fix manually: `docker compose exec -T db bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" CREATEDB;"'`.
+- `pg_restore errored` → the decrypted dump didn't apply cleanly. Usually a DDL version skew between the dumping and restoring Postgres (both are the same instance, so this only happens if someone bumped the image tag mid-flight). Look for the `pg_restore:` error line just above.
+- `sentinel query returned 'f'` → the `households` table didn't survive the restore. Most commonly an empty or truncated dump; rarer: the schema was renamed and the sentinel check needs updating.
+- `decryption failed` → passphrase mismatch between encrypt and decrypt. Shouldn't happen (same env var in one run) — but check for stray edits and whether the container was restarted mid-run.
+- `unable to download backup file` → transient Swift or network issue, usually self-resolves the next night.
 
-# Using gpg with file descriptor (recommended)
-cat old_backup.sql | gpg --symmetric --cipher-algo AES256 --armor --batch \
-    --passphrase-fd 3 --pinentry-mode loopback \
-    --output old_backup.sql.gpg \
-    3<<<"$DB_BACKUP_PASSPHRASE"
+**Restore fails with `gpg: decryption failed: Bad session key`**
 
-# Generate checksum
-sha256sum old_backup.sql.gpg > old_backup.sql.gpg.sha256
+- Wrong passphrase. The passphrase used to encrypt the backup must match exactly. Old backups encrypted with a previous passphrase need that previous passphrase.
 
-# Securely delete plaintext
-shred -u old_backup.sql
-```
+**Restore fails with `pg_restore: error: input file does not appear to be a valid archive`**
 
-**Backup location**: Configured in deployment scripts (typically `/var/backups/matkassen/`)
+- Decryption succeeded but the dump payload is corrupted. Try a different backup. If multiple backups in a row are corrupted, the live database may have produced a bad dump and the backup script should fail validation — check Slack history.
 
 ### Migrations
 
