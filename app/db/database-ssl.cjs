@@ -28,8 +28,13 @@
  */
 function parseDatabaseSslMode() {
     const raw = process.env.DATABASE_SSL;
-    if (raw === undefined || raw === "") return null;
-    const mode = raw.toLowerCase();
+    if (raw === undefined) return null;
+    // Trim before checking for empty: a deploy pipeline that sets
+    // DATABASE_SSL=" " (or accidentally pastes a value with surrounding
+    // whitespace) should be treated the same as unset / normalized, not
+    // thrown as unsupported.
+    const mode = raw.trim().toLowerCase();
+    if (mode === "") return null;
     if (mode === "disable" || mode === "require" || mode === "verify-full") {
         return mode;
     }
@@ -76,7 +81,16 @@ function applyDatabaseSslToUrl(databaseUrl) {
     if (mode === null) return databaseUrl;
     const sslmode =
         mode === "require" ? "no-verify" : mode === "verify-full" ? "verify-full" : "disable";
-    const url = new URL(databaseUrl);
+    let url;
+    try {
+        url = new URL(databaseUrl);
+    } catch (cause) {
+        // Wrap the generic TypeError from URL parsing so a 3am operator
+        // sees which env var is wrong, not a naked "Invalid URL" trace.
+        throw new Error(
+            `DATABASE_URL is not a valid URL (while applying DATABASE_SSL=${JSON.stringify(mode)}): ${cause instanceof Error ? cause.message : String(cause)}`,
+        );
+    }
     url.searchParams.set("sslmode", sslmode);
     return url.toString();
 }

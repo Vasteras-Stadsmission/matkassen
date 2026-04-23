@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "build": "next build",
-        "build:scheduler": "tsc -p tsconfig.scheduler.json && mkdir -p server-build/app/db && cp app/db/*.cjs server-build/app/db/",
+        "build:scheduler": "tsc -p tsconfig.scheduler.json && mkdir -p server-build/app/db && cp app/db/database-ssl.cjs server-build/app/db/database-ssl.cjs",
         "prebuild": "pnpm run build:scheduler",
         "predev": "pnpm run build:scheduler",
         "dev": "docker compose -f docker-compose.dev.yml up db -d && ./scripts/wait-for-db.sh && pnpm run db:migrate && next dev --turbopack",

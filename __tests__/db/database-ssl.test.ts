@@ -45,6 +45,22 @@ describe("database-ssl", () => {
             expect(parseDatabaseSslMode()).toBe("verify-full");
         });
 
+        // Deploy pipelines and shell interpolations are easy ways to introduce
+        // accidental surrounding whitespace. Trim so " require " works, rather
+        // than crashing the server at startup over a leading space.
+        it.each([" require", "require ", " require ", "\tverify-full\n"])(
+            "tolerates surrounding whitespace in %j",
+            value => {
+                process.env.DATABASE_SSL = value;
+                expect(parseDatabaseSslMode()).toBe(value.trim().toLowerCase());
+            },
+        );
+
+        it("treats whitespace-only as unset", () => {
+            process.env.DATABASE_SSL = "   ";
+            expect(parseDatabaseSslMode()).toBeNull();
+        });
+
         // The whole point of the knob: a typo must fail loudly, not silently
         // downgrade to an unauthenticated TLS mode or to plaintext.
         it.each(["required", "yes", "true", "1", "verify", "verify-ca", "allow", "prefer"])(
@@ -118,6 +134,15 @@ describe("database-ssl", () => {
         it("propagates the typo-guard throw", () => {
             process.env.DATABASE_SSL = "required";
             expect(() => applyDatabaseSslToUrl(BASE_URL)).toThrow(/Unsupported DATABASE_SSL/);
+        });
+
+        // A malformed DATABASE_URL produces a naked `TypeError: Invalid URL`
+        // from the WHATWG parser. Wrap it so the failure names the env var.
+        it("throws a descriptive error when DATABASE_URL is malformed", () => {
+            process.env.DATABASE_SSL = "require";
+            expect(() => applyDatabaseSslToUrl("not a url")).toThrow(
+                /DATABASE_URL is not a valid URL/,
+            );
         });
     });
 });
