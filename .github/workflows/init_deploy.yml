@@ -114,17 +114,28 @@ jobs:
                       # Derive Swift prefix from env name
                       export SWIFT_PREFIX="backups/${ENV_NAME}"
 
+                      # Explicit path rather than `~/matkassen`. The ssh-action runs
+                      # this as the `ubuntu` user so `~` would resolve correctly,
+                      # but hardcoding removes the fragility if anyone ever wraps
+                      # a command in sudo.
+                      APP_DIR="/home/ubuntu/matkassen"
+
                       echo "Checking if app directory exists"
-                      if [ -d ~/matkassen ]; then
+                      if [ -d "$APP_DIR" ]; then
                         echo "Directory exists, removing it"
-                        rm -rf ~/matkassen
+                        rm -rf "$APP_DIR"
                       fi
 
+                      # Create the directory with owner-only perms BEFORE git
+                      # clone, so the repo lands in an already-hardened dir.
+                      # git clone into an existing empty directory is supported.
+                      sudo install -d -m 700 -o ubuntu -g ubuntu "$APP_DIR"
+
                       echo "Cloning the repository (shallow clone for faster deployment)"
-                      git clone --depth 1 https://github.com/Vasteras-Stadsmission/matkassen.git ~/matkassen
+                      git clone --depth 1 https://github.com/Vasteras-Stadsmission/matkassen.git "$APP_DIR"
 
                       echo "Change directory to the app folder"
-                      cd ~/matkassen
+                      cd "$APP_DIR"
 
                       echo "Run the deploy script"
                       chmod +x deploy.sh
