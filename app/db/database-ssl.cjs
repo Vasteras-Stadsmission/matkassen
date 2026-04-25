@@ -2,8 +2,8 @@
  * Source of truth for DATABASE_SSL parsing.
  *
  * Consumed by:
+ *   - instrumentation.ts                   (startup validation, throws on typo)
  *   - app/db/drizzle.ts                    (postgres-js, option form)
- *   - app/db/health-check.js               (postgres-js, option form)
  *   - drizzle.config.ts                    (pg via drizzle-kit, URL form)
  *   - scripts/backfill-user-profiles.mjs   (pg direct, URL form)
  *

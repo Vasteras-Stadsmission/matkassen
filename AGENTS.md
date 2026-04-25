@@ -246,7 +246,7 @@ See `docs/business-logic.md` for full explanation.
 
 ### Background Services
 
-SMS scheduler runs automatically via custom Next.js server (`server.js`). Uses PostgreSQL advisory locks for safety across instances.
+SMS scheduler runs automatically — started by `/api/health` self-healing on the first poll from the Docker `HEALTHCHECK` (within ~30s of any deploy). Uses PostgreSQL advisory locks for safety across instances.
 
 **Monitor**: `curl https://your-domain.com/api/health`
 

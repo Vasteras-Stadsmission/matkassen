@@ -94,11 +94,16 @@ export async function GET(request: NextRequest) {
                     startScheduler();
                     logger.info("Unified scheduler started via health check auto-recovery");
 
-                    // Update status to healthy since we just started it
-                    schedulerStatus = "healthy";
+                    // Re-run the health check rather than assuming success.
+                    // startScheduler() catches per-task failures internally
+                    // (e.g. a malformed ANONYMIZATION_SCHEDULE cron string
+                    // leaves anonymizationTask null without throwing) — if
+                    // we hardcoded "healthy" here, the next health response
+                    // would briefly lie before the next poll caught up.
+                    const recheck = await schedulerHealthCheck();
+                    schedulerStatus = recheck.status;
                     schedulerDetails = {
-                        ...schedulerDetails,
-                        schedulerRunning: true,
+                        ...recheck.details,
                         recoveryAttempted: true,
                         autoStarted: true,
                     };
