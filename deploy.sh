@@ -63,7 +63,19 @@ fi
 
 GITHUB_ORG=vasteras-stadsmission
 PROJECT_NAME=matkassen
-APP_DIR=~/"$PROJECT_NAME"
+# Explicit path rather than `~/$PROJECT_NAME`. When any step of this
+# script runs via `sudo` (not the current pattern, but a future contributor
+# could), `~` would resolve to /root instead of /home/ubuntu. The deploy
+# user is always `ubuntu` per the SSH workflow, so hardcoding is safe.
+APP_DIR="/home/ubuntu/$PROJECT_NAME"
+
+# Harden the app directory: owner-only access. `.env` alone is 600, but
+# without restricting directory perms another user in the ubuntu group
+# could unlink/replace the file. `install -d` creates-or-updates mode and
+# ownership idempotently on every deploy, so the hardening persists even
+# if something ever resets the directory.
+sudo install -d -m 700 -o ubuntu -g ubuntu "$APP_DIR"
+
 # Derive backup settings from environment
 SWIFT_PREFIX="backups/${ENV_NAME:-staging}"
 OS_AUTH_TYPE="${OS_AUTH_TYPE:-v3applicationcredential}"
@@ -200,71 +212,83 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 # For external tools (like Drizzle Studio)
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
-# Create the .env file inside the app directory (~/matkassen/.env)
-# Set restrictive permissions before writing secrets
-echo "AUTH_GITHUB_ID=\"$AUTH_GITHUB_ID\"" > "$APP_DIR/.env"
-chmod 600 "$APP_DIR/.env"
-echo "AUTH_GITHUB_SECRET=\"$AUTH_GITHUB_SECRET\"" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_APP_ID=\"$AUTH_GITHUB_APP_ID\"" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_APP_PRIVATE_KEY=\"$AUTH_GITHUB_APP_PRIVATE_KEY\"" >> "$APP_DIR/.env"
-echo "AUTH_GITHUB_APP_INSTALLATION_ID=\"$AUTH_GITHUB_APP_INSTALLATION_ID\"" >> "$APP_DIR/.env"
-echo "AUTH_REDIRECT_PROXY_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
-echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> "$APP_DIR/.env"
-echo "AUTH_TRUST_HOST=true" >> "$APP_DIR/.env"
-echo "AUTH_URL=https://$DOMAIN_NAME/api/auth" >> "$APP_DIR/.env"
-echo "DATABASE_URL=\"$DATABASE_URL\"" >> "$APP_DIR/.env"
-echo "DATABASE_URL_EXTERNAL=\"$DATABASE_URL_EXTERNAL\"" >> "$APP_DIR/.env"
-# DATABASE_SSL is optional — only emit when set so unset/empty means
-# "defer to DATABASE_URL" (the default for the trusted Docker network).
-if [ -n "${DATABASE_SSL:-}" ]; then
-  echo "DATABASE_SSL=\"$DATABASE_SSL\"" >> "$APP_DIR/.env"
-fi
-echo "EMAIL=\"$EMAIL\"" >> "$APP_DIR/.env" # Needed for Certbot
-echo "GITHUB_ORG=\"$GITHUB_ORG\"" >> "$APP_DIR/.env"
-echo "POSTGRES_DB=\"$POSTGRES_DB\"" >> "$APP_DIR/.env"
-echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> "$APP_DIR/.env"
-echo "POSTGRES_USER=\"$POSTGRES_USER\"" >> "$APP_DIR/.env"
-echo "ENV_NAME=\"${ENV_NAME:-staging}\"" >> "$APP_DIR/.env" # Environment identifier (production/staging)
-# SMS configuration (conditional - only if credentials are provided)
-if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
-  echo "HELLO_SMS_USERNAME=\"$HELLO_SMS_USERNAME\"" >> "$APP_DIR/.env"
-fi
-if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
-  echo "HELLO_SMS_PASSWORD=\"$HELLO_SMS_PASSWORD\"" >> "$APP_DIR/.env"
-fi
-echo "HELLO_SMS_TEST_MODE=\"${HELLO_SMS_TEST_MODE:-true}\"" >> "$APP_DIR/.env"
-echo "SMS_SEND_INTERVAL=\"${SMS_SEND_INTERVAL:-5 minutes}\"" >> "$APP_DIR/.env"
-# SMS callback webhook secret (required for HelloSMS status callbacks in production)
-if [ -n "${SMS_CALLBACK_SECRET:-}" ]; then
-  echo "SMS_CALLBACK_SECRET=\"${SMS_CALLBACK_SECRET}\"" >> "$APP_DIR/.env"
-fi
-# Logging configuration
-echo "LOG_LEVEL=\"${LOG_LEVEL:-info}\"" >> "$APP_DIR/.env"
-# White-label configuration (required in production)
-echo "NEXT_PUBLIC_BRAND_NAME=\"${BRAND_NAME}\"" >> "$APP_DIR/.env"
-echo "NEXT_PUBLIC_BASE_URL=\"https://$DOMAIN_NAME\"" >> "$APP_DIR/.env"
-# SMS sender name (optional - defaults to BRAND_NAME if not set)
-if [ -n "${SMS_SENDER:-}" ]; then
-  echo "NEXT_PUBLIC_SMS_SENDER=\"${SMS_SENDER}\"" >> "$APP_DIR/.env"
-fi
-# Anonymization scheduler configuration (always enabled for GDPR compliance)
-echo "ANONYMIZATION_SCHEDULE=\"${ANONYMIZATION_SCHEDULE:-0 2 * * 0}\"" >> "$APP_DIR/.env"
-echo "ANONYMIZATION_INACTIVE_DURATION=\"${ANONYMIZATION_INACTIVE_DURATION:-1 year}\"" >> "$APP_DIR/.env"
-# SMS health report schedule (daily at 8 AM Stockholm time)
-echo "SMS_REPORT_SCHEDULE=\"${SMS_REPORT_SCHEDULE:-0 8 * * *}\"" >> "$APP_DIR/.env"
-# Org membership sync schedule (daily at 3 AM Stockholm time)
-echo "ORG_SYNC_SCHEDULE=\"${ORG_SYNC_SCHEDULE:-0 3 * * *}\"" >> "$APP_DIR/.env"
-# Slack notifications (optional - alerts only sent when ENV_NAME=production)
-if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
-  echo "SLACK_BOT_TOKEN=\"${SLACK_BOT_TOKEN}\"" >> "$APP_DIR/.env"
-fi
-if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
-  echo "SLACK_CHANNEL_ID=\"${SLACK_CHANNEL_ID}\"" >> "$APP_DIR/.env"
-fi
-# Database backup encryption (GDPR compliance - production only)
-if [ "${ENV_NAME:-staging}" = "production" ]; then
-  echo "DB_BACKUP_PASSPHRASE=\"${DB_BACKUP_PASSPHRASE}\"" >> "$APP_DIR/.env"
-fi
+# Create the .env file atomically with mode 600.
+# Same pattern as update.sh: write to a temp file, then `install -m 600`
+# moves it into place in a single step. Shell redirection alone would
+# create the file with umask-default perms (typically 644) before any
+# chmod could tighten it — a small race window where secrets land in a
+# world-readable file.
+echo "Creating .env file..."
+tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+
+{
+  printf 'AUTH_GITHUB_ID="%s"\n' "$AUTH_GITHUB_ID"
+  printf 'AUTH_GITHUB_SECRET="%s"\n' "$AUTH_GITHUB_SECRET"
+  printf 'AUTH_GITHUB_APP_ID="%s"\n' "$AUTH_GITHUB_APP_ID"
+  printf 'AUTH_GITHUB_APP_PRIVATE_KEY="%s"\n' "$AUTH_GITHUB_APP_PRIVATE_KEY"
+  printf 'AUTH_GITHUB_APP_INSTALLATION_ID="%s"\n' "$AUTH_GITHUB_APP_INSTALLATION_ID"
+  printf 'AUTH_REDIRECT_PROXY_URL="https://%s/api/auth"\n' "$DOMAIN_NAME"
+  printf 'AUTH_SECRET="%s"\n' "$AUTH_SECRET"
+  printf 'AUTH_TRUST_HOST=true\n'
+  printf 'AUTH_URL="https://%s/api/auth"\n' "$DOMAIN_NAME"
+  printf 'DATABASE_URL="%s"\n' "$DATABASE_URL"
+  printf 'DATABASE_URL_EXTERNAL="%s"\n' "$DATABASE_URL_EXTERNAL"
+  # DATABASE_SSL is optional — only emit when set so unset/empty means
+  # "defer to DATABASE_URL" (the default for the trusted Docker network).
+  if [ -n "${DATABASE_SSL:-}" ]; then
+    printf 'DATABASE_SSL="%s"\n' "${DATABASE_SSL}"
+  fi
+  printf 'EMAIL="%s"\n' "$EMAIL"
+  printf 'GITHUB_ORG="%s"\n' "$GITHUB_ORG"
+  printf 'POSTGRES_DB="%s"\n' "$POSTGRES_DB"
+  printf 'POSTGRES_PASSWORD="%s"\n' "$POSTGRES_PASSWORD"
+  printf 'POSTGRES_USER="%s"\n' "$POSTGRES_USER"
+  printf 'ENV_NAME="%s"\n' "${ENV_NAME:-staging}"
+  # SMS configuration (conditional - only if credentials are provided)
+  if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
+    printf 'HELLO_SMS_USERNAME="%s"\n' "$HELLO_SMS_USERNAME"
+  fi
+  if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
+    printf 'HELLO_SMS_PASSWORD="%s"\n' "$HELLO_SMS_PASSWORD"
+  fi
+  printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
+  printf 'SMS_SEND_INTERVAL="%s"\n' "${SMS_SEND_INTERVAL:-5 minutes}"
+  # SMS callback webhook secret (required for HelloSMS status callbacks in production)
+  if [ -n "${SMS_CALLBACK_SECRET:-}" ]; then
+    printf 'SMS_CALLBACK_SECRET="%s"\n' "${SMS_CALLBACK_SECRET}"
+  fi
+  # Logging configuration
+  printf 'LOG_LEVEL="%s"\n' "${LOG_LEVEL:-info}"
+  # White-label configuration (required in production)
+  printf 'NEXT_PUBLIC_BRAND_NAME="%s"\n' "${BRAND_NAME}"
+  printf 'NEXT_PUBLIC_BASE_URL="https://%s"\n' "$DOMAIN_NAME"
+  # SMS sender name (optional - defaults to BRAND_NAME if not set)
+  if [ -n "${SMS_SENDER:-}" ]; then
+    printf 'NEXT_PUBLIC_SMS_SENDER="%s"\n' "${SMS_SENDER}"
+  fi
+  # Anonymization scheduler configuration (always enabled for GDPR compliance)
+  printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
+  printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
+  # SMS health report schedule (daily at 8 AM Stockholm time)
+  printf 'SMS_REPORT_SCHEDULE="%s"\n' "${SMS_REPORT_SCHEDULE:-0 8 * * *}"
+  # Org membership sync schedule (daily at 3 AM Stockholm time)
+  printf 'ORG_SYNC_SCHEDULE="%s"\n' "${ORG_SYNC_SCHEDULE:-0 3 * * *}"
+  # Slack notifications (optional - alerts only sent when ENV_NAME=production)
+  if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
+    printf 'SLACK_BOT_TOKEN="%s"\n' "${SLACK_BOT_TOKEN}"
+  fi
+  if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
+    printf 'SLACK_CHANNEL_ID="%s"\n' "${SLACK_CHANNEL_ID}"
+  fi
+  # Database backup encryption (GDPR compliance - production only)
+  if [ "${ENV_NAME:-staging}" = "production" ]; then
+    printf 'DB_BACKUP_PASSPHRASE="%s"\n' "${DB_BACKUP_PASSPHRASE}"
+  fi
+} > "$tmp"
+
+# Install atomically with mode 600 (rw-------)
+install -m 600 "$tmp" "$APP_DIR/.env"
+[ -f "$APP_DIR/.env" ] || { echo "ERROR: Failed to create .env file"; exit 1; }
 
 # Install Nginx
 sudo apt install nginx -y

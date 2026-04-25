@@ -112,7 +112,11 @@ jobs:
                       # Backups disabled on staging by policy (no db-backup related secrets exported)
                       export SWIFT_PREFIX="backups/${ENV_NAME}"
 
-                      APP_DIR=~/matkassen
+                      # Explicit path rather than `~/matkassen`. ssh-action runs as
+                      # the `ubuntu` user so `~` resolves correctly today, but
+                      # hardcoding prevents a future `sudo ...` wrapper from
+                      # silently redirecting to /root/matkassen.
+                      APP_DIR="/home/ubuntu/matkassen"
                       if [ ! -d "$APP_DIR" ]; then
                           echo "❌ App directory not found"
                           exit 1
@@ -201,7 +205,11 @@ jobs:
                       export SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}"
                       export SLACK_CHANNEL_ID="${{ secrets.SLACK_CHANNEL_ID }}"
 
-                      APP_DIR=~/matkassen
+                      # Explicit path rather than `~/matkassen`. ssh-action runs as
+                      # the `ubuntu` user so `~` resolves correctly today, but
+                      # hardcoding prevents a future `sudo ...` wrapper from
+                      # silently redirecting to /root/matkassen.
+                      APP_DIR="/home/ubuntu/matkassen"
                       if [ ! -d "$APP_DIR" ]; then
                           echo "❌ App directory not found"
                           exit 1

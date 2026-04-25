@@ -39,7 +39,16 @@ trap cleanup EXIT
 # Script Vars
 PROJECT_NAME=matkassen
 GITHUB_ORG=vasteras-stadsmission
-APP_DIR=~/"$PROJECT_NAME"
+# Explicit path rather than `~/$PROJECT_NAME`. If any future change runs
+# this script via sudo, `~` would resolve to /root instead of the deploy
+# user's home. The deploy user is always `ubuntu` per the SSH workflow.
+APP_DIR="/home/ubuntu/$PROJECT_NAME"
+
+# Idempotently harden the app directory: owner-only access. Without this,
+# a reset of the directory (e.g. a fresh init_deploy re-run) would leave
+# the parent at default 755, which lets anyone in the ubuntu group
+# unlink/replace .env despite its own 600 perms.
+sudo install -d -m 700 -o ubuntu -g ubuntu "$APP_DIR"
 
 # For Docker internal communication ("db" is the name of Postgres container)
 DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
