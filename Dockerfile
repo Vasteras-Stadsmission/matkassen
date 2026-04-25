@@ -57,21 +57,16 @@ ENV TZ=Europe/Stockholm
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/server-build ./server-build
 
 # The below are needed for drizzle to work (db migrations inside the container)
 COPY --chown=nextjs:nodejs drizzle.config.ts ./
 COPY --from=builder --chown=nextjs:nodejs /app/migrations ./migrations
 COPY --from=deps-prod --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-# Copy database health check module (needed by server.js)
-COPY --from=builder --chown=nextjs:nodejs /app/app/db/health-check.js ./app/db/health-check.js
-
-# Copy DATABASE_SSL helper. Required at /app/app/db/database-ssl.cjs by two
-# relative requires that tracing doesn't follow: health-check.js loads it via
-# `require("./database-ssl.cjs")`, and server.js validates it eagerly at
-# startup via `require("./app/db/database-ssl.cjs")`. Without this, the
-# container fails with MODULE_NOT_FOUND the moment server.js boots.
+# Copy DATABASE_SSL helper. drizzle.config.ts (used by `pnpm drizzle-kit
+# migrate` inside the container) does `require("./app/db/database-ssl.cjs")`.
+# Next.js tracing doesn't follow that path because drizzle.config.ts is read
+# by drizzle-kit, not bundled by Next, so the file must be copied explicitly.
 COPY --from=builder --chown=nextjs:nodejs /app/app/db/database-ssl.cjs ./app/db/database-ssl.cjs
 
 # Copy entrypoint script that conditionally runs migrations on startup (when RUN_MIGRATIONS_ON_STARTUP=true)

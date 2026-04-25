@@ -232,13 +232,9 @@ import { Button } from "@mantine/core";
 
 ## Background Services
 
-Custom Next.js server (`server.js`) starts SMS scheduler automatically on production boot.
+The SMS scheduler is started lazily on the first hit to `/api/health` (self-healing path in `app/api/health/route.ts`). The Docker container's `HEALTHCHECK` polls that route every 30 seconds, so the scheduler is running within a minute of any deploy.
 
 Uses PostgreSQL advisory locks for queue processing safety across multiple instances.
-
-### Database Health Check
-
-The custom server waits for database connectivity before starting the scheduler using `app/db/health-check.js` (CommonJS module). This prevents "database not ready" errors during container startup.
 
 ## Logging
 

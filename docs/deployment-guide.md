@@ -118,7 +118,7 @@ docker compose down && docker compose up -d
 
 ## Background Services
 
-Custom Next.js server (`server.js`) starts SMS scheduler automatically on boot.
+The SMS scheduler is started lazily on the first hit to `/api/health` (self-healing path in `app/api/health/route.ts`). The Docker container's `HEALTHCHECK` polls that route every 30 seconds, so the scheduler is running within a minute of any deploy without needing a custom server entrypoint.
 
 **Safety**: Uses PostgreSQL advisory locks for queue processing across multiple instances.
 

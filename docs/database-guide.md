@@ -291,7 +291,7 @@ const lockAcquired = await db.execute(sql`SELECT pg_try_advisory_lock(123456)`);
 await db.execute(sql`SELECT pg_advisory_unlock(123456)`);
 ```
 
-**Used in**: `server.js` - SMS scheduler (prevents duplicate processing across instances)
+**Used in**: `app/utils/scheduler.ts` - SMS scheduler (prevents duplicate processing across instances)
 
 ## Environment Variables
 

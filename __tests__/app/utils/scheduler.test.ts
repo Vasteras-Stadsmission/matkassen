@@ -86,7 +86,7 @@ describe("Unified Scheduler", () => {
              *    - Enables: Docker auto-restart on failure
              *
              * WHY UNIFIED:
-             * - Single entry point (server.js calls one function)
+             * - Single entry point (`/api/health` self-healing calls one function)
              * - Shared health monitoring
              * - Consistent error handling and logging
              * - Easier to reason about lifecycle
