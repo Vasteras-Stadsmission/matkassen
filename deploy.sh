@@ -212,83 +212,14 @@ DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
 # For external tools (like Drizzle Studio)
 DATABASE_URL_EXTERNAL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB"
 
-# Create the .env file atomically with mode 600.
-# Same pattern as update.sh: write to a temp file, then `install -m 600`
-# moves it into place in a single step. Shell redirection alone would
-# create the file with umask-default perms (typically 644) before any
-# chmod could tighten it — a small race window where secrets land in a
-# world-readable file.
+# Create the .env file via the shared helper. Atomic write with mode 600.
+# See scripts/write-env.sh for the .env contract and validation logic.
+# Helper also writes Swift/OpenStack vars on production (deploy.sh used to
+# omit them — see PR description for the latent bug this closes).
 echo "Creating .env file..."
-tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
-
-{
-  printf 'AUTH_GITHUB_ID="%s"\n' "$AUTH_GITHUB_ID"
-  printf 'AUTH_GITHUB_SECRET="%s"\n' "$AUTH_GITHUB_SECRET"
-  printf 'AUTH_GITHUB_APP_ID="%s"\n' "$AUTH_GITHUB_APP_ID"
-  printf 'AUTH_GITHUB_APP_PRIVATE_KEY="%s"\n' "$AUTH_GITHUB_APP_PRIVATE_KEY"
-  printf 'AUTH_GITHUB_APP_INSTALLATION_ID="%s"\n' "$AUTH_GITHUB_APP_INSTALLATION_ID"
-  printf 'AUTH_REDIRECT_PROXY_URL="https://%s/api/auth"\n' "$DOMAIN_NAME"
-  printf 'AUTH_SECRET="%s"\n' "$AUTH_SECRET"
-  printf 'AUTH_TRUST_HOST=true\n'
-  printf 'AUTH_URL="https://%s/api/auth"\n' "$DOMAIN_NAME"
-  printf 'DATABASE_URL="%s"\n' "$DATABASE_URL"
-  printf 'DATABASE_URL_EXTERNAL="%s"\n' "$DATABASE_URL_EXTERNAL"
-  # DATABASE_SSL is optional — only emit when set so unset/empty means
-  # "defer to DATABASE_URL" (the default for the trusted Docker network).
-  if [ -n "${DATABASE_SSL:-}" ]; then
-    printf 'DATABASE_SSL="%s"\n' "${DATABASE_SSL}"
-  fi
-  printf 'EMAIL="%s"\n' "$EMAIL"
-  printf 'GITHUB_ORG="%s"\n' "$GITHUB_ORG"
-  printf 'POSTGRES_DB="%s"\n' "$POSTGRES_DB"
-  printf 'POSTGRES_PASSWORD="%s"\n' "$POSTGRES_PASSWORD"
-  printf 'POSTGRES_USER="%s"\n' "$POSTGRES_USER"
-  printf 'ENV_NAME="%s"\n' "${ENV_NAME:-staging}"
-  # SMS configuration (conditional - only if credentials are provided)
-  if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
-    printf 'HELLO_SMS_USERNAME="%s"\n' "$HELLO_SMS_USERNAME"
-  fi
-  if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
-    printf 'HELLO_SMS_PASSWORD="%s"\n' "$HELLO_SMS_PASSWORD"
-  fi
-  printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
-  printf 'SMS_SEND_INTERVAL="%s"\n' "${SMS_SEND_INTERVAL:-5 minutes}"
-  # SMS callback webhook secret (required for HelloSMS status callbacks in production)
-  if [ -n "${SMS_CALLBACK_SECRET:-}" ]; then
-    printf 'SMS_CALLBACK_SECRET="%s"\n' "${SMS_CALLBACK_SECRET}"
-  fi
-  # Logging configuration
-  printf 'LOG_LEVEL="%s"\n' "${LOG_LEVEL:-info}"
-  # White-label configuration (required in production)
-  printf 'NEXT_PUBLIC_BRAND_NAME="%s"\n' "${BRAND_NAME}"
-  printf 'NEXT_PUBLIC_BASE_URL="https://%s"\n' "$DOMAIN_NAME"
-  # SMS sender name (optional - defaults to BRAND_NAME if not set)
-  if [ -n "${SMS_SENDER:-}" ]; then
-    printf 'NEXT_PUBLIC_SMS_SENDER="%s"\n' "${SMS_SENDER}"
-  fi
-  # Anonymization scheduler configuration (always enabled for GDPR compliance)
-  printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
-  printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
-  # SMS health report schedule (daily at 8 AM Stockholm time)
-  printf 'SMS_REPORT_SCHEDULE="%s"\n' "${SMS_REPORT_SCHEDULE:-0 8 * * *}"
-  # Org membership sync schedule (daily at 3 AM Stockholm time)
-  printf 'ORG_SYNC_SCHEDULE="%s"\n' "${ORG_SYNC_SCHEDULE:-0 3 * * *}"
-  # Slack notifications (optional - alerts only sent when ENV_NAME=production)
-  if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
-    printf 'SLACK_BOT_TOKEN="%s"\n' "${SLACK_BOT_TOKEN}"
-  fi
-  if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
-    printf 'SLACK_CHANNEL_ID="%s"\n' "${SLACK_CHANNEL_ID}"
-  fi
-  # Database backup encryption (GDPR compliance - production only)
-  if [ "${ENV_NAME:-staging}" = "production" ]; then
-    printf 'DB_BACKUP_PASSPHRASE="%s"\n' "${DB_BACKUP_PASSPHRASE}"
-  fi
-} > "$tmp"
-
-# Install atomically with mode 600 (rw-------)
-install -m 600 "$tmp" "$APP_DIR/.env"
-[ -f "$APP_DIR/.env" ] || { echo "ERROR: Failed to create .env file"; exit 1; }
+# shellcheck source=scripts/write-env.sh
+source "$APP_DIR/scripts/write-env.sh"
+write_env_file "$APP_DIR/.env"
 
 # Install Nginx
 sudo apt install nginx -y

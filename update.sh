@@ -70,94 +70,15 @@ if [ "${ENV_NAME:-}" = "production" ]; then
     echo "✅ All required production environment variables are set"
 fi
 
-# Create the .env file atomically with proper permissions
+# Create the .env file via the shared helper. Atomic write with mode 600.
+# See scripts/write-env.sh for the .env contract and validation logic.
+# The production-only req[] check above is update.sh-specific policy
+# (e.g. "Slack is required in production for this script") — kept here
+# rather than moving into the helper, which treats Slack as optional.
 echo "Creating .env file..."
-tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
-
-# Start with core application variables
-{
-    printf 'AUTH_GITHUB_ID="%s"\n' "${AUTH_GITHUB_ID}"
-    printf 'AUTH_GITHUB_SECRET="%s"\n' "${AUTH_GITHUB_SECRET}"
-    printf 'AUTH_GITHUB_APP_ID="%s"\n' "${AUTH_GITHUB_APP_ID}"
-    printf 'AUTH_GITHUB_APP_PRIVATE_KEY="%s"\n' "${AUTH_GITHUB_APP_PRIVATE_KEY}"
-    printf 'AUTH_GITHUB_APP_INSTALLATION_ID="%s"\n' "${AUTH_GITHUB_APP_INSTALLATION_ID}"
-    printf 'AUTH_REDIRECT_PROXY_URL="https://%s/api/auth"\n' "${DOMAIN_NAME}"
-    printf 'AUTH_SECRET="%s"\n' "${AUTH_SECRET}"
-    printf 'AUTH_TRUST_HOST=true\n'
-    printf 'AUTH_URL="https://%s/api/auth"\n' "${DOMAIN_NAME}"
-    printf 'DATABASE_URL="%s"\n' "${DATABASE_URL}"
-    printf 'DATABASE_URL_EXTERNAL="%s"\n' "${DATABASE_URL_EXTERNAL}"
-    # DATABASE_SSL is optional — only emit when set so unset means "defer to
-    # DATABASE_URL" (the default for the trusted Docker network).
-    if [ -n "${DATABASE_SSL:-}" ]; then
-        printf 'DATABASE_SSL="%s"\n' "${DATABASE_SSL}"
-    fi
-    printf 'EMAIL="%s"\n' "${EMAIL}"
-    printf 'GITHUB_ORG="%s"\n' "${GITHUB_ORG}"
-    printf 'POSTGRES_DB="%s"\n' "${POSTGRES_DB}"
-    printf 'POSTGRES_PASSWORD="%s"\n' "${POSTGRES_PASSWORD}"
-    printf 'POSTGRES_USER="%s"\n' "${POSTGRES_USER}"
-    printf 'ENV_NAME="%s"\n' "${ENV_NAME:-}"
-    # SMS configuration (conditional - only if credentials are provided)
-    if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
-        printf 'HELLO_SMS_USERNAME="%s"\n' "${HELLO_SMS_USERNAME}"
-    fi
-    if [ -n "${HELLO_SMS_PASSWORD:-}" ]; then
-        printf 'HELLO_SMS_PASSWORD="%s"\n' "${HELLO_SMS_PASSWORD}"
-    fi
-    printf 'HELLO_SMS_TEST_MODE="%s"\n' "${HELLO_SMS_TEST_MODE:-true}"
-    printf 'SMS_SEND_INTERVAL="%s"\n' "${SMS_SEND_INTERVAL:-5 minutes}"
-    # SMS callback webhook secret (required for HelloSMS status callbacks in production)
-    if [ -n "${SMS_CALLBACK_SECRET:-}" ]; then
-        printf 'SMS_CALLBACK_SECRET="%s"\n' "${SMS_CALLBACK_SECRET}"
-    fi
-    # Logging configuration
-    printf 'LOG_LEVEL="%s"\n' "${LOG_LEVEL:-info}"
-    # White-label configuration (required in production)
-    printf 'NEXT_PUBLIC_BRAND_NAME="%s"\n' "${BRAND_NAME}"
-    printf 'NEXT_PUBLIC_BASE_URL="https://%s"\n' "${DOMAIN_NAME}"
-    # SMS sender name (optional - defaults to BRAND_NAME if not set)
-    if [ -n "${SMS_SENDER:-}" ]; then
-        printf 'NEXT_PUBLIC_SMS_SENDER="%s"\n' "${SMS_SENDER}"
-    fi
-    # Anonymization scheduler configuration (always enabled for GDPR compliance)
-    printf 'ANONYMIZATION_SCHEDULE="%s"\n' "${ANONYMIZATION_SCHEDULE:-0 2 * * 0}"
-    printf 'ANONYMIZATION_INACTIVE_DURATION="%s"\n' "${ANONYMIZATION_INACTIVE_DURATION:-1 year}"
-    # SMS health report schedule (daily at 8 AM Stockholm time)
-    printf 'SMS_REPORT_SCHEDULE="%s"\n' "${SMS_REPORT_SCHEDULE:-0 8 * * *}"
-    # Org membership sync schedule (daily at 3 AM Stockholm time)
-    printf 'ORG_SYNC_SCHEDULE="%s"\n' "${ORG_SYNC_SCHEDULE:-0 3 * * *}"
-    # Slack notifications (optional - alerts only sent when ENV_NAME=production)
-    if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
-        printf 'SLACK_BOT_TOKEN="%s"\n' "${SLACK_BOT_TOKEN}"
-    fi
-    if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
-        printf 'SLACK_CHANNEL_ID="%s"\n' "${SLACK_CHANNEL_ID}"
-    fi
-} > "$tmp"
-
-# Add production-only backup configuration
-if [ "${ENV_NAME:-}" = "production" ]; then
-    # Database backup encryption (GDPR compliance - production only)
-    printf 'DB_BACKUP_PASSPHRASE="%s"\n' "${DB_BACKUP_PASSPHRASE}" >> "$tmp"
-    {
-        printf 'OS_AUTH_TYPE="%s"\n' "${OS_AUTH_TYPE}"
-        printf 'OS_AUTH_URL="%s"\n' "${OS_AUTH_URL}"
-        printf 'OS_REGION_NAME="%s"\n' "${OS_REGION_NAME}"
-        printf 'OS_INTERFACE="%s"\n' "${OS_INTERFACE}"
-        printf 'OS_IDENTITY_API_VERSION="%s"\n' "${OS_IDENTITY_API_VERSION}"
-        printf 'OS_APPLICATION_CREDENTIAL_ID="%s"\n' "${OS_APPLICATION_CREDENTIAL_ID}"
-        printf 'OS_APPLICATION_CREDENTIAL_SECRET="%s"\n' "${OS_APPLICATION_CREDENTIAL_SECRET}"
-        printf 'SWIFT_CONTAINER="%s"\n' "${SWIFT_CONTAINER}"
-        printf 'SWIFT_PREFIX="%s"\n' "${SWIFT_PREFIX}"
-    } >> "$tmp"
-fi
-
-# Install atomically with secure permissions (0600 = rw--------)
-install -m 600 "$tmp" "$APP_DIR/.env"
-
-# Verify .env file was created successfully
-[ -f "$APP_DIR/.env" ] || { echo "ERROR: Failed to create .env file"; exit 1; }
+# shellcheck source=scripts/write-env.sh
+source "$APP_DIR/scripts/write-env.sh"
+write_env_file "$APP_DIR/.env"
 
 # Check if migration files exist in the repository
 if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then

@@ -89,10 +89,15 @@ jobs:
                         export ANONYMIZATION_INACTIVE_DURATION="1 year"
                         export ORG_SYNC_SCHEDULE="0 3 * * *"
                         export DB_BACKUP_PASSPHRASE="${{ secrets.DB_BACKUP_PASSPHRASE }}"
-                        # OpenStack Swift (env_auth) for backups - hardcoded non-sensitive values
+                        # OpenStack Swift (env_auth) for backups - hardcoded non-sensitive values.
+                        # All five hardcoded vars are explicit (not relying on deploy.sh's
+                        # defaults) so the workflow is self-documenting and matches
+                        # continuous_deployment.yml's exports.
                         export OS_AUTH_TYPE=v3applicationcredential
                         export OS_AUTH_URL=https://ops.elastx.cloud:5000/v3
                         export OS_REGION_NAME=se-sto
+                        export OS_INTERFACE=public
+                        export OS_IDENTITY_API_VERSION=3
                         export OS_APPLICATION_CREDENTIAL_ID="${{ secrets.OS_APPLICATION_CREDENTIAL_ID }}"
                         export OS_APPLICATION_CREDENTIAL_SECRET="${{ secrets.OS_APPLICATION_CREDENTIAL_SECRET }}"
                         export SWIFT_CONTAINER="${{ secrets.SWIFT_CONTAINER }}"
