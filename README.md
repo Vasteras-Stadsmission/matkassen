@@ -253,7 +253,7 @@ The SMS system is designed for automatic operation, but includes manual triggers
 
 **SMS System Reliability**:
 
-- Custom Next.js server ensures automatic scheduler startup
+- Scheduler started lazily by `/api/health` self-healing on the first Docker `HEALTHCHECK` poll (~30s after boot)
 - PostgreSQL advisory locks prevent concurrent processing overlap
 - Health monitoring integrated into Docker health checks
 - Comprehensive error handling with retry logic
