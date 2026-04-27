@@ -5,9 +5,15 @@
 # Rate limiting zone (must be in http context)
 limit_req_zone $binary_remote_addr zone=app:10m rate=50r/s;
 
-# Upstream configuration for Next.js app with health checks and failover
+# Upstream configuration for Next.js app with health checks and failover.
+# fail_timeout=5s keeps the upstream-blacklist window short during deploys:
+# when the web container is recreated, port 3000 is briefly unbound, and
+# nginx may rack up max_fails connection-refused errors. With fail_timeout
+# at 5s (down from the default 30s), the upstream recovers within seconds
+# of the new container coming up, instead of users seeing 30s of guaranteed
+# 502s after the container is back.
 upstream nextjs_backend {
-    server ${NEXTJS_UPSTREAM}:3000 max_fails=3 fail_timeout=30s;
+    server ${NEXTJS_UPSTREAM}:3000 max_fails=3 fail_timeout=5s;
     keepalive 32;
 }
 

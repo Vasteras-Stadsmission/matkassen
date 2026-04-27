@@ -36,10 +36,33 @@ echo "🔒 Deployment lock acquired"
 NGINX_WAS_ACTIVE=0
 sudo systemctl is-active --quiet nginx && NGINX_WAS_ACTIVE=1
 
+# Notify Slack on deploy failure. Token is only exported by the
+# production workflow, so this no-ops on staging and on hosts where
+# the env vars aren't set.
+notify_slack_failure() {
+    local rc=$1
+    [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${SLACK_CHANNEL_ID:-}" ] || return 0
+    local host
+    host=$(hostname)
+    local msg="[matkassen] ❌ Deploy failed (exit ${rc}) on ${host}. Site stays up on previous container; nginx restart attempted by trap. Check GH Actions logs."
+    curl -sS https://slack.com/api/chat.postMessage \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-type: application/json; charset=utf-8" \
+        --data "{\"channel\":\"${SLACK_CHANNEL_ID}\",\"text\":\"${msg}\"}" \
+        | grep -q '"ok":true' || true
+}
+
 cleanup() {
+    local rc=$?
     echo "🔓 Releasing deployment lock"
-    if [ "$NGINX_WAS_ACTIVE" -eq 1 ]; then
+    # Use ${VAR:-0} defensively in case an early abort fires the trap
+    # before NGINX_WAS_ACTIVE is initialized (set -u would otherwise
+    # error inside the trap and mask the real exit code).
+    if [ "${NGINX_WAS_ACTIVE:-0}" -eq 1 ]; then
         sudo systemctl is-active --quiet nginx || sudo systemctl start nginx || true
+    fi
+    if [ "$rc" -ne 0 ]; then
+        notify_slack_failure "$rc"
     fi
 }
 trap cleanup EXIT
@@ -105,11 +128,19 @@ echo "Updating nginx configuration..."
 cd "$APP_DIR"
 chmod +x nginx/generate-nginx-config.sh
 
-sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
-sudo rm -f /etc/nginx/sites-enabled/*
-./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
-sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+# Write the new sites-available config first (always complete on disk),
+# then atomically point sites-enabled at it via `ln -sfn`. The replace
+# is a single rename(2) call — no window where sites-enabled is empty,
+# so an unrelated nginx reload during this section can't pick up an
+# empty config. The active nginx process keeps its previous config in
+# memory until the explicit reload further below.
+./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" \
+    | sudo tee /etc/nginx/sites-available/default > /dev/null
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
+sudo ln -sfn /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# Drop legacy config from earlier deploy patterns (no-op once retired).
+sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
 
 echo "Validating nginx configuration..."
 sudo nginx -t
@@ -170,12 +201,17 @@ fi
 
 # Run migrations now that containers are healthy. Nginx has been serving
 # traffic throughout this deploy (to keep the site up on failure), which
-# means there is a brief window where the new web container is healthy
-# but the schema is still on the old version. Schema migrations must
-# therefore be backward-compatible with the previous code for the
-# duration of the deploy window — i.e. additive changes only, no
-# destructive DDL until the next deploy. For breaking schema changes,
-# use the expand → migrate → contract pattern across two deploys.
+# means there is a window where the NEW web container code runs against
+# the OLD schema — for as long as the migration takes (up to the 300s
+# timeout on the docker exec below). New code reading a column that
+# doesn't exist yet returns 5xx for those routes during that window.
+#
+# Rule: schema migrations must be backward-compatible with the previous
+# code for the duration of the deploy window — i.e. additive changes
+# only (new columns nullable or with defaults; new tables; new indexes).
+# For breaking schema changes (drop/rename column, NOT NULL on existing,
+# type changes), split into two deploys: expand → migrate → contract.
+# See docs/database-guide.md for the full rule.
 echo "Waiting for database to be ready..."
 cd "$APP_DIR"
 timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
@@ -225,10 +261,15 @@ fi
 # Apply the new nginx configuration: reload if running, start if not.
 # Reload swaps config atomically with no dropped connections. Start (with
 # enable) is the bootstrap path — first ever deploy or recovery from an
-# unexpected stop.
+# unexpected stop. On reload failure, dump the journal so the cause is
+# visible in CI logs (old workers keep serving the previous config).
 echo "Applying nginx configuration..."
 if sudo systemctl is-active --quiet nginx; then
-    sudo systemctl reload nginx
+    if ! sudo systemctl reload nginx; then
+        echo "❌ Nginx reload failed — recent journal entries:"
+        sudo journalctl -u nginx -n 20 --no-pager
+        exit 1
+    fi
     echo "✅ Nginx reloaded with new configuration"
 else
     sudo systemctl start nginx

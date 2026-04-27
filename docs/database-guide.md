@@ -124,6 +124,45 @@ This runs all pending migrations against the database.
 docker exec -it matkassen-db psql -U matkassen -d matkassen -c "\d households"
 ```
 
+## Deploy-Window Backward Compatibility
+
+Schema migrations run _during_ deployment, while nginx keeps serving
+traffic from the new web container. There is a window — from when the
+new container becomes healthy until `drizzle-kit migrate` finishes —
+where the new code runs against the old schema. This window can be up
+to 5 minutes for slow migrations (the timeout in `update.sh`).
+
+**Rule: every migration must be additive and backward-compatible with the
+previous deploy's code.** Specifically:
+
+Safe in a single migration:
+
+- Add a new column that is nullable, or has a default value
+- Add a new table, index, function, or view
+- Drop a column _only if_ the previous deploy already stopped reading and
+  writing it
+
+Will break users mid-deploy if shipped in a single migration:
+
+- Drop or rename a column the previous deploy's code still reads
+- Add `NOT NULL` to an existing column without a default
+- Change a column's type (`ALTER COLUMN ... TYPE`)
+- Drop or rename a table the previous deploy's code still references
+
+For breaking changes, use the **expand → migrate → contract** pattern
+across two deploys:
+
+1. **Expand:** add the new column/table alongside the old one. Code
+   reads old, writes both. Deploy.
+2. **Migrate (data):** backfill the new column from the old one. Run
+   as a separate migration or background job once expand is in prod.
+3. **Contract:** switch code to read the new, stop writing the old,
+   then drop the old in a follow-up migration. Deploy.
+
+This rule is enforced socially today; a future PR may add a CI guard
+that greps generated SQL for destructive DDL. The corresponding
+deploy-side logic lives in `update.sh` near the migration step.
+
 ## Custom Migrations
 
 For seed data, complex DDL, or data transformations:
