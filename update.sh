@@ -30,9 +30,40 @@ if ! flock -n 200; then
 fi
 echo "🔒 Deployment lock acquired"
 
-# Cleanup function to release lock on exit
+# Capture nginx state so the EXIT trap can restore it if the deploy aborts.
+# Without this, a failed deploy (e.g. healthcheck timeout, migration error)
+# leaves nginx stopped and the site fully down until manual recovery.
+NGINX_WAS_ACTIVE=0
+sudo systemctl is-active --quiet nginx && NGINX_WAS_ACTIVE=1
+
+# Notify Slack on deploy failure. Token is only exported by the
+# production workflow, so this no-ops on staging and on hosts where
+# the env vars aren't set.
+notify_slack_failure() {
+    local rc=$1
+    [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${SLACK_CHANNEL_ID:-}" ] || return 0
+    local host
+    host=$(hostname)
+    local msg="[matkassen] ❌ Deploy failed (exit ${rc}) on ${host}. Site stays up on previous container; nginx restart attempted by trap. Check GH Actions logs."
+    curl -sS https://slack.com/api/chat.postMessage \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-type: application/json; charset=utf-8" \
+        --data "{\"channel\":\"${SLACK_CHANNEL_ID}\",\"text\":\"${msg}\"}" \
+        | grep -q '"ok":true' || true
+}
+
 cleanup() {
+    local rc=$?
     echo "🔓 Releasing deployment lock"
+    # Use ${VAR:-0} defensively in case an early abort fires the trap
+    # before NGINX_WAS_ACTIVE is initialized (set -u would otherwise
+    # error inside the trap and mask the real exit code).
+    if [ "${NGINX_WAS_ACTIVE:-0}" -eq 1 ]; then
+        sudo systemctl is-active --quiet nginx || sudo systemctl start nginx || true
+    fi
+    if [ "$rc" -ne 0 ]; then
+        notify_slack_failure "$rc"
+    fi
 }
 trap cleanup EXIT
 
@@ -87,55 +118,30 @@ if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
   exit 1
 fi
 
-# Generate nginx configuration from template
-echo "Generating nginx configuration..."
+# Generate nginx configuration from template.
+# Nginx stays running throughout the deploy so the site doesn't go fully
+# dark on failure: it keeps serving the old web container (or returns
+# brief 502s during the container recreate window) instead of refusing
+# connections. Files are written in place; nginx picks them up via
+# `systemctl reload` after migrations succeed.
+echo "Updating nginx configuration..."
 cd "$APP_DIR"
 chmod +x nginx/generate-nginx-config.sh
 
-# Ensure clean nginx state before applying new configuration
-echo "Setting up clean nginx configuration..."
-sudo systemctl stop nginx || true
-# Wait for systemd to fully stop nginx
-sleep 2
-# Force kill any lingering nginx processes (use exact match to avoid killing pkill itself)
-sudo pkill -9 -x nginx || true
-# Wait for ports to be fully released
-sleep 2
-# Verify ports 80 and 443 are free (log if not)
-PORT_CHECK_LOG="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1 || true)"
-if [ -n "$PORT_CHECK_LOG" ]; then
-    echo "⚠️ Warning: Ports 80/443 still in use after stopping nginx:"
-    echo "$PORT_CHECK_LOG"
-    echo "Waiting additional 5 seconds for ports to clear..."
-    sleep 5
-
-    # Re-check after wait - log if still in use but continue (retry logic will handle)
-    PORT_CHECK_LOG2="$(sudo ss -tulpn | grep -E ':80 |:443 ' 2>&1 || true)"
-    if [ -n "$PORT_CHECK_LOG2" ]; then
-        echo "⚠️ Warning: Ports STILL in use after 9 seconds total wait:"
-        echo "$PORT_CHECK_LOG2"
-        echo "Continuing deployment - nginx retry logic will handle port conflicts if they persist."
-    else
-        echo "✅ Ports 80/443 are now free"
-    fi
-fi
-
-# Clean slate - remove all existing site configurations
-echo "Removing old nginx configurations..."
-sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
-sudo rm -f /etc/nginx/sites-enabled/*
-
-# Apply fresh configuration
-echo "Generating nginx configuration..."
-./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" | sudo tee /etc/nginx/sites-available/default > /dev/null
-echo "Creating nginx symlink..."
-# Remove existing symlink explicitly (in case wildcard rm failed for any reason)
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-echo "Copying shared nginx config..."
+# Write the new sites-available config first (always complete on disk),
+# then atomically point sites-enabled at it via `ln -sfn`. The replace
+# is a single rename(2) call — no window where sites-enabled is empty,
+# so an unrelated nginx reload during this section can't pick up an
+# empty config. The active nginx process keeps its previous config in
+# memory until the explicit reload further below.
+./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" \
+    | sudo tee /etc/nginx/sites-available/default > /dev/null
 sudo cp nginx/shared.conf /etc/nginx/shared.conf
+sudo ln -sfn /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-# Test config (but don't start nginx yet - wait for Docker first)
+# Drop legacy config from earlier deploy patterns (no-op once retired).
+sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
+
 echo "Validating nginx configuration..."
 sudo nginx -t
 echo "✅ Nginx configuration updated and validated"
@@ -193,10 +199,19 @@ if ! timeout 60 bash -c '
     exit 1
 fi
 
-# Run migrations before opening nginx to public traffic.
-# Containers are healthy at this point (web health check passes with SELECT 1),
-# but nginx is still down so no public requests can reach the new code yet.
-# This ensures the schema is always up to date before any user traffic arrives.
+# Run migrations now that containers are healthy. Nginx has been serving
+# traffic throughout this deploy (to keep the site up on failure), which
+# means there is a window where the NEW web container code runs against
+# the OLD schema — for as long as the migration takes (up to the 300s
+# timeout on the docker exec below). New code reading a column that
+# doesn't exist yet returns 5xx for those routes during that window.
+#
+# Rule: schema migrations must be backward-compatible with the previous
+# code for the duration of the deploy window — i.e. additive changes
+# only (new columns nullable or with defaults; new tables; new indexes).
+# For breaking schema changes (drop/rename column, NOT NULL on existing,
+# type changes), split into two deploys: expand → migrate → contract.
+# See docs/database-guide.md for the full rule.
 echo "Waiting for database to be ready..."
 cd "$APP_DIR"
 timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
@@ -243,37 +258,24 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   fi
 fi
 
-# Now start nginx — schema is up to date, safe to accept public traffic
-echo "Starting nginx..."
-NGINX_START_ATTEMPTS=0
-MAX_NGINX_ATTEMPTS=3
-
-while [ $NGINX_START_ATTEMPTS -lt $MAX_NGINX_ATTEMPTS ]; do
-    if sudo systemctl start nginx; then
-        echo "✅ Nginx started successfully"
-        sudo systemctl enable nginx  # Ensure it's enabled
-        break
-    else
-        NGINX_START_ATTEMPTS=$((NGINX_START_ATTEMPTS + 1))
-        echo "⚠️ Nginx failed to start (attempt $NGINX_START_ATTEMPTS/$MAX_NGINX_ATTEMPTS)"
-
-        # Log what's using the ports
-        echo "Checking what's using ports 80/443..."
-        sudo ss -tulpn | grep -E ':80 |:443 ' || echo "No processes found on ports 80/443"
-
-        # Log recent nginx errors
-        echo "Recent nginx logs:"
+# Apply the new nginx configuration: reload if running, start if not.
+# Reload swaps config atomically with no dropped connections. Start (with
+# enable) is the bootstrap path — first ever deploy or recovery from an
+# unexpected stop. On reload failure, dump the journal so the cause is
+# visible in CI logs (old workers keep serving the previous config).
+echo "Applying nginx configuration..."
+if sudo systemctl is-active --quiet nginx; then
+    if ! sudo systemctl reload nginx; then
+        echo "❌ Nginx reload failed — recent journal entries:"
         sudo journalctl -u nginx -n 20 --no-pager
-
-        if [ $NGINX_START_ATTEMPTS -lt $MAX_NGINX_ATTEMPTS ]; then
-            echo "Waiting 5 seconds before retry..."
-            sleep 5
-        else
-            echo "❌ Failed to start nginx after $MAX_NGINX_ATTEMPTS attempts"
-            exit 1
-        fi
+        exit 1
     fi
-done
+    echo "✅ Nginx reloaded with new configuration"
+else
+    sudo systemctl start nginx
+    sudo systemctl enable nginx
+    echo "✅ Nginx started"
+fi
 
 # Cleanup old Docker images and containers (but keep recent build cache)
 echo "Cleaning up old Docker resources..."
