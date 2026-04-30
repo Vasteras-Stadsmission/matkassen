@@ -21,7 +21,8 @@
     },
     "overrides": [
         {
-            // Allow CommonJS in logger.js (required by server.js at runtime)
+            // logger.js is CommonJS (it's .js, not .ts) and uses require()
+            // internally for its pino-pretty fallback chain.
             "files": ["app/utils/logger.js"],
             "rules": {
                 "@typescript-eslint/no-require-imports": "off"

@@ -54,7 +54,7 @@ generate_production_config() {
 server {
     listen 80;
     server_name $domain_names;
-    return 301 https://\\\$host\\\$request_uri;
+    return 301 https://\$host\$request_uri;
 }"
 
     # SSL configuration block

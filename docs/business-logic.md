@@ -133,7 +133,7 @@ Staff can add location-specific verification questions to ensure correct househo
 
 ### Background Processing
 
-- Custom Next.js server (`server.js`) starts scheduler on boot
+- Scheduler is started on the first hit to `/api/health` (self-healing path in `app/api/health/route.ts`); the Docker container's `HEALTHCHECK` polls that route every 30 seconds, so the scheduler is up within a minute of any deploy
 - Checks for pending SMS every minute
 - PostgreSQL advisory locks prevent duplicate processing
 

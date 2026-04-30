@@ -72,6 +72,33 @@ write_env_file() {
         done
     fi
 
+    # Normalize DATABASE_SSL up-front so a typo like "required" fails the
+    # deploy script instead of waiting until the container's
+    # instrumentation hook rejects it on first boot. Unset/empty/whitespace
+    # means "defer to DATABASE_URL" (the default for the trusted Docker
+    # network). Mirror the contract from app/db/database-ssl.cjs:
+    # disable | require | verify-full, case-insensitive, whitespace-trimmed.
+    local database_ssl_normalized=""
+    if [ -n "${DATABASE_SSL:-}" ]; then
+        # ${var//[[:space:]]/} strips all whitespace; combined with lower-case
+        # via tr, this matches the JS parser's .trim().toLowerCase().
+        local raw_trimmed
+        raw_trimmed=$(printf '%s' "$DATABASE_SSL" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        case "$raw_trimmed" in
+            "")
+                # whitespace-only → treat as unset
+                ;;
+            disable|require|verify-full)
+                database_ssl_normalized="$raw_trimmed"
+                ;;
+            *)
+                echo "ERROR (write_env_file): DATABASE_SSL=\"$DATABASE_SSL\" is not a valid value." >&2
+                echo "Expected one of: disable, require, verify-full (or unset)." >&2
+                return 1
+                ;;
+        esac
+    fi
+
     local tmp rc=0
     tmp=$(mktemp) || {
         echo "ERROR (write_env_file): mktemp failed" >&2
@@ -90,6 +117,12 @@ write_env_file() {
         printf 'AUTH_URL="https://%s/api/auth"\n' "$DOMAIN_NAME"
         printf 'DATABASE_URL="%s"\n' "$DATABASE_URL"
         printf 'DATABASE_URL_EXTERNAL="%s"\n' "$DATABASE_URL_EXTERNAL"
+        # DATABASE_SSL is optional and was normalized above. Empty here
+        # means unset/whitespace-only — skip emitting so DATABASE_URL's
+        # sslmode wins (the default for the trusted Docker network).
+        if [ -n "$database_ssl_normalized" ]; then
+            printf 'DATABASE_SSL="%s"\n' "$database_ssl_normalized"
+        fi
         printf 'EMAIL="%s"\n' "$EMAIL"
         printf 'GITHUB_ORG="%s"\n' "$GITHUB_ORG"
         printf 'POSTGRES_DB="%s"\n' "$POSTGRES_DB"

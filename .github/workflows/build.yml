@@ -144,7 +144,12 @@ jobs:
               run: |
                   cd nginx
                   ./generate-nginx-config.sh local
-                  ./generate-nginx-config.sh production "example.com www.example.com" "example.com"
+                  ./generate-nginx-config.sh production "example.com www.example.com" "example.com" > /tmp/nginx-production.conf
+                  grep -F 'return 301 https://$host$request_uri;' /tmp/nginx-production.conf
+                  if grep -F 'https://\$host\$request_uri' /tmp/nginx-production.conf; then
+                    echo "Production redirect contains escaped nginx variables"
+                    exit 1
+                  fi
                   docker run --rm -v "$(pwd):/etc/nginx/conf.d" nginx:alpine nginx -t -c /etc/nginx/conf.d/local.conf 2>/dev/null || echo "Local config syntax check failed (this may be expected due to missing includes)"
                   echo "Nginx template generates configs successfully"
 

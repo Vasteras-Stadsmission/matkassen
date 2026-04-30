@@ -198,7 +198,7 @@ Matkassen includes automated SMS notifications to inform households about their 
 
 ### Background Processing
 
-The SMS system uses a custom Next.js server (`server.js`) that automatically starts the SMS scheduler when the application boots. This approach ensures reliable background processing without external dependencies:
+The SMS scheduler is started lazily on the first hit to `/api/health` (self-healing path in `app/api/health/route.ts`). The Docker container's `HEALTHCHECK` polls that route every 30 seconds, so the scheduler is up within a minute of any deploy without needing a custom server entrypoint:
 
 **Automatic Scheduler**:
 
@@ -253,7 +253,7 @@ The SMS system is designed for automatic operation, but includes manual triggers
 
 **SMS System Reliability**:
 
-- Custom Next.js server ensures automatic scheduler startup
+- Scheduler started lazily by `/api/health` self-healing on the first Docker `HEALTHCHECK` poll (~30s after boot)
 - PostgreSQL advisory locks prevent concurrent processing overlap
 - Health monitoring integrated into Docker health checks
 - Comprehensive error handling with retry logic
