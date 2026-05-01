@@ -49,6 +49,7 @@ describe.skipIf(!hasGpg)("Encrypted database backup pipeline", () => {
     const restoreScript = path.join(process.cwd(), "scripts/backup-restore.sh");
     const passphrase = "test-passphrase-only-used-in-vitest-suite-32chars";
     const mockDumpPayload = "MOCK_PG_DUMP_PAYLOAD_FOR_VITEST_SUITE";
+    const backupTestTimeout = 20_000;
 
     beforeAll(() => {
         fs.mkdirSync(mockBin, { recursive: true });
@@ -265,105 +266,113 @@ exit 0
         expect(exitCode).not.toBe(0);
     });
 
-    it("encrypts the dump, uploads to Swift, and validates via full restore", () => {
-        // Clean fake remote between tests
-        for (const f of fs.readdirSync(fakeRemote)) {
-            fs.rmSync(path.join(fakeRemote, f));
-        }
+    it(
+        "encrypts the dump, uploads to Swift, and validates via full restore",
+        () => {
+            // Clean fake remote between tests
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
 
-        const opsLog = path.join(testRoot, "db-ops.log");
-        fs.writeFileSync(opsLog, "");
-        const { stdout, status } = runBackup({ DB_OPS_LOG: opsLog });
+            const opsLog = path.join(testRoot, "db-ops.log");
+            fs.writeFileSync(opsLog, "");
+            const { stdout, status } = runBackup({ DB_OPS_LOG: opsLog });
 
-        expect(status).toBe(0);
-        expect(stdout).toContain("Backup process completed successfully");
-        expect(stdout).toContain("Validation OK - full restore succeeded");
+            expect(status).toBe(0);
+            expect(stdout).toContain("Backup process completed successfully");
+            expect(stdout).toContain("Validation OK - full restore succeeded");
 
-        // Verify the DB ops happened in the right order: pre-flight dropdb,
-        // then createdb, then pg_restore into the scratch DB, then sentinel
-        // psql, then post-run dropdb. All must target the fixed scratch
-        // name, never $POSTGRES_DB (= "matkassen" in this test).
-        const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
-        expect(ops[0]).toBe("dropdb matkassen_nightly_validate"); // pre-flight
-        expect(ops).toContain("createdb matkassen_nightly_validate");
-        const pgRestoreLine = ops.find(l =>
-            l.startsWith("pg_restore -d matkassen_nightly_validate"),
-        );
-        expect(pgRestoreLine).toBeDefined();
-        // Regression guard for H2: --exit-on-error must be on the pg_restore
-        // call so a partial restore fails fast instead of limping on.
-        expect(pgRestoreLine).toContain("--exit-on-error");
-        expect(ops).toContain("psql -d matkassen_nightly_validate");
-        // Post-run cleanup must also be against the scratch name only.
-        expect(ops[ops.length - 1]).toBe("dropdb matkassen_nightly_validate");
-        // Sanity: nothing in the ops log should reference the real DB name.
-        expect(ops.every(line => !line.endsWith(" matkassen"))).toBe(true);
-
-        const uploaded = fs
-            .readdirSync(fakeRemote)
-            .filter(f => /^matkassen_backup_\d+_\d+\.dump\.gpg$/.test(f));
-        expect(uploaded.length).toBe(1);
-
-        // Ciphertext on the remote must not contain the plaintext payload
-        const cipherBytes = fs.readFileSync(path.join(fakeRemote, uploaded[0]));
-        expect(cipherBytes.includes(Buffer.from(mockDumpPayload))).toBe(false);
-
-        // Independent decrypt with the same passphrase recovers the plaintext.
-        // This is the property the production restore depends on.
-        const recoveredPath = path.join(testRoot, "recovered.bin");
-        try {
-            execFileSync(
-                "gpg",
-                [
-                    "--decrypt",
-                    "--batch",
-                    "--quiet",
-                    "--passphrase-fd",
-                    "0",
-                    "--pinentry-mode",
-                    "loopback",
-                    "--output",
-                    recoveredPath,
-                    path.join(fakeRemote, uploaded[0]),
-                ],
-                { input: passphrase, stdio: ["pipe", "pipe", "pipe"] },
+            // Verify the DB ops happened in the right order: pre-flight dropdb,
+            // then createdb, then pg_restore into the scratch DB, then sentinel
+            // psql, then post-run dropdb. All must target the fixed scratch
+            // name, never $POSTGRES_DB (= "matkassen" in this test).
+            const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
+            expect(ops[0]).toBe("dropdb matkassen_nightly_validate"); // pre-flight
+            expect(ops).toContain("createdb matkassen_nightly_validate");
+            const pgRestoreLine = ops.find(l =>
+                l.startsWith("pg_restore -d matkassen_nightly_validate"),
             );
-        } catch (e: any) {
-            throw new Error(`gpg decrypt failed: ${e.stderr?.toString()}`);
-        }
-        const recovered = fs.readFileSync(recoveredPath, "utf-8");
-        expect(recovered).toBe(mockDumpPayload);
-        fs.rmSync(recoveredPath);
-    });
+            expect(pgRestoreLine).toBeDefined();
+            // Regression guard for H2: --exit-on-error must be on the pg_restore
+            // call so a partial restore fails fast instead of limping on.
+            expect(pgRestoreLine).toContain("--exit-on-error");
+            expect(ops).toContain("psql -d matkassen_nightly_validate");
+            // Post-run cleanup must also be against the scratch name only.
+            expect(ops[ops.length - 1]).toBe("dropdb matkassen_nightly_validate");
+            // Sanity: nothing in the ops log should reference the real DB name.
+            expect(ops.every(line => !line.endsWith(" matkassen"))).toBe(true);
 
-    it("decryption fails with the wrong passphrase", () => {
-        for (const f of fs.readdirSync(fakeRemote)) {
-            fs.rmSync(path.join(fakeRemote, f));
-        }
-        runBackup();
-        const uploaded = fs.readdirSync(fakeRemote).filter(f => /\.dump\.gpg$/.test(f))[0];
+            const uploaded = fs
+                .readdirSync(fakeRemote)
+                .filter(f => /^matkassen_backup_\d+_\d+\.dump\.gpg$/.test(f));
+            expect(uploaded.length).toBe(1);
 
-        let failed = false;
-        try {
-            execFileSync(
-                "gpg",
-                [
-                    "--decrypt",
-                    "--batch",
-                    "--quiet",
-                    "--passphrase-fd",
-                    "0",
-                    "--pinentry-mode",
-                    "loopback",
-                    path.join(fakeRemote, uploaded),
-                ],
-                { input: "wrong-passphrase", stdio: ["pipe", "pipe", "pipe"] },
-            );
-        } catch {
-            failed = true;
-        }
-        expect(failed).toBe(true);
-    });
+            // Ciphertext on the remote must not contain the plaintext payload
+            const cipherBytes = fs.readFileSync(path.join(fakeRemote, uploaded[0]));
+            expect(cipherBytes.includes(Buffer.from(mockDumpPayload))).toBe(false);
+
+            // Independent decrypt with the same passphrase recovers the plaintext.
+            // This is the property the production restore depends on.
+            const recoveredPath = path.join(testRoot, "recovered.bin");
+            try {
+                execFileSync(
+                    "gpg",
+                    [
+                        "--decrypt",
+                        "--batch",
+                        "--quiet",
+                        "--passphrase-fd",
+                        "0",
+                        "--pinentry-mode",
+                        "loopback",
+                        "--output",
+                        recoveredPath,
+                        path.join(fakeRemote, uploaded[0]),
+                    ],
+                    { input: passphrase, stdio: ["pipe", "pipe", "pipe"] },
+                );
+            } catch (e: any) {
+                throw new Error(`gpg decrypt failed: ${e.stderr?.toString()}`);
+            }
+            const recovered = fs.readFileSync(recoveredPath, "utf-8");
+            expect(recovered).toBe(mockDumpPayload);
+            fs.rmSync(recoveredPath);
+        },
+        backupTestTimeout,
+    );
+
+    it(
+        "decryption fails with the wrong passphrase",
+        () => {
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
+            runBackup();
+            const uploaded = fs.readdirSync(fakeRemote).filter(f => /\.dump\.gpg$/.test(f))[0];
+
+            let failed = false;
+            try {
+                execFileSync(
+                    "gpg",
+                    [
+                        "--decrypt",
+                        "--batch",
+                        "--quiet",
+                        "--passphrase-fd",
+                        "0",
+                        "--pinentry-mode",
+                        "loopback",
+                        path.join(fakeRemote, uploaded),
+                    ],
+                    { input: "wrong-passphrase", stdio: ["pipe", "pipe", "pipe"] },
+                );
+            } catch {
+                failed = true;
+            }
+            expect(failed).toBe(true);
+        },
+        backupTestTimeout,
+    );
 
     it("notifies Slack when pg_dump fails mid-pipeline", () => {
         // Regression test for the silent-failure bug: set -e previously
@@ -400,140 +409,160 @@ exit 0
         expect(notifications).toMatch(/"text":\s*"\[matkassen\]/);
     });
 
-    it("notifies Slack when rclone upload fails", () => {
-        // The ERR trap also has to catch rclone failures, not just pg_dump.
-        for (const f of fs.readdirSync(fakeRemote)) {
-            fs.rmSync(path.join(fakeRemote, f));
-        }
-        const realRclone = fs.readFileSync(path.join(mockBin, "rclone"), "utf-8");
-        // Override just the 'copy' verb with a failure; keep the rest working.
-        fs.writeFileSync(
-            path.join(mockBin, "rclone"),
-            `#!/bin/bash
+    it(
+        "notifies Slack when rclone upload fails",
+        () => {
+            // The ERR trap also has to catch rclone failures, not just pg_dump.
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
+            const realRclone = fs.readFileSync(path.join(mockBin, "rclone"), "utf-8");
+            // Override just the 'copy' verb with a failure; keep the rest working.
+            fs.writeFileSync(
+                path.join(mockBin, "rclone"),
+                `#!/bin/bash
 if [ "$1" = "copy" ]; then
     echo "simulated rclone upload failure" >&2
     exit 7
 fi
 ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
-        );
-        fs.chmodSync(path.join(mockBin, "rclone"), 0o755);
+            );
+            fs.chmodSync(path.join(mockBin, "rclone"), 0o755);
 
-        const curlLog = path.join(testRoot, "curl.log");
-        fs.writeFileSync(curlLog, "");
+            const curlLog = path.join(testRoot, "curl.log");
+            fs.writeFileSync(curlLog, "");
 
-        const { stdout, status } = runBackup({
-            SLACK_BOT_TOKEN: "xoxb-test",
-            SLACK_CHANNEL_ID: "C_TEST",
-            CURL_LOG: curlLog,
-        });
+            const { stdout, status } = runBackup({
+                SLACK_BOT_TOKEN: "xoxb-test",
+                SLACK_CHANNEL_ID: "C_TEST",
+                CURL_LOG: curlLog,
+            });
 
-        fs.writeFileSync(path.join(mockBin, "rclone"), realRclone);
-        fs.chmodSync(path.join(mockBin, "rclone"), 0o755);
+            fs.writeFileSync(path.join(mockBin, "rclone"), realRclone);
+            fs.chmodSync(path.join(mockBin, "rclone"), 0o755);
 
-        const notifications = fs.readFileSync(curlLog, "utf-8");
-        expect(status).not.toBe(0);
-        expect(stdout).toMatch(/Backup aborted in stage '?rclone upload/);
-        expect(notifications).toContain("rclone upload");
-    });
+            const notifications = fs.readFileSync(curlLog, "utf-8");
+            expect(status).not.toBe(0);
+            expect(stdout).toMatch(/Backup aborted in stage '?rclone upload/);
+            expect(notifications).toContain("rclone upload");
+        },
+        backupTestTimeout,
+    );
 
-    it("fails validation when the sentinel query returns 'f' (table missing)", () => {
-        // After full restore, the script runs
-        // `SELECT to_regclass('public.households') IS NOT NULL`.
-        // If that returns 'f', the table didn't survive the restore →
-        // the backup is unreliable and validation must fail.
-        for (const f of fs.readdirSync(fakeRemote)) {
-            fs.rmSync(path.join(fakeRemote, f));
-        }
-        const curlLog = path.join(testRoot, "curl.log");
-        fs.writeFileSync(curlLog, "");
+    it(
+        "fails validation when the sentinel query returns 'f' (table missing)",
+        () => {
+            // After full restore, the script runs
+            // `SELECT to_regclass('public.households') IS NOT NULL`.
+            // If that returns 'f', the table didn't survive the restore →
+            // the backup is unreliable and validation must fail.
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
+            const curlLog = path.join(testRoot, "curl.log");
+            fs.writeFileSync(curlLog, "");
 
-        const { stdout, status } = runBackup({
-            SLACK_BOT_TOKEN: "xoxb-test",
-            SLACK_CHANNEL_ID: "C_TEST",
-            CURL_LOG: curlLog,
-            SENTINEL_RESULT: "f",
-        });
+            const { stdout, status } = runBackup({
+                SLACK_BOT_TOKEN: "xoxb-test",
+                SLACK_CHANNEL_ID: "C_TEST",
+                CURL_LOG: curlLog,
+                SENTINEL_RESULT: "f",
+            });
 
-        const notifications = fs.readFileSync(curlLog, "utf-8");
-        expect(status).not.toBe(0);
-        expect(stdout).toContain("sentinel query returned 'f'");
-        expect(notifications).toContain("validation failed");
-    });
+            const notifications = fs.readFileSync(curlLog, "utf-8");
+            expect(status).not.toBe(0);
+            expect(stdout).toContain("sentinel query returned 'f'");
+            expect(notifications).toContain("validation failed");
+        },
+        backupTestTimeout,
+    );
 
-    it("drops the scratch DB even when pg_restore fails", () => {
-        // Regression test for the cleanup contract: a failed full-restore
-        // must not leak the scratch DB. The EXIT trap has to run dropdb
-        // regardless of whether validation succeeded.
-        for (const f of fs.readdirSync(fakeRemote)) {
-            fs.rmSync(path.join(fakeRemote, f));
-        }
-        const opsLog = path.join(testRoot, "db-ops.log");
-        const curlLog = path.join(testRoot, "curl.log");
-        fs.writeFileSync(opsLog, "");
-        fs.writeFileSync(curlLog, "");
+    it(
+        "drops the scratch DB even when pg_restore fails",
+        () => {
+            // Regression test for the cleanup contract: a failed full-restore
+            // must not leak the scratch DB. The EXIT trap has to run dropdb
+            // regardless of whether validation succeeded.
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
+            const opsLog = path.join(testRoot, "db-ops.log");
+            const curlLog = path.join(testRoot, "curl.log");
+            fs.writeFileSync(opsLog, "");
+            fs.writeFileSync(curlLog, "");
 
-        const { stdout, status } = runBackup({
-            SLACK_BOT_TOKEN: "xoxb-test",
-            SLACK_CHANNEL_ID: "C_TEST",
-            CURL_LOG: curlLog,
-            DB_OPS_LOG: opsLog,
-            FAIL_PG_RESTORE: "1",
-        });
+            const { stdout, status } = runBackup({
+                SLACK_BOT_TOKEN: "xoxb-test",
+                SLACK_CHANNEL_ID: "C_TEST",
+                CURL_LOG: curlLog,
+                DB_OPS_LOG: opsLog,
+                FAIL_PG_RESTORE: "1",
+            });
 
-        expect(status).not.toBe(0);
-        const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
-        // createdb fired, pg_restore ran (and failed), dropdb still fired
-        // at the end. Exactly one post-run dropdb, plus the pre-flight
-        // one, = two dropdb calls in total.
-        expect(ops.filter(l => l === "createdb matkassen_nightly_validate")).toHaveLength(1);
-        expect(
-            ops.filter(l => l.startsWith("pg_restore -d matkassen_nightly_validate")),
-        ).toHaveLength(1);
-        expect(ops.filter(l => l === "dropdb matkassen_nightly_validate")).toHaveLength(2);
-        expect(stdout).toContain("pg_restore errored");
-    });
+            expect(status).not.toBe(0);
+            const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
+            // createdb fired, pg_restore ran (and failed), dropdb still fired
+            // at the end. Exactly one post-run dropdb, plus the pre-flight
+            // one, = two dropdb calls in total.
+            expect(ops.filter(l => l === "createdb matkassen_nightly_validate")).toHaveLength(1);
+            expect(
+                ops.filter(l => l.startsWith("pg_restore -d matkassen_nightly_validate")),
+            ).toHaveLength(1);
+            expect(ops.filter(l => l === "dropdb matkassen_nightly_validate")).toHaveLength(2);
+            expect(stdout).toContain("pg_restore errored");
+        },
+        backupTestTimeout,
+    );
 
-    it("runs pre-flight dropdb before any createdb", () => {
-        // If a previous run crashed mid-validation, the scratch DB may
-        // still exist. Pre-flight must drop it so createdb can succeed.
-        for (const f of fs.readdirSync(fakeRemote)) {
-            fs.rmSync(path.join(fakeRemote, f));
-        }
-        const opsLog = path.join(testRoot, "db-ops.log");
-        fs.writeFileSync(opsLog, "");
+    it(
+        "runs pre-flight dropdb before any createdb",
+        () => {
+            // If a previous run crashed mid-validation, the scratch DB may
+            // still exist. Pre-flight must drop it so createdb can succeed.
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
+            const opsLog = path.join(testRoot, "db-ops.log");
+            fs.writeFileSync(opsLog, "");
 
-        runBackup({ DB_OPS_LOG: opsLog });
+            runBackup({ DB_OPS_LOG: opsLog });
 
-        const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
-        const firstCreate = ops.indexOf("createdb matkassen_nightly_validate");
-        const firstDrop = ops.indexOf("dropdb matkassen_nightly_validate");
-        expect(firstDrop).toBeGreaterThanOrEqual(0);
-        expect(firstCreate).toBeGreaterThan(firstDrop);
-    });
+            const ops = fs.readFileSync(opsLog, "utf-8").trim().split("\n");
+            const firstCreate = ops.indexOf("createdb matkassen_nightly_validate");
+            const firstDrop = ops.indexOf("dropdb matkassen_nightly_validate");
+            expect(firstDrop).toBeGreaterThanOrEqual(0);
+            expect(firstCreate).toBeGreaterThan(firstDrop);
+        },
+        backupTestTimeout,
+    );
 
-    it("alerts Slack when createdb fails (missing CREATEDB grant)", () => {
-        // The most operationally likely failure: rollout skipped the
-        // ALTER USER ... CREATEDB step. The script should fail the run
-        // with a clear hint rather than hanging or silently succeeding.
-        for (const f of fs.readdirSync(fakeRemote)) {
-            fs.rmSync(path.join(fakeRemote, f));
-        }
-        const curlLog = path.join(testRoot, "curl.log");
-        fs.writeFileSync(curlLog, "");
+    it(
+        "alerts Slack when createdb fails (missing CREATEDB grant)",
+        () => {
+            // The most operationally likely failure: rollout skipped the
+            // ALTER USER ... CREATEDB step. The script should fail the run
+            // with a clear hint rather than hanging or silently succeeding.
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
+            const curlLog = path.join(testRoot, "curl.log");
+            fs.writeFileSync(curlLog, "");
 
-        const { stdout, status } = runBackup({
-            SLACK_BOT_TOKEN: "xoxb-test",
-            SLACK_CHANNEL_ID: "C_TEST",
-            CURL_LOG: curlLog,
-            FAIL_CREATEDB: "1",
-        });
+            const { stdout, status } = runBackup({
+                SLACK_BOT_TOKEN: "xoxb-test",
+                SLACK_CHANNEL_ID: "C_TEST",
+                CURL_LOG: curlLog,
+                FAIL_CREATEDB: "1",
+            });
 
-        expect(status).not.toBe(0);
-        expect(stdout).toContain("could not create scratch DB");
-        expect(stdout).toContain("CREATEDB");
-        const notifications = fs.readFileSync(curlLog, "utf-8");
-        expect(notifications).toContain("validation failed");
-    });
+            expect(status).not.toBe(0);
+            expect(stdout).toContain("could not create scratch DB");
+            expect(stdout).toContain("CREATEDB");
+            const notifications = fs.readFileSync(curlLog, "utf-8");
+            expect(notifications).toContain("validation failed");
+        },
+        backupTestTimeout,
+    );
 });
 
 describe("Restore script argument handling", () => {

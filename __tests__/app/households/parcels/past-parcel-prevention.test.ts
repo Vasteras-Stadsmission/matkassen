@@ -73,6 +73,14 @@ const mockAdminHouseholdAction = (fn: any) => {
 };
 
 vi.mock("@/app/utils/auth/protected-action", () => ({
+    protectedReadAction:
+        (fn: any) =>
+        async (...args: any[]) => {
+            const mockSession = {
+                user: { githubUsername: "test-user", role: "admin" },
+            };
+            return fn(mockSession, ...args);
+        },
     protectedHouseholdAction: mockAdminHouseholdAction,
     protectedAdminHouseholdAction: mockAdminHouseholdAction,
     protectedAgreementHouseholdAction: mockAdminHouseholdAction,

@@ -23,7 +23,7 @@ jobs:
         environment: ${{ github.event.inputs.environment }}
         steps:
             - name: Checkout code
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
             - name: Display target environment
               run: |
@@ -45,7 +45,7 @@ jobs:
                   fi
 
             - name: Deploy via SSH
-              uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
               with:
                   host: ${{ steps.set-host.outputs.server_host }}
                   username: ${{ secrets.SERVER_USER }}
