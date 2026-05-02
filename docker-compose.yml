@@ -5,7 +5,7 @@
 
 services:
     web:
-        image: ghcr.io/vasteras-stadsmission/matkassen:latest
+        image: ghcr.io/vasteras-stadsmission/matkassen:${APP_IMAGE_TAG:-latest}
         restart: always
         ports:
             - "127.0.0.1:3000:3000"
