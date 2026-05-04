@@ -2,6 +2,12 @@
 
 Matkassen is an admin portal for coordinating food parcel distribution. It helps organizations manage households, schedule pickups, coordinate pickup locations, and send automated multilingual SMS reminders.
 
+## Why This Repository Is Public
+
+This repository is public so other organizations working with food parcel handouts can inspect, copy, adapt, or learn from the implementation. The system is operated by Västerås Stadsmission, but many of the patterns are reusable for similar work: household management, pickup scheduling, multilingual public pages, SMS notifications, QR-based handout flows, deployment, and backup practices.
+
+No production secrets, private keys, credentials, or personal data are stored in this repository. Deployment-specific values are provided through environment variables and GitHub Secrets.
+
 ## Features
 
 - Secure admin UI for managing households, schedules, and handout locations
