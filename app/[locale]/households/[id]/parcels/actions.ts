@@ -18,6 +18,8 @@ import { logError } from "@/app/utils/logger";
 export const updateHouseholdParcels = protectedAdminHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
         try {
+            const updatedParcelIds: string[] = [];
+
             // Auth and household verification already done by protectedHouseholdAction
             const locationId = parcelsData.pickupLocationId;
 
@@ -78,7 +80,9 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                     existingFutureParcels.map(p => parcelKey(p.locationId, p.earliest, p.latest)),
                 );
 
-                const parcelsToCreate = desiredFutureParcels.filter(
+                const existingFutureById = new Map(existingFutureParcels.map(p => [p.id, p]));
+
+                const parcelsToChange = desiredFutureParcels.filter(
                     parcel =>
                         !existingFutureKeys.has(
                             parcelKey(
@@ -89,13 +93,21 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                         ),
                 );
 
+                const parcelsToUpdate = parcelsToChange.filter(
+                    parcel => parcel.id && existingFutureById.has(parcel.id),
+                );
+                const parcelsToCreate = parcelsToChange.filter(
+                    parcel => !parcel.id || !existingFutureById.has(parcel.id),
+                );
+                const parcelsToValidate = [...parcelsToUpdate, ...parcelsToCreate];
+
                 // Create new/changed future food parcels based on the updated schedule.
                 // Unchanged future rows and historical rows are not revalidated.
-                if (parcelsToCreate.length > 0) {
+                if (parcelsToValidate.length > 0) {
                     const { validateParcelAssignments } =
                         await import("@/app/[locale]/schedule/actions");
 
-                    const parcelsToValidate = parcelsToCreate.map(parcel => ({
+                    const validationInput = parcelsToValidate.map(parcel => ({
                         id: parcel.id,
                         householdId: household.id,
                         locationId: parcelsData.pickupLocationId,
@@ -104,7 +116,7 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                         pickupEndTime: parcel.pickupLatestTime,
                     }));
 
-                    const validationResult = await validateParcelAssignments(parcelsToValidate, tx);
+                    const validationResult = await validateParcelAssignments(validationInput, tx);
 
                     if (!validationResult.success) {
                         // Throw to trigger transaction rollback
@@ -113,7 +125,24 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                             validationResult.errors || [],
                         );
                     }
+                }
 
+                if (parcelsToUpdate.length > 0) {
+                    for (const parcel of parcelsToUpdate) {
+                        await tx
+                            .update(foodParcels)
+                            .set({
+                                pickup_location_id: parcelsData.pickupLocationId,
+                                pickup_date_time_earliest: parcel.pickupEarliestTime,
+                                pickup_date_time_latest: parcel.pickupLatestTime,
+                            })
+                            .where(eq(foodParcels.id, parcel.id!));
+
+                        updatedParcelIds.push(parcel.id!);
+                    }
+                }
+
+                if (parcelsToCreate.length > 0) {
                     const parcelsToSave = parcelsToCreate.map(parcel => ({
                         household_id: household.id,
                         pickup_location_id: parcelsData.pickupLocationId,
@@ -142,11 +171,15 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                     ),
                 );
 
+                const updatedParcelIdSet = new Set(updatedParcelIds);
+
                 // Soft delete parcels that are not in the desired schedule
                 // This preserves audit trail, keeps public QR code links working,
                 // and handles SMS cancellation intelligently
                 const parcelsToDelete = existingFutureParcels.filter(
-                    p => !desiredParcelKeys.has(parcelKey(p.locationId, p.earliest, p.latest)),
+                    p =>
+                        !updatedParcelIdSet.has(p.id) &&
+                        !desiredParcelKeys.has(parcelKey(p.locationId, p.earliest, p.latest)),
                 );
 
                 if (parcelsToDelete.length > 0) {
@@ -203,6 +236,19 @@ export const updateHouseholdParcels = protectedAdminHouseholdAction(
                     householdId: household.id,
                 });
                 // Non-fatal: The count will be corrected by the next schedule operation
+            }
+
+            if (updatedParcelIds.length > 0) {
+                try {
+                    const { queuePickupUpdatedSms } = await import("@/app/utils/sms/sms-service");
+                    await Promise.allSettled(updatedParcelIds.map(id => queuePickupUpdatedSms(id)));
+                } catch (e) {
+                    logError("Failed to queue pickup_updated SMS after parcel update", e, {
+                        parcelIds: updatedParcelIds,
+                        householdId: household.id,
+                    });
+                    // Non-fatal: The parcel update succeeded, SMS is a nice-to-have
+                }
             }
 
             return success(undefined);
