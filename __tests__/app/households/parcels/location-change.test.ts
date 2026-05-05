@@ -238,9 +238,9 @@ describe("updateHouseholdParcels - Location Changes", () => {
 
             expect(result.success).toBe(true);
 
-            // Parcel should be inserted (upsert will skip due to conflict, which is correct)
-            expect(insertedParcels).toHaveLength(1);
-            expect(insertedParcels[0].pickup_location_id).toBe(locationA);
+            // Unchanged future parcels are already in the desired state, so the
+            // diff-based action should neither reinsert nor delete them.
+            expect(insertedParcels).toHaveLength(0);
 
             // The existing parcel should NOT be marked for deletion
             // because it matches the desired state (same location + times)
@@ -386,10 +386,10 @@ describe("updateHouseholdParcels - Location Changes", () => {
 
             expect(result.success).toBe(true);
 
-            // Should insert 2 parcels at location A
-            expect(insertedParcels).toHaveLength(2);
+            // The unchanged location A parcel is already in the desired state.
+            // Only the location B -> A change should be inserted.
+            expect(insertedParcels).toHaveLength(1);
             expect(insertedParcels[0].pickup_location_id).toBe(locationA);
-            expect(insertedParcels[1].pickup_location_id).toBe(locationA);
 
             // The parcel at location B with slot2 times should be deleted
             // because desired key is "locationA-slot2times" but existing is "locationB-slot2times"

@@ -206,9 +206,9 @@ describe("Past Parcel Prevention - Backend Validation", () => {
         // Should succeed (existing parcels can be updated)
         expect(result.success).toBe(true);
 
-        // Should insert/update the parcel
-        expect(insertedParcels.length).toBe(1);
-        expect(insertedParcels[0].pickup_date_time_earliest).toEqual(pastTime);
+        // Historical persisted parcels are allowed to remain in form data,
+        // but they are not part of the editable future schedule.
+        expect(insertedParcels.length).toBe(0);
 
         vi.useRealTimers();
     });

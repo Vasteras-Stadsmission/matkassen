@@ -406,10 +406,18 @@
         "validationErrors": {
             "title": "Valideringsfel",
             "capacityReached": "Platsens kapacitet överskriden för valt datum",
+            "capacityReachedDetailed": "Platsens kapacitet är full den {date}: {current} av {maximum} matkassar är redan bokade",
             "slotCapacityReached": "Tidssloten är fullbokad",
+            "slotCapacityReachedDetailed": "Tidssloten {timeSlot} den {date} är fullbokad: {current} av {maximum} matkassar är redan bokade",
             "doubleBooking": "Hushållet har redan en matkasse schemalagd för detta datum",
+            "doubleBookingDetailed": "Hushållet har redan en matkasse schemalagd den {date}",
             "outsideOperatingHours": "Vald tid är utanför öppettider",
-            "pastTimeSlot": "Kan inte schemalägga upphämtning i det förflutna"
+            "pastTimeSlot": "Kan inte schemalägga upphämtning i det förflutna",
+            "locationNotFound": "Hämtplatsen kunde inte hittas",
+            "parcelNotFound": "Matkassen kunde inte hittas",
+            "unknown": "Det valda matkasseschemat kunde inte sparas",
+            "unknownWithCode": "Det valda matkasseschemat kunde inte sparas. Valideringskod: {code}",
+            "repeated": "({count} gånger)"
         }
     },
     "review": {
