@@ -19,6 +19,11 @@ let updatedParcels: any[] = [];
 
 // Mock the database module with location-aware logic
 vi.mock("@/app/db/drizzle", () => {
+    const queryResult = (value: any[]) =>
+        Object.assign(Promise.resolve(value), {
+            limit: vi.fn(() => Promise.resolve(value.slice(0, 1))),
+        });
+
     const mockDb = {
         transaction: vi.fn(async (callback: any) => {
             // Execute the transaction callback with a mock transaction object
@@ -41,10 +46,52 @@ vi.mock("@/app/db/drizzle", () => {
             })),
         })),
         select: vi.fn(() => ({
-            from: vi.fn(() => ({
+            from: vi.fn((table: any) => ({
                 where: vi.fn(() => {
+                    const tableName = table?.[Symbol.for("drizzle:Name")];
+
+                    if (tableName === "pickup_locations") {
+                        return queryResult([
+                            {
+                                id: "test-location",
+                                maxParcelsPerDay: 15,
+                                maxParcelsPerSlot: 15,
+                            },
+                        ]);
+                    }
+
+                    if (tableName === "pickup_location_schedules") {
+                        return queryResult([
+                            {
+                                id: "test-schedule",
+                                name: "Test Schedule",
+                                startDate: "2020-01-01",
+                                endDate: "2030-01-01",
+                            },
+                        ]);
+                    }
+
+                    if (tableName === "pickup_location_schedule_days") {
+                        return queryResult(
+                            [
+                                "monday",
+                                "tuesday",
+                                "wednesday",
+                                "thursday",
+                                "friday",
+                                "saturday",
+                                "sunday",
+                            ].map(weekday => ({
+                                weekday,
+                                isOpen: true,
+                                openingTime: "00:00",
+                                closingTime: "23:59",
+                            })),
+                        );
+                    }
+
                     // Return existing parcels (will be set by each test)
-                    return Promise.resolve(existingParcels);
+                    return queryResult(existingParcels);
                 }),
             })),
         })),
@@ -108,7 +155,7 @@ vi.mock("@/app/utils/parcels/state-transitions", () => ({
     createParcels: vi.fn(async (_tx, args) => {
         // Mock insert — just track that it was called via the helper
         insertedParcels.push(...args.parcels);
-        return [];
+        return args.parcels.map((_parcel: unknown, index: number) => `created-${index}`);
     }),
     softDeleteParcelLenient: vi.fn(async () => {
         // Mock SMS-aware lenient soft delete — just track that it was called
@@ -183,10 +230,20 @@ describe("updateHouseholdParcels - Location Changes", () => {
             // Existing future parcels keep their ID when moved, so sent reminders
             // can produce pickup_updated SMS instead of cancellation semantics.
             expect(insertedParcels).toHaveLength(0);
-            expect(updatedParcels).toHaveLength(1);
-            expect(updatedParcels[0].pickup_location_id).toBe(locationB);
-            expect(updatedParcels[0].pickup_date_time_earliest).toEqual(pickupStart);
-            expect(updatedParcels[0].pickup_date_time_latest).toEqual(pickupEnd);
+            const finalUpdates = updatedParcels.filter(
+                update => update.pickup_date_time_earliest.getUTCFullYear() !== 2100,
+            );
+            expect(finalUpdates).toHaveLength(1);
+            expect(finalUpdates[0].pickup_location_id).toBe(locationB);
+            expect(finalUpdates[0].pickup_date_time_earliest).toEqual(pickupStart);
+            expect(finalUpdates[0].pickup_date_time_latest).toEqual(pickupEnd);
+
+            const scheduleActions = await import("@/app/[locale]/schedule/actions");
+            const recomputeOutsideHoursCountMock = vi.mocked(
+                scheduleActions.recomputeOutsideHoursCount,
+            );
+            expect(recomputeOutsideHoursCountMock).toHaveBeenCalledWith(locationA);
+            expect(recomputeOutsideHoursCountMock).toHaveBeenCalledWith(locationB);
         } finally {
             vi.useRealTimers();
         }
@@ -271,9 +328,12 @@ describe("updateHouseholdParcels - Location Changes", () => {
             const slot1End = new Date(tomorrow);
             slot1End.setHours(11, 0, 0, 0);
 
-            const slot2Start = new Date(tomorrow);
+            const dayAfterTomorrow = new Date(now);
+            dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+
+            const slot2Start = new Date(dayAfterTomorrow);
             slot2Start.setHours(14, 0, 0, 0);
-            const slot2End = new Date(tomorrow);
+            const slot2End = new Date(dayAfterTomorrow);
             slot2End.setHours(15, 0, 0, 0);
 
             // Existing: Both parcels at location A
@@ -317,9 +377,12 @@ describe("updateHouseholdParcels - Location Changes", () => {
 
             // Should update both existing parcels in place.
             expect(insertedParcels).toHaveLength(0);
-            expect(updatedParcels).toHaveLength(2);
-            expect(updatedParcels[0].pickup_location_id).toBe(locationB);
-            expect(updatedParcels[1].pickup_location_id).toBe(locationB);
+            const finalUpdates = updatedParcels.filter(
+                update => update.pickup_date_time_earliest.getUTCFullYear() !== 2100,
+            );
+            expect(finalUpdates).toHaveLength(2);
+            expect(finalUpdates[0].pickup_location_id).toBe(locationB);
+            expect(finalUpdates[1].pickup_location_id).toBe(locationB);
         } finally {
             vi.useRealTimers();
         }
@@ -395,8 +458,11 @@ describe("updateHouseholdParcels - Location Changes", () => {
             // The unchanged location A parcel is already in the desired state.
             // Only the location B -> A change should be updated in place.
             expect(insertedParcels).toHaveLength(0);
-            expect(updatedParcels).toHaveLength(1);
-            expect(updatedParcels[0].pickup_location_id).toBe(locationA);
+            const finalUpdates = updatedParcels.filter(
+                update => update.pickup_date_time_earliest.getUTCFullYear() !== 2100,
+            );
+            expect(finalUpdates).toHaveLength(1);
+            expect(finalUpdates[0].pickup_location_id).toBe(locationA);
         } finally {
             vi.useRealTimers();
         }

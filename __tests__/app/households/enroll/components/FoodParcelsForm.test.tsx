@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { FoodParcels } from "../../../../../app/[locale]/households/enroll/types";
 import FoodParcelsForm from "../../../../../app/[locale]/households/enroll/components/FoodParcelsForm";
 // Mock next-intl
@@ -7,6 +7,18 @@ vi.mock("next-intl", () => ({
     useTranslations: () => (key: string, params?: any) => {
         if (key === "slotDuration" && params?.duration) {
             return `Slot duration: ${params.duration} minutes`;
+        }
+        if (key === "validationErrors.capacityReachedDetailed") {
+            return `Location capacity is full on ${params.date}: ${params.current} of ${params.maximum} parcels are already booked`;
+        }
+        if (key === "validationErrors.slotCapacityReachedDetailed") {
+            return `Time slot ${params.timeSlot} is full on ${params.date}: ${params.current} of ${params.maximum} parcels are already booked`;
+        }
+        if (key === "validationErrors.doubleBookingDetailed") {
+            return `Household already has a parcel scheduled on ${params.date}`;
+        }
+        if (key === "validationErrors.repeated") {
+            return `(${params.count} times)`;
         }
         return key;
     },
@@ -589,6 +601,84 @@ describe("FoodParcelsForm Business Logic Tests", () => {
                 expect.objectContaining({ pickupLocationId: "location-1" }),
             );
         });
+    });
+
+    it("shows all distinct validation errors while consolidating repeated messages", async () => {
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [],
+        });
+
+        render(
+            <FoodParcelsForm
+                data={formData}
+                updateData={mockUpdateData}
+                error={null}
+                validationErrors={[
+                    {
+                        field: "capacity",
+                        code: "MAX_DAILY_CAPACITY_REACHED",
+                        message: "Maximum daily capacity reached",
+                        details: {
+                            date: "2026-05-15",
+                            current: 16,
+                            maximum: 15,
+                        },
+                    },
+                    {
+                        field: "capacity",
+                        code: "MAX_DAILY_CAPACITY_REACHED",
+                        message: "Maximum daily capacity reached",
+                        details: {
+                            date: "2026-05-15",
+                            current: 16,
+                            maximum: 15,
+                        },
+                    },
+                    {
+                        field: "timeSlot",
+                        code: "MAX_SLOT_CAPACITY_REACHED",
+                        message: "Maximum slot capacity reached",
+                        details: {
+                            date: "2026-05-15",
+                            timeSlot: "10:00",
+                            current: 16,
+                            maximum: 15,
+                        },
+                    },
+                    {
+                        field: "timeSlot",
+                        code: "HOUSEHOLD_DOUBLE_BOOKING",
+                        message: "Household already has a parcel scheduled for this date",
+                        details: {
+                            date: "2026-05-16",
+                        },
+                    },
+                ]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText("validationErrors.title")).not.toBeNull();
+        });
+        expect(
+            screen.getByText(
+                /Location capacity is full on 2026-05-15: 16 of 15 parcels are already booked/,
+            ).textContent,
+        ).toContain("(2 times)");
+        expect(
+            screen.getByText(
+                /Time slot 10:00 is full on 2026-05-15: 16 of 15 parcels are already booked/,
+            ),
+        ).not.toBeNull();
+        expect(
+            screen.getByText(/Household already has a parcel scheduled on 2026-05-16/),
+        ).not.toBeNull();
+        expect(
+            screen.getAllByText(
+                /Location capacity is full on 2026-05-15: 16 of 15 parcels are already booked/,
+            ),
+        ).toHaveLength(1);
     });
 });
 

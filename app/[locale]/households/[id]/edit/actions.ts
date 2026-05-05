@@ -14,20 +14,30 @@ import {
     householdComments,
     users,
 } from "@/app/db/schema";
-import { eq, and, gt, ne, isNull, inArray } from "drizzle-orm";
+import { eq, and, ne, isNull, inArray } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
 import {
     protectedAdminAction,
     protectedAdminHouseholdAction,
 } from "@/app/utils/auth/protected-action";
-import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
+import {
+    success,
+    failure,
+    validationFailure,
+    type ActionResult,
+} from "@/app/utils/auth/action-result";
 import { type AuthSession } from "@/app/utils/auth/server-action-auth";
 import { notDeleted } from "@/app/db/query-helpers";
-import { calculateParcelOperations } from "./calculateParcelOperations";
 import { logger, logError } from "@/app/utils/logger";
 import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
+import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
+import {
+    applyHouseholdParcelScheduleChanges,
+    runHouseholdParcelPostCommitEffects,
+    type HouseholdParcelScheduleChangeSummary,
+} from "@/app/utils/parcels/apply-parcel-schedule-changes";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -440,6 +450,8 @@ export const updateHousehold = protectedAdminHouseholdAction(
                 });
             }
 
+            let parcelChangeSummary: HouseholdParcelScheduleChangeSummary | null = null;
+
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
                 // 0. Validate primary pickup location exists (if provided)
@@ -550,91 +562,13 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     );
                 }
 
-                // 6. Handle food parcels using surgical operations with same-day matching
-                // This preserves parcel IDs when only times change on the same day (Option B)
-                const now = new Date();
-
-                // Validate that NEW parcels are not in the past
-                if (data.foodParcels.parcels && data.foodParcels.parcels.length > 0) {
-                    const pastParcels = data.foodParcels.parcels.filter(
-                        parcel => !parcel.id && new Date(parcel.pickupLatestTime) <= now,
-                    );
-
-                    if (pastParcels.length > 0) {
-                        const { formatStockholmDate } = await import("@/app/utils/date-utils");
-                        const dates = pastParcels
-                            .map(p =>
-                                formatStockholmDate(new Date(p.pickupEarliestTime), "yyyy-MM-dd"),
-                            )
-                            .join(", ");
-
-                        return failure({
-                            code: "PAST_PICKUP_TIME",
-                            message: `Cannot create parcels with past pickup times for: ${dates}. Please select a future time or remove these dates.`,
-                        });
-                    }
-                }
-
-                // Get existing future parcels
-                const existingFutureParcels = await tx
-                    .select({
-                        id: foodParcels.id,
-                        locationId: foodParcels.pickup_location_id,
-                        earliest: foodParcels.pickup_date_time_earliest,
-                        latest: foodParcels.pickup_date_time_latest,
-                    })
-                    .from(foodParcels)
-                    .where(
-                        and(
-                            eq(foodParcels.household_id, household.id),
-                            eq(foodParcels.is_picked_up, false),
-                            gt(foodParcels.pickup_date_time_earliest, now),
-                            notDeleted(),
-                        ),
-                    );
-
-                // Calculate surgical operations
-                const desiredParcels = data.foodParcels.parcels || [];
-                const operations = calculateParcelOperations(
-                    existingFutureParcels,
-                    desiredParcels,
-                    data.foodParcels.pickupLocationId,
-                    household.id,
-                );
-
-                // Execute CREATE operations
-                if (operations.toCreate.length > 0) {
-                    // Route through the parcel state-transitions helper so all
-                    // mutations of food_parcels go through one place.
-                    const { createParcels } = await import("@/app/utils/parcels/state-transitions");
-                    await createParcels(tx, { parcels: operations.toCreate, session });
-                }
-
-                // Execute UPDATE operations (same-day time changes)
-                for (const op of operations.toUpdate) {
-                    await tx
-                        .update(foodParcels)
-                        .set({
-                            pickup_date_time_earliest: op.pickup_date_time_earliest,
-                            pickup_date_time_latest: op.pickup_date_time_latest,
-                        })
-                        .where(eq(foodParcels.id, op.id));
-                }
-
-                // Execute DELETE operations (soft delete with SMS cancellation handling)
-                if (operations.toDelete.length > 0) {
-                    // Lenient soft-delete: silently skips parcels that have
-                    // already been removed by another process between the
-                    // pre-fetch above and now. The household edit flow has
-                    // pre-filtered to is_picked_up = false so we don't expect
-                    // already-completed parcels here.
-                    const { softDeleteParcelLenient } =
-                        await import("@/app/utils/parcels/state-transitions");
-
-                    for (const parcelId of operations.toDelete) {
-                        await softDeleteParcelLenient(tx, { parcelId, session });
-                    }
-                }
+                // 6. Handle food parcels through the shared household scheduling flow.
+                parcelChangeSummary = await applyHouseholdParcelScheduleChanges(tx, {
+                    householdId: household.id,
+                    pickupLocationId: data.foodParcels.pickupLocationId,
+                    parcels: data.foodParcels.parcels || [],
+                    session,
+                });
 
                 // 7. Handle comments - add new comments if any were added during editing
                 if (data.comments && data.comments.length > 0) {
@@ -661,16 +595,27 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     {
                         householdId: household.id,
                         locationId: data.foodParcels?.pickupLocationId,
-                        parcelsCreated: operations.toCreate.length,
-                        parcelsUpdated: operations.toUpdate.length,
-                        parcelsDeleted: operations.toDelete.length,
+                        parcelsCreated: parcelChangeSummary.createdCount,
+                        parcelsUpdated: parcelChangeSummary.updatedParcelIds.length,
+                        parcelsDeleted: parcelChangeSummary.removedParcelIds.length,
                     },
                     "Household updated",
                 );
             });
 
+            if (parcelChangeSummary) {
+                await runHouseholdParcelPostCommitEffects(parcelChangeSummary, {
+                    householdId: household.id,
+                    logError,
+                });
+            }
+
             return success({ householdId: household.id });
         } catch (error: unknown) {
+            if (error instanceof ParcelValidationError) {
+                return validationFailure(error.message, error.validationErrors);
+            }
+
             if (error instanceof OptionNotAvailableError) {
                 return failure({
                     code: error.code,
