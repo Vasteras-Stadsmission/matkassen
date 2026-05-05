@@ -406,10 +406,18 @@
         "validationErrors": {
             "title": "Validation Errors",
             "capacityReached": "Location capacity exceeded for selected date",
+            "capacityReachedDetailed": "Location capacity is full on {date}: {current} of {maximum} parcels are already booked",
             "slotCapacityReached": "Time slot is fully booked",
+            "slotCapacityReachedDetailed": "Time slot {timeSlot} on {date} is fully booked: {current} of {maximum} parcels are already booked",
             "doubleBooking": "Household already has a parcel scheduled for this date",
+            "doubleBookingDetailed": "Household already has a parcel scheduled for {date}",
             "outsideOperatingHours": "Selected time is outside operating hours",
-            "pastTimeSlot": "Cannot schedule pickup in the past"
+            "pastTimeSlot": "Cannot schedule pickup in the past",
+            "locationNotFound": "Pickup location could not be found",
+            "parcelNotFound": "Parcel could not be found",
+            "unknown": "The selected parcel schedule could not be saved",
+            "unknownWithCode": "The selected parcel schedule could not be saved. Validation code: {code}",
+            "repeated": "({count} times)"
         }
     },
     "review": {

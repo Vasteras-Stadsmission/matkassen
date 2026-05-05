@@ -68,6 +68,8 @@ interface FoodParcelsFormProps {
     }>;
 }
 
+type ParcelValidationError = NonNullable<FoodParcelsFormProps["validationErrors"]>[number];
+
 export default function FoodParcelsForm({
     data,
     updateData,
@@ -1037,6 +1039,112 @@ export default function FoodParcelsForm({
         setBulkTimeError(null);
     };
 
+    const numberDetail = (value: unknown): number | null => {
+        const parsed =
+            typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const formatValidationErrorMessage = (error: ParcelValidationError): string => {
+        const details = error.details ?? {};
+        const date = typeof details.date === "string" ? details.date : "";
+        const timeSlot = typeof details.timeSlot === "string" ? details.timeSlot : "";
+        const current = numberDetail(details.current);
+        const maximum = numberDetail(details.maximum);
+
+        if (
+            (error.code === "MAX_DAILY_CAPACITY_REACHED" || error.code === "CAPACITY_REACHED") &&
+            date &&
+            current !== null &&
+            maximum !== null
+        ) {
+            return t("validationErrors.capacityReachedDetailed", {
+                date,
+                current,
+                maximum,
+            });
+        }
+
+        if (error.code === "MAX_DAILY_CAPACITY_REACHED" || error.code === "CAPACITY_REACHED") {
+            return t("validationErrors.capacityReached");
+        }
+
+        if (
+            (error.code === "MAX_SLOT_CAPACITY_REACHED" ||
+                error.code === "SLOT_CAPACITY_REACHED") &&
+            date &&
+            timeSlot &&
+            current !== null &&
+            maximum !== null
+        ) {
+            return t("validationErrors.slotCapacityReachedDetailed", {
+                date,
+                timeSlot,
+                current,
+                maximum,
+            });
+        }
+
+        if (error.code === "MAX_SLOT_CAPACITY_REACHED" || error.code === "SLOT_CAPACITY_REACHED") {
+            return t("validationErrors.slotCapacityReached");
+        }
+
+        if (
+            (error.code === "HOUSEHOLD_DOUBLE_BOOKING" ||
+                error.code === "DOUBLE_BOOKING" ||
+                error.code === "TIME_SLOT_CONFLICT") &&
+            date
+        ) {
+            return t("validationErrors.doubleBookingDetailed", { date });
+        }
+
+        if (
+            error.code === "HOUSEHOLD_DOUBLE_BOOKING" ||
+            error.code === "DOUBLE_BOOKING" ||
+            error.code === "TIME_SLOT_CONFLICT"
+        ) {
+            return t("validationErrors.doubleBooking");
+        }
+
+        if (error.code === "OUTSIDE_OPERATING_HOURS" || error.code === "OUTSIDE_OPENING_HOURS") {
+            return t("validationErrors.outsideOperatingHours");
+        }
+
+        if (error.code === "PAST_TIME_SLOT" || error.code === "PAST_PICKUP_TIME") {
+            return t("validationErrors.pastTimeSlot");
+        }
+
+        if (error.code === "LOCATION_NOT_FOUND") {
+            return t("validationErrors.locationNotFound");
+        }
+
+        if (error.code === "PARCEL_NOT_FOUND") {
+            return t("validationErrors.parcelNotFound");
+        }
+
+        return error.code
+            ? t("validationErrors.unknownWithCode", { code: error.code })
+            : t("validationErrors.unknown");
+    };
+
+    const validationErrorSummaries = Array.from(
+        (validationErrors ?? [])
+            .reduce((summaries, error) => {
+                const message = formatValidationErrorMessage(error);
+                const existing = summaries.get(message);
+
+                if (existing) {
+                    existing.count += 1;
+                } else {
+                    summaries.set(message, { message, count: 1 });
+                }
+
+                return summaries;
+            }, new Map<string, { message: string; count: number }>())
+            .values(),
+    );
+
     return (
         <Card withBorder p="md" radius="md">
             <Title order={3} mb="md">
@@ -1090,41 +1198,13 @@ export default function FoodParcelsForm({
                                 {t("validationErrors.title", { default: "Validation Errors" })}
                             </Text>
                         </Group>
-                        {validationErrors.map(error => {
-                            // Map error codes to i18n keys
-                            let errorMessage = error.message;
-
-                            // Try to translate based on error code
-                            const errorCodeMap: Record<
-                                string,
-                                | "validationErrors.pastTimeSlot"
-                                | "validationErrors.capacityReached"
-                                | "validationErrors.slotCapacityReached"
-                                | "validationErrors.doubleBooking"
-                                | "validationErrors.outsideOperatingHours"
-                            > = {
-                                PAST_TIME_SLOT: "validationErrors.pastTimeSlot",
-                                PAST_PICKUP_TIME: "validationErrors.pastTimeSlot",
-                                CAPACITY_REACHED: "validationErrors.capacityReached",
-                                SLOT_CAPACITY_REACHED: "validationErrors.slotCapacityReached",
-                                DOUBLE_BOOKING: "validationErrors.doubleBooking",
-                                OUTSIDE_OPENING_HOURS: "validationErrors.outsideOperatingHours",
-                            };
-
-                            if (error.code && errorCodeMap[error.code]) {
-                                // Type is safe because errorCodeMap values are string literal types
-                                // that match the translation keys
-                                errorMessage = t(errorCodeMap[error.code]);
-                            }
-
+                        {validationErrorSummaries.map(({ message, count }) => {
                             return (
-                                <Text
-                                    key={`${error.field}-${error.code}`}
-                                    size="sm"
-                                    c="red"
-                                    ml="lg"
-                                >
-                                    • {errorMessage}
+                                <Text key={message} size="sm" c="red" ml="lg">
+                                    • {message}
+                                    {count > 1
+                                        ? ` ${t("validationErrors.repeated", { count })}`
+                                        : ""}
                                 </Text>
                             );
                         })}

@@ -12,6 +12,8 @@ import type { FoodParcels } from "@/app/[locale]/households/enroll/types";
 // Track database operations for verification
 let insertedParcels: any[] = [];
 let deleteCalled = false;
+let existingFutureParcels: any[] = [];
+let softDeletedParcelIds: string[] = [];
 
 // Mock the database module
 vi.mock("@/app/db/drizzle", () => {
@@ -28,7 +30,7 @@ vi.mock("@/app/db/drizzle", () => {
         }),
         select: vi.fn(() => ({
             from: vi.fn(() => ({
-                where: vi.fn(() => Promise.resolve([])), // No existing parcels by default
+                where: vi.fn(() => Promise.resolve(existingFutureParcels)),
             })),
         })),
         insert: vi.fn((table: any) => ({
@@ -86,6 +88,17 @@ vi.mock("@/app/[locale]/schedule/actions", () => ({
     recomputeOutsideHoursCount: vi.fn(async () => {}),
 }));
 
+vi.mock("@/app/utils/parcels/state-transitions", () => ({
+    createParcels: vi.fn(async (_tx: unknown, args: { parcels: any[] }) => {
+        insertedParcels.push(...args.parcels);
+        return [];
+    }),
+    softDeleteParcelLenient: vi.fn(async (_tx: unknown, args: { parcelId: string }) => {
+        softDeletedParcelIds.push(args.parcelId);
+        return { skipped: false };
+    }),
+}));
+
 describe("updateHouseholdParcels - Same-day parcel handling", () => {
     const testHouseholdId = "test-household-123";
     const testLocationId = "test-location-456";
@@ -93,6 +106,8 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     beforeEach(() => {
         // Reset tracking arrays
         insertedParcels = [];
+        existingFutureParcels = [];
+        softDeletedParcelIds = [];
         vi.clearAllMocks();
     });
 
@@ -388,10 +403,9 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
             expect(result.success).toBe(true);
-            // Both parcels should be inserted:
-            // 1. The past parcel (has id, allowed to be updated)
-            // 2. The future parcel (new, in the future)
-            expect(insertedParcels).toHaveLength(2);
+            // Historical persisted parcels are kept in the submitted form data for display,
+            // but they are not part of the editable future schedule and must not be reinserted.
+            expect(insertedParcels).toHaveLength(1);
             // Find the future parcel (should be the one with future time)
             const futureParcel = insertedParcels.find(
                 p => p.pickup_date_time_earliest.getTime() === futureStart.getTime(),
@@ -403,7 +417,7 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
         }
     });
 
-    it("should treat persisted parcels with past pickup times as existing during validation", async () => {
+    it("should skip schedule validation for persisted parcels with past pickup times", async () => {
         const { updateHouseholdParcels } =
             await import("@/app/[locale]/households/[id]/parcels/actions");
         const scheduleActions = await import("@/app/[locale]/schedule/actions");
@@ -421,13 +435,6 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const pastEnd = new Date(now);
             pastEnd.setHours(14, 0, 0, 0);
 
-            validateParcelAssignmentsMock.mockImplementationOnce(async parcels => {
-                expect(parcels).toHaveLength(1);
-                expect(parcels[0].id).toBe("existing-parcel-id");
-                expect(parcels[0].pickupEndTime <= now).toBe(true);
-                return { success: true, errors: [] };
-            });
-
             const parcelsData: FoodParcels = {
                 pickupLocationId: testLocationId,
                 parcels: [
@@ -443,9 +450,162 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
             expect(result.success).toBe(true);
+            expect(validateParcelAssignmentsMock).not.toHaveBeenCalled();
+            expect(insertedParcels).toHaveLength(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("should not validate or reinsert unchanged future parcels", async () => {
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
+        const scheduleActions = await import("@/app/[locale]/schedule/actions");
+        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
+
+        const now = new Date();
+        now.setHours(10, 0, 0, 0);
+
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+
+        try {
+            const futureStart = new Date(now);
+            futureStart.setDate(futureStart.getDate() + 1);
+            futureStart.setHours(12, 0, 0, 0);
+            const futureEnd = new Date(futureStart);
+            futureEnd.setMinutes(futureEnd.getMinutes() + 30);
+
+            existingFutureParcels = [
+                {
+                    id: "existing-future-parcel",
+                    locationId: testLocationId,
+                    earliest: futureStart,
+                    latest: futureEnd,
+                },
+            ];
+
+            const parcelsData: FoodParcels = {
+                pickupLocationId: testLocationId,
+                parcels: [
+                    {
+                        id: "existing-future-parcel",
+                        pickupDate: futureStart,
+                        pickupEarliestTime: futureStart,
+                        pickupLatestTime: futureEnd,
+                    },
+                ],
+            };
+
+            const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
+
+            expect(result.success).toBe(true);
+            expect(validateParcelAssignmentsMock).not.toHaveBeenCalled();
+            expect(insertedParcels).toHaveLength(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("should validate changed existing future parcels with their existing id", async () => {
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
+        const scheduleActions = await import("@/app/[locale]/schedule/actions");
+        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
+
+        const now = new Date();
+        now.setHours(10, 0, 0, 0);
+
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+
+        try {
+            const originalStart = new Date(now);
+            originalStart.setDate(originalStart.getDate() + 1);
+            originalStart.setHours(12, 0, 0, 0);
+            const originalEnd = new Date(originalStart);
+            originalEnd.setMinutes(originalEnd.getMinutes() + 30);
+
+            const changedStart = new Date(originalStart);
+            changedStart.setHours(13, 0, 0, 0);
+            const changedEnd = new Date(changedStart);
+            changedEnd.setMinutes(changedEnd.getMinutes() + 30);
+
+            existingFutureParcels = [
+                {
+                    id: "existing-future-parcel",
+                    locationId: testLocationId,
+                    earliest: originalStart,
+                    latest: originalEnd,
+                },
+            ];
+
+            validateParcelAssignmentsMock.mockImplementationOnce(async parcels => {
+                expect(parcels).toHaveLength(1);
+                expect(parcels[0].id).toBe("existing-future-parcel");
+                expect(parcels[0].pickupStartTime).toEqual(changedStart);
+                return { success: true, errors: [] };
+            });
+
+            const parcelsData: FoodParcels = {
+                pickupLocationId: testLocationId,
+                parcels: [
+                    {
+                        id: "existing-future-parcel",
+                        pickupDate: changedStart,
+                        pickupEarliestTime: changedStart,
+                        pickupLatestTime: changedEnd,
+                    },
+                ],
+            };
+
+            const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
+
+            expect(result.success).toBe(true);
             expect(validateParcelAssignmentsMock).toHaveBeenCalledTimes(1);
-            const callArgs = validateParcelAssignmentsMock.mock.calls[0][0];
-            expect(callArgs[0].id).toBe("existing-parcel-id");
+            expect(insertedParcels).toHaveLength(1);
+            expect(softDeletedParcelIds).toEqual(["existing-future-parcel"]);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("should soft-delete future parcels removed from the desired schedule", async () => {
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
+
+        const now = new Date();
+        now.setHours(10, 0, 0, 0);
+
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+
+        try {
+            const removedStart = new Date(now);
+            removedStart.setDate(removedStart.getDate() + 1);
+            removedStart.setHours(12, 0, 0, 0);
+            const removedEnd = new Date(removedStart);
+            removedEnd.setMinutes(removedEnd.getMinutes() + 30);
+
+            existingFutureParcels = [
+                {
+                    id: "removed-future-parcel",
+                    locationId: testLocationId,
+                    earliest: removedStart,
+                    latest: removedEnd,
+                },
+            ];
+
+            const parcelsData: FoodParcels = {
+                pickupLocationId: testLocationId,
+                parcels: [],
+            };
+
+            const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
+
+            expect(result.success).toBe(true);
+            expect(insertedParcels).toHaveLength(0);
+            expect(softDeletedParcelIds).toEqual(["removed-future-parcel"]);
         } finally {
             vi.useRealTimers();
         }
@@ -506,6 +666,68 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
                 );
             }
             expect(insertedParcels).toHaveLength(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("should ignore stale historical parcels and validate only the newly added future parcel", async () => {
+        const { updateHouseholdParcels } =
+            await import("@/app/[locale]/households/[id]/parcels/actions");
+        const scheduleActions = await import("@/app/[locale]/schedule/actions");
+        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
+
+        const now = new Date("2026-05-05T10:00:00Z");
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+
+        try {
+            const historicalParcels = [
+                new Date("2026-02-10T12:00:00Z"),
+                new Date("2026-02-24T12:00:00Z"),
+                new Date("2026-03-10T12:00:00Z"),
+            ].map((start, index) => {
+                const end = new Date(start);
+                end.setHours(14, 0, 0, 0);
+
+                return {
+                    id: `historical-${index}`,
+                    pickupDate: start,
+                    pickupEarliestTime: start,
+                    pickupLatestTime: end,
+                };
+            });
+
+            const futureStart = new Date("2026-05-15T12:00:00Z");
+            const futureEnd = new Date("2026-05-15T14:00:00Z");
+
+            validateParcelAssignmentsMock.mockImplementationOnce(async parcels => {
+                expect(parcels).toHaveLength(1);
+                expect(parcels[0].id).toBeUndefined();
+                expect(parcels[0].pickupStartTime).toEqual(futureStart);
+                expect(parcels[0].pickupEndTime).toEqual(futureEnd);
+                return { success: true, errors: [] };
+            });
+
+            const parcelsData: FoodParcels = {
+                pickupLocationId: testLocationId,
+                parcels: [
+                    ...historicalParcels,
+                    {
+                        pickupDate: futureStart,
+                        pickupEarliestTime: futureStart,
+                        pickupLatestTime: futureEnd,
+                    },
+                ],
+            };
+
+            const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
+
+            expect(result.success).toBe(true);
+            expect(validateParcelAssignmentsMock).toHaveBeenCalledTimes(1);
+            expect(insertedParcels).toHaveLength(1);
+            expect(insertedParcels[0].pickup_date_time_earliest).toEqual(futureStart);
+            expect(softDeletedParcelIds).toHaveLength(0);
         } finally {
             vi.useRealTimers();
         }

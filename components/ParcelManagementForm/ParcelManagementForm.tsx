@@ -117,12 +117,8 @@ export function ParcelManagementForm({
 
                     // Show error toast
                     notifications.show({
-                        title: tParcel("actions.back").includes("Tillbaka")
-                            ? "Kunde inte spara"
-                            : "Could not save",
-                        message: tParcel("actions.back").includes("Tillbaka")
-                            ? "Paket kunde inte sparas på grund av valideringsfel"
-                            : "Parcels could not be saved due to validation errors",
+                        title: tParcel("validation.title"),
+                        message: tParcel("validation.description"),
                         color: "red",
                         icon: <IconAlertCircle size="1rem" />,
                         autoClose: 5000,
