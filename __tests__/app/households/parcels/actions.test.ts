@@ -14,6 +14,7 @@ let insertedParcels: any[] = [];
 let deleteCalled = false;
 let existingFutureParcels: any[] = [];
 let softDeletedParcelIds: string[] = [];
+let updatedParcels: any[] = [];
 
 // Mock the database module
 vi.mock("@/app/db/drizzle", () => {
@@ -44,6 +45,14 @@ vi.mock("@/app/db/drizzle", () => {
                     })),
                 };
             }),
+        })),
+        update: vi.fn(() => ({
+            set: vi.fn((values: any) => ({
+                where: vi.fn(() => {
+                    updatedParcels.push(values);
+                    return Promise.resolve();
+                }),
+            })),
         })),
         execute: vi.fn(async () => {
             // Mock execute for any raw SQL queries
@@ -99,6 +108,10 @@ vi.mock("@/app/utils/parcels/state-transitions", () => ({
     }),
 }));
 
+vi.mock("@/app/utils/sms/sms-service", () => ({
+    queuePickupUpdatedSms: vi.fn(async () => ({ success: true })),
+}));
+
 describe("updateHouseholdParcels - Same-day parcel handling", () => {
     const testHouseholdId = "test-household-123";
     const testLocationId = "test-location-456";
@@ -108,6 +121,7 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
         insertedParcels = [];
         existingFutureParcels = [];
         softDeletedParcelIds = [];
+        updatedParcels = [];
         vi.clearAllMocks();
     });
 
@@ -507,11 +521,13 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
         }
     });
 
-    it("should validate changed existing future parcels with their existing id", async () => {
+    it("should validate and update changed existing future parcels with their existing id", async () => {
         const { updateHouseholdParcels } =
             await import("@/app/[locale]/households/[id]/parcels/actions");
         const scheduleActions = await import("@/app/[locale]/schedule/actions");
+        const smsService = await import("@/app/utils/sms/sms-service");
         const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
+        const queuePickupUpdatedSmsMock = vi.mocked(smsService.queuePickupUpdatedSms);
 
         const now = new Date();
         now.setHours(10, 0, 0, 0);
@@ -563,8 +579,15 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
 
             expect(result.success).toBe(true);
             expect(validateParcelAssignmentsMock).toHaveBeenCalledTimes(1);
-            expect(insertedParcels).toHaveLength(1);
-            expect(softDeletedParcelIds).toEqual(["existing-future-parcel"]);
+            expect(insertedParcels).toHaveLength(0);
+            expect(updatedParcels).toHaveLength(1);
+            expect(updatedParcels[0]).toMatchObject({
+                pickup_location_id: testLocationId,
+                pickup_date_time_earliest: changedStart,
+                pickup_date_time_latest: changedEnd,
+            });
+            expect(softDeletedParcelIds).toHaveLength(0);
+            expect(queuePickupUpdatedSmsMock).toHaveBeenCalledWith("existing-future-parcel");
         } finally {
             vi.useRealTimers();
         }

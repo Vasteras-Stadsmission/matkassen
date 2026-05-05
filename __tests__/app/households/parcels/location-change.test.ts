@@ -15,6 +15,7 @@ import type { FoodParcels } from "@/app/[locale]/households/enroll/types";
 let insertedParcels: any[] = [];
 let deletedParcelIds: string[] = [];
 let existingParcels: any[] = [];
+let updatedParcels: any[] = [];
 
 // Mock the database module with location-aware logic
 vi.mock("@/app/db/drizzle", () => {
@@ -30,10 +31,11 @@ vi.mock("@/app/db/drizzle", () => {
             }),
         })),
         update: vi.fn(() => ({
-            set: vi.fn(() => ({
+            set: vi.fn((values: any) => ({
                 where: vi.fn((condition: any) => {
                     // Mock soft delete via update - track the operation
                     // In real implementation, this would set deleted_at and deleted_by_user_id
+                    updatedParcels.push(values);
                     return Promise.resolve();
                 }),
             })),
@@ -124,6 +126,7 @@ describe("updateHouseholdParcels - Location Changes", () => {
         insertedParcels = [];
         deletedParcelIds = [];
         existingParcels = [];
+        updatedParcels = [];
         vi.clearAllMocks();
     });
 
@@ -163,6 +166,7 @@ describe("updateHouseholdParcels - Location Changes", () => {
                 pickupLocationId: locationB, // Changed from A to B
                 parcels: [
                     {
+                        id: "existing-parcel-123",
                         pickupDate: tomorrow,
                         pickupEarliestTime: pickupStart,
                         pickupLatestTime: pickupEnd,
@@ -176,16 +180,13 @@ describe("updateHouseholdParcels - Location Changes", () => {
             // Verify the result was successful
             expect(result.success).toBe(true);
 
-            // Verify new parcel was inserted with location B
-            expect(insertedParcels).toHaveLength(1);
-            expect(insertedParcels[0].pickup_location_id).toBe(locationB);
-            expect(insertedParcels[0].pickup_date_time_earliest).toEqual(pickupStart);
-            expect(insertedParcels[0].pickup_date_time_latest).toEqual(pickupEnd);
-
-            // The key insight: The old parcel at location A should be identified for deletion
-            // because the deletion logic now includes location in the key
-            // (We can't easily verify the delete was called with the right ID in this mock setup,
-            // but the logic builds desiredParcelKeys with location included)
+            // Existing future parcels keep their ID when moved, so sent reminders
+            // can produce pickup_updated SMS instead of cancellation semantics.
+            expect(insertedParcels).toHaveLength(0);
+            expect(updatedParcels).toHaveLength(1);
+            expect(updatedParcels[0].pickup_location_id).toBe(locationB);
+            expect(updatedParcels[0].pickup_date_time_earliest).toEqual(pickupStart);
+            expect(updatedParcels[0].pickup_date_time_latest).toEqual(pickupEnd);
         } finally {
             vi.useRealTimers();
         }
@@ -227,6 +228,7 @@ describe("updateHouseholdParcels - Location Changes", () => {
                 pickupLocationId: locationA, // Same location
                 parcels: [
                     {
+                        id: "existing-parcel-123",
                         pickupDate: tomorrow,
                         pickupEarliestTime: pickupStart,
                         pickupLatestTime: pickupEnd,
@@ -241,6 +243,7 @@ describe("updateHouseholdParcels - Location Changes", () => {
             // Unchanged future parcels are already in the desired state, so the
             // diff-based action should neither reinsert nor delete them.
             expect(insertedParcels).toHaveLength(0);
+            expect(updatedParcels).toHaveLength(0);
 
             // The existing parcel should NOT be marked for deletion
             // because it matches the desired state (same location + times)
@@ -294,11 +297,13 @@ describe("updateHouseholdParcels - Location Changes", () => {
                 pickupLocationId: locationB,
                 parcels: [
                     {
+                        id: "parcel-1",
                         pickupDate: tomorrow,
                         pickupEarliestTime: slot1Start,
                         pickupLatestTime: slot1End,
                     },
                     {
+                        id: "parcel-2",
                         pickupDate: tomorrow,
                         pickupEarliestTime: slot2Start,
                         pickupLatestTime: slot2End,
@@ -310,12 +315,11 @@ describe("updateHouseholdParcels - Location Changes", () => {
 
             expect(result.success).toBe(true);
 
-            // Should insert 2 new parcels at location B
-            expect(insertedParcels).toHaveLength(2);
-            expect(insertedParcels[0].pickup_location_id).toBe(locationB);
-            expect(insertedParcels[1].pickup_location_id).toBe(locationB);
-
-            // Both old parcels at location A should be identified for deletion
+            // Should update both existing parcels in place.
+            expect(insertedParcels).toHaveLength(0);
+            expect(updatedParcels).toHaveLength(2);
+            expect(updatedParcels[0].pickup_location_id).toBe(locationB);
+            expect(updatedParcels[1].pickup_location_id).toBe(locationB);
         } finally {
             vi.useRealTimers();
         }
@@ -370,11 +374,13 @@ describe("updateHouseholdParcels - Location Changes", () => {
                 pickupLocationId: locationA,
                 parcels: [
                     {
+                        id: "parcel-1",
                         pickupDate: tomorrow,
                         pickupEarliestTime: slot1Start,
                         pickupLatestTime: slot1End,
                     },
                     {
+                        id: "parcel-2",
                         pickupDate: dayAfterTomorrow,
                         pickupEarliestTime: slot2Start,
                         pickupLatestTime: slot2End,
@@ -387,12 +393,10 @@ describe("updateHouseholdParcels - Location Changes", () => {
             expect(result.success).toBe(true);
 
             // The unchanged location A parcel is already in the desired state.
-            // Only the location B -> A change should be inserted.
-            expect(insertedParcels).toHaveLength(1);
-            expect(insertedParcels[0].pickup_location_id).toBe(locationA);
-
-            // The parcel at location B with slot2 times should be deleted
-            // because desired key is "locationA-slot2times" but existing is "locationB-slot2times"
+            // Only the location B -> A change should be updated in place.
+            expect(insertedParcels).toHaveLength(0);
+            expect(updatedParcels).toHaveLength(1);
+            expect(updatedParcels[0].pickup_location_id).toBe(locationA);
         } finally {
             vi.useRealTimers();
         }
