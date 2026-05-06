@@ -353,6 +353,7 @@ async function getHouseholdEditData(householdId: string) {
     // Prepare parcels in the format expected by the form
     const parcels = foodParcelsData.map(parcel => ({
         id: parcel.id,
+        pickupLocationId: parcel.pickupLocationId,
         pickupDate: new Date(parcel.pickupDate),
         pickupEarliestTime: new Date(parcel.pickupEarliestTime),
         pickupLatestTime: new Date(parcel.pickupLatestTime),

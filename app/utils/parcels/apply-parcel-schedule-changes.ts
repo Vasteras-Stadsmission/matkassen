@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import {
     foodParcels,
     pickupLocations,
@@ -53,6 +53,10 @@ interface FinalStateParcel {
 const parcelKey = (locationId: string, earliest: Date, latest: Date) =>
     `${locationId}-${earliest.toISOString()}-${latest.toISOString()}`;
 
+function targetLocationId(parcel: FoodParcel, fallbackLocationId: string): string {
+    return parcel.pickupLocationId || fallbackLocationId;
+}
+
 function uniqueIds(ids: Array<string | null | undefined>): string[] {
     return [...new Set(ids.filter((id): id is string => Boolean(id)))];
 }
@@ -103,8 +107,10 @@ function hasDesiredParcelChanged(
     desired: FoodParcel,
     pickupLocationId: string,
 ): boolean {
+    const desiredLocationId = targetLocationId(desired, pickupLocationId);
+
     return (
-        existing.locationId !== pickupLocationId ||
+        existing.locationId !== desiredLocationId ||
         existing.earliest.getTime() !== desired.pickupEarliestTime.getTime() ||
         existing.latest.getTime() !== desired.pickupLatestTime.getTime()
     );
@@ -223,28 +229,48 @@ async function validateFinalState(
         return [];
     }
 
-    const [location] = await tx
+    const targetLocationIds = uniqueIds(
+        changedFutureParcels.map(parcel => targetLocationId(parcel, args.pickupLocationId)),
+    );
+
+    const locations = await tx
         .select({
             id: pickupLocations.id,
             maxParcelsPerDay: pickupLocations.parcels_max_per_day,
             maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
         })
         .from(pickupLocations)
-        .where(eq(pickupLocations.id, args.pickupLocationId))
-        .limit(1);
+        .where(inArray(pickupLocations.id, targetLocationIds));
 
-    if (!location) {
-        return [
-            {
-                field: "locationId",
-                code: ValidationErrorCodes.LOCATION_NOT_FOUND,
-                message: "Pickup location not found",
-                details: { locationId: args.pickupLocationId },
-            },
-        ];
+    const locationById = new Map(locations.map(location => [location.id, location]));
+    const errors: ValidationError[] = [];
+    const missingLocationIds = targetLocationIds.filter(
+        locationId => !locationById.has(locationId),
+    );
+
+    for (const locationId of missingLocationIds) {
+        addUniqueError(errors, {
+            field: "locationId",
+            code: ValidationErrorCodes.LOCATION_NOT_FOUND,
+            message: "Pickup location not found",
+            details: { locationId },
+        });
     }
 
-    const errors = await validateOpeningHours(tx, args.pickupLocationId, changedFutureParcels);
+    if (missingLocationIds.length > 0) {
+        return errors;
+    }
+
+    for (const locationId of targetLocationIds) {
+        const locationParcels = changedFutureParcels.filter(
+            parcel => targetLocationId(parcel, args.pickupLocationId) === locationId,
+        );
+
+        for (const error of await validateOpeningHours(tx, locationId, locationParcels)) {
+            addUniqueError(errors, error);
+        }
+    }
+
     const existingHouseholdFutureIds = new Set(existingFutureParcels.map(parcel => parcel.id));
     const existingFutureById = new Map(existingFutureParcels.map(parcel => [parcel.id, parcel]));
 
@@ -259,7 +285,7 @@ async function validateFinalState(
         .from(foodParcels)
         .where(
             and(
-                eq(foodParcels.pickup_location_id, args.pickupLocationId),
+                inArray(foodParcels.pickup_location_id, targetLocationIds),
                 gt(foodParcels.pickup_date_time_latest, now),
                 notDeleted(),
             ),
@@ -278,33 +304,35 @@ async function validateFinalState(
     const desiredRows: FinalStateParcel[] = desiredFutureParcels.map((parcel, index) => ({
         id: parcel.id ?? `new-${index}-${parcel.pickupEarliestTime.toISOString()}`,
         householdId: args.householdId,
-        locationId: args.pickupLocationId,
+        locationId: targetLocationId(parcel, args.pickupLocationId),
         earliest: parcel.pickupEarliestTime,
         latest: parcel.pickupLatestTime,
     }));
     const changedRows: FinalStateParcel[] = changedFutureParcels.map((parcel, index) => ({
         id: parcel.id ?? `changed-new-${index}-${parcel.pickupEarliestTime.toISOString()}`,
         householdId: args.householdId,
-        locationId: args.pickupLocationId,
+        locationId: targetLocationId(parcel, args.pickupLocationId),
         earliest: parcel.pickupEarliestTime,
         latest: parcel.pickupLatestTime,
     }));
 
     const finalRows = [...retainedRows, ...desiredRows];
     const changedDates = new Set(changedRows.map(parcel => stockholmDate(parcel.earliest)));
-    const dailyCapacityDates = new Set(
-        changedFutureParcels
-            .filter(parcel => {
-                const existing = parcel.id ? existingFutureById.get(parcel.id) : undefined;
+    const dailyCapacityChecks = new Map<string, { locationId: string; date: string }>();
 
-                return (
-                    !existing ||
-                    existing.locationId !== args.pickupLocationId ||
-                    stockholmDate(existing.earliest) !== stockholmDate(parcel.pickupEarliestTime)
-                );
-            })
-            .map(parcel => stockholmDate(parcel.pickupEarliestTime)),
-    );
+    for (const parcel of changedFutureParcels) {
+        const locationId = targetLocationId(parcel, args.pickupLocationId);
+        const date = stockholmDate(parcel.pickupEarliestTime);
+        const existing = parcel.id ? existingFutureById.get(parcel.id) : undefined;
+
+        if (
+            !existing ||
+            existing.locationId !== locationId ||
+            stockholmDate(existing.earliest) !== date
+        ) {
+            dailyCapacityChecks.set(`${locationId}-${date}`, { locationId, date });
+        }
+    }
 
     for (const date of changedDates) {
         const householdRowsOnDate = desiredRows.filter(
@@ -319,18 +347,18 @@ async function validateFinalState(
                 details: {
                     householdId: args.householdId,
                     date,
-                    locationId: args.pickupLocationId,
                 },
             });
         }
     }
 
-    for (const date of dailyCapacityDates) {
+    for (const { locationId, date } of dailyCapacityChecks.values()) {
+        const location = locationById.get(locationId)!;
+
         if (location.maxParcelsPerDay !== null) {
             const locationRowsOnDate = finalRows.filter(
                 parcel =>
-                    parcel.locationId === args.pickupLocationId &&
-                    stockholmDate(parcel.earliest) === date,
+                    parcel.locationId === locationId && stockholmDate(parcel.earliest) === date,
             );
 
             if (locationRowsOnDate.length > location.maxParcelsPerDay) {
@@ -342,39 +370,40 @@ async function validateFinalState(
                         current: locationRowsOnDate.length,
                         maximum: location.maxParcelsPerDay,
                         date,
-                        locationId: args.pickupLocationId,
+                        locationId,
                     },
                 });
             }
         }
     }
 
-    if (location.maxParcelsPerSlot !== null) {
-        const checkedSlots = new Set<string>();
+    const checkedSlots = new Set<string>();
 
-        for (const desired of changedRows) {
-            const slotKey = `${desired.locationId}-${desired.earliest.toISOString()}-${desired.latest.toISOString()}`;
-            if (checkedSlots.has(slotKey)) continue;
-            checkedSlots.add(slotKey);
+    for (const desired of changedRows) {
+        const location = locationById.get(desired.locationId)!;
+        if (location.maxParcelsPerSlot === null) continue;
 
-            const overlappingRows = finalRows.filter(
-                parcel => parcel.locationId === args.pickupLocationId && overlaps(parcel, desired),
-            );
+        const slotKey = `${desired.locationId}-${desired.earliest.toISOString()}-${desired.latest.toISOString()}`;
+        if (checkedSlots.has(slotKey)) continue;
+        checkedSlots.add(slotKey);
 
-            if (overlappingRows.length > location.maxParcelsPerSlot) {
-                addUniqueError(errors, {
-                    field: "timeSlot",
-                    code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
-                    message: `Maximum capacity (${location.maxParcelsPerSlot}) reached for this time slot`,
-                    details: {
-                        current: overlappingRows.length,
-                        maximum: location.maxParcelsPerSlot,
-                        date: stockholmDate(desired.earliest),
-                        locationId: args.pickupLocationId,
-                        timeSlot: Time.fromDate(desired.earliest).toTimeString(),
-                    },
-                });
-            }
+        const overlappingRows = finalRows.filter(
+            parcel => parcel.locationId === desired.locationId && overlaps(parcel, desired),
+        );
+
+        if (overlappingRows.length > location.maxParcelsPerSlot) {
+            addUniqueError(errors, {
+                field: "timeSlot",
+                code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
+                message: `Maximum capacity (${location.maxParcelsPerSlot}) reached for this time slot`,
+                details: {
+                    current: overlappingRows.length,
+                    maximum: location.maxParcelsPerSlot,
+                    date: stockholmDate(desired.earliest),
+                    locationId: desired.locationId,
+                    timeSlot: timeSlotLabel(desired.earliest, desired.latest),
+                },
+            });
         }
     }
 
@@ -457,7 +486,11 @@ export async function applyHouseholdParcelScheduleChanges(
         }
 
         return !mutableExistingFutureKeys.has(
-            parcelKey(args.pickupLocationId, parcel.pickupEarliestTime, parcel.pickupLatestTime),
+            parcelKey(
+                targetLocationId(parcel, args.pickupLocationId),
+                parcel.pickupEarliestTime,
+                parcel.pickupLatestTime,
+            ),
         );
     });
 
@@ -491,7 +524,7 @@ export async function applyHouseholdParcelScheduleChanges(
             .filter(parcel => !parcel.id)
             .map(parcel =>
                 parcelKey(
-                    args.pickupLocationId,
+                    targetLocationId(parcel, args.pickupLocationId),
                     parcel.pickupEarliestTime,
                     parcel.pickupLatestTime,
                 ),
@@ -539,13 +572,14 @@ export async function applyHouseholdParcelScheduleChanges(
 
     for (const parcel of parcelsToUpdate) {
         const existing = mutableExistingFutureById.get(parcel.id!)!;
+        const parcelTargetLocationId = targetLocationId(parcel, args.pickupLocationId);
         affectedLocationIds.add(existing.locationId);
-        affectedLocationIds.add(args.pickupLocationId);
+        affectedLocationIds.add(parcelTargetLocationId);
 
         await tx
             .update(foodParcels)
             .set({
-                pickup_location_id: args.pickupLocationId,
+                pickup_location_id: parcelTargetLocationId,
                 pickup_date_time_earliest: parcel.pickupEarliestTime,
                 pickup_date_time_latest: parcel.pickupLatestTime,
             })
@@ -557,7 +591,7 @@ export async function applyHouseholdParcelScheduleChanges(
     if (parcelsToCreate.length > 0) {
         const parcelsToSave = parcelsToCreate.map(parcel => ({
             household_id: args.householdId,
-            pickup_location_id: args.pickupLocationId,
+            pickup_location_id: targetLocationId(parcel, args.pickupLocationId),
             pickup_date_time_earliest: parcel.pickupEarliestTime,
             pickup_date_time_latest: parcel.pickupLatestTime,
             is_picked_up: false,
@@ -579,7 +613,9 @@ export async function applyHouseholdParcelScheduleChanges(
                 },
             ]);
         }
-        affectedLocationIds.add(args.pickupLocationId);
+        for (const parcel of parcelsToCreate) {
+            affectedLocationIds.add(targetLocationId(parcel, args.pickupLocationId));
+        }
     }
 
     return {

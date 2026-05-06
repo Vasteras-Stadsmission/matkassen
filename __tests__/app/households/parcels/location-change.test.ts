@@ -57,6 +57,16 @@ vi.mock("@/app/db/drizzle", () => {
                                 maxParcelsPerDay: 15,
                                 maxParcelsPerSlot: 15,
                             },
+                            {
+                                id: "location-a-456",
+                                maxParcelsPerDay: 15,
+                                maxParcelsPerSlot: 15,
+                            },
+                            {
+                                id: "location-b-789",
+                                maxParcelsPerDay: 15,
+                                maxParcelsPerSlot: 15,
+                            },
                         ]);
                     }
 

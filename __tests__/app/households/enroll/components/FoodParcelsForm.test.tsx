@@ -17,6 +17,9 @@ vi.mock("next-intl", () => ({
         if (key === "validationErrors.doubleBookingDetailed") {
             return `Household already has a parcel scheduled on ${params.date}`;
         }
+        if (key === "validationErrors.outsideOperatingHoursDetailed") {
+            return `Selected time ${params.timeSlot} on ${params.date} is outside operating hours`;
+        }
         if (key === "validationErrors.repeated") {
             return `(${params.count} times)`;
         }
@@ -654,6 +657,24 @@ describe("FoodParcelsForm Business Logic Tests", () => {
                             date: "2026-05-16",
                         },
                     },
+                    {
+                        field: "parcel-1",
+                        code: "OUTSIDE_OPERATING_HOURS",
+                        message: "Selected pickup time is outside opening hours",
+                        details: {
+                            date: "2026-05-17",
+                            timeSlot: "08:00-08:15",
+                        },
+                    },
+                    {
+                        field: "parcel-2",
+                        code: "OUTSIDE_OPERATING_HOURS",
+                        message: "Selected pickup time is outside opening hours",
+                        details: {
+                            date: "2026-05-18",
+                            timeSlot: "18:00-18:15",
+                        },
+                    },
                 ]}
             />,
         );
@@ -673,6 +694,12 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         ).not.toBeNull();
         expect(
             screen.getByText(/Household already has a parcel scheduled on 2026-05-16/),
+        ).not.toBeNull();
+        expect(
+            screen.getByText(/Selected time 08:00-08:15 on 2026-05-17 is outside operating hours/),
+        ).not.toBeNull();
+        expect(
+            screen.getByText(/Selected time 18:00-18:15 on 2026-05-18 is outside operating hours/),
         ).not.toBeNull();
         expect(
             screen.getAllByText(

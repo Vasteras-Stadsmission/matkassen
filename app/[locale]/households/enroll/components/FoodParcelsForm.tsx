@@ -815,6 +815,7 @@ export default function FoodParcelsForm({
             // The absence of an ID signals to the backend that this is a new parcel
             return {
                 id: undefined,
+                pickupLocationId: formState.pickupLocationId,
                 pickupDate: new Date(date),
                 pickupEarliestTime: earliestTime,
                 pickupLatestTime: latestTime,
@@ -823,6 +824,7 @@ export default function FoodParcelsForm({
     }, [
         selectedDates,
         formState.parcels,
+        formState.pickupLocationId,
         slotDuration,
         getFirstAvailableSlot,
         getOpeningHoursForDate,
@@ -935,6 +937,9 @@ export default function FoodParcelsForm({
             // Update the parcel with both new times
             updatedParcels[index] = {
                 ...parcel,
+                pickupLocationId: parcel.id
+                    ? parcel.pickupLocationId
+                    : formState.pickupLocationId || parcel.pickupLocationId,
                 pickupEarliestTime: newStartTime,
                 pickupLatestTime: newEndTime,
             };
@@ -1105,6 +1110,14 @@ export default function FoodParcelsForm({
             error.code === "TIME_SLOT_CONFLICT"
         ) {
             return t("validationErrors.doubleBooking");
+        }
+
+        if (
+            (error.code === "OUTSIDE_OPERATING_HOURS" || error.code === "OUTSIDE_OPENING_HOURS") &&
+            date &&
+            timeSlot
+        ) {
+            return t("validationErrors.outsideOperatingHoursDetailed", { date, timeSlot });
         }
 
         if (error.code === "OUTSIDE_OPERATING_HOURS" || error.code === "OUTSIDE_OPENING_HOURS") {

@@ -219,6 +219,170 @@ describe("Household parcel scheduling integration", () => {
         expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
     });
 
+    it("preserves unchanged future parcels at multiple pickup locations during full household edit", async () => {
+        const db = await getTestDb();
+        const { location: firstLocation } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const { location: secondLocation } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const { location: newParcelLocation } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const household = await createTestHousehold({
+            primary_pickup_location_id: firstLocation.id,
+        });
+
+        const firstSlot = withEnd(atHour(daysFromNow(2), 10));
+        const secondSlot = withEnd(atHour(daysFromNow(3), 11));
+        const firstParcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: firstLocation.id,
+            pickup_date_time_earliest: firstSlot.start,
+            pickup_date_time_latest: firstSlot.end,
+        });
+        const secondParcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: secondLocation.id,
+            pickup_date_time_earliest: secondSlot.start,
+            pickup_date_time_latest: secondSlot.end,
+        });
+
+        const newSlot = withEnd(atHour(daysFromNow(5), 12));
+        const result = await updateHousehold(
+            household.id,
+            buildUpdateData(household, newParcelLocation.id, [
+                {
+                    id: firstParcel.id,
+                    pickupLocationId: firstLocation.id,
+                    pickupDate: firstSlot.start,
+                    pickupEarliestTime: firstSlot.start,
+                    pickupLatestTime: firstSlot.end,
+                },
+                {
+                    id: secondParcel.id,
+                    pickupLocationId: secondLocation.id,
+                    pickupDate: secondSlot.start,
+                    pickupEarliestTime: secondSlot.start,
+                    pickupLatestTime: secondSlot.end,
+                },
+                {
+                    pickupLocationId: newParcelLocation.id,
+                    pickupDate: newSlot.start,
+                    pickupEarliestTime: newSlot.start,
+                    pickupLatestTime: newSlot.end,
+                },
+            ]),
+        );
+
+        expect(result.success).toBe(true);
+
+        const activeParcels = await db
+            .select()
+            .from(foodParcels)
+            .where(and(eq(foodParcels.household_id, household.id), isNull(foodParcels.deleted_at)));
+
+        expect(activeParcels).toHaveLength(3);
+        expect(activeParcels.find(parcel => parcel.id === firstParcel.id)?.pickup_location_id).toBe(
+            firstLocation.id,
+        );
+        expect(
+            activeParcels.find(parcel => parcel.id === secondParcel.id)?.pickup_location_id,
+        ).toBe(secondLocation.id);
+        expect(
+            activeParcels.find(
+                parcel => parcel.pickup_date_time_earliest.getTime() === newSlot.start.getTime(),
+            )?.pickup_location_id,
+        ).toBe(newParcelLocation.id);
+        expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
+    });
+
+    it("preserves unchanged future parcels at multiple pickup locations through the parcel dialog action", async () => {
+        const db = await getTestDb();
+        const { location: firstLocation } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const { location: secondLocation } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const { location: newParcelLocation } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const household = await createTestHousehold({
+            primary_pickup_location_id: firstLocation.id,
+        });
+
+        const firstSlot = withEnd(atHour(daysFromNow(2), 10));
+        const secondSlot = withEnd(atHour(daysFromNow(3), 11));
+        const firstParcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: firstLocation.id,
+            pickup_date_time_earliest: firstSlot.start,
+            pickup_date_time_latest: firstSlot.end,
+        });
+        const secondParcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: secondLocation.id,
+            pickup_date_time_earliest: secondSlot.start,
+            pickup_date_time_latest: secondSlot.end,
+        });
+
+        const newSlot = withEnd(atHour(daysFromNow(5), 12));
+        const result = await updateHouseholdParcels(household.id, {
+            pickupLocationId: newParcelLocation.id,
+            parcels: [
+                {
+                    id: firstParcel.id,
+                    pickupLocationId: firstLocation.id,
+                    pickupDate: firstSlot.start,
+                    pickupEarliestTime: firstSlot.start,
+                    pickupLatestTime: firstSlot.end,
+                },
+                {
+                    id: secondParcel.id,
+                    pickupLocationId: secondLocation.id,
+                    pickupDate: secondSlot.start,
+                    pickupEarliestTime: secondSlot.start,
+                    pickupLatestTime: secondSlot.end,
+                },
+                {
+                    pickupLocationId: newParcelLocation.id,
+                    pickupDate: newSlot.start,
+                    pickupEarliestTime: newSlot.start,
+                    pickupLatestTime: newSlot.end,
+                },
+            ],
+        });
+
+        expect(result.success).toBe(true);
+
+        const activeParcels = await db
+            .select()
+            .from(foodParcels)
+            .where(and(eq(foodParcels.household_id, household.id), isNull(foodParcels.deleted_at)));
+
+        expect(activeParcels).toHaveLength(3);
+        expect(activeParcels.find(parcel => parcel.id === firstParcel.id)?.pickup_location_id).toBe(
+            firstLocation.id,
+        );
+        expect(
+            activeParcels.find(parcel => parcel.id === secondParcel.id)?.pickup_location_id,
+        ).toBe(secondLocation.id);
+        expect(
+            activeParcels.find(
+                parcel => parcel.pickup_date_time_earliest.getTime() === newSlot.start.getTime(),
+            )?.pickup_location_id,
+        ).toBe(newParcelLocation.id);
+        expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
+    });
+
     afterEach(() => {
         vi.useRealTimers();
     });
@@ -274,6 +438,82 @@ describe("Household parcel scheduling integration", () => {
         expect(mockQueuePickupUpdatedSms).toHaveBeenCalledWith(parcel.id);
         expect(mockRecomputeOutsideHoursCount).toHaveBeenCalledWith(oldLocation.id);
         expect(mockRecomputeOutsideHoursCount).toHaveBeenCalledWith(newLocation.id);
+    });
+
+    it("moves only the changed parcel target location while preserving another future parcel location", async () => {
+        const db = await getTestDb();
+        const { location: firstLocation } = await createTestLocationWithSchedule(
+            {},
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const { location: secondLocation } = await createTestLocationWithSchedule(
+            {},
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const { location: targetLocation } = await createTestLocationWithSchedule(
+            {},
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const household = await createTestHousehold({
+            primary_pickup_location_id: firstLocation.id,
+        });
+
+        const originalSlot = withEnd(atHour(daysFromNow(2), 10));
+        const unchangedSlot = withEnd(atHour(daysFromNow(4), 11));
+        const movedParcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: firstLocation.id,
+            pickup_date_time_earliest: originalSlot.start,
+            pickup_date_time_latest: originalSlot.end,
+        });
+        const unchangedParcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: secondLocation.id,
+            pickup_date_time_earliest: unchangedSlot.start,
+            pickup_date_time_latest: unchangedSlot.end,
+        });
+
+        const movedSlot = withEnd(atHour(daysFromNow(3), 12));
+        const result = await updateHousehold(
+            household.id,
+            buildUpdateData(household, targetLocation.id, [
+                {
+                    id: movedParcel.id,
+                    pickupLocationId: targetLocation.id,
+                    pickupDate: movedSlot.start,
+                    pickupEarliestTime: movedSlot.start,
+                    pickupLatestTime: movedSlot.end,
+                },
+                {
+                    id: unchangedParcel.id,
+                    pickupLocationId: secondLocation.id,
+                    pickupDate: unchangedSlot.start,
+                    pickupEarliestTime: unchangedSlot.start,
+                    pickupLatestTime: unchangedSlot.end,
+                },
+            ]),
+        );
+
+        expect(result.success).toBe(true);
+
+        const activeParcels = await db
+            .select()
+            .from(foodParcels)
+            .where(and(eq(foodParcels.household_id, household.id), isNull(foodParcels.deleted_at)));
+
+        expect(activeParcels).toHaveLength(2);
+        expect(activeParcels.find(parcel => parcel.id === movedParcel.id)).toMatchObject({
+            pickup_location_id: targetLocation.id,
+            pickup_date_time_earliest: movedSlot.start,
+            pickup_date_time_latest: movedSlot.end,
+        });
+        expect(activeParcels.find(parcel => parcel.id === unchangedParcel.id)).toMatchObject({
+            pickup_location_id: secondLocation.id,
+            pickup_date_time_earliest: unchangedSlot.start,
+            pickup_date_time_latest: unchangedSlot.end,
+        });
+        expect(mockQueuePickupUpdatedSms).toHaveBeenCalledWith(movedParcel.id);
+        expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalledWith(unchangedParcel.id);
     });
 
     it("rejects full household edit when the changed parcel would exceed daily capacity", async () => {
@@ -376,6 +616,68 @@ describe("Household parcel scheduling integration", () => {
                 },
             ]),
         );
+
+        expect(result.success).toBe(true);
+
+        const activeParcels = await db
+            .select()
+            .from(foodParcels)
+            .where(and(eq(foodParcels.household_id, household.id), isNull(foodParcels.deleted_at)));
+
+        expect(activeParcels).toHaveLength(2);
+        expect(activeParcels.some(parcel => parcel.id === existingParcel.id)).toBe(true);
+        expect(
+            activeParcels.some(
+                parcel => parcel.pickup_date_time_earliest.getTime() === newSlot.start.getTime(),
+            ),
+        ).toBe(true);
+    });
+
+    it("allows parcel dialog add when an unchanged future date is already over daily capacity", async () => {
+        const db = await getTestDb();
+        const { location } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 1, max_parcels_per_slot: 10 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const household = await createTestHousehold({
+            primary_pickup_location_id: location.id,
+        });
+        const otherHousehold = await createTestHousehold();
+
+        const overCapacitySlot = withEnd(atHour(daysFromNow(2), 10));
+        const existingParcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: overCapacitySlot.start,
+            pickup_date_time_latest: overCapacitySlot.end,
+        });
+        const otherSlot = withEnd(atHour(daysFromNow(2), 11));
+        await createTestParcel({
+            household_id: otherHousehold.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: otherSlot.start,
+            pickup_date_time_latest: otherSlot.end,
+        });
+
+        const newSlot = withEnd(atHour(daysFromNow(4), 12));
+        const result = await updateHouseholdParcels(household.id, {
+            pickupLocationId: location.id,
+            parcels: [
+                {
+                    id: existingParcel.id,
+                    pickupLocationId: location.id,
+                    pickupDate: overCapacitySlot.start,
+                    pickupEarliestTime: overCapacitySlot.start,
+                    pickupLatestTime: overCapacitySlot.end,
+                },
+                {
+                    pickupLocationId: location.id,
+                    pickupDate: newSlot.start,
+                    pickupEarliestTime: newSlot.start,
+                    pickupLatestTime: newSlot.end,
+                },
+            ],
+        });
 
         expect(result.success).toBe(true);
 
