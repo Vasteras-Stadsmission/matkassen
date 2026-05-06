@@ -216,9 +216,10 @@ async function validateFinalState(
     args: ApplyHouseholdParcelScheduleChangesArgs,
     existingFutureParcels: ExistingFutureParcel[],
     desiredFutureParcels: FoodParcel[],
+    changedFutureParcels: FoodParcel[],
     now: Date,
 ): Promise<ValidationError[]> {
-    if (desiredFutureParcels.length === 0) {
+    if (changedFutureParcels.length === 0) {
         return [];
     }
 
@@ -243,8 +244,9 @@ async function validateFinalState(
         ];
     }
 
-    const errors = await validateOpeningHours(tx, args.pickupLocationId, desiredFutureParcels);
+    const errors = await validateOpeningHours(tx, args.pickupLocationId, changedFutureParcels);
     const existingHouseholdFutureIds = new Set(existingFutureParcels.map(parcel => parcel.id));
+    const existingFutureById = new Map(existingFutureParcels.map(parcel => [parcel.id, parcel]));
 
     const targetLocationActiveParcels = await tx
         .select({
@@ -280,11 +282,31 @@ async function validateFinalState(
         earliest: parcel.pickupEarliestTime,
         latest: parcel.pickupLatestTime,
     }));
+    const changedRows: FinalStateParcel[] = changedFutureParcels.map((parcel, index) => ({
+        id: parcel.id ?? `changed-new-${index}-${parcel.pickupEarliestTime.toISOString()}`,
+        householdId: args.householdId,
+        locationId: args.pickupLocationId,
+        earliest: parcel.pickupEarliestTime,
+        latest: parcel.pickupLatestTime,
+    }));
 
     const finalRows = [...retainedRows, ...desiredRows];
-    const desiredDates = new Set(desiredRows.map(parcel => stockholmDate(parcel.earliest)));
+    const changedDates = new Set(changedRows.map(parcel => stockholmDate(parcel.earliest)));
+    const dailyCapacityDates = new Set(
+        changedFutureParcels
+            .filter(parcel => {
+                const existing = parcel.id ? existingFutureById.get(parcel.id) : undefined;
 
-    for (const date of desiredDates) {
+                return (
+                    !existing ||
+                    existing.locationId !== args.pickupLocationId ||
+                    stockholmDate(existing.earliest) !== stockholmDate(parcel.pickupEarliestTime)
+                );
+            })
+            .map(parcel => stockholmDate(parcel.pickupEarliestTime)),
+    );
+
+    for (const date of changedDates) {
         const householdRowsOnDate = desiredRows.filter(
             parcel => stockholmDate(parcel.earliest) === date,
         );
@@ -301,7 +323,9 @@ async function validateFinalState(
                 },
             });
         }
+    }
 
+    for (const date of dailyCapacityDates) {
         if (location.maxParcelsPerDay !== null) {
             const locationRowsOnDate = finalRows.filter(
                 parcel =>
@@ -328,7 +352,7 @@ async function validateFinalState(
     if (location.maxParcelsPerSlot !== null) {
         const checkedSlots = new Set<string>();
 
-        for (const desired of desiredRows) {
+        for (const desired of changedRows) {
             const slotKey = `${desired.locationId}-${desired.earliest.toISOString()}-${desired.latest.toISOString()}`;
             if (checkedSlots.has(slotKey)) continue;
             checkedSlots.add(slotKey);
@@ -419,17 +443,6 @@ export async function applyHouseholdParcelScheduleChanges(
         }
     }
 
-    const finalStateErrors = await validateFinalState(
-        tx,
-        args,
-        existingFutureParcels,
-        desiredFutureParcels,
-        now,
-    );
-    if (finalStateErrors.length > 0) {
-        throw new ParcelValidationError("Parcel validation failed", finalStateErrors);
-    }
-
     const parcelsToChange = desiredFutureParcels.filter(parcel => {
         if (parcel.id) {
             const existing = existingFutureById.get(parcel.id);
@@ -447,6 +460,18 @@ export async function applyHouseholdParcelScheduleChanges(
             parcelKey(args.pickupLocationId, parcel.pickupEarliestTime, parcel.pickupLatestTime),
         );
     });
+
+    const finalStateErrors = await validateFinalState(
+        tx,
+        args,
+        existingFutureParcels,
+        desiredFutureParcels,
+        parcelsToChange,
+        now,
+    );
+    if (finalStateErrors.length > 0) {
+        throw new ParcelValidationError("Parcel validation failed", finalStateErrors);
+    }
 
     const parcelsToUpdate = parcelsToChange.filter(
         parcel => parcel.id && mutableExistingFutureById.has(parcel.id),
