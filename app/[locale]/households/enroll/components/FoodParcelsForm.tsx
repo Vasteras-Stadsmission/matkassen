@@ -679,6 +679,9 @@ export default function FoodParcelsForm({
             const updatedState = {
                 ...formState,
                 pickupLocationId: value,
+                parcels: formState.parcels.map(parcel =>
+                    parcel.id ? parcel : { ...parcel, pickupLocationId: value },
+                ),
             };
             setFormState(updatedState);
             updateData(updatedState);
