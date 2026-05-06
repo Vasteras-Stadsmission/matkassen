@@ -21,6 +21,11 @@ let deleteCalled = false;
 
 // Mock the database module
 vi.mock("@/app/db/drizzle", () => {
+    const queryResult = (value: any[]) =>
+        Object.assign(Promise.resolve(value), {
+            limit: vi.fn(() => Promise.resolve(value.slice(0, 1))),
+        });
+
     const mockDb = {
         transaction: vi.fn(async (callback: any) => {
             return await callback(mockDb);
@@ -32,8 +37,52 @@ vi.mock("@/app/db/drizzle", () => {
             };
         }),
         select: vi.fn(() => ({
-            from: vi.fn(() => ({
-                where: vi.fn(() => Promise.resolve([])),
+            from: vi.fn((table: any) => ({
+                where: vi.fn(() => {
+                    const tableName = table?.[Symbol.for("drizzle:Name")];
+
+                    if (tableName === "pickup_locations") {
+                        return queryResult([
+                            {
+                                id: "test-location-456",
+                                maxParcelsPerDay: 15,
+                                maxParcelsPerSlot: 15,
+                            },
+                        ]);
+                    }
+
+                    if (tableName === "pickup_location_schedules") {
+                        return queryResult([
+                            {
+                                id: "test-schedule",
+                                name: "Test Schedule",
+                                startDate: "2020-01-01",
+                                endDate: "2030-01-01",
+                            },
+                        ]);
+                    }
+
+                    if (tableName === "pickup_location_schedule_days") {
+                        return queryResult(
+                            [
+                                "monday",
+                                "tuesday",
+                                "wednesday",
+                                "thursday",
+                                "friday",
+                                "saturday",
+                                "sunday",
+                            ].map(weekday => ({
+                                weekday,
+                                isOpen: true,
+                                openingTime: "00:00",
+                                closingTime: "23:59",
+                            })),
+                        );
+                    }
+
+                    return queryResult([]);
+                }),
             })),
         })),
         insert: vi.fn(() => ({
@@ -90,6 +139,18 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
 vi.mock("@/app/[locale]/schedule/actions", () => ({
     validateParcelAssignments: vi.fn(async () => ({ success: true })),
     recomputeOutsideHoursCount: vi.fn(async () => {}),
+}));
+
+vi.mock("@/app/utils/parcels/state-transitions", () => ({
+    createParcels: vi.fn(async (_tx: unknown, args: { parcels: any[] }) => {
+        insertedParcels.push(...args.parcels);
+        return args.parcels.map((_parcel, index) => `created-${index}`);
+    }),
+    softDeleteParcelLenient: vi.fn(async () => ({
+        skipped: false,
+        smsCancelled: false,
+        smsSent: false,
+    })),
 }));
 
 // Mock date utils

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { FoodParcels } from "../../../../../app/[locale]/households/enroll/types";
 import FoodParcelsForm from "../../../../../app/[locale]/households/enroll/components/FoodParcelsForm";
 // Mock next-intl
@@ -7,6 +7,21 @@ vi.mock("next-intl", () => ({
     useTranslations: () => (key: string, params?: any) => {
         if (key === "slotDuration" && params?.duration) {
             return `Slot duration: ${params.duration} minutes`;
+        }
+        if (key === "validationErrors.capacityReachedDetailed") {
+            return `Location capacity is full on ${params.date}: ${params.current} of ${params.maximum} parcels are already booked`;
+        }
+        if (key === "validationErrors.slotCapacityReachedDetailed") {
+            return `Time slot ${params.timeSlot} is full on ${params.date}: ${params.current} of ${params.maximum} parcels are already booked`;
+        }
+        if (key === "validationErrors.doubleBookingDetailed") {
+            return `Household already has a parcel scheduled on ${params.date}`;
+        }
+        if (key === "validationErrors.outsideOperatingHoursDetailed") {
+            return `Selected time ${params.timeSlot} on ${params.date} is outside operating hours`;
+        }
+        if (key === "validationErrors.repeated") {
+            return `(${params.count} times)`;
         }
         return key;
     },
@@ -32,56 +47,76 @@ vi.mock("../../../../../app/[locale]/households/enroll/client-actions", () => ({
 }));
 
 // Mock Mantine components
-vi.mock("@mantine/core", () => ({
-    Card: ({ children }: any) => <div data-testid="card">{children}</div>,
-    Title: ({ children }: any) => <h1 data-testid="title">{children}</h1>,
-    Text: ({ children }: any) => <span data-testid="text">{children}</span>,
-    Alert: ({ children, title, icon }: any) => (
-        <div data-testid="alert">
-            {icon ? <span data-testid="alert-icon">{icon}</span> : null}
-            {title ? <strong data-testid="alert-title">{title}</strong> : null}
-            {children}
-        </div>
-    ),
-    Select: ({ value, onChange, data }: any) => (
-        <select data-testid="select" value={value || ""} onChange={e => onChange?.(e.target.value)}>
-            {data?.map((item: any) => (
-                <option key={item.value} value={item.value}>
-                    {item.label}
-                </option>
-            ))}
-        </select>
-    ),
-    SimpleGrid: ({ children }: any) => <div data-testid="simple-grid">{children}</div>,
-    Paper: ({ children }: any) => <div data-testid="paper">{children}</div>,
-    Group: ({ children }: any) => <div data-testid="group">{children}</div>,
-    Stack: ({ children }: any) => <div data-testid="stack">{children}</div>,
-    Box: ({ children }: any) => <div data-testid="box">{children}</div>,
-    Table: ({ children }: any) => <table data-testid="table">{children}</table>,
-    Button: ({ onClick, children }: any) => (
-        <button data-testid="button" onClick={onClick}>
-            {children}
-        </button>
-    ),
-    ActionIcon: ({ onClick, children }: any) => (
-        <button data-testid="action-icon" onClick={onClick}>
-            {children}
-        </button>
-    ),
-    Tooltip: ({ children }: any) => <div data-testid="tooltip">{children}</div>,
-    Loader: () => <div data-testid="loader">Loading...</div>,
-    Modal: ({ children }: any) => <div data-testid="modal">{children}</div>,
-}));
+vi.mock("@mantine/core", () => {
+    const Table = Object.assign(
+        ({ children }: any) => <table data-testid="table">{children}</table>,
+        {
+            Thead: ({ children }: any) => <thead>{children}</thead>,
+            Tbody: ({ children }: any) => <tbody>{children}</tbody>,
+            Tr: ({ children }: any) => <tr>{children}</tr>,
+            Th: ({ children }: any) => <th>{children}</th>,
+            Td: ({ children }: any) => <td>{children}</td>,
+        },
+    );
+
+    return {
+        Card: ({ children }: any) => <div data-testid="card">{children}</div>,
+        Title: ({ children }: any) => <h1 data-testid="title">{children}</h1>,
+        Text: ({ children }: any) => <span data-testid="text">{children}</span>,
+        Alert: ({ children, title, icon }: any) => (
+            <div data-testid="alert">
+                {icon ? <span data-testid="alert-icon">{icon}</span> : null}
+                {title ? <strong data-testid="alert-title">{title}</strong> : null}
+                {children}
+            </div>
+        ),
+        Select: ({ value, onChange, data }: any) => (
+            <select
+                data-testid="select"
+                value={value || ""}
+                onChange={e => onChange?.(e.target.value)}
+            >
+                {data?.map((item: any) => (
+                    <option key={item.value} value={item.value}>
+                        {item.label}
+                    </option>
+                ))}
+            </select>
+        ),
+        SimpleGrid: ({ children }: any) => <div data-testid="simple-grid">{children}</div>,
+        Paper: ({ children }: any) => <div data-testid="paper">{children}</div>,
+        Group: ({ children }: any) => <div data-testid="group">{children}</div>,
+        Stack: ({ children }: any) => <div data-testid="stack">{children}</div>,
+        Box: ({ children }: any) => <div data-testid="box">{children}</div>,
+        Table,
+        Button: ({ onClick, children }: any) => (
+            <button data-testid="button" onClick={onClick}>
+                {children}
+            </button>
+        ),
+        ActionIcon: ({ onClick, children }: any) => (
+            <button data-testid="action-icon" onClick={onClick}>
+                {children}
+            </button>
+        ),
+        Tooltip: ({ children }: any) => <div data-testid="tooltip">{children}</div>,
+        Loader: () => <div data-testid="loader">Loading...</div>,
+        Modal: ({ children }: any) => <div data-testid="modal">{children}</div>,
+    };
+});
 
 vi.mock("@mantine/dates", () => ({
     DatePicker: ({ value, onChange, excludeDate }: any) => (
         <div data-testid="date-picker">
             <input
                 type="date"
-                value={value?.[0]?.toISOString().split("T")[0] || ""}
+                value={
+                    typeof value?.[0] === "string"
+                        ? value[0]
+                        : value?.[0]?.toISOString().split("T")[0] || ""
+                }
                 onChange={e => {
-                    const date = new Date(e.target.value);
-                    onChange?.([date]);
+                    onChange?.([e.target.value]);
                 }}
                 data-testid="date-input"
             />
@@ -587,6 +622,156 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         await waitFor(() => {
             expect(mockUpdateData).toHaveBeenCalledWith(
                 expect.objectContaining({ pickupLocationId: "location-1" }),
+            );
+        });
+    });
+
+    it("shows all distinct validation errors while consolidating repeated messages", async () => {
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [],
+        });
+
+        render(
+            <FoodParcelsForm
+                data={formData}
+                updateData={mockUpdateData}
+                error={null}
+                validationErrors={[
+                    {
+                        field: "capacity",
+                        code: "MAX_DAILY_CAPACITY_REACHED",
+                        message: "Maximum daily capacity reached",
+                        details: {
+                            date: "2026-05-15",
+                            current: 16,
+                            maximum: 15,
+                        },
+                    },
+                    {
+                        field: "capacity",
+                        code: "MAX_DAILY_CAPACITY_REACHED",
+                        message: "Maximum daily capacity reached",
+                        details: {
+                            date: "2026-05-15",
+                            current: 16,
+                            maximum: 15,
+                        },
+                    },
+                    {
+                        field: "timeSlot",
+                        code: "MAX_SLOT_CAPACITY_REACHED",
+                        message: "Maximum slot capacity reached",
+                        details: {
+                            date: "2026-05-15",
+                            timeSlot: "10:00",
+                            current: 16,
+                            maximum: 15,
+                        },
+                    },
+                    {
+                        field: "timeSlot",
+                        code: "HOUSEHOLD_DOUBLE_BOOKING",
+                        message: "Household already has a parcel scheduled for this date",
+                        details: {
+                            date: "2026-05-16",
+                        },
+                    },
+                    {
+                        field: "parcel-1",
+                        code: "OUTSIDE_OPERATING_HOURS",
+                        message: "Selected pickup time is outside opening hours",
+                        details: {
+                            date: "2026-05-17",
+                            timeSlot: "08:00-08:15",
+                        },
+                    },
+                    {
+                        field: "parcel-2",
+                        code: "OUTSIDE_OPERATING_HOURS",
+                        message: "Selected pickup time is outside opening hours",
+                        details: {
+                            date: "2026-05-18",
+                            timeSlot: "18:00-18:15",
+                        },
+                    },
+                ]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText("validationErrors.title")).not.toBeNull();
+        });
+        expect(
+            screen.getByText(
+                /Location capacity is full on 2026-05-15: 16 of 15 parcels are already booked/,
+            ).textContent,
+        ).toContain("(2 times)");
+        expect(
+            screen.getByText(
+                /Time slot 10:00 is full on 2026-05-15: 16 of 15 parcels are already booked/,
+            ),
+        ).not.toBeNull();
+        expect(
+            screen.getByText(/Household already has a parcel scheduled on 2026-05-16/),
+        ).not.toBeNull();
+        expect(
+            screen.getByText(/Selected time 08:00-08:15 on 2026-05-17 is outside operating hours/),
+        ).not.toBeNull();
+        expect(
+            screen.getByText(/Selected time 18:00-18:15 on 2026-05-18 is outside operating hours/),
+        ).not.toBeNull();
+        expect(
+            screen.getAllByText(
+                /Location capacity is full on 2026-05-15: 16 of 15 parcels are already booked/,
+            ),
+        ).toHaveLength(1);
+    });
+
+    it("updates only unsaved parcel locations when the selected pickup location changes", async () => {
+        const savedSlot = new Date("2026-05-15T10:00:00Z");
+        const unsavedSlot = new Date("2026-05-16T10:00:00Z");
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [
+                {
+                    id: "saved-parcel",
+                    pickupLocationId: "location-1",
+                    pickupDate: savedSlot,
+                    pickupEarliestTime: savedSlot,
+                    pickupLatestTime: new Date(savedSlot.getTime() + 30 * 60 * 1000),
+                },
+                {
+                    pickupLocationId: "location-1",
+                    pickupDate: unsavedSlot,
+                    pickupEarliestTime: unsavedSlot,
+                    pickupLatestTime: new Date(unsavedSlot.getTime() + 30 * 60 * 1000),
+                },
+            ],
+        });
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(mockGetPickupLocations).toHaveBeenCalled();
+        });
+
+        fireEvent.change(screen.getByTestId("select"), { target: { value: "location-2" } });
+
+        await waitFor(() => {
+            expect(mockUpdateData).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    pickupLocationId: "location-2",
+                    parcels: [
+                        expect.objectContaining({
+                            id: "saved-parcel",
+                            pickupLocationId: "location-1",
+                        }),
+                        expect.objectContaining({
+                            pickupLocationId: "location-2",
+                        }),
+                    ],
+                }),
             );
         });
     });

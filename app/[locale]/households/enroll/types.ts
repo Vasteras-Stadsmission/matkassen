@@ -47,6 +47,7 @@ export interface Pet {
 
 export interface FoodParcel {
     id?: string;
+    pickupLocationId?: string;
     pickupDate: Date;
     pickupEarliestTime: Date;
     pickupLatestTime: Date;

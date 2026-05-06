@@ -412,6 +412,7 @@
             "doubleBooking": "Household already has a parcel scheduled for this date",
             "doubleBookingDetailed": "Household already has a parcel scheduled for {date}",
             "outsideOperatingHours": "Selected time is outside operating hours",
+            "outsideOperatingHoursDetailed": "Selected time {timeSlot} on {date} is outside operating hours",
             "pastTimeSlot": "Cannot schedule pickup in the past",
             "locationNotFound": "Pickup location could not be found",
             "parcelNotFound": "Parcel could not be found",

@@ -18,6 +18,11 @@ let updatedParcels: any[] = [];
 
 // Mock the database module
 vi.mock("@/app/db/drizzle", () => {
+    const queryResult = (value: any[]) =>
+        Object.assign(Promise.resolve(value), {
+            limit: vi.fn(() => Promise.resolve(value.slice(0, 1))),
+        });
+
     const mockDb = {
         transaction: vi.fn(async (callback: any) => {
             // Execute the transaction callback with a mock transaction object
@@ -30,8 +35,52 @@ vi.mock("@/app/db/drizzle", () => {
             };
         }),
         select: vi.fn(() => ({
-            from: vi.fn(() => ({
-                where: vi.fn(() => Promise.resolve(existingFutureParcels)),
+            from: vi.fn((table: any) => ({
+                where: vi.fn(() => {
+                    const tableName = table?.[Symbol.for("drizzle:Name")];
+
+                    if (tableName === "pickup_locations") {
+                        return queryResult([
+                            {
+                                id: "test-location-456",
+                                maxParcelsPerDay: 15,
+                                maxParcelsPerSlot: 15,
+                            },
+                        ]);
+                    }
+
+                    if (tableName === "pickup_location_schedules") {
+                        return queryResult([
+                            {
+                                id: "test-schedule",
+                                name: "Test Schedule",
+                                startDate: "2020-01-01",
+                                endDate: "2030-01-01",
+                            },
+                        ]);
+                    }
+
+                    if (tableName === "pickup_location_schedule_days") {
+                        return queryResult(
+                            [
+                                "monday",
+                                "tuesday",
+                                "wednesday",
+                                "thursday",
+                                "friday",
+                                "saturday",
+                                "sunday",
+                            ].map(weekday => ({
+                                weekday,
+                                isOpen: true,
+                                openingTime: "00:00",
+                                closingTime: "23:59",
+                            })),
+                        );
+                    }
+
+                    return queryResult(existingFutureParcels);
+                }),
             })),
         })),
         insert: vi.fn((table: any) => ({
@@ -113,7 +162,7 @@ vi.mock("@/app/[locale]/schedule/actions", () => ({
 vi.mock("@/app/utils/parcels/state-transitions", () => ({
     createParcels: vi.fn(async (_tx: unknown, args: { parcels: any[] }) => {
         insertedParcels.push(...args.parcels);
-        return [];
+        return args.parcels.map((_parcel, index) => `created-${index}`);
     }),
     softDeleteParcelLenient: vi.fn(async (_tx: unknown, args: { parcelId: string }) => {
         softDeletedParcelIds.push(args.parcelId);
@@ -537,9 +586,7 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     it("should validate and update changed existing future parcels with their existing id", async () => {
         const { updateHouseholdParcels } =
             await import("@/app/[locale]/households/[id]/parcels/actions");
-        const scheduleActions = await import("@/app/[locale]/schedule/actions");
         const smsService = await import("@/app/utils/sms/sms-service");
-        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
         const queuePickupUpdatedSmsMock = vi.mocked(smsService.queuePickupUpdatedSms);
 
         const now = new Date();
@@ -569,13 +616,6 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
                 },
             ];
 
-            validateParcelAssignmentsMock.mockImplementationOnce(async parcels => {
-                expect(parcels).toHaveLength(1);
-                expect(parcels[0].id).toBe("existing-future-parcel");
-                expect(parcels[0].pickupStartTime).toEqual(changedStart);
-                return { success: true, errors: [] };
-            });
-
             const parcelsData: FoodParcels = {
                 pickupLocationId: testLocationId,
                 parcels: [
@@ -591,10 +631,12 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
             expect(result.success).toBe(true);
-            expect(validateParcelAssignmentsMock).toHaveBeenCalledTimes(1);
             expect(insertedParcels).toHaveLength(0);
-            expect(updatedParcels).toHaveLength(1);
-            expect(updatedParcels[0]).toMatchObject({
+            const finalUpdates = updatedParcels.filter(
+                update => update.pickup_date_time_earliest.getUTCFullYear() !== 2100,
+            );
+            expect(finalUpdates).toHaveLength(1);
+            expect(finalUpdates[0]).toMatchObject({
                 pickup_location_id: testLocationId,
                 pickup_date_time_earliest: changedStart,
                 pickup_date_time_latest: changedEnd,
@@ -647,22 +689,9 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
         }
     });
 
-    it("should propagate validation failures from schedule validation", async () => {
+    it("should propagate final-state validation failures", async () => {
         const { updateHouseholdParcels } =
             await import("@/app/[locale]/households/[id]/parcels/actions");
-        const scheduleActions = await import("@/app/[locale]/schedule/actions");
-        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
-
-        validateParcelAssignmentsMock.mockResolvedValueOnce({
-            success: false,
-            errors: [
-                {
-                    field: "timeSlot",
-                    code: "HOUSEHOLD_DOUBLE_BOOKING",
-                    message: "Household already has a parcel scheduled for this date",
-                },
-            ],
-        });
 
         const now = new Date();
         now.setHours(10, 0, 0, 0);
@@ -676,6 +705,10 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             start.setHours(12, 0, 0, 0);
             const end = new Date(start);
             end.setMinutes(end.getMinutes() + 30);
+            const secondStart = new Date(start);
+            secondStart.setHours(14, 0, 0, 0);
+            const secondEnd = new Date(secondStart);
+            secondEnd.setMinutes(secondEnd.getMinutes() + 30);
 
             const parcelsData: FoodParcels = {
                 pickupLocationId: testLocationId,
@@ -684,6 +717,11 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
                         pickupDate: start,
                         pickupEarliestTime: start,
                         pickupLatestTime: end,
+                    },
+                    {
+                        pickupDate: secondStart,
+                        pickupEarliestTime: secondStart,
+                        pickupLatestTime: secondEnd,
                     },
                 ],
             };
@@ -710,8 +748,6 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
     it("should ignore stale historical parcels and validate only the newly added future parcel", async () => {
         const { updateHouseholdParcels } =
             await import("@/app/[locale]/households/[id]/parcels/actions");
-        const scheduleActions = await import("@/app/[locale]/schedule/actions");
-        const validateParcelAssignmentsMock = vi.mocked(scheduleActions.validateParcelAssignments);
 
         const now = new Date("2026-05-05T10:00:00Z");
         vi.useFakeTimers();
@@ -737,14 +773,6 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const futureStart = new Date("2026-05-15T12:00:00Z");
             const futureEnd = new Date("2026-05-15T14:00:00Z");
 
-            validateParcelAssignmentsMock.mockImplementationOnce(async parcels => {
-                expect(parcels).toHaveLength(1);
-                expect(parcels[0].id).toBeUndefined();
-                expect(parcels[0].pickupStartTime).toEqual(futureStart);
-                expect(parcels[0].pickupEndTime).toEqual(futureEnd);
-                return { success: true, errors: [] };
-            });
-
             const parcelsData: FoodParcels = {
                 pickupLocationId: testLocationId,
                 parcels: [
@@ -760,7 +788,6 @@ describe("updateHouseholdParcels - Same-day parcel handling", () => {
             const result = await updateHouseholdParcels(testHouseholdId, parcelsData);
 
             expect(result.success).toBe(true);
-            expect(validateParcelAssignmentsMock).toHaveBeenCalledTimes(1);
             expect(insertedParcels).toHaveLength(1);
             expect(insertedParcels[0].pickup_date_time_earliest).toEqual(futureStart);
             expect(softDeletedParcelIds).toHaveLength(0);

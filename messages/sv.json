@@ -412,6 +412,7 @@
             "doubleBooking": "Hushållet har redan en matkasse schemalagd för detta datum",
             "doubleBookingDetailed": "Hushållet har redan en matkasse schemalagd den {date}",
             "outsideOperatingHours": "Vald tid är utanför öppettider",
+            "outsideOperatingHoursDetailed": "Vald tid {timeSlot} den {date} är utanför öppettider",
             "pastTimeSlot": "Kan inte schemalägga upphämtning i det förflutna",
             "locationNotFound": "Hämtplatsen kunde inte hittas",
             "parcelNotFound": "Matkassen kunde inte hittas",

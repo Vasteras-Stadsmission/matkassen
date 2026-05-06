@@ -1,8 +1,6 @@
 "use server";
 
 import { db } from "@/app/db/drizzle";
-import { foodParcels } from "@/app/db/schema";
-import { eq, gt, and } from "drizzle-orm";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
 import { protectedAdminHouseholdAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
@@ -12,243 +10,33 @@ import {
     validationFailure,
     type ActionResult,
 } from "@/app/utils/auth/action-result";
-import { notDeleted } from "@/app/db/query-helpers";
 import { logError } from "@/app/utils/logger";
+import {
+    applyHouseholdParcelScheduleChanges,
+    runHouseholdParcelPostCommitEffects,
+    type HouseholdParcelScheduleChangeSummary,
+} from "@/app/utils/parcels/apply-parcel-schedule-changes";
 
 export const updateHouseholdParcels = protectedAdminHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
         try {
-            const updatedParcelIds: string[] = [];
-
-            // Auth and household verification already done by protectedHouseholdAction
-            const locationId = parcelsData.pickupLocationId;
+            let changeSummary: HouseholdParcelScheduleChangeSummary | null = null;
 
             // Start transaction to ensure all related data is updated atomically
             await db.transaction(async tx => {
-                const now = new Date();
-                const parcelKey = (locationId: string, earliest: Date, latest: Date) =>
-                    `${locationId}-${earliest.toISOString()}-${latest.toISOString()}`;
-
-                // Validate that NEW parcels are not in the past
-                // (Existing parcels can remain even if they become past)
-                const newPastParcels = parcelsData.parcels.filter(
-                    parcel => !parcel.id && parcel.pickupLatestTime <= now,
-                );
-
-                if (newPastParcels.length > 0) {
-                    const { formatStockholmDate } = await import("@/app/utils/date-utils");
-                    const dates = newPastParcels
-                        .map(p => formatStockholmDate(new Date(p.pickupDate), "yyyy-MM-dd"))
-                        .join(", ");
-
-                    throw new ParcelValidationError(
-                        `Cannot create parcels with past pickup times`,
-                        [
-                            {
-                                field: "parcels",
-                                code: "PAST_PICKUP_TIME",
-                                message: `Cannot create parcels with past pickup times for: ${dates}. Please select a future time or remove these dates.`,
-                                details: { affectedDates: dates },
-                            },
-                        ],
-                    );
-                }
-
-                const desiredFutureParcels = parcelsData.parcels.filter(
-                    parcel => parcel.pickupLatestTime > now,
-                );
-
-                // Get all existing future parcels for this household. Historical rows are displayed
-                // by the form, but they are not part of the editable future schedule.
-                const existingFutureParcels = await tx
-                    .select({
-                        id: foodParcels.id,
-                        locationId: foodParcels.pickup_location_id,
-                        earliest: foodParcels.pickup_date_time_earliest,
-                        latest: foodParcels.pickup_date_time_latest,
-                    })
-                    .from(foodParcels)
-                    .where(
-                        and(
-                            eq(foodParcels.household_id, household.id),
-                            gt(foodParcels.pickup_date_time_latest, now),
-                            notDeleted(),
-                        ),
-                    );
-
-                const existingFutureKeys = new Set(
-                    existingFutureParcels.map(p => parcelKey(p.locationId, p.earliest, p.latest)),
-                );
-
-                const existingFutureById = new Map(existingFutureParcels.map(p => [p.id, p]));
-
-                const parcelsToChange = desiredFutureParcels.filter(
-                    parcel =>
-                        !existingFutureKeys.has(
-                            parcelKey(
-                                parcelsData.pickupLocationId,
-                                parcel.pickupEarliestTime,
-                                parcel.pickupLatestTime,
-                            ),
-                        ),
-                );
-
-                const parcelsToUpdate = parcelsToChange.filter(
-                    parcel => parcel.id && existingFutureById.has(parcel.id),
-                );
-                const parcelsToCreate = parcelsToChange.filter(
-                    parcel => !parcel.id || !existingFutureById.has(parcel.id),
-                );
-                const parcelsToValidate = [...parcelsToUpdate, ...parcelsToCreate];
-
-                // Create new/changed future food parcels based on the updated schedule.
-                // Unchanged future rows and historical rows are not revalidated.
-                if (parcelsToValidate.length > 0) {
-                    const { validateParcelAssignments } =
-                        await import("@/app/[locale]/schedule/actions");
-
-                    const validationInput = parcelsToValidate.map(parcel => ({
-                        id: parcel.id,
-                        householdId: household.id,
-                        locationId: parcelsData.pickupLocationId,
-                        pickupDate: new Date(parcel.pickupDate),
-                        pickupStartTime: parcel.pickupEarliestTime,
-                        pickupEndTime: parcel.pickupLatestTime,
-                    }));
-
-                    const validationResult = await validateParcelAssignments(validationInput, tx);
-
-                    if (!validationResult.success) {
-                        // Throw to trigger transaction rollback
-                        throw new ParcelValidationError(
-                            "Parcel validation failed",
-                            validationResult.errors || [],
-                        );
-                    }
-                }
-
-                if (parcelsToUpdate.length > 0) {
-                    for (const parcel of parcelsToUpdate) {
-                        await tx
-                            .update(foodParcels)
-                            .set({
-                                pickup_location_id: parcelsData.pickupLocationId,
-                                pickup_date_time_earliest: parcel.pickupEarliestTime,
-                                pickup_date_time_latest: parcel.pickupLatestTime,
-                            })
-                            .where(eq(foodParcels.id, parcel.id!));
-
-                        updatedParcelIds.push(parcel.id!);
-                    }
-                }
-
-                if (parcelsToCreate.length > 0) {
-                    const parcelsToSave = parcelsToCreate.map(parcel => ({
-                        household_id: household.id,
-                        pickup_location_id: parcelsData.pickupLocationId,
-                        pickup_date_time_earliest: parcel.pickupEarliestTime,
-                        pickup_date_time_latest: parcel.pickupLatestTime,
-                        is_picked_up: false,
-                    }));
-
-                    // Route through the parcel state-transitions helper so all
-                    // mutations of food_parcels go through one place.
-                    const { createParcels } = await import("@/app/utils/parcels/state-transitions");
-                    await createParcels(tx, { parcels: parcelsToSave, session });
-                }
-
-                // Delete parcels that are no longer in the desired schedule
-                // This handles cases where the user removed parcels or changed locations
-                // We do this AFTER the insert to avoid a window where no parcels exist
-                // Key includes location to properly handle location changes
-                const desiredParcelKeys = new Set(
-                    desiredFutureParcels.map(p =>
-                        parcelKey(
-                            parcelsData.pickupLocationId,
-                            p.pickupEarliestTime,
-                            p.pickupLatestTime,
-                        ),
-                    ),
-                );
-
-                const updatedParcelIdSet = new Set(updatedParcelIds);
-
-                // Soft delete parcels that are not in the desired schedule
-                // This preserves audit trail, keeps public QR code links working,
-                // and handles SMS cancellation intelligently
-                const parcelsToDelete = existingFutureParcels.filter(
-                    p =>
-                        !updatedParcelIdSet.has(p.id) &&
-                        !desiredParcelKeys.has(parcelKey(p.locationId, p.earliest, p.latest)),
-                );
-
-                if (parcelsToDelete.length > 0) {
-                    // Lenient soft-delete. This matches the pre-refactor
-                    // behaviour of the old softDeleteParcelInTransaction
-                    // helper: it silently skips parcels that are already
-                    // deleted (handles the race where another process
-                    // removed the parcel between the pre-fetch above and
-                    // now), and — importantly — does NOT validate that
-                    // the parcel is still un-picked-up. The pre-fetch
-                    // above only filters on notDeleted() and
-                    // pickup_date_time_latest > now; it does not filter
-                    // on is_picked_up = false. This is a known
-                    // pre-existing race where a picked-up future parcel
-                    // can be silently soft-deleted through the edit
-                    // flow. Preserved as-is in PR 4; a follow-up can
-                    // tighten it if the race ever manifests.
-                    const { softDeleteParcelLenient } =
-                        await import("@/app/utils/parcels/state-transitions");
-
-                    for (const parcel of parcelsToDelete) {
-                        await softDeleteParcelLenient(tx, {
-                            parcelId: parcel.id,
-                            session,
-                        });
-                    }
-                }
+                changeSummary = await applyHouseholdParcelScheduleChanges(tx, {
+                    householdId: household.id,
+                    pickupLocationId: parcelsData.pickupLocationId,
+                    parcels: parcelsData.parcels,
+                    session,
+                });
             });
 
-            /**
-             * EVENTUAL CONSISTENCY: Recompute outside-hours count after transaction commits.
-             *
-             * This is intentionally executed AFTER the transaction to avoid holding database locks
-             * during the potentially expensive recomputation. The trade-off is that there's a brief
-             * window where the count might be stale if another request modifies parcels between
-             * transaction commit and this recomputation.
-             *
-             * This is acceptable because:
-             * 1. The outside-hours count is a UI convenience feature, not critical business logic
-             * 2. The count will eventually converge to the correct value
-             * 3. Keeping it inside the transaction would increase lock contention and reduce throughput
-             * 4. Any stale count will be corrected by the next schedule operation
-             *
-             * If stronger consistency is required, consider moving this to a background job queue.
-             */
-            try {
-                const { recomputeOutsideHoursCount } =
-                    await import("@/app/[locale]/schedule/actions");
-                await recomputeOutsideHoursCount(locationId);
-            } catch (e) {
-                logError("Failed to recompute outside-hours count after parcel update", e, {
-                    action: "updateHouseholdParcels",
-                    locationId,
+            if (changeSummary) {
+                await runHouseholdParcelPostCommitEffects(changeSummary, {
                     householdId: household.id,
+                    logError,
                 });
-                // Non-fatal: The count will be corrected by the next schedule operation
-            }
-
-            if (updatedParcelIds.length > 0) {
-                try {
-                    const { queuePickupUpdatedSms } = await import("@/app/utils/sms/sms-service");
-                    await Promise.allSettled(updatedParcelIds.map(id => queuePickupUpdatedSms(id)));
-                } catch (e) {
-                    logError("Failed to queue pickup_updated SMS after parcel update", e, {
-                        parcelIds: updatedParcelIds,
-                        householdId: household.id,
-                    });
-                    // Non-fatal: The parcel update succeeded, SMS is a nice-to-have
-                }
             }
 
             return success(undefined);
