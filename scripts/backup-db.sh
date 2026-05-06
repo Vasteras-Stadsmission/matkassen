@@ -241,7 +241,10 @@ log "Encrypted dump complete. Size: $BACKUP_SIZE"
 
 BACKUP_STAGE="rclone upload"
 log "Uploading backup to Elastx Object Store container: $SWIFT_CONTAINER"
-log "rclone version: $(rclone version --check=false | head -1)"
+RCLONE_VERSION_OUTPUT=$(rclone version --check=false 2>/dev/null || true)
+RCLONE_VERSION=${RCLONE_VERSION_OUTPUT%%$'\n'*}
+[ -n "$RCLONE_VERSION" ] || RCLONE_VERSION="unknown"
+log "rclone version: $RCLONE_VERSION"
 
 EXPIRY_SECONDS=$((RETENTION_DAYS * 24 * 60 * 60))
 
