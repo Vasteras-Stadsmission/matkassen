@@ -13,7 +13,7 @@ import {
     Code,
     Loader,
 } from "@mantine/core";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
     IconUser,
     IconPhone,
@@ -66,10 +66,27 @@ export default function ReviewForm({
     const locale = useLocale();
 
     const [pickupLocationName, setPickupLocationName] = useState<string>("");
+    const [pickupLocationNamesById, setPickupLocationNamesById] = useState<Record<string, string>>(
+        {},
+    );
     const [primaryLocationName, setPrimaryLocationName] = useState<string>("");
     const [responsibleStaffName, setResponsibleStaffName] = useState<string>("");
     const [responsibleStaffIsFormer, setResponsibleStaffIsFormer] = useState(false);
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
+    const parcelLocationIds = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    (formData.foodParcels?.parcels || [])
+                        .map(
+                            parcel =>
+                                parcel.pickupLocationId || formData.foodParcels.pickupLocationId,
+                        )
+                        .filter((locationId): locationId is string => !!locationId),
+                ),
+            ),
+        [formData.foodParcels?.parcels, formData.foodParcels?.pickupLocationId],
+    );
 
     // Format time for display
     const formatTime = (date: Date | string | null | undefined) => {
@@ -104,11 +121,26 @@ export default function ReviewForm({
             const needsParcelLocation = !!formData.foodParcels?.pickupLocationId;
             const needsPrimaryLocation = !!formData.household?.primary_pickup_location_id;
 
-            if (!needsParcelLocation && !needsPrimaryLocation) return;
+            if (!needsParcelLocation && !needsPrimaryLocation && parcelLocationIds.length === 0)
+                return;
 
             try {
                 setIsLoadingLocation(true);
                 const locations = pickupLocationsData || (await getPickupLocationsAction());
+                setPickupLocationNamesById(
+                    Object.fromEntries(
+                        parcelLocationIds.map(locationId => {
+                            const location = locations.find(
+                                (loc: PickupLocation) => loc.id === locationId,
+                            );
+                            return [
+                                locationId,
+                                location?.name ||
+                                    tHouseholdForm("locationUnknownWithId", { id: locationId }),
+                            ];
+                        }),
+                    ),
+                );
 
                 // Resolve parcel pickup location name
                 if (needsParcelLocation) {
@@ -143,6 +175,14 @@ export default function ReviewForm({
                     }
                 }
             } catch {
+                setPickupLocationNamesById(
+                    Object.fromEntries(
+                        parcelLocationIds.map(locationId => [
+                            locationId,
+                            tHouseholdForm("locationUnknownWithId", { id: locationId }),
+                        ]),
+                    ),
+                );
                 if (needsParcelLocation) {
                     setPickupLocationName(
                         tHouseholdForm("locationUnknownWithId", {
@@ -166,6 +206,7 @@ export default function ReviewForm({
     }, [
         formData.foodParcels?.pickupLocationId,
         formData.household?.primary_pickup_location_id,
+        parcelLocationIds,
         pickupLocationsData,
         t,
         tHouseholdForm,
@@ -422,7 +463,7 @@ export default function ReviewForm({
                                 <Loader size="xs" />
                                 <Text size="sm">{t("foodParcels.loadingAvailability")}</Text>
                             </Group>
-                        ) : pickupLocationName ? (
+                        ) : pickupLocationName && parcelLocationIds.length <= 1 ? (
                             <Group mb="md" gap="xs">
                                 <ThemeIcon size="md" variant="light" color="grape">
                                     <IconBuilding size={16} />
@@ -465,6 +506,25 @@ export default function ReviewForm({
                                                         )}
                                                     </Code>
                                                 </div>
+                                            </Group>
+                                            <Group gap="xs">
+                                                <ThemeIcon size="md" variant="light" color="grape">
+                                                    <IconBuilding size={16} />
+                                                </ThemeIcon>
+                                                <Text size="sm" fw={500}>
+                                                    {pickupLocationNamesById[
+                                                        parcel.pickupLocationId ||
+                                                            formData.foodParcels.pickupLocationId
+                                                    ] ||
+                                                        pickupLocationName ||
+                                                        tHouseholdForm("locationUnknownWithId", {
+                                                            id:
+                                                                parcel.pickupLocationId ||
+                                                                formData.foodParcels
+                                                                    .pickupLocationId ||
+                                                                "",
+                                                        })}
+                                                </Text>
                                             </Group>
                                             <Group gap="xs">
                                                 <ThemeIcon size="md" variant="light" color="indigo">

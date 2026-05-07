@@ -274,9 +274,12 @@ export const enrollHousehold = protectedAdminAction(
                     const { validateParcelAssignments } =
                         await import("@/app/[locale]/schedule/actions");
 
+                    const parcelLocationId = (parcel: FoodParcelCreateData) =>
+                        parcel.pickupLocationId || data.foodParcels.pickupLocationId;
+
                     const parcelsToValidate = data.foodParcels.parcels.map(parcel => ({
                         householdId: household.id,
-                        locationId: data.foodParcels.pickupLocationId,
+                        locationId: parcelLocationId(parcel),
                         pickupDate: new Date(parcel.pickupEarliestTime.toDateString()), // Date only
                         pickupStartTime: parcel.pickupEarliestTime,
                         pickupEndTime: parcel.pickupLatestTime,
@@ -304,7 +307,7 @@ export const enrollHousehold = protectedAdminAction(
                     const parcelsToInsert = data.foodParcels.parcels.map(
                         (parcel: FoodParcelCreateData) => ({
                             household_id: household.id,
-                            pickup_location_id: data.foodParcels.pickupLocationId,
+                            pickup_location_id: parcelLocationId(parcel),
                             pickup_date_time_earliest: parcel.pickupEarliestTime,
                             pickup_date_time_latest: parcel.pickupLatestTime,
                             is_picked_up: false,

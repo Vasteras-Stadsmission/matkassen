@@ -89,19 +89,25 @@ vi.mock("@mantine/core", () => {
         Stack: ({ children }: any) => <div data-testid="stack">{children}</div>,
         Box: ({ children }: any) => <div data-testid="box">{children}</div>,
         Table,
-        Button: ({ onClick, children }: any) => (
-            <button data-testid="button" onClick={onClick}>
+        Button: ({ onClick, children, disabled }: any) => (
+            <button data-testid="button" disabled={disabled} onClick={onClick}>
                 {children}
             </button>
         ),
-        ActionIcon: ({ onClick, children }: any) => (
-            <button data-testid="action-icon" onClick={onClick}>
+        ActionIcon: ({ onClick, children, disabled, "aria-label": ariaLabel }: any) => (
+            <button
+                data-testid="action-icon"
+                aria-label={ariaLabel}
+                disabled={disabled}
+                onClick={onClick}
+            >
                 {children}
             </button>
         ),
         Tooltip: ({ children }: any) => <div data-testid="tooltip">{children}</div>,
         Loader: () => <div data-testid="loader">Loading...</div>,
-        Modal: ({ children }: any) => <div data-testid="modal">{children}</div>,
+        Modal: ({ opened, children }: any) =>
+            opened ? <div data-testid="modal">{children}</div> : null,
     };
 });
 
@@ -120,14 +126,55 @@ vi.mock("@mantine/dates", () => ({
                 }}
                 data-testid="date-input"
             />
+            <div data-testid="selected-dates">{(value || []).join(",")}</div>
+            {(value || []).map((selectedDate: string) => (
+                <button
+                    key={selectedDate}
+                    data-testid={`toggle-date-${selectedDate}`}
+                    onClick={() =>
+                        onChange?.(value.filter((date: string) => date !== selectedDate))
+                    }
+                >
+                    {selectedDate}
+                </button>
+            ))}
             {/* Store excludeDate function for testing */}
             <div data-testid="exclude-date-fn" style={{ display: "none" }}>
                 {excludeDate?.toString()}
             </div>
         </div>
     ),
-    TimeGrid: ({ children }: any) => <div data-testid="time-grid">{children}</div>,
-    getTimeRange: () => [],
+    TimeGrid: ({ data, onChange, value }: any) => (
+        <div data-testid="time-grid">
+            <div data-testid="time-grid-value">{value}</div>
+            {data?.map((time: string) => (
+                <button
+                    key={time}
+                    data-testid={`time-option-${time}`}
+                    onClick={() => onChange?.(time)}
+                >
+                    {time}
+                </button>
+            ))}
+        </div>
+    ),
+    getTimeRange: ({ startTime, endTime, interval }: any) => {
+        const toMinutes = (time: string) => {
+            const [hours, minutes] = time.split(":").map(Number);
+            return hours * 60 + minutes;
+        };
+        const toTime = (minutes: number) =>
+            `${Math.floor(minutes / 60)
+                .toString()
+                .padStart(2, "0")}:${(minutes % 60).toString().padStart(2, "0")}`;
+
+        const step = Math.max(toMinutes(interval), 1);
+        const times: string[] = [];
+        for (let minutes = toMinutes(startTime); minutes <= toMinutes(endTime); minutes += step) {
+            times.push(toTime(minutes));
+        }
+        return times;
+    },
 }));
 
 // Mock icons
@@ -238,7 +285,9 @@ describe("FoodParcelsForm Business Logic Tests", () => {
             }),
         );
 
-        (mockGetLocationSlotDuration as any).mockImplementation?.(() => Promise.resolve(30));
+        (mockGetLocationSlotDuration as any).mockImplementation?.((locationId: string) =>
+            Promise.resolve(locationId === "location-2" ? 45 : 30),
+        );
     });
 
     afterEach(() => {
@@ -728,7 +777,7 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         ).toHaveLength(1);
     });
 
-    it("updates only unsaved parcel locations when the selected pickup location changes", async () => {
+    it("does not rewrite selected parcel locations when the calendar location changes", async () => {
         const savedSlot = new Date("2026-05-15T10:00:00Z");
         const unsavedSlot = new Date("2026-05-16T10:00:00Z");
         const formData = createMockFormData({
@@ -768,11 +817,195 @@ describe("FoodParcelsForm Business Logic Tests", () => {
                             pickupLocationId: "location-1",
                         }),
                         expect.objectContaining({
+                            pickupLocationId: "location-1",
+                        }),
+                    ],
+                }),
+            );
+        });
+    });
+
+    it("adds dates to the currently selected location while preserving parcels from other locations", async () => {
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [],
+        });
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(mockGetPickupLocations).toHaveBeenCalled();
+        });
+
+        fireEvent.change(screen.getByTestId("date-input"), {
+            target: { value: "2026-05-15" },
+        });
+
+        await waitFor(() => {
+            expect(mockUpdateData).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    pickupLocationId: "location-1",
+                    parcels: [
+                        expect.objectContaining({
+                            pickupLocationId: "location-1",
+                        }),
+                    ],
+                }),
+            );
+        });
+
+        fireEvent.change(screen.getByTestId("select"), { target: { value: "location-2" } });
+
+        await waitFor(() => {
+            expect(screen.getByTestId("selected-dates").textContent).toBe("");
+        });
+
+        fireEvent.change(screen.getByTestId("date-input"), {
+            target: { value: "2026-05-22" },
+        });
+
+        await waitFor(() => {
+            expect(mockUpdateData).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    pickupLocationId: "location-2",
+                    parcels: expect.arrayContaining([
+                        expect.objectContaining({ pickupLocationId: "location-1" }),
+                        expect.objectContaining({ pickupLocationId: "location-2" }),
+                    ]),
+                }),
+            );
+        });
+
+        const latestCall = mockUpdateData.mock.calls.at(-1)?.[0] as FoodParcels;
+        expect(latestCall.parcels).toHaveLength(2);
+    });
+
+    it("shows calendar selection only for the active handout location", async () => {
+        const locationOneSlot = new Date("2026-05-15T10:00:00Z");
+        const locationTwoSlot = new Date("2026-05-22T13:00:00Z");
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [
+                {
+                    pickupLocationId: "location-1",
+                    pickupDate: locationOneSlot,
+                    pickupEarliestTime: locationOneSlot,
+                    pickupLatestTime: new Date(locationOneSlot.getTime() + 30 * 60 * 1000),
+                },
+                {
+                    pickupLocationId: "location-2",
+                    pickupDate: locationTwoSlot,
+                    pickupEarliestTime: locationTwoSlot,
+                    pickupLatestTime: new Date(locationTwoSlot.getTime() + 30 * 60 * 1000),
+                },
+            ],
+        });
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(mockGetPickupLocations).toHaveBeenCalled();
+        });
+
+        expect(screen.getByTestId("selected-dates").textContent).toBe("2026-05-15");
+
+        fireEvent.change(screen.getByTestId("select"), { target: { value: "location-2" } });
+
+        await waitFor(() => {
+            expect(screen.getByTestId("selected-dates").textContent).toBe("2026-05-22");
+        });
+
+        fireEvent.change(screen.getByTestId("select"), { target: { value: "location-1" } });
+
+        await waitFor(() => {
+            expect(screen.getByTestId("selected-dates").textContent).toBe("2026-05-15");
+        });
+    });
+
+    it("renders each selected parcel with its own location and removes only the clicked parcel", async () => {
+        const locationOneSlot = new Date("2026-05-15T10:00:00Z");
+        const locationTwoSlot = new Date("2026-05-22T13:00:00Z");
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [
+                {
+                    pickupLocationId: "location-1",
+                    pickupDate: locationOneSlot,
+                    pickupEarliestTime: locationOneSlot,
+                    pickupLatestTime: new Date(locationOneSlot.getTime() + 30 * 60 * 1000),
+                },
+                {
+                    pickupLocationId: "location-2",
+                    pickupDate: locationTwoSlot,
+                    pickupEarliestTime: locationTwoSlot,
+                    pickupLatestTime: new Date(locationTwoSlot.getTime() + 30 * 60 * 1000),
+                },
+            ],
+        });
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(screen.getAllByText("Test Location 1").length).toBeGreaterThan(0);
+            expect(screen.getAllByText("Test Location 2").length).toBeGreaterThan(0);
+        });
+
+        fireEvent.click(screen.getAllByLabelText("removeParcel")[0]);
+
+        await waitFor(() => {
+            expect(mockUpdateData).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    parcels: [
+                        expect.objectContaining({
                             pickupLocationId: "location-2",
                         }),
                     ],
                 }),
             );
+        });
+    });
+
+    it("uses each parcel location slot duration when editing time", async () => {
+        const locationOneSlot = new Date("2026-05-15T10:00:00");
+        const locationTwoSlot = new Date("2026-05-22T13:00:00");
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [
+                {
+                    pickupLocationId: "location-1",
+                    pickupDate: locationOneSlot,
+                    pickupEarliestTime: locationOneSlot,
+                    pickupLatestTime: new Date(locationOneSlot.getTime() + 30 * 60 * 1000),
+                },
+                {
+                    pickupLocationId: "location-2",
+                    pickupDate: locationTwoSlot,
+                    pickupEarliestTime: locationTwoSlot,
+                    pickupLatestTime: new Date(locationTwoSlot.getTime() + 45 * 60 * 1000),
+                },
+            ],
+        });
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(mockGetLocationSlotDuration).toHaveBeenCalledWith("location-2");
+        });
+
+        fireEvent.click(screen.getByText("13:00"));
+        fireEvent.click(screen.getByTestId("time-option-12:00"));
+
+        await waitFor(() => {
+            const latestCall = mockUpdateData.mock.calls.at(-1)?.[0] as FoodParcels;
+            expect(latestCall.parcels[1]).toEqual(
+                expect.objectContaining({
+                    pickupLocationId: "location-2",
+                }),
+            );
+            expect(latestCall.parcels[1].pickupEarliestTime.getHours()).toBe(12);
+            expect(latestCall.parcels[1].pickupEarliestTime.getMinutes()).toBe(0);
+            expect(latestCall.parcels[1].pickupLatestTime.getHours()).toBe(12);
+            expect(latestCall.parcels[1].pickupLatestTime.getMinutes()).toBe(45);
         });
     });
 });
