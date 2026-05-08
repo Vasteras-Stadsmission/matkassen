@@ -39,7 +39,7 @@ import {
     getLocationSlotDurationAction,
 } from "../client-actions";
 import { FoodParcels, FoodParcel } from "../types";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { TranslationFunction } from "../../../types";
 import { type LocationScheduleInfo, type LocationScheduleDay } from "@/app/[locale]/schedule/types";
 import { Time } from "@/app/utils/time-provider";
@@ -79,6 +79,7 @@ export default function FoodParcelsForm({
 }: FoodParcelsFormProps) {
     const t = useTranslations("foodParcels") as TranslationFunction;
     const tCommon = useTranslations("handoutLocations");
+    const locale = useLocale();
 
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
     const [locationError, setLocationError] = useState<string | null>(null);
@@ -171,6 +172,7 @@ export default function FoodParcelsForm({
         dateCapacities: Record<string, number>;
     } | null>(null);
     const [loadingCapacityData, setLoadingCapacityData] = useState(false);
+    const activeLocationRequestRef = useRef(0);
 
     // State for time selection modal
     const [timeModalOpened, setTimeModalOpened] = useState(false);
@@ -266,6 +268,35 @@ export default function FoodParcelsForm({
             .filter(parcel => getParcelLocationId(parcel) === formState.pickupLocationId)
             .map(parcel => new Date(parcel.pickupDate));
     }, [formState.parcels, formState.pickupLocationId, getParcelLocationId]);
+
+    const selectedDateKeysForOtherLocations = useMemo(() => {
+        if (!formState.pickupLocationId) return new Set<string>();
+
+        return new Set(
+            formState.parcels
+                .filter(parcel => getParcelLocationId(parcel) !== formState.pickupLocationId)
+                .map(parcel => dateKey(new Date(parcel.pickupDate))),
+        );
+    }, [formState.parcels, formState.pickupLocationId, getParcelLocationId]);
+
+    const activeLocationDataReady =
+        !formState.pickupLocationId ||
+        (capacityData !== null &&
+            locationSchedulesById[formState.pickupLocationId] !== undefined &&
+            slotDurationsById[formState.pickupLocationId] !== undefined);
+
+    const isLoadingActiveLocationData =
+        !!formState.pickupLocationId && (!activeLocationDataReady || loadingCapacityData);
+
+    const selectedSlotDurations = useMemo(() => {
+        return Array.from(
+            new Set(
+                formState.parcels.map(parcel =>
+                    getSlotDurationForLocation(getParcelLocationId(parcel)),
+                ),
+            ),
+        );
+    }, [formState.parcels, getParcelLocationId, getSlotDurationForLocation]);
 
     // Precompute common opening hours for bulk selection (needs formState)
     const bulkCommonRange = useMemo(() => {
@@ -433,14 +464,24 @@ export default function FoodParcelsForm({
     }, []);
 
     useEffect(() => {
-        async function fetchCapacityData() {
-            if (!formState.pickupLocationId) {
-                setCapacityData(null);
-                return;
-            }
+        const locationId = formState.pickupLocationId;
+        const requestId = activeLocationRequestRef.current + 1;
+        activeLocationRequestRef.current = requestId;
 
-            setLoadingCapacityData(true);
+        if (!locationId) {
+            setCapacityData(null);
+            setLocationSchedules(null);
+            setSlotDuration(15);
+            setLoadingCapacityData(false);
+            return;
+        }
 
+        let cancelled = false;
+        setCapacityData(null);
+        setLocationSchedules(null);
+        setLoadingCapacityData(true);
+
+        async function fetchActiveLocationData() {
             try {
                 // Set the date range for capacity check (current month + next month)
                 const today = Time.now().toDate();
@@ -450,92 +491,55 @@ export default function FoodParcelsForm({
                 const endDate = new Date(today);
                 endDate.setMonth(endDate.getMonth() + 2, 0); // Last day of next month
 
-                const capacity = await getPickupLocationCapacityForRangeAction(
-                    formState.pickupLocationId,
-                    startDate,
-                    endDate,
-                );
+                const [capacity, schedules, duration] = await Promise.all([
+                    getPickupLocationCapacityForRangeAction(locationId, startDate, endDate),
+                    getPickupLocationSchedulesAction(locationId),
+                    getLocationSlotDurationAction(locationId),
+                ]);
+
+                if (cancelled || activeLocationRequestRef.current !== requestId) return;
 
                 setCapacityData(capacity);
-            } catch {
-                // Error fetching capacity data
-                setCapacityData(null);
-            } finally {
-                setLoadingCapacityData(false);
-            }
-        }
-
-        fetchCapacityData();
-    }, [formState.pickupLocationId]);
-
-    // Fetch location schedules when pickup location changes
-    useEffect(() => {
-        async function fetchSchedules() {
-            if (!formState.pickupLocationId) {
-                setLocationSchedules(null);
-                return;
-            }
-
-            try {
-                const schedules = await getPickupLocationSchedulesAction(
-                    formState.pickupLocationId,
-                );
                 setLocationSchedules(schedules);
                 setLocationSchedulesById(prev => ({
                     ...prev,
-                    [formState.pickupLocationId]: schedules,
+                    [locationId]: schedules,
+                }));
+                setSlotDuration(duration);
+                setSlotDurationsById(prev => ({
+                    ...prev,
+                    [locationId]: duration,
                 }));
             } catch {
-                // Error fetching location schedules
+                if (cancelled || activeLocationRequestRef.current !== requestId) return;
+
+                setCapacityData({
+                    hasLimit: false,
+                    maxPerDay: null,
+                    dateCapacities: {},
+                });
                 setLocationSchedules(null);
-            }
-        }
-
-        fetchSchedules();
-    }, [formState.pickupLocationId]);
-
-    // Also fetch location schedules on initial load if data has a pickup location
-    useEffect(() => {
-        async function fetchInitialSchedules() {
-            if (data.pickupLocationId && !locationSchedules) {
-                try {
-                    const schedules = await getPickupLocationSchedulesAction(data.pickupLocationId);
-                    setLocationSchedules(schedules);
-                    setLocationSchedulesById(prev => ({
-                        ...prev,
-                        [data.pickupLocationId]: schedules,
-                    }));
-                } catch {
-                    // Error fetching initial location schedules
+                setLocationSchedulesById(prev => ({
+                    ...prev,
+                    [locationId]: { schedules: [] },
+                }));
+                setSlotDuration(15);
+                setSlotDurationsById(prev => ({
+                    ...prev,
+                    [locationId]: 15,
+                }));
+            } finally {
+                if (!cancelled && activeLocationRequestRef.current === requestId) {
+                    setLoadingCapacityData(false);
                 }
             }
         }
 
-        fetchInitialSchedules();
-    }, [data.pickupLocationId, locationSchedules]);
+        fetchActiveLocationData();
 
-    // Fetch slot duration when pickup location changes
-    useEffect(() => {
-        async function fetchSlotDuration() {
-            if (!formState.pickupLocationId) {
-                setSlotDuration(15); // Default to 15 minutes
-                return;
-            }
-
-            try {
-                const duration = await getLocationSlotDurationAction(formState.pickupLocationId);
-                setSlotDuration(duration);
-                setSlotDurationsById(prev => ({
-                    ...prev,
-                    [formState.pickupLocationId]: duration,
-                }));
-            } catch {
-                // Error fetching slot duration
-                setSlotDuration(15); // Default to 15 minutes in case of error
-            }
-        }
-
-        fetchSlotDuration();
+        return () => {
+            cancelled = true;
+        };
     }, [formState.pickupLocationId]);
 
     useEffect(() => {
@@ -584,6 +588,14 @@ export default function FoodParcelsForm({
 
         if (isAlreadySelected) {
             return false; // Never exclude dates that are already selected
+        }
+
+        if (!activeLocationDataReady) {
+            return true;
+        }
+
+        if (selectedDateKeysForOtherLocations.has(dateKey(dateForComparison))) {
+            return true;
         }
 
         // Check against location schedule
@@ -655,11 +667,11 @@ export default function FoodParcelsForm({
         const year = localDate.getFullYear();
         const month = String(localDate.getMonth() + 1).padStart(2, "0");
         const day = String(localDate.getDate()).padStart(2, "0");
-        const dateKey = `${year}-${month}-${day}`;
+        const capacityDateKey = `${year}-${month}-${day}`;
         const dateString = localDate.toDateString();
 
         // Count parcels from database
-        const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+        const dbParcelCount = capacityData?.dateCapacities?.[capacityDateKey] || 0;
 
         // Count selected dates for this same day in the current session
         const selectedDateCount = selectedDatesForCurrentLocation.filter(
@@ -680,11 +692,11 @@ export default function FoodParcelsForm({
         const year = localDate.getFullYear();
         const month = String(localDate.getMonth() + 1).padStart(2, "0");
         const day = String(localDate.getDate()).padStart(2, "0");
-        const dateKey = `${year}-${month}-${day}`;
+        const capacityDateKey = `${year}-${month}-${day}`;
         const dateString = localDate.toDateString();
 
         // Count parcels from database
-        const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+        const dbParcelCount = capacityData?.dateCapacities?.[capacityDateKey] || 0;
 
         // Count selected dates for this same day in the current session (excluding the current date if it's selected)
         const selectedDateCount = selectedDatesForCurrentLocation.filter(
@@ -927,8 +939,30 @@ export default function FoodParcelsForm({
         [getFirstAvailableSlot, getOpeningHoursForLocationDate, getSlotDurationForLocation],
     );
 
+    const showSelectionNotification = useCallback((date: Date, message: string) => {
+        setTimeout(() => {
+            setCapacityNotification({
+                date,
+                message,
+                isAvailable: false,
+            });
+
+            if (capacityNotificationTimeoutRef.current) {
+                clearTimeout(capacityNotificationTimeoutRef.current);
+            }
+
+            capacityNotificationTimeoutRef.current = setTimeout(() => {
+                setCapacityNotification(null);
+            }, 5000);
+        }, 0);
+    }, []);
+
     const handleDatesChange = (dates: string[]) => {
         if (!formState.pickupLocationId) return;
+        if (!activeLocationDataReady) {
+            showSelectionNotification(Time.now().toDate(), t("locationDataLoading"));
+            return;
+        }
 
         // Convert string dates to Date objects for internal processing
         const dateObjects = dates.map(dateStr => new Date(dateStr));
@@ -945,13 +979,23 @@ export default function FoodParcelsForm({
 
             if (addedDate) {
                 const localDate = new Date(addedDate);
+                if (selectedDateKeysForOtherLocations.has(dateKey(localDate))) {
+                    showSelectionNotification(
+                        localDate,
+                        t("dateAlreadySelected", {
+                            date: localDate.toLocaleDateString(locale),
+                        }),
+                    );
+                    return;
+                }
+
                 const year = localDate.getFullYear();
                 const month = String(localDate.getMonth() + 1).padStart(2, "0");
                 const day = String(localDate.getDate()).padStart(2, "0");
-                const dateKey = `${year}-${month}-${day}`;
+                const addedDateKey = `${year}-${month}-${day}`;
 
                 // Count parcels from database
-                const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+                const dbParcelCount = capacityData?.dateCapacities?.[addedDateKey] || 0;
 
                 // Count existing selected dates for this same day
                 const existingDateCount = selectedDatesForCurrentLocation.filter(selectedDate =>
@@ -966,22 +1010,7 @@ export default function FoodParcelsForm({
                 // If the date is unavailable (at or over capacity), don't add it
                 if (!isAvailable && maxPerDay !== null) {
                     // Revert the selection by removing the date that was just added
-                    setTimeout(() => {
-                        // Optionally show a notification that the date is at capacity
-                        setCapacityNotification({
-                            date: localDate,
-                            message: `Max antal (${maxPerDay}) matkassar bokade för detta datum`,
-                            isAvailable: false,
-                        });
-
-                        if (capacityNotificationTimeoutRef.current) {
-                            clearTimeout(capacityNotificationTimeoutRef.current);
-                        }
-
-                        capacityNotificationTimeoutRef.current = setTimeout(() => {
-                            setCapacityNotification(null);
-                        }, 5000);
-                    }, 0);
+                    showSelectionNotification(localDate, t("capacityFull", { maximum: maxPerDay }));
 
                     return;
                 }
@@ -1085,7 +1114,7 @@ export default function FoodParcelsForm({
             const duration = getSlotDurationForLocation(parcelLocationId);
             const range = getOpeningHoursForLocationDate(parcelLocationId, parcelDate);
             if (!range) {
-                invalidDates.push(parcelDate.toLocaleDateString("sv-SE"));
+                invalidDates.push(parcelDate.toLocaleDateString(locale));
                 return;
             }
 
@@ -1097,13 +1126,16 @@ export default function FoodParcelsForm({
             const chosenTotal = hours * 60 + roundedMinutes;
 
             if (chosenTotal < openingTotal || chosenTotal > latestAllowedStart) {
-                invalidDates.push(parcelDate.toLocaleDateString("sv-SE"));
+                invalidDates.push(parcelDate.toLocaleDateString(locale));
             }
         });
 
         if (invalidDates.length > 0) {
             setBulkTimeError(
-                `Vald tid (${bulkStartTime}) ligger utanför öppettiderna för: ${invalidDates.join(", ")}`,
+                t("bulk.timeOutsideHours", {
+                    time: bulkStartTime,
+                    dates: invalidDates.join(", "),
+                }),
             );
             return;
         }
@@ -1364,7 +1396,7 @@ export default function FoodParcelsForm({
                             withWeekNumbers
                         />
 
-                        {loadingCapacityData && formState.pickupLocationId && (
+                        {isLoadingActiveLocationData && (
                             <Box
                                 style={{
                                     position: "absolute",
@@ -1500,7 +1532,7 @@ export default function FoodParcelsForm({
                                         const summaryParts = Object.entries(check.summary || {})
                                             .map(
                                                 ([k, v]) =>
-                                                    `${k === "CLOSED" ? "closed" : k} (${v})`,
+                                                    `${k === "CLOSED" ? t("bulk.closed") : k} (${v})`,
                                             )
                                             .join(", ");
                                         showNotification({
@@ -1703,7 +1735,11 @@ export default function FoodParcelsForm({
                                     style={{ color: "var(--mantine-color-blue-6)" }}
                                 />
                                 <Text size="sm" fw={500}>
-                                    {t("slotDuration", { duration: slotDuration.toString() })}
+                                    {selectedSlotDurations.length === 1
+                                        ? t("slotDuration", {
+                                              duration: selectedSlotDurations[0].toString(),
+                                          })
+                                        : t("slotDurationVaries")}
                                 </Text>
                             </Group>
                         </Paper>
@@ -1714,6 +1750,7 @@ export default function FoodParcelsForm({
                             const date = new Date(parcel.pickupDate);
                             const isParcelPastDate = isPastDate(date);
                             const parcelLocationId = getParcelLocationId(parcel);
+                            const parcelSlotDuration = getSlotDurationForLocation(parcelLocationId);
                             const locationName =
                                 locationNameById.get(parcelLocationId) || t("unknownLocation");
 
@@ -1761,7 +1798,7 @@ export default function FoodParcelsForm({
                                                             : "none",
                                                     }}
                                                 >
-                                                    {date.toLocaleDateString("sv-SE", {
+                                                    {date.toLocaleDateString(locale, {
                                                         day: "numeric",
                                                         month: "short",
                                                         year: "numeric",
@@ -1780,9 +1817,16 @@ export default function FoodParcelsForm({
                                                 size="0.95rem"
                                                 style={{ color: "var(--mantine-color-gray-6)" }}
                                             />
-                                            <Text size="sm" fw={500}>
-                                                {locationName}
-                                            </Text>
+                                            <Stack gap={2}>
+                                                <Text size="sm" fw={500}>
+                                                    {locationName}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    {t("slotDurationShort", {
+                                                        duration: parcelSlotDuration.toString(),
+                                                    })}
+                                                </Text>
+                                            </Stack>
                                         </Group>
 
                                         <Tooltip
@@ -1899,7 +1943,7 @@ export default function FoodParcelsForm({
                                     formState.parcels[selectedParcelIndex]?.pickupDate
                                         ? new Date(
                                               formState.parcels[selectedParcelIndex].pickupDate,
-                                          ).toLocaleDateString()
+                                          ).toLocaleDateString(locale)
                                         : ""
                                 }`
                               : ""}

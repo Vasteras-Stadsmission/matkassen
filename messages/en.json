@@ -368,6 +368,9 @@
         "loadingAvailability": "Loading availability...",
         "selectLocationFirst": "Select a pickup location first to see availability",
         "selectDatesHint": "Select all dates when the household should receive a food parcel",
+        "locationDataLoading": "Loading availability for the selected pickup location. Try again in a moment.",
+        "dateAlreadySelected": "{date} is already selected for another pickup location",
+        "capacityFull": "Maximum number ({maximum}) of food parcels is already booked for this date",
         "selectedParcels": "Selected food parcels",
         "removeParcel": "Remove food parcel",
         "unknownLocation": "Unknown location",
@@ -378,7 +381,9 @@
             "upcomingOnly": "applies to upcoming parcels only",
             "notAvailableTitle": "Bulk change not available",
             "notAvailableMsg": "Selected dates have different opening hours. Edit times per date.",
-            "notAvailableMsgWithSummary": "Selected dates have different opening hours: {summary}. Edit times per date."
+            "notAvailableMsgWithSummary": "Selected dates have different opening hours: {summary}. Edit times per date.",
+            "timeOutsideHours": "Selected time ({time}) is outside opening hours for: {dates}",
+            "closed": "closed"
         },
         "individualTimeHint": "Click on the times to change pickup time for each individual food parcel.",
         "calendar": {
@@ -403,6 +408,8 @@
             "facilityHours": "Facility Hours"
         },
         "slotDuration": "Slot Duration: {duration} minutes",
+        "slotDurationShort": "{duration} min slot",
+        "slotDurationVaries": "Slot duration varies by pickup location",
         "errors": {
             "selectLocation": "Select a pickup location"
         },

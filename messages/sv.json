@@ -368,6 +368,9 @@
         "loadingAvailability": "Laddar tillgänglighet...",
         "selectLocationFirst": "Välj en hämtplats först för att se tillgänglighet",
         "selectDatesHint": "Välj alla datum när hushållet ska få en matkasse",
+        "locationDataLoading": "Laddar tillgänglighet för vald hämtplats. Försök igen om en stund.",
+        "dateAlreadySelected": "{date} är redan valt för en annan hämtplats",
+        "capacityFull": "Max antal ({maximum}) matkassar är redan bokade för detta datum",
         "selectedParcels": "Valda matkassar",
         "removeParcel": "Ta bort matkasse",
         "unknownLocation": "Okänd hämtplats",
@@ -378,7 +381,9 @@
             "upcomingOnly": "gäller endast kommande matkassar",
             "notAvailableTitle": "Massändring ej tillgänglig",
             "notAvailableMsg": "Valda datum har olika öppettider. Redigera tider per datum.",
-            "notAvailableMsgWithSummary": "Valda datum har olika öppettider: {summary}. Redigera tider per datum."
+            "notAvailableMsgWithSummary": "Valda datum har olika öppettider: {summary}. Redigera tider per datum.",
+            "timeOutsideHours": "Vald tid ({time}) ligger utanför öppettiderna för: {dates}",
+            "closed": "stängt"
         },
         "individualTimeHint": "Klicka på tiderna för att ändra upphämtningstid för varje enskild matkasse.",
         "calendar": {
@@ -403,6 +408,8 @@
             "facilityHours": "Anläggningens öppettider"
         },
         "slotDuration": "Slotlängd: {duration} minuter",
+        "slotDurationShort": "{duration} min slot",
+        "slotDurationVaries": "Slotlängden varierar mellan hämtplatser",
         "errors": {
             "selectLocation": "Välj en hämtplats"
         },

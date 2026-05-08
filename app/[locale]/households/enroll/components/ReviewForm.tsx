@@ -489,7 +489,7 @@ export default function ReviewForm({
                                                 : "xs"
                                         }
                                     >
-                                        <Group justify="space-between" wrap="nowrap">
+                                        <Group justify="space-between" wrap="wrap">
                                             <Group gap="xs">
                                                 <ThemeIcon size="md" variant="light" color="indigo">
                                                     <IconCalendarEvent size={16} />

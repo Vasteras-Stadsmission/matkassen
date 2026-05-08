@@ -4,9 +4,31 @@ import type { FoodParcels } from "../../../../../app/[locale]/households/enroll/
 import FoodParcelsForm from "../../../../../app/[locale]/households/enroll/components/FoodParcelsForm";
 // Mock next-intl
 vi.mock("next-intl", () => ({
+    useLocale: () => "en-US",
     useTranslations: () => (key: string, params?: any) => {
         if (key === "slotDuration" && params?.duration) {
             return `Slot duration: ${params.duration} minutes`;
+        }
+        if (key === "slotDurationShort" && params?.duration) {
+            return `${params.duration} min slot`;
+        }
+        if (key === "slotDurationVaries") {
+            return "Slot duration varies by pickup location";
+        }
+        if (key === "locationDataLoading") {
+            return "Loading availability for the selected pickup location. Try again in a moment.";
+        }
+        if (key === "dateAlreadySelected") {
+            return `${params.date} is already selected for another pickup location`;
+        }
+        if (key === "capacityFull") {
+            return `Maximum number (${params.maximum}) of food parcels is already booked for this date`;
+        }
+        if (key === "bulk.timeOutsideHours") {
+            return `Selected time (${params.time}) is outside opening hours for: ${params.dates}`;
+        }
+        if (key === "bulk.closed") {
+            return "closed";
         }
         if (key === "validationErrors.capacityReachedDetailed") {
             return `Location capacity is full on ${params.date}: ${params.current} of ${params.maximum} parcels are already booked`;
@@ -112,10 +134,11 @@ vi.mock("@mantine/core", () => {
 });
 
 vi.mock("@mantine/dates", () => ({
-    DatePicker: ({ value, onChange, excludeDate }: any) => (
+    DatePicker: ({ value, onChange, excludeDate, disabled }: any) => (
         <div data-testid="date-picker">
             <input
                 type="date"
+                disabled={disabled}
                 value={
                     typeof value?.[0] === "string"
                         ? value[0]
@@ -861,7 +884,7 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         });
 
         fireEvent.change(screen.getByTestId("date-input"), {
-            target: { value: "2026-05-22" },
+            target: { value: "2026-05-29" },
         });
 
         await waitFor(() => {
@@ -1007,6 +1030,156 @@ describe("FoodParcelsForm Business Logic Tests", () => {
             expect(latestCall.parcels[1].pickupLatestTime.getHours()).toBe(12);
             expect(latestCall.parcels[1].pickupLatestTime.getMinutes()).toBe(45);
         });
+    });
+
+    it("does not create parcels with stale location data while the new location is still loading", async () => {
+        let resolveLocationTwoSchedule!: (value: any) => void;
+        let resolveLocationTwoDuration!: (value: number) => void;
+        const locationTwoSchedulePromise = new Promise(resolve => {
+            resolveLocationTwoSchedule = resolve;
+        });
+        const locationTwoDurationPromise = new Promise<number>(resolve => {
+            resolveLocationTwoDuration = resolve;
+        });
+
+        (mockGetPickupLocationSchedules as any).mockImplementation?.((locationId: string) => {
+            if (locationId === "location-2") {
+                return locationTwoSchedulePromise;
+            }
+
+            return Promise.resolve({
+                schedules: [
+                    {
+                        id: "schedule-1",
+                        location_id: "location-1",
+                        name: "Regular Schedule",
+                        startDate: new Date("2026-05-01"),
+                        endDate: new Date("2026-05-31"),
+                        days: [
+                            {
+                                weekday: "friday",
+                                isOpen: true,
+                                openingTime: "09:00",
+                                closingTime: "17:00",
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        (mockGetLocationSlotDuration as any).mockImplementation?.((locationId: string) => {
+            if (locationId === "location-2") {
+                return locationTwoDurationPromise;
+            }
+
+            return Promise.resolve(30);
+        });
+
+        const formData = createMockFormData({
+            pickupLocationId: "location-1",
+            parcels: [],
+        });
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(screen.queryByText("loadingAvailability")).toBeNull();
+        });
+
+        fireEvent.change(screen.getByTestId("select"), { target: { value: "location-2" } });
+
+        await waitFor(() => {
+            expect(screen.getByText("loadingAvailability")).toBeDefined();
+        });
+
+        fireEvent.change(screen.getByTestId("date-input"), {
+            target: { value: "2026-05-29" },
+        });
+
+        expect(mockUpdateData).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                pickupLocationId: "location-2",
+                parcels: [],
+            }),
+        );
+
+        resolveLocationTwoSchedule({
+            schedules: [
+                {
+                    id: "schedule-2",
+                    location_id: "location-2",
+                    name: "Regular Schedule",
+                    startDate: new Date("2026-05-01"),
+                    endDate: new Date("2026-05-31"),
+                    days: [
+                        {
+                            weekday: "friday",
+                            isOpen: true,
+                            openingTime: "10:00",
+                            closingTime: "17:00",
+                        },
+                    ],
+                },
+            ],
+        });
+        resolveLocationTwoDuration(45);
+
+        await waitFor(() => {
+            expect(screen.queryByText("loadingAvailability")).toBeNull();
+        });
+
+        fireEvent.change(screen.getByTestId("date-input"), {
+            target: { value: "2026-05-22" },
+        });
+
+        await waitFor(() => {
+            const latestCall = mockUpdateData.mock.calls.at(-1)?.[0] as FoodParcels;
+            expect(latestCall.parcels).toHaveLength(1);
+            expect(latestCall.parcels[0]).toEqual(
+                expect.objectContaining({
+                    pickupLocationId: "location-2",
+                }),
+            );
+            expect(latestCall.parcels[0].pickupEarliestTime.getHours()).toBe(10);
+            expect(latestCall.parcels[0].pickupLatestTime.getMinutes()).toBe(45);
+        });
+    });
+
+    it("prevents selecting a date that is already selected for another pickup location", async () => {
+        const selectedDate = new Date("2026-05-15T10:00:00");
+        const formData = createMockFormData({
+            pickupLocationId: "location-2",
+            parcels: [
+                {
+                    pickupLocationId: "location-1",
+                    pickupDate: selectedDate,
+                    pickupEarliestTime: selectedDate,
+                    pickupLatestTime: new Date(selectedDate.getTime() + 30 * 60 * 1000),
+                },
+            ],
+        });
+
+        render(<FoodParcelsForm data={formData} updateData={mockUpdateData} error={null} />);
+
+        await waitFor(() => {
+            expect(screen.queryByText("loadingAvailability")).toBeNull();
+        });
+
+        fireEvent.change(screen.getByTestId("date-input"), {
+            target: { value: "2026-05-15" },
+        });
+
+        expect(mockUpdateData).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                parcels: expect.arrayContaining([
+                    expect.objectContaining({ pickupLocationId: "location-2" }),
+                ]),
+            }),
+        );
+        expect(
+            await screen.findByText("5/15/2026 is already selected for another pickup location"),
+        ).toBeDefined();
     });
 });
 
