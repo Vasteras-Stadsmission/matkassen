@@ -17,7 +17,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import {
     createTestHousehold,
+    createTestLocationWithSchedule,
     createTestPickupLocation,
+    createTestParcel,
     createTestParcelForToday,
     createTestUser,
     resetHouseholdCounter,
@@ -25,7 +27,7 @@ import {
     resetUserCounter,
 } from "../../factories";
 import { getTestDb } from "../../db/test-db";
-import { households, pickupLocations } from "@/app/db/schema";
+import { foodParcels, households, pickupLocations } from "@/app/db/schema";
 
 // Mock auth to always succeed - we're testing DB behavior, not auth
 type MockSession = { user: { githubUsername: string; name: string; role: "admin" } };
@@ -430,6 +432,196 @@ describe("Primary handout location - Server-side validation", () => {
 
             expect(stored.primaryLocationId).toBe(location.id);
         }
+    });
+
+    it("should create enrollment parcels at their per-row pickup locations", async () => {
+        const { location: primaryLocation } = await createTestLocationWithSchedule(
+            { name: "Primary Location" },
+            {
+                weekdays: [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ],
+            },
+        );
+        const { location: alternateLocation } = await createTestLocationWithSchedule(
+            { name: "Alternate Location" },
+            {
+                weekdays: [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ],
+            },
+        );
+
+        const firstStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        firstStart.setUTCHours(10, 0, 0, 0);
+        const firstEnd = new Date(firstStart.getTime() + 15 * 60 * 1000);
+
+        const secondStart = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
+        secondStart.setUTCHours(11, 0, 0, 0);
+        const secondEnd = new Date(secondStart.getTime() + 15 * 60 * 1000);
+
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
+
+        const result = await enrollHousehold({
+            headOfHousehold: {
+                firstName: "Multi",
+                lastName: "Location",
+                phoneNumber: "0701234596",
+                locale: "sv",
+            },
+            smsConsent: false,
+            primaryPickupLocationId: primaryLocation.id,
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: {
+                pickupLocationId: primaryLocation.id,
+                parcels: [
+                    {
+                        pickupLocationId: primaryLocation.id,
+                        pickupEarliestTime: firstStart,
+                        pickupLatestTime: firstEnd,
+                    },
+                    {
+                        pickupLocationId: alternateLocation.id,
+                        pickupEarliestTime: secondStart,
+                        pickupLatestTime: secondEnd,
+                    },
+                ],
+            },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+
+        const db = await getTestDb();
+        const storedParcels = await db
+            .select({
+                pickupLocationId: foodParcels.pickup_location_id,
+                pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+            })
+            .from(foodParcels)
+            .where(eq(foodParcels.household_id, result.data.householdId))
+            .orderBy(foodParcels.pickup_date_time_earliest);
+
+        expect(storedParcels).toHaveLength(2);
+        expect(storedParcels[0].pickupLocationId).toBe(primaryLocation.id);
+        expect(storedParcels[1].pickupLocationId).toBe(alternateLocation.id);
+    });
+
+    it("should use the form-level pickup location for enrollment parcels without row location", async () => {
+        const { location } = await createTestLocationWithSchedule(
+            { name: "Fallback Parcel Location" },
+            {
+                weekdays: [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ],
+            },
+        );
+
+        const start = new Date(Date.now() + 9 * 24 * 60 * 60 * 1000);
+        start.setUTCHours(10, 0, 0, 0);
+        const end = new Date(start.getTime() + 15 * 60 * 1000);
+
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
+
+        const result = await enrollHousehold({
+            headOfHousehold: {
+                firstName: "Fallback",
+                lastName: "Location",
+                phoneNumber: "0701234595",
+                locale: "sv",
+            },
+            smsConsent: false,
+            primaryPickupLocationId: location.id,
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: {
+                pickupLocationId: location.id,
+                parcels: [
+                    {
+                        pickupEarliestTime: start,
+                        pickupLatestTime: end,
+                    },
+                ],
+            },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+
+        const db = await getTestDb();
+        const [storedParcel] = await db
+            .select({ pickupLocationId: foodParcels.pickup_location_id })
+            .from(foodParcels)
+            .where(eq(foodParcels.household_id, result.data.householdId));
+
+        expect(storedParcel.pickupLocationId).toBe(location.id);
+    });
+
+    it("should default the edit parcel calendar to household primary location while preserving row locations", async () => {
+        const primaryLocation = await createTestPickupLocation({ name: "Primary Edit Location" });
+        const firstParcelLocation = await createTestPickupLocation({ name: "First Parcel Place" });
+        const secondParcelLocation = await createTestPickupLocation({
+            name: "Second Parcel Place",
+        });
+        const household = await createTestHousehold({
+            primary_pickup_location_id: primaryLocation.id,
+        });
+
+        const firstStart = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+        firstStart.setUTCHours(10, 0, 0, 0);
+        const secondStart = new Date(Date.now() + 11 * 24 * 60 * 60 * 1000);
+        secondStart.setUTCHours(11, 0, 0, 0);
+
+        await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: firstParcelLocation.id,
+            pickup_date_time_earliest: firstStart,
+            pickup_date_time_latest: new Date(firstStart.getTime() + 15 * 60 * 1000),
+        });
+        await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: secondParcelLocation.id,
+            pickup_date_time_earliest: secondStart,
+            pickup_date_time_latest: new Date(secondStart.getTime() + 15 * 60 * 1000),
+        });
+
+        const { getHouseholdFormData } =
+            await import("@/app/[locale]/households/[id]/edit/actions");
+
+        const result = await getHouseholdFormData(household.id);
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+
+        expect(result.data.foodParcels.pickupLocationId).toBe(primaryLocation.id);
+        expect(result.data.foodParcels.parcels).toHaveLength(2);
+        expect(result.data.foodParcels.parcels.map(parcel => parcel.pickupLocationId)).toEqual([
+            firstParcelLocation.id,
+            secondParcelLocation.id,
+        ]);
     });
 
     it("should accept enrollment with null primary location ID (optional)", async () => {

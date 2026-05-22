@@ -153,6 +153,7 @@ export interface AdditionalNeedData {
 }
 
 export interface FoodParcelCreateData {
+    pickupLocationId?: string;
     pickupEarliestTime: Date;
     pickupLatestTime: Date;
 }

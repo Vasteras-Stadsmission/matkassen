@@ -8,7 +8,6 @@ import {
     Text,
     Card,
     Select,
-    Table,
     Stack,
     Box,
     Tooltip,
@@ -40,7 +39,7 @@ import {
     getLocationSlotDurationAction,
 } from "../client-actions";
 import { FoodParcels, FoodParcel } from "../types";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { TranslationFunction } from "../../../types";
 import { type LocationScheduleInfo, type LocationScheduleDay } from "@/app/[locale]/schedule/types";
 import { Time } from "@/app/utils/time-provider";
@@ -55,6 +54,8 @@ interface PickupLocation {
     value: string;
     label: string;
 }
+
+type OpeningHoursRange = { openingTime: string; closingTime: string };
 
 interface FoodParcelsFormProps {
     data: FoodParcels;
@@ -78,6 +79,7 @@ export default function FoodParcelsForm({
 }: FoodParcelsFormProps) {
     const t = useTranslations("foodParcels") as TranslationFunction;
     const tCommon = useTranslations("handoutLocations");
+    const locale = useLocale();
 
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
     const [locationError, setLocationError] = useState<string | null>(null);
@@ -87,12 +89,30 @@ export default function FoodParcelsForm({
     const [bulkTimeError, setBulkTimeError] = useState<string | null>(null);
     // Add state for location schedules
     const [locationSchedules, setLocationSchedules] = useState<LocationScheduleInfo | null>(null);
+    const [locationSchedulesById, setLocationSchedulesById] = useState<
+        Record<string, LocationScheduleInfo>
+    >({});
     // Add state for slot duration
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
+    const [slotDurationsById, setSlotDurationsById] = useState<Record<string, number>>({});
+
+    const locationNameById = useMemo(() => {
+        return new Map(pickupLocations.map(location => [location.value, location.label]));
+    }, [pickupLocations]);
+
+    const dateKey = (date: Date): string => {
+        const localDate = new Date(date);
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, "0");
+        const day = String(localDate.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    };
+
+    const sameCalendarDay = (left: Date, right: Date): boolean => dateKey(left) === dateKey(right);
 
     // Derive opening hours for dates from location schedules
     const getOpeningHoursForDate = useCallback(
-        (date: Date): { openingTime: string; closingTime: string } | null => {
+        (date: Date): OpeningHoursRange | null => {
             if (!locationSchedules) return null;
 
             const dateOnly = new Date(date);
@@ -137,28 +157,6 @@ export default function FoodParcelsForm({
         [locationSchedules],
     );
 
-    const getCommonOpeningHoursForDates = useCallback(
-        (dates: Date[]): { openingTime: string; closingTime: string } | null => {
-            if (!dates.length) return null;
-            let maxOpening: string | null = null;
-            let minClosing: string | null = null;
-
-            for (const date of dates) {
-                const range = getOpeningHoursForDate(date);
-                if (!range) return null; // any closed date breaks common range
-
-                const { openingTime, closingTime } = range;
-                if (maxOpening === null || openingTime > maxOpening) maxOpening = openingTime;
-                if (minClosing === null || closingTime < minClosing) minClosing = closingTime;
-            }
-
-            if (!maxOpening || !minClosing) return null;
-            if (maxOpening >= minClosing) return null;
-            return { openingTime: maxOpening, closingTime: minClosing };
-        },
-        [getOpeningHoursForDate],
-    );
-
     const [capacityNotification, setCapacityNotification] = useState<{
         date: Date;
         message: string;
@@ -174,6 +172,7 @@ export default function FoodParcelsForm({
         dateCapacities: Record<string, number>;
     } | null>(null);
     const [loadingCapacityData, setLoadingCapacityData] = useState(false);
+    const activeLocationRequestRef = useRef(0);
 
     // State for time selection modal
     const [timeModalOpened, setTimeModalOpened] = useState(false);
@@ -199,20 +198,147 @@ export default function FoodParcelsForm({
         parcels: data.parcels || [],
     });
 
-    const [selectedDates, setSelectedDates] = useState<Date[]>(
-        data.parcels?.map(parcel => new Date(parcel.pickupDate)) || [],
+    const getParcelLocationId = useCallback(
+        (parcel: FoodParcel): string => parcel.pickupLocationId || formState.pickupLocationId,
+        [formState.pickupLocationId],
     );
+
+    const getOpeningHoursForLocationDate = useCallback(
+        (locationId: string, date: Date): OpeningHoursRange | null => {
+            const schedules = locationSchedulesById[locationId];
+            if (!schedules) {
+                return formState.pickupLocationId === locationId
+                    ? getOpeningHoursForDate(date)
+                    : null;
+            }
+
+            const dateOnly = new Date(date);
+            dateOnly.setHours(0, 0, 0, 0);
+
+            const weekdayNames = [
+                "sunday",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+            ];
+            const weekday = weekdayNames[dateOnly.getDay()];
+
+            let earliest: string | null = null;
+            let latest: string | null = null;
+
+            for (const schedule of schedules.schedules) {
+                const start = new Date(schedule.startDate);
+                const end = new Date(schedule.endDate);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+
+                if (dateOnly < start || dateOnly > end) continue;
+
+                const day = schedule.days.find((d: LocationScheduleDay) => d.weekday === weekday);
+                if (!day || !day.isOpen || !day.openingTime || !day.closingTime) continue;
+
+                if (earliest === null || day.openingTime < earliest) earliest = day.openingTime;
+                if (latest === null || day.closingTime > latest) latest = day.closingTime;
+            }
+
+            if (!earliest || !latest) return null;
+            const trim = (t: string) => (t.length >= 5 ? t.substring(0, 5) : t);
+            return { openingTime: trim(earliest), closingTime: trim(latest) };
+        },
+        [formState.pickupLocationId, getOpeningHoursForDate, locationSchedulesById],
+    );
+
+    const getSlotDurationForLocation = useCallback(
+        (locationId: string): number => {
+            return (
+                slotDurationsById[locationId] ??
+                (locationId === formState.pickupLocationId ? slotDuration : 15)
+            );
+        },
+        [formState.pickupLocationId, slotDuration, slotDurationsById],
+    );
+
+    const selectedDatesForCurrentLocation = useMemo(() => {
+        if (!formState.pickupLocationId) return [];
+
+        return formState.parcels
+            .filter(parcel => getParcelLocationId(parcel) === formState.pickupLocationId)
+            .map(parcel => new Date(parcel.pickupDate));
+    }, [formState.parcels, formState.pickupLocationId, getParcelLocationId]);
+
+    const selectedDateKeysForOtherLocations = useMemo(() => {
+        if (!formState.pickupLocationId) return new Set<string>();
+
+        return new Set(
+            formState.parcels
+                .filter(parcel => getParcelLocationId(parcel) !== formState.pickupLocationId)
+                .map(parcel => dateKey(new Date(parcel.pickupDate))),
+        );
+    }, [formState.parcels, formState.pickupLocationId, getParcelLocationId]);
+
+    const activeLocationDataReady =
+        !formState.pickupLocationId ||
+        (capacityData !== null &&
+            locationSchedulesById[formState.pickupLocationId] !== undefined &&
+            slotDurationsById[formState.pickupLocationId] !== undefined);
+
+    const isLoadingActiveLocationData =
+        !!formState.pickupLocationId && (!activeLocationDataReady || loadingCapacityData);
+
+    const selectedSlotDurations = useMemo(() => {
+        return Array.from(
+            new Set(
+                formState.parcels.map(parcel =>
+                    getSlotDurationForLocation(getParcelLocationId(parcel)),
+                ),
+            ),
+        );
+    }, [formState.parcels, getParcelLocationId, getSlotDurationForLocation]);
 
     // Precompute common opening hours for bulk selection (needs formState)
     const bulkCommonRange = useMemo(() => {
-        if (!locationSchedules || formState.parcels.length === 0) return null;
+        if (formState.parcels.length === 0) return null;
         // Consider only non-past dates for bulk operations
-        const dates = formState.parcels
-            .map(p => new Date(p.pickupDate))
-            .filter(d => !isPastDate(d));
-        if (dates.length === 0) return null;
-        return getCommonOpeningHoursForDates(dates);
-    }, [locationSchedules, formState.parcels, getCommonOpeningHoursForDates, isPastDate]);
+        const ranges = formState.parcels
+            .filter(parcel => !isPastDate(new Date(parcel.pickupDate)))
+            .map(parcel =>
+                getOpeningHoursForLocationDate(
+                    getParcelLocationId(parcel),
+                    new Date(parcel.pickupDate),
+                ),
+            );
+
+        if (ranges.length === 0 || ranges.some(range => !range)) return null;
+
+        let maxOpening: string | null = null;
+        let minClosing: string | null = null;
+
+        for (const range of ranges) {
+            if (!range) return null;
+            if (maxOpening === null || range.openingTime > maxOpening) {
+                maxOpening = range.openingTime;
+            }
+            if (minClosing === null || range.closingTime < minClosing) {
+                minClosing = range.closingTime;
+            }
+        }
+
+        if (!maxOpening || !minClosing || maxOpening >= minClosing) return null;
+        return { openingTime: maxOpening, closingTime: minClosing };
+    }, [formState.parcels, getOpeningHoursForLocationDate, getParcelLocationId, isPastDate]);
+
+    const bulkSlotDuration = useMemo(() => {
+        const durations = new Set(
+            formState.parcels
+                .filter(parcel => !isPastDate(new Date(parcel.pickupDate)))
+                .map(parcel => getSlotDurationForLocation(getParcelLocationId(parcel))),
+        );
+
+        return durations.size === 1 ? Array.from(durations)[0] : null;
+    }, [formState.parcels, getParcelLocationId, getSlotDurationForLocation, isPastDate]);
 
     // Check whether all selected parcel dates share identical opening/closing times
     const doAllSelectedDatesShareSameHours = useCallback((): {
@@ -220,7 +346,7 @@ export default function FoodParcelsForm({
         representative?: { openingTime: string; closingTime: string } | null;
         summary?: Record<string, number>;
     } => {
-        if (!locationSchedules || formState.parcels.length === 0) {
+        if (formState.parcels.length === 0) {
             return { same: false };
         }
 
@@ -233,7 +359,7 @@ export default function FoodParcelsForm({
             if (isPastDate(parcelDate)) {
                 continue;
             }
-            const range = getOpeningHoursForDate(parcelDate);
+            const range = getOpeningHoursForLocationDate(getParcelLocationId(parcel), parcelDate);
             if (!range) {
                 // Closed date or unknown hours — treat as unique bucket
                 const key = "CLOSED";
@@ -250,7 +376,7 @@ export default function FoodParcelsForm({
             return { same: true, representative, summary: counts };
         }
         return { same: false, representative, summary: counts };
-    }, [locationSchedules, formState.parcels, getOpeningHoursForDate, isPastDate]);
+    }, [formState.parcels, getOpeningHoursForLocationDate, getParcelLocationId, isPastDate]);
 
     useEffect(() => {
         if (data.pickupLocationId) {
@@ -338,14 +464,24 @@ export default function FoodParcelsForm({
     }, []);
 
     useEffect(() => {
-        async function fetchCapacityData() {
-            if (!formState.pickupLocationId) {
-                setCapacityData(null);
-                return;
-            }
+        const locationId = formState.pickupLocationId;
+        const requestId = activeLocationRequestRef.current + 1;
+        activeLocationRequestRef.current = requestId;
 
-            setLoadingCapacityData(true);
+        if (!locationId) {
+            setCapacityData(null);
+            setLocationSchedules(null);
+            setSlotDuration(15);
+            setLoadingCapacityData(false);
+            return;
+        }
 
+        let cancelled = false;
+        setCapacityData(null);
+        setLocationSchedules(null);
+        setLoadingCapacityData(true);
+
+        async function fetchActiveLocationData() {
             try {
                 // Set the date range for capacity check (current month + next month)
                 const today = Time.now().toDate();
@@ -355,81 +491,88 @@ export default function FoodParcelsForm({
                 const endDate = new Date(today);
                 endDate.setMonth(endDate.getMonth() + 2, 0); // Last day of next month
 
-                const capacity = await getPickupLocationCapacityForRangeAction(
-                    formState.pickupLocationId,
-                    startDate,
-                    endDate,
-                );
+                const [capacity, schedules, duration] = await Promise.all([
+                    getPickupLocationCapacityForRangeAction(locationId, startDate, endDate),
+                    getPickupLocationSchedulesAction(locationId),
+                    getLocationSlotDurationAction(locationId),
+                ]);
+
+                if (cancelled || activeLocationRequestRef.current !== requestId) return;
 
                 setCapacityData(capacity);
-            } catch {
-                // Error fetching capacity data
-                setCapacityData(null);
-            } finally {
-                setLoadingCapacityData(false);
-            }
-        }
-
-        fetchCapacityData();
-    }, [formState.pickupLocationId]);
-
-    // Fetch location schedules when pickup location changes
-    useEffect(() => {
-        async function fetchSchedules() {
-            if (!formState.pickupLocationId) {
-                setLocationSchedules(null);
-                return;
-            }
-
-            try {
-                const schedules = await getPickupLocationSchedulesAction(
-                    formState.pickupLocationId,
-                );
                 setLocationSchedules(schedules);
+                setLocationSchedulesById(prev => ({
+                    ...prev,
+                    [locationId]: schedules,
+                }));
+                setSlotDuration(duration);
+                setSlotDurationsById(prev => ({
+                    ...prev,
+                    [locationId]: duration,
+                }));
             } catch {
-                // Error fetching location schedules
+                if (cancelled || activeLocationRequestRef.current !== requestId) return;
+
+                setCapacityData({
+                    hasLimit: false,
+                    maxPerDay: null,
+                    dateCapacities: {},
+                });
                 setLocationSchedules(null);
-            }
-        }
-
-        fetchSchedules();
-    }, [formState.pickupLocationId]);
-
-    // Also fetch location schedules on initial load if data has a pickup location
-    useEffect(() => {
-        async function fetchInitialSchedules() {
-            if (data.pickupLocationId && !locationSchedules) {
-                try {
-                    const schedules = await getPickupLocationSchedulesAction(data.pickupLocationId);
-                    setLocationSchedules(schedules);
-                } catch {
-                    // Error fetching initial location schedules
+                setLocationSchedulesById(prev => ({
+                    ...prev,
+                    [locationId]: { schedules: [] },
+                }));
+                setSlotDuration(15);
+                setSlotDurationsById(prev => ({
+                    ...prev,
+                    [locationId]: 15,
+                }));
+            } finally {
+                if (!cancelled && activeLocationRequestRef.current === requestId) {
+                    setLoadingCapacityData(false);
                 }
             }
         }
 
-        fetchInitialSchedules();
-    }, [data.pickupLocationId, locationSchedules]);
+        fetchActiveLocationData();
 
-    // Fetch slot duration when pickup location changes
-    useEffect(() => {
-        async function fetchSlotDuration() {
-            if (!formState.pickupLocationId) {
-                setSlotDuration(15); // Default to 15 minutes
-                return;
-            }
-
-            try {
-                const duration = await getLocationSlotDurationAction(formState.pickupLocationId);
-                setSlotDuration(duration);
-            } catch {
-                // Error fetching slot duration
-                setSlotDuration(15); // Default to 15 minutes in case of error
-            }
-        }
-
-        fetchSlotDuration();
+        return () => {
+            cancelled = true;
+        };
     }, [formState.pickupLocationId]);
+
+    useEffect(() => {
+        const locationIds = Array.from(
+            new Set(
+                formState.parcels
+                    .map(parcel => getParcelLocationId(parcel))
+                    .filter((locationId): locationId is string => !!locationId),
+            ),
+        );
+
+        locationIds.forEach(locationId => {
+            if (!locationSchedulesById[locationId]) {
+                getPickupLocationSchedulesAction(locationId)
+                    .then(schedules => {
+                        setLocationSchedulesById(prev => ({ ...prev, [locationId]: schedules }));
+                    })
+                    .catch(() => {
+                        // Error fetching location schedules for selected parcel row
+                    });
+            }
+
+            if (slotDurationsById[locationId] === undefined) {
+                getLocationSlotDurationAction(locationId)
+                    .then(duration => {
+                        setSlotDurationsById(prev => ({ ...prev, [locationId]: duration }));
+                    })
+                    .catch(() => {
+                        // Error fetching slot duration for selected parcel row
+                    });
+            }
+        });
+    }, [formState.parcels, getParcelLocationId, locationSchedulesById, slotDurationsById]);
 
     const isDateExcluded = (date: Date): boolean => {
         const localDate = new Date(date);
@@ -437,7 +580,7 @@ export default function FoodParcelsForm({
         dateForComparison.setHours(0, 0, 0, 0);
 
         // Always allow dates that are already selected - this is critical for deselection
-        const isAlreadySelected = selectedDates.some(selectedDate => {
+        const isAlreadySelected = selectedDatesForCurrentLocation.some(selectedDate => {
             const selected = new Date(selectedDate);
             selected.setHours(0, 0, 0, 0);
             return selected.getTime() === dateForComparison.getTime();
@@ -445,6 +588,14 @@ export default function FoodParcelsForm({
 
         if (isAlreadySelected) {
             return false; // Never exclude dates that are already selected
+        }
+
+        if (!activeLocationDataReady) {
+            return true;
+        }
+
+        if (selectedDateKeysForOtherLocations.has(dateKey(dateForComparison))) {
+            return true;
         }
 
         // Check against location schedule
@@ -516,14 +667,14 @@ export default function FoodParcelsForm({
         const year = localDate.getFullYear();
         const month = String(localDate.getMonth() + 1).padStart(2, "0");
         const day = String(localDate.getDate()).padStart(2, "0");
-        const dateKey = `${year}-${month}-${day}`;
+        const capacityDateKey = `${year}-${month}-${day}`;
         const dateString = localDate.toDateString();
 
         // Count parcels from database
-        const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+        const dbParcelCount = capacityData?.dateCapacities?.[capacityDateKey] || 0;
 
         // Count selected dates for this same day in the current session
-        const selectedDateCount = selectedDates.filter(
+        const selectedDateCount = selectedDatesForCurrentLocation.filter(
             selectedDate => new Date(selectedDate).toDateString() === dateString,
         ).length;
 
@@ -541,14 +692,14 @@ export default function FoodParcelsForm({
         const year = localDate.getFullYear();
         const month = String(localDate.getMonth() + 1).padStart(2, "0");
         const day = String(localDate.getDate()).padStart(2, "0");
-        const dateKey = `${year}-${month}-${day}`;
+        const capacityDateKey = `${year}-${month}-${day}`;
         const dateString = localDate.toDateString();
 
         // Count parcels from database
-        const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+        const dbParcelCount = capacityData?.dateCapacities?.[capacityDateKey] || 0;
 
         // Count selected dates for this same day in the current session (excluding the current date if it's selected)
-        const selectedDateCount = selectedDates.filter(
+        const selectedDateCount = selectedDatesForCurrentLocation.filter(
             selectedDate => new Date(selectedDate).toDateString() === dateString,
         ).length;
 
@@ -567,7 +718,7 @@ export default function FoodParcelsForm({
         dateForComparison.setHours(0, 0, 0, 0);
         const isToday = dateForComparison.getTime() === today.getTime();
 
-        const isSelected = selectedDates.some(selectedDate => {
+        const isSelected = selectedDatesForCurrentLocation.some(selectedDate => {
             const selected = new Date(selectedDate);
             selected.setHours(0, 0, 0, 0);
             return selected.getTime() === dateForComparison.getTime();
@@ -679,14 +830,16 @@ export default function FoodParcelsForm({
             const updatedState = {
                 ...formState,
                 pickupLocationId: value,
-                parcels: formState.parcels.map(parcel =>
-                    parcel.id ? parcel : { ...parcel, pickupLocationId: value },
-                ),
             };
             setFormState(updatedState);
             updateData(updatedState);
         } else {
-            handleParameterChange("pickupLocationId", value);
+            const updatedState = {
+                ...formState,
+                pickupLocationId: "",
+            };
+            setFormState(updatedState);
+            updateData(updatedState);
         }
     };
 
@@ -761,47 +914,10 @@ export default function FoodParcelsForm({
         [generateTimeSlots, slotDuration],
     );
 
-    const generateParcels = useCallback((): FoodParcel[] => {
-        // Track which parcels we've already matched to avoid duplicates
-        // We track both IDs (for saved parcels) and indices (for unsaved parcels)
-        const processedIds = new Set<string>();
-        const processedIndices = new Set<number>();
-
-        return selectedDates.map(date => {
-            const dateString = new Date(date).toDateString();
-
-            // Find an existing parcel for this exact date if there is one
-            // CRITICAL: Only reuse parcels whose dates are still in selectedDates
-            // First try to match parcels with IDs (saved to database)
-            const existingParcelWithId = formState.parcels.find(
-                p =>
-                    new Date(p.pickupDate).toDateString() === dateString &&
-                    p.id &&
-                    !processedIds.has(p.id),
-            );
-
-            if (existingParcelWithId && existingParcelWithId.id) {
-                // Mark this ID as processed so we don't reuse it
-                processedIds.add(existingParcelWithId.id);
-                return existingParcelWithId;
-            }
-
-            // If no parcel with ID found, try to match parcels without IDs (unsaved)
-            // This preserves time changes made to new parcels before they're saved
-            const existingParcelIndex = formState.parcels.findIndex(
-                (p, idx) =>
-                    new Date(p.pickupDate).toDateString() === dateString &&
-                    !p.id &&
-                    !processedIndices.has(idx),
-            );
-
-            if (existingParcelIndex !== -1) {
-                processedIndices.add(existingParcelIndex);
-                return formState.parcels[existingParcelIndex];
-            }
-
-            // Use the first available slot as default time, or noon as fallback
-            const range = getOpeningHoursForDate(date);
+    const createParcelForLocationDate = useCallback(
+        (locationId: string, date: Date): FoodParcel => {
+            const range = getOpeningHoursForLocationDate(locationId, date);
+            const duration = getSlotDurationForLocation(locationId);
             const defaultTimeSlot = range
                 ? getFirstAvailableSlot(range.openingTime, range.closingTime)
                 : "12:00";
@@ -810,58 +926,80 @@ export default function FoodParcelsForm({
             const earliestTime = new Date(date);
             earliestTime.setHours(hours, minutes, 0, 0);
 
-            // Calculate end time based on slot duration
             const latestTime = new Date(earliestTime);
-            latestTime.setMinutes(latestTime.getMinutes() + slotDuration);
+            latestTime.setMinutes(latestTime.getMinutes() + duration);
 
-            // Do NOT pre-generate IDs for new parcels - let the server handle it
-            // The absence of an ID signals to the backend that this is a new parcel
             return {
-                id: undefined,
-                pickupLocationId: formState.pickupLocationId,
+                pickupLocationId: locationId,
                 pickupDate: new Date(date),
                 pickupEarliestTime: earliestTime,
                 pickupLatestTime: latestTime,
             };
-        });
-    }, [
-        selectedDates,
-        formState.parcels,
-        formState.pickupLocationId,
-        slotDuration,
-        getFirstAvailableSlot,
-        getOpeningHoursForDate,
-    ]);
+        },
+        [getFirstAvailableSlot, getOpeningHoursForLocationDate, getSlotDurationForLocation],
+    );
+
+    const showSelectionNotification = useCallback((date: Date, message: string) => {
+        setTimeout(() => {
+            setCapacityNotification({
+                date,
+                message,
+                isAvailable: false,
+            });
+
+            if (capacityNotificationTimeoutRef.current) {
+                clearTimeout(capacityNotificationTimeoutRef.current);
+            }
+
+            capacityNotificationTimeoutRef.current = setTimeout(() => {
+                setCapacityNotification(null);
+            }, 5000);
+        }, 0);
+    }, []);
 
     const handleDatesChange = (dates: string[]) => {
+        if (!formState.pickupLocationId) return;
+        if (!activeLocationDataReady) {
+            showSelectionNotification(Time.now().toDate(), t("locationDataLoading"));
+            return;
+        }
+
         // Convert string dates to Date objects for internal processing
         const dateObjects = dates.map(dateStr => new Date(dateStr));
+        const selectedDateKeys = new Set(dateObjects.map(date => dateKey(date)));
 
         // If the user is trying to add a new date (length has increased)
-        if (dateObjects.length > selectedDates.length) {
+        if (dateObjects.length > selectedDatesForCurrentLocation.length) {
             const addedDate = dateObjects.find(
                 newDate =>
-                    !selectedDates.some(
-                        existingDate =>
-                            new Date(existingDate).toDateString() ===
-                            new Date(newDate).toDateString(),
+                    !selectedDatesForCurrentLocation.some(existingDate =>
+                        sameCalendarDay(existingDate, newDate),
                     ),
             );
 
             if (addedDate) {
                 const localDate = new Date(addedDate);
+                if (selectedDateKeysForOtherLocations.has(dateKey(localDate))) {
+                    showSelectionNotification(
+                        localDate,
+                        t("dateAlreadySelected", {
+                            date: localDate.toLocaleDateString(locale),
+                        }),
+                    );
+                    return;
+                }
+
                 const year = localDate.getFullYear();
                 const month = String(localDate.getMonth() + 1).padStart(2, "0");
                 const day = String(localDate.getDate()).padStart(2, "0");
-                const dateKey = `${year}-${month}-${day}`;
-                const dateString = localDate.toDateString();
+                const addedDateKey = `${year}-${month}-${day}`;
 
                 // Count parcels from database
-                const dbParcelCount = capacityData?.dateCapacities?.[dateKey] || 0;
+                const dbParcelCount = capacityData?.dateCapacities?.[addedDateKey] || 0;
 
                 // Count existing selected dates for this same day
-                const existingDateCount = selectedDates.filter(
-                    selectedDate => new Date(selectedDate).toDateString() === dateString,
+                const existingDateCount = selectedDatesForCurrentLocation.filter(selectedDate =>
+                    sameCalendarDay(selectedDate, localDate),
                 ).length;
 
                 // Total count including the new date being added (+1)
@@ -872,65 +1010,52 @@ export default function FoodParcelsForm({
                 // If the date is unavailable (at or over capacity), don't add it
                 if (!isAvailable && maxPerDay !== null) {
                     // Revert the selection by removing the date that was just added
-                    setTimeout(() => {
-                        setSelectedDates(prevDates =>
-                            prevDates.filter(date => new Date(date).toDateString() !== dateString),
-                        );
-
-                        // Optionally show a notification that the date is at capacity
-                        setCapacityNotification({
-                            date: localDate,
-                            message: `Max antal (${maxPerDay}) matkassar bokade för detta datum`,
-                            isAvailable: false,
-                        });
-
-                        if (capacityNotificationTimeoutRef.current) {
-                            clearTimeout(capacityNotificationTimeoutRef.current);
-                        }
-
-                        capacityNotificationTimeoutRef.current = setTimeout(() => {
-                            setCapacityNotification(null);
-                        }, 5000);
-                    }, 0);
+                    showSelectionNotification(localDate, t("capacityFull", { maximum: maxPerDay }));
 
                     return;
                 }
             }
         }
 
-        // If we got here, the selection change is valid
-        setSelectedDates(dateObjects);
-    };
+        const otherLocationParcels = formState.parcels.filter(
+            parcel => getParcelLocationId(parcel) !== formState.pickupLocationId,
+        );
+        const currentLocationExistingParcels = formState.parcels.filter(
+            parcel => getParcelLocationId(parcel) === formState.pickupLocationId,
+        );
+        const preservedCurrentLocationParcels = currentLocationExistingParcels.filter(parcel =>
+            selectedDateKeys.has(dateKey(new Date(parcel.pickupDate))),
+        );
+        const existingCurrentDateKeys = new Set(
+            preservedCurrentLocationParcels.map(parcel => dateKey(new Date(parcel.pickupDate))),
+        );
+        const newParcels = dateObjects
+            .filter(date => !existingCurrentDateKeys.has(dateKey(date)))
+            .map(date => createParcelForLocationDate(formState.pickupLocationId, date));
 
-    const handleParameterChange = (field: keyof FoodParcels, value: unknown) => {
-        setFormState(prev => ({ ...prev, [field]: value }));
-    };
-
-    const applyChanges = useCallback(() => {
-        const parcels = generateParcels();
         const updatedState = {
             ...formState,
-            parcels,
+            parcels: [...otherLocationParcels, ...preservedCurrentLocationParcels, ...newParcels],
         };
 
-        if (JSON.stringify(updatedState.parcels) !== JSON.stringify(formState.parcels)) {
-            setFormState(updatedState);
-            updateData(updatedState);
-        }
-    }, [formState, generateParcels, updateData]);
+        setFormState(updatedState);
+        updateData(updatedState);
+    };
 
     const updateParcelTime = (index: number, field: keyof FoodParcel, time: Date) => {
         // Only allow updating the start time (pickupEarliestTime)
         if (field === "pickupEarliestTime") {
             const updatedParcels = [...formState.parcels];
             const parcel = updatedParcels[index];
+            const parcelLocationId = getParcelLocationId(parcel);
+            const duration = getSlotDurationForLocation(parcelLocationId);
 
             // Set the new start time
             const newStartTime = new Date(time);
 
             // Calculate the new end time based on slot duration
             const newEndTime = new Date(newStartTime);
-            newEndTime.setMinutes(newEndTime.getMinutes() + slotDuration);
+            newEndTime.setMinutes(newEndTime.getMinutes() + duration);
 
             // Clear any existing errors
             const newTimeErrors = { ...timeErrors };
@@ -940,9 +1065,7 @@ export default function FoodParcelsForm({
             // Update the parcel with both new times
             updatedParcels[index] = {
                 ...parcel,
-                pickupLocationId: parcel.id
-                    ? parcel.pickupLocationId
-                    : formState.pickupLocationId || parcel.pickupLocationId,
+                pickupLocationId: parcelLocationId,
                 pickupEarliestTime: newStartTime,
                 pickupLatestTime: newEndTime,
             };
@@ -954,20 +1077,17 @@ export default function FoodParcelsForm({
         }
     };
 
-    useEffect(() => {
-        if (
-            data.parcels?.length > 0 &&
-            JSON.stringify(data.parcels) !== JSON.stringify(formState.parcels)
-        ) {
-            setSelectedDates(data.parcels.map(parcel => new Date(parcel.pickupDate)));
-        }
-    }, [data.parcels, formState.parcels]);
+    const removeParcelAtIndex = (index: number) => {
+        const parcel = formState.parcels[index];
+        if (!parcel || isPastDate(new Date(parcel.pickupDate))) return;
 
-    useEffect(() => {
-        // CRITICAL: Always apply changes when selectedDates changes, even when empty
-        // This ensures deselecting all dates properly clears the parcels list
-        applyChanges();
-    }, [selectedDates, applyChanges]);
+        const updatedState = {
+            ...formState,
+            parcels: formState.parcels.filter((_, parcelIndex) => parcelIndex !== index),
+        };
+        setFormState(updatedState);
+        updateData(updatedState);
+    };
 
     const applyBulkTimeUpdate = () => {
         // Parse the time from the input
@@ -990,9 +1110,11 @@ export default function FoodParcelsForm({
             if (isPastDate(parcelDate)) {
                 return; // skip past dates
             }
-            const range = getOpeningHoursForDate(parcelDate);
+            const parcelLocationId = getParcelLocationId(parcel);
+            const duration = getSlotDurationForLocation(parcelLocationId);
+            const range = getOpeningHoursForLocationDate(parcelLocationId, parcelDate);
             if (!range) {
-                invalidDates.push(parcelDate.toLocaleDateString("sv-SE"));
+                invalidDates.push(parcelDate.toLocaleDateString(locale));
                 return;
             }
 
@@ -1000,17 +1122,20 @@ export default function FoodParcelsForm({
             const [closeH, closeM] = range.closingTime.split(":").map(n => parseInt(n, 10));
             const openingTotal = openH * 60 + openM;
             const closingTotal = closeH * 60 + closeM;
-            const latestAllowedStart = closingTotal - slotDuration;
+            const latestAllowedStart = closingTotal - duration;
             const chosenTotal = hours * 60 + roundedMinutes;
 
             if (chosenTotal < openingTotal || chosenTotal > latestAllowedStart) {
-                invalidDates.push(parcelDate.toLocaleDateString("sv-SE"));
+                invalidDates.push(parcelDate.toLocaleDateString(locale));
             }
         });
 
         if (invalidDates.length > 0) {
             setBulkTimeError(
-                `Vald tid (${bulkStartTime}) ligger utanför öppettiderna för: ${invalidDates.join(", ")}`,
+                t("bulk.timeOutsideHours", {
+                    time: bulkStartTime,
+                    dates: invalidDates.join(", "),
+                }),
             );
             return;
         }
@@ -1023,9 +1148,11 @@ export default function FoodParcelsForm({
                 newStartTime.setHours(hours, roundedMinutes, 0, 0);
             }
 
+            const duration = getSlotDurationForLocation(getParcelLocationId(parcel));
+
             // Calculate the end time based on slot duration
             const newEndTime = new Date(newStartTime);
-            newEndTime.setMinutes(newEndTime.getMinutes() + slotDuration);
+            newEndTime.setMinutes(newEndTime.getMinutes() + duration);
 
             return {
                 ...parcel,
@@ -1258,7 +1385,9 @@ export default function FoodParcelsForm({
                     >
                         <DatePicker
                             type="multiple"
-                            value={selectedDates.map(date => date.toISOString().split("T")[0])}
+                            value={selectedDatesForCurrentLocation.map(
+                                date => date.toISOString().split("T")[0],
+                            )}
                             onChange={handleDatesChange}
                             minDate={Time.now().toDate()}
                             numberOfColumns={2}
@@ -1267,7 +1396,7 @@ export default function FoodParcelsForm({
                             withWeekNumbers
                         />
 
-                        {loadingCapacityData && formState.pickupLocationId && (
+                        {isLoadingActiveLocationData && (
                             <Box
                                 style={{
                                     position: "absolute",
@@ -1384,7 +1513,7 @@ export default function FoodParcelsForm({
                 <>
                     <Group justify="space-between" align="center">
                         <Title order={5} mt="md" mb="sm">
-                            {t("title")} ({selectedDates.length})
+                            {t("selectedParcels")} ({formState.parcels.length})
                         </Title>
 
                         {!bulkTimeMode ? (
@@ -1398,12 +1527,12 @@ export default function FoodParcelsForm({
                                 size="xs"
                                 onClick={() => {
                                     const check = doAllSelectedDatesShareSameHours();
-                                    if (!check.same) {
+                                    if (!check.same || bulkSlotDuration === null) {
                                         // Build a concise explanation for the user
                                         const summaryParts = Object.entries(check.summary || {})
                                             .map(
                                                 ([k, v]) =>
-                                                    `${k === "CLOSED" ? "closed" : k} (${v})`,
+                                                    `${k === "CLOSED" ? t("bulk.closed") : k} (${v})`,
                                             )
                                             .join(", ");
                                         showNotification({
@@ -1544,7 +1673,8 @@ export default function FoodParcelsForm({
                                                         const [hours, minutes] = bulkStartTime
                                                             .split(":")
                                                             .map(n => parseInt(n, 10));
-                                                        const endMinutes = minutes + slotDuration;
+                                                        const endMinutes =
+                                                            minutes + (bulkSlotDuration ?? 15);
                                                         const endHours =
                                                             hours + Math.floor(endMinutes / 60);
                                                         const finalMinutes = endMinutes % 60;
@@ -1605,312 +1735,191 @@ export default function FoodParcelsForm({
                                     style={{ color: "var(--mantine-color-blue-6)" }}
                                 />
                                 <Text size="sm" fw={500}>
-                                    {t("slotDuration", { duration: slotDuration.toString() })}
+                                    {selectedSlotDurations.length === 1
+                                        ? t("slotDuration", {
+                                              duration: selectedSlotDurations[0].toString(),
+                                          })
+                                        : t("slotDurationVaries")}
                                 </Text>
                             </Group>
                         </Paper>
                     </Group>
 
-                    <Paper radius="md" withBorder shadow="xs">
-                        <Table striped={false} highlightOnHover verticalSpacing="sm">
-                            <Table.Thead>
-                                <Table.Tr
-                                    style={{ backgroundColor: "var(--mantine-color-gray-0)" }}
+                    <Stack gap="sm">
+                        {formState.parcels.map((parcel, index) => {
+                            const date = new Date(parcel.pickupDate);
+                            const isParcelPastDate = isPastDate(date);
+                            const parcelLocationId = getParcelLocationId(parcel);
+                            const parcelSlotDuration = getSlotDurationForLocation(parcelLocationId);
+                            const locationName =
+                                locationNameById.get(parcelLocationId) || t("unknownLocation");
+
+                            return (
+                                <Paper
+                                    key={
+                                        parcel.id
+                                            ? parcel.id
+                                            : `${parcelLocationId}-${dateKey(date)}`
+                                    }
+                                    radius="md"
+                                    withBorder
+                                    p="sm"
+                                    style={{
+                                        backgroundColor: isParcelPastDate
+                                            ? "var(--mantine-color-gray-0)"
+                                            : "white",
+                                        opacity: isParcelPastDate ? 0.65 : 1,
+                                    }}
                                 >
-                                    <Table.Th style={{ width: "20%", textAlign: "left" }}>
-                                        {t("table.date")}
-                                    </Table.Th>
-                                    <Table.Th style={{ width: "50%", textAlign: "left" }}>
-                                        {t("table.pickupTime")}
-                                    </Table.Th>
-                                    <Table.Th style={{ width: "30%", textAlign: "left" }}>
-                                        {t("table.facilityHours")}
-                                    </Table.Th>
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody
-                                key={locationSchedules ? "schedules-loaded" : "schedules-loading"}
-                            >
-                                {formState.parcels.map((parcel, index) => {
-                                    // Compute facility opening hours via helper to ensure proper boundaries and format
-                                    const date = new Date(parcel.pickupDate);
-                                    const isParcelPastDate = isPastDate(date);
-                                    const range = getOpeningHoursForDate(date);
-                                    const openingHours = range
-                                        ? `${range.openingTime} – ${range.closingTime}`
-                                        : null;
-
-                                    return (
-                                        <Table.Tr
-                                            key={parcel.id ? parcel.id : `index-${index}`}
-                                            style={{
-                                                borderBottom:
-                                                    index !== formState.parcels.length - 1
-                                                        ? "1px solid var(--mantine-color-gray-2)"
-                                                        : "none",
-                                                backgroundColor: isParcelPastDate
-                                                    ? "var(--mantine-color-gray-0)"
-                                                    : "transparent",
-                                                opacity: isParcelPastDate ? 0.6 : 1,
-                                            }}
-                                        >
-                                            {/* Date column */}
-                                            <Table.Td
-                                                p="xs"
-                                                pl="sm"
-                                                style={{ verticalAlign: "middle" }}
-                                            >
-                                                <Group gap="xs" align="center">
-                                                    <IconCalendar
-                                                        size="1rem"
-                                                        style={{
-                                                            color: isParcelPastDate
-                                                                ? "var(--mantine-color-gray-5)"
-                                                                : "var(--mantine-color-gray-6)",
-                                                        }}
-                                                    />
-                                                    <Text
-                                                        fw={500}
-                                                        style={{
-                                                            color: isParcelPastDate
-                                                                ? "var(--mantine-color-gray-6)"
-                                                                : "var(--mantine-color-gray-8)",
-                                                            textDecoration: isParcelPastDate
-                                                                ? "line-through"
-                                                                : "none",
-                                                        }}
-                                                    >
-                                                        {new Date(
-                                                            parcel.pickupDate,
-                                                        ).toLocaleDateString("sv-SE", {
-                                                            day: "numeric",
-                                                            month: "short",
-                                                            year: "numeric",
-                                                        })}
-                                                    </Text>
-                                                    {isParcelPastDate && (
-                                                        <Text
-                                                            size="xs"
-                                                            style={{
-                                                                color: "var(--mantine-color-red-6)",
-                                                                fontWeight: 500,
-                                                                backgroundColor:
-                                                                    "var(--mantine-color-red-0)",
-                                                                padding: "2px 6px",
-                                                                borderRadius: "4px",
-                                                                fontSize: "0.7rem",
-                                                            }}
-                                                        >
-                                                            {tCommon("past")}
-                                                        </Text>
-                                                    )}
-                                                </Group>
-                                            </Table.Td>
-
-                                            {/* Time column */}
-                                            <Table.Td p="xs" style={{ verticalAlign: "middle" }}>
-                                                <Tooltip
-                                                    label={
-                                                        timeErrors[`${index}-pickupEarliestTime`] ||
-                                                        timeErrors[`${index}-pickupLatestTime`]
-                                                    }
+                                    <SimpleGrid
+                                        cols={{ base: 1, sm: 4 }}
+                                        spacing="sm"
+                                        verticalSpacing="xs"
+                                        style={{ alignItems: "center" }}
+                                    >
+                                        <Group gap="xs" align="center">
+                                            <IconCalendar
+                                                size="1rem"
+                                                style={{
+                                                    color: isParcelPastDate
+                                                        ? "var(--mantine-color-gray-5)"
+                                                        : "var(--mantine-color-gray-6)",
+                                                }}
+                                            />
+                                            <Stack gap={2}>
+                                                <Text
+                                                    fw={500}
                                                     style={{
-                                                        color: "white",
-                                                        backgroundColor:
-                                                            "var(--mantine-color-red-6)",
+                                                        color: isParcelPastDate
+                                                            ? "var(--mantine-color-gray-6)"
+                                                            : "var(--mantine-color-gray-8)",
+                                                        textDecoration: isParcelPastDate
+                                                            ? "line-through"
+                                                            : "none",
                                                     }}
-                                                    position="top"
-                                                    withArrow
-                                                    opened={
-                                                        !!(
-                                                            timeErrors[
-                                                                `${index}-pickupEarliestTime`
-                                                            ] ||
-                                                            timeErrors[`${index}-pickupLatestTime`]
-                                                        )
-                                                    }
-                                                    withinPortal
                                                 >
-                                                    <Group gap="md" align="center">
-                                                        {/* Time selector */}
-                                                        <Group
-                                                            style={{
-                                                                border:
-                                                                    timeErrors[
-                                                                        `${index}-pickupEarliestTime`
-                                                                    ] ||
-                                                                    timeErrors[
-                                                                        `${index}-pickupLatestTime`
-                                                                    ]
-                                                                        ? "1px solid var(--mantine-color-red-5)"
-                                                                        : isParcelPastDate
-                                                                          ? "1px solid var(--mantine-color-gray-2)"
-                                                                          : "1px solid var(--mantine-color-gray-3)",
-                                                                borderRadius: "4px",
-                                                                padding: "0px",
-                                                                backgroundColor: isParcelPastDate
-                                                                    ? "var(--mantine-color-gray-0)"
-                                                                    : "white",
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                opacity: isParcelPastDate ? 0.7 : 1,
-                                                            }}
-                                                        >
-                                                            <div
-                                                                style={{
-                                                                    display: "flex",
-                                                                    alignItems: "center",
-                                                                    padding: "6px 10px",
-                                                                }}
-                                                            >
-                                                                <IconClock
-                                                                    size="0.9rem"
-                                                                    style={{
-                                                                        marginRight: "6px",
-                                                                        color:
-                                                                            timeErrors[
-                                                                                `${index}-pickupEarliestTime`
-                                                                            ] ||
-                                                                            timeErrors[
-                                                                                `${index}-pickupLatestTime`
-                                                                            ]
-                                                                                ? "var(--mantine-color-red-6)"
-                                                                                : isParcelPastDate
-                                                                                  ? "var(--mantine-color-gray-5)"
-                                                                                  : "var(--mantine-color-gray-6)",
-                                                                    }}
-                                                                />
-
-                                                                <Group gap={0} align="center">
-                                                                    <Button
-                                                                        variant="subtle"
-                                                                        size="sm"
-                                                                        onClick={() => {
-                                                                            if (!isParcelPastDate) {
-                                                                                setSelectedParcelIndex(
-                                                                                    index,
-                                                                                );
-                                                                                setTimeModalOpened(
-                                                                                    true,
-                                                                                );
-                                                                            }
-                                                                        }}
-                                                                        disabled={isParcelPastDate}
-                                                                        styles={{
-                                                                            root: {
-                                                                                fontWeight: 500,
-                                                                                minWidth: "80px",
-                                                                                height: "28px",
-                                                                                padding: "0 8px",
-                                                                                background:
-                                                                                    isParcelPastDate
-                                                                                        ? "var(--mantine-color-gray-1)"
-                                                                                        : "transparent",
-                                                                                cursor: isParcelPastDate
-                                                                                    ? "not-allowed"
-                                                                                    : "pointer",
-                                                                                opacity:
-                                                                                    isParcelPastDate
-                                                                                        ? 0.6
-                                                                                        : 1,
-                                                                            },
-                                                                        }}
-                                                                    >
-                                                                        {(() => {
-                                                                            const hours =
-                                                                                parcel.pickupEarliestTime
-                                                                                    .getHours()
-                                                                                    .toString()
-                                                                                    .padStart(
-                                                                                        2,
-                                                                                        "0",
-                                                                                    );
-                                                                            const mins =
-                                                                                parcel.pickupEarliestTime.getMinutes();
-                                                                            // Round to nearest 15 min increment
-                                                                            const roundedMins =
-                                                                                Math.floor(
-                                                                                    mins / 15,
-                                                                                ) * 15;
-                                                                            const minutes =
-                                                                                roundedMins
-                                                                                    .toString()
-                                                                                    .padStart(
-                                                                                        2,
-                                                                                        "0",
-                                                                                    );
-                                                                            return `${hours}:${minutes}`;
-                                                                        })()}
-                                                                    </Button>
-                                                                </Group>
-                                                            </div>
-                                                        </Group>
-
-                                                        <Text
-                                                            fw={500}
-                                                            size="sm"
-                                                            style={{
-                                                                color: "var(--mantine-color-gray-6)",
-                                                            }}
-                                                        >
-                                                            →
-                                                        </Text>
-
-                                                        <Group
-                                                            gap={0}
-                                                            align="center"
-                                                            style={{
-                                                                border: "1px solid var(--mantine-color-gray-3)",
-                                                                borderRadius: "4px",
-                                                                padding: "6px 10px",
-                                                                backgroundColor:
-                                                                    "var(--mantine-color-gray-1)",
-                                                                width: "fit-content",
-                                                            }}
-                                                        >
-                                                            <IconClock
-                                                                size="0.9rem"
-                                                                style={{
-                                                                    marginRight: "6px",
-                                                                    color: "var(--mantine-color-gray-6)",
-                                                                }}
-                                                            />
-                                                            <Text
-                                                                fw={500}
-                                                                style={{
-                                                                    fontSize: "0.9em",
-                                                                    color: "var(--mantine-color-gray-8)",
-                                                                }}
-                                                            >
-                                                                {`${parcel.pickupLatestTime.getHours().toString().padStart(2, "0")}:${parcel.pickupLatestTime.getMinutes().toString().padStart(2, "0")}`}
-                                                            </Text>
-                                                        </Group>
-                                                    </Group>
-                                                </Tooltip>
-                                            </Table.Td>
-
-                                            {/* Facility hours column */}
-                                            <Table.Td p="xs" style={{ verticalAlign: "middle" }}>
-                                                {openingHours && (
-                                                    <Group gap="xs">
-                                                        <IconBuildingStore
-                                                            size="0.9rem"
-                                                            style={{
-                                                                color: "var(--mantine-color-gray-6)",
-                                                            }}
-                                                        />
-                                                        <Text size="sm" c="dimmed" fw={500}>
-                                                            {openingHours}
-                                                        </Text>
-                                                    </Group>
+                                                    {date.toLocaleDateString(locale, {
+                                                        day: "numeric",
+                                                        month: "short",
+                                                        year: "numeric",
+                                                    })}
+                                                </Text>
+                                                {isParcelPastDate && (
+                                                    <Text size="xs" c="red">
+                                                        {tCommon("past")}
+                                                    </Text>
                                                 )}
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    );
-                                })}
-                            </Table.Tbody>
-                        </Table>
-                    </Paper>
+                                            </Stack>
+                                        </Group>
+
+                                        <Group gap="xs">
+                                            <IconBuildingStore
+                                                size="0.95rem"
+                                                style={{ color: "var(--mantine-color-gray-6)" }}
+                                            />
+                                            <Stack gap={2}>
+                                                <Text size="sm" fw={500}>
+                                                    {locationName}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    {t("slotDurationShort", {
+                                                        duration: parcelSlotDuration.toString(),
+                                                    })}
+                                                </Text>
+                                            </Stack>
+                                        </Group>
+
+                                        <Tooltip
+                                            label={
+                                                timeErrors[`${index}-pickupEarliestTime`] ||
+                                                timeErrors[`${index}-pickupLatestTime`]
+                                            }
+                                            style={{
+                                                color: "white",
+                                                backgroundColor: "var(--mantine-color-red-6)",
+                                            }}
+                                            position="top"
+                                            withArrow
+                                            opened={
+                                                !!(
+                                                    timeErrors[`${index}-pickupEarliestTime`] ||
+                                                    timeErrors[`${index}-pickupLatestTime`]
+                                                )
+                                            }
+                                            withinPortal
+                                        >
+                                            <Group gap="xs" align="center">
+                                                <Button
+                                                    variant="subtle"
+                                                    size="sm"
+                                                    leftSection={<IconClock size="0.9rem" />}
+                                                    onClick={() => {
+                                                        if (!isParcelPastDate) {
+                                                            setSelectedParcelIndex(index);
+                                                            setTimeModalOpened(true);
+                                                        }
+                                                    }}
+                                                    disabled={isParcelPastDate}
+                                                    styles={{
+                                                        root: {
+                                                            fontWeight: 500,
+                                                            minWidth: "88px",
+                                                            height: "32px",
+                                                            padding: "0 8px",
+                                                        },
+                                                    }}
+                                                >
+                                                    {(() => {
+                                                        const hours = parcel.pickupEarliestTime
+                                                            .getHours()
+                                                            .toString()
+                                                            .padStart(2, "0");
+                                                        const roundedMinutes =
+                                                            Math.floor(
+                                                                parcel.pickupEarliestTime.getMinutes() /
+                                                                    15,
+                                                            ) * 15;
+                                                        const minutes = roundedMinutes
+                                                            .toString()
+                                                            .padStart(2, "0");
+                                                        return `${hours}:${minutes}`;
+                                                    })()}
+                                                </Button>
+
+                                                <Text size="sm" c="dimmed" fw={500}>
+                                                    →
+                                                </Text>
+
+                                                <Text size="sm" fw={500}>
+                                                    {`${parcel.pickupLatestTime
+                                                        .getHours()
+                                                        .toString()
+                                                        .padStart(2, "0")}:${parcel.pickupLatestTime
+                                                        .getMinutes()
+                                                        .toString()
+                                                        .padStart(2, "0")}`}
+                                                </Text>
+                                            </Group>
+                                        </Tooltip>
+
+                                        <Group justify="flex-end">
+                                            <Tooltip label={t("removeParcel")} withArrow>
+                                                <ActionIcon
+                                                    variant="subtle"
+                                                    color="red"
+                                                    aria-label={t("removeParcel")}
+                                                    disabled={isParcelPastDate}
+                                                    onClick={() => removeParcelAtIndex(index)}
+                                                >
+                                                    <IconX size="1rem" />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
+                                    </SimpleGrid>
+                                </Paper>
+                            );
+                        })}
+                    </Stack>
                 </>
             )}
 
@@ -1934,7 +1943,7 @@ export default function FoodParcelsForm({
                                     formState.parcels[selectedParcelIndex]?.pickupDate
                                         ? new Date(
                                               formState.parcels[selectedParcelIndex].pickupDate,
-                                          ).toLocaleDateString()
+                                          ).toLocaleDateString(locale)
                                         : ""
                                 }`
                               : ""}
@@ -1946,13 +1955,14 @@ export default function FoodParcelsForm({
 
                         if (selectedParcelIndex === -1) {
                             // Bulk mode
+                            const duration = bulkSlotDuration ?? slotDuration;
                             const start = bulkCommonRange?.openingTime || "09:00";
                             const rawEnd = bulkCommonRange?.closingTime || "17:00";
-                            const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
+                            const adjustedEnd = subtractMinutesFromHHmm(rawEnd, duration);
                             availableSlots = getTimeRange({
                                 startTime: start,
                                 endTime: adjustedEnd,
-                                interval,
+                                interval: minutesToHHmm(duration),
                             });
                         } else if (
                             selectedParcelIndex !== null &&
@@ -1960,16 +1970,21 @@ export default function FoodParcelsForm({
                         ) {
                             // Individual parcel mode
                             const parcel = formState.parcels[selectedParcelIndex];
+                            const parcelLocationId = getParcelLocationId(parcel);
+                            const duration = getSlotDurationForLocation(parcelLocationId);
                             const parcelDate = new Date(parcel.pickupDate);
-                            const range = getOpeningHoursForDate(parcelDate);
+                            const range = getOpeningHoursForLocationDate(
+                                parcelLocationId,
+                                parcelDate,
+                            );
                             const start = range?.openingTime || "09:00";
                             const rawEnd = range?.closingTime || "17:00";
-                            const adjustedEnd = subtractMinutesFromHHmm(rawEnd, slotDuration);
+                            const adjustedEnd = subtractMinutesFromHHmm(rawEnd, duration);
 
                             const allSlots = getTimeRange({
                                 startTime: start,
                                 endTime: adjustedEnd,
-                                interval,
+                                interval: minutesToHHmm(duration),
                             });
 
                             availableSlots = filterPastTimeSlots(allSlots, parcelDate);

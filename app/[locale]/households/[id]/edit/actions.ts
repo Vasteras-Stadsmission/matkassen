@@ -362,7 +362,9 @@ async function getHouseholdEditData(householdId: string) {
 
     // Format food parcels in a way that the form can use
     const foodParcelsFormatted = {
-        pickupLocationId: foodParcelsData.length > 0 ? foodParcelsData[0].pickupLocationId : "",
+        pickupLocationId:
+            household.primary_pickup_location_id ||
+            (foodParcelsData.length > 0 ? foodParcelsData[0].pickupLocationId : ""),
         parcels,
     };
 
