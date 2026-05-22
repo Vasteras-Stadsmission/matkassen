@@ -111,7 +111,7 @@ jobs:
                         export HELLO_SMS_TEST_MODE="true"
                         export SMS_SEND_INTERVAL="30 seconds"
                         export ANONYMIZATION_SCHEDULE="*/15 * * * *"
-                        export ANONYMIZATION_INACTIVE_DURATION="5 minutes"
+                        export ANONYMIZATION_INACTIVE_DURATION="365 days"
                         export ORG_SYNC_SCHEDULE="0 3 * * *"
                         # SMS credentials not needed in staging (test mode only)
                         # Backups disabled on staging by policy (no DB_BACKUP_PASSPHRASE exported)
