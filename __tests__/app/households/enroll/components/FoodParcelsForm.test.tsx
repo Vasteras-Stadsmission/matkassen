@@ -224,6 +224,9 @@ describe("FoodParcelsForm Business Logic Tests", () => {
     let mockUpdateData: any;
 
     beforeEach(() => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date("2026-05-01T08:00:00Z"));
+
         mockUpdateData = vi.fn(() => {});
 
         // Reset all mocks - cast to any to access mockClear
@@ -315,6 +318,7 @@ describe("FoodParcelsForm Business Logic Tests", () => {
 
     afterEach(() => {
         cleanup();
+        vi.useRealTimers();
     });
 
     /**

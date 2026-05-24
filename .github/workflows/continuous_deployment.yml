@@ -41,7 +41,7 @@ jobs:
                   images: ghcr.io/${{ matrix.image_name }}
                   tags: |
                       type=raw,value=latest,enable={{is_default_branch}}
-                      type=sha,prefix=sha-,format=short
+                      type=sha,prefix=sha-,format=long
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -66,6 +66,9 @@ jobs:
     deploy-to-staging:
         needs: publish-images
         runs-on: ubuntu-latest
+        concurrency:
+            group: deploy-staging
+            cancel-in-progress: false
         environment:
             name: staging
             url: https://staging.matcentralen.com
@@ -91,6 +94,9 @@ jobs:
                       # for managed/external DBs. Leave unset for the current
                       # trusted-network Docker DB.
                       export DATABASE_SSL="${{ secrets.DATABASE_SSL }}"
+                      export DEPLOY_SHA="${{ github.sha }}"
+                      export APP_IMAGE_TAG="sha-${DEPLOY_SHA}"
+                      export DB_BACKUP_IMAGE_TAG="sha-${DEPLOY_SHA}"
                       export EMAIL="${{ secrets.EMAIL }}"
                       export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
@@ -123,16 +129,24 @@ jobs:
                       fi
                       cd "$APP_DIR"
 
-                      # Force-align the repo to origin/main regardless of the branch
-                      # that happens to be checked out on the VPS. `git reset --hard HEAD`
-                      # followed by `git pull origin main` silently fails to update when
-                      # HEAD is on a diverged branch — that's how staging ended up stuck
-                      # on an old feature branch for ~a week.
-                      echo "Aligning VPS repo to origin/main..."
-                      git fetch --prune origin main
-                      git checkout --force -B main origin/main
+                      # Force-align the repo to this workflow's exact commit regardless
+                      # of the branch that happens to be checked out on the VPS. This
+                      # keeps the checked-out repo in lockstep with the immutable sha-*
+                      # image tags built by this run, even if a newer main push exists.
+                      echo "Aligning VPS repo to ${DEPLOY_SHA}..."
+                      if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+                          git fetch --prune --unshallow origin main
+                      else
+                          git fetch --prune origin main
+                      fi
+                      git checkout --force -B main "$DEPLOY_SHA"
                       git clean -fd
-                      echo "HEAD: $(git rev-parse HEAD)  (workflow SHA: ${{ github.sha }})"
+                      ACTUAL_SHA="$(git rev-parse HEAD)"
+                      if [ "$ACTUAL_SHA" != "$DEPLOY_SHA" ]; then
+                          echo "❌ VPS checkout mismatch: got $ACTUAL_SHA, expected $DEPLOY_SHA"
+                          exit 1
+                      fi
+                      echo "HEAD: $ACTUAL_SHA  (workflow SHA: $DEPLOY_SHA)"
 
                       # Run the update.sh script which will apply migrations.
                       # `set -euo pipefail` above means a non-zero exit terminates the
@@ -141,12 +155,79 @@ jobs:
                       ./update.sh
                       echo "✅ Successfully deployed all updates."
 
+            - name: Verify staging deployment
+              run: |
+                  set -euo pipefail
+
+                  require_healthy() {
+                      local domain="$1"
+                      local url="https://${domain}/api/health"
+                      local body=""
+                      local health_status=""
+
+                      for attempt in $(seq 1 30); do
+                          if body=$(curl -fsS --max-time 10 "$url"); then
+                              health_status=$(printf '%s' "$body" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' 2>/dev/null || true)
+                              if [ "$health_status" = "healthy" ]; then
+                                  echo "✅ ${url} is healthy"
+                                  return 0
+                              fi
+                              echo "Health status for ${url}: ${health_status:-unparseable} (attempt ${attempt}/30)"
+                          else
+                              echo "Health request failed for ${url} (attempt ${attempt}/30)"
+                          fi
+                          sleep 2
+                      done
+
+                      echo "❌ ${url} did not become healthy"
+                      echo "Last response: ${body}"
+                      return 1
+                  }
+
+                  verify_domain() {
+                      local domain="$1"
+                      local base_url="https://${domain}"
+                      local root_code
+                      local redirect_code
+                      local redirect_location
+                      local headers
+
+                      require_healthy "$domain"
+
+                      root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
+                      if [ "$root_code" != "200" ]; then
+                          echo "❌ ${base_url} returned ${root_code}, expected 200"
+                          return 1
+                      fi
+                      echo "✅ ${base_url} resolves with 200"
+
+                      redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
+                      redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "https://${domain}/api/health" ]; then
+                          echo "❌ HTTP redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
+                          return 1
+                      fi
+                      echo "✅ HTTP redirect for ${domain} is correct"
+
+                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
+                      if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
+                          echo "❌ Missing HSTS header for ${domain}"
+                          return 1
+                      fi
+                      echo "✅ HSTS header present for ${domain}"
+                  }
+
+                  verify_domain "staging.matcentralen.com"
+
     manual-deploy-to-production:
         needs: deploy-to-staging
         environment:
             name: production
             url: https://matcentralen.com
         runs-on: ubuntu-latest
+        concurrency:
+            group: deploy-production
+            cancel-in-progress: false
         steps:
             - name: Deploy to production
               uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
@@ -167,6 +248,9 @@ jobs:
                       # for managed/external DBs. Leave unset for the current
                       # trusted-network Docker DB.
                       export DATABASE_SSL="${{ secrets.DATABASE_SSL }}"
+                      export DEPLOY_SHA="${{ github.sha }}"
+                      export APP_IMAGE_TAG="sha-${DEPLOY_SHA}"
+                      export DB_BACKUP_IMAGE_TAG="sha-${DEPLOY_SHA}"
                       export EMAIL="${{ secrets.EMAIL }}"
                       export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
                       export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
@@ -216,14 +300,103 @@ jobs:
                       fi
                       cd "$APP_DIR"
 
-                      # Force-align the repo to origin/main regardless of the branch
-                      # that happens to be checked out on the VPS (see staging block).
-                      echo "Aligning VPS repo to origin/main..."
-                      git fetch --prune origin main
-                      git checkout --force -B main origin/main
+                      # With immutable image tags, approving an old production
+                      # deployment would intentionally deploy that older commit.
+                      # This workflow is for normal forward deploys, not
+                      # rollbacks, so refuse stale manual approvals.
+                      echo "Checking production approval freshness..."
+                      LATEST_MAIN_SHA="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+                      if [ "$LATEST_MAIN_SHA" != "$DEPLOY_SHA" ]; then
+                          echo "❌ Refusing stale production deploy."
+                          echo "Workflow SHA: $DEPLOY_SHA"
+                          echo "Current main: $LATEST_MAIN_SHA"
+                          echo "Start a fresh deployment from the current main branch, or use an explicit rollback workflow."
+                          exit 1
+                      fi
+                      echo "✅ Production approval targets current main."
+
+                      # Force-align the repo to the exact workflow commit so repo state
+                      # matches the immutable sha-* image tags built by this run.
+                      echo "Aligning VPS repo to ${DEPLOY_SHA}..."
+                      if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+                          git fetch --prune --unshallow origin main
+                      else
+                          git fetch --prune origin main
+                      fi
+                      git checkout --force -B main "$DEPLOY_SHA"
                       git clean -fd
-                      echo "HEAD: $(git rev-parse HEAD)  (workflow SHA: ${{ github.sha }})"
+                      ACTUAL_SHA="$(git rev-parse HEAD)"
+                      if [ "$ACTUAL_SHA" != "$DEPLOY_SHA" ]; then
+                          echo "❌ VPS checkout mismatch: got $ACTUAL_SHA, expected $DEPLOY_SHA"
+                          exit 1
+                      fi
+                      echo "HEAD: $ACTUAL_SHA  (workflow SHA: $DEPLOY_SHA)"
 
                       chmod +x update.sh
                       ./update.sh
                       echo "✅ Successfully deployed all updates."
+
+            - name: Verify production deployment
+              run: |
+                  set -euo pipefail
+
+                  require_healthy() {
+                      local domain="$1"
+                      local url="https://${domain}/api/health"
+                      local body=""
+                      local health_status=""
+
+                      for attempt in $(seq 1 30); do
+                          if body=$(curl -fsS --max-time 10 "$url"); then
+                              health_status=$(printf '%s' "$body" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' 2>/dev/null || true)
+                              if [ "$health_status" = "healthy" ]; then
+                                  echo "✅ ${url} is healthy"
+                                  return 0
+                              fi
+                              echo "Health status for ${url}: ${health_status:-unparseable} (attempt ${attempt}/30)"
+                          else
+                              echo "Health request failed for ${url} (attempt ${attempt}/30)"
+                          fi
+                          sleep 2
+                      done
+
+                      echo "❌ ${url} did not become healthy"
+                      echo "Last response: ${body}"
+                      return 1
+                  }
+
+                  verify_domain() {
+                      local domain="$1"
+                      local base_url="https://${domain}"
+                      local root_code
+                      local redirect_code
+                      local redirect_location
+                      local headers
+
+                      require_healthy "$domain"
+
+                      root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
+                      if [ "$root_code" != "200" ]; then
+                          echo "❌ ${base_url} returned ${root_code}, expected 200"
+                          return 1
+                      fi
+                      echo "✅ ${base_url} resolves with 200"
+
+                      redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
+                      redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "https://${domain}/api/health" ]; then
+                          echo "❌ HTTP redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
+                          return 1
+                      fi
+                      echo "✅ HTTP redirect for ${domain} is correct"
+
+                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
+                      if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
+                          echo "❌ Missing HSTS header for ${domain}"
+                          return 1
+                      fi
+                      echo "✅ HSTS header present for ${domain}"
+                  }
+
+                  verify_domain "matcentralen.com"
+                  verify_domain "www.matcentralen.com"

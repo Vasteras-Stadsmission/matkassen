@@ -6,7 +6,7 @@ services:
     db-backup:
         profiles:
             - backup
-        image: ghcr.io/vasteras-stadsmission/matkassen-db-backup:latest
+        image: ghcr.io/vasteras-stadsmission/matkassen-db-backup:${DB_BACKUP_IMAGE_TAG:-latest}
         restart: unless-stopped
         environment:
             - POSTGRES_USER=${POSTGRES_USER}

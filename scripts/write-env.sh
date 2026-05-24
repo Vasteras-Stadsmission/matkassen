@@ -129,6 +129,11 @@ write_env_file() {
         printf 'POSTGRES_PASSWORD="%s"\n' "$POSTGRES_PASSWORD"
         printf 'POSTGRES_USER="%s"\n' "$POSTGRES_USER"
         printf 'ENV_NAME="%s"\n' "$env_name"
+        # Image tags used by Docker Compose. CI/CD exports immutable sha-* tags
+        # so each deploy pulls exactly the images built by that workflow run.
+        # Local/manual deploys default to latest for backwards compatibility.
+        printf 'APP_IMAGE_TAG="%s"\n' "${APP_IMAGE_TAG:-latest}"
+        printf 'DB_BACKUP_IMAGE_TAG="%s"\n' "${DB_BACKUP_IMAGE_TAG:-latest}"
         # SMS credentials (conditional — only if provided)
         if [ -n "${HELLO_SMS_USERNAME:-}" ]; then
             printf 'HELLO_SMS_USERNAME="%s"\n' "$HELLO_SMS_USERNAME"
