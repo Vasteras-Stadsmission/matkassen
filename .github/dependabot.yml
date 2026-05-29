@@ -5,9 +5,9 @@
 # (non-CVE) version updates for the two ecosystems where staying
 # current matters: github-actions and npm.
 #
-# Both use weekly grouping to keep PR volume manageable for a single
-# operator: one PR per week per ecosystem (or per group within an
-# ecosystem) instead of one PR per dependency.
+# GitHub Actions stay on a weekly cadence so deployment tooling updates
+# can be exercised promptly. npm routine updates are monthly because a
+# single group can cover broad application and test-runtime behavior.
 
 version: 2
 updates:
@@ -27,17 +27,18 @@ updates:
               patterns:
                   - "*"
 
-    # npm: large dependency tree. Split into two groups so the easy
-    # bumps stay easy and the risky ones get a focused review:
-    #   - "minor-and-patch": bundled into one weekly PR. Usually pass
-    #     CI cleanly; merge after green build.
+    # npm: large dependency tree. Handle updates in two paths so easier
+    # bumps are reviewed together and risky ones get focused review:
+    #   - "minor-and-patch": bundled into one monthly PR. Even routine
+    #     packages can span application behavior, so review and stage
+    #     before merging.
     #   - Major bumps fall outside the group → one PR per major. These
     #     are the ones that may have breaking changes and warrant
     #     reading release notes / running staging before merge.
     - package-ecosystem: "npm"
       directory: "/"
       schedule:
-          interval: "weekly"
+          interval: "monthly"
       groups:
           minor-and-patch:
               update-types:
