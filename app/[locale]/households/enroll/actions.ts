@@ -34,6 +34,7 @@ import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation
 import { createSmsRecord } from "@/app/utils/sms/sms-service";
 import { formatEnrolmentSms } from "@/app/utils/sms/templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
+import { normalizePersonName } from "@/app/utils/person-name";
 
 import {
     HouseholdCreateData,
@@ -49,6 +50,19 @@ type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
+}
+
+function nameValidationMessage(
+    field: "firstName" | "lastName",
+    reason: "empty" | "invalid_characters",
+) {
+    if (reason === "invalid_characters") {
+        return field === "firstName"
+            ? "validation.firstNameInvalidCharacters"
+            : "validation.lastNameInvalidCharacters";
+    }
+
+    return field === "firstName" ? "validation.firstNameLength" : "validation.lastNameLength";
 }
 
 async function ensureResponsibleUserIsAssignable(
@@ -169,6 +183,30 @@ export const enrollHousehold = protectedAdminAction(
                 });
             }
 
+            const firstName = normalizePersonName(data.headOfHousehold.firstName);
+            if (!firstName.success || firstName.value.length < 2) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: nameValidationMessage(
+                        "firstName",
+                        firstName.success ? "empty" : firstName.reason,
+                    ),
+                    field: "first_name",
+                });
+            }
+
+            const lastName = normalizePersonName(data.headOfHousehold.lastName);
+            if (!lastName.success || lastName.value.length < 2) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: nameValidationMessage(
+                        "lastName",
+                        lastName.success ? "empty" : lastName.reason,
+                    ),
+                    field: "last_name",
+                });
+            }
+
             // Store locationId for recompute after transaction
             const locationId = data.foodParcels?.pickupLocationId;
 
@@ -200,8 +238,8 @@ export const enrollHousehold = protectedAdminAction(
                 const [household] = await tx
                     .insert(households)
                     .values({
-                        first_name: data.headOfHousehold.firstName,
-                        last_name: data.headOfHousehold.lastName,
+                        first_name: firstName.value,
+                        last_name: lastName.value,
                         phone_number: normalizePhoneToE164(data.headOfHousehold.phoneNumber),
                         locale: data.headOfHousehold.locale || "sv",
                         created_by: session.user?.githubUsername ?? null,

@@ -2,6 +2,7 @@
 .next/
 node_modules/
 out/
+server-build/
 
 # Drizzle generated files
 migrations/**/*.sql

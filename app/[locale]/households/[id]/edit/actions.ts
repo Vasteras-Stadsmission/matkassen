@@ -33,6 +33,7 @@ import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 import { OptionNotAvailableError, ensurePickupLocationExists } from "@/app/db/validation-helpers";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
+import { normalizePersonName } from "@/app/utils/person-name";
 import {
     applyHouseholdParcelScheduleChanges,
     runHouseholdParcelPostCommitEffects,
@@ -53,6 +54,19 @@ type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
+}
+
+function nameValidationMessage(
+    field: "firstName" | "lastName",
+    reason: "empty" | "invalid_characters",
+) {
+    if (reason === "invalid_characters") {
+        return field === "firstName"
+            ? "validation.firstNameInvalidCharacters"
+            : "validation.lastNameInvalidCharacters";
+    }
+
+    return field === "firstName" ? "validation.firstNameLength" : "validation.lastNameLength";
 }
 
 async function ensureSelectableDietaryRestrictions(
@@ -409,6 +423,30 @@ export const updateHousehold = protectedAdminHouseholdAction(
                 });
             }
 
+            const firstName = normalizePersonName(data.household.first_name);
+            if (!firstName.success || firstName.value.length < 2) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: nameValidationMessage(
+                        "firstName",
+                        firstName.success ? "empty" : firstName.reason,
+                    ),
+                    field: "first_name",
+                });
+            }
+
+            const lastName = normalizePersonName(data.household.last_name);
+            if (!lastName.success || lastName.value.length < 2) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: nameValidationMessage(
+                        "lastName",
+                        lastName.success ? "empty" : lastName.reason,
+                    ),
+                    field: "last_name",
+                });
+            }
+
             // Check if phone number changed and validate no duplicates
             const newPhoneE164 = normalizePhoneToE164(data.household.phone_number);
 
@@ -479,8 +517,8 @@ export const updateHousehold = protectedAdminHouseholdAction(
                 await tx
                     .update(households)
                     .set({
-                        first_name: data.household.first_name,
-                        last_name: data.household.last_name,
+                        first_name: firstName.value,
+                        last_name: lastName.value,
                         phone_number: newPhoneE164,
                         locale: data.household.locale,
                         primary_pickup_location_id: primaryLocationId,

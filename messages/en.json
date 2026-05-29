@@ -269,6 +269,8 @@
         "validation": {
             "firstNameLength": "First name must be at least 2 characters",
             "lastNameLength": "Last name must be at least 2 characters",
+            "firstNameInvalidCharacters": "First name contains invalid characters",
+            "lastNameInvalidCharacters": "Last name contains invalid characters",
             "phoneNumberFormat": "Enter a valid Swedish phone number (7-10 digits)",
             "swedishNumbersOnly": "Only Swedish phone numbers (+46) are supported",
             "phoneNumberInUse": "This phone number is already registered with another household",
@@ -824,6 +826,8 @@
             "title": "Validation Error",
             "firstNameLength": "First name must be at least 2 characters",
             "lastNameLength": "Last name must be at least 2 characters",
+            "firstNameInvalidCharacters": "First name contains invalid characters",
+            "lastNameInvalidCharacters": "Last name contains invalid characters",
             "phoneNumberFormat": "Enter a valid mobile number (9-10 digits)",
             "phoneDuplicate": "This phone number is already registered to another household",
             "phoneDuplicateWithInfo": "This phone number belongs to: {name} - {phone} (ID: {id})",
@@ -1945,7 +1949,8 @@
             "invalidEmail": "Please enter a valid email address",
             "invalidPhone": "Please enter a valid Swedish phone number (+467... or 07...)",
             "nameTooLong": "Name must be 100 characters or less",
-            "nameRequired": "First name and last name are required"
+            "nameRequired": "First name and last name are required",
+            "nameInvalidCharacters": "Name contains invalid characters"
         }
     }
 }

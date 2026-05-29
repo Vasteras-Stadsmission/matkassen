@@ -79,6 +79,9 @@ export function ProfileCompletionGuard() {
 
     function validationMessage(code: string, serverMessage: string): string {
         if (code === "VALIDATION_ERROR") {
+            if (serverMessage === "profile.notifications.nameInvalidCharacters") {
+                return t("notifications.nameInvalidCharacters");
+            }
             if (serverMessage.includes("phone")) return t("notifications.invalidPhone");
             if (serverMessage.includes("Invalid email")) return t("notifications.invalidEmail");
             if (serverMessage.includes("Email must")) return t("notifications.invalidEmail");
