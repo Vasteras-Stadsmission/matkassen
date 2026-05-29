@@ -27,6 +27,7 @@ import { useRouter } from "@/app/i18n/navigation";
 import { getLanguageName as getLanguageNameFromLocale } from "@/app/constants/languages";
 import { useLocale } from "next-intl";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
+import { normalizePersonNameForComparison } from "@/app/utils/person-name";
 
 export interface Household {
     id: string;
@@ -215,23 +216,21 @@ export default function HouseholdsTable({ households }: { households: Household[
 
         // Apply text search
         if (search.trim()) {
-            const searchLower = search.toLowerCase();
+            const searchLower = normalizePersonNameForComparison(search);
+            const includesSearch = (value: string) =>
+                normalizePersonNameForComparison(value).includes(searchLower);
             filtered = filtered.filter(household => {
                 return (
-                    household.first_name.toLowerCase().includes(searchLower) ||
-                    household.last_name.toLowerCase().includes(searchLower) ||
+                    includesSearch(household.first_name) ||
+                    includesSearch(household.last_name) ||
                     household.phone_number.toLowerCase().includes(searchLower) ||
                     household.locale.toLowerCase().includes(searchLower) ||
                     (household.nextParcelDate &&
-                        formatDateTime(household.nextParcelDate)
-                            .toLowerCase()
-                            .includes(searchLower)) ||
+                        includesSearch(formatDateTime(household.nextParcelDate))) ||
                     (household.firstParcelDate &&
-                        formatDate(household.firstParcelDate)
-                            .toLowerCase()
-                            .includes(searchLower)) ||
+                        includesSearch(formatDate(household.firstParcelDate))) ||
                     (household.lastParcelDate &&
-                        formatDate(household.lastParcelDate).toLowerCase().includes(searchLower))
+                        includesSearch(formatDate(household.lastParcelDate)))
                 );
             });
         }
@@ -256,19 +255,29 @@ export default function HouseholdsTable({ households }: { households: Household[
                 }
             } else {
                 // Handle string comparisons
-                const aString = aValue?.toString().toLowerCase() || "";
-                const bString = bValue?.toString().toLowerCase() || "";
+                const aString = normalizePersonNameForComparison(aValue?.toString() || "");
+                const bString = normalizePersonNameForComparison(bValue?.toString() || "");
+                const comparison = aString.localeCompare(bString, currentLocale);
 
                 if (direction === "asc") {
-                    return aString > bString ? 1 : -1;
+                    return comparison;
                 } else {
-                    return aString < bString ? 1 : -1;
+                    return -comparison;
                 }
             }
         });
 
         return sorted;
-    }, [search, locationFilter, creatorFilter, sortStatus, households, formatDate, formatDateTime]);
+    }, [
+        search,
+        locationFilter,
+        creatorFilter,
+        sortStatus,
+        households,
+        formatDate,
+        formatDateTime,
+        currentLocale,
+    ]);
 
     return (
         <>

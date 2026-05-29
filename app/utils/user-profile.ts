@@ -7,6 +7,7 @@ import { protectedAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { normalizePhoneToE164, isValidE164 } from "@/app/utils/validation/phone-validation";
+import { normalizePersonName } from "@/app/utils/person-name";
 
 export interface UserProfile {
     first_name: string | null;
@@ -75,17 +76,27 @@ export const saveUserProfile = protectedAction(
                 return failure({ code: "AUTH_ERROR", message: "User not authenticated" });
             }
 
-            const firstName = data.first_name.trim();
-            const lastName = data.last_name.trim();
+            const firstName = normalizePersonName(data.first_name);
+            const lastName = normalizePersonName(data.last_name);
 
-            if (!firstName || !lastName) {
+            if (
+                (!firstName.success && firstName.reason === "empty") ||
+                (!lastName.success && lastName.reason === "empty")
+            ) {
                 return failure({
                     code: "VALIDATION_ERROR",
                     message: "First name and last name are required",
                 });
             }
 
-            if (firstName.length > 100 || lastName.length > 100) {
+            if (!firstName.success || !lastName.success) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "profile.notifications.nameInvalidCharacters",
+                });
+            }
+
+            if (firstName.value.length > 100 || lastName.value.length > 100) {
                 return failure({
                     code: "VALIDATION_ERROR",
                     message: "Name must be 100 characters or less",
@@ -140,8 +151,8 @@ export const saveUserProfile = protectedAction(
             await db
                 .update(users)
                 .set({
-                    first_name: firstName,
-                    last_name: lastName,
+                    first_name: firstName.value,
+                    last_name: lastName.value,
                     email: emailValue,
                     phone: phoneValue,
                 })

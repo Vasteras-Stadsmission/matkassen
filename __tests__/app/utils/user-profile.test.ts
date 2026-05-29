@@ -23,8 +23,8 @@ describe("user-profile", () => {
         it("should document input validation", () => {
             /**
              * REQUIRED FIELDS:
-             * - first_name: must be non-empty after trim, max 100 chars
-             * - last_name: must be non-empty after trim, max 100 chars
+             * - first_name: must be non-empty after name normalization, max 100 chars
+             * - last_name: must be non-empty after name normalization, max 100 chars
              *
              * OPTIONAL FIELDS:
              * - email: if provided, must match RFC-like regex, max 255 chars
@@ -32,7 +32,7 @@ describe("user-profile", () => {
              *
              * VALIDATION ORDER:
              * 1. Auth check (session must have githubUsername)
-             * 2. Trim first_name and last_name
+             * 2. Normalize first_name and last_name (NFC, trim, collapse whitespace)
              * 3. Check non-empty
              * 4. Check max length (100 for names)
              * 5. Validate email format if provided

@@ -269,6 +269,8 @@
         "validation": {
             "firstNameLength": "Förnamn måste vara minst 2 tecken",
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
+            "firstNameInvalidCharacters": "Förnamnet innehåller ogiltiga tecken",
+            "lastNameInvalidCharacters": "Efternamnet innehåller ogiltiga tecken",
             "phoneNumberFormat": "Ange ett giltigt svenskt telefonnummer (7-10 siffror)",
             "swedishNumbersOnly": "Endast svenska telefonnummer (+46) stöds",
             "phoneNumberInUse": "Detta telefonnummer är redan registrerat hos ett annat hushåll",
@@ -824,6 +826,8 @@
             "title": "Valideringsfel",
             "firstNameLength": "Förnamn måste vara minst 2 tecken",
             "lastNameLength": "Efternamn måste vara minst 2 tecken",
+            "firstNameInvalidCharacters": "Förnamnet innehåller ogiltiga tecken",
+            "lastNameInvalidCharacters": "Efternamnet innehåller ogiltiga tecken",
             "phoneNumberFormat": "Ange ett giltigt mobilnummer (9-10 siffror)",
             "phoneDuplicate": "Detta telefonnummer är redan registrerat till ett annat hushåll",
             "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} - {phone} (ID: {id})",
@@ -1945,7 +1949,8 @@
             "invalidEmail": "Ange en giltig e-postadress",
             "invalidPhone": "Ange ett giltigt svenskt telefonnummer (+467... eller 07...)",
             "nameTooLong": "Namnet får vara högst 100 tecken",
-            "nameRequired": "Förnamn och efternamn krävs"
+            "nameRequired": "Förnamn och efternamn krävs",
+            "nameInvalidCharacters": "Namnet innehåller ogiltiga tecken"
         }
     }
 }
