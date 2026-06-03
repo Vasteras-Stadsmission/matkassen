@@ -21,7 +21,6 @@ import {
 } from "@/app/db/schema";
 import { eq, and, gte, isNull, sql, desc, inArray, or } from "drizzle-orm";
 import { logger, logError } from "@/app/utils/logger";
-import { recordAuditEvent, type AuditActorSession } from "@/app/utils/audit/log";
 
 type AnonymizationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -90,10 +89,6 @@ async function getNextAnonymizationSequence(): Promise<number> {
     // Extract sequence from phone number (e.g., "0000000042" -> 42)
     const lastSequence = parseInt(result[0].phone.replace("000000", ""), 10);
     return isNaN(lastSequence) ? 1 : lastSequence + 1;
-}
-
-function auditSessionFromPerformedBy(performedBy: string): AuditActorSession | null {
-    return performedBy === "system" ? null : { user: { githubUsername: performedBy } };
 }
 
 async function pruneHouseholdAuditRows(
@@ -182,14 +177,6 @@ async function anonymizeHousehold(
         await tx
             .delete(householdVerificationStatus)
             .where(eq(householdVerificationStatus.household_id, householdId));
-
-        await recordAuditEvent(tx, {
-            session: auditSessionFromPerformedBy(performedBy),
-            entityType: "household",
-            entityId: householdId,
-            action: "anonymized",
-            summary: "Anonymized household",
-        });
     });
 
     logger.info(
@@ -207,20 +194,9 @@ async function anonymizeHousehold(
 /**
  * Hard delete household (cascade deletes all related records)
  */
-async function hardDeleteHousehold(
-    householdId: string,
-    performedBy: string,
-): Promise<RemovalResult> {
+async function hardDeleteHousehold(householdId: string): Promise<RemovalResult> {
     await db.transaction(async tx => {
         await pruneHouseholdAuditRows(tx, householdId);
-
-        await recordAuditEvent(tx, {
-            session: auditSessionFromPerformedBy(performedBy),
-            entityType: "household",
-            entityId: householdId,
-            action: "removed",
-            summary: "Removed household",
-        });
 
         await tx.delete(households).where(eq(households.id, householdId));
     });
@@ -266,7 +242,7 @@ export async function removeHousehold(
 
     if (parcelCount.length === 0) {
         // No parcels at all → Hard delete
-        return await hardDeleteHousehold(householdId, performedBy);
+        return await hardDeleteHousehold(householdId);
     }
 
     // Has parcels → Anonymize to preserve statistics

@@ -156,7 +156,7 @@ describe("business audit logging integration", () => {
         expect(await auditRowsForEntity("parcel", parcel.id)).toHaveLength(0);
     });
 
-    it("prunes previous household and parcel audit rows when a household is anonymized", async () => {
+    it("prunes household and parcel audit rows when a household is anonymized", async () => {
         const db = await getTestDb();
         const household = await createTestHousehold();
         const { location } = await createTestLocationWithSchedule();
@@ -195,18 +195,12 @@ describe("business audit logging integration", () => {
         const result = await removeHousehold(household.id, "privacy-admin");
         expect(result.method).toBe("anonymized");
 
-        const householdRows = await auditRowsForEntity("household", household.id);
-        expect(householdRows).toHaveLength(1);
-        expect(householdRows[0]).toMatchObject({
-            actor_username: "privacy-admin",
-            action: "anonymized",
-            summary: "Anonymized household",
-        });
+        expect(await auditRowsForEntity("household", household.id)).toHaveLength(0);
         expect(await auditRowsForEntity("parcel", parcel.id)).toHaveLength(0);
         expect(await auditRowsForEntity("user_role", "staff-user")).toHaveLength(1);
     });
 
-    it("prunes previous household audit rows when a household with no service history is hard-deleted", async () => {
+    it("prunes household audit rows when a household with no service history is hard-deleted", async () => {
         const db = await getTestDb();
         const household = await createTestHousehold();
 
@@ -227,13 +221,7 @@ describe("business audit logging integration", () => {
             .where(eq(households.id, household.id));
         expect(deletedHousehold).toBeUndefined();
 
-        const householdRows = await auditRowsForEntity("household", household.id);
-        expect(householdRows).toHaveLength(1);
-        expect(householdRows[0]).toMatchObject({
-            actor_username: "cleanup-admin",
-            action: "removed",
-            summary: "Removed household",
-        });
+        expect(await auditRowsForEntity("household", household.id)).toHaveLength(0);
     });
 
     it("records a manual SMS balance-failure requeue without storing message text", async () => {
