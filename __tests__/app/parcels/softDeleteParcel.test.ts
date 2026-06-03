@@ -13,6 +13,7 @@ import type { Session } from "next-auth";
 
 // Track database operations for verification
 let insertedSms: any[] = [];
+let insertedAuditEvents: any[] = [];
 let updatedSms: any[] = [];
 let updatedParcels: any[] = [];
 let mockParcelData: any = null;
@@ -136,8 +137,14 @@ vi.mock("@/app/db/drizzle", () => {
                 }),
             })),
         })),
-        insert: vi.fn(() => ({
+        insert: vi.fn((table: any) => ({
             values: vi.fn((values: any) => {
+                const tableName = table?.[Symbol.for("drizzle:Name")];
+                if (tableName === "audit_log") {
+                    insertedAuditEvents.push(values);
+                    return Promise.resolve();
+                }
+
                 insertedSms.push(values);
                 return Promise.resolve();
             }),
@@ -202,6 +209,7 @@ describe("softDeleteParcel", () => {
     beforeEach(() => {
         // Reset tracking arrays
         insertedSms = [];
+        insertedAuditEvents = [];
         updatedSms = [];
         updatedParcels = [];
         mockParcelData = null;

@@ -13,6 +13,7 @@ import type { FoodParcels } from "@/app/[locale]/households/enroll/types";
 
 // Track database operations for verification
 let insertedParcels: any[] = [];
+let insertedAuditEvents: any[] = [];
 let deletedParcelIds: string[] = [];
 let existingParcels: any[] = [];
 let updatedParcels: any[] = [];
@@ -107,6 +108,12 @@ vi.mock("@/app/db/drizzle", () => {
         })),
         insert: vi.fn((table: any) => ({
             values: vi.fn((values: any) => {
+                const tableName = table?.[Symbol.for("drizzle:Name")];
+                if (tableName === "audit_log") {
+                    insertedAuditEvents.push(values);
+                    return Promise.resolve();
+                }
+
                 // Store the inserted parcels for verification
                 insertedParcels.push(...values);
                 // Return an object with onConflictDoNothing method
@@ -181,6 +188,7 @@ describe("updateHouseholdParcels - Location Changes", () => {
     beforeEach(() => {
         // Reset tracking arrays
         insertedParcels = [];
+        insertedAuditEvents = [];
         deletedParcelIds = [];
         existingParcels = [];
         updatedParcels = [];
