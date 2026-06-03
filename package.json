@@ -89,7 +89,7 @@
         "@vitest/ui": "^4.1.8",
         "cross-env": "^10.1.0",
         "eslint": "^9.39.2",
-        "eslint-config-next": "15.5.18",
+        "eslint-config-next": "16.2.7",
         "happy-dom": "^20.9.0",
         "jsdom": "^29.1.1",
         "postcss": "^8.5.15",
