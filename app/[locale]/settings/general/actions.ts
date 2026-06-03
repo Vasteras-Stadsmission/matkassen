@@ -17,6 +17,8 @@ import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
 import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
+import { recordAuditEvent } from "@/app/utils/audit/log";
+import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 import {
     NOSHOW_FOLLOWUP_ENABLED_KEY,
     NOSHOW_CONSECUTIVE_THRESHOLD_KEY,
@@ -485,6 +487,19 @@ export const updateNoShowFollowupSettings = protectedAction(
             ];
 
             await db.transaction(async tx => {
+                const existingSettings = await tx
+                    .select({ key: globalSettings.key, value: globalSettings.value })
+                    .from(globalSettings)
+                    .where(
+                        inArray(
+                            globalSettings.key,
+                            settingsToUpdate.map(setting => setting.key),
+                        ),
+                    );
+                const existingByKey = new Map(
+                    existingSettings.map(setting => [setting.key, setting.value]),
+                );
+
                 // Use ON CONFLICT DO UPDATE for atomic upserts
                 await Promise.all(
                     settingsToUpdate.map(setting =>
@@ -507,6 +522,29 @@ export const updateNoShowFollowupSettings = protectedAction(
                             }),
                     ),
                 );
+
+                const changes = buildChanges(
+                    Object.fromEntries(
+                        settingsToUpdate.map(setting => [
+                            setting.key,
+                            existingByKey.get(setting.key) ?? null,
+                        ]),
+                    ),
+                    Object.fromEntries(
+                        settingsToUpdate.map(setting => [setting.key, setting.value]),
+                    ),
+                );
+
+                if (Object.keys(changes).length > 0) {
+                    await recordAuditEvent(tx, {
+                        session,
+                        entityType: "global_setting",
+                        entityId: "no_show_followup",
+                        action: "updated",
+                        summary: "Updated no-show follow-up settings",
+                        details: auditDetailsForChanges(changes),
+                    });
+                }
             });
 
             revalidateSettingsPage();

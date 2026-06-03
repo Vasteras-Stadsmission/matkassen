@@ -9,6 +9,7 @@ import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
 import { Time } from "@/app/utils/time-provider";
 import { nanoid } from "nanoid";
+import { recordAuditEvent } from "@/app/utils/audit/log";
 
 const NANOID_PATTERN = /^[A-Za-z0-9_-]{10,30}$/;
 
@@ -231,7 +232,7 @@ export async function POST(
                 return null; // Another request already handled this SMS
             }
 
-            return createSmsRecord({
+            const newSmsId = await createSmsRecord({
                 intent: originalSms.intent,
                 parcelId: isParcelIntent ? originalSms.parcelId! : undefined,
                 householdId: originalSms.householdId,
@@ -240,6 +241,22 @@ export async function POST(
                 idempotencyKey: `${originalSms.intent}|${originalSms.householdId}|retry|${nanoid(8)}`,
                 tx,
             });
+
+            await recordAuditEvent(tx, {
+                session: authResult.session,
+                entityType: "sms",
+                entityId: smsId!,
+                action: "retried",
+                summary: "Retried SMS failure",
+                details: {
+                    new_sms_id: newSmsId,
+                    intent: originalSms.intent,
+                    household_id: originalSms.householdId,
+                    parcel_id: originalSms.parcelId ?? null,
+                },
+            });
+
+            return newSmsId;
         });
 
         if (!newSmsId) {

@@ -22,6 +22,8 @@ import {
     PickupLocationScheduleWithDays,
 } from "./types";
 import { logError } from "@/app/utils/logger";
+import { recordAuditEvent } from "@/app/utils/audit/log";
+import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 
 // Get all locations with their schedules
 export const getLocations = protectedAction(
@@ -189,11 +191,7 @@ export const createLocation = protectedAgreementAction(
 
 // Update an existing location
 export const updateLocation = protectedAgreementAction(
-    async (
-        _: unknown,
-        id: string,
-        locationData: LocationFormInput,
-    ): Promise<ActionResult<void>> => {
+    async (session, id: string, locationData: LocationFormInput): Promise<ActionResult<void>> => {
         // Auth already verified by protectedAction wrapper
 
         try {
@@ -214,7 +212,51 @@ export const updateLocation = protectedAgreementAction(
                 contact_phone_number: locationData.contact_phone_number,
                 default_slot_duration_minutes: locationData.default_slot_duration_minutes,
             };
-            await db.update(pickupLocations).set(locationValues).where(eq(pickupLocations.id, id));
+            await db.transaction(async tx => {
+                const [existingLocation] = await tx
+                    .select({
+                        parcels_max_per_day: pickupLocations.parcels_max_per_day,
+                        max_parcels_per_slot: pickupLocations.max_parcels_per_slot,
+                        default_slot_duration_minutes:
+                            pickupLocations.default_slot_duration_minutes,
+                    })
+                    .from(pickupLocations)
+                    .where(eq(pickupLocations.id, id))
+                    .limit(1);
+
+                await tx
+                    .update(pickupLocations)
+                    .set(locationValues)
+                    .where(eq(pickupLocations.id, id));
+
+                if (existingLocation) {
+                    const changes = buildChanges(
+                        {
+                            parcels_max_per_day: existingLocation.parcels_max_per_day,
+                            max_parcels_per_slot: existingLocation.max_parcels_per_slot,
+                            default_slot_duration_minutes:
+                                existingLocation.default_slot_duration_minutes,
+                        },
+                        {
+                            parcels_max_per_day: locationData.parcels_max_per_day,
+                            max_parcels_per_slot: locationData.max_parcels_per_slot,
+                            default_slot_duration_minutes:
+                                locationData.default_slot_duration_minutes,
+                        },
+                    );
+
+                    if (Object.keys(changes).length > 0) {
+                        await recordAuditEvent(tx, {
+                            session,
+                            entityType: "pickup_location",
+                            entityId: id,
+                            action: "updated",
+                            summary: "Updated pickup location capacity settings",
+                            details: auditDetailsForChanges(changes),
+                        });
+                    }
+                }
+            });
 
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
@@ -337,6 +379,18 @@ export const createSchedule = protectedAgreementAction(
                     action: "created",
                     changed_by: username,
                     changes_summary: `Created schedule "${scheduleData.name}" (${openDays})`,
+                });
+
+                await recordAuditEvent(tx, {
+                    session,
+                    entityType: "schedule",
+                    entityId: schedule.id,
+                    action: "updated",
+                    summary: "Updated pickup location opening hours",
+                    details: {
+                        pickup_location_id: locationId,
+                        schedule_action: "created",
+                    },
                 });
 
                 // Create the return object
@@ -500,6 +554,18 @@ export const updateSchedule = protectedAgreementAction(
                     changes_summary: summary,
                 });
 
+                await recordAuditEvent(tx, {
+                    session,
+                    entityType: "schedule",
+                    entityId: scheduleId,
+                    action: "updated",
+                    summary: "Updated pickup location opening hours",
+                    details: {
+                        pickup_location_id: locationId,
+                        changes_summary: summary,
+                    },
+                });
+
                 // Create the return object
                 updatedSchedule = {
                     ...schedule,
@@ -567,6 +633,18 @@ export const deleteSchedule = protectedAgreementAction(
                         action: "deleted",
                         changed_by: username,
                         changes_summary: `Deleted schedule "${scheduleRow.name}"`,
+                    });
+
+                    await recordAuditEvent(tx, {
+                        session,
+                        entityType: "schedule",
+                        entityId: scheduleId,
+                        action: "updated",
+                        summary: "Updated pickup location opening hours",
+                        details: {
+                            pickup_location_id: scheduleRow.pickup_location_id,
+                            schedule_action: "deleted",
+                        },
                     });
                 }
 

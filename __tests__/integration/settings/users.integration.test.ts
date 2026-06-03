@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import { createTestUser, resetUserCounter } from "../../factories";
-import { users } from "@/app/db/schema";
+import { auditLog, users } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
 vi.mock("next/cache", () => ({
@@ -262,6 +262,25 @@ describe("updateUserRole — anti-lockout guards", () => {
             .from(users)
             .where(eq(users.id, target.id));
         expect(row.role).toBe("admin");
+
+        const [auditRow] = await db
+            .select()
+            .from(auditLog)
+            .where(eq(auditLog.entity_id, target.id));
+        expect(auditRow).toMatchObject({
+            actor_username: "caller-admin",
+            entity_type: "user_role",
+            action: "role_changed",
+            summary: "Changed user role",
+            details: {
+                changes: {
+                    role: {
+                        before: "handout_staff",
+                        after: "admin",
+                    },
+                },
+            },
+        });
     });
 
     it("rejects demoting the last active admin even when a deactivated admin exists", async () => {

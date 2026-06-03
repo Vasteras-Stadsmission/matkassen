@@ -8,6 +8,8 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
+import { recordAuditEvent } from "@/app/utils/audit/log";
+import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 
 const PARCEL_WARNING_THRESHOLD_KEY = "parcel_warning_threshold";
 
@@ -69,29 +71,43 @@ export const updateParcelWarningThreshold = protectedAction(
 
             const value = threshold !== null ? threshold.toString() : null;
 
-            // Upsert the setting
-            const [existingSetting] = await db
-                .select()
-                .from(globalSettings)
-                .where(eq(globalSettings.key, PARCEL_WARNING_THRESHOLD_KEY));
-
-            if (existingSetting) {
-                await db
-                    .update(globalSettings)
-                    .set({
-                        value,
-                        updated_at: new Date(),
-                        updated_by: session.user?.githubUsername,
-                    })
+            await db.transaction(async tx => {
+                const [existingSetting] = await tx
+                    .select()
+                    .from(globalSettings)
                     .where(eq(globalSettings.key, PARCEL_WARNING_THRESHOLD_KEY));
-            } else {
-                await db.insert(globalSettings).values({
-                    id: nanoid(8),
-                    key: PARCEL_WARNING_THRESHOLD_KEY,
-                    value,
-                    updated_by: session.user?.githubUsername,
-                });
-            }
+
+                if (existingSetting) {
+                    await tx
+                        .update(globalSettings)
+                        .set({
+                            value,
+                            updated_at: new Date(),
+                            updated_by: session.user?.githubUsername,
+                        })
+                        .where(eq(globalSettings.key, PARCEL_WARNING_THRESHOLD_KEY));
+                } else {
+                    await tx.insert(globalSettings).values({
+                        id: nanoid(8),
+                        key: PARCEL_WARNING_THRESHOLD_KEY,
+                        value,
+                        updated_by: session.user?.githubUsername,
+                    });
+                }
+
+                const changes = buildChanges({ value: existingSetting?.value ?? null }, { value });
+
+                if (Object.keys(changes).length > 0) {
+                    await recordAuditEvent(tx, {
+                        session,
+                        entityType: "global_setting",
+                        entityId: PARCEL_WARNING_THRESHOLD_KEY,
+                        action: "updated",
+                        summary: "Updated parcel warning threshold",
+                        details: auditDetailsForChanges(changes),
+                    });
+                }
+            });
 
             revalidateSettingsPage();
             return success({ threshold });

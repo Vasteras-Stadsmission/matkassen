@@ -46,6 +46,8 @@ import { success, failure, type ActionResult } from "@/app/utils/auth/action-res
 import { logError } from "@/app/utils/logger";
 import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
+import { recordAuditEvent } from "@/app/utils/audit/log";
+import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 
 import { type DbOrTransaction } from "@/app/db/types";
 // Import types for use within this server action file
@@ -683,6 +685,8 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                 const [parcel] = await tx
                     .select({
                         locationId: foodParcels.pickup_location_id,
+                        pickupEarliest: foodParcels.pickup_date_time_earliest,
+                        pickupLatest: foodParcels.pickup_date_time_latest,
                     })
                     .from(foodParcels)
                     .where(and(eq(foodParcels.id, parcelId), notDeleted()))
@@ -741,6 +745,26 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                         pickup_date_time_latest: endTime, // Use our calculated end time
                     })
                     .where(eq(foodParcels.id, parcelId));
+
+                const changes = buildChanges(
+                    {
+                        pickup_date_time_earliest: parcel.pickupEarliest.toISOString(),
+                        pickup_date_time_latest: parcel.pickupLatest.toISOString(),
+                    },
+                    {
+                        pickup_date_time_earliest: newTimeslot.startTime.toISOString(),
+                        pickup_date_time_latest: endTime.toISOString(),
+                    },
+                );
+
+                await recordAuditEvent(tx, {
+                    session,
+                    entityType: "parcel",
+                    entityId: parcelId,
+                    action: "rescheduled",
+                    summary: "Rescheduled parcel pickup time",
+                    details: auditDetailsForChanges(changes),
+                });
             });
 
             /**
@@ -1608,7 +1632,7 @@ export async function getTotalOutsideHoursCount(): Promise<number> {
  */
 export const bulkRescheduleParcels = protectedAdminAction(
     async (
-        _session,
+        session,
         parcelIds: string[],
         newTimeslot: { startTime: Date },
     ): Promise<ActionResult<{ count: number }>> => {
@@ -1623,6 +1647,8 @@ export const bulkRescheduleParcels = protectedAdminAction(
                     id: foodParcels.id,
                     locationId: foodParcels.pickup_location_id,
                     isPickedUp: foodParcels.is_picked_up,
+                    pickupEarliest: foodParcels.pickup_date_time_earliest,
+                    pickupLatest: foodParcels.pickup_date_time_latest,
                 })
                 .from(foodParcels)
                 .where(and(inArray(foodParcels.id, parcelIds), notDeleted()));
@@ -1755,6 +1781,28 @@ export const bulkRescheduleParcels = protectedAdminAction(
                         pickup_date_time_latest: endTime,
                     })
                     .where(inArray(foodParcels.id, parcelIds));
+
+                for (const parcel of parcels) {
+                    const changes = buildChanges(
+                        {
+                            pickup_date_time_earliest: parcel.pickupEarliest.toISOString(),
+                            pickup_date_time_latest: parcel.pickupLatest.toISOString(),
+                        },
+                        {
+                            pickup_date_time_earliest: newTimeslot.startTime.toISOString(),
+                            pickup_date_time_latest: endTime.toISOString(),
+                        },
+                    );
+
+                    await recordAuditEvent(tx, {
+                        session,
+                        entityType: "parcel",
+                        entityId: parcel.id,
+                        action: "rescheduled",
+                        summary: "Rescheduled parcel pickup time",
+                        details: auditDetailsForChanges(changes),
+                    });
+                }
             });
 
             // Recompute outside_hours_count after commit

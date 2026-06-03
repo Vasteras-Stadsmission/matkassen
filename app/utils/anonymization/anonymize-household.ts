@@ -17,9 +17,13 @@ import {
     householdAdditionalNeeds,
     householdVerificationStatus,
     pets,
+    auditLog,
 } from "@/app/db/schema";
-import { eq, and, gte, isNull, sql, desc } from "drizzle-orm";
+import { eq, and, gte, isNull, sql, desc, inArray, or } from "drizzle-orm";
 import { logger, logError } from "@/app/utils/logger";
+import { recordAuditEvent, type AuditActorSession } from "@/app/utils/audit/log";
+
+type AnonymizationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Result of removal operation
@@ -88,6 +92,35 @@ async function getNextAnonymizationSequence(): Promise<number> {
     return isNaN(lastSequence) ? 1 : lastSequence + 1;
 }
 
+function auditSessionFromPerformedBy(performedBy: string): AuditActorSession | null {
+    return performedBy === "system" ? null : { user: { githubUsername: performedBy } };
+}
+
+async function pruneHouseholdAuditRows(
+    tx: AnonymizationTransaction,
+    householdId: string,
+): Promise<void> {
+    const parcelRows = await tx
+        .select({ id: foodParcels.id })
+        .from(foodParcels)
+        .where(eq(foodParcels.household_id, householdId));
+    const parcelIds = parcelRows.map(row => row.id);
+
+    await tx
+        .delete(auditLog)
+        .where(
+            or(
+                and(eq(auditLog.entity_type, "household"), eq(auditLog.entity_id, householdId)),
+                parcelIds.length > 0
+                    ? and(
+                          eq(auditLog.entity_type, "parcel"),
+                          inArray(auditLog.entity_id, parcelIds),
+                      )
+                    : sql`false`,
+            ),
+        );
+}
+
 /**
  * Anonymize household data (replace PII with placeholders, delete comments/SMS)
  */
@@ -99,6 +132,8 @@ async function anonymizeHousehold(
     const phoneNumber = `000000${sequence.toString().padStart(4, "0")}`; // e.g., "0000000001"
 
     await db.transaction(async tx => {
+        await pruneHouseholdAuditRows(tx, householdId);
+
         // Anonymize the household record itself — name and phone become
         // placeholders, anonymized_at marks the row as inactive.
         await tx
@@ -147,6 +182,14 @@ async function anonymizeHousehold(
         await tx
             .delete(householdVerificationStatus)
             .where(eq(householdVerificationStatus.household_id, householdId));
+
+        await recordAuditEvent(tx, {
+            session: auditSessionFromPerformedBy(performedBy),
+            entityType: "household",
+            entityId: householdId,
+            action: "anonymized",
+            summary: "Anonymized household",
+        });
     });
 
     logger.info(
@@ -164,8 +207,23 @@ async function anonymizeHousehold(
 /**
  * Hard delete household (cascade deletes all related records)
  */
-async function hardDeleteHousehold(householdId: string): Promise<RemovalResult> {
-    await db.delete(households).where(eq(households.id, householdId));
+async function hardDeleteHousehold(
+    householdId: string,
+    performedBy: string,
+): Promise<RemovalResult> {
+    await db.transaction(async tx => {
+        await pruneHouseholdAuditRows(tx, householdId);
+
+        await recordAuditEvent(tx, {
+            session: auditSessionFromPerformedBy(performedBy),
+            entityType: "household",
+            entityId: householdId,
+            action: "removed",
+            summary: "Removed household",
+        });
+
+        await tx.delete(households).where(eq(households.id, householdId));
+    });
 
     logger.info(
         {
@@ -208,7 +266,7 @@ export async function removeHousehold(
 
     if (parcelCount.length === 0) {
         // No parcels at all → Hard delete
-        return await hardDeleteHousehold(householdId);
+        return await hardDeleteHousehold(householdId, performedBy);
     }
 
     // Has parcels → Anonymize to preserve statistics

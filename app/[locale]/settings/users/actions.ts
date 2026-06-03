@@ -8,6 +8,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { routing } from "@/app/i18n/routing";
 import { logError } from "@/app/utils/logger";
+import { recordAuditEvent } from "@/app/utils/audit/log";
+import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 
 export interface UserRow {
     id: string;
@@ -95,6 +97,19 @@ export const updateUserRole = protectedAdminAction(
             // Wrapped in a transaction with a FOR UPDATE lock on all admin rows to prevent
             // two concurrent demotions from both passing the count check.
             await db.transaction(async tx => {
+                const targetRows = await tx
+                    .select({ role: users.role, deactivated_at: users.deactivated_at })
+                    .from(users)
+                    .where(eq(users.id, userId))
+                    .limit(1);
+                const targetUser = targetRows[0];
+
+                if (!targetUser) {
+                    throw Object.assign(new Error("User not found"), {
+                        code: "USER_NOT_FOUND",
+                    });
+                }
+
                 if (role !== "admin") {
                     // Lock all active admin rows before counting to serialise concurrent demotions.
                     // Deactivated admins (deactivated_at IS NOT NULL) are excluded — they can't
@@ -108,17 +123,11 @@ export const updateUserRole = protectedAdminAction(
                         .from(users)
                         .where(and(eq(users.role, "admin"), isNull(users.deactivated_at)));
 
-                    const targetRows = await tx
-                        .select({ role: users.role, deactivated_at: users.deactivated_at })
-                        .from(users)
-                        .where(eq(users.id, userId))
-                        .limit(1);
-
                     // Only guard active admins: a deactivated admin is not in `count`,
                     // so changing their role cannot remove the last active admin.
                     if (
-                        targetRows[0]?.role === "admin" &&
-                        targetRows[0]?.deactivated_at === null &&
+                        targetUser.role === "admin" &&
+                        targetUser.deactivated_at === null &&
                         count <= 1
                     ) {
                         throw Object.assign(new Error("Cannot demote the last admin"), {
@@ -135,6 +144,18 @@ export const updateUserRole = protectedAdminAction(
                 if (updated.length === 0) {
                     throw Object.assign(new Error("User not found"), {
                         code: "USER_NOT_FOUND",
+                    });
+                }
+
+                const changes = buildChanges({ role: targetUser.role }, { role });
+                if (Object.keys(changes).length > 0) {
+                    await recordAuditEvent(tx, {
+                        session,
+                        entityType: "user_role",
+                        entityId: userId,
+                        action: "role_changed",
+                        summary: "Changed user role",
+                        details: auditDetailsForChanges(changes),
                     });
                 }
             });
