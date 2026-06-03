@@ -18,11 +18,12 @@ import {
     resetSmsCounter,
 } from "../../factories";
 import { TEST_NOW, daysFromTestNow } from "../../test-time";
-import { foodParcels, outgoingSms } from "@/app/db/schema";
+import { auditLog, foodParcels, outgoingSms } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
 import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
 import { sendSmsRecord, getSmsRecordsReadyForSending } from "@/app/utils/sms/sms-service";
+import { removeHousehold } from "@/app/utils/anonymization/anonymize-household";
 import type { NextRequest } from "next/server";
 
 const ADMIN_USERNAME = "test-admin";
@@ -386,9 +387,73 @@ describe("Issues actions - Route handler integration", () => {
             expect(updated.dismissed_at).toBeInstanceOf(Date);
             expect(updated.dismissed_by_user_id).toBe(ADMIN_USERNAME);
 
+            const [auditRow] = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, household.id));
+            expect(auditRow).toMatchObject({
+                actor_username: ADMIN_USERNAME,
+                entity_type: "household",
+                action: "failure_dismissed",
+                summary: "Dismissed SMS failure",
+                details: {
+                    sms_id: sms.id,
+                },
+            });
+
             const after = await getIssues();
             expect(after.failedSms.map((s: { id: string }) => s.id)).not.toContain(sms.id);
             expect(after.counts.failedSms).toBe(0);
+        });
+
+        it("should audit parcel-tied dismissals and prune them when household is anonymized", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({ first_name: "SmsPrune" });
+            const { location } = await createTestLocationWithSchedule();
+            const yesterday = daysFromTestNow(-1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: yesterday,
+                pickup_date_time_latest: new Date(yesterday.getTime() + 30 * 60 * 1000),
+            });
+            const sms = await createTestFailedSms({
+                household_id: household.id,
+                parcel_id: parcel.id,
+            });
+
+            const response = await dismissPATCH(
+                makeRequest(`http://localhost/api/admin/sms/${sms.id}/dismiss`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ dismissed: true }),
+                }),
+                { params: Promise.resolve({ smsId: sms.id }) },
+            );
+            expect(response.status).toBe(200);
+
+            const [auditRow] = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, parcel.id));
+            expect(auditRow).toMatchObject({
+                actor_username: ADMIN_USERNAME,
+                entity_type: "parcel",
+                action: "failure_dismissed",
+                summary: "Dismissed SMS failure",
+                details: {
+                    sms_id: sms.id,
+                },
+            });
+
+            const removal = await removeHousehold(household.id, "privacy-admin");
+            expect(removal.method).toBe("anonymized");
+
+            const auditRowsAfterRemoval = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, parcel.id));
+            expect(auditRowsAfterRemoval).toHaveLength(0);
         });
 
         it("should validate request body", async () => {

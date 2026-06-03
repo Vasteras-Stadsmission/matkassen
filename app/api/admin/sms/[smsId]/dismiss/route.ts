@@ -14,6 +14,14 @@ function isValidSmsId(id: string): boolean {
     return NANOID_PATTERN.test(id);
 }
 
+function smsAuditTarget(sms: { parcelId: string | null; householdId: string }) {
+    if (sms.parcelId) {
+        return { entityType: "parcel", entityId: sms.parcelId };
+    }
+
+    return { entityType: "household", entityId: sms.householdId };
+}
+
 /**
  * PATCH /api/admin/sms/[smsId]/dismiss - Dismiss or restore an SMS failure
  *
@@ -100,15 +108,21 @@ export async function PATCH(
                           },
                 )
                 .where(eq(outgoingSms.id, validatedSmsId))
-                .returning({ id: outgoingSms.id });
+                .returning({
+                    id: outgoingSms.id,
+                    parcelId: outgoingSms.parcel_id,
+                    householdId: outgoingSms.household_id,
+                });
 
             if (row && dismissed) {
                 await recordAuditEvent(tx, {
                     session: authResult.session,
-                    entityType: "sms",
-                    entityId: validatedSmsId,
+                    ...smsAuditTarget(row),
                     action: "failure_dismissed",
                     summary: "Dismissed SMS failure",
+                    details: {
+                        sms_id: validatedSmsId,
+                    },
                 });
             }
 

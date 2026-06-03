@@ -97,6 +97,19 @@ export const updateUserRole = protectedAdminAction(
             // Wrapped in a transaction with a FOR UPDATE lock on all admin rows to prevent
             // two concurrent demotions from both passing the count check.
             await db.transaction(async tx => {
+                if (role !== "admin") {
+                    // Lock all active admin rows before counting to serialise concurrent demotions.
+                    // Deactivated admins (deactivated_at IS NOT NULL) are excluded — they can't
+                    // act as admins, so they must not count toward the last-admin guard.
+                    await tx.execute(
+                        sql`SELECT id FROM ${users} WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE`,
+                    );
+                }
+
+                // Lock the target row before reading the before-state used by
+                // both anti-lockout checks and audit details.
+                await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+
                 const targetRows = await tx
                     .select({ role: users.role, deactivated_at: users.deactivated_at })
                     .from(users)
@@ -111,13 +124,6 @@ export const updateUserRole = protectedAdminAction(
                 }
 
                 if (role !== "admin") {
-                    // Lock all active admin rows before counting to serialise concurrent demotions.
-                    // Deactivated admins (deactivated_at IS NOT NULL) are excluded — they can't
-                    // act as admins, so they must not count toward the last-admin guard.
-                    await tx.execute(
-                        sql`SELECT id FROM ${users} WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE`,
-                    );
-
                     const [{ count }] = await tx
                         .select({ count: sql<number>`count(*)::int` })
                         .from(users)

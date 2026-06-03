@@ -27,6 +27,14 @@ const RETRYABLE_INTENTS = new Set([
 
 const PARCEL_INTENTS = new Set(["pickup_reminder", "pickup_updated", "pickup_cancelled"]);
 
+function smsAuditTarget(sms: { parcelId: string | null; householdId: string }) {
+    if (sms.parcelId) {
+        return { entityType: "parcel", entityId: sms.parcelId };
+    }
+
+    return { entityType: "household", entityId: sms.householdId };
+}
+
 /**
  * POST /api/admin/sms/[smsId]/retry - Retry a failed SMS
  *
@@ -244,15 +252,13 @@ export async function POST(
 
             await recordAuditEvent(tx, {
                 session: authResult.session,
-                entityType: "sms",
-                entityId: smsId!,
+                ...smsAuditTarget(originalSms),
                 action: "retried",
                 summary: "Retried SMS failure",
                 details: {
+                    sms_id: smsId!,
                     new_sms_id: newSmsId,
                     intent: originalSms.intent,
-                    household_id: originalSms.householdId,
-                    parcel_id: originalSms.parcelId ?? null,
                 },
             });
 
