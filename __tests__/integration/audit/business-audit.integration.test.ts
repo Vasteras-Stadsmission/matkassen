@@ -156,6 +156,38 @@ describe("business audit logging integration", () => {
         expect(await auditRowsForEntity("parcel", parcel.id)).toHaveLength(0);
     });
 
+    it("rolls back the business mutation when the audit insert fails", async () => {
+        const db = await getTestDb();
+        const household = await createTestHousehold();
+        const { location } = await createTestLocationWithSchedule();
+        const overlongActor = "x".repeat(101); // audit_log.actor_username is varchar(100)
+        const futureStart = new Date(TEST_NOW.getTime() + 24 * 60 * 60 * 1000);
+        const futureEnd = new Date(futureStart.getTime() + 30 * 60 * 1000);
+
+        await expect(
+            db.transaction(tx =>
+                createParcels(tx as any, {
+                    session: withUser(overlongActor),
+                    parcels: [
+                        {
+                            household_id: household.id,
+                            pickup_location_id: location.id,
+                            pickup_date_time_earliest: futureStart,
+                            pickup_date_time_latest: futureEnd,
+                            is_picked_up: false,
+                        },
+                    ],
+                }),
+            ),
+        ).rejects.toThrow();
+
+        const parcels = await db
+            .select()
+            .from(foodParcels)
+            .where(eq(foodParcels.household_id, household.id));
+        expect(parcels).toHaveLength(0);
+    });
+
     it("prunes household and parcel audit rows when a household is anonymized", async () => {
         const db = await getTestDb();
         const household = await createTestHousehold();
