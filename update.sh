@@ -272,7 +272,13 @@ if sudo systemctl is-active --quiet nginx; then
     fi
     echo "✅ Nginx reloaded with new configuration"
 else
-    sudo systemctl start nginx
+    if ! sudo systemctl start nginx; then
+        echo "❌ Nginx start failed — processes listening on ports 80/443:"
+        sudo ss -ltnp "( sport = :80 or sport = :443 )" || true
+        echo "Recent nginx logs:"
+        sudo journalctl -u nginx -n 20 --no-pager || true
+        exit 1
+    fi
     sudo systemctl enable nginx
     echo "✅ Nginx started"
 fi

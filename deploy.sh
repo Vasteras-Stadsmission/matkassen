@@ -299,23 +299,8 @@ fi
 # Set up automatic SSL certificate renewal
 echo "Setting up automatic SSL certificate renewal..."
 
-# Create pre and post renewal hooks to handle Nginx restart
-sudo mkdir -p /etc/letsencrypt/renewal-hooks/pre
-sudo mkdir -p /etc/letsencrypt/renewal-hooks/post
-
-# Create pre-renewal hook to stop Nginx
-sudo tee /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh > /dev/null <<'EOHOOK'
-#!/bin/bash
-systemctl stop nginx
-EOHOOK
-sudo chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
-
-# Create post-renewal hook to start Nginx
-sudo tee /etc/letsencrypt/renewal-hooks/post/start-nginx.sh > /dev/null <<'EOHOOK'
-#!/bin/bash
-systemctl start nginx
-EOHOOK
-sudo chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
+# Certbot uses the nginx plugin above, which handles nginx configuration and
+# reloads itself. Extra stop/start hooks conflict with that plugin.
 
 # Setup automated renewal cron job that runs twice daily
 echo "0 3,15 * * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew > /dev/null
