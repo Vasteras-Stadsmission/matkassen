@@ -13,7 +13,7 @@ import {
     resetLocationCounter,
     resetUserCounter,
 } from "../../factories";
-import { foodParcels } from "@/app/db/schema";
+import { auditLog, foodParcels } from "@/app/db/schema";
 import type { FormData } from "@/app/[locale]/households/enroll/types";
 import { stripSwedishPrefix } from "@/app/utils/validation/phone-validation";
 
@@ -182,6 +182,40 @@ describe("Household parcel scheduling integration", () => {
         expect(activeParcels[0].pickup_date_time_earliest).toEqual(slot.start);
         expect(activeParcels[0].pickup_date_time_latest).toEqual(slot.end);
         expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
+    });
+
+    it("writes household edit audit details with only the fields that changed", async () => {
+        const db = await getTestDb();
+        const household = await createTestHousehold({ locale: "sv" });
+
+        const updateData = buildUpdateData(household, "", []);
+        updateData.household.phone_number = "0700009999";
+        updateData.household.locale = "en";
+
+        const result = await updateHousehold(household.id, updateData);
+        expect(result.success).toBe(true);
+
+        const [auditRow] = await db
+            .select()
+            .from(auditLog)
+            .where(eq(auditLog.entity_id, household.id));
+
+        const details = auditRow.details as {
+            changes: Record<string, { before: unknown; after: unknown }>;
+        };
+        expect(auditRow).toMatchObject({
+            actor_username: "test-admin",
+            entity_type: "household",
+            action: "updated",
+            summary: "Updated household",
+        });
+        expect(Object.keys(details.changes).sort()).toEqual(["locale", "phone_number"]);
+        expect(details.changes.locale).toEqual({ before: "sv", after: "en" });
+        expect(details.changes.phone_number).toEqual({
+            before: household.phone_number,
+            after: "+46700009999",
+        });
+        expect(JSON.stringify(details)).not.toContain("comments");
     });
 
     it("adds a new parcel through the parcel management dialog action", async () => {

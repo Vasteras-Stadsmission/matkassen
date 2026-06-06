@@ -4,6 +4,7 @@ import { outgoingSms } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logger, logError } from "@/app/utils/logger";
+import { recordAuditEvent } from "@/app/utils/audit/log";
 
 // nanoid default alphabet: A-Za-z0-9_-
 // Standard length is 21 chars, but we allow some flexibility
@@ -11,6 +12,14 @@ const NANOID_PATTERN = /^[A-Za-z0-9_-]{10,30}$/;
 
 function isValidSmsId(id: string): boolean {
     return NANOID_PATTERN.test(id);
+}
+
+function smsAuditTarget(sms: { parcelId: string | null; householdId: string }) {
+    if (sms.parcelId) {
+        return { entityType: "parcel", entityId: sms.parcelId };
+    }
+
+    return { entityType: "household", entityId: sms.householdId };
 }
 
 /**
@@ -80,24 +89,45 @@ export async function PATCH(
                 { status: 400 },
             );
         }
+        const validatedSmsId = smsId;
 
         // Single atomic update with RETURNING to avoid TOCTOU race condition
         const now = new Date();
-        const [updated] = await db
-            .update(outgoingSms)
-            .set(
-                dismissed
-                    ? {
-                          dismissed_at: now,
-                          dismissed_by_user_id: username,
-                      }
-                    : {
-                          dismissed_at: null,
-                          dismissed_by_user_id: null,
-                      },
-            )
-            .where(eq(outgoingSms.id, smsId))
-            .returning({ id: outgoingSms.id });
+        const updated = await db.transaction(async tx => {
+            const [row] = await tx
+                .update(outgoingSms)
+                .set(
+                    dismissed
+                        ? {
+                              dismissed_at: now,
+                              dismissed_by_user_id: username,
+                          }
+                        : {
+                              dismissed_at: null,
+                              dismissed_by_user_id: null,
+                          },
+                )
+                .where(eq(outgoingSms.id, validatedSmsId))
+                .returning({
+                    id: outgoingSms.id,
+                    parcelId: outgoingSms.parcel_id,
+                    householdId: outgoingSms.household_id,
+                });
+
+            if (row && dismissed) {
+                await recordAuditEvent(tx, {
+                    session: authResult.session,
+                    ...smsAuditTarget(row),
+                    action: "failure_dismissed",
+                    summary: "Dismissed SMS failure",
+                    details: {
+                        sms_id: validatedSmsId,
+                    },
+                });
+            }
+
+            return row;
+        });
 
         if (!updated) {
             return NextResponse.json(

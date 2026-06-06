@@ -39,6 +39,8 @@ import {
     runHouseholdParcelPostCommitEffects,
     type HouseholdParcelScheduleChangeSummary,
 } from "@/app/utils/parcels/apply-parcel-schedule-changes";
+import { recordAuditEvent } from "@/app/utils/audit/log";
+import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -54,6 +56,17 @@ type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function dedupeIds(ids: string[]): string[] {
     return [...new Set(ids.filter(Boolean))];
+}
+
+function normalizedList(values: string[]): string {
+    return [...values].sort().join(",");
+}
+
+function normalizedMembersForAudit(members: FormData["members"]): string {
+    return members
+        .map(member => `${member.age}:${member.sex}`)
+        .sort()
+        .join(",");
 }
 
 function nameValidationMessage(
@@ -450,9 +463,16 @@ export const updateHousehold = protectedAdminHouseholdAction(
             // Check if phone number changed and validate no duplicates
             const newPhoneE164 = normalizePhoneToE164(data.household.phone_number);
 
-            // Fetch current phone number to detect changes (HouseholdData doesn't include it)
+            // Fetch current household data to detect changes (HouseholdData doesn't include all fields)
             const [currentHousehold] = await db
-                .select({ phone_number: households.phone_number })
+                .select({
+                    first_name: households.first_name,
+                    last_name: households.last_name,
+                    phone_number: households.phone_number,
+                    locale: households.locale,
+                    primary_pickup_location_id: households.primary_pickup_location_id,
+                    responsible_user_id: households.responsible_user_id,
+                })
                 .from(households)
                 .where(eq(households.id, household.id))
                 .limit(1);
@@ -500,13 +520,41 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     await ensurePickupLocationExists(tx, primaryLocationId);
                 }
 
-                const [existingResponsibleUser] = await tx
-                    .select({ responsible_user_id: households.responsible_user_id })
+                const [existingHousehold] = await tx
+                    .select({
+                        first_name: households.first_name,
+                        last_name: households.last_name,
+                        phone_number: households.phone_number,
+                        locale: households.locale,
+                        primary_pickup_location_id: households.primary_pickup_location_id,
+                        responsible_user_id: households.responsible_user_id,
+                    })
                     .from(households)
                     .where(eq(households.id, household.id))
                     .limit(1);
 
-                const currentResponsibleUserId = existingResponsibleUser?.responsible_user_id;
+                if (!existingHousehold) {
+                    throw new Error("Household not found");
+                }
+
+                const currentMembers = await tx
+                    .select({ age: householdMembers.age, sex: householdMembers.sex })
+                    .from(householdMembers)
+                    .where(eq(householdMembers.household_id, household.id));
+                const currentDietaryRestrictionIds = await tx
+                    .select({ id: householdDietaryRestrictions.dietary_restriction_id })
+                    .from(householdDietaryRestrictions)
+                    .where(eq(householdDietaryRestrictions.household_id, household.id));
+                const currentAdditionalNeedIds = await tx
+                    .select({ id: householdAdditionalNeeds.additional_need_id })
+                    .from(householdAdditionalNeeds)
+                    .where(eq(householdAdditionalNeeds.household_id, household.id));
+                const currentPetSpeciesIds = await tx
+                    .select({ id: pets.pet_species_id })
+                    .from(pets)
+                    .where(eq(pets.household_id, household.id));
+
+                const currentResponsibleUserId = existingHousehold.responsible_user_id;
                 await ensureResponsibleUserIsAssignable(
                     tx,
                     responsibleUserId,
@@ -631,6 +679,53 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     }
                 }
 
+                const changes = buildChanges(
+                    {
+                        first_name: existingHousehold.first_name,
+                        last_name: existingHousehold.last_name,
+                        phone_number: existingHousehold.phone_number,
+                        locale: existingHousehold.locale,
+                        primary_pickup_location_id:
+                            existingHousehold.primary_pickup_location_id ?? null,
+                        responsible_user_id: existingHousehold.responsible_user_id ?? null,
+                        members: normalizedMembersForAudit(currentMembers),
+                        dietary_restriction_ids: normalizedList(
+                            currentDietaryRestrictionIds.map(row => row.id),
+                        ),
+                        additional_need_ids: normalizedList(
+                            currentAdditionalNeedIds.map(row => row.id),
+                        ),
+                        pet_species_ids: normalizedList(currentPetSpeciesIds.map(row => row.id)),
+                    },
+                    {
+                        first_name: firstName.value,
+                        last_name: lastName.value,
+                        phone_number: newPhoneE164,
+                        locale: data.household.locale,
+                        primary_pickup_location_id: primaryLocationId,
+                        responsible_user_id: responsibleUserId,
+                        members: normalizedMembersForAudit(data.members),
+                        dietary_restriction_ids: normalizedList(
+                            dedupeIds(data.dietaryRestrictions.map(restriction => restriction.id)),
+                        ),
+                        additional_need_ids: normalizedList(
+                            dedupeIds(data.additionalNeeds.map(need => need.id)),
+                        ),
+                        pet_species_ids: normalizedList(data.pets.map(pet => pet.species)),
+                    },
+                );
+
+                if (Object.keys(changes).length > 0) {
+                    await recordAuditEvent(tx, {
+                        session,
+                        entityType: "household",
+                        entityId: household.id,
+                        action: "updated",
+                        summary: "Updated household",
+                        details: auditDetailsForChanges(changes),
+                    });
+                }
+
                 // Audit log with IDs only (no PII)
                 logger.info(
                     {
@@ -709,6 +804,26 @@ export const updateResponsibleStaff = protectedAdminHouseholdAction(
                         responsible_user_id: data.responsibleUserId,
                     })
                     .where(eq(households.id, household.id));
+
+                const changes = buildChanges(
+                    {
+                        responsible_user_id: existingResponsibleUser?.responsible_user_id ?? null,
+                    },
+                    {
+                        responsible_user_id: data.responsibleUserId,
+                    },
+                );
+
+                if (Object.keys(changes).length > 0) {
+                    await recordAuditEvent(tx, {
+                        session,
+                        entityType: "household",
+                        entityId: household.id,
+                        action: "updated",
+                        summary: "Updated household responsible staff",
+                        details: auditDetailsForChanges(changes),
+                    });
+                }
             });
 
             logger.info(

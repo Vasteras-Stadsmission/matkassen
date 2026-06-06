@@ -9,6 +9,7 @@ import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
 import { logger, logError } from "@/app/utils/logger";
 import { Time } from "@/app/utils/time-provider";
 import { nanoid } from "nanoid";
+import { recordAuditEvent } from "@/app/utils/audit/log";
 
 const NANOID_PATTERN = /^[A-Za-z0-9_-]{10,30}$/;
 
@@ -25,6 +26,14 @@ const RETRYABLE_INTENTS = new Set([
 ]);
 
 const PARCEL_INTENTS = new Set(["pickup_reminder", "pickup_updated", "pickup_cancelled"]);
+
+function smsAuditTarget(sms: { parcelId: string | null; householdId: string }) {
+    if (sms.parcelId) {
+        return { entityType: "parcel", entityId: sms.parcelId };
+    }
+
+    return { entityType: "household", entityId: sms.householdId };
+}
 
 /**
  * POST /api/admin/sms/[smsId]/retry - Retry a failed SMS
@@ -231,7 +240,7 @@ export async function POST(
                 return null; // Another request already handled this SMS
             }
 
-            return createSmsRecord({
+            const newSmsId = await createSmsRecord({
                 intent: originalSms.intent,
                 parcelId: isParcelIntent ? originalSms.parcelId! : undefined,
                 householdId: originalSms.householdId,
@@ -240,6 +249,20 @@ export async function POST(
                 idempotencyKey: `${originalSms.intent}|${originalSms.householdId}|retry|${nanoid(8)}`,
                 tx,
             });
+
+            await recordAuditEvent(tx, {
+                session: authResult.session,
+                ...smsAuditTarget(originalSms),
+                action: "retried",
+                summary: "Retried SMS failure",
+                details: {
+                    sms_id: smsId!,
+                    new_sms_id: newSmsId,
+                    intent: originalSms.intent,
+                },
+            });
+
+            return newSmsId;
         });
 
         if (!newSmsId) {

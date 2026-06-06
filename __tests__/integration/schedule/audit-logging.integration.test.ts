@@ -14,6 +14,7 @@ import {
 } from "../../factories";
 import {
     scheduleAuditLog,
+    auditLog,
     pickupLocationSchedules,
     pickupLocationScheduleDays,
     pickupLocations,
@@ -104,6 +105,24 @@ describe("Schedule Audit Logging - Integration Tests", () => {
             expect(logs[0].changed_by).toBe("audit-test-user");
             expect(logs[0].schedule_id).toBeDefined();
             expect(logs[0].changes_summary).toContain("Winter Schedule");
+
+            const scheduleId = logs[0].schedule_id;
+            expect(scheduleId).not.toBeNull();
+            const genericLogs = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, scheduleId!));
+            expect(genericLogs).toHaveLength(1);
+            expect(genericLogs[0]).toMatchObject({
+                actor_username: "audit-test-user",
+                entity_type: "schedule",
+                action: "updated",
+                summary: "Updated pickup location opening hours",
+                details: {
+                    pickup_location_id: location.id,
+                    schedule_action: "created",
+                },
+            });
         });
 
         it("should set created_by on the schedule itself", async () => {
@@ -167,6 +186,22 @@ describe("Schedule Audit Logging - Integration Tests", () => {
             expect(logs[0].changed_by).toBe("audit-test-user");
             // Should mention the time change
             expect(logs[0].changes_summary).toBeDefined();
+
+            const genericLogs = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, schedule.id));
+            expect(genericLogs).toHaveLength(1);
+            expect(genericLogs[0]).toMatchObject({
+                actor_username: "audit-test-user",
+                entity_type: "schedule",
+                action: "updated",
+                summary: "Updated pickup location opening hours",
+                details: {
+                    pickup_location_id: location.id,
+                    changes_summary: logs[0].changes_summary,
+                },
+            });
         });
 
         it("should set updated_by and updated_at on the schedule", async () => {
@@ -216,6 +251,22 @@ describe("Schedule Audit Logging - Integration Tests", () => {
             expect(logs[0].action).toBe("deleted");
             expect(logs[0].changed_by).toBe("audit-test-user");
             expect(logs[0].pickup_location_id).toBe(location.id);
+
+            const genericLogs = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, schedule.id));
+            expect(genericLogs).toHaveLength(1);
+            expect(genericLogs[0]).toMatchObject({
+                actor_username: "audit-test-user",
+                entity_type: "schedule",
+                action: "updated",
+                summary: "Updated pickup location opening hours",
+                details: {
+                    pickup_location_id: location.id,
+                    schedule_action: "deleted",
+                },
+            });
         });
 
         it("should preserve audit log after schedule is gone", async () => {

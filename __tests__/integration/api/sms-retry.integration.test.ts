@@ -24,7 +24,7 @@ import {
     resetSmsCounter,
 } from "../../factories";
 import { TEST_NOW, daysFromTestNow, hoursFromTestNow } from "../../test-time";
-import { outgoingSms } from "@/app/db/schema";
+import { auditLog, outgoingSms } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 
@@ -123,6 +123,23 @@ describe("SMS Retry - Route handler integration", () => {
             expect(newSms.parcel_id).toBe(parcel.id);
             expect(newSms.household_id).toBe(household.id);
             expect(newSms.attempt_count).toBe(0);
+
+            const [auditRow] = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, parcel.id));
+            expect(auditRow).toMatchObject({
+                actor_username: ADMIN_USERNAME,
+                entity_type: "parcel",
+                action: "retried",
+                summary: "Retried SMS failure",
+                details: {
+                    sms_id: failedSms.id,
+                    new_sms_id: payload.smsId,
+                    intent: "pickup_reminder",
+                },
+            });
+            expect(JSON.stringify(auditRow.details)).not.toContain(failedSms.text);
         });
 
         it("should work for pickup_updated intent", async () => {
@@ -256,6 +273,23 @@ describe("SMS Retry - Route handler integration", () => {
             expect(newSms.text).toBe(failedSms.text);
             expect(newSms.parcel_id).toBeNull();
             expect(newSms.household_id).toBe(household.id);
+
+            const [auditRow] = await db
+                .select()
+                .from(auditLog)
+                .where(eq(auditLog.entity_id, household.id));
+            expect(auditRow).toMatchObject({
+                actor_username: ADMIN_USERNAME,
+                entity_type: "household",
+                action: "retried",
+                summary: "Retried SMS failure",
+                details: {
+                    sms_id: failedSms.id,
+                    new_sms_id: payload.smsId,
+                    intent: "enrolment",
+                },
+            });
+            expect(JSON.stringify(auditRow.details)).not.toContain(failedSms.text);
         });
 
         it("should retry a failed consent_enrolment SMS", async () => {

@@ -23,6 +23,7 @@ import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-locati
 import { generateUrl } from "@/app/config/branding";
 import { nanoid } from "nanoid";
 import { logger, logError } from "@/app/utils/logger";
+import { recordAuditEvent, type AuditActorSession } from "@/app/utils/audit/log";
 
 export type SmsIntent =
     | "pickup_reminder"
@@ -2031,27 +2032,43 @@ export async function getInsufficientBalanceStatus(): Promise<{
  *
  * @returns The number of SMS records that were re-queued
  */
-export async function requeueBalanceFailures(): Promise<number> {
+export async function requeueBalanceFailures(session?: AuditActorSession): Promise<number> {
     const now = Time.now().toUTC();
-    const result = await db
-        .update(outgoingSms)
-        .set({
-            status: "queued",
-            attempt_count: 0,
-            next_attempt_at: now,
-            last_error_message: null,
-            balance_failure: false,
-        })
-        .where(
-            and(
-                eq(outgoingSms.status, "failed"),
-                sql`${outgoingSms.dismissed_at} IS NULL`,
-                eq(outgoingSms.balance_failure, true),
-            ),
-        )
-        .returning({ id: outgoingSms.id });
+    const count = await db.transaction(async tx => {
+        const result = await tx
+            .update(outgoingSms)
+            .set({
+                status: "queued",
+                attempt_count: 0,
+                next_attempt_at: now,
+                last_error_message: null,
+                balance_failure: false,
+            })
+            .where(
+                and(
+                    eq(outgoingSms.status, "failed"),
+                    sql`${outgoingSms.dismissed_at} IS NULL`,
+                    eq(outgoingSms.balance_failure, true),
+                ),
+            )
+            .returning({ id: outgoingSms.id });
 
-    const count = result.length;
+        if (session && result.length > 0) {
+            await recordAuditEvent(tx, {
+                session,
+                entityType: "sms",
+                entityId: null,
+                action: "balance_failures_requeued",
+                summary: "Requeued balance-failed SMS",
+                details: {
+                    count: result.length,
+                },
+            });
+        }
+
+        return result.length;
+    });
+
     if (count > 0) {
         logger.info({ count }, "Re-queued balance-failed SMS for retry");
     }

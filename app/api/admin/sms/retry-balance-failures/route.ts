@@ -21,7 +21,7 @@ export async function POST() {
             return authResult.response;
         }
 
-        const requeuedCount = await requeueBalanceFailures();
+        const requeuedCount = await requeueBalanceFailures(authResult.session);
 
         logger.info(
             { requeuedCount, triggeredBy: authResult.session.user.githubUsername },

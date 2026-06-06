@@ -14,6 +14,8 @@ import {
     type LocationScheduleInfo,
 } from "@/app/utils/schedule/outside-hours-filter";
 import { Time } from "@/app/utils/time-provider";
+import { recordAuditEvent } from "@/app/utils/audit/log";
+import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 import {
     type ValidationError,
     ValidationErrorCodes,
@@ -584,6 +586,28 @@ export async function applyHouseholdParcelScheduleChanges(
                 pickup_date_time_latest: parcel.pickupLatestTime,
             })
             .where(eq(foodParcels.id, parcel.id!));
+
+        const changes = buildChanges(
+            {
+                pickup_location_id: existing.locationId,
+                pickup_date_time_earliest: existing.earliest.toISOString(),
+                pickup_date_time_latest: existing.latest.toISOString(),
+            },
+            {
+                pickup_location_id: parcelTargetLocationId,
+                pickup_date_time_earliest: parcel.pickupEarliestTime.toISOString(),
+                pickup_date_time_latest: parcel.pickupLatestTime.toISOString(),
+            },
+        );
+
+        await recordAuditEvent(tx, {
+            session: args.session,
+            entityType: "parcel",
+            entityId: parcel.id!,
+            action: "rescheduled",
+            summary: "Rescheduled parcel pickup time",
+            details: auditDetailsForChanges(changes),
+        });
 
         updatedParcelIds.push(parcel.id!);
     }

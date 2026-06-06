@@ -64,6 +64,7 @@ import { insertParcels } from "@/app/db/insert-parcels";
 import { notDeleted } from "@/app/db/query-helpers";
 import { Time } from "@/app/utils/time-provider";
 import { formatCancellationSms } from "@/app/utils/sms/templates";
+import { recordAuditEvent } from "@/app/utils/audit/log";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 
 /**
@@ -155,11 +156,40 @@ export async function createParcels(
     tx: ParcelTransaction,
     args: {
         parcels: NewParcelInput[];
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         session: ParcelActorSession | null;
     },
 ): Promise<string[]> {
-    return insertParcels(tx, args.parcels);
+    const insertedIds = await insertParcels(tx, args.parcels);
+    if (insertedIds.length === 0) return insertedIds;
+
+    const insertedParcels = await tx
+        .select({
+            id: foodParcels.id,
+            householdId: foodParcels.household_id,
+            pickupLocationId: foodParcels.pickup_location_id,
+            pickupEarliest: foodParcels.pickup_date_time_earliest,
+            pickupLatest: foodParcels.pickup_date_time_latest,
+        })
+        .from(foodParcels)
+        .where(inArray(foodParcels.id, insertedIds));
+
+    for (const parcel of insertedParcels) {
+        await recordAuditEvent(tx, {
+            session: args.session,
+            entityType: "parcel",
+            entityId: parcel.id,
+            action: "created",
+            summary: "Created parcel",
+            details: {
+                household_id: parcel.householdId,
+                pickup_location_id: parcel.pickupLocationId,
+                pickup_date_time_earliest: parcel.pickupEarliest.toISOString(),
+                pickup_date_time_latest: parcel.pickupLatest.toISOString(),
+            },
+        });
+    }
+
+    return insertedIds;
 }
 
 // ============================================================================
@@ -197,6 +227,13 @@ export async function markPickedUp(
             error: { code: "NOT_FOUND", message: "Parcel not found or deleted" },
         };
     }
+    await recordAuditEvent(tx, {
+        session: args.session,
+        entityType: "parcel",
+        entityId: args.parcelId,
+        action: "marked_picked_up",
+        summary: "Marked parcel as picked up",
+    });
     return { ok: true };
 }
 
@@ -207,7 +244,6 @@ export async function markPickedUp(
 /** Clear pickup status. No state validation beyond not-deleted. */
 export async function undoPickup(
     tx: ParcelTransaction,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     args: { parcelId: string; session: ParcelActorSession },
 ): Promise<ParcelTransitionResult> {
     const result = await tx
@@ -226,6 +262,13 @@ export async function undoPickup(
             error: { code: "NOT_FOUND", message: "Parcel not found or deleted" },
         };
     }
+    await recordAuditEvent(tx, {
+        session: args.session,
+        entityType: "parcel",
+        entityId: args.parcelId,
+        action: "pickup_undone",
+        summary: "Undid parcel pickup",
+    });
     return { ok: true };
 }
 
@@ -314,6 +357,14 @@ export async function markNoShow(
         })
         .where(eq(foodParcels.id, args.parcelId));
 
+    await recordAuditEvent(tx, {
+        session: args.session,
+        entityType: "parcel",
+        entityId: args.parcelId,
+        action: "marked_no_show",
+        summary: "Marked parcel as no-show",
+    });
+
     return { ok: true };
 }
 
@@ -329,7 +380,6 @@ export async function markNoShow(
  */
 export async function undoNoShow(
     tx: ParcelTransaction,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     args: { parcelId: string; session: ParcelActorSession },
 ): Promise<ParcelTransitionResult> {
     const result = await tx
@@ -356,6 +406,13 @@ export async function undoNoShow(
             },
         };
     }
+    await recordAuditEvent(tx, {
+        session: args.session,
+        entityType: "parcel",
+        entityId: args.parcelId,
+        action: "no_show_undone",
+        summary: "Undid parcel no-show",
+    });
     return { ok: true };
 }
 
@@ -582,6 +639,14 @@ async function performSoftDelete(
             deleted_by_user_id: extractUsername(session),
         })
         .where(eq(foodParcels.id, parcelId));
+
+    await recordAuditEvent(tx, {
+        session,
+        entityType: "parcel",
+        entityId: parcelId,
+        action: "cancelled",
+        summary: "Cancelled parcel",
+    });
 
     return { skipped: false, smsCancelled, smsSent };
 }
