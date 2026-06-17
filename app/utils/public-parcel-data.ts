@@ -79,7 +79,12 @@ export async function getPublicParcelData(parcelId: string): Promise<PublicParce
 }
 
 /**
- * Determine parcel status based on current time and pickup window
+ * Public recipient-facing status for `/p/[parcelId]`.
+ *
+ * This intentionally differs from admin parcel badges: admin views use
+ * date-only operational status so same-day parcels do not become "missed"
+ * after the nominal pickup window, while the public page should tell the
+ * recipient whether the pickup window is active right now.
  */
 export function getParcelStatus(parcel: PublicParcelData): ParcelStatus {
     // Check if cancelled (soft deleted)

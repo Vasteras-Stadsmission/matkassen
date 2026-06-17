@@ -5,23 +5,17 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FoodParcel } from "@/app/[locale]/schedule/types";
 import { IconCalendarTime, IconInfoCircle } from "@tabler/icons-react";
-import styles from "./PickupCard.module.css"; // Import the CSS module
+import styles from "./PickupCard.module.css";
 import { useTranslations, useLocale } from "next-intl";
 import { memo, useMemo } from "react";
 
 interface PickupCardProps {
     foodParcel: FoodParcel;
-    isCompact?: boolean;
     onReschedule?: (foodParcel: FoodParcel) => void;
     onOpenAdminDialog?: (parcelId: string) => void;
 }
 
-function PickupCard({
-    foodParcel,
-    isCompact = false,
-    onReschedule,
-    onOpenAdminDialog,
-}: PickupCardProps) {
+function PickupCard({ foodParcel, onReschedule, onOpenAdminDialog }: PickupCardProps) {
     const t = useTranslations("schedule");
     const locale = useLocale();
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -42,14 +36,11 @@ function PickupCard({
         [transform, transition, isDragging],
     );
 
-    // Memoize color calculation
-    const statusColor = useMemo(() => {
-        if (foodParcel.isPickedUp) return "green.6";
-
-        const now = new Date();
-        const isInPast = foodParcel.pickupLatestTime < now;
-        return isInPast ? "red.6" : "primary";
-    }, [foodParcel.isPickedUp, foodParcel.pickupLatestTime]);
+    const statusLabel = useMemo(() => {
+        if (foodParcel.isPickedUp) return t("pickedUpStatus");
+        if (foodParcel.noShowAt) return t("noShowStatus");
+        return t("notPickedUpStatus");
+    }, [foodParcel.isPickedUp, foodParcel.noShowAt, t]);
 
     // Memoize time formatting
     const timeDisplay = useMemo(() => {
@@ -111,8 +102,7 @@ function PickupCard({
                 {t("pickupTimeLabel")}: {timeDisplay.earliest} - {timeDisplay.latest}
             </Text>
             <Text size="sm">
-                {t("statusLabel")}:{" "}
-                {foodParcel.isPickedUp ? t("pickedUpStatus") : t("notPickedUpStatus")}
+                {t("statusLabel")}: {statusLabel}
             </Text>
             {foodParcel.primaryPickupLocationName && (
                 <Text size="sm">
@@ -126,87 +116,6 @@ function PickupCard({
             )}
         </div>
     );
-
-    if (isCompact) {
-        return (
-            <Tooltip
-                label={tooltipContent}
-                withArrow
-                multiline
-                withinPortal
-                position="top"
-                disabled={isDragging}
-            >
-                <Paper
-                    ref={setNodeRef}
-                    style={{
-                        ...style,
-                        "cursor": "grab",
-                        "&:hover": { backgroundColor: "var(--mantine-color-blue-0)" },
-                        "position": "relative",
-                    }}
-                    {...attributes}
-                    {...listeners}
-                    px="xs"
-                    py={2}
-                    radius="sm"
-                    withBorder
-                    bg="gray.0"
-                    shadow="xs"
-                    className={styles["pickup-card-compact"]}
-                    data-dragging={isDragging}
-                >
-                    <Text size="xs" truncate fw={500}>
-                        {foodParcel.householdName}
-                    </Text>
-
-                    {/* Add admin info button */}
-                    {onOpenAdminDialog && (
-                        <ActionIcon
-                            size="xs"
-                            variant="subtle"
-                            color="blue"
-                            onClick={handleAdminDialogClick}
-                            style={{
-                                position: "absolute",
-                                top: "50%",
-                                right: onReschedule ? "20px" : "4px", // Adjust position if reschedule button is present
-                                transform: "translateY(-50%)",
-                                opacity: 0, // Hidden by default
-                                transition: "opacity 0.2s",
-                            }}
-                            className={styles["admin-button"]}
-                            title="View household details"
-                        >
-                            <IconInfoCircle size="0.8rem" />
-                        </ActionIcon>
-                    )}
-
-                    {/* Add reschedule button */}
-                    {onReschedule && (
-                        <ActionIcon
-                            size="xs"
-                            variant="subtle"
-                            color="blue"
-                            onClick={handleRescheduleClick}
-                            style={{
-                                position: "absolute",
-                                top: "50%",
-                                right: "4px",
-                                transform: "translateY(-50%)",
-                                opacity: 0, // Hidden by default
-                                transition: "opacity 0.2s",
-                            }}
-                            className={styles["reschedule-button"]}
-                            title={t("reschedule.outsideWeek")}
-                        >
-                            <IconCalendarTime size="0.8rem" />
-                        </ActionIcon>
-                    )}
-                </Paper>
-            </Tooltip>
-        );
-    }
 
     return (
         <Tooltip
@@ -222,45 +131,50 @@ function PickupCard({
                 style={{
                     ...style,
                     cursor: "grab",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "4px",
                     position: "relative",
                 }}
                 {...attributes}
                 {...listeners}
-                p="xs"
+                px="xs"
+                py={2}
                 radius="sm"
                 withBorder
-                bg="white"
+                bg="gray.0"
                 shadow="xs"
-                className={styles["pickup-card"]}
+                className={styles["pickup-card-compact"]}
                 data-dragging={isDragging}
             >
                 <div
                     style={{
                         display: "flex",
-                        justifyContent: "space-between",
                         alignItems: "center",
+                        gap: 4,
+                        paddingRight: onOpenAdminDialog
+                            ? onReschedule
+                                ? 36
+                                : 18
+                            : onReschedule
+                              ? 18
+                              : 0,
                     }}
                 >
-                    <Text size="sm" fw={500} truncate style={{ flex: 1 }}>
+                    {foodParcel.noShowAt && (
+                        <span
+                            aria-label={statusLabel}
+                            title={statusLabel}
+                            style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: "50%",
+                                backgroundColor: "var(--mantine-color-orange-6)",
+                                flexShrink: 0,
+                            }}
+                        />
+                    )}
+                    <Text size="xs" truncate fw={500} style={{ minWidth: 0 }}>
                         {foodParcel.householdName}
                     </Text>
-
-                    <div
-                        style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            backgroundColor: `var(--mantine-color-${statusColor})`,
-                        }}
-                    />
                 </div>
-
-                <Text size="xs" c="dimmed">
-                    {timeDisplay.earliest}
-                </Text>
 
                 {/* Add admin info button */}
                 {onOpenAdminDialog && (
@@ -271,13 +185,14 @@ function PickupCard({
                         onClick={handleAdminDialogClick}
                         style={{
                             position: "absolute",
-                            top: "4px",
+                            top: "50%",
                             right: onReschedule ? "20px" : "4px", // Adjust position if reschedule button is present
+                            transform: "translateY(-50%)",
                             opacity: 0, // Hidden by default
                             transition: "opacity 0.2s",
                         }}
                         className={styles["admin-button"]}
-                        title="View household details"
+                        title={t("viewParcelDetails")}
                     >
                         <IconInfoCircle size="0.8rem" />
                     </ActionIcon>
@@ -292,8 +207,9 @@ function PickupCard({
                         onClick={handleRescheduleClick}
                         style={{
                             position: "absolute",
-                            top: "4px",
+                            top: "50%",
                             right: "4px",
+                            transform: "translateY(-50%)",
                             opacity: 0, // Hidden by default
                             transition: "opacity 0.2s",
                         }}

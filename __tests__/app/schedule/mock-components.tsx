@@ -121,13 +121,10 @@ export const MockButton = ({
  */
 export interface MockPickupCardProps {
     foodParcel: FoodParcel;
-    isCompact?: boolean;
 }
 
-export const MockPickupCard = ({ foodParcel, isCompact }: MockPickupCardProps) => (
-    <div data-testid={`pickup-card-${foodParcel.id}`} data-compact={isCompact}>
-        {foodParcel.householdName}
-    </div>
+export const MockPickupCard = ({ foodParcel }: MockPickupCardProps) => (
+    <div data-testid={`pickup-card-${foodParcel.id}`}>{foodParcel.householdName}</div>
 );
 
 /**

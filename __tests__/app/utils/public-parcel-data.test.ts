@@ -1,5 +1,30 @@
-import { describe, it, expect } from "vitest";
-import { generateAdminUrl } from "../../../app/utils/public-parcel-data";
+import { afterEach, describe, it, expect } from "vitest";
+import {
+    generateAdminUrl,
+    getParcelStatus,
+    type PublicParcelData,
+} from "../../../app/utils/public-parcel-data";
+import { MockTimeProvider, TimeProvider, setTimeProvider } from "../../../app/utils/time-provider";
+
+function parcel(overrides: Partial<PublicParcelData>): PublicParcelData {
+    return {
+        id: "parcel-1",
+        householdName: "Test Household",
+        householdLocale: "sv",
+        pickupDateTimeEarliest: new Date("2026-06-17T10:00:00.000Z"),
+        pickupDateTimeLatest: new Date("2026-06-17T11:00:00.000Z"),
+        isPickedUp: false,
+        locationName: "Test Location",
+        locationAddress: "Test Street 1",
+        locationPostalCode: "12345",
+        deletedAt: null,
+        ...overrides,
+    };
+}
+
+afterEach(() => {
+    setTimeProvider(new TimeProvider());
+});
 
 describe("generateAdminUrl", () => {
     it("should generate locale-agnostic admin URL without hardcoded locale", () => {
@@ -35,5 +60,37 @@ describe("generateAdminUrl", () => {
         expect(shortId).toContain("?parcel=123");
         expect(longId).toContain("?parcel=abcdefghijklmnop");
         expect(mixedId).toContain("?parcel=A1b2C3d4E5");
+    });
+});
+
+describe("getParcelStatus", () => {
+    it("returns cancelled before collected when a parcel is soft-deleted", () => {
+        setTimeProvider(new MockTimeProvider("2026-06-17T10:30:00.000Z"));
+
+        expect(
+            getParcelStatus(
+                parcel({
+                    isPickedUp: true,
+                    deletedAt: new Date("2026-06-17T09:00:00.000Z"),
+                }),
+            ),
+        ).toBe("cancelled");
+    });
+
+    it("uses pickup-window status for the public recipient page", () => {
+        setTimeProvider(new MockTimeProvider("2026-06-17T10:30:00.000Z"));
+        expect(getParcelStatus(parcel({}))).toBe("ready");
+
+        setTimeProvider(new MockTimeProvider("2026-06-17T12:00:00.000Z"));
+        expect(getParcelStatus(parcel({}))).toBe("scheduled");
+
+        setTimeProvider(new MockTimeProvider("2026-06-25T12:00:00.000Z"));
+        expect(getParcelStatus(parcel({}))).toBe("expired");
+    });
+
+    it("returns collected for picked-up parcels regardless of pickup window", () => {
+        setTimeProvider(new MockTimeProvider("2026-06-25T12:00:00.000Z"));
+
+        expect(getParcelStatus(parcel({ isPickedUp: true }))).toBe("collected");
     });
 });

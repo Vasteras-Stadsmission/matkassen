@@ -600,6 +600,8 @@
         "statusLabel": "Status",
         "pickedUpStatus": "Utlämnad",
         "notPickedUpStatus": "Ej utlämnad",
+        "noShowStatus": "Utebliven",
+        "viewParcelDetails": "Visa matkassedetaljer",
         "primaryLocationLabel": "Hemmaplats",
         "createdByLabel": "Skapad av",
         "reschedule": {

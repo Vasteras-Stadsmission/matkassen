@@ -1101,7 +1101,6 @@ export default function WeeklyScheduleGrid({
                                                     <Box pl={hasValidSlots ? 20 : 0}>
                                                         <PickupCard
                                                             foodParcel={parcel}
-                                                            isCompact={true}
                                                             onReschedule={
                                                                 hasValidSlots
                                                                     ? handleRescheduleClick
@@ -1399,7 +1398,6 @@ export default function WeeklyScheduleGrid({
                                                                                     foodParcel={
                                                                                         parcel
                                                                                     }
-                                                                                    isCompact={true}
                                                                                     onReschedule={
                                                                                         handleRescheduleClick
                                                                                     }
@@ -1476,9 +1474,7 @@ export default function WeeklyScheduleGrid({
 
                     {/* DragOverlay for visual feedback during dragging */}
                     <DragOverlay>
-                        {activeDragParcel && (
-                            <PickupCard foodParcel={activeDragParcel} isCompact={true} />
-                        )}
+                        {activeDragParcel && <PickupCard foodParcel={activeDragParcel} />}
                     </DragOverlay>
                 </DndContext>
             )}
