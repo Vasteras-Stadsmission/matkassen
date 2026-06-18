@@ -110,7 +110,6 @@ function TimeSlotCell({
                         <PickupCard
                             key={parcel.id}
                             foodParcel={parcel}
-                            isCompact={true}
                             onOpenAdminDialog={onOpenAdminDialog}
                         />
                     ),

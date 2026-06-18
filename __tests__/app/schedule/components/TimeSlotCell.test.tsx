@@ -74,7 +74,7 @@ const TimeSlotCell = ({
             {/* Parcels stack */}
             <MockStack>
                 {parcels.map((parcel: FoodParcel) => (
-                    <MockPickupCard key={parcel.id} foodParcel={parcel} isCompact={true} />
+                    <MockPickupCard key={parcel.id} foodParcel={parcel} />
                 ))}
             </MockStack>
         </MockPaper>

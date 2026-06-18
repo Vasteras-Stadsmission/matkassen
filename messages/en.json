@@ -600,6 +600,8 @@
         "statusLabel": "Status",
         "pickedUpStatus": "Handed out",
         "notPickedUpStatus": "Not handed out",
+        "noShowStatus": "No-show",
+        "viewParcelDetails": "View parcel details",
         "primaryLocationLabel": "Home location",
         "createdByLabel": "Created by",
         "reschedule": {
