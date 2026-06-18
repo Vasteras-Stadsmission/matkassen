@@ -554,6 +554,8 @@
             "selectedDayTitle": "Selected day summary",
             "selectedDayDescription": "Showing packing summary for {date}.",
             "gridHint": "Tap or click a day header in the weekly schedule to view a different packing summary.",
+            "noOpenDaySelectedTitle": "No open day selected",
+            "noOpenDaySelectedDescription": "Select an open day in the weekly schedule to view its packing summary.",
             "dayHeaderAction": "View summary",
             "dayHeaderSelected": "Selected",
             "dayHeaderAriaLabel": "View packing summary for {date}"
@@ -563,6 +565,7 @@
         "refresh": "Refresh",
         "selectWeek": "Select Week",
         "pastDateError": "This date has already passed",
+        "closedDay": "Closed",
         "unavailableDay": "This location is not open on this day",
         "unavailableSlot": "This time is outside opening hours",
         "timeGap": "Time gap",

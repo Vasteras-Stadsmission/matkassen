@@ -68,6 +68,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
     const lastParcelsRequestRef = useRef<string | null>(null);
     const [summaryStats, setSummaryStats] = useState<TodaySummaryStats | null>(null);
     const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+    const [selectedDateIsAvailable, setSelectedDateIsAvailable] = useState<boolean | null>(null);
 
     // Loading states
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
@@ -138,6 +139,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         async function initialize() {
             setIsLoadingLocation(true);
             setLocationError(null);
+            setSelectedDateIsAvailable(null);
 
             try {
                 // Load locations first to validate the slug
@@ -209,6 +211,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
             weekDates[0];
 
         if (formatDateToYMD(nextSelectedDate) !== formatDateToYMD(selectedDate)) {
+            setSelectedDateIsAvailable(null);
             setSelectedDate(nextSelectedDate);
         }
     }, [weekDates, currentDate, selectedDate]);
@@ -217,7 +220,11 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         let cancelled = false;
 
         async function loadSummary() {
-            if (!currentLocation) return;
+            if (!currentLocation || selectedDateIsAvailable !== true) {
+                setSummaryStats(null);
+                setIsLoadingSummary(false);
+                return;
+            }
 
             setIsLoadingSummary(true);
 
@@ -242,7 +249,12 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         return () => {
             cancelled = true;
         };
-    }, [currentLocation, selectedDate]);
+    }, [currentLocation, selectedDate, selectedDateIsAvailable]);
+
+    const handleSelectDate = useCallback((date: Date) => {
+        setSelectedDateIsAvailable(null);
+        setSelectedDate(date);
+    }, []);
 
     // Navigation functions
     const goToToday = useCallback(() => {
@@ -433,14 +445,21 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                 <Paper p="md" withBorder>
                     <Stack gap="sm">
                         <div>
-                            <Text fw={600}>{t("schedule.summary.selectedDayTitle")}</Text>
+                            <Text fw={600}>
+                                {selectedDateIsAvailable === false
+                                    ? t("schedule.summary.noOpenDaySelectedTitle")
+                                    : t("schedule.summary.selectedDayTitle")}
+                            </Text>
                             <Text size="sm" c="dimmed">
-                                {t("schedule.summary.selectedDayDescription", {
-                                    date: selectedDateLabel,
-                                })}
+                                {selectedDateIsAvailable === false
+                                    ? t("schedule.summary.noOpenDaySelectedDescription")
+                                    : t("schedule.summary.selectedDayDescription", {
+                                          date: selectedDateLabel,
+                                      })}
                             </Text>
                         </div>
-                        {isLoadingSummary ? (
+                        {selectedDateIsAvailable === false ? null : isLoadingSummary ||
+                          selectedDateIsAvailable === null ? (
                             <Center py="md">
                                 <Loader size="sm" />
                             </Center>
@@ -473,7 +492,8 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={currentLocation.id}
                             selectedDate={selectedDate}
-                            onSelectDate={setSelectedDate}
+                            onSelectDate={handleSelectDate}
+                            onSelectedDateAvailabilityChange={setSelectedDateIsAvailable}
                         />
                     )}
                 </Paper>
