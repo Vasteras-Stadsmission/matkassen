@@ -47,7 +47,6 @@ import {
     minutesToHHmm,
 } from "@/app/utils/date-utils";
 import { isDateAvailable, getAvailableTimeRange } from "@/app/utils/schedule/location-availability";
-import { filterOutsideHoursParcels } from "@/app/utils/schedule/outside-hours-filter";
 import {
     getRescheduleErrorMessage,
     isAgreementRequiredCode,
@@ -101,7 +100,7 @@ export function generateDaySpecificTimeSlots(
 interface WeeklyScheduleGridProps {
     weekDates: Date[];
     foodParcels: FoodParcel[];
-    outsideHoursParcels?: FoodParcel[];
+    outsideHoursParcels: FoodParcel[];
     maxParcelsPerDay: number;
     /** Maximum parcels per slot. null = no limit, undefined = use default (3) */
     maxParcelsPerSlot?: number | null;
@@ -116,7 +115,7 @@ interface WeeklyScheduleGridProps {
 export default function WeeklyScheduleGrid({
     weekDates,
     foodParcels,
-    outsideHoursParcels: outsideHoursParcelsProp,
+    outsideHoursParcels,
     maxParcelsPerDay,
     maxParcelsPerSlot,
     onParcelRescheduled,
@@ -183,32 +182,6 @@ export default function WeeklyScheduleGrid({
     const [selectedOutsideHoursIds, setSelectedOutsideHoursIds] = useState<Set<string>>(new Set());
     const [bulkRescheduleOpened, { open: openBulkReschedule, close: closeBulkReschedule }] =
         useDisclosure(false);
-
-    // Use the prop from the parent (all future outside-hours parcels) when available,
-    // otherwise fall back to client-side filtering for the current week
-    const outsideHoursParcels = useMemo(() => {
-        if (outsideHoursParcelsProp) return outsideHoursParcelsProp;
-
-        if (!locationSchedules) return [] as FoodParcel[];
-
-        const now = new Date();
-        const weekKeys = new Set(weekDates.map(d => formatDateToYMD(d)));
-        const weekParcels = foodParcels.filter(p => {
-            const pickupKey = formatDateToYMD(p.pickupDate);
-            return weekKeys.has(pickupKey);
-        });
-
-        return filterOutsideHoursParcels(
-            weekParcels.map(p => ({
-                id: p.id,
-                pickupEarliestTime: p.pickupEarliestTime,
-                pickupLatestTime: p.pickupLatestTime,
-                isPickedUp: p.isPickedUp,
-            })),
-            locationSchedules,
-            now,
-        ).map(filtered => weekParcels.find(p => p.id === filtered.id)!);
-    }, [outsideHoursParcelsProp, foodParcels, locationSchedules, weekDates]);
 
     // Auto-select all outside-hours parcels, and prune stale selections
     useEffect(() => {
