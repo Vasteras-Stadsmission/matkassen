@@ -554,6 +554,8 @@
             "selectedDayTitle": "Sammanfattning för vald dag",
             "selectedDayDescription": "Visar packningssammanfattning för {date}.",
             "gridHint": "Tryck eller klicka på en dagsrubrik i veckoschemat för att visa en annan packningssammanfattning.",
+            "noOpenDaySelectedTitle": "Ingen öppen dag vald",
+            "noOpenDaySelectedDescription": "Välj en öppen dag i veckoschemat för att visa dess packningssammanfattning.",
             "dayHeaderAction": "Visa sammanfattning",
             "dayHeaderSelected": "Vald",
             "dayHeaderAriaLabel": "Visa packningssammanfattning för {date}"
@@ -563,6 +565,7 @@
         "refresh": "Uppdatera",
         "selectWeek": "Välj vecka",
         "pastDateError": "Detta datum har redan passerat",
+        "closedDay": "Stängt",
         "unavailableDay": "Denna plats är inte öppen denna dag",
         "unavailableSlot": "Denna tid är utanför öppettiderna",
         "timeGap": "Tidshopp",

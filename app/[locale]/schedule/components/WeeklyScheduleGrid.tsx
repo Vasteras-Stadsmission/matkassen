@@ -21,13 +21,12 @@ import {
     ScrollArea,
     Text,
     Button,
-    Tooltip,
     Alert,
     UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { showNotification } from "@mantine/notifications";
-import { IconArrowBackUp, IconCheck, IconInfoCircle, IconAlertTriangle } from "@tabler/icons-react";
+import { IconArrowBackUp, IconCheck, IconAlertTriangle } from "@tabler/icons-react";
 import TimeSlotCell from "./TimeSlotCell";
 import PickupCard from "./PickupCard";
 import ReschedulePickupModal from "./ReschedulePickupModal";
@@ -111,6 +110,7 @@ interface WeeklyScheduleGridProps {
     onOpenAdminDialog?: (parcelId: string) => void;
     selectedDate?: Date | null;
     onSelectDate?: (date: Date) => void;
+    onSelectedDateAvailabilityChange?: (isAvailable: boolean | null) => void;
 }
 
 export default function WeeklyScheduleGrid({
@@ -124,6 +124,7 @@ export default function WeeklyScheduleGrid({
     onOpenAdminDialog,
     selectedDate,
     onSelectDate,
+    onSelectedDateAvailabilityChange,
 }: WeeklyScheduleGridProps) {
     // null = no limit (from database), undefined = use default of 3
     const effectiveMaxParcelsPerSlot = maxParcelsPerSlot === null ? null : (maxParcelsPerSlot ?? 3);
@@ -238,6 +239,19 @@ export default function WeeklyScheduleGrid({
         }
         return false;
     }, [locationSchedules, slotDuration]);
+
+    useEffect(() => {
+        if (!onSelectedDateAvailabilityChange) return;
+
+        if (!selectedDate || !locationSchedules) {
+            onSelectedDateAvailabilityChange(null);
+            return;
+        }
+
+        onSelectedDateAvailabilityChange(
+            isDateAvailable(selectedDate, locationSchedules).isAvailable,
+        );
+    }, [locationSchedules, onSelectedDateAvailabilityChange, selectedDate]);
 
     // Fetch the slot duration when locationId changes
     useEffect(() => {
@@ -1139,10 +1153,6 @@ export default function WeeklyScheduleGrid({
 
                                 {weekDates.map(date => {
                                     const isPast = isPastDate(date);
-                                    const isSelected =
-                                        !!selectedDate &&
-                                        formatDateToYMD(selectedDate) === formatDateToYMD(date);
-                                    const isInteractive = !!onSelectDate;
                                     const weekdayLabel = t(`days.${getWeekdayName(date)}`);
                                     const formattedDate = formatDate(date);
 
@@ -1150,20 +1160,32 @@ export default function WeeklyScheduleGrid({
                                     const isDateUnavailable = locationSchedules
                                         ? !isDateAvailable(date, locationSchedules).isAvailable
                                         : true; // Default to unavailable if no schedule data
+                                    const isSelected =
+                                        !isDateUnavailable &&
+                                        !!selectedDate &&
+                                        formatDateToYMD(selectedDate) === formatDateToYMD(date);
+                                    const isInteractive = !!onSelectDate && !isDateUnavailable;
 
                                     // Determine background color for day header
-                                    // In today-only mode, don't grey out today even if it's "past"
                                     const getBgColor = () => {
-                                        const shouldGreyOut = isPast || isDateUnavailable;
-                                        if (shouldGreyOut) return "gray.7"; // Grey out past or unavailable dates
+                                        if (isDateUnavailable) return "gray.1";
+                                        if (isPast) return "gray.7";
                                         return "blue.7";
                                     };
+                                    const dayHeaderTextColor = isDateUnavailable
+                                        ? "dimmed"
+                                        : "white";
 
                                     return (
                                         <Grid.Col span={30 / 7} key={date.toISOString()}>
                                             <UnstyledButton
                                                 type="button"
-                                                onClick={() => onSelectDate?.(new Date(date))}
+                                                disabled={!isInteractive}
+                                                onClick={() => {
+                                                    if (isInteractive) {
+                                                        onSelectDate?.(new Date(date));
+                                                    }
+                                                }}
                                                 aria-pressed={isSelected}
                                                 title={
                                                     isInteractive
@@ -1184,18 +1206,20 @@ export default function WeeklyScheduleGrid({
                                                     radius="sm"
                                                     withBorder
                                                     bg={getBgColor()}
-                                                    c="white"
+                                                    c={dayHeaderTextColor}
                                                     styles={{
                                                         root: {
-                                                            height: "100%",
+                                                            minHeight: 86,
                                                             position: "relative",
                                                             opacity:
-                                                                isPast || isDateUnavailable
+                                                                isPast && !isDateUnavailable
                                                                     ? 0.8
                                                                     : 1,
                                                             borderColor: isSelected
                                                                 ? "var(--mantine-color-yellow-4)"
-                                                                : undefined,
+                                                                : isDateUnavailable
+                                                                  ? "var(--mantine-color-gray-4)"
+                                                                  : undefined,
                                                             boxShadow: isSelected
                                                                 ? "inset 0 0 0 2px var(--mantine-color-yellow-4), var(--mantine-shadow-sm)"
                                                                 : undefined,
@@ -1224,21 +1248,23 @@ export default function WeeklyScheduleGrid({
                                                         },
                                                     }}
                                                 >
-                                                    {/* Capacity indicator in top-right corner */}
-                                                    <Text
-                                                        size="xs"
-                                                        c="gray.2"
-                                                        style={{
-                                                            position: "absolute",
-                                                            top: 4,
-                                                            right: 4,
-                                                        }}
-                                                        data-testid="capacity-indicator"
-                                                    >
-                                                        {parcelCountByDate[formatDateToYMD(date)] ||
-                                                            0}
-                                                        /{maxParcelsPerDay || "∞"}
-                                                    </Text>
+                                                    {!isDateUnavailable && (
+                                                        <Text
+                                                            size="xs"
+                                                            c="gray.2"
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 4,
+                                                                right: 4,
+                                                            }}
+                                                            data-testid="capacity-indicator"
+                                                        >
+                                                            {parcelCountByDate[
+                                                                formatDateToYMD(date)
+                                                            ] || 0}
+                                                            /{maxParcelsPerDay || "∞"}
+                                                        </Text>
+                                                    )}
 
                                                     <Text fw={500} ta="center" size="sm">
                                                         {weekdayLabel}
@@ -1246,38 +1272,17 @@ export default function WeeklyScheduleGrid({
                                                     <Text size="xs" ta="center">
                                                         {formattedDate}
                                                     </Text>
-                                                    <Text
-                                                        size="10px"
-                                                        fw={700}
-                                                        ta="center"
-                                                        c={isSelected ? "yellow.1" : "gray.2"}
-                                                        mt={6}
-                                                        style={{
-                                                            letterSpacing: "0.04em",
-                                                            textTransform: "uppercase",
-                                                        }}
-                                                    >
-                                                        {isSelected
-                                                            ? t("summary.dayHeaderSelected")
-                                                            : t("summary.dayHeaderAction")}
-                                                    </Text>
-
                                                     {isDateUnavailable && (
-                                                        <Tooltip
-                                                            label={t("unavailableDay", {})}
-                                                            position="bottom"
-                                                            withArrow
+                                                        <Text
+                                                            size="xs"
+                                                            fw={700}
+                                                            ta="center"
+                                                            c="gray.7"
+                                                            mt={6}
+                                                            style={{ textTransform: "uppercase" }}
                                                         >
-                                                            <IconInfoCircle
-                                                                size="0.9rem"
-                                                                style={{
-                                                                    position: "absolute",
-                                                                    bottom: 4,
-                                                                    right: 4,
-                                                                    opacity: 0.8,
-                                                                }}
-                                                            />
-                                                        </Tooltip>
+                                                            {t("closedDay")}
+                                                        </Text>
                                                     )}
                                                 </Paper>
                                             </UnstyledButton>
