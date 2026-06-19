@@ -225,6 +225,14 @@ jobs:
             name: production
             url: https://matcentralen.com
         runs-on: ubuntu-latest
+        # Promote the exact image that this run built and verified in staging;
+        # never substitute a newer `main`/`latest` image after approval. Production
+        # deploys are serialized, and `cancel-in-progress` stays false so a new push
+        # cannot interrupt an active deploy. Consequently, an older run waiting for
+        # approval can hold this group while the newest run is pending. In that case,
+        # reject or cancel the older run as superseded, then approve the newest run.
+        # Do not approve the old run just to clear the queue: the freshness check
+        # below will intentionally reject its stale SHA.
         concurrency:
             group: deploy-production
             cancel-in-progress: false
