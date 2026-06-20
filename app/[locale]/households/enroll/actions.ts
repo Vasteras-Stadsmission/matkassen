@@ -469,7 +469,7 @@ export const enrollHousehold = protectedAdminAction(
 );
 
 // Helper function to get all dietary restrictions
-export async function getDietaryRestrictions() {
+async function fetchDietaryRestrictions() {
     try {
         return await db
             .select({
@@ -488,8 +488,10 @@ export async function getDietaryRestrictions() {
     }
 }
 
+export const getDietaryRestrictions = protectedReadAction(async () => fetchDietaryRestrictions());
+
 // Helper function to get all additional needs
-export async function getAdditionalNeeds() {
+async function fetchAdditionalNeeds() {
     try {
         return await db
             .select({
@@ -507,8 +509,10 @@ export async function getAdditionalNeeds() {
     }
 }
 
+export const getAdditionalNeeds = protectedReadAction(async () => fetchAdditionalNeeds());
+
 // Helper function to get all pickup locations
-export async function getPickupLocations() {
+async function fetchPickupLocations() {
     try {
         return await db.select().from(pickupLocationsTable);
     } catch (error) {
@@ -518,6 +522,8 @@ export async function getPickupLocations() {
         return [];
     }
 }
+
+export const getPickupLocations = protectedReadAction(async () => fetchPickupLocations());
 
 export const getResponsibleStaffOptions = protectedReadAction(
     async (
@@ -571,7 +577,7 @@ export const getResponsibleStaffOptions = protectedReadAction(
  * Fetches all available pet species from the database
  * @returns Array of pet species
  */
-export async function getPetSpecies() {
+async function fetchPetSpecies() {
     try {
         return await db
             .select({
@@ -589,6 +595,8 @@ export async function getPetSpecies() {
     }
 }
 
+export const getPetSpecies = protectedReadAction(async () => fetchPetSpecies());
+
 /**
  * Check if a pickup location has reached its maximum capacity for a specific date
  * @param locationId Pickup location ID
@@ -596,7 +604,7 @@ export async function getPetSpecies() {
  * @param excludeHouseholdId Optional household ID to exclude from the count
  * @returns Object containing isAvailable and info about capacity
  */
-export async function checkPickupLocationCapacity(
+async function fetchPickupLocationCapacity(
     locationId: string,
     date: Date,
     excludeHouseholdId?: string,
@@ -669,6 +677,11 @@ export async function checkPickupLocationCapacity(
     }
 }
 
+export const checkPickupLocationCapacity = protectedReadAction(
+    async (_session, locationId: string, date: Date, excludeHouseholdId?: string) =>
+        fetchPickupLocationCapacity(locationId, date, excludeHouseholdId),
+);
+
 /**
  * Get capacity data for a range of dates in a single query
  * @param locationId Pickup location ID
@@ -676,7 +689,7 @@ export async function checkPickupLocationCapacity(
  * @param endDate End date of the range
  * @returns Object containing capacity data for the range
  */
-export async function getPickupLocationCapacityForRange(
+async function fetchPickupLocationCapacityForRange(
     locationId: string,
     startDate: Date,
     endDate: Date,
@@ -752,12 +765,17 @@ export async function getPickupLocationCapacityForRange(
     }
 }
 
+export const getPickupLocationCapacityForRange = protectedReadAction(
+    async (_session, locationId: string, startDate: Date, endDate: Date) =>
+        fetchPickupLocationCapacityForRange(locationId, startDate, endDate),
+);
+
 /**
  * Get active and upcoming schedules for a pickup location
  * @param locationId Pickup location ID
  * @returns Array of schedules with their opening days
  */
-export async function getPickupLocationSchedules(locationId: string) {
+async function fetchPickupLocationSchedules(locationId: string) {
     try {
         const currentDate = new Date();
         // Use our date utility for consistent Stockholm timezone date formatting
@@ -813,3 +831,7 @@ export async function getPickupLocationSchedules(locationId: string) {
         };
     }
 }
+
+export const getPickupLocationSchedules = protectedReadAction(
+    async (_session, locationId: string) => fetchPickupLocationSchedules(locationId),
+);
