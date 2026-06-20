@@ -9,10 +9,12 @@ import {
     createTestHousehold,
     createTestLocationWithSchedule,
     createTestNoShowParcel,
+    createTestParcel,
     resetHouseholdCounter,
     resetLocationCounter,
 } from "../../factories";
 import { TEST_NOW, daysFromTestNow } from "../../test-time";
+import { Time } from "@/app/utils/time-provider";
 
 type MockSession = { user: { githubUsername: string; name: string; role: "admin" } };
 const mockSession: MockSession = {
@@ -50,7 +52,7 @@ vi.mock("next/cache", () => ({
     revalidatePath: vi.fn(),
 }));
 
-import { getFoodParcelsForWeek } from "@/app/[locale]/schedule/actions";
+import { getFoodParcelsForWeek, getParcelById } from "@/app/[locale]/schedule/actions";
 
 describe("getFoodParcelsForWeek - Integration Tests", () => {
     beforeEach(() => {
@@ -90,5 +92,38 @@ describe("getFoodParcelsForWeek - Integration Tests", () => {
             isPickedUp: false,
         });
         expect(loadedParcel?.noShowAt).toEqual(noShowAt);
+    });
+
+    it("maps parcel details used by schedule deep links", async () => {
+        const household = await createTestHousehold({
+            first_name: "Deep",
+            last_name: "Link",
+        });
+        const { location } = await createTestLocationWithSchedule();
+
+        const pickupStart = daysFromTestNow(3);
+        pickupStart.setHours(10, 0, 0, 0);
+        const pickupEnd = new Date(pickupStart.getTime() + 15 * 60 * 1000);
+
+        const parcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: pickupStart,
+            pickup_date_time_latest: pickupEnd,
+        });
+
+        const loadedParcel = await getParcelById(parcel.id);
+
+        expect(loadedParcel).toMatchObject({
+            id: parcel.id,
+            householdId: household.id,
+            householdName: "Deep Link",
+            isPickedUp: false,
+            noShowAt: null,
+            pickup_location_id: location.id,
+        });
+        expect(loadedParcel?.pickupDate).toEqual(Time.fromDate(pickupStart).startOfDay().toDate());
+        expect(loadedParcel?.pickupEarliestTime).toEqual(pickupStart);
+        expect(loadedParcel?.pickupLatestTime).toEqual(pickupEnd);
     });
 });

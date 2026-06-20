@@ -81,26 +81,3 @@ export const setUserFavoriteLocation = protectedAction(
         }
     },
 );
-
-/**
- * @deprecated Use getUserFavoriteLocation instead
- */
-export const getUserPreferredLocation = getUserFavoriteLocation;
-
-/**
- * @deprecated Use setUserPreferredLocation instead
- */
-export const setUserPreferredLocation = setUserFavoriteLocation;
-
-/**
- * Get current user info (for debugging/display)
- */
-export const getCurrentUser = protectedAction(
-    async (session): Promise<ActionResult<{ username: string | null; isLoggedIn: boolean }>> => {
-        // Auth already verified by protectedAction wrapper
-        return success({
-            username: session.user?.githubUsername || null,
-            isLoggedIn: true, // If we got here, user is logged in
-        });
-    },
-);

@@ -148,21 +148,6 @@ describe("Database Operations with GitHub Username", () => {
 
             expect(result.success).toBe(true);
         });
-
-        it("getCurrentUser should return githubUsername", async () => {
-            Object.assign(mockSessionForProtectedAction, createMockSessionWithDisplayName());
-
-            const { getCurrentUser } =
-                await import("@/app/[locale]/schedule/utils/user-preferences");
-
-            const result = await getCurrentUser();
-
-            expect(result.success).toBe(true);
-            if (result.success) {
-                expect(result.data.username).toBe("johndoe123");
-                expect(result.data.isLoggedIn).toBe(true);
-            }
-        });
     });
 
     describe("Comment Creation", () => {
