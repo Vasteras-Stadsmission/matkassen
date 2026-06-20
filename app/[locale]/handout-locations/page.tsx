@@ -1,39 +1,7 @@
-import { Suspense } from "react";
-import { Skeleton } from "@mantine/core";
-import { HandoutLocationsContent } from "./components/HandoutLocationsContent";
-import { HandoutLocationsPageLayout } from "./components/HandoutLocationsPageLayout";
-import { getLocations } from "./actions";
-import { AgreementProtection } from "@/components/AgreementProtection";
-
-// This needs to be dynamic to avoid build time issues in CI
-export const dynamic = "force-dynamic";
+import { getLocale } from "next-intl/server";
+import { redirect } from "@/app/i18n/navigation";
 
 export default async function HandoutLocationsPage() {
-    // Fetch locations on the server, once per request (cached by Next.js)
-    const result = await getLocations();
-
-    if (!result.success) {
-        throw new Error(result.error.message);
-    }
-
-    const locations = result.data;
-
-    return (
-        <AgreementProtection adminOnly>
-            <HandoutLocationsPageLayout>
-                <Suspense
-                    fallback={
-                        <>
-                            <Skeleton height={50} mb="md" width="50%" />
-                            <Skeleton height={200} mb="md" />
-                            <Skeleton height={200} mb="md" />
-                        </>
-                    }
-                >
-                    {/* Pass the data down as props */}
-                    <HandoutLocationsContent initialLocations={locations} />
-                </Suspense>
-            </HandoutLocationsPageLayout>
-        </AgreementProtection>
-    );
+    const locale = await getLocale();
+    redirect({ href: "/settings/locations", locale });
 }
