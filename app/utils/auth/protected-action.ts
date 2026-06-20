@@ -323,6 +323,44 @@ export function protectedAgreementReadAction<T extends any[], R>(
 }
 
 /**
+ * Like protectedAgreementReadAction but also requires the user to have the admin role.
+ * Use this for read actions that return personal data from admin-only pages.
+ * Throws an error on auth, role, or agreement failure.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedAdminAgreementReadAction<T extends any[], R>(
+    action: (session: AuthSession, ...args: T) => Promise<R>,
+): (...args: T) => Promise<R> {
+    return async (...args: T): Promise<R> => {
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            throw new Error(authResult.error?.message || "Authentication required");
+        }
+
+        if (authResult.data.user?.role !== "admin") {
+            throw new Error("Admin access required");
+        }
+
+        const agreementCheck = await verifyAgreementAcceptance(authResult.data);
+        if (agreementCheck && !agreementCheck.success) {
+            throw new Error(agreementCheck.error.message || "Agreement acceptance required");
+        }
+
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                action: action.name || "anonymous",
+                type: "protected_admin_agreement_read_action",
+            },
+            "Protected admin agreement read action executed",
+        );
+
+        return action(authResult.data, ...args);
+    };
+}
+
+/**
  * Like protectedAction but also requires the user to have accepted the current agreement.
  * Use this for actions that handle personal/household data (GDPR compliance).
  * Do NOT use for agreement-related or admin settings actions.

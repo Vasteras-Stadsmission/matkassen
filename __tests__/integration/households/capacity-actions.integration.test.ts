@@ -13,7 +13,7 @@
  * 4. Return shape matches expected format
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -26,6 +26,17 @@ import {
 import { TEST_NOW, daysFromTestNow, minutesFromTestNow } from "../../test-time";
 import { foodParcels } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
+
+vi.mock("@/app/utils/auth/protected-action", () => ({
+    protectedReadAction:
+        (action: (session: unknown, ...args: unknown[]) => unknown) =>
+        (...args: unknown[]) =>
+            action({ user: { role: "admin" } }, ...args),
+    protectedAdminAction:
+        (action: (session: unknown, ...args: unknown[]) => unknown) =>
+        (...args: unknown[]) =>
+            action({ user: { role: "admin" } }, ...args),
+}));
 
 // Import the actual functions we're testing
 import {

@@ -20,14 +20,19 @@ import { asc, desc, eq, and, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
-import { protectedAdminAction, protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import {
+    protectedAdminAction,
+    protectedAdminAgreementReadAction,
+    protectedAgreementAction,
+    protectedAgreementReadAction,
+} from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { HOUSEHOLD_ID_REGEX } from "@/app/constants/noshow-settings";
 
 // Function to get all households with their first and last food parcel dates
-export async function getHouseholds() {
+async function getHouseholdsData() {
     // Get all households with primary location name, responsible staff, and creator display name via left joins
     const creatorUsers = alias(users, "creator_users");
     const responsibleUsers = alias(users, "responsible_users");
@@ -108,8 +113,10 @@ export async function getHouseholds() {
     return householdsWithParcels;
 }
 
+export const getHouseholds = protectedAdminAgreementReadAction(async () => getHouseholdsData());
+
 // Enhanced function to get household details with GitHub data
-export async function getHouseholdDetails(householdId: string) {
+async function getHouseholdDetailsData(householdId: string) {
     try {
         // Get household basic info
         const [household] = await db
@@ -402,6 +409,10 @@ export async function getHouseholdDetails(householdId: string) {
         return null;
     }
 }
+
+export const getHouseholdDetails = protectedAgreementReadAction(
+    async (_session, householdId: string) => getHouseholdDetailsData(householdId),
+);
 
 // Function to add a comment to a household
 export const addHouseholdComment = protectedAgreementAction(
