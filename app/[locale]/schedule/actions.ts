@@ -61,6 +61,69 @@ import type {
     TodaySummaryStats,
 } from "./types";
 
+type ScheduleParcelRow = {
+    id: string;
+    householdId: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    householdName?: string | null;
+    pickupEarliestTime: Date;
+    pickupLatestTime: Date;
+    isPickedUp: boolean;
+    noShowAt?: Date | null;
+    pickupLocationId?: string | null;
+    primaryPickupLocationId?: string | null;
+    primaryPickupLocationName?: string | null;
+    createdBy?: string | null;
+    creatorFirstName?: string | null;
+    creatorLastName?: string | null;
+    creatorDisplayName?: string | null;
+};
+
+function mapScheduleParcel(
+    parcel: ScheduleParcelRow,
+    options: { includeCreatedByName?: boolean } = {},
+): FoodParcel {
+    const pickupEarliestTime = new Date(parcel.pickupEarliestTime);
+    const foodParcel: FoodParcel = {
+        id: parcel.id,
+        householdId: parcel.householdId,
+        householdName:
+            parcel.householdName ?? `${parcel.firstName ?? ""} ${parcel.lastName ?? ""}`.trim(),
+        pickupDate: Time.fromDate(pickupEarliestTime).startOfDay().toDate(),
+        pickupEarliestTime,
+        pickupLatestTime: new Date(parcel.pickupLatestTime),
+        isPickedUp: parcel.isPickedUp,
+        noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
+    };
+
+    if ("pickupLocationId" in parcel) {
+        foodParcel.pickup_location_id = parcel.pickupLocationId ?? undefined;
+    }
+
+    if ("primaryPickupLocationId" in parcel) {
+        foodParcel.primaryPickupLocationId = parcel.primaryPickupLocationId ?? null;
+        foodParcel.primaryPickupLocationName = parcel.primaryPickupLocationName ?? null;
+    }
+
+    if ("createdBy" in parcel) {
+        foodParcel.createdBy = parcel.createdBy ?? null;
+    }
+
+    if (options.includeCreatedByName) {
+        foodParcel.createdByName = formatUserDisplayName(
+            {
+                first_name: parcel.creatorFirstName,
+                last_name: parcel.creatorLastName,
+                display_name: parcel.creatorDisplayName,
+            },
+            parcel.createdBy,
+        );
+    }
+
+    return foodParcel;
+}
+
 /**
  * Get a specific parcel by ID, regardless of date
  */
@@ -88,22 +151,7 @@ export const getParcelById = protectedReadAction(
                 return null;
             }
 
-            const parcel = parcelsData[0];
-            const pickupDate = Time.fromDate(new Date(parcel.pickupEarliestTime))
-                .startOfDay()
-                .toDate();
-
-            return {
-                id: parcel.id,
-                householdId: parcel.householdId,
-                householdName: `${parcel.firstName} ${parcel.lastName}`,
-                pickupDate,
-                pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-                pickupLatestTime: new Date(parcel.pickupLatestTime),
-                isPickedUp: parcel.isPickedUp,
-                noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
-                pickup_location_id: parcel.pickupLocationId,
-            };
+            return mapScheduleParcel(parcelsData[0]);
         } catch (error) {
             logError("Error fetching parcel by ID", error, { parcelId });
             return null;
@@ -208,31 +256,7 @@ async function queryTodaysParcels(locationId?: string): Promise<FoodParcel[]> {
         )
         .orderBy(foodParcels.pickup_date_time_earliest);
 
-    return parcelsData.map(parcel => {
-        const pickupDate = Time.fromDate(new Date(parcel.pickupEarliestTime)).startOfDay().toDate();
-        return {
-            id: parcel.id,
-            householdId: parcel.householdId,
-            householdName: `${parcel.firstName} ${parcel.lastName}`,
-            pickupDate,
-            pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-            pickupLatestTime: new Date(parcel.pickupLatestTime),
-            isPickedUp: parcel.isPickedUp,
-            noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
-            pickup_location_id: parcel.pickupLocationId,
-            primaryPickupLocationId: parcel.primaryPickupLocationId,
-            primaryPickupLocationName: parcel.primaryPickupLocationName,
-            createdBy: parcel.createdBy,
-            createdByName: formatUserDisplayName(
-                {
-                    first_name: parcel.creatorFirstName,
-                    last_name: parcel.creatorLastName,
-                    display_name: parcel.creatorDisplayName,
-                },
-                parcel.createdBy,
-            ),
-        };
-    });
+    return parcelsData.map(parcel => mapScheduleParcel(parcel, { includeCreatedByName: true }));
 }
 
 /**
@@ -471,26 +495,7 @@ export async function getFoodParcelsForWeek(
             )
             .orderBy(foodParcels.pickup_date_time_earliest);
 
-        // Transform the data to the expected format with proper timezone handling
-        return parcelsData.map(parcel => {
-            // Create Stockholm timezone date for the pickup date
-            const pickupTimeStockholm = Time.fromDate(new Date(parcel.pickupEarliestTime));
-            const pickupDate = pickupTimeStockholm.startOfDay().toDate();
-
-            return {
-                id: parcel.id,
-                householdId: parcel.householdId,
-                householdName: `${parcel.firstName} ${parcel.lastName}`,
-                pickupDate,
-                pickupEarliestTime: new Date(parcel.pickupEarliestTime),
-                pickupLatestTime: new Date(parcel.pickupLatestTime),
-                isPickedUp: parcel.isPickedUp,
-                noShowAt: parcel.noShowAt ? new Date(parcel.noShowAt) : null,
-                primaryPickupLocationId: parcel.primaryPickupLocationId,
-                primaryPickupLocationName: parcel.primaryPickupLocationName,
-                createdBy: parcel.createdBy,
-            };
-        });
+        return parcelsData.map(parcel => mapScheduleParcel(parcel));
     } catch (error) {
         logError("Error fetching food parcels for week", error, { locationId });
         return [];
@@ -1531,10 +1536,10 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
                 id: foodParcels.id,
                 householdId: foodParcels.household_id,
                 householdName: sql<string>`${households.first_name} || ' ' || ${households.last_name}`,
-                pickupDate: foodParcels.pickup_date_time_earliest,
                 pickupEarliestTime: foodParcels.pickup_date_time_earliest,
                 pickupLatestTime: foodParcels.pickup_date_time_latest,
                 isPickedUp: foodParcels.is_picked_up,
+                noShowAt: foodParcels.no_show_at,
                 primaryPickupLocationId: households.primary_pickup_location_id,
                 primaryPickupLocationName: primaryLocation.name,
                 createdBy: households.created_by,
@@ -1549,6 +1554,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
                 and(
                     eq(foodParcels.pickup_location_id, locationId),
                     eq(foodParcels.is_picked_up, false),
+                    sql`${foodParcels.no_show_at} IS NULL`,
                     gt(foodParcels.pickup_date_time_earliest, now.toUTC()),
                     notDeleted(),
                 ),
@@ -1567,10 +1573,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
 
     if (!locationSchedules || !locationSchedules.schedules) {
         // Transform to FoodParcel format
-        const outsideParcels = parcels.map(parcel => ({
-            ...parcel,
-            pickupDate: new Date(parcel.pickupDate),
-        }));
+        const outsideParcels = parcels.map(parcel => mapScheduleParcel(parcel));
         return { outsideParcels, totalCount: parcels.length };
     }
 
@@ -1588,10 +1591,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
 
         // Use the centralized logic to determine if parcel is outside opening hours
         if (isParcelOutsideOpeningHours(parcelTimeInfo, locationSchedules)) {
-            outsideParcels.push({
-                ...parcel,
-                pickupDate: new Date(parcel.pickupDate),
-            });
+            outsideParcels.push(mapScheduleParcel(parcel));
         }
     }
 

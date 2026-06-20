@@ -72,14 +72,3 @@ export const NavigationLink = forwardRef<HTMLAnchorElement, NavigationLinkProps>
 );
 
 NavigationLink.displayName = "NavigationLink";
-
-// This function is no longer needed with the useTransition approach
-export const dispatchNavigationStart = () => {
-    console.warn("dispatchNavigationStart is deprecated, use the NavigationLink component instead");
-};
-
-// This function is no longer needed with the useTransition approach
-export const enhanceNextNavigation = (router: unknown) => {
-    console.warn("enhanceNextNavigation is deprecated, use the NavigationLink component instead");
-    return router;
-};

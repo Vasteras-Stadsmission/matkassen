@@ -14,6 +14,7 @@ import {
     createTestLocationWithCustomSchedule,
     createTestParcel,
     createTestPickedUpParcel,
+    createTestNoShowParcel,
     createTestDeletedParcel,
     createTestPickupLocation,
     resetHouseholdCounter,
@@ -193,6 +194,38 @@ describe("getOutsideHoursParcelsForLocation - Integration Tests", () => {
 
         expect(parcels).toHaveLength(1);
         expect(parcels[0].householdName).toContain("Test1");
+    });
+
+    it("should not include no-show parcels", async () => {
+        const activeHousehold = await createTestHousehold();
+        const noShowHousehold = await createTestHousehold();
+
+        const { location } = await createTestLocationWithSchedule(
+            {},
+            { openingTime: "09:00", closingTime: "12:00" },
+        );
+
+        const mon14 = daysFromTestNow(2);
+        mon14.setHours(14, 0, 0, 0);
+
+        await createTestParcel({
+            household_id: activeHousehold.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: mon14,
+            pickup_date_time_latest: new Date(mon14.getTime() + 15 * 60 * 1000),
+        });
+
+        await createTestNoShowParcel({
+            household_id: noShowHousehold.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: mon14,
+            pickup_date_time_latest: new Date(mon14.getTime() + 15 * 60 * 1000),
+        });
+
+        const parcels = await getOutsideHoursParcelsForLocation(location.id);
+
+        expect(parcels).toHaveLength(1);
+        expect(parcels[0].householdId).toBe(activeHousehold.id);
     });
 
     it("should include primaryPickupLocationName and createdBy in returned parcels", async () => {
