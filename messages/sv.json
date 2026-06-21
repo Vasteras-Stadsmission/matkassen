@@ -931,8 +931,6 @@
         "december": "december"
     },
     "handoutLocations": {
-        "pageTitle": "Utlämningsställen",
-        "pageDescription": "Hantera de platser där matkassar distribueras, deras öppettider och inställningar.",
         "locationsList": "Platser",
         "addLocation": "Lägg till plats",
         "addFirstLocation": "Lägg till din första plats",
