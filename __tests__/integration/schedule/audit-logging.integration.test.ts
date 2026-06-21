@@ -43,11 +43,6 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
             return fn(mockSession, ...args);
         };
     },
-    protectedAgreementAction: (fn: (...args: unknown[]) => unknown) => {
-        return async (...args: unknown[]) => {
-            return fn(mockSession, ...args);
-        };
-    },
 }));
 
 // Mock next/headers for locale
