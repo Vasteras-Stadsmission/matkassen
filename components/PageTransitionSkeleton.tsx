@@ -26,7 +26,7 @@ interface PageTransitionSkeletonProps {
      * Optional preset layout to use
      * If not provided, it will be determined by the destination path
      */
-    layout?: "default" | "household" | "schedule" | "handout-locations";
+    layout?: "default" | "household" | "schedule";
     /**
      * Optional custom skeleton content
      * Takes precedence over layout if provided
@@ -199,8 +199,6 @@ export function PageTransitionSkeleton({
                     return <HouseholdPageSkeleton />;
                 case "schedule":
                     return <SchedulePageSkeleton />;
-                case "handout-locations":
-                    return <HandoutLocationsSkeleton />;
                 default:
                     return <DefaultPageSkeleton />;
             }
@@ -211,8 +209,6 @@ export function PageTransitionSkeleton({
             return <HouseholdPageSkeleton />;
         } else if (destinationPath.includes("/schedule")) {
             return <SchedulePageSkeleton />;
-        } else if (destinationPath.includes("/handout-locations")) {
-            return <HandoutLocationsSkeleton />;
         } else {
             return <DefaultPageSkeleton />;
         }
@@ -306,26 +302,6 @@ function SchedulePageSkeleton() {
                     </Grid.Col>
                 </Grid>
             </Box>
-        </Stack>
-    );
-}
-
-// Handout locations page skeleton layout
-function HandoutLocationsSkeleton() {
-    return (
-        <Stack mt="lg">
-            <Skeleton height={50} width="60%" radius="md" />
-            <Skeleton height={30} width="40%" radius="sm" mt="md" />
-            <Grid mt="xl">
-                {Array(3)
-                    .fill(0)
-                    .map((_, i) => (
-                        <Grid.Col key={i} span={12}>
-                            <Skeleton height={100} radius="md" mb="md" />
-                        </Grid.Col>
-                    ))}
-            </Grid>
-            <Skeleton height={300} radius="md" mt="xl" /> {/* Map placeholder */}
         </Stack>
     );
 }

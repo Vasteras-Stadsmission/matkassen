@@ -167,8 +167,7 @@ export const createLocation = protectedAgreementAction(
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
 
-            // Revalidate the path to update the UI
-            revalidatePath(`/${locale}/handout-locations`, "page");
+            // Revalidate the settings page to update the UI
             revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Return the created location with empty schedules array
@@ -261,8 +260,7 @@ export const updateLocation = protectedAgreementAction(
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
 
-            // Revalidate the path to update the UI
-            revalidatePath(`/${locale}/handout-locations`, "page");
+            // Revalidate the settings page to update the UI
             revalidatePath(`/${locale}/settings/locations`, "page");
             return success(undefined);
         } catch (error) {
@@ -290,8 +288,7 @@ export const deleteLocation = protectedAgreementAction(
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
 
-            // Revalidate the path to update the UI
-            revalidatePath(`/${locale}/handout-locations`, "page");
+            // Revalidate the settings page to update the UI
             revalidatePath(`/${locale}/settings/locations`, "page");
             return success(undefined);
         } catch (error) {
@@ -403,8 +400,7 @@ export const createSchedule = protectedAgreementAction(
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
 
-            // Revalidate the path to update the UI
-            revalidatePath(`/${locale}/handout-locations`, "page");
+            // Revalidate the settings page to update the UI
             revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Recompute outside-hours count after schedule change
@@ -576,8 +572,7 @@ export const updateSchedule = protectedAgreementAction(
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
 
-            // Revalidate the path to update the UI
-            revalidatePath(`/${locale}/handout-locations`, "page");
+            // Revalidate the settings page to update the UI
             revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Recompute outside-hours count with fresh data
@@ -657,8 +652,7 @@ export const deleteSchedule = protectedAgreementAction(
             // Get the current locale from headers
             const locale = (await headers()).get("x-locale") || "en";
 
-            // Revalidate the path to update the UI
-            revalidatePath(`/${locale}/handout-locations`, "page");
+            // Revalidate the settings page to update the UI
             revalidatePath(`/${locale}/settings/locations`, "page");
 
             // Recompute outside-hours count with fresh data

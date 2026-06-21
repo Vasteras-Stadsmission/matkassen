@@ -931,8 +931,6 @@
         "december": "December"
     },
     "handoutLocations": {
-        "pageTitle": "Handout Locations",
-        "pageDescription": "Manage the locations where food parcels are distributed, their opening hours, and settings.",
         "locationsList": "Locations",
         "addLocation": "Add Location",
         "addFirstLocation": "Add Your First Location",
