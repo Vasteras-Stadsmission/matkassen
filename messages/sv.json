@@ -950,6 +950,7 @@
         "errorSavingMessage": "Det uppstod ett fel vid sparande av utlämningsstället. Försök igen.",
         "errorDeleting": "Fel vid radering av plats",
         "errorDeletingMessage": "Det uppstod ett fel vid radering av utlämningsstället. Försök igen.",
+        "locationHasParcelsMessage": "Det här utlämningsstället har matkassehistorik och kan inte raderas.",
         "generalInfo": "Allmän information",
         "weeklyHours": "Veckoöppettider",
         "name": "Platsnamn",

@@ -950,6 +950,7 @@
         "errorSavingMessage": "There was an error saving the handout location. Please try again.",
         "errorDeleting": "Error Deleting Location",
         "errorDeletingMessage": "There was an error deleting the handout location. Please try again.",
+        "locationHasParcelsMessage": "This location has parcel history and cannot be deleted.",
         "generalInfo": "General Information",
         "weeklyHours": "Weekly Opening Hours",
         "name": "Location Name",

@@ -29,6 +29,7 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
     const locationDeletedMessage = t("locationDeletedMessage");
     const errorDeletingTitle = t("errorDeleting");
     const errorDeletingMessage = t("errorDeletingMessage");
+    const locationHasParcelsMessage = t("locationHasParcelsMessage");
     const confirmDeleteText = t("confirmDelete");
 
     // Handle creating a new location - make it a direct function reference
@@ -46,7 +47,15 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                     const result = await deleteLocation(locationId);
 
                     if (!result.success) {
-                        throw new Error(result.error.message);
+                        notifications.show({
+                            title: errorDeletingTitle,
+                            message:
+                                result.error.code === "LOCATION_HAS_PARCELS"
+                                    ? locationHasParcelsMessage
+                                    : errorDeletingMessage,
+                            color: "red",
+                        });
+                        return;
                     }
 
                     // Manual state update for optimistic UI
@@ -60,7 +69,6 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                         color: "green",
                     });
                 } catch {
-                    // Failed to delete location
                     notifications.show({
                         title: errorDeletingTitle,
                         message: errorDeletingMessage,
@@ -73,6 +81,7 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
             confirmDeleteText,
             errorDeletingMessage,
             errorDeletingTitle,
+            locationHasParcelsMessage,
             locationDeletedMessage,
             locationDeletedTitle,
         ],

@@ -6,14 +6,12 @@ import {
     pickupLocationSchedules,
     pickupLocationScheduleDays,
     scheduleAuditLog,
+    foodParcels,
 } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import {
-    protectedAdminAction as protectedAction,
-    protectedAdminAction as protectedAgreementAction,
-} from "@/app/utils/auth/protected-action";
+import { protectedAdminAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import {
     LocationFormInput,
@@ -26,10 +24,10 @@ import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 
 // Get all locations with their schedules
-export const getLocations = protectedAction(
+export const getLocations = protectedAdminAction(
     async (): Promise<ActionResult<PickupLocationWithAllData[]>> => {
         try {
-            // Auth already verified by protectedAction wrapper
+            // Auth already verified by protectedAdminAction wrapper
             // Fetch all locations
             const locations = await db.select().from(pickupLocations);
 
@@ -78,68 +76,13 @@ export const getLocations = protectedAction(
     },
 );
 
-// Get a single location with schedules by ID
-export const getLocation = protectedAction(
-    async (_: unknown, id: string): Promise<ActionResult<PickupLocationWithAllData | null>> => {
-        try {
-            // Auth already verified by protectedAction wrapper
-            // Fetch the location
-            const location = await db
-                .select()
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, id))
-                .then(res => res[0] || null);
-
-            if (!location) {
-                return success(null);
-            }
-
-            // Fetch schedules
-            const schedules = await db
-                .select()
-                .from(pickupLocationSchedules)
-                .where(eq(pickupLocationSchedules.pickup_location_id, id));
-
-            // For each schedule, fetch the related days
-            const schedulesWithDays = await Promise.all(
-                schedules.map(async schedule => {
-                    const days = await db
-                        .select()
-                        .from(pickupLocationScheduleDays)
-                        .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
-
-                    return {
-                        ...schedule,
-                        days,
-                    };
-                }),
-            );
-
-            // Return location with related data
-            return success({
-                ...location,
-                schedules: schedulesWithDays,
-            });
-        } catch (error) {
-            logError("Error fetching location", error, {
-                action: "getLocation",
-                locationId: id,
-            });
-            return failure({
-                code: "DATABASE_ERROR",
-                message: `Failed to fetch location: ${error instanceof Error ? error.message : String(error)}`,
-            });
-        }
-    },
-);
-
 // Create a new location
-export const createLocation = protectedAgreementAction(
+export const createLocation = protectedAdminAction(
     async (
         _: unknown,
         locationData: LocationFormInput,
     ): Promise<ActionResult<PickupLocationWithAllData>> => {
-        // Auth already verified by protectedAction wrapper
+        // Auth already verified by protectedAdminAction wrapper
 
         try {
             // Process email to ensure it's either null or a valid format
@@ -189,9 +132,9 @@ export const createLocation = protectedAgreementAction(
 );
 
 // Update an existing location
-export const updateLocation = protectedAgreementAction(
+export const updateLocation = protectedAdminAction(
     async (session, id: string, locationData: LocationFormInput): Promise<ActionResult<void>> => {
-        // Auth already verified by protectedAction wrapper
+        // Auth already verified by protectedAdminAction wrapper
 
         try {
             // Process email to ensure it's either null or a valid format
@@ -277,12 +220,26 @@ export const updateLocation = protectedAgreementAction(
 );
 
 // Delete a location
-export const deleteLocation = protectedAgreementAction(
+export const deleteLocation = protectedAdminAction(
     async (_: unknown, id: string): Promise<ActionResult<void>> => {
-        // Auth already verified by protectedAction wrapper
+        // Auth already verified by protectedAdminAction wrapper
 
         try {
-            // Delete the location (cascade will delete related records)
+            const [referencedParcel] = await db
+                .select({ id: foodParcels.id })
+                .from(foodParcels)
+                .where(eq(foodParcels.pickup_location_id, id))
+                .limit(1);
+
+            if (referencedParcel) {
+                return failure({
+                    code: "LOCATION_HAS_PARCELS",
+                    message: "Locations with parcel history cannot be deleted",
+                });
+            }
+
+            // Delete the location. Schedules and schedule days cascade, while
+            // plain-text audit rows survive. Parcel history blocks deletion above.
             await db.delete(pickupLocations).where(eq(pickupLocations.id, id));
 
             // Get the current locale from headers
@@ -305,13 +262,13 @@ export const deleteLocation = protectedAgreementAction(
 );
 
 // Create a new schedule for a location
-export const createSchedule = protectedAgreementAction(
+export const createSchedule = protectedAdminAction(
     async (
         session,
         locationId: string,
         scheduleData: ScheduleInput,
     ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
-        // Auth already verified by protectedAction wrapper
+        // Auth already verified by protectedAdminAction wrapper
         const username = session.user?.githubUsername ?? "unknown";
 
         try {
@@ -430,13 +387,13 @@ export const createSchedule = protectedAgreementAction(
 );
 
 // Update an existing schedule
-export const updateSchedule = protectedAgreementAction(
+export const updateSchedule = protectedAdminAction(
     async (
         session,
         scheduleId: string,
         scheduleData: ScheduleInput,
     ): Promise<ActionResult<PickupLocationScheduleWithDays>> => {
-        // Auth already verified by protectedAction wrapper
+        // Auth already verified by protectedAdminAction wrapper
         const username = session.user?.githubUsername ?? "unknown";
 
         try {
@@ -603,9 +560,9 @@ export const updateSchedule = protectedAgreementAction(
 );
 
 // Delete a schedule
-export const deleteSchedule = protectedAgreementAction(
+export const deleteSchedule = protectedAdminAction(
     async (session, scheduleId: string): Promise<ActionResult<void>> => {
-        // Auth already verified by protectedAction wrapper
+        // Auth already verified by protectedAdminAction wrapper
         const username = session.user?.githubUsername ?? "unknown";
 
         try {
@@ -682,40 +639,3 @@ export const deleteSchedule = protectedAgreementAction(
         }
     },
 );
-
-// PickupLocation interface
-export interface PickupLocation {
-    id: string;
-    name: string;
-    street_address: string;
-    postal_code: string;
-    parcels_max_per_day: number | null;
-    contact_name: string | null;
-    contact_email: string | null;
-    contact_phone_number: string | null;
-    default_slot_duration_minutes: number;
-}
-
-// Schedule interface
-export interface Schedule {
-    id: string;
-    name: string;
-    startDate: Date;
-    endDate: Date;
-    days: {
-        weekday: string;
-        isOpen: boolean;
-        openingTime: string | null;
-        closingTime: string | null;
-    }[];
-}
-
-// LocationSchedules interface
-export interface LocationSchedules {
-    schedules: Schedule[];
-}
-
-// LocationWithSchedule interface
-export interface LocationWithSchedule extends PickupLocation {
-    schedules: LocationSchedules;
-}
