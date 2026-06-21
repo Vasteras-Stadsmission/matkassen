@@ -41,7 +41,7 @@ describe("HouseholdWizard Security - Code Structure", () => {
 
         // Verify the defense-in-depth guard exists
         expect(content).toContain("Defense-in-depth");
-        expect(content).toContain("hasVerificationQuestions");
+        expect(content).toContain("fetchVerificationQuestions");
         expect(content).toContain("verificationIncomplete");
     });
 
@@ -55,7 +55,7 @@ describe("HouseholdWizard Security - Code Structure", () => {
         );
         const content = readFileSync(componentPath, "utf-8");
 
-        // Verify that handleSubmit fetches and validates verification questions
+        // Verify that handleSubmit refetches and validates verification questions
         const handleSubmitMatch = content.match(
             /const handleSubmit = async \(\) => \{([\s\S]*?)^\s{4}\};/m,
         );
@@ -63,15 +63,16 @@ describe("HouseholdWizard Security - Code Structure", () => {
 
         const handleSubmitContent = handleSubmitMatch?.[1] || "";
 
-        // Should check mode and hasVerificationQuestions
+        // Should check create mode and refetch even if the initial load had no questions
         expect(handleSubmitContent).toContain('mode === "create"');
-        expect(handleSubmitContent).toContain("hasVerificationQuestions");
+        expect(handleSubmitContent).not.toContain('mode === "create" && hasVerificationQuestions');
 
-        // Should fetch verification questions
-        expect(handleSubmitContent).toContain("/verification-questions");
+        // Should refetch verification questions through the shared helper
+        expect(handleSubmitContent).toContain("fetchVerificationQuestions");
 
         // Should validate all required questions are checked
-        expect(handleSubmitContent).toContain("is_required");
+        expect(content).toContain("areRequiredVerificationQuestionsChecked");
+        expect(content).toContain("is_required");
         expect(handleSubmitContent).toContain("checkedVerifications");
         expect(handleSubmitContent).toContain("allChecked");
 

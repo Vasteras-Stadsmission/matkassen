@@ -102,7 +102,9 @@ async function shouldShowAddParcelsDialog(
 import HouseholdForm from "@/app/[locale]/households/enroll/components/HouseholdForm";
 import MembersForm from "@/app/[locale]/households/enroll/components/MembersForm";
 import PreferencesForm from "@/app/[locale]/households/enroll/components/PreferencesForm";
-import VerificationForm from "@/app/[locale]/households/enroll/components/VerificationForm";
+import VerificationForm, {
+    type VerificationQuestion,
+} from "@/app/[locale]/households/enroll/components/VerificationForm";
 import ReviewForm from "@/app/[locale]/households/enroll/components/ReviewForm";
 
 // Import types
@@ -113,6 +115,39 @@ import {
     Comment,
     PickupLocation,
 } from "@/app/[locale]/households/enroll/types";
+
+const VERIFICATION_QUESTIONS_ENDPOINT = "/api/admin/verification-questions";
+
+function activeVerificationQuestions(questions: VerificationQuestion[]): VerificationQuestion[] {
+    return questions.filter(q => q.is_active);
+}
+
+function areRequiredVerificationQuestionsChecked(
+    questions: VerificationQuestion[],
+    checkedQuestions: Set<string>,
+): boolean {
+    return activeVerificationQuestions(questions)
+        .filter(q => q.is_required)
+        .every(q => checkedQuestions.has(q.id));
+}
+
+async function fetchVerificationQuestions(signal?: AbortSignal): Promise<VerificationQuestion[]> {
+    const response = await adminFetch(VERIFICATION_QUESTIONS_ENDPOINT, { signal });
+
+    if (!response.ok) {
+        const responseText = await response.text().catch(() => "Unknown error");
+        throw new Error(
+            `Failed to load verification questions (HTTP ${response.status}): ${responseText}`,
+        );
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+        throw new Error("Verification questions response was not an array");
+    }
+
+    return activeVerificationQuestions(data as VerificationQuestion[]);
+}
 
 // Define type for validation errors
 interface ValidationError {
@@ -180,6 +215,7 @@ export function HouseholdWizard({
     const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
 
     // Verification questions state (only for create mode)
+    const [verificationQuestions, setVerificationQuestions] = useState<VerificationQuestion[]>([]);
     const [checkedVerifications, setCheckedVerifications] = useState<Set<string>>(new Set());
     const [hasVerificationQuestions, setHasVerificationQuestions] = useState(false);
     const [verificationQuestionsError, setVerificationQuestionsError] = useState<string | null>(
@@ -357,35 +393,22 @@ export function HouseholdWizard({
 
         // Validate verification step (step 3, only in create mode with questions)
         if (active === 3 && mode === "create" && hasVerificationQuestions) {
-            // Fetch required questions and check if all are checked
-            adminFetch(`/api/admin/verification-questions`)
-                .then(res => res.json())
-                .then(questions => {
-                    // Single-pass filter: get active AND required questions in one iteration
-                    const requiredActiveQuestions = questions.filter(
-                        (q: { is_active: boolean; is_required: boolean }) =>
-                            q.is_active && q.is_required,
-                    );
-                    const allChecked = requiredActiveQuestions.every((q: { id: string }) =>
-                        checkedVerifications.has(q.id),
-                    );
+            const allChecked = areRequiredVerificationQuestionsChecked(
+                verificationQuestions,
+                checkedVerifications,
+            );
 
-                    if (!allChecked) {
-                        setValidationError({
-                            field: "verification",
-                            message: t("validation.verificationIncomplete"),
-                        });
-                        openError();
-                        return;
-                    }
-
-                    // Validation passed, move to next step
-                    const maxSteps = hasVerificationQuestions ? 4 : 3;
-                    setActive(current => (current < maxSteps ? current + 1 : current));
-                })
-                .catch(err => {
-                    console.error("Error validating verification questions:", err);
+            if (!allChecked) {
+                setValidationError({
+                    field: "verification",
+                    message: t("validation.verificationIncomplete"),
                 });
+                openError();
+                return;
+            }
+
+            const maxSteps = hasVerificationQuestions ? 4 : 3;
+            setActive(current => (current < maxSteps ? current + 1 : current));
             return;
         }
 
@@ -419,6 +442,7 @@ export function HouseholdWizard({
     // Fetch global verification questions when in create mode
     useEffect(() => {
         if (mode !== "create") {
+            setVerificationQuestions([]);
             setHasVerificationQuestions(false);
             setVerificationQuestionsError(null);
             return;
@@ -428,28 +452,13 @@ export function HouseholdWizard({
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-        abortControllerRef.current = new AbortController();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
         const fetchQuestions = async () => {
             try {
-                const response = await adminFetch(`/api/admin/verification-questions`, {
-                    signal: abortControllerRef.current!.signal,
-                });
-                if (!response.ok) {
-                    // SECURITY: Fail closed - treat API errors as critical
-                    const errorText = await response.text().catch(() => "Unknown error");
-                    console.error(
-                        `Failed to load verification questions (HTTP ${response.status}): ${errorText}`,
-                    );
-                    setVerificationQuestionsError(t("error.verificationQuestionsLoadFailed"));
-                    setHasVerificationQuestions(false);
-                    return;
-                }
-                const questions = await response.json();
-                // Defensive filtering: only count active questions
-                const activeQuestions = questions.filter(
-                    (q: { is_active: boolean }) => q.is_active,
-                );
+                const activeQuestions = await fetchVerificationQuestions(controller.signal);
+                setVerificationQuestions(activeQuestions);
                 setHasVerificationQuestions(activeQuestions.length > 0);
                 setVerificationQuestionsError(null);
             } catch (error) {
@@ -459,6 +468,7 @@ export function HouseholdWizard({
                 }
                 // SECURITY: Fail closed - treat network errors as critical
                 console.error("Network error loading verification questions:", error);
+                setVerificationQuestions([]);
                 setVerificationQuestionsError(t("error.verificationQuestionsLoadFailed"));
                 setHasVerificationQuestions(false);
             }
@@ -494,18 +504,17 @@ export function HouseholdWizard({
             return;
         }
 
-        // Defense-in-depth: Verify all required verification questions are checked before submit
-        if (mode === "create" && hasVerificationQuestions) {
+        // Defense-in-depth: refetch the checklist before every create submit so
+        // mid-flow checklist changes cannot bypass required verification.
+        if (mode === "create") {
             try {
-                const response = await adminFetch(`/api/admin/verification-questions`);
-                const questions = await response.json();
-                // Single-pass filter: get active AND required questions in one iteration
-                const requiredActiveQuestions = questions.filter(
-                    (q: { is_active: boolean; is_required: boolean }) =>
-                        q.is_active && q.is_required,
-                );
-                const allChecked = requiredActiveQuestions.every((q: { id: string }) =>
-                    checkedVerifications.has(q.id),
+                const latestQuestions = await fetchVerificationQuestions();
+                setVerificationQuestions(latestQuestions);
+                setHasVerificationQuestions(latestQuestions.length > 0);
+
+                const allChecked = areRequiredVerificationQuestionsChecked(
+                    latestQuestions,
+                    checkedVerifications,
                 );
 
                 if (!allChecked) {
@@ -521,7 +530,7 @@ export function HouseholdWizard({
                 console.error("Error validating verification questions:", error);
                 notifications.show({
                     title: t("error.title"),
-                    message: t("error.general"),
+                    message: t("error.verificationQuestionsLoadFailed"),
                     color: "red",
                     icon: React.createElement(IconX, { size: "1.1rem" }),
                 });
@@ -783,6 +792,7 @@ export function HouseholdWizard({
                             description={tSteps("verification.description")}
                         >
                             <VerificationForm
+                                questions={verificationQuestions}
                                 checkedQuestions={checkedVerifications}
                                 onUpdateChecked={handleVerificationCheck}
                             />
