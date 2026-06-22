@@ -1,6 +1,6 @@
 .locationRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto minmax(300px, 380px);
+    grid-template-columns: minmax(0, 1fr) auto minmax(300px, 380px);
     align-items: center;
     gap: var(--mantine-spacing-md);
     min-height: 96px;
@@ -39,12 +39,6 @@
     margin-right: 6px;
 }
 
-.locationMeta {
-    display: flex;
-    justify-content: flex-end;
-    min-width: 0;
-}
-
 .favoriteAction {
     display: flex;
     justify-content: center;
@@ -63,12 +57,6 @@
 @media (max-width: 62em) {
     .locationRow {
         grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .locationMeta {
-        grid-column: 1;
-        grid-row: 2;
-        justify-content: flex-start;
     }
 
     .favoriteAction {

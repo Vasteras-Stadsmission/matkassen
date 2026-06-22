@@ -236,7 +236,7 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                                         <Group
                                             gap={6}
                                             align="center"
-                                            wrap="nowrap"
+                                            wrap="wrap"
                                             className={styles.todaySummary}
                                         >
                                             <IconPackage size={16} />
@@ -258,13 +258,10 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                                                     {summary.todayParcelCount} {t("hub.completed")}
                                                 </Text>
                                             )}
+                                            {!summary.location.hasUpcomingSchedule && (
+                                                <NoUpcomingScheduleBadge />
+                                            )}
                                         </Group>
-                                    </div>
-
-                                    <div className={styles.locationMeta}>
-                                        {!summary.location.hasUpcomingSchedule && (
-                                            <NoUpcomingScheduleBadge />
-                                        )}
                                     </div>
 
                                     <div className={styles.favoriteAction}>
