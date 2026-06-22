@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Stack, Title, Text, Paper, Checkbox, Alert, Loader, Center } from "@mantine/core";
+import { Stack, Title, Text, Paper, Checkbox, Alert } from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
-import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
 
-interface VerificationQuestion {
+export interface VerificationQuestion {
     id: string;
     question_text: string;
     help_text: string | null;
@@ -16,103 +14,29 @@ interface VerificationQuestion {
 }
 
 interface VerificationFormProps {
+    questions: VerificationQuestion[];
     checkedQuestions: Set<string>;
     onUpdateChecked: (questionId: string, checked: boolean) => void;
 }
 
 export default function VerificationForm({
+    questions,
     checkedQuestions,
     onUpdateChecked,
 }: VerificationFormProps) {
     const t = useTranslations("wizard.verification");
     const tChecklist = useTranslations("settings.enrollmentChecklist");
-
-    const [questions, setQuestions] = useState<VerificationQuestion[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // AbortController to prevent race conditions
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    useEffect(() => {
-        // Cancel any in-flight request to prevent race conditions
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-        abortControllerRef.current = new AbortController();
-
-        // Fetch global verification questions
-        const fetchQuestions = async () => {
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                const response = await adminFetch(`/api/admin/verification-questions`, {
-                    signal: abortControllerRef.current!.signal,
-                });
-
-                if (!response.ok) {
-                    throw new Error(t("errorLoading"));
-                }
-
-                const data = await response.json();
-                // Defensive filtering: only show active questions
-                const activeQuestions = data.filter((q: VerificationQuestion) => q.is_active);
-                setQuestions(activeQuestions);
-            } catch (err) {
-                // Ignore aborted requests - they're intentional cancellations
-                if (err instanceof Error && err.name === "AbortError") {
-                    return;
-                }
-                // Use localized error message instead of raw err.message
-                setError(t("errorLoading"));
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchQuestions();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-    // Note: 't' function from useTranslations is stable and doesn't need to be in deps
-
-    // Cleanup: abort any pending requests on unmount
-    useEffect(() => {
-        return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
-    }, []);
+    // Defensive filtering: the API should only return active questions, but the
+    // checklist renderer should never display inactive questions if that regresses.
+    const activeQuestions = questions.filter(q => q.is_active);
 
     // Calculate progress
-    const requiredQuestions = questions.filter(q => q.is_required);
+    const requiredQuestions = activeQuestions.filter(q => q.is_required);
     const checkedRequiredCount = requiredQuestions.filter(q => checkedQuestions.has(q.id)).length;
     const allRequiredChecked = requiredQuestions.length === checkedRequiredCount;
 
-    if (isLoading) {
-        return (
-            <Center py="xl">
-                <Loader size="lg" />
-            </Center>
-        );
-    }
-
-    if (error) {
-        return (
-            <Alert
-                icon={<IconAlertCircle size="1rem" />}
-                title={t("title")}
-                color="red"
-                variant="filled"
-            >
-                {error}
-            </Alert>
-        );
-    }
-
     // No questions configured - show friendly message
-    if (questions.length === 0) {
+    if (activeQuestions.length === 0) {
         return (
             <Alert icon={<IconCheck size="1rem" />} title={t("title")} color="blue">
                 {t("noQuestions")}
@@ -171,7 +95,7 @@ export default function VerificationForm({
 
             <Paper withBorder p="md">
                 <Stack gap="md">
-                    {questions.map(question => {
+                    {activeQuestions.map(question => {
                         const questionText = getQuestionText(question);
                         const helpText = getHelpText(question);
 
