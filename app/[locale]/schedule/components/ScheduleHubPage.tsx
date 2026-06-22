@@ -7,14 +7,12 @@ import { useTranslations } from "next-intl";
 import {
     Container,
     Title,
-    Grid,
     Stack,
     Text,
     Paper,
     Loader,
     Center,
     Group,
-    Card,
     Button,
     Alert,
 } from "@mantine/core";
@@ -25,6 +23,7 @@ import { getUserFavoriteLocation } from "../utils/user-preferences";
 import { FavoriteStar } from "./FavoriteStar";
 import { NoUpcomingScheduleBadge } from "./NoUpcomingScheduleBadge";
 import { WelcomeBanner } from "./WelcomeBanner";
+import styles from "./ScheduleHubPage.module.css";
 import type { PickupLocation, FoodParcel } from "../types";
 import type { TranslationFunction } from "../../types";
 
@@ -186,7 +185,7 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                     </Text>
                 </div>
 
-                {/* Location Cards */}
+                {/* Location list */}
                 {locationSummaries.length === 0 ? (
                     <Paper p="xl" withBorder>
                         <Center>
@@ -199,8 +198,8 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                         </Center>
                     </Paper>
                 ) : (
-                    <Grid>
-                        {locationSummaries
+                    <Stack gap="sm" role="list" aria-label={t("hub.subtitle")}>
+                        {[...locationSummaries]
                             .sort((a, b) => {
                                 // Sort favorite locations to the top
                                 if (a.isFavorite && !b.isFavorite) return -1;
@@ -208,116 +207,105 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                                 return a.location.name.localeCompare(b.location.name);
                             })
                             .map(summary => (
-                                <Grid.Col
+                                <Paper
                                     key={summary.location.id}
-                                    span={{ base: 12, sm: 6, lg: 4 }}
+                                    withBorder
+                                    shadow={summary.isFavorite ? "sm" : undefined}
+                                    className={styles.locationRow}
+                                    data-favorite={summary.isFavorite || undefined}
+                                    role="listitem"
                                 >
-                                    <Card
-                                        withBorder
-                                        shadow={summary.isFavorite ? "md" : "sm"}
-                                        h="100%"
-                                        style={{
-                                            borderColor: summary.isFavorite
-                                                ? "var(--mantine-color-blue-4)"
-                                                : undefined,
-                                            borderWidth: summary.isFavorite ? "2px" : undefined,
-                                        }}
-                                    >
-                                        <Card.Section
-                                            p="md"
-                                            bg={summary.isFavorite ? "blue.2" : "blue.1"}
+                                    <div className={styles.locationSummary}>
+                                        <Group gap="xs" align="center" wrap="nowrap">
+                                            <IconMapPin size={22} className={styles.locationIcon} />
+                                            <Text fw={600} size="lg" truncate>
+                                                {summary.location.name}
+                                            </Text>
+                                            {summary.isFavorite && (
+                                                <Text
+                                                    size="xs"
+                                                    c="blue.7"
+                                                    fw={600}
+                                                    className={styles.favoriteLabel}
+                                                >
+                                                    {t("hub.favorite")}
+                                                </Text>
+                                            )}
+                                        </Group>
+
+                                        <Group
+                                            gap={6}
+                                            align="center"
+                                            wrap="nowrap"
+                                            className={styles.todaySummary}
                                         >
-                                            <Group justify="space-between" align="flex-start">
-                                                <div style={{ flex: 1 }}>
-                                                    <Group gap="xs" align="center" mb="xs">
-                                                        <IconMapPin size={20} />
-                                                        <Text fw={600} size="lg">
-                                                            {summary.location.name}
-                                                        </Text>
-                                                        {summary.isFavorite && (
-                                                            <Text size="xs" c="blue.7" fw={500}>
-                                                                {t("hub.favorite")}
-                                                            </Text>
-                                                        )}
-                                                    </Group>
-
-                                                    {/* Today's summary */}
-                                                    <Group gap="xs" align="center">
-                                                        <IconPackage size={14} />
-                                                        <Text size="sm" c="dimmed">
-                                                            {summary.todayParcelCount === 0
-                                                                ? t("hub.noHandoutsToday")
-                                                                : t("hub.parcelsToday", {
-                                                                      count: summary.todayParcelCount,
-                                                                  })}
-                                                        </Text>
-                                                    </Group>
-
-                                                    {summary.todayParcelCount > 0 && (
-                                                        <Group gap="xs" align="center" mt="xs">
-                                                            <Text size="sm" c="dimmed">
-                                                                {summary.todayCompletedCount}/
-                                                                {summary.todayParcelCount}{" "}
-                                                                {t("hub.completed")}
-                                                            </Text>
-                                                        </Group>
-                                                    )}
-
-                                                    {/* No upcoming schedule warning */}
-                                                    {!summary.location.hasUpcomingSchedule && (
-                                                        <div style={{ marginTop: "8px" }}>
-                                                            <NoUpcomingScheduleBadge />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <Group gap="xs" align="flex-start">
-                                                    <FavoriteStar
-                                                        locationId={summary.location.id}
-                                                        locationName={summary.location.name}
-                                                        isFavorite={summary.isFavorite}
-                                                        onFavoriteChange={isFavorite =>
-                                                            handleFavoriteChange(
-                                                                summary.location.id,
-                                                                isFavorite,
-                                                            )
-                                                        }
-                                                    />
-                                                </Group>
-                                            </Group>
-                                        </Card.Section>{" "}
-                                        <Card.Section p="md">
-                                            <Stack gap="xs">
-                                                {/* Primary action - Today's view */}
-                                                <Button
-                                                    variant="filled"
-                                                    leftSection={<IconCalendarDue size="1rem" />}
-                                                    onClick={() =>
-                                                        handleLocationTodayClick(summary.slug)
-                                                    }
-                                                    size="md"
-                                                    fullWidth
-                                                >
-                                                    {t("hub.todayHandouts")}
-                                                </Button>
-
-                                                {/* Secondary action - Weekly view */}
-                                                <Button
-                                                    variant="outline"
-                                                    leftSection={<IconCalendar size="1rem" />}
-                                                    onClick={() =>
-                                                        handleLocationWeeklyClick(summary.slug)
-                                                    }
+                                            <IconPackage size={16} />
+                                            <Text size="sm" c="dimmed" truncate>
+                                                {summary.todayParcelCount === 0
+                                                    ? t("hub.noHandoutsToday")
+                                                    : t("hub.parcelsToday", {
+                                                          count: summary.todayParcelCount,
+                                                      })}
+                                            </Text>
+                                            {summary.todayParcelCount > 0 && (
+                                                <Text
                                                     size="sm"
-                                                    fullWidth
+                                                    c="dimmed"
+                                                    truncate
+                                                    className={styles.completedText}
                                                 >
-                                                    {t("hub.weeklySchedule")}
-                                                </Button>
-                                            </Stack>
-                                        </Card.Section>
-                                    </Card>
-                                </Grid.Col>
+                                                    {summary.todayCompletedCount}/
+                                                    {summary.todayParcelCount} {t("hub.completed")}
+                                                </Text>
+                                            )}
+                                        </Group>
+                                    </div>
+
+                                    <div className={styles.locationMeta}>
+                                        {!summary.location.hasUpcomingSchedule && (
+                                            <NoUpcomingScheduleBadge />
+                                        )}
+                                    </div>
+
+                                    <div className={styles.favoriteAction}>
+                                        <FavoriteStar
+                                            locationId={summary.location.id}
+                                            locationName={summary.location.name}
+                                            isFavorite={summary.isFavorite}
+                                            onFavoriteChange={isFavorite =>
+                                                handleFavoriteChange(
+                                                    summary.location.id,
+                                                    isFavorite,
+                                                )
+                                            }
+                                            size={22}
+                                        />
+                                    </div>
+
+                                    <div className={styles.rowActions}>
+                                        <Button
+                                            variant="filled"
+                                            leftSection={<IconCalendarDue size="1rem" />}
+                                            onClick={() => handleLocationTodayClick(summary.slug)}
+                                            size="sm"
+                                            fullWidth
+                                        >
+                                            {t("hub.todayHandouts")}
+                                        </Button>
+
+                                        <Button
+                                            variant="outline"
+                                            leftSection={<IconCalendar size="1rem" />}
+                                            onClick={() => handleLocationWeeklyClick(summary.slug)}
+                                            size="sm"
+                                            fullWidth
+                                        >
+                                            {t("hub.weeklySchedule")}
+                                        </Button>
+                                    </div>
+                                </Paper>
                             ))}
-                    </Grid>
+                    </Stack>
                 )}
             </Stack>
         </Container>
