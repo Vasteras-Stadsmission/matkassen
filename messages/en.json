@@ -467,7 +467,7 @@
             "confirmSetFavorite": "Set {location} as your favorite?",
             "confirmChangeFavorite": "Change your favorite from {oldLocation} to {newLocation}?",
             "confirmRemoveFavorite": "Remove {location} as your favorite?",
-            "favoriteExplanation": "Setting a favorite will automatically take you there when browsing schedules, making it faster to access the location you use most often.",
+            "favoriteExplanation": "Your favorite appears first in the schedule list and is used as the default when opening today's handouts.",
             "confirmRemoveFavoriteLabel": "Remove favorite",
             "confirmChangeFavoriteLabel": "Change favorite",
             "currentFavoriteLabel": "current favorite",
