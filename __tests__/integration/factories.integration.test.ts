@@ -23,11 +23,7 @@ import {
     createTestDeletedParcel,
     createTestPickedUpParcel,
 } from "../factories/food-parcel.factory";
-import {
-    createTestUser,
-    createTestUserWithFavoriteLocation,
-    resetUserCounter,
-} from "../factories/user.factory";
+import { createTestUser, resetUserCounter } from "../factories/user.factory";
 import {
     createTestSms,
     createTestSentSms,
@@ -232,13 +228,6 @@ describe("Test Data Factories", () => {
             expect(user.display_name).toBe("Test User 1");
             expect(user.avatar_url).toContain("avatars.githubusercontent.com");
         });
-
-        it("should create user with favorite location", async () => {
-            const { location } = await createTestLocationWithSchedule();
-            const user = await createTestUserWithFavoriteLocation(location.id);
-
-            expect(user.favorite_pickup_location_id).toBe(location.id);
-        });
     });
 
     describe("SMS Factory", () => {
@@ -321,7 +310,7 @@ describe("Test Data Factories", () => {
             });
 
             // Create a user who will process it
-            const user = await createTestUserWithFavoriteLocation(location.id, {
+            const user = await createTestUser({
                 github_username: "volunteer1",
             });
 
@@ -336,7 +325,7 @@ describe("Test Data Factories", () => {
             expect(household.first_name).toBe("Anna");
             expect(location.name).toBe("Stadsmission Västerås");
             expect(parcel.household_id).toBe(household.id);
-            expect(user.favorite_pickup_location_id).toBe(location.id);
+            expect(user.github_username).toBe("volunteer1");
             expect(sms.status).toBe("sent");
         });
     });

@@ -31,16 +31,3 @@ export async function createTestUser(overrides: Partial<typeof users.$inferInser
 
     return user;
 }
-
-/**
- * Create a user with a favorite pickup location.
- */
-export async function createTestUserWithFavoriteLocation(
-    pickupLocationId: string,
-    overrides: Partial<typeof users.$inferInsert> = {},
-) {
-    return createTestUser({
-        ...overrides,
-        favorite_pickup_location_id: pickupLocationId,
-    });
-}

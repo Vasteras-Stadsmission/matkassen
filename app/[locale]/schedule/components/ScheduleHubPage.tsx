@@ -19,8 +19,6 @@ import {
 import { IconMapPin, IconPackage, IconCalendarDue, IconCalendar } from "@tabler/icons-react";
 import { getPickupLocations, getTodaysParcels, getParcelById } from "../actions";
 import { createLocationSlug } from "../utils/location-slugs";
-import { getUserFavoriteLocation } from "../utils/user-preferences";
-import { FavoriteStar } from "./FavoriteStar";
 import { NoUpcomingScheduleBadge } from "./NoUpcomingScheduleBadge";
 import { WelcomeBanner } from "./WelcomeBanner";
 import styles from "./ScheduleHubPage.module.css";
@@ -32,7 +30,6 @@ interface LocationSummary {
     todayParcelCount: number;
     todayCompletedCount: number;
     slug: string;
-    isFavorite: boolean;
 }
 
 interface ScheduleHubPageProps {
@@ -86,18 +83,11 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
             setLoading(true);
 
             try {
-                // Load locations, today's parcels, and favorite location in parallel
-                const [locationsData, todaysParcels, favoriteResult] = await Promise.all([
+                // Load locations and today's parcels in parallel
+                const [locationsData, todaysParcels] = await Promise.all([
                     getPickupLocations(),
                     getTodaysParcels(),
-                    getUserFavoriteLocation(),
                 ]);
-
-                let currentFavoriteId: string | null = null;
-
-                if (favoriteResult.success) {
-                    currentFavoriteId = favoriteResult.data;
-                }
 
                 // Create summaries for each location
                 const summaries: LocationSummary[] = locationsData.map(
@@ -115,7 +105,6 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                             todayParcelCount: locationParcels.length,
                             todayCompletedCount: completedParcels.length,
                             slug: createLocationSlug(location.name),
-                            isFavorite: location.id === currentFavoriteId,
                         };
                     },
                 );
@@ -141,15 +130,6 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
 
     const handleLocationWeeklyClick = (slug: string) => {
         router.push(`/schedule/${slug}/weekly`);
-    };
-
-    const handleFavoriteChange = (locationId: string, isFavorite: boolean) => {
-        setLocationSummaries(prev =>
-            prev.map(summary => ({
-                ...summary,
-                isFavorite: summary.location.id === locationId && isFavorite,
-            })),
-        );
     };
 
     if (loading) {
@@ -200,19 +180,12 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                 ) : (
                     <Stack gap="sm" role="list" aria-label={t("hub.subtitle")}>
                         {[...locationSummaries]
-                            .sort((a, b) => {
-                                // Sort favorite locations to the top
-                                if (a.isFavorite && !b.isFavorite) return -1;
-                                if (!a.isFavorite && b.isFavorite) return 1;
-                                return a.location.name.localeCompare(b.location.name);
-                            })
+                            .sort((a, b) => a.location.name.localeCompare(b.location.name))
                             .map(summary => (
                                 <Paper
                                     key={summary.location.id}
                                     withBorder
-                                    shadow={summary.isFavorite ? "sm" : undefined}
                                     className={styles.locationRow}
-                                    data-favorite={summary.isFavorite || undefined}
                                     role="listitem"
                                 >
                                     <div className={styles.locationSummary}>
@@ -221,16 +194,6 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                                             <Text fw={600} size="lg" truncate>
                                                 {summary.location.name}
                                             </Text>
-                                            {summary.isFavorite && (
-                                                <Text
-                                                    size="xs"
-                                                    c="blue.7"
-                                                    fw={600}
-                                                    className={styles.favoriteLabel}
-                                                >
-                                                    {t("hub.favorite")}
-                                                </Text>
-                                            )}
                                         </Group>
 
                                         <Group
@@ -262,21 +225,6 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                                                 <NoUpcomingScheduleBadge />
                                             )}
                                         </Group>
-                                    </div>
-
-                                    <div className={styles.favoriteAction}>
-                                        <FavoriteStar
-                                            locationId={summary.location.id}
-                                            locationName={summary.location.name}
-                                            isFavorite={summary.isFavorite}
-                                            onFavoriteChange={isFavorite =>
-                                                handleFavoriteChange(
-                                                    summary.location.id,
-                                                    isFavorite,
-                                                )
-                                            }
-                                            size={22}
-                                        />
                                     </div>
 
                                     <div className={styles.rowActions}>
