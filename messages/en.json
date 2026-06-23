@@ -1277,7 +1277,6 @@
                 "pickup_reminder": "Reminder",
                 "pickup_updated": "Update",
                 "pickup_cancelled": "Cancelled",
-                "consent_enrolment": "Consent",
                 "enrolment": "Enrolment"
             },
             "dateGroups": {
@@ -1699,7 +1698,6 @@
             "pickup_updated": "Pickup time changed",
             "pickup_cancelled": "Pickup cancelled",
             "enrolment": "Welcome message",
-            "consent_enrolment": "Consent request",
             "food_parcels_ended": "End of food support notice"
         },
         "failureDescription": {
@@ -1882,7 +1880,6 @@
                 "pickup_reminder": "Pickup Reminder",
                 "pickup_updated": "Pickup Updated",
                 "pickup_cancelled": "Pickup Cancelled",
-                "consent_enrolment": "Consent Enrolment",
                 "enrolment": "Welcome message",
                 "food_parcels_ended": "Food Parcels Ended"
             },

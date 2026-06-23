@@ -367,7 +367,7 @@ export const smsIntentEnum = pgEnum("sms_intent", [
     "pickup_reminder",
     "pickup_updated",
     "pickup_cancelled",
-    "consent_enrolment", // Deprecated: use 'enrolment' instead
+    "consent_enrolment", // Database-only legacy value; unsupported by application code
     "enrolment",
     "food_parcels_ended",
 ]);

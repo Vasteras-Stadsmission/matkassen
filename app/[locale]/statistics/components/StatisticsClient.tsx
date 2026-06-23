@@ -134,8 +134,6 @@ function getIntentName(
             return t("sms.intents.pickup_updated");
         case "pickup_cancelled":
             return t("sms.intents.pickup_cancelled");
-        case "consent_enrolment":
-            return t("sms.intents.consent_enrolment");
         case "enrolment":
             return t("sms.intents.enrolment");
         case "food_parcels_ended":

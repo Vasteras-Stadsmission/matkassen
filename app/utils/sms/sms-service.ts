@@ -15,7 +15,7 @@ import {
     fetchConversationViaGateway,
     type SendSmsResponse,
 } from "./sms-gateway";
-import { formatPickupSms, formatFoodParcelsEndedSms } from "./templates";
+import { formatPickupSms, formatUpdateSms, formatFoodParcelsEndedSms } from "./templates";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { Time } from "@/app/utils/time-provider";
 import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
@@ -25,16 +25,22 @@ import { nanoid } from "nanoid";
 import { logger, logError } from "@/app/utils/logger";
 import { recordAuditEvent, type AuditActorSession } from "@/app/utils/audit/log";
 
-export type SmsIntent =
-    | "pickup_reminder"
-    | "pickup_updated"
-    | "pickup_cancelled"
-    | "consent_enrolment" // Deprecated: use 'enrolment' instead
-    | "enrolment"
-    | "food_parcels_ended";
+export const SUPPORTED_SMS_INTENTS = [
+    "pickup_reminder",
+    "pickup_updated",
+    "pickup_cancelled",
+    "enrolment",
+    "food_parcels_ended",
+] as const;
+
+export type SmsIntent = (typeof SUPPORTED_SMS_INTENTS)[number];
 export type SmsStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
 const SMS_IDEMPOTENCY_CONSTRAINT = "idx_outgoing_sms_idempotency_unique";
+
+export function isSupportedSmsIntent(intent: string): intent is SmsIntent {
+    return SUPPORTED_SMS_INTENTS.includes(intent as SmsIntent);
+}
 
 // Type for database errors, supporting both direct postgres errors and drizzle-orm 0.45+ wrapped errors
 type DbErrorShape = {
@@ -211,7 +217,6 @@ function generateIdempotencyKey(data: CreateSmsData): string {
             }
             return `${data.intent}|${data.parcelId}`;
         case "enrolment":
-        case "consent_enrolment":
             // One enrollment SMS per household + phone number
             // This allows a new SMS when phone number changes
             return `enrolment|${data.householdId}|${data.toE164}`;
@@ -476,10 +481,6 @@ export async function queuePickupUpdatedSms(parcelId: string): Promise<{
     }
 
     const data = parcelData[0];
-
-    // Generate SMS content using dynamic imports to avoid circular dependencies
-    const { formatUpdateSms } = await import("./templates");
-    const { generateUrl } = await import("@/app/config/branding");
 
     const publicUrl = generateUrl(`/p/${parcelId}`);
     const smsText = formatUpdateSms(
@@ -762,6 +763,10 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
 
 // Map database record to SmsRecord interface
 function mapDbRecordToSmsRecord(dbRecord: DbSmsRecord): SmsRecord {
+    if (!isSupportedSmsIntent(dbRecord.intent)) {
+        throw new Error(`Unsupported SMS intent in database: ${dbRecord.intent}`);
+    }
+
     return {
         id: dbRecord.id,
         intent: dbRecord.intent,
@@ -935,16 +940,6 @@ export async function getParcelsNeedingReminder(): Promise<
 }
 
 /**
- * Run SMS queue processing function
- *
- * Concurrency is handled by atomic claim in sendSmsRecord() - each record
- * is claimed with a conditional UPDATE before sending, preventing duplicates.
- */
-export async function processQueuedSms(processingFunction: () => Promise<number>): Promise<number> {
-    return processingFunction();
-}
-
-/**
  * Pure JIT SMS sending for a single parcel
  *
  * Safe send order to prevent duplicate SMS on crash:
@@ -965,10 +960,6 @@ export async function sendReminderForParcel(parcel: {
     locale: string;
     pickupDate: Date;
 }): Promise<{ success: boolean; recordId?: string; error?: string }> {
-    const { formatPickupSms } = await import("./templates");
-    const { generateUrl } = await import("@/app/config/branding");
-    const { sendSmsViaGateway } = await import("./sms-gateway");
-
     const id = nanoid(16);
     const now = Time.now().toUTC();
     const idempotencyKey = `pickup_reminder|${parcel.parcelId}`;
@@ -1320,9 +1311,6 @@ async function failReminderForBalance(parcel: {
     locale: string;
     pickupDate: Date;
 }): Promise<{ recordId?: string }> {
-    const { formatPickupSms } = await import("./templates");
-    const { generateUrl } = await import("@/app/config/branding");
-
     const id = nanoid(16);
     const now = Time.now().toUTC();
     const idempotencyKey = `pickup_reminder|${parcel.parcelId}`;
@@ -1609,8 +1597,6 @@ export async function sendEndedSmsForHousehold(household: {
     locale: string;
     lastParcelId: string;
 }): Promise<{ success: boolean; recordId?: string; error?: string }> {
-    const { sendSmsViaGateway } = await import("./sms-gateway");
-
     const id = nanoid(16);
     const now = Time.now().toUTC();
     const idempotencyKey = `food_parcels_ended|${household.householdId}|${household.lastParcelId}`;

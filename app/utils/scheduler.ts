@@ -9,7 +9,6 @@ import {
     processFoodParcelsEndedJIT,
     getSmsRecordsReadyForSending,
     sendSmsRecord,
-    processQueuedSms,
     getSmsHealthStats,
     getAvailableCredits,
     sendBalanceSlackAlert,
@@ -173,17 +172,15 @@ async function processSmsJIT(): Promise<{ processed: number }> {
             ? Math.min(SMS_SEND_BATCH_SIZE, remainingCredits)
             : SMS_SEND_BATCH_SIZE;
 
-    const queueResult = await processQueuedSms(async () => {
-        if (queueBatchSize === 0) return 0;
-
+    let queueResult = 0;
+    if (queueBatchSize > 0) {
         const records = await getSmsRecordsReadyForSending(queueBatchSize);
 
-        let sentCount = 0;
         for (const record of records) {
             try {
                 const wasSent = await sendSmsRecord(record);
                 if (wasSent) {
-                    sentCount++;
+                    queueResult++;
                 }
                 await new Promise(resolve => setTimeout(resolve, 1000));
             } catch (error) {
@@ -194,8 +191,7 @@ async function processSmsJIT(): Promise<{ processed: number }> {
                 });
             }
         }
-        return sentCount;
-    });
+    }
 
     return {
         processed: jitResult.processed + endedResult.processed + queueResult,

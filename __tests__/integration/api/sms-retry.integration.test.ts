@@ -291,40 +291,6 @@ describe("SMS Retry - Route handler integration", () => {
             });
             expect(JSON.stringify(auditRow.details)).not.toContain(failedSms.text);
         });
-
-        it("should retry a failed consent_enrolment SMS", async () => {
-            const db = await getTestDb();
-            const household = await createTestHousehold({ first_name: "Consent" });
-
-            const failedSms = await createTestSms({
-                household_id: household.id,
-                intent: "consent_enrolment",
-                status: "failed",
-                attempt_count: 2,
-                last_error_message: "Number not in use",
-                created_at: new Date(TEST_NOW.getTime() - 6 * 60 * 1000),
-            });
-
-            const response = await callRetry(failedSms.id);
-            expect(response.status).toBe(200);
-
-            const payload = await response.json();
-            expect(payload.success).toBe(true);
-
-            const [original] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, failedSms.id));
-            expect(original.dismissed_at).toBeInstanceOf(Date);
-
-            const [newSms] = await db
-                .select()
-                .from(outgoingSms)
-                .where(eq(outgoingSms.id, payload.smsId));
-            expect(newSms.status).toBe("queued");
-            expect(newSms.intent).toBe("consent_enrolment");
-            expect(newSms.parcel_id).toBeNull();
-        });
     });
 
     describe("Validation: non-retryable intent", () => {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { outgoingSms, foodParcels, households } from "@/app/db/schema";
 import { eq, and, gte, ne, isNull } from "drizzle-orm";
-import { createSmsRecord } from "@/app/utils/sms/sms-service";
+import { createSmsRecord, isSupportedSmsIntent, type SmsIntent } from "@/app/utils/sms/sms-service";
 import { normalizePhoneToE164 } from "@/app/utils/sms/hello-sms";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { SMS_RATE_LIMITS } from "@/app/utils/rate-limit";
@@ -17,15 +17,18 @@ function isValidSmsId(id: string): boolean {
     return NANOID_PATTERN.test(id);
 }
 
-const RETRYABLE_INTENTS = new Set([
+const RETRYABLE_INTENTS = new Set<SmsIntent>([
     "pickup_reminder",
     "pickup_updated",
     "pickup_cancelled",
     "enrolment",
-    "consent_enrolment",
 ]);
 
-const PARCEL_INTENTS = new Set(["pickup_reminder", "pickup_updated", "pickup_cancelled"]);
+const PARCEL_INTENTS = new Set<SmsIntent>([
+    "pickup_reminder",
+    "pickup_updated",
+    "pickup_cancelled",
+]);
 
 function smsAuditTarget(sms: { parcelId: string | null; householdId: string }) {
     if (sms.parcelId) {
@@ -125,14 +128,15 @@ export async function POST(
             );
         }
 
-        if (!RETRYABLE_INTENTS.has(originalSms.intent)) {
+        const originalIntent = originalSms.intent;
+        if (!isSupportedSmsIntent(originalIntent) || !RETRYABLE_INTENTS.has(originalIntent)) {
             return NextResponse.json(
                 { error: "SMS intent is not retryable", code: "INVALID_ACTION" },
                 { status: 400 },
             );
         }
 
-        const isParcelIntent = PARCEL_INTENTS.has(originalSms.intent);
+        const isParcelIntent = PARCEL_INTENTS.has(originalIntent);
 
         if (isParcelIntent) {
             if (!originalSms.parcelId) {
@@ -241,12 +245,12 @@ export async function POST(
             }
 
             const newSmsId = await createSmsRecord({
-                intent: originalSms.intent,
+                intent: originalIntent,
                 parcelId: isParcelIntent ? originalSms.parcelId! : undefined,
                 householdId: originalSms.householdId,
                 toE164: normalizePhoneToE164(household.phoneNumber),
                 text: originalSms.text,
-                idempotencyKey: `${originalSms.intent}|${originalSms.householdId}|retry|${nanoid(8)}`,
+                idempotencyKey: `${originalIntent}|${originalSms.householdId}|retry|${nanoid(8)}`,
                 tx,
             });
 
@@ -258,7 +262,7 @@ export async function POST(
                 details: {
                     sms_id: smsId!,
                     new_sms_id: newSmsId,
-                    intent: originalSms.intent,
+                    intent: originalIntent,
                 },
             });
 
@@ -278,7 +282,7 @@ export async function POST(
                 newSmsId,
                 householdId: originalSms.householdId,
                 parcelId: originalSms.parcelId,
-                intent: originalSms.intent,
+                intent: originalIntent,
                 triggeredBy: authResult.session.user.githubUsername,
             },
             "SMS retry queued",

@@ -16,7 +16,7 @@ import {
     users,
     outgoingSms,
 } from "@/app/db/schema";
-import { asc, desc, eq, and, isNull } from "drizzle-orm";
+import { asc, eq, and, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
@@ -351,21 +351,21 @@ async function getHouseholdDetailsData(householdId: string) {
             }
         }
 
-        // Check enrollment SMS delivery status (get most recent)
-        const [enrollmentSms] = await db
-            .select({
-                status: outgoingSms.status,
-                provider_status: outgoingSms.provider_status,
-            })
+        // Delivery history only: consent itself is enforced by the wizard, not stored here.
+        const [deliveredEnrollmentSms] = await db
+            .select({ id: outgoingSms.id })
             .from(outgoingSms)
             .where(
-                and(eq(outgoingSms.household_id, householdId), eq(outgoingSms.intent, "enrolment")),
+                and(
+                    eq(outgoingSms.household_id, householdId),
+                    eq(outgoingSms.intent, "enrolment"),
+                    eq(outgoingSms.status, "sent"),
+                    eq(outgoingSms.provider_status, "delivered"),
+                ),
             )
-            .orderBy(desc(outgoingSms.created_at))
             .limit(1);
 
-        const enrollmentSmsDelivered =
-            enrollmentSms?.status === "sent" && enrollmentSms?.provider_status === "delivered";
+        const enrollmentSmsDelivered = Boolean(deliveredEnrollmentSms);
 
         return {
             household,

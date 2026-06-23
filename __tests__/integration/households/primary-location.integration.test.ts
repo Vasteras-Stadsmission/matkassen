@@ -21,9 +21,11 @@ import {
     createTestPickupLocation,
     createTestParcel,
     createTestParcelForToday,
+    createTestSms,
     createTestUser,
     resetHouseholdCounter,
     resetLocationCounter,
+    resetSmsCounter,
     resetUserCounter,
 } from "../../factories";
 import { getTestDb } from "../../db/test-db";
@@ -106,6 +108,7 @@ vi.mock("@/app/utils/sms/sms-service", () => ({
 beforeEach(async () => {
     resetHouseholdCounter();
     resetLocationCounter();
+    resetSmsCounter();
     resetUserCounter();
     await createTestUser({
         github_username: mockSession.user.githubUsername,
@@ -277,6 +280,30 @@ describe("Primary handout location - Household details (getHouseholdDetails)", (
 
         expect(details).not.toBeNull();
         expect(details!.primaryPickupLocation).toBeNull();
+    });
+
+    it("should preserve delivered enrollment history when a later SMS fails", async () => {
+        const household = await createTestHousehold();
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            status: "sent",
+            provider_status: "delivered",
+            sent_at: new Date(),
+        });
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            status: "failed",
+            provider_status: "failed",
+            sent_at: new Date(),
+        });
+
+        const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
+        const details = await getHouseholdDetails(household.id);
+
+        expect(details).not.toBeNull();
+        expect(details!.enrollmentSmsDelivered).toBe(true);
     });
 });
 
