@@ -421,6 +421,13 @@
       "when": 1776022154421,
       "tag": "0059_add_audit_log_table",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1782226035937,
+      "tag": "0060_damp_swarm",
+      "breakpoints": true
     }
   ]
 }

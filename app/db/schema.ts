@@ -605,10 +605,6 @@ export const users = pgTable("users", {
     last_name: varchar("last_name", { length: 100 }), // User-provided last name (mandatory after first login)
     email: varchar("email", { length: 255 }), // User-provided email (optional)
     phone: varchar("phone", { length: 50 }), // User-provided phone number (optional)
-    favorite_pickup_location_id: text("favorite_pickup_location_id").references(
-        () => pickupLocations.id,
-        { onDelete: "set null" },
-    ),
     role: userRoleEnum("role").notNull().default("handout_staff"),
     deactivated_at: timestamp({ precision: 1, withTimezone: true }), // Set when user is removed from GitHub org; cleared on successful sign-in
 });

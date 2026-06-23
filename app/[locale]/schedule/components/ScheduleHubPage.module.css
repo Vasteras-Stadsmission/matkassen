@@ -1,15 +1,10 @@
 .locationRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(300px, 380px);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
     align-items: center;
     gap: var(--mantine-spacing-md);
     min-height: 96px;
     padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
-    border-left: 4px solid transparent;
-}
-
-.locationRow[data-favorite="true"] {
-    border-left-color: var(--mantine-color-blue-5);
 }
 
 .locationSummary {
@@ -17,10 +12,6 @@
 }
 
 .locationIcon {
-    flex-shrink: 0;
-}
-
-.favoriteLabel {
     flex-shrink: 0;
 }
 
@@ -39,11 +30,6 @@
     margin-right: 6px;
 }
 
-.favoriteAction {
-    display: flex;
-    justify-content: center;
-}
-
 .rowActions {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
@@ -56,12 +42,7 @@
 
 @media (max-width: 62em) {
     .locationRow {
-        grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .favoriteAction {
-        grid-column: 2;
-        grid-row: 1;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .rowActions {

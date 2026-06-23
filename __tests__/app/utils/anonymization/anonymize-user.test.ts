@@ -68,7 +68,6 @@ describe("anonymize-user", () => {
              * - created_at
              * - deactivated_at
              * - role
-             * - favorite_pickup_location_id
              *
              * The 'anon-<id>' marker also serves as the eligibility check:
              * users whose github_username starts with 'anon-' are skipped

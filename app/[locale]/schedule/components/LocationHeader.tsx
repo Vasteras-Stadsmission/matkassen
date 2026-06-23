@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "@/app/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Group, Text, Button, Badge } from "@mantine/core";
 import { IconMapPin, IconArrowLeft } from "@tabler/icons-react";
 import type { PickupLocation } from "../types";
 import type { TranslationFunction } from "../../types";
-import { getUserFavoriteLocation } from "../utils/user-preferences";
-import { FavoriteStar } from "./FavoriteStar";
 
 interface LocationHeaderProps {
     currentLocation: PickupLocation;
@@ -21,25 +18,6 @@ interface LocationHeaderProps {
 export function LocationHeader({ currentLocation, todayStats }: LocationHeaderProps) {
     const router = useRouter();
     const t = useTranslations("schedule") as TranslationFunction;
-    const [isFavorite, setIsFavorite] = useState(false);
-
-    // Check if current location is favorite
-    useEffect(() => {
-        async function checkFavorite() {
-            const result = await getUserFavoriteLocation();
-            if (result.success) {
-                setIsFavorite(result.data === currentLocation.id);
-            } else {
-                // Failed to get favorite - just default to false
-                setIsFavorite(false);
-            }
-        }
-        checkFavorite();
-    }, [currentLocation.id]);
-
-    const handleFavoriteChange = (newIsFavorite: boolean) => {
-        setIsFavorite(newIsFavorite);
-    };
 
     const handleBackToHub = () => {
         router.push("/schedule");
@@ -77,13 +55,6 @@ export function LocationHeader({ currentLocation, todayStats }: LocationHeaderPr
                     <Text fw={500} truncate visibleFrom="sm">
                         {currentLocation.name}
                     </Text>
-                    <FavoriteStar
-                        locationId={currentLocation.id}
-                        locationName={currentLocation.name}
-                        isFavorite={isFavorite}
-                        onFavoriteChange={handleFavoriteChange}
-                        size={14}
-                    />
                 </Group>
             </Group>
 

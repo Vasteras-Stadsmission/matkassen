@@ -47,9 +47,7 @@ import {
 import { TodaySummaryCard } from "./TodaySummaryCard";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { findLocationBySlug } from "../../../utils/location-slugs";
-import { FavoriteStar } from "../../../components/FavoriteStar";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
-import { getUserFavoriteLocation } from "../../../utils/user-preferences";
 import { filterParcelsByQuery } from "../../../utils/parcel-search";
 import type {
     FoodParcel,
@@ -84,7 +82,6 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const [currentLocation, setCurrentLocation] = useState<PickupLocation | null>(null);
     const [loading, setLoading] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
-    const [isFavorite, setIsFavorite] = useState(false);
 
     // Pull to refresh state
     const [pullDistance, setPullDistance] = useState(0);
@@ -134,16 +131,6 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             }
 
             setCurrentLocation(location);
-
-            // Check if current location is favorite
-            const favoriteResult = await getUserFavoriteLocation();
-
-            if (favoriteResult.success) {
-                setIsFavorite(favoriteResult.data === location.id);
-            } else {
-                // Failed to get favorite - just default to false
-                setIsFavorite(false);
-            }
 
             // Load today's parcels (with phone numbers for search) and summary stats in parallel
             const [parcelsData, stats] = await Promise.all([
@@ -209,10 +196,6 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const handleBackToHub = useCallback(() => {
         router.push("/schedule");
     }, [router]);
-
-    const handleFavoriteChange = useCallback((newIsFavorite: boolean) => {
-        setIsFavorite(newIsFavorite);
-    }, []);
 
     // Handle parcel updates from ParcelAdminDialog
     const handleParcelUpdated = useCallback(async () => {
@@ -390,18 +373,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                             {currentLocation?.name}
                                         </Text>
                                     </Group>
-                                    {currentLocation && (
-                                        <div style={{ flexShrink: 0 }}>
-                                            <FavoriteStar
-                                                locationId={currentLocation.id}
-                                                locationName={currentLocation.name}
-                                                isFavorite={isFavorite}
-                                                onFavoriteChange={handleFavoriteChange}
-                                                size={12}
-                                            />
-                                        </div>
-                                    )}
-                                </Group>{" "}
+                                </Group>
                                 {/* Right: Progress Badge */}
                                 {totalParcels > 0 && (
                                     <Badge
