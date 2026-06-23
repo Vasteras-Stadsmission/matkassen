@@ -132,25 +132,30 @@ new container becomes healthy until `drizzle-kit migrate` finishes —
 where the new code runs against the old schema. This window can be up
 to 5 minutes for slow migrations (the timeout in `update.sh`).
 
-**Rule: every migration must be additive and backward-compatible with the
-previous deploy's code.** Specifically:
+**Rule: every migration must be compatible with the code that can run during
+the deploy window.** In the current deployment flow that means the new web
+container can briefly run against the old schema before migrations finish.
 
 Safe in a single migration:
 
 - Add a new column that is nullable, or has a default value
 - Add a new table, index, function, or view
-- Drop a column _only if_ the previous deploy already stopped reading and
-  writing it
+- Drop a column if the new code in the same deploy no longer reads or writes it
+  and no old web containers continue serving traffic in parallel
 
 Will break users mid-deploy if shipped in a single migration:
 
-- Drop or rename a column the previous deploy's code still reads
+- Add a column that the new code reads before the migration has run, unless the
+  code tolerates it missing
 - Add `NOT NULL` to an existing column without a default
 - Change a column's type (`ALTER COLUMN ... TYPE`)
-- Drop or rename a table the previous deploy's code still references
+- Drop or rename a table or column while any concurrently serving code still
+  references it
 
-For breaking changes, use the **expand → migrate → contract** pattern
-across two deploys:
+Destructive migrations also reduce rollback safety: once a column or table is
+dropped, rolling back to older code that still references it can fail. If a fast
+rollback to the previous deploy must remain safe, use the **expand → migrate →
+contract** pattern across two deploys:
 
 1. **Expand:** add the new column/table alongside the old one. Code
    reads old, writes both. Deploy.

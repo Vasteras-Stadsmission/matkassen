@@ -206,11 +206,11 @@ fi
 # timeout on the docker exec below). New code reading a column that
 # doesn't exist yet returns 5xx for those routes during that window.
 #
-# Rule: schema migrations must be backward-compatible with the previous
-# code for the duration of the deploy window — i.e. additive changes
-# only (new columns nullable or with defaults; new tables; new indexes).
-# For breaking schema changes (drop/rename column, NOT NULL on existing,
-# type changes), split into two deploys: expand → migrate → contract.
+# Rule: schema migrations must be compatible with code that can run during
+# the deploy window. In this deploy flow that mainly means new code may run
+# against the old schema until migrations finish. Destructive migrations can
+# still break rollback to older code, so split them into expand → migrate →
+# contract when rollback safety or parallel old/new serving matters.
 # See docs/database-guide.md for the full rule.
 echo "Waiting for database to be ready..."
 cd "$APP_DIR"

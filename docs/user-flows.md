@@ -28,15 +28,12 @@ flowchart LR
         ScanQR --> ParcelAdminDialog
 
         Header --> ScheduleHub
-        ScheduleHub["Schedule Hub /schedule<br/>- location cards with today's counts<br/>- FavoriteStar confirmation modal<br/>- ?parcel deep-link -> redirect to location view"]
+        ScheduleHub["Schedule Hub /schedule<br/>- location list with today's counts<br/>- buttons for today's handouts and weekly schedule<br/>- ?parcel deep-link -> redirect to location view"]
         ScheduleHub --> LocationLanding
         LocationLanding["Location landing<br/>- resolves slug to location<br/>- pick Today's handouts or Weekly view<br/>- error alert if not found"]
         LocationLanding --> TodayView
-        TodayView["Today's handouts<br/>- sticky header w/ progress + favorite toggle<br/>- pull-to-refresh + manual refresh button<br/>- click parcel or ?parcel opens admin dialog"]
+        TodayView["Today's handouts<br/>- sticky header w/ progress<br/>- pull-to-refresh + manual refresh button<br/>- click parcel or ?parcel opens admin dialog"]
         TodayView --> ParcelAdminDialog
-        ScheduleHub --> TodayRedirect
-        TodayRedirect["Schedule /today redirect<br/>- auto jump to favorite location<br/>- fallback cards showing today's handouts"]
-        TodayRedirect --> TodayView
 
         LocationLanding --> WeeklyView
         WeeklyView["Weekly schedule<br/>- week nav + date picker modal<br/>- drag/drop parcels with capacity warnings<br/>- open admin or reschedule flows"]
