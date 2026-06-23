@@ -134,7 +134,7 @@ to 5 minutes for slow migrations (the timeout in `update.sh`).
 
 **Rule: every migration must be compatible with the code that can run during
 the deploy window.** In the current deployment flow that means the new web
-container can briefly run against the old schema before migrations finish.
+container can run against the old schema until migrations finish.
 
 Safe in a single migration:
 
