@@ -467,7 +467,7 @@
             "confirmSetFavorite": "Sätt {location} som din favorit?",
             "confirmChangeFavorite": "Ändra din favorit från {oldLocation} till {newLocation}?",
             "confirmRemoveFavorite": "Ta bort {location} som din favorit?",
-            "favoriteExplanation": "Favoriten visas först i schemalistan och används som standard när du öppnar dagens utlämningar.",
+            "favoriteExplanation": "Favoriten visas först i schemalistan.",
             "confirmRemoveFavoriteLabel": "Ta bort favorit",
             "confirmChangeFavoriteLabel": "Byt favorit",
             "currentFavoriteLabel": "nuvarande favorit",
