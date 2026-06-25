@@ -287,6 +287,7 @@ describe("Primary handout location - Household details (getHouseholdDetails)", (
         await createTestSms({
             household_id: household.id,
             intent: "enrolment",
+            to_e164: household.phone_number,
             status: "sent",
             provider_status: "delivered",
             sent_at: new Date(),
@@ -294,6 +295,7 @@ describe("Primary handout location - Household details (getHouseholdDetails)", (
         await createTestSms({
             household_id: household.id,
             intent: "enrolment",
+            to_e164: household.phone_number,
             status: "failed",
             provider_status: "failed",
             sent_at: new Date(),
@@ -304,6 +306,34 @@ describe("Primary handout location - Household details (getHouseholdDetails)", (
 
         expect(details).not.toBeNull();
         expect(details!.enrollmentSmsDelivered).toBe(true);
+    });
+
+    it("should ignore enrollment delivery history for an old phone number", async () => {
+        const household = await createTestHousehold({
+            phone_number: "+46709999999",
+        });
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            to_e164: "+46701111111",
+            status: "sent",
+            provider_status: "delivered",
+            sent_at: new Date(),
+        });
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            to_e164: household.phone_number,
+            status: "failed",
+            provider_status: "failed",
+            sent_at: new Date(),
+        });
+
+        const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
+        const details = await getHouseholdDetails(household.id);
+
+        expect(details).not.toBeNull();
+        expect(details!.enrollmentSmsDelivered).toBe(false);
     });
 });
 

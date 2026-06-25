@@ -359,6 +359,7 @@ async function getHouseholdDetailsData(householdId: string) {
                 and(
                     eq(outgoingSms.household_id, householdId),
                     eq(outgoingSms.intent, "enrolment"),
+                    eq(outgoingSms.to_e164, household.phone_number),
                     eq(outgoingSms.status, "sent"),
                     eq(outgoingSms.provider_status, "delivered"),
                 ),
