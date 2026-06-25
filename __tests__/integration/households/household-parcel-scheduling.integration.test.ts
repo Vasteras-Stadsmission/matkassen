@@ -190,6 +190,7 @@ describe("Household parcel scheduling integration", () => {
 
         const updateData = buildUpdateData(household, "", []);
         updateData.household.phone_number = "0700009999";
+        updateData.household.sms_consent = true;
         updateData.household.locale = "en";
 
         const result = await updateHousehold(household.id, updateData);

@@ -183,6 +183,14 @@ export const enrollHousehold = protectedAdminAction(
                 });
             }
 
+            if (!data.smsConsent) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "validation.smsConsentRequired",
+                    field: "sms_consent",
+                });
+            }
+
             const firstName = normalizePersonName(data.headOfHousehold.firstName);
             if (!firstName.success || firstName.value.length < 2) {
                 return failure({
@@ -408,28 +416,25 @@ export const enrollHousehold = protectedAdminAction(
                 }
             }
 
-            // Send enrollment SMS if consent was given
-            if (data.smsConsent && data.headOfHousehold.phoneNumber) {
-                try {
-                    const locale = (data.headOfHousehold.locale || "sv") as SupportedLocale;
-                    const smsText = formatEnrolmentSms(locale);
-                    const phoneE164 = normalizePhoneToE164(data.headOfHousehold.phoneNumber);
+            try {
+                const locale = (data.headOfHousehold.locale || "sv") as SupportedLocale;
+                const smsText = formatEnrolmentSms(locale);
+                const phoneE164 = normalizePhoneToE164(data.headOfHousehold.phoneNumber);
 
-                    await createSmsRecord({
-                        intent: "enrolment",
-                        householdId: result.householdId,
-                        toE164: phoneE164,
-                        text: smsText,
-                    });
+                await createSmsRecord({
+                    intent: "enrolment",
+                    householdId: result.householdId,
+                    toE164: phoneE164,
+                    text: smsText,
+                });
 
-                    logger.debug({ householdId: result.householdId }, "Enrollment SMS queued");
-                } catch (e) {
-                    logError("Failed to queue enrollment SMS", e, {
-                        householdId: result.householdId,
-                        action: "enrollHousehold",
-                    });
-                    // Non-fatal: Household was created successfully, SMS is best-effort
-                }
+                logger.debug({ householdId: result.householdId }, "Enrollment SMS queued");
+            } catch (e) {
+                logError("Failed to queue enrollment SMS", e, {
+                    householdId: result.householdId,
+                    action: "enrollHousehold",
+                });
+                // Non-fatal: Household was created successfully, SMS is best-effort
             }
 
             // Audit log with IDs only (no PII)

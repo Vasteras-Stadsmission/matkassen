@@ -71,7 +71,7 @@ function buildEnrollmentData(responsibleUserId: string): HouseholdCreateData {
             phoneNumber: "0700001234",
             locale: "sv",
         },
-        smsConsent: false,
+        smsConsent: true,
         responsibleUserId,
         primaryPickupLocationId: null,
         members: [],

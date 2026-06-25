@@ -351,7 +351,7 @@ async function getHouseholdDetailsData(householdId: string) {
             }
         }
 
-        // Delivery history only: consent itself is enforced by the wizard, not stored here.
+        // Delivery history only: consent is enforced by the enrollment action, not stored here.
         const [deliveredEnrollmentSms] = await db
             .select({ id: outgoingSms.id })
             .from(outgoingSms)

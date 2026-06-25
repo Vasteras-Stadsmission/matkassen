@@ -403,7 +403,7 @@ async function getHouseholdEditData(householdId: string) {
             phone_number: household.phone_number,
             locale: household.locale,
             // SMS consent defaults to true in edit mode since consent was required at enrollment.
-            // Re-consent is only required if the phone number changes (handled by wizard validation).
+            // Re-consent is required when the phone number changes and is validated server-side.
             sms_consent: true,
             primary_pickup_location_id: household.primary_pickup_location_id,
             responsible_user_id: household.responsible_user_id,
@@ -479,6 +479,14 @@ export const updateHousehold = protectedAdminHouseholdAction(
             const phoneChanged = currentHousehold?.phone_number !== newPhoneE164;
 
             if (phoneChanged) {
+                if (!data.household.sms_consent) {
+                    return failure({
+                        code: "VALIDATION_ERROR",
+                        message: "validation.smsConsentRequired",
+                        field: "sms_consent",
+                    });
+                }
+
                 // Check for duplicate phone numbers (exclude current household and anonymized)
                 const existingWithPhone = await db
                     .select({ id: households.id })

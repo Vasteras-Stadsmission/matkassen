@@ -104,6 +104,7 @@ For each suspicious branch, verify all call sites with `rg` before editing. If a
 | 2026-06-17 | Track the business-logic cleanup in this repo.                | The audit is tied to this codebase and should survive Codex restarts, branches, and future maintenance work.                     |
 | 2026-06-17 | Install general Next.js guidance globally, not project-local. | `next-best-practices` is framework guidance, while Matkassen-specific audit state belongs in the repo.                           |
 | 2026-06-17 | Deprecate broad business-logic prose as source of truth.      | Durable rules should live in clear code, focused tests, and short comments near surprising behavior; broad prose docs can drift. |
+| 2026-06-25 | Treat household persistence as implicit SMS consent evidence. | No separate consent value is stored. Enrollment and phone-number changes require consent at the server-action boundary.          |
 
 ## Completed Changes
 
