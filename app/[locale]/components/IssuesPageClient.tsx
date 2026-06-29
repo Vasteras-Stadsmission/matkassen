@@ -880,10 +880,7 @@ export default function IssuesPageClient() {
                                     "pickup_updated",
                                     "pickup_cancelled",
                                 ];
-                                const nonParcelRetryableIntents = [
-                                    "enrolment",
-                                    "consent_enrolment",
-                                ];
+                                const nonParcelRetryableIntents = ["enrolment"];
                                 const isParcelRetry =
                                     sms.parcelId && parcelIntents.includes(sms.intent);
                                 const isNonParcelRetry = nonParcelRetryableIntents.includes(
@@ -999,9 +996,6 @@ export default function IssuesPageClient() {
                                                             "smsIntent.pickup_cancelled",
                                                         ),
                                                         enrolment: t("smsIntent.enrolment"),
-                                                        consent_enrolment: t(
-                                                            "smsIntent.consent_enrolment",
-                                                        ),
                                                         food_parcels_ended: t(
                                                             "smsIntent.food_parcels_ended",
                                                         ),

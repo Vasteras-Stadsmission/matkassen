@@ -21,9 +21,11 @@ import {
     createTestPickupLocation,
     createTestParcel,
     createTestParcelForToday,
+    createTestSms,
     createTestUser,
     resetHouseholdCounter,
     resetLocationCounter,
+    resetSmsCounter,
     resetUserCounter,
 } from "../../factories";
 import { getTestDb } from "../../db/test-db";
@@ -106,6 +108,7 @@ vi.mock("@/app/utils/sms/sms-service", () => ({
 beforeEach(async () => {
     resetHouseholdCounter();
     resetLocationCounter();
+    resetSmsCounter();
     resetUserCounter();
     await createTestUser({
         github_username: mockSession.user.githubUsername,
@@ -278,6 +281,60 @@ describe("Primary handout location - Household details (getHouseholdDetails)", (
         expect(details).not.toBeNull();
         expect(details!.primaryPickupLocation).toBeNull();
     });
+
+    it("should preserve delivered enrollment history when a later SMS fails", async () => {
+        const household = await createTestHousehold();
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            to_e164: household.phone_number,
+            status: "sent",
+            provider_status: "delivered",
+            sent_at: new Date(),
+        });
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            to_e164: household.phone_number,
+            status: "failed",
+            provider_status: "failed",
+            sent_at: new Date(),
+        });
+
+        const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
+        const details = await getHouseholdDetails(household.id);
+
+        expect(details).not.toBeNull();
+        expect(details!.enrollmentSmsDelivered).toBe(true);
+    });
+
+    it("should ignore enrollment delivery history for an old phone number", async () => {
+        const household = await createTestHousehold({
+            phone_number: "+46709999999",
+        });
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            to_e164: "+46701111111",
+            status: "sent",
+            provider_status: "delivered",
+            sent_at: new Date(),
+        });
+        await createTestSms({
+            household_id: household.id,
+            intent: "enrolment",
+            to_e164: household.phone_number,
+            status: "failed",
+            provider_status: "failed",
+            sent_at: new Date(),
+        });
+
+        const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
+        const details = await getHouseholdDetails(household.id);
+
+        expect(details).not.toBeNull();
+        expect(details!.enrollmentSmsDelivered).toBe(false);
+    });
 });
 
 describe("Primary handout location - Today's parcels query", () => {
@@ -373,6 +430,44 @@ describe("Primary handout location - Today's parcels query", () => {
 });
 
 describe("Primary handout location - Server-side validation", () => {
+    it("should reject enrollment without SMS consent and store no household", async () => {
+        const db = await getTestDb();
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
+
+        const result = await enrollHousehold({
+            headOfHousehold: {
+                firstName: "No",
+                lastName: "Consent",
+                phoneNumber: "0701234588",
+                locale: "sv",
+            },
+            smsConsent: false,
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: {
+                pickupLocationId: "",
+                parcels: [],
+            },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatchObject({
+                code: "VALIDATION_ERROR",
+                message: "validation.smsConsentRequired",
+                field: "sms_consent",
+            });
+        }
+
+        const stored = await db
+            .select({ id: households.id })
+            .from(households)
+            .where(eq(households.phone_number, "+46701234588"));
+        expect(stored).toHaveLength(0);
+    });
+
     it("should reject enrollment with a nonexistent primary location ID", async () => {
         const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
 
@@ -383,7 +478,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phoneNumber: "0701234599",
                 locale: "sv",
             },
-            smsConsent: false,
+            smsConsent: true,
             primaryPickupLocationId: "nonexistent-location-id",
             members: [],
             dietaryRestrictions: [],
@@ -413,7 +508,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phoneNumber: "0701234598",
                 locale: "sv",
             },
-            smsConsent: false,
+            smsConsent: true,
             primaryPickupLocationId: location.id,
             members: [],
             dietaryRestrictions: [],
@@ -486,7 +581,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phoneNumber: "0701234596",
                 locale: "sv",
             },
-            smsConsent: false,
+            smsConsent: true,
             primaryPickupLocationId: primaryLocation.id,
             members: [],
             dietaryRestrictions: [],
@@ -556,7 +651,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phoneNumber: "0701234595",
                 locale: "sv",
             },
-            smsConsent: false,
+            smsConsent: true,
             primaryPickupLocationId: location.id,
             members: [],
             dietaryRestrictions: [],
@@ -639,7 +734,7 @@ describe("Primary handout location - Server-side validation", () => {
                 phoneNumber: "0701234597",
                 locale: "sv",
             },
-            smsConsent: false,
+            smsConsent: true,
             primaryPickupLocationId: null,
             members: [],
             dietaryRestrictions: [],
@@ -682,6 +777,47 @@ describe("Primary handout location - Server-side validation", () => {
         if (!result.success) {
             expect(result.error.code).toBe("OPTION_NOT_AVAILABLE");
         }
+    });
+
+    it("should reject a phone number change without renewed SMS consent", async () => {
+        const household = await createTestHousehold({
+            phone_number: "+46701111111",
+        });
+        const { updateHousehold } = await import("@/app/[locale]/households/[id]/edit/actions");
+
+        const result = await updateHousehold(household.id, {
+            household: {
+                first_name: household.first_name,
+                last_name: household.last_name,
+                phone_number: "0702222222",
+                locale: household.locale,
+                sms_consent: false,
+                primary_pickup_location_id: household.primary_pickup_location_id,
+                responsible_user_id: household.responsible_user_id,
+            },
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: { pickupLocationId: "", parcels: [] },
+            comments: [],
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatchObject({
+                code: "VALIDATION_ERROR",
+                message: "validation.smsConsentRequired",
+                field: "sms_consent",
+            });
+        }
+
+        const db = await getTestDb();
+        const [stored] = await db
+            .select({ phoneNumber: households.phone_number })
+            .from(households)
+            .where(eq(households.id, household.id));
+        expect(stored.phoneNumber).toBe("+46701111111");
     });
 
     it("should allow update to change primary location to a valid one", async () => {

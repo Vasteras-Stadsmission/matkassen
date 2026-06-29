@@ -65,7 +65,7 @@ function buildEnrollmentData(
             phoneNumber,
             locale: "sv",
         },
-        smsConsent: false,
+        smsConsent: true,
         members: [],
         dietaryRestrictions: restrictions,
         additionalNeeds: [],

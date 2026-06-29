@@ -574,9 +574,10 @@ describe("Unified Scheduler", () => {
              *    - For each: calls sendReminderForParcel()
              *    - Returns { processed: number }
              *
-             * 4. processQueuedSms()
-             *    - Thin wrapper for queued SMS processing
-             *    - Returns number of processed SMS
+             * 4. Queued SMS send loop
+             *    - Fetches queued/retrying records due now
+             *    - Calls sendSmsRecord() for each claimed record
+             *    - Counts records claimed and attempted
              *
              * WHY PURE JIT WITH INSERT-BEFORE-SEND:
              * - SMS always has fresh data (no stale phone/time)

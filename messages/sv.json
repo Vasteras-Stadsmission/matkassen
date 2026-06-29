@@ -1277,7 +1277,6 @@
                 "pickup_reminder": "Påminnelse",
                 "pickup_updated": "Uppdatering",
                 "pickup_cancelled": "Avbruten",
-                "consent_enrolment": "Samtycke",
                 "enrolment": "Inskrivning"
             },
             "dateGroups": {
@@ -1699,7 +1698,6 @@
             "pickup_updated": "Ändrad hämtningstid",
             "pickup_cancelled": "Hämtning avbokad",
             "enrolment": "Välkomstmeddelande",
-            "consent_enrolment": "Samtyckesbegäran",
             "food_parcels_ended": "Meddelande om avslutad mathjälp"
         },
         "failureDescription": {
@@ -1882,7 +1880,6 @@
                 "pickup_reminder": "Hämtningspåminnelse",
                 "pickup_updated": "Hämtning uppdaterad",
                 "pickup_cancelled": "Hämtning avbokad",
-                "consent_enrolment": "Samtycke anmälan",
                 "enrolment": "Välkomstmeddelande",
                 "food_parcels_ended": "Matkassar avslutade"
             },

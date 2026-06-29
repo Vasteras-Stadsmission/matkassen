@@ -5,7 +5,7 @@ export interface Household {
     last_name: string;
     phone_number: string;
     locale: string;
-    sms_consent?: boolean; // UI-only field (not persisted); controls whether an enrollment SMS is queued/sent
+    sms_consent?: boolean; // UI-only field; required to enroll and queue the enrollment SMS
     primary_pickup_location_id?: string | null; // Optional primary handout location
     responsible_user_id?: string | null; // Current staff member responsible for this household
 }
