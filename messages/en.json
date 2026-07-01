@@ -304,56 +304,16 @@
     },
     "dietaryRestrictions": {
         "title": "Dietary Restrictions",
-        "description": "Select dietary restrictions that apply to the household.",
-        "loading": "Loading dietary restrictions...",
-        "noRestrictions": "No dietary restrictions added",
-        "addNew": "Add new restriction",
-        "newRestriction": "New dietary restriction",
-        "placeholderExample": "E.g. Strawberries, Soy, etc.",
-        "add": "Add",
-        "addConfirmTitle": "Add Dietary Restriction",
-        "addConfirmQuestion": "Do you want to add the following dietary restriction to your application?",
-        "removeConfirmTitle": "Remove Dietary Restriction",
-        "removeConfirmQuestion": "Do you want to remove the following dietary restriction from your application?",
-        "cancel": "Cancel",
-        "remove": "Remove",
-        "validation": {
-            "minLength": "Dietary restriction must be at least 2 characters"
-        }
+        "loading": "Loading dietary restrictions..."
     },
     "pets": {
         "title": "Pets",
-        "description": "Register pets in the household. This helps us to adapt the food assortment.",
-        "noPets": "No pets added",
         "loading": "Loading pet types...",
-        "addNew": "Add new type of pet",
-        "newPetType": "New type of pet",
-        "placeholderExample": "E.g. Guinea Pig, Lizard, etc.",
-        "add": "Add",
-        "addConfirmTitle": "Add Pet Type",
-        "addConfirmQuestion": "Do you want to add the following pet type to your application?",
-        "removeConfirmTitle": "Remove Pet Type",
-        "removeConfirmQuestion": "Do you want to remove the following pet type from your application?",
-        "cancel": "Cancel",
-        "remove": "Remove",
-        "defaultPetType": "Pet type {index}",
-        "unknownPetType": "Unknown",
-        "validation": {
-            "minLength": "Pet type must be at least 2 characters"
-        }
+        "unknownPetType": "Unknown"
     },
     "additionalNeeds": {
         "title": "Additional Needs",
-        "description": "Select additional needs that the household may have.",
-        "noNeeds": "No additional needs added",
-        "loading": "Loading additional needs...",
-        "addNew": "Add new need",
-        "newNeed": "New need",
-        "placeholderExample": "E.g. Razors, Shampoo, etc.",
-        "add": "Add",
-        "validation": {
-            "minLength": "Need must be at least 2 characters"
-        }
+        "loading": "Loading additional needs..."
     },
     "foodParcels": {
         "title": "Scheduled Food Parcels",
@@ -1108,54 +1068,7 @@
         }
     },
     "sms": {
-        "title": "SMS Messages",
-        "testModeWarning": "⚠️ TEST MODE: No real SMS will be sent.",
-        "status": {
-            "queued": "Queued",
-            "sending": "Sending",
-            "sent": "Sent",
-            "delivered": "Delivered",
-            "not_delivered": "Not Delivered",
-            "retrying": "Retrying",
-            "failed": "Failed"
-        },
-        "actions": {
-            "markPickedUp": "Mark as Handed Out",
-            "previewSms": "Preview SMS",
-            "resendSms": "Resend SMS",
-            "sendSms": "Send SMS",
-            "simulateDelivered": "Simulate Delivered",
-            "simulateNotDelivered": "Simulate Not Delivered"
-        },
-        "history": {
-            "title": "SMS History",
-            "noSms": "No SMS messages sent for this parcel",
-            "intent": "Type",
-            "status": "Status",
-            "attempts": "Attempts",
-            "createdAt": "Created",
-            "sentAt": "Sent",
-            "deliveredAt": "Delivered",
-            "error": "Error"
-        },
-        "preview": {
-            "title": "SMS Preview",
-            "recipient": "Recipient",
-            "message": "Message",
-            "locale": "Language"
-        },
-        "notifications": {
-            "markedPickedUp": "Food parcel marked as handed out",
-            "smsQueued": "SMS queued for sending",
-            "smsResent": "SMS queued for resending",
-            "deliverySimulated": "Delivery status simulated",
-            "cooldownActive": "Please wait before resending SMS",
-            "error": "An error occurred"
-        },
-        "cooldown": {
-            "message": "You can resend SMS in {minutes} minutes",
-            "active": "Resend cooldown active"
-        }
+        "testModeWarning": "⚠️ TEST MODE: No real SMS will be sent."
     },
     "admin": {
         "parcelDialog": {
