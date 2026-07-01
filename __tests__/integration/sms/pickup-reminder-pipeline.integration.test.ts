@@ -20,7 +20,7 @@ import {
     resetSmsCounter,
 } from "../../factories";
 import { TEST_NOW, daysFromTestNow, hoursFromTestNow } from "../../test-time";
-import { outgoingSms, households } from "@/app/db/schema";
+import { outgoingSms, households, foodParcels } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
 import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
@@ -94,6 +94,56 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
             const lastCall = mockGateway.getLastCall();
             expect(lastCall?.request.to).toBe("+46701234567");
             expect(lastCall?.request.text).toContain("Matpaket");
+        });
+
+        it("refreshes SMS text when pickup time changed after eligibility lookup", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: "+46701234567",
+                locale: "en",
+            });
+            const { location } = await createTestLocationWithSchedule();
+
+            const originalPickup = daysFromTestNow(1);
+            const rescheduledPickup = new Date(originalPickup.getTime() + 2 * 60 * 60 * 1000);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: originalPickup,
+                pickup_date_time_latest: new Date(originalPickup.getTime() + 30 * 60 * 1000),
+            });
+
+            await db
+                .update(foodParcels)
+                .set({
+                    pickup_date_time_earliest: rescheduledPickup,
+                    pickup_date_time_latest: new Date(rescheduledPickup.getTime() + 30 * 60 * 1000),
+                })
+                .where(eq(foodParcels.id, parcel.id));
+
+            const mockGateway = new MockSmsGateway().alwaysSucceed();
+            setSmsGateway(mockGateway);
+
+            const result = await sendReminderForParcel({
+                parcelId: parcel.id,
+                householdId: household.id,
+                phone: "+46701234567",
+                locale: "en",
+                pickupDate: originalPickup,
+            });
+
+            expect(result.success).toBe(true);
+
+            const sentText = mockGateway.getLastCall()?.request.text;
+            expect(sentText).toContain("14:00");
+            expect(sentText).not.toContain("12:00");
+
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+
+            expect(smsRecord.text).toBe(sentText);
         });
     });
 
