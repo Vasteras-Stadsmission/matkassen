@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PageTransitionSkeleton } from "@/components/PageTransitionSkeleton";
+import PageSkeletonOverlay from "@/components/PageSkeletonOverlay";
 import { ScheduleHubPage } from "./components/ScheduleHubPage";
 import { AgreementProtection } from "@/components/AgreementProtection";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
@@ -14,7 +14,7 @@ export default async function SchedulePage() {
 
     return (
         <AgreementProtection>
-            <Suspense fallback={<PageTransitionSkeleton />}>
+            <Suspense fallback={<PageSkeletonOverlay />}>
                 <ScheduleHubPage testMode={testMode} userRole={userRole} />
             </Suspense>
         </AgreementProtection>
