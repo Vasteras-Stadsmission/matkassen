@@ -304,56 +304,16 @@
     },
     "dietaryRestrictions": {
         "title": "Matrestriktioner",
-        "description": "Välj matrestriktioner som gäller för hushållet.",
-        "loading": "Laddar matrestriktioner...",
-        "noRestrictions": "Inga matrestriktioner tillagda",
-        "addNew": "Lägg till ny restriktion",
-        "newRestriction": "Ny matrestriktion",
-        "placeholderExample": "T.ex. Jordgubbar, Soja, etc.",
-        "add": "Lägg till",
-        "addConfirmTitle": "Lägg till matrestriktion",
-        "addConfirmQuestion": "Vill du lägga till följande matrestriktion i din ansökan?",
-        "removeConfirmTitle": "Ta bort matrestriktion",
-        "removeConfirmQuestion": "Vill du ta bort följande matrestriktion från din ansökan?",
-        "cancel": "Avbryt",
-        "remove": "Ta bort",
-        "validation": {
-            "minLength": "Matrestriktion måste vara minst 2 tecken"
-        }
+        "loading": "Laddar matrestriktioner..."
     },
     "pets": {
         "title": "Husdjur",
-        "description": "Registrera husdjur som finns i hushållet. Detta hjälper oss att anpassa matsortimentet.",
-        "noPets": "Inga husdjur tillagda",
         "loading": "Laddar husdjurstyper...",
-        "addNew": "Lägg till ny typ av husdjur",
-        "newPetType": "Ny typ av husdjur",
-        "placeholderExample": "T.ex. Marsvin, Ödla, etc.",
-        "add": "Lägg till",
-        "addConfirmTitle": "Lägg till husdjurstyp",
-        "addConfirmQuestion": "Vill du lägga till följande husdjurstyp i din ansökan?",
-        "removeConfirmTitle": "Ta bort husdjurstyp",
-        "removeConfirmQuestion": "Vill du ta bort följande husdjurstyp från din ansökan?",
-        "cancel": "Avbryt",
-        "remove": "Ta bort",
-        "defaultPetType": "Husdjurstyp {index}",
-        "unknownPetType": "Okänd",
-        "validation": {
-            "minLength": "Husdjurstyp måste vara minst 2 tecken"
-        }
+        "unknownPetType": "Okänd"
     },
     "additionalNeeds": {
         "title": "Ytterligare behov",
-        "description": "Välj ytterligare behov som hushållet kan ha.",
-        "noNeeds": "Inga ytterligare behov tillagda",
-        "loading": "Laddar ytterligare behov...",
-        "addNew": "Lägg till nytt behov",
-        "newNeed": "Nytt behov",
-        "placeholderExample": "T.ex. Rakhyvlar, Schampo, etc.",
-        "add": "Lägg till",
-        "validation": {
-            "minLength": "Behov måste vara minst 2 tecken"
-        }
+        "loading": "Laddar ytterligare behov..."
     },
     "foodParcels": {
         "title": "Schemalagda matkassar",
@@ -1108,54 +1068,7 @@
         }
     },
     "sms": {
-        "title": "SMS-meddelanden",
-        "testModeWarning": "⚠️ TESTLÄGE: Inga riktiga SMS kommer att skickas.",
-        "status": {
-            "queued": "I kö",
-            "sending": "Skickar",
-            "sent": "Skickat",
-            "delivered": "Levererat",
-            "not_delivered": "Ej levererat",
-            "retrying": "Försöker igen",
-            "failed": "Misslyckades"
-        },
-        "actions": {
-            "markPickedUp": "Markera som utlämnad",
-            "previewSms": "Förhandsgranska SMS",
-            "resendSms": "Skicka SMS igen",
-            "sendSms": "Skicka SMS",
-            "simulateDelivered": "Simulera levererat",
-            "simulateNotDelivered": "Simulera ej levererat"
-        },
-        "history": {
-            "title": "SMS-historik",
-            "noSms": "Inga SMS-meddelanden skickade för denna matkasse",
-            "intent": "Typ",
-            "status": "Status",
-            "attempts": "Försök",
-            "createdAt": "Skapad",
-            "sentAt": "Skickat",
-            "deliveredAt": "Levererat",
-            "error": "Fel"
-        },
-        "preview": {
-            "title": "SMS-förhandsgranskning",
-            "recipient": "Mottagare",
-            "message": "Meddelande",
-            "locale": "Språk"
-        },
-        "notifications": {
-            "markedPickedUp": "Matkasse markerad som utlämnad",
-            "smsQueued": "SMS köad för sändning",
-            "smsResent": "SMS köad för omsändning",
-            "deliverySimulated": "Leveransstatus simulerad",
-            "cooldownActive": "Vänta innan du skickar SMS igen",
-            "error": "Ett fel uppstod"
-        },
-        "cooldown": {
-            "message": "Du kan skicka SMS igen om {minutes} minuter",
-            "active": "Omsändningsnedkylning aktiv"
-        }
+        "testModeWarning": "⚠️ TESTLÄGE: Inga riktiga SMS kommer att skickas."
     },
     "admin": {
         "parcelDialog": {
