@@ -1,11 +1,6 @@
 {
     "common": {
         "brandName": "Matcentralen",
-        "welcome": "Welcome to Matcentralen",
-        "description": "Administration system for food parcel distribution",
-        "authStatus": "Authentication status",
-        "loggedInAs": "You are logged in as",
-        "loginToAccess": "Please log in to access the application's features",
         "close": "Close",
         "languages": {
             "sv": "Swedish"

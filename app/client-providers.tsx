@@ -7,14 +7,14 @@ import { SessionProvider } from "next-auth/react";
 import { HeaderSimple } from "@/components/HeaderSimple/HeaderSimple";
 import { AppShell, Box } from "@mantine/core";
 import { Suspense } from "react";
-import { PageTransitionSkeleton } from "@/components/PageTransitionSkeleton";
+import PageSkeletonOverlay from "@/components/PageSkeletonOverlay";
 import { SmsBalanceBanner } from "@/components/SmsBalanceBanner";
 import { ProfileCompletionGuard } from "@/components/ProfileCompletionGuard/ProfileCompletionGuard";
 
 // This is a specialized component to handle client-side navigation
 // related hooks like useSearchParams
 export function SearchParamsProvider({ children }: { children: React.ReactNode }) {
-    return <Suspense fallback={<PageTransitionSkeleton />}>{children}</Suspense>;
+    return <Suspense fallback={<PageSkeletonOverlay />}>{children}</Suspense>;
 }
 
 // This component wraps the layout with client-side providers

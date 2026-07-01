@@ -1,11 +1,6 @@
 {
     "common": {
         "brandName": "Matcentralen",
-        "welcome": "Välkommen till Matcentralen",
-        "description": "Administrationssystem för distribution av matkassar",
-        "authStatus": "Autentiseringsstatus",
-        "loggedInAs": "Du är inloggad som",
-        "loginToAccess": "Logga in för att få tillgång till applikationens funktioner",
         "close": "Stäng",
         "languages": {
             "sv": "Svenska"

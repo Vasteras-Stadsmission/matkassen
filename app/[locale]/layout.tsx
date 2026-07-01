@@ -5,7 +5,6 @@ import { setRequestLocale } from "next-intl/server";
 import { hasLocale } from "next-intl";
 import { routing } from "@/app/i18n/routing";
 import getMessagesFromRequest from "@/app/i18n/request";
-import { LayoutClient } from "./layout.client";
 
 // Define type for params
 type Params = {
@@ -41,9 +40,7 @@ export default async function LocaleLayout({
     return (
         <NextIntlClientProvider locale={locale} messages={messages.messages}>
             <ClientProviders>
-                <main id="main-content">
-                    <LayoutClient>{children}</LayoutClient>
-                </main>
+                <main id="main-content">{children}</main>
             </ClientProviders>
         </NextIntlClientProvider>
     );
