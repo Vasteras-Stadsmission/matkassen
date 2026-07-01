@@ -75,6 +75,14 @@ GITHUB_ORG=vasteras-stadsmission
 # user's home. The deploy user is always `ubuntu` per the SSH workflow.
 APP_DIR="/home/ubuntu/$PROJECT_NAME"
 
+cleanup_docker_resources() {
+    echo "Cleaning up unused Docker containers and images..."
+    sudo docker container prune -f
+    sudo docker image prune -af
+    sudo docker system df
+    echo "✅ Docker cleanup completed"
+}
+
 # Idempotently harden the app directory: owner-only access. Without this,
 # a reset of the directory (e.g. a fresh init_deploy re-run) would leave
 # the parent at default 755, which lets anyone in the ubuntu group
@@ -149,6 +157,9 @@ echo "✅ Nginx configuration updated and validated"
 # Pull and restart the Docker containers
 echo "Pulling latest Docker images from GitHub Container Registry..."
 cd "$APP_DIR"
+# Free old tagged sha-* images before pulling. Waiting until after the pull
+# means a nearly-full host can fail before it reaches the existing cleanup.
+cleanup_docker_resources
 if ! sudo docker compose pull; then
   echo "Failed to pull Docker images from GHCR"
   exit 1
@@ -283,11 +294,9 @@ else
     echo "✅ Nginx started"
 fi
 
-# Cleanup old Docker images and containers (but keep recent build cache)
-echo "Cleaning up old Docker resources..."
-sudo docker container prune -f
-sudo docker image prune -f
-echo "✅ Docker cleanup completed"
+# Cleanup once more after Docker Compose has replaced the old app container,
+# so the image from the previous deploy becomes eligible for pruning.
+cleanup_docker_resources
 
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
@@ -297,6 +306,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   # Start the backup service (explicitly specify env file location)
   sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d db-backup
   echo "✅ Backup service started successfully"
+  cleanup_docker_resources
 fi
 
 # Output final message
