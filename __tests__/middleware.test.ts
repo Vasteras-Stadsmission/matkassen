@@ -78,7 +78,6 @@ describe("Middleware API Authentication", () => {
             "/api/auth/providers",
             "/api/auth/signin",
             "/api/csp-report",
-            "/api/pickup-locations",
         ];
 
         for (const route of publicRoutes) {

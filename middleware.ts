@@ -69,7 +69,6 @@ export default async function middleware(request: NextRequest) {
             /^\/api\/health/, // Health check endpoint
             /^\/api\/auth\//, // NextAuth endpoints
             /^\/api\/csp-report/, // CSP violation reports
-            /^\/api\/pickup-locations/, // Public pickup locations (unused but keeping public)
             /^\/api\/webhooks\//, // Webhook endpoints (authenticated via URL secret or other means)
         ];
 

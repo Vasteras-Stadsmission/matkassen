@@ -150,7 +150,6 @@ Kept in `middleware.ts` as the `publicApiPatterns` allow-list:
 - `/api/auth/*` — NextAuth routes (public by design)
 - `/api/health` — Health check endpoint
 - `/api/csp-report` — CSP violation reporting (browser-initiated)
-- `/api/pickup-locations` — Public pickup locations lookup
 - `/api/webhooks/*` — Webhook endpoints (authenticated via URL secret, not session)
 
 ## GitHub OAuth Configuration

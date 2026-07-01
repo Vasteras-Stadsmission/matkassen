@@ -23,11 +23,7 @@ test.describe("Admin API Health Checks", () => {
         await page.goto("/sv");
         await expect(page).not.toHaveURL(/\/auth\/signin/);
 
-        const adminEndpoints = [
-            "/api/admin/issues",
-            "/api/admin/issues/count",
-            "/api/pickup-locations", // Public endpoint but good to test
-        ];
+        const adminEndpoints = ["/api/admin/issues", "/api/admin/issues/count"];
 
         for (const endpoint of adminEndpoints) {
             const response = await page.request.get(endpoint);
@@ -52,10 +48,7 @@ test.describe("Admin API Health Checks", () => {
         await page.goto("/sv");
 
         // Try some edge cases that might cause crashes
-        const edgeCases = [
-            "/api/admin/sms/parcel/not-a-real-parcel-id",
-            "/api/pickup-locations?limit=999999",
-        ];
+        const edgeCases = ["/api/admin/sms/parcel/not-a-real-parcel-id"];
 
         for (const endpoint of edgeCases) {
             const response = await page.request.get(endpoint);
@@ -143,7 +136,6 @@ test.describe("API Response Integrity", () => {
                 path: "/api/admin/issues",
                 extractArray: (d: { unresolvedHandouts: unknown[] }) => d.unresolvedHandouts,
             },
-            { path: "/api/pickup-locations", extractArray: (d: unknown[]) => d },
         ];
 
         for (const endpoint of jsonEndpoints) {
