@@ -753,6 +753,97 @@ describe("Statistics Actions", () => {
             });
         });
 
+        describe("Location Filtering", () => {
+            it("should scope statistics to the selected pickup location", async () => {
+                const locationA = await createTestPickupLocation({
+                    name: "Filtered Location",
+                    parcels_max_per_day: 10,
+                });
+                const locationB = await createTestPickupLocation({
+                    name: "Other Location",
+                    parcels_max_per_day: 10,
+                });
+                const householdA = await createTestHousehold();
+                const householdB = await createTestHousehold();
+
+                const pickedUpAtLocationA = await createTestPickedUpParcel({
+                    household_id: householdA.id,
+                    pickup_location_id: locationA.id,
+                    pickup_date_time_earliest: daysFromTestNow(-2),
+                });
+                await createTestNoShowParcel({
+                    household_id: householdA.id,
+                    pickup_location_id: locationA.id,
+                    pickup_date_time_earliest: daysFromTestNow(-3),
+                    no_show_at: daysFromTestNow(-2),
+                });
+
+                const pickedUpAtLocationB = await createTestPickedUpParcel({
+                    household_id: householdB.id,
+                    pickup_location_id: locationB.id,
+                    pickup_date_time_earliest: daysFromTestNow(-2),
+                });
+                await createTestPickedUpParcel({
+                    household_id: householdB.id,
+                    pickup_location_id: locationB.id,
+                    pickup_date_time_earliest: daysFromTestNow(-3),
+                });
+
+                await createTestSentSms({
+                    household_id: householdA.id,
+                    parcel_id: pickedUpAtLocationA.id,
+                    intent: "pickup_reminder",
+                });
+                await createTestSentSms({
+                    household_id: householdA.id,
+                    parcel_id: pickedUpAtLocationA.id,
+                    intent: "pickup_updated",
+                });
+                await createTestSentSms({
+                    household_id: householdB.id,
+                    parcel_id: pickedUpAtLocationB.id,
+                    intent: "pickup_reminder",
+                });
+
+                const { getAllStatistics } = await getActions();
+                const result = await getAllStatistics("7d", locationA.id);
+
+                expect(result.success).toBe(true);
+                if (!result.success) return;
+
+                expect(result.data.overview.totalHouseholds).toBe(1);
+                expect(result.data.overview.totalParcels).toBe(2);
+                expect(result.data.overview.pickedUpParcels).toBe(1);
+                expect(result.data.overview.pickupRate).toBe(50);
+
+                expect(result.data.parcels.total).toBe(2);
+                expect(result.data.parcels.pickedUp).toBe(1);
+                expect(result.data.parcels.notPickedUp).toBe(1);
+                expect(result.data.parcels.byLocation).toEqual([]);
+
+                expect(result.data.locations.capacityUsage).toHaveLength(7);
+                expect(
+                    result.data.locations.capacityUsage.every(
+                        entry => entry.locationName === "Filtered Location",
+                    ),
+                ).toBe(true);
+                expect(result.data.locations.pickupRateByLocation).toHaveLength(1);
+                expect(result.data.locations.pickupRateByLocation[0]).toMatchObject({
+                    locationName: "Filtered Location",
+                    rate: 50,
+                    total: 2,
+                });
+
+                expect(result.data.sms.totalSent).toBe(2);
+                expect(result.data.sms.byIntent).toEqual(
+                    expect.arrayContaining([
+                        { intent: "pickup_reminder", count: 1 },
+                        { intent: "pickup_updated", count: 1 },
+                    ]),
+                );
+            });
+        });
+
         describe("Period Filtering", () => {
             it("should filter parcels by 7d period", async () => {
                 const household = await createTestHousehold();

@@ -180,7 +180,6 @@ export function StatisticsClient() {
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<AllStatistics | null>(null);
 
-    // Load locations list once on mount
     useEffect(() => {
         async function loadLocations() {
             try {
