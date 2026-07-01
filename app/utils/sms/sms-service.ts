@@ -1045,10 +1045,14 @@ export async function sendReminderForParcel(parcel: {
         return { success: false, recordId: id, error: "Parcel no longer eligible" };
     }
 
-    // Re-render SMS if phone number or locale changed
+    // Re-render SMS if phone number, locale, or pickup time changed after eligibility lookup.
     let phoneToUse = parcel.phone;
     let textToUse = smsText;
-    if (freshData.phoneNumber !== parcel.phone || freshData.locale !== parcel.locale) {
+    if (
+        freshData.phoneNumber !== parcel.phone ||
+        freshData.locale !== parcel.locale ||
+        freshData.pickupEarliest.getTime() !== parcel.pickupDate.getTime()
+    ) {
         phoneToUse = freshData.phoneNumber;
         const newText = formatPickupSms(
             { pickupDate: freshData.pickupEarliest, publicUrl },
