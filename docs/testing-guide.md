@@ -273,16 +273,34 @@ AI agents can control Playwright via MCP. Configuration is in `.github/copilot-m
 - "Verify all navigation links work"
 - "Check if form validation works correctly"
 
-## Future: Data Seeding Infrastructure
+## Test Data Seeding
 
-When we implement `scripts/e2e-seed.ts`:
+Use the guarded seed script when local or staging needs predictable data for
+manual smoke tests or focused Playwright flows:
 
-1. Pre-seed predictable test data (households, locations, parcels)
-2. Use test-specific schema or cleanup between runs
-3. Make seeding idempotent (safe to run multiple times)
-4. Then enable workflow tests (parcel creation, SMS sending, etc.)
+```bash
+ALLOW_TEST_SEED=1 ENV_NAME=local pnpm seed:test-data
+```
 
-Until then, E2E tests remain minimal smoke tests only.
+For staging, run a one-off container from the deployed app image and mount the
+repo script read-only. This uses the same app image and Compose environment
+without shipping the seed script in the production runtime image:
+
+```bash
+ssh matkassen-staging-db 'cd /home/ubuntu/matkassen && sudo docker compose run --rm --no-deps --entrypoint node -v "$PWD/scripts:/app/scripts:ro" -e ALLOW_TEST_SEED=1 -e ENV_NAME=staging web scripts/seed-test-data.mjs'
+```
+
+The script is idempotent and uses stable `TEST`/`stg*` fixture IDs for:
+
+- pickup locations with schedules
+- households with upcoming and past parcels
+- enrollment SMS history for current-phone and old-phone marker checks
+- active SMS failure and balance-failure rows
+- an enrollment checklist question
+
+It refuses to run unless `ALLOW_TEST_SEED=1` is set and `ENV_NAME` is explicitly
+`local`, `development`, `test`, or `staging`. It must never be run against
+production.
 
 ## Validation Before Committing
 
