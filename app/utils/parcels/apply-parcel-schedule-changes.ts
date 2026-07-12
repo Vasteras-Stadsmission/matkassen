@@ -13,6 +13,7 @@ import {
     isParcelOutsideOpeningHours,
     type LocationScheduleInfo,
 } from "@/app/utils/schedule/outside-hours-filter";
+import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outside-hours-count";
 import { Time } from "@/app/utils/time-provider";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
@@ -659,10 +660,9 @@ export async function runHouseholdParcelPostCommitEffects(
 ): Promise<void> {
     if (summary.affectedLocationIds.length > 0) {
         try {
-            const { recomputeOutsideHoursCount } = await import("@/app/[locale]/schedule/actions");
             await Promise.all(
                 summary.affectedLocationIds.map(locationId =>
-                    recomputeOutsideHoursCount(locationId),
+                    recomputeOutsideHoursCountForLocation(locationId),
                 ),
             );
         } catch (e) {
