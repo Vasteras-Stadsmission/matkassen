@@ -17,6 +17,9 @@ let insertedAuditEvents: any[] = [];
 let deletedParcelIds: string[] = [];
 let existingParcels: any[] = [];
 let updatedParcels: any[] = [];
+const mockRecomputeOutsideHoursCountForLocation = vi.hoisted(() =>
+    vi.fn(async (_locationId: string) => 0),
+);
 
 // Mock the database module with location-aware logic
 vi.mock("@/app/db/drizzle", () => {
@@ -164,7 +167,11 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
 // Mock the schedule actions validation
 vi.mock("@/app/[locale]/schedule/actions", () => ({
     validateParcelAssignments: vi.fn(async () => ({ success: true })),
-    recomputeOutsideHoursCount: vi.fn(async () => {}),
+}));
+
+vi.mock("@/app/utils/schedule/outside-hours-count", () => ({
+    recomputeOutsideHoursCountForLocation: (locationId: string) =>
+        mockRecomputeOutsideHoursCountForLocation(locationId),
 }));
 
 // Mock the parcel state-transitions module (createParcels + lenient soft delete)
@@ -256,12 +263,8 @@ describe("updateHouseholdParcels - Location Changes", () => {
             expect(finalUpdates[0].pickup_date_time_earliest).toEqual(pickupStart);
             expect(finalUpdates[0].pickup_date_time_latest).toEqual(pickupEnd);
 
-            const scheduleActions = await import("@/app/[locale]/schedule/actions");
-            const recomputeOutsideHoursCountMock = vi.mocked(
-                scheduleActions.recomputeOutsideHoursCount,
-            );
-            expect(recomputeOutsideHoursCountMock).toHaveBeenCalledWith(locationA);
-            expect(recomputeOutsideHoursCountMock).toHaveBeenCalledWith(locationB);
+            expect(mockRecomputeOutsideHoursCountForLocation).toHaveBeenCalledWith(locationA);
+            expect(mockRecomputeOutsideHoursCountForLocation).toHaveBeenCalledWith(locationB);
         } finally {
             vi.useRealTimers();
         }

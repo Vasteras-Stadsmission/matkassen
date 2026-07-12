@@ -44,21 +44,16 @@ const mockQueuePickupUpdatedSms = vi.fn(async (_parcelId: string) => ({
     success: true,
     skipped: true,
 }));
-const mockRecomputeOutsideHoursCount = vi.fn(async (_locationId: string) => undefined);
+const mockRecomputeOutsideHoursCount = vi.fn(async (_locationId: string) => 0);
 
 vi.mock("@/app/utils/sms/sms-service", () => ({
     queuePickupUpdatedSms: (parcelId: string) => mockQueuePickupUpdatedSms(parcelId),
 }));
 
-vi.mock("@/app/[locale]/schedule/actions", async importOriginal => {
-    const actual = await importOriginal<typeof import("@/app/[locale]/schedule/actions")>();
-
-    return {
-        ...actual,
-        recomputeOutsideHoursCount: (locationId: string) =>
-            mockRecomputeOutsideHoursCount(locationId),
-    };
-});
+vi.mock("@/app/utils/schedule/outside-hours-count", () => ({
+    recomputeOutsideHoursCountForLocation: (locationId: string) =>
+        mockRecomputeOutsideHoursCount(locationId),
+}));
 
 type EditActionsModule = typeof import("@/app/[locale]/households/[id]/edit/actions");
 type ParcelActionsModule = typeof import("@/app/[locale]/households/[id]/parcels/actions");

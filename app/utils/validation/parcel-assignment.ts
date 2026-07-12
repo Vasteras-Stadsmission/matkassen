@@ -469,3 +469,69 @@ export async function validateBulkParcelAssignments(
         ...(allErrors.length > 0 && { errors: allErrors }),
     };
 }
+
+export interface ParcelAssignmentFormInput {
+    id?: string;
+    householdId: string;
+    locationId: string;
+    pickupDate: Date;
+    pickupStartTime: Date;
+    pickupEndTime: Date;
+}
+
+export interface ParcelAssignmentFormValidationResult {
+    success: boolean;
+    errors: ValidationError[];
+}
+
+export async function validateParcelAssignmentsForForm(
+    parcels: ParcelAssignmentFormInput[],
+    tx?: DbOrTransaction,
+): Promise<ParcelAssignmentFormValidationResult> {
+    try {
+        if (parcels.length === 0) {
+            return { success: true, errors: [] };
+        }
+
+        // Form submissions validate one pickup location at a time.
+        const locationId = parcels[0].locationId;
+
+        const assignments = parcels.map(parcel => {
+            const isNewParcel = !parcel.id;
+            const dateString = parcel.pickupDate.toISOString().split("T")[0];
+
+            return {
+                parcelId: parcel.id || `temp_${Math.random()}`,
+                timeslot: {
+                    date: dateString,
+                    startTime: parcel.pickupStartTime,
+                    endTime: parcel.pickupEndTime,
+                },
+                isNewParcel,
+                householdId: isNewParcel ? parcel.householdId : undefined,
+            };
+        });
+
+        const validationResult = await validateBulkParcelAssignments(assignments, locationId, tx);
+
+        return {
+            success: validationResult.success,
+            errors: validationResult.errors || [],
+        };
+    } catch (error) {
+        logError("Error validating parcel assignments", error, {
+            action: "validateParcelAssignmentsForForm",
+            parcelCount: parcels.length,
+        });
+        return {
+            success: false,
+            errors: [
+                {
+                    field: "general",
+                    code: "VALIDATION_ERROR",
+                    message: "An error occurred during validation",
+                },
+            ],
+        };
+    }
+}

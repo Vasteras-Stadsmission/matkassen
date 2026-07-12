@@ -45,6 +45,16 @@ export async function AgreementProtection({
         );
     }
 
+    const eligibility = session.user?.orgEligibility;
+    if (!session.user?.githubUsername || !eligibility?.ok) {
+        const locale = await getLocale();
+        const reason = eligibility?.status ?? "unknown";
+        return redirect({
+            href: `/auth/access-denied?reason=${encodeURIComponent(reason)}`,
+            locale,
+        });
+    }
+
     if (adminOnly && session.user?.role !== "admin") {
         const locale = await getLocale();
         return redirect({
@@ -58,16 +68,7 @@ export async function AgreementProtection({
 
     if (currentAgreement) {
         const locale = await getLocale();
-        const githubUsername = session.user?.githubUsername;
-
-        // If we can't identify the user, redirect to agreement page
-        if (!githubUsername) {
-            const callbackUrl = await getCurrentPathname();
-            return redirect({
-                href: `/agreement${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`,
-                locale,
-            });
-        }
+        const githubUsername = session.user.githubUsername;
 
         const userId = await getUserIdByGithubUsername(githubUsername);
 

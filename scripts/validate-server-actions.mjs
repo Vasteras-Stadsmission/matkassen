@@ -16,10 +16,7 @@
 // `softDeleteParcelInTransaction`. They have moved to
 // `app/utils/parcels/state-transitions.ts`, which is a non-server-action
 // utility module and therefore not scanned by this validator at all.
-const ALLOWED_INTERNAL_HELPERS = [
-    // Utility called from protected actions after schedule changes to update counts
-    "app/[locale]/schedule/actions.ts:recomputeOutsideHoursCount",
-];
+const ALLOWED_INTERNAL_HELPERS = [];
 
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, relative } from "path";
@@ -127,7 +124,7 @@ function checkFile(filePath) {
     // Pattern for exports wrapped with protectedAction variants
     // e.g., export const foo = protectedAction(...)
     const wrappedConstPattern =
-        /export\s+const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:protectedAction|protectedHouseholdAction|protectedReadAction)\s*\(/;
+        /export\s+const\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*protected[A-Za-z]*Action\s*\(/;
 
     // Pattern for unwrapped arrow function exports
     // e.g., export const foo = async (...) or export const foo = (...)
@@ -164,95 +161,29 @@ function checkFile(filePath) {
         }
     });
 
-    // Check if file has mutation operations (insert, update, delete)
-    // Read-only functions (select only) don't strictly require protection wrapper,
-    // but mutation functions must always be protected
-    const hasMutations =
-        content.includes("db.insert") ||
-        content.includes("db.update") ||
-        content.includes("db.delete") ||
-        content.includes(".insert(") ||
-        content.includes(".update(") ||
-        content.includes(".delete(");
+    const unexpectedExports = unprotectedExports.filter(exp => {
+        const key = `${relativePath}:${exp.name}`;
+        return !ALLOWED_INTERNAL_HELPERS.includes(key);
+    });
 
-    // Report unprotected exports if they exist and file has mutation operations
-    if (unprotectedExports.length > 0 && hasMutations) {
-        // For files with mutations, we need to check each function individually
-        // to see if IT does mutations (not just the file)
-        const functionsWithMutations = [];
-
-        for (const exp of unprotectedExports) {
-            // Find the function body by looking from the export line until the next export or end
-            const startLine = exp.line - 1;
-            let depth = 0;
-            let functionBody = "";
-            let started = false;
-
-            for (let i = startLine; i < lines.length; i++) {
-                const line = lines[i];
-                functionBody += line + "\n";
-
-                // Track brace depth to find function end
-                for (const char of line) {
-                    if (char === "{") {
-                        depth++;
-                        started = true;
-                    } else if (char === "}") {
-                        depth--;
-                    }
-                }
-
-                // Function ends when we close all braces
-                if (started && depth === 0) {
-                    break;
-                }
-
-                // Also stop at next export (safety check)
-                if (i > startLine && /^export\s/.test(line.trim())) {
-                    break;
-                }
-            }
-
-            // Check if this specific function has mutations
-            const funcHasMutation =
-                functionBody.includes("db.insert") ||
-                functionBody.includes("db.update") ||
-                functionBody.includes("db.delete") ||
-                functionBody.includes(".insert(") ||
-                functionBody.includes(".update(") ||
-                functionBody.includes(".delete(");
-
-            if (funcHasMutation) {
-                functionsWithMutations.push(exp);
-            }
-        }
-
-        // Filter out allowed internal helpers
-        const unexpectedMutations = functionsWithMutations.filter(exp => {
-            const key = `${relativePath}:${exp.name}`;
-            return !ALLOWED_INTERNAL_HELPERS.includes(key);
+    if (unexpectedExports.length > 0) {
+        violations.push({
+            file: relativePath,
+            type: "UNPROTECTED_EXPORTS",
+            message: `Found ${unexpectedExports.length} exported function(s) in a "use server" file not wrapped with a protected action helper. Exported server functions are callable entry points even when they are read-only.`,
+            functions: unexpectedExports.map(e => `${e.name} (line ${e.line})`),
         });
+        hasErrors = true;
+    }
 
-        if (unexpectedMutations.length > 0) {
-            violations.push({
-                file: relativePath,
-                type: "UNPROTECTED_MUTATIONS",
-                message: `Found ${unexpectedMutations.length} exported function(s) with DB mutations not wrapped with protectedAction/protectedHouseholdAction/protectedReadAction.`,
-                functions: unexpectedMutations.map(e => `${e.name} (line ${e.line})`),
-            });
-            hasErrors = true;
-        }
-
-        // Log allowed internal helpers as info
-        const allowedHelpers = functionsWithMutations.filter(exp => {
-            const key = `${relativePath}:${exp.name}`;
-            return ALLOWED_INTERNAL_HELPERS.includes(key);
-        });
-        if (allowedHelpers.length > 0) {
-            console.log(
-                `${colors.dim}Internal helpers (called by protected actions):${colors.reset} ${allowedHelpers.map(e => e.name).join(", ")}`,
-            );
-        }
+    const allowedHelpers = unprotectedExports.filter(exp => {
+        const key = `${relativePath}:${exp.name}`;
+        return ALLOWED_INTERNAL_HELPERS.includes(key);
+    });
+    if (allowedHelpers.length > 0) {
+        console.log(
+            `${colors.dim}Internal helpers (called by protected actions):${colors.reset} ${allowedHelpers.map(e => e.name).join(", ")}`,
+        );
     }
 }
 

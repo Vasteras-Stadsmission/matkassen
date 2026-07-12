@@ -22,6 +22,7 @@ import {
 import { logError } from "@/app/utils/logger";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
+import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outside-hours-count";
 
 // Get all locations with their schedules
 export const getLocations = protectedAdminAction(
@@ -362,9 +363,7 @@ export const createSchedule = protectedAdminAction(
 
             // Recompute outside-hours count after schedule change
             try {
-                const { recomputeOutsideHoursCount } =
-                    await import("@/app/[locale]/schedule/actions");
-                await recomputeOutsideHoursCount(locationId);
+                await recomputeOutsideHoursCountForLocation(locationId);
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule create", e, {
                     action: "createSchedule",
@@ -534,9 +533,7 @@ export const updateSchedule = protectedAdminAction(
 
             // Recompute outside-hours count with fresh data
             try {
-                const { recomputeOutsideHoursCount } =
-                    await import("@/app/[locale]/schedule/actions");
-                await recomputeOutsideHoursCount(locationId);
+                await recomputeOutsideHoursCountForLocation(locationId);
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule update", e, {
                     action: "updateSchedule",
@@ -615,9 +612,7 @@ export const deleteSchedule = protectedAdminAction(
             // Recompute outside-hours count with fresh data
             try {
                 if (scheduleRow?.pickup_location_id) {
-                    const { recomputeOutsideHoursCount } =
-                        await import("@/app/[locale]/schedule/actions");
-                    await recomputeOutsideHoursCount(scheduleRow.pickup_location_id);
+                    await recomputeOutsideHoursCountForLocation(scheduleRow.pickup_location_id);
                 }
             } catch (e) {
                 logError("Failed to recompute outside-hours count after schedule delete", e, {

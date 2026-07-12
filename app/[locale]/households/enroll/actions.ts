@@ -33,6 +33,8 @@ import { formatUserDisplayName } from "@/app/utils/format-user-display-name";
 import { normalizePhoneToE164, validatePhoneInput } from "@/app/utils/validation/phone-validation";
 import { createSmsRecord } from "@/app/utils/sms/sms-service";
 import { formatEnrolmentSms } from "@/app/utils/sms/templates";
+import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outside-hours-count";
+import { validateParcelAssignmentsForForm } from "@/app/utils/validation/parcel-assignment";
 import type { SupportedLocale } from "@/app/utils/locale-detection";
 import { normalizePersonName } from "@/app/utils/person-name";
 
@@ -316,10 +318,6 @@ export const enrollHousehold = protectedAdminAction(
                     data.foodParcels.parcels &&
                     data.foodParcels.parcels.length > 0
                 ) {
-                    // Validate all parcel assignments before creating any
-                    const { validateParcelAssignments } =
-                        await import("@/app/[locale]/schedule/actions");
-
                     const parcelLocationId = (parcel: FoodParcelCreateData) =>
                         parcel.pickupLocationId || data.foodParcels.pickupLocationId;
 
@@ -331,7 +329,10 @@ export const enrollHousehold = protectedAdminAction(
                         pickupEndTime: parcel.pickupLatestTime,
                     }));
 
-                    const validationResult = await validateParcelAssignments(parcelsToValidate, tx);
+                    const validationResult = await validateParcelAssignmentsForForm(
+                        parcelsToValidate,
+                        tx,
+                    );
 
                     if (!validationResult.success) {
                         // Throw to trigger transaction rollback
@@ -404,9 +405,7 @@ export const enrollHousehold = protectedAdminAction(
              */
             if (locationId) {
                 try {
-                    const { recomputeOutsideHoursCount } =
-                        await import("@/app/[locale]/schedule/actions");
-                    await recomputeOutsideHoursCount(locationId);
+                    await recomputeOutsideHoursCountForLocation(locationId);
                 } catch (e) {
                     logError("Failed to recompute outside-hours count after enrollment", e, {
                         locationId,
