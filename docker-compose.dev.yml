@@ -30,7 +30,7 @@ services:
             - HELLO_SMS_TEST_MODE=true # Development mode - test SMS only
 
     db:
-        image: postgres:17.5
+        image: postgres:17.10
         restart: always
         environment:
             POSTGRES_USER: ${POSTGRES_USER}
