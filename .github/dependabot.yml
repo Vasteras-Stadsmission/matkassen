@@ -2,8 +2,8 @@
 #
 # Vulnerability alerts at the repo level already cover security CVEs
 # across all ecosystems automatically. This config adds routine
-# (non-CVE) version updates for the two ecosystems where staying
-# current matters: github-actions and npm.
+# (non-CVE) version updates for the ecosystems where staying current
+# matters: GitHub Actions, Dockerfiles, Docker Compose, and npm.
 #
 # GitHub Actions stay on a weekly cadence so deployment tooling updates
 # can be exercised promptly. npm routine updates are monthly because a
@@ -26,6 +26,22 @@ updates:
           github-actions:
               patterns:
                   - "*"
+
+    # Dockerfiles: keep the Node and backup Alpine base images visible as
+    # focused monthly PRs. Dependabot only proposes changes; each image bump
+    # still passes through normal CI, staging, and production approval.
+    - package-ecosystem: "docker"
+      directory: "/"
+      schedule:
+          interval: "monthly"
+
+    # Docker Compose: monitor static service images such as PostgreSQL across
+    # the root compose files. Keep this separate from Dockerfile updates so a
+    # database image change can be reviewed and staged independently.
+    - package-ecosystem: "docker-compose"
+      directory: "/"
+      schedule:
+          interval: "monthly"
 
     # npm: large dependency tree. Handle updates in two paths so easier
     # bumps are reviewed together and risky ones get focused review:
