@@ -49,12 +49,19 @@ generate_production_config() {
     export SERVER_NAMES="$domain_names"
     export NEXTJS_UPSTREAM="localhost"  # In production, nginx runs on host, not in container
 
-    # HTTP redirect block for production
-    export HTTP_REDIRECT_BLOCK="# Redirect HTTP to HTTPS
+    # Reject unknown hosts, then redirect configured hosts to the canonical HTTPS domain.
+    export HTTP_REDIRECT_BLOCK="# Reject unknown HTTP hosts
+server {
+    listen 80 default_server;
+    server_name _;
+    return 444;
+}
+
+# Redirect configured HTTP hosts to the canonical HTTPS domain
 server {
     listen 80;
     server_name $domain_names;
-    return 301 https://\$host\$request_uri;
+    return 301 https://$primary_domain\$request_uri;
 }"
 
     # SSL configuration block

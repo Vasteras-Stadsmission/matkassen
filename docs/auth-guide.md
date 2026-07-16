@@ -145,12 +145,15 @@ This script ensures:
 
 ### Public API Routes (Exceptions)
 
-Kept in `middleware.ts` as the `publicApiPatterns` allow-list:
+Kept in `middleware.ts` as the `isPublicApiRoute()` allow-list:
 
 - `/api/auth/*` — NextAuth routes (public by design)
 - `/api/health` — Health check endpoint
 - `/api/csp-report` — CSP violation reporting (browser-initiated)
-- `/api/webhooks/*` — Webhook endpoints (authenticated via URL secret, not session)
+- `/api/webhooks/sms-status/[secret]` — HelloSMS callback (authenticated via URL secret, not session)
+
+All other `/api/*` paths require a session by default. New public callbacks must be added to the
+allow-list explicitly.
 
 ## GitHub OAuth Configuration
 

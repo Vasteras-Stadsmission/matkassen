@@ -75,9 +75,13 @@ describe("Middleware API Authentication", () => {
     it("should allow unauthenticated requests to public API routes", async () => {
         const publicRoutes = [
             "/api/health",
+            "/api/health/",
             "/api/auth/providers",
             "/api/auth/signin",
             "/api/csp-report",
+            "/api/csp-report/",
+            "/api/webhooks/sms-status/callback-secret",
+            "/api/webhooks/sms-status/callback-secret/",
         ];
 
         for (const route of publicRoutes) {
@@ -90,6 +94,29 @@ describe("Middleware API Authentication", () => {
             // Should pass through to the actual route handler (status 200, not 401)
             expect(response.status).not.toBe(401);
             expect(response.status).toBe(200); // NextResponse.next() returns 200
+        }
+    });
+
+    it("should fail closed for routes that only resemble public API routes", async () => {
+        const protectedNearMatches = [
+            "/api/healthcheck",
+            "/api/health/extra",
+            "/api/csp-reporting",
+            "/api/csp-report/extra",
+            "/api/webhooks/sms-status",
+            "/api/webhooks/sms-status/callback-secret/extra",
+            "/api/webhooks/future-callback/callback-secret",
+        ];
+
+        for (const route of protectedNearMatches) {
+            const request = new NextRequest(`http://localhost:3000${route}`, {
+                method: "GET",
+            });
+
+            const response = await middleware(request);
+
+            expect(response.status).toBe(401);
+            expect(await response.json()).toEqual({ error: "Unauthorized" });
         }
     });
 
