@@ -137,7 +137,14 @@ jobs:
                   cd nginx
                   ./generate-nginx-config.sh local
                   ./generate-nginx-config.sh production "example.com www.example.com" "example.com" > /tmp/nginx-production.conf
-                  grep -F 'return 301 https://$host$request_uri;' /tmp/nginx-production.conf
+                  grep -F 'listen 80 default_server;' /tmp/nginx-production.conf
+                  grep -F 'server_name _;' /tmp/nginx-production.conf
+                  grep -F 'return 444;' /tmp/nginx-production.conf
+                  grep -F 'return 301 https://example.com$request_uri;' /tmp/nginx-production.conf
+                  if grep -F 'return 301 https://$host$request_uri;' /tmp/nginx-production.conf; then
+                    echo "Production redirect trusts the request Host header"
+                    exit 1
+                  fi
                   if grep -F 'https://\$host\$request_uri' /tmp/nginx-production.conf; then
                     echo "Production redirect contains escaped nginx variables"
                     exit 1

@@ -42,6 +42,28 @@ function createCSP(nonce: string): string {
 // Create the internationalization middleware
 const intlMiddleware = createIntlMiddleware(routing);
 
+const exactPublicApiRoutes = new Set([
+    "/api/health",
+    "/api/health/",
+    "/api/csp-report",
+    "/api/csp-report/",
+]);
+
+function isPublicApiRoute(pathname: string): boolean {
+    if (exactPublicApiRoutes.has(pathname)) {
+        return true;
+    }
+
+    // Auth.js owns this namespace and must remain reachable before sign-in.
+    if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) {
+        return true;
+    }
+
+    // HelloSMS authenticates this one callback route with the secret path segment.
+    // Keep the match exact so a future webhook is private until explicitly allowed.
+    return /^\/api\/webhooks\/sms-status\/[^/]+\/?$/.test(pathname);
+}
+
 export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
@@ -64,17 +86,7 @@ export default async function middleware(request: NextRequest) {
 
     // 1. Handle API routes first (new logic)
     if (pathname.startsWith("/api/")) {
-        // Public API routes - no auth required
-        const publicApiPatterns = [
-            /^\/api\/health/, // Health check endpoint
-            /^\/api\/auth\//, // NextAuth endpoints
-            /^\/api\/csp-report/, // CSP violation reports
-            /^\/api\/webhooks\//, // Webhook endpoints (authenticated via URL secret or other means)
-        ];
-
-        const isPublicApiRoute = publicApiPatterns.some(pattern => pattern.test(pathname));
-
-        if (isPublicApiRoute) {
+        if (isPublicApiRoute(pathname)) {
             const response = NextResponse.next();
             return addCSPHeaders(response);
         }
