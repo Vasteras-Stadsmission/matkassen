@@ -46,7 +46,7 @@ services:
     db:
         # Using specific PostgreSQL version for reproducible builds
         # Keep on the latest PostgreSQL 17 minor release for security and bug fixes
-        image: postgres:17.10
+        image: postgres:18.4
         restart: always
         environment:
             POSTGRES_USER: ${POSTGRES_USER}
