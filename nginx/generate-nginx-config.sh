@@ -16,13 +16,15 @@ generate_local_config() {
     export SSL_PARAMS=""
     export SERVER_NAMES="localhost"
     export HTTP_REDIRECT_BLOCK="# No HTTP redirect needed for local development"
+    export HTTPS_CANONICAL_REDIRECT="# No HTTPS canonical redirect needed for local development"
     export SSL_CONFIG_BLOCK="# SSL configuration omitted for local development"
     export HSTS_HEADER="# HSTS omitted for local development"
     export NEXTJS_UPSTREAM="nextjs"  # Use container name for local Docker networking
 
     # Generate the config with specific variable substitution
     export DOLLAR='$'
-    envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${SSL_CONFIG_BLOCK},${HSTS_HEADER},${NEXTJS_UPSTREAM}' < "$TEMPLATE_FILE" > "$SCRIPT_DIR/local.conf"
+    # shellcheck disable=SC2016 # envsubst needs literal variable names here.
+    envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${HTTPS_CANONICAL_REDIRECT},${SSL_CONFIG_BLOCK},${HSTS_HEADER},${NEXTJS_UPSTREAM}' < "$TEMPLATE_FILE" > "$SCRIPT_DIR/local.conf"
 
     # Add header comment
     {
@@ -70,6 +72,11 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;"
 
+    export HTTPS_CANONICAL_REDIRECT="# Redirect HTTPS aliases to the canonical domain
+    if (\$host != $primary_domain) {
+        return 301 https://$primary_domain\$request_uri;
+    }"
+
     # HSTS header for production
     export HSTS_HEADER='add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;'
 
@@ -79,7 +86,8 @@ server {
         echo "# Generated from nginx.conf.template - DO NOT EDIT MANUALLY"
         echo "# NOTE: Keep template in sync with nginx/local.conf generation"
         echo ""
-        envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${SSL_CONFIG_BLOCK},${HSTS_HEADER},${NEXTJS_UPSTREAM}' < "$TEMPLATE_FILE"
+        # shellcheck disable=SC2016 # envsubst needs literal variable names here.
+        envsubst '${NGINX_PORT},${SSL_PARAMS},${SERVER_NAMES},${HTTP_REDIRECT_BLOCK},${HTTPS_CANONICAL_REDIRECT},${SSL_CONFIG_BLOCK},${HSTS_HEADER},${NEXTJS_UPSTREAM}' < "$TEMPLATE_FILE"
     }
 }
 
