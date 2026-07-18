@@ -140,15 +140,22 @@ jobs:
                   grep -F 'listen 80 default_server;' /tmp/nginx-production.conf
                   grep -F 'server_name _;' /tmp/nginx-production.conf
                   grep -F 'return 444;' /tmp/nginx-production.conf
-                  grep -F 'return 301 https://example.com$request_uri;' /tmp/nginx-production.conf
+                  test "$(grep -Fc 'server_name example.com www.example.com;' /tmp/nginx-production.conf)" -eq 2
+                  test "$(grep -Fc "return 301 https://example.com\$request_uri;" /tmp/nginx-production.conf)" -eq 2
+                  grep -F "if (\$host != example.com) {" /tmp/nginx-production.conf
+                  # shellcheck disable=SC2016 # The nginx variables must remain literal.
                   if grep -F 'return 301 https://$host$request_uri;' /tmp/nginx-production.conf; then
                     echo "Production redirect trusts the request Host header"
                     exit 1
                   fi
+                  # shellcheck disable=SC2016 # Detect incorrectly escaped nginx variables.
                   if grep -F 'https://\$host\$request_uri' /tmp/nginx-production.conf; then
                     echo "Production redirect contains escaped nginx variables"
                     exit 1
                   fi
+                  ./generate-nginx-config.sh production "staging.example.com" "staging.example.com" > /tmp/nginx-staging.conf
+                  test "$(grep -Fc 'server_name staging.example.com;' /tmp/nginx-staging.conf)" -eq 2
+                  grep -F "if (\$host != staging.example.com) {" /tmp/nginx-staging.conf
                   docker run --rm -v "$(pwd):/etc/nginx/conf.d" nginx:alpine nginx -t -c /etc/nginx/conf.d/local.conf 2>/dev/null || echo "Local config syntax check failed (this may be expected due to missing includes)"
                   echo "Nginx template generates configs successfully"
 

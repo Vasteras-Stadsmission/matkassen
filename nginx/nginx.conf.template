@@ -26,6 +26,8 @@ server {
 
     ${SSL_CONFIG_BLOCK}
 
+    ${HTTPS_CANONICAL_REDIRECT}
+
     # Include shared configuration (rate limiting, gzip, security headers, proxy settings)
     include /etc/nginx/shared.conf;
 
