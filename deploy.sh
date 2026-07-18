@@ -494,6 +494,34 @@ check_url() {
   fi
 }
 
+verify_redirect_host() {
+  local domain="$1"
+  local primary_domain="$2"
+  local path="/api/health"
+  local expected_location="https://${primary_domain}${path}"
+  local scheme
+  local redirect_code
+  local redirect_location
+  local headers
+
+  for scheme in http https; do
+    redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${scheme}://${domain}${path}")
+    redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "${scheme}://${domain}${path}" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+    if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "$expected_location" ]; then
+      echo "❌ ${scheme} redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
+      return 1
+    fi
+    echo "✅ ${scheme} redirect for ${domain} is correct"
+  done
+
+  headers=$(curl -sS -D - -o /dev/null --max-time 10 "https://${domain}${path}")
+  if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
+    echo "❌ Missing HSTS header for ${domain}"
+    return 1
+  fi
+  echo "✅ HSTS header present for ${domain}"
+}
+
 # Perform final checks
 echo "Performing final deployment checks..."
 
@@ -506,6 +534,11 @@ if ! check_url "https://$DOMAIN_NAME" "Website"; then
   else
     echo "Please check the application logs and Nginx configuration."
   fi
+fi
+
+if [ "${ENV_NAME:-staging}" = "production" ]; then
+  echo "Checking canonical www redirects..."
+  verify_redirect_host "www.$DOMAIN_NAME" "$DOMAIN_NAME"
 fi
 
 # Clean up any temporary files
