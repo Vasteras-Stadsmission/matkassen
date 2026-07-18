@@ -4,6 +4,10 @@ on:
     pull_request:
         branches: [main]
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+    cancel-in-progress: true
+
 permissions:
     contents: read
 
@@ -133,11 +137,25 @@ jobs:
                   cd nginx
                   ./generate-nginx-config.sh local
                   ./generate-nginx-config.sh production "example.com www.example.com" "example.com" > /tmp/nginx-production.conf
-                  grep -F 'return 301 https://$host$request_uri;' /tmp/nginx-production.conf
+                  grep -F 'listen 80 default_server;' /tmp/nginx-production.conf
+                  grep -F 'server_name _;' /tmp/nginx-production.conf
+                  grep -F 'return 444;' /tmp/nginx-production.conf
+                  test "$(grep -Fc 'server_name example.com www.example.com;' /tmp/nginx-production.conf)" -eq 2
+                  test "$(grep -Fc "return 301 https://example.com\$request_uri;" /tmp/nginx-production.conf)" -eq 2
+                  grep -F "if (\$host != example.com) {" /tmp/nginx-production.conf
+                  # shellcheck disable=SC2016 # The nginx variables must remain literal.
+                  if grep -F 'return 301 https://$host$request_uri;' /tmp/nginx-production.conf; then
+                    echo "Production redirect trusts the request Host header"
+                    exit 1
+                  fi
+                  # shellcheck disable=SC2016 # Detect incorrectly escaped nginx variables.
                   if grep -F 'https://\$host\$request_uri' /tmp/nginx-production.conf; then
                     echo "Production redirect contains escaped nginx variables"
                     exit 1
                   fi
+                  ./generate-nginx-config.sh production "staging.example.com" "staging.example.com" > /tmp/nginx-staging.conf
+                  test "$(grep -Fc 'server_name staging.example.com;' /tmp/nginx-staging.conf)" -eq 2
+                  grep -F "if (\$host != staging.example.com) {" /tmp/nginx-staging.conf
                   docker run --rm -v "$(pwd):/etc/nginx/conf.d" nginx:alpine nginx -t -c /etc/nginx/conf.d/local.conf 2>/dev/null || echo "Local config syntax check failed (this may be expected due to missing includes)"
                   echo "Nginx template generates configs successfully"
 
@@ -152,3 +170,283 @@ jobs:
                     exit 1
                   fi
                   echo "Migration files are up to date with schema."
+
+    # Job 5: Build affected Docker images and validate Compose persistence.
+    # This job always exists so it can be a required check without path-filtered
+    # workflows getting stuck in a pending state when no Docker inputs changed.
+    docker:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Detect affected Docker targets
+              id: changes
+              env:
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+              run: |
+                  set -euo pipefail
+
+                  app=false
+                  dev=false
+                  backup=false
+                  nginx=false
+                  compose=false
+
+                  while IFS= read -r -d '' file; do
+                      echo "Changed: ${file}"
+                      case "$file" in
+                          .github/workflows/build.yml)
+                              app=true
+                              dev=true
+                              backup=true
+                              nginx=true
+                              compose=true
+                              ;;
+                          .dockerignore)
+                              app=true
+                              dev=true
+                              backup=true
+                              ;;
+                          Dockerfile|docker-entrypoint.sh|drizzle.config.ts|app/db/database-ssl.cjs|migrations/*|public/*)
+                              app=true
+                              ;;
+                          Dockerfile.dev)
+                              dev=true
+                              ;;
+                          package.json|pnpm-lock.yaml)
+                              app=true
+                              dev=true
+                              ;;
+                          Dockerfile.db-backup|scripts/backup-db.sh)
+                              backup=true
+                              ;;
+                          nginx/Dockerfile|nginx/.dockerignore|nginx/generate-nginx-config.sh|nginx/nginx.conf.template|nginx/shared.conf)
+                              nginx=true
+                              ;;
+                          docker-compose*.yml)
+                              compose=true
+                              ;;
+                      esac
+                  # Disable rename detection so removing/renaming a known Docker
+                  # input still reports its old path and triggers the relevant build.
+                  done < <(git diff --no-renames --name-only -z "${BASE_SHA}...${HEAD_SHA}")
+
+                  images=false
+                  if [[ "$app" == true || "$dev" == true || "$backup" == true || "$nginx" == true ]]; then
+                      images=true
+                  fi
+
+                  {
+                      echo "app=${app}"
+                      echo "dev=${dev}"
+                      echo "backup=${backup}"
+                      echo "nginx=${nginx}"
+                      echo "compose=${compose}"
+                      echo "images=${images}"
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Set up Docker Buildx
+              if: steps.changes.outputs.images == 'true'
+              uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+            - name: Build production application image
+              if: steps.changes.outputs.app == 'true'
+              uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+              with:
+                  context: .
+                  file: Dockerfile
+                  load: true
+                  push: false
+                  pull: true
+                  provenance: false
+                  tags: matkassen-app:ci
+                  github-token: ""
+                  cache-from: type=gha,scope=ci-app
+                  cache-to: type=gha,mode=max,scope=ci-app
+
+            - name: Smoke-test production application image
+              if: steps.changes.outputs.app == 'true'
+              run: docker run --rm --network none --entrypoint node matkassen-app:ci --version
+
+            - name: Build development image
+              if: steps.changes.outputs.dev == 'true'
+              uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+              with:
+                  context: .
+                  file: Dockerfile.dev
+                  load: true
+                  push: false
+                  pull: true
+                  provenance: false
+                  tags: matkassen-dev:ci
+                  github-token: ""
+                  cache-from: type=gha,scope=ci-dev
+                  cache-to: type=gha,mode=max,scope=ci-dev
+
+            - name: Smoke-test development image
+              if: steps.changes.outputs.dev == 'true'
+              run: docker run --rm --network none --entrypoint node matkassen-dev:ci --version
+
+            - name: Build database backup image
+              if: steps.changes.outputs.backup == 'true'
+              uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+              with:
+                  context: .
+                  file: Dockerfile.db-backup
+                  load: true
+                  push: false
+                  pull: true
+                  provenance: false
+                  tags: matkassen-db-backup:ci
+                  github-token: ""
+                  cache-from: type=gha,scope=ci-db-backup
+                  cache-to: type=gha,mode=max,scope=ci-db-backup
+
+            - name: Smoke-test database backup image
+              if: steps.changes.outputs.backup == 'true'
+              run: |
+                  docker run --rm --network none --entrypoint sh matkassen-db-backup:ci -c '
+                      set -eu
+                      for command in pg_dump pg_restore swift rclone gpg supercronic; do
+                          command -v "$command"
+                      done
+                      pg_dump --version
+                      swift --version
+                      rclone version
+                      gpg --version
+                  '
+
+            - name: Build nginx development image
+              if: steps.changes.outputs.nginx == 'true'
+              uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+              with:
+                  context: ./nginx
+                  file: ./nginx/Dockerfile
+                  load: true
+                  push: false
+                  pull: true
+                  provenance: false
+                  tags: matkassen-nginx:ci
+                  github-token: ""
+                  cache-from: type=gha,scope=ci-nginx
+                  cache-to: type=gha,mode=max,scope=ci-nginx
+
+            - name: Smoke-test nginx development image
+              if: steps.changes.outputs.nginx == 'true'
+              run: docker run --rm --network none --add-host nextjs:127.0.0.1 matkassen-nginx:ci nginx -t
+
+            - name: Validate Compose files and PostgreSQL volume persistence
+              if: steps.changes.outputs.compose == 'true'
+              env:
+                  POSTGRES_USER: ci_user
+                  POSTGRES_PASSWORD: ci-password-not-a-secret
+                  POSTGRES_DB: ci_database
+              run: |
+                  set -euo pipefail
+
+                  container_name="matkassen-pg-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+                  volume_name="matkassen-pg-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+                  cleanup() {
+                      docker rm -fv "$container_name" >/dev/null 2>&1 || true
+                      docker volume rm -f "$volume_name" >/dev/null 2>&1 || true
+                      rm -f .env
+                  }
+                  trap cleanup EXIT
+
+                  printf '%s\n' \
+                      "POSTGRES_USER=${POSTGRES_USER}" \
+                      "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+                      "POSTGRES_DB=${POSTGRES_DB}" \
+                      'NEXT_PUBLIC_BRAND_NAME=CI' \
+                      'NEXT_PUBLIC_BASE_URL=http://localhost' \
+                      'ENV_NAME=ci' \
+                      'DB_BACKUP_PASSPHRASE=ci-only-placeholder' \
+                      'OS_APPLICATION_CREDENTIAL_ID=ci-only-placeholder' \
+                      'OS_APPLICATION_CREDENTIAL_SECRET=ci-only-placeholder' \
+                      'SWIFT_CONTAINER=ci-only-placeholder' \
+                      > .env
+
+                  docker compose --env-file .env -f docker-compose.yml config --quiet
+                  docker compose --env-file .env -f docker-compose.dev.yml config --quiet
+                  docker compose --env-file .env -f docker-compose.local.yml config --quiet
+                  docker compose --env-file .env -f docker-compose.yml -f docker-compose.backup.yml --profile backup config --quiet
+
+                  compose_json=$(docker compose --env-file .env -f docker-compose.yml config --format json)
+                  db_image=$(printf '%s' "$compose_json" | jq -er '.services.db.image')
+                  db_data_target=$(
+                      printf '%s' "$compose_json" \
+                          | jq -er '.services.db.volumes | map(select(.type == "volume")) | first | .target'
+                  )
+
+                  case "$db_image" in
+                      postgres:*|postgres@sha256:*) ;;
+                      *)
+                          echo "Refusing to execute unexpected database image: ${db_image}"
+                          exit 1
+                          ;;
+                  esac
+
+                  wait_for_postgres() {
+                      for attempt in $(seq 1 30); do
+                          if docker exec "$container_name" \
+                              pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+                              return 0
+                          fi
+                          echo "Waiting for PostgreSQL (${attempt}/30)..."
+                          sleep 2
+                      done
+
+                      docker logs "$container_name"
+                      return 1
+                  }
+
+                  docker volume create "$volume_name"
+                  docker run -d \
+                      --name "$container_name" \
+                      --network none \
+                      -e POSTGRES_USER \
+                      -e POSTGRES_PASSWORD \
+                      -e POSTGRES_DB \
+                      -v "${volume_name}:${db_data_target}" \
+                      "$db_image"
+                  wait_for_postgres
+
+                  docker exec "$container_name" psql \
+                      -v ON_ERROR_STOP=1 \
+                      -U "$POSTGRES_USER" \
+                      -d "$POSTGRES_DB" \
+                      -c 'CREATE TABLE ci_volume_persistence (marker integer PRIMARY KEY); INSERT INTO ci_volume_persistence VALUES (1);'
+
+                  # Recreate the container while retaining only the named volume.
+                  # PostgreSQL 18 changed the official image's VOLUME/PGDATA path;
+                  # this catches a Compose mount that silently points at the old path.
+                  docker rm -fv "$container_name"
+                  docker run -d \
+                      --name "$container_name" \
+                      --network none \
+                      -e POSTGRES_USER \
+                      -e POSTGRES_PASSWORD \
+                      -e POSTGRES_DB \
+                      -v "${volume_name}:${db_data_target}" \
+                      "$db_image"
+                  wait_for_postgres
+
+                  marker=$(
+                      docker exec "$container_name" psql \
+                          -v ON_ERROR_STOP=1 \
+                          -U "$POSTGRES_USER" \
+                          -d "$POSTGRES_DB" \
+                          -Atqc 'SELECT marker FROM ci_volume_persistence;'
+                  )
+                  test "$marker" = "1"
+                  echo "PostgreSQL data persisted across container recreation at ${db_data_target}"
+
+            - name: No Docker-specific inputs changed
+              if: steps.changes.outputs.images != 'true' && steps.changes.outputs.compose != 'true'
+              run: echo "No Docker-specific inputs changed; required Docker check passes without building."
