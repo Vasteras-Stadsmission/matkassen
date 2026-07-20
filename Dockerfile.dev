@@ -2,9 +2,7 @@
 
 FROM node:24.18.0-alpine3.23
 
-# Keep in sync with "packageManager" in package.json
-ARG PNPM_VERSION=10.29.3
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN corepack enable
 
 WORKDIR /app
 

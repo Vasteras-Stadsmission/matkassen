@@ -3,9 +3,7 @@ FROM node:24.18.0-alpine3.23 AS base
 
 LABEL org.opencontainers.image.source=https://github.com/Vasteras-Stadsmission/matkassen
 
-# Keep in sync with "packageManager" in package.json
-ARG PNPM_VERSION=10.29.3
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN corepack enable
 
 # Stage 1: Install dependencies
 FROM base AS deps
@@ -59,6 +57,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # The below are needed for drizzle to work (db migrations inside the container)
+COPY --chown=nextjs:nodejs package.json ./
 COPY --chown=nextjs:nodejs drizzle.config.ts ./
 COPY --from=builder --chown=nextjs:nodejs /app/migrations ./migrations
 COPY --from=deps-prod --chown=nextjs:nodejs /app/node_modules ./node_modules
@@ -76,10 +75,9 @@ RUN chmod +x docker-entrypoint.sh
 # Switch to non-root user
 USER nextjs
 
-# Prepare pnpm cache as nextjs user (must be after USER nextjs)
-# Running as root would cache in root's home, inaccessible at runtime
-ARG PNPM_VERSION
-RUN corepack prepare pnpm@${PNPM_VERSION} --activate
+# Cache the package.json-declared pnpm version as nextjs (must be after USER nextjs).
+# Running as root would cache it in root's home, inaccessible at runtime.
+RUN corepack install
 
 EXPOSE 3000
 CMD ["./docker-entrypoint.sh"]
