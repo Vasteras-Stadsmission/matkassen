@@ -340,16 +340,14 @@ for gz_file in $(find "$APP_DIR" -name "*.gz" -type f 2>/dev/null || true); do
   sudo rm -f "$gz_file"
 done
 
-# Pull pre-built images from GHCR (with fallback to build for first-time setup)
+# Pull the exact pre-built images selected by the workflow. The Compose file
+# intentionally has no local build definitions, so a pull failure must abort
+# rather than silently diverging from the workflow commit.
 echo "Pulling Docker images from GitHub Container Registry..."
 if ! sudo docker compose pull; then
-  echo "⚠️  Failed to pull images from GHCR (this is expected on first deployment)"
-  echo "Falling back to building images locally..."
-  if ! sudo docker compose build --no-cache; then
-    echo "❌ Docker build also failed. Check the logs above."
-    exit 1
-  fi
-  echo "✅ Images built successfully locally"
+  echo "❌ Failed to pull the requested images from GHCR."
+  echo "Confirm the workflow's sha-* images were published, then retry."
+  exit 1
 fi
 
 # Start the containers with health check dependencies
@@ -465,8 +463,10 @@ sudo docker system prune -af
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Starting backup service (profile: backup)..."
-  # Pull the backup image from GHCR
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull || true
+  # A production init is incomplete without a working backup service. Pull and
+  # wait for health so missing images, credentials, or scheduler startup fail
+  # the workflow instead of reporting a successful deployment without backups.
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull
   SWIFT_PREFIX="$SWIFT_PREFIX" \
   OS_AUTH_TYPE="$OS_AUTH_TYPE" \
   OS_AUTH_URL="$OS_AUTH_URL" \
@@ -477,7 +477,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   OS_APPLICATION_CREDENTIAL_SECRET="$OS_APPLICATION_CREDENTIAL_SECRET" \
   SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" \
   SLACK_CHANNEL_ID="$SLACK_CHANNEL_ID" \
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d db-backup || true
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d --wait --wait-timeout 300 db-backup
 fi
 
 # Helper function to check URL accessibility

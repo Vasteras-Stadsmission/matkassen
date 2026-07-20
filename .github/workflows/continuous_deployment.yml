@@ -6,11 +6,13 @@ on:
 
 permissions:
     contents: read
-    packages: write # Required for pushing to GHCR
 
 jobs:
     publish-images:
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write # Required for pushing to GHCR
         strategy:
             matrix:
                 include:
@@ -79,6 +81,7 @@ jobs:
                   host: ${{ secrets.SERVER_HOST_STAGING }}
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
+                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
                   script: |
                       # Fail fast on errors — this block used to swallow git failures and
                       # leave the VPS on an outdated commit while reporting success.
@@ -243,6 +246,7 @@ jobs:
                   host: ${{ secrets.SERVER_HOST_PRODUCTION }}
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
+                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
                   script: |
                       # Fail fast on errors — see deploy-to-staging above for context.
                       # Assumes the remote login shell is bash (`pipefail` is a bashism).
