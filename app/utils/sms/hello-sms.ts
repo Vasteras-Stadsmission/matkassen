@@ -155,10 +155,9 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
     if (!configLogged) {
         logger.info(
             {
-                apiUrl: config.apiUrl,
                 username: config.username ? "configured" : "missing",
                 testMode: config.testMode,
-                from: config.from,
+                from: config.from ? "configured" : "missing",
             },
             "SMS configuration loaded",
         );
@@ -217,9 +216,11 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
                     `Recipient rejected (status: ${firstRecipient.status})`;
                 logger.warn(
                     {
-                        to: normalizedTo,
-                        recipientStatus: firstRecipient.status,
-                        message: firstRecipient.message,
+                        recipientStatus:
+                            typeof firstRecipient.status === "number" &&
+                            Number.isFinite(firstRecipient.status)
+                                ? firstRecipient.status
+                                : "invalid",
                     },
                     "SMS recipient rejected by provider",
                 );

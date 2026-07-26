@@ -56,10 +56,7 @@ export async function handleSmsStatusCallback(
         // Extract and validate the status
         const status = body.status;
         if (!isValidStatus(status)) {
-            logger.warn(
-                { messageId, statusType: typeof status },
-                "SMS status callback has invalid status",
-            );
+            logger.warn({ statusType: typeof status }, "SMS status callback has invalid status");
             return NextResponse.json({ error: "Invalid status" }, { status: 400 });
         }
 
@@ -67,14 +64,11 @@ export async function handleSmsStatusCallback(
         const updated = await updateSmsProviderStatus(messageId, status);
 
         if (updated) {
-            logger.info(
-                { messageId, status, callbackRef: body.callbackRef },
-                "SMS provider status updated via callback",
-            );
+            logger.info({ status }, "SMS provider status updated via callback");
         } else {
             // This is not necessarily an error - the message might be old or already processed
             logger.debug(
-                { messageId, status },
+                { status },
                 "SMS status callback for unknown or already processed message",
             );
         }

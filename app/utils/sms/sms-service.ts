@@ -61,6 +61,28 @@ const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 // 48 hours in milliseconds - delay before sending "food parcels ended" SMS
 const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
 
+function logPermanentSmsFailure(
+    message: string,
+    result: SendSmsResponse,
+    context: Record<string, unknown>,
+): void {
+    const providerHttpStatus =
+        typeof result.httpStatus === "number" &&
+        Number.isInteger(result.httpStatus) &&
+        result.httpStatus >= 100 &&
+        result.httpStatus <= 599
+            ? result.httpStatus
+            : undefined;
+
+    logger.error(
+        {
+            ...context,
+            providerHttpStatus,
+        },
+        message,
+    );
+}
+
 /**
  * HTTP status codes that indicate transient errors eligible for retry.
  * Unified across both queued and JIT SMS pipelines.
@@ -746,7 +768,8 @@ async function handleSmsFailure(record: SmsRecord, result: SendSmsResponse): Pro
             incrementAttempt: true,
         });
     } else {
-        logError("SMS failed permanently", new Error(result.error || "Unknown error"), {
+        logPermanentSmsFailure("SMS failed permanently", result, {
+            smsId: record.id,
             intent: record.intent,
             householdId: record.householdId,
             attempts: currentAttempt,
@@ -1073,11 +1096,15 @@ export async function sendReminderForParcel(parcel: {
     }
 
     // Step 2: Send SMS
+    let providerCallCompleted = false;
+    let providerReturnedFailure = false;
     try {
         const result = await sendSmsViaGateway({
             to: phoneToUse,
             text: textToUse,
         });
+        providerCallCompleted = true;
+        providerReturnedFailure = !result.success;
 
         // Step 3: Update record with final status
         if (result.success) {
@@ -1100,7 +1127,22 @@ export async function sendReminderForParcel(parcel: {
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        logError("Failed to send SMS (JIT)", error, { parcelId: parcel.parcelId });
+        if (!providerCallCompleted) {
+            logger.error(
+                { smsId: id, parcelId: parcel.parcelId },
+                "SMS provider request failed unexpectedly (JIT)",
+            );
+        } else if (providerReturnedFailure) {
+            logger.error(
+                { smsId: id, parcelId: parcel.parcelId },
+                "Failed to process SMS provider failure (JIT)",
+            );
+        } else {
+            logError("Failed to send SMS (JIT)", error, {
+                smsId: id,
+                parcelId: parcel.parcelId,
+            });
+        }
 
         // Handle exception with retry logic (treat as retriable if pickup hasn't passed)
         await handleJitFailure(id, parcel.parcelId, freshData.pickupLatest, {
@@ -1177,7 +1219,7 @@ async function handleJitFailure(
             })
             .where(eq(outgoingSms.id, smsId));
     } else {
-        logError("SMS failed permanently (JIT)", new Error(result.error || "Unknown error"), {
+        logPermanentSmsFailure("SMS failed permanently (JIT)", result, {
             smsId,
             parcelId,
             attempts: currentAttempt,
@@ -1736,11 +1778,15 @@ export async function sendEndedSmsForHousehold(household: {
     }
 
     // Step 2: Send SMS
+    let providerCallCompleted = false;
+    let providerReturnedFailure = false;
     try {
         const result = await sendSmsViaGateway({
             to: phoneToUse,
             text: textToUse,
         });
+        providerCallCompleted = true;
+        providerReturnedFailure = !result.success;
 
         // Step 3: Update record with final status
         if (result.success) {
@@ -1766,9 +1812,22 @@ export async function sendEndedSmsForHousehold(household: {
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        logError("Failed to send food parcels ended SMS", error, {
-            householdId: household.householdId,
-        });
+        if (!providerCallCompleted) {
+            logger.error(
+                { smsId: id, householdId: household.householdId },
+                "SMS provider request failed unexpectedly for food parcels ended notification",
+            );
+        } else if (providerReturnedFailure) {
+            logger.error(
+                { smsId: id, householdId: household.householdId },
+                "Failed to process SMS provider failure for food parcels ended notification",
+            );
+        } else {
+            logError("Failed to send food parcels ended SMS", error, {
+                smsId: id,
+                householdId: household.householdId,
+            });
+        }
 
         // Handle exception with retry logic
         await handleEndedSmsFailure(id, household.householdId, {
@@ -1827,15 +1886,11 @@ async function handleEndedSmsFailure(
             })
             .where(eq(outgoingSms.id, smsId));
     } else {
-        logError(
-            "Food parcels ended SMS failed permanently",
-            new Error(result.error || "Unknown error"),
-            {
-                smsId,
-                householdId,
-                attempts: currentAttempt,
-            },
-        );
+        logPermanentSmsFailure("Food parcels ended SMS failed permanently", result, {
+            smsId,
+            householdId,
+            attempts: currentAttempt,
+        });
 
         await db
             .update(outgoingSms)
@@ -2081,8 +2136,8 @@ export async function getAvailableCredits(): Promise<number | null> {
         if (result.success && typeof result.credits === "number") {
             return result.credits;
         }
-    } catch (error) {
-        logger.warn({ error }, "Balance check failed, proceeding without credit limit");
+    } catch {
+        logger.warn("Balance check failed, proceeding without credit limit");
     }
     return null; // fail-open
 }
@@ -2181,7 +2236,8 @@ export async function reconcileStaleMessages(): Promise<{
         const conversation = await fetchConversationViaGateway(phone);
 
         if (!conversation.success) {
-            errors.push(`${phone}: ${conversation.error}`);
+            const smsIds = records.map(record => record.id).join(", ");
+            errors.push(`${smsIds}: provider conversation request failed`);
             continue;
         }
 
@@ -2214,7 +2270,7 @@ export async function reconcileStaleMessages(): Promise<{
                 )
             ) {
                 logger.warn(
-                    { smsId: record.id, phone, rawStatus: match.status },
+                    { smsId: record.id },
                     "SMS reconciliation: unknown provider status from conversation API, skipping",
                 );
                 continue;
@@ -2240,7 +2296,7 @@ export async function reconcileStaleMessages(): Promise<{
                 if (updated.length > 0) {
                     reconciled++;
                     logger.info(
-                        { smsId: record.id, phone, providerStatus: normalizedStatus },
+                        { smsId: record.id, providerStatus: normalizedStatus },
                         "SMS delivery status reconciled via conversation API (callback was missing)",
                     );
                 } else {
@@ -2253,9 +2309,7 @@ export async function reconcileStaleMessages(): Promise<{
                 logError("SMS reconciliation: failed to update record", updateError, {
                     smsId: record.id,
                 });
-                errors.push(
-                    `${record.id}: ${updateError instanceof Error ? updateError.message : "DB update failed"}`,
-                );
+                errors.push(`${record.id}: database update failed`);
             }
         }
 
