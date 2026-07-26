@@ -308,6 +308,65 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
             );
         });
 
+        it("does not log the provider message ID when persisting success fails", async () => {
+            const phone = "+46709990013";
+            const providerMessageId =
+                "SENTINEL_PROVIDER_MESSAGE_ID_AFTER_SUCCESS_phone_46709990013_body_secret";
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: phone,
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+            const tomorrow = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+            const mockGateway = new MockSmsGateway();
+            vi.spyOn(mockGateway, "send").mockResolvedValue({
+                success: true,
+                messageId: providerMessageId,
+            });
+            setSmsGateway(mockGateway);
+            const errorLogSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+
+            const result = await sendReminderForParcel({
+                parcelId: parcel.id,
+                householdId: household.id,
+                phone,
+                locale: "sv",
+                pickupDate: tomorrow,
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                recordId: expect.any(String),
+            });
+            expect(result.error).toContain(providerMessageId);
+
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+            expect(smsRecord.status).toBe("retrying");
+            expect(smsRecord.last_error_message).toContain(providerMessageId);
+
+            const logged = JSON.stringify(errorLogSpy.mock.calls);
+            expect(logged).not.toContain(providerMessageId);
+            expect(logged).not.toContain(phone);
+            expect(logged).not.toContain("body_secret");
+            expect(errorLogSpy).toHaveBeenCalledWith(
+                {
+                    smsId: result.recordId,
+                    parcelId: parcel.id,
+                },
+                "Failed to persist sent SMS status (JIT)",
+            );
+        });
+
         it("retry via sendSmsRecord succeeds after initial failure", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold({

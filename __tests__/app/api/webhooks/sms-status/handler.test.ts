@@ -4,9 +4,11 @@ import type { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
     updateSmsProviderStatus: vi.fn(),
     debug: vi.fn(),
+    error: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     logError: vi.fn(),
+    sendSmsHealthAlert: vi.fn(),
 }));
 
 vi.mock("@/app/utils/sms/sms-service", () => ({
@@ -16,10 +18,15 @@ vi.mock("@/app/utils/sms/sms-service", () => ({
 vi.mock("@/app/utils/logger", () => ({
     logger: {
         debug: mocks.debug,
+        error: mocks.error,
         info: mocks.info,
         warn: mocks.warn,
     },
     logError: mocks.logError,
+}));
+
+vi.mock("@/app/utils/notifications/slack", () => ({
+    sendSmsHealthAlert: mocks.sendSmsHealthAlert,
 }));
 
 import { handleSmsStatusCallback } from "@/app/api/webhooks/sms-status/handler";
@@ -110,5 +117,52 @@ describe("SMS status callback logging", () => {
             "SMS status callback for unknown or already processed message",
         );
         expect(JSON.stringify(mocks.debug.mock.calls)).not.toContain(messageId);
+    });
+
+    it("omits database query parameters from logs and Slack alerts", async () => {
+        const messageId =
+            "SENTINEL_CALLBACK_DB_MESSAGE_ID phone=+46709990012 body=SENTINEL_CALLBACK_DB_BODY";
+        const databaseError = new Error(
+            `Failed query: update outgoing_sms\nparams: delivered,${messageId}`,
+        );
+        mocks.updateSmsProviderStatus.mockRejectedValue(databaseError);
+        const request = {
+            json: vi.fn().mockResolvedValue({
+                apiMessageId: messageId,
+                status: "delivered",
+            }),
+        } as unknown as NextRequest;
+
+        const response = await handleSmsStatusCallback(
+            request,
+            "/api/webhooks/sms-status/[secret]",
+        );
+
+        expect(response.status).toBe(200);
+        expect(mocks.error).toHaveBeenCalledWith(
+            {
+                method: "POST",
+                path: "/api/webhooks/sms-status/[secret]",
+            },
+            "Error processing SMS status callback",
+        );
+        await vi.waitFor(() => {
+            expect(mocks.sendSmsHealthAlert).toHaveBeenCalledWith(false, {
+                error: "SMS status callback processing failed",
+                component: "sms-webhook",
+            });
+        });
+
+        const emitted = JSON.stringify([
+            ...mocks.debug.mock.calls,
+            ...mocks.error.mock.calls,
+            ...mocks.info.mock.calls,
+            ...mocks.warn.mock.calls,
+            ...mocks.logError.mock.calls,
+            ...mocks.sendSmsHealthAlert.mock.calls,
+        ]);
+        expect(emitted).not.toContain(messageId);
+        expect(emitted).not.toContain("+46709990012");
+        expect(emitted).not.toContain("SENTINEL_CALLBACK_DB_BODY");
     });
 });

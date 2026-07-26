@@ -1138,10 +1138,13 @@ export async function sendReminderForParcel(parcel: {
                 "Failed to process SMS provider failure (JIT)",
             );
         } else {
-            logError("Failed to send SMS (JIT)", error, {
-                smsId: id,
-                parcelId: parcel.parcelId,
-            });
+            logger.error(
+                {
+                    smsId: id,
+                    parcelId: parcel.parcelId,
+                },
+                "Failed to persist sent SMS status (JIT)",
+            );
         }
 
         // Handle exception with retry logic (treat as retriable if pickup hasn't passed)
@@ -1823,10 +1826,13 @@ export async function sendEndedSmsForHousehold(household: {
                 "Failed to process SMS provider failure for food parcels ended notification",
             );
         } else {
-            logError("Failed to send food parcels ended SMS", error, {
-                smsId: id,
-                householdId: household.householdId,
-            });
+            logger.error(
+                {
+                    smsId: id,
+                    householdId: household.householdId,
+                },
+                "Failed to persist sent food parcels ended SMS status",
+            );
         }
 
         // Handle exception with retry logic

@@ -9,7 +9,7 @@
  * IMPORTANT: Uses shared TEST_NOW for deterministic testing.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -28,6 +28,7 @@ import { eq } from "drizzle-orm";
 import { getHouseholdsForEndedNotification } from "@/app/utils/sms/sms-service";
 import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
 import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
+import { logger } from "@/app/utils/logger";
 
 describe("Food Parcels Ended SMS - Integration Tests", () => {
     beforeEach(() => {
@@ -41,6 +42,7 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
     afterEach(() => {
         // Reset SMS gateway after each test
         resetSmsGateway();
+        vi.restoreAllMocks();
     });
 
     describe("Eligibility Query", () => {
@@ -497,6 +499,66 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
 
             // Verify mock was called exactly once
             expect(mockGateway.getCallCount()).toBe(1);
+        });
+
+        it("does not log the provider message ID when persisting success fails", async () => {
+            const phone = "+46709990014";
+            const providerMessageId =
+                "SENTINEL_ENDED_PROVIDER_ID_AFTER_SUCCESS_phone_46709990014_body_secret";
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: phone,
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+            const threeDaysAgo = daysFromTestNow(-3);
+            const parcel = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: threeDaysAgo,
+                pickup_date_time_latest: new Date(threeDaysAgo.getTime() + 30 * 60 * 1000),
+                picked_up_at: hoursFromTestNow(-49),
+            });
+            const mockGateway = new MockSmsGateway();
+            vi.spyOn(mockGateway, "send").mockResolvedValue({
+                success: true,
+                messageId: providerMessageId,
+            });
+            setSmsGateway(mockGateway);
+            const errorLogSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+            const { sendEndedSmsForHousehold } = await import("@/app/utils/sms/sms-service");
+
+            const result = await sendEndedSmsForHousehold({
+                householdId: household.id,
+                phoneNumber: phone,
+                locale: "sv",
+                lastParcelId: parcel.id,
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                recordId: expect.any(String),
+            });
+            expect(result.error).toContain(providerMessageId);
+
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+            expect(smsRecord.status).toBe("retrying");
+            expect(smsRecord.last_error_message).toContain(providerMessageId);
+
+            const logged = JSON.stringify(errorLogSpy.mock.calls);
+            expect(logged).not.toContain(providerMessageId);
+            expect(logged).not.toContain(phone);
+            expect(logged).not.toContain("body_secret");
+            expect(errorLogSpy).toHaveBeenCalledWith(
+                {
+                    smsId: result.recordId,
+                    householdId: household.id,
+                },
+                "Failed to persist sent food parcels ended SMS status",
+            );
         });
 
         it("respects idempotency - does not create duplicate SMS", async () => {
