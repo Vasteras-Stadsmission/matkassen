@@ -27,6 +27,7 @@ import { eq } from "drizzle-orm";
 import { MockSmsGateway } from "@/app/utils/sms/mock-sms-gateway";
 import { setSmsGateway, resetSmsGateway } from "@/app/utils/sms/sms-gateway";
 import { sendSmsRecord, getSmsRecordsReadyForSending } from "@/app/utils/sms/sms-service";
+import { logger } from "@/app/utils/logger";
 
 describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
     beforeEach(() => {
@@ -38,6 +39,7 @@ describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
 
     afterEach(() => {
         resetSmsGateway();
+        vi.restoreAllMocks();
     });
 
     describe("Successful Send", () => {
@@ -248,9 +250,17 @@ describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
 
     describe("Max Attempts", () => {
         it("stops retrying and marks failed after max attempts (3)", async () => {
+            const phone = "+46709990001";
+            const smsBody = "SENTINEL_SMS_BODY_QUEUE";
+            const credential = "SENTINEL_PROVIDER_CREDENTIAL_QUEUE";
+            const authorization = "Basic SENTINEL_AUTHORIZATION_QUEUE";
+            const providerError =
+                `SENTINEL_PROVIDER_ERROR_QUEUE phone=${phone} body=${smsBody} ` +
+                `credential=${credential} authorization=${authorization}`;
+            const errorLogSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
             const db = await getTestDb();
             const household = await createTestHousehold({
-                phone_number: "+46701234567",
+                phone_number: phone,
             });
             const { location } = await createTestLocationWithSchedule();
 
@@ -269,9 +279,10 @@ describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
                 status: "retrying",
                 attempt_count: 2,
                 next_attempt_at: new Date(),
+                text: smsBody,
             });
 
-            const mockGateway = new MockSmsGateway().alwaysFail("Still failing", 503);
+            const mockGateway = new MockSmsGateway().alwaysFail(providerError, 503);
             setSmsGateway(mockGateway);
 
             const readyRecords = await getSmsRecordsReadyForSending();
@@ -290,6 +301,22 @@ describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
             expect(updatedRecord.status).toBe("failed");
             expect(updatedRecord.attempt_count).toBe(3);
             expect(updatedRecord.next_attempt_at).toBeNull(); // No more retries
+            expect(updatedRecord.last_error_message).toBe(providerError);
+
+            const logged = JSON.stringify(errorLogSpy.mock.calls);
+            expect(logged).not.toContain(phone);
+            expect(logged).not.toContain(smsBody);
+            expect(logged).not.toContain(credential);
+            expect(logged).not.toContain(authorization);
+            expect(logged).not.toContain(providerError);
+            expect(errorLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    smsId: sms.id,
+                    providerHttpStatus: 503,
+                    attempts: 3,
+                }),
+                "SMS failed permanently",
+            );
         });
     });
 

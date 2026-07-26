@@ -29,6 +29,7 @@ import {
     sendSmsRecord,
     getSmsRecordsReadyForSending,
 } from "@/app/utils/sms/sms-service";
+import { logger } from "@/app/utils/logger";
 
 describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
     beforeEach(() => {
@@ -40,6 +41,7 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
 
     afterEach(() => {
         resetSmsGateway();
+        vi.restoreAllMocks();
     });
 
     describe("Success Scenarios", () => {
@@ -249,6 +251,122 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
             expect(smsRecord.attempt_count).toBe(1);
         });
 
+        it("does not log sensitive data when the provider throws", async () => {
+            const phone = "+46709990010";
+            const smsBody = "SENTINEL_THROWN_PROVIDER_SMS_BODY";
+            const providerError =
+                `SENTINEL_THROWN_PROVIDER_ERROR phone=${phone} body=${smsBody} ` +
+                "credential=SENTINEL_THROWN_PROVIDER_CREDENTIAL";
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: phone,
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+            const tomorrow = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+            const mockGateway = new MockSmsGateway();
+            vi.spyOn(mockGateway, "send").mockRejectedValue(new Error(providerError));
+            setSmsGateway(mockGateway);
+            const errorLogSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+
+            const result = await sendReminderForParcel({
+                parcelId: parcel.id,
+                householdId: household.id,
+                phone,
+                locale: "sv",
+                pickupDate: tomorrow,
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                error: providerError,
+            });
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+            expect(smsRecord.status).toBe("retrying");
+            expect(smsRecord.last_error_message).toBe(providerError);
+
+            const logged = JSON.stringify(errorLogSpy.mock.calls);
+            expect(logged).not.toContain(phone);
+            expect(logged).not.toContain(smsBody);
+            expect(logged).not.toContain(providerError);
+            expect(logged).not.toContain("SENTINEL_THROWN_PROVIDER_CREDENTIAL");
+            expect(errorLogSpy).toHaveBeenCalledWith(
+                {
+                    smsId: result.recordId,
+                    parcelId: parcel.id,
+                },
+                "SMS provider request failed unexpectedly (JIT)",
+            );
+        });
+
+        it("does not log the provider message ID when persisting success fails", async () => {
+            const phone = "+46709990013";
+            const providerMessageId =
+                "SENTINEL_PROVIDER_MESSAGE_ID_AFTER_SUCCESS_phone_46709990013_body_secret";
+            const db = await getTestDb();
+            const household = await createTestHousehold({
+                phone_number: phone,
+                locale: "sv",
+            });
+            const { location } = await createTestLocationWithSchedule();
+            const tomorrow = daysFromTestNow(1);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: tomorrow,
+                pickup_date_time_latest: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+            });
+            const mockGateway = new MockSmsGateway();
+            vi.spyOn(mockGateway, "send").mockResolvedValue({
+                success: true,
+                messageId: providerMessageId,
+            });
+            setSmsGateway(mockGateway);
+            const errorLogSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+
+            const result = await sendReminderForParcel({
+                parcelId: parcel.id,
+                householdId: household.id,
+                phone,
+                locale: "sv",
+                pickupDate: tomorrow,
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                recordId: expect.any(String),
+            });
+            expect(result.error).toContain(providerMessageId);
+
+            const [smsRecord] = await db
+                .select()
+                .from(outgoingSms)
+                .where(eq(outgoingSms.id, result.recordId!));
+            expect(smsRecord.status).toBe("retrying");
+            expect(smsRecord.last_error_message).toContain(providerMessageId);
+
+            const logged = JSON.stringify(errorLogSpy.mock.calls);
+            expect(logged).not.toContain(providerMessageId);
+            expect(logged).not.toContain(phone);
+            expect(logged).not.toContain("body_secret");
+            expect(errorLogSpy).toHaveBeenCalledWith(
+                {
+                    smsId: result.recordId,
+                    parcelId: parcel.id,
+                },
+                "Failed to persist sent SMS status (JIT)",
+            );
+        });
+
         it("retry via sendSmsRecord succeeds after initial failure", async () => {
             const db = await getTestDb();
             const household = await createTestHousehold({
@@ -315,9 +433,14 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
 
     describe("Permanent Failure", () => {
         it("non-retriable error (400) sets status to failed immediately", async () => {
+            const phone = "+46709990002";
+            const providerError =
+                "SENTINEL_PROVIDER_ERROR_JIT credential=SENTINEL_CREDENTIAL_JIT " +
+                `phone=${phone}`;
+            const errorLogSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
             const db = await getTestDb();
             const household = await createTestHousehold({
-                phone_number: "+46701234567",
+                phone_number: phone,
                 locale: "sv",
             });
             const { location } = await createTestLocationWithSchedule();
@@ -331,13 +454,13 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
             });
 
             // Mock gateway that fails with permanent error
-            const mockGateway = new MockSmsGateway().alwaysFail("Invalid phone number", 400);
+            const mockGateway = new MockSmsGateway().alwaysFail(providerError, 400);
             setSmsGateway(mockGateway);
 
             const result = await sendReminderForParcel({
                 parcelId: parcel.id,
                 householdId: household.id,
-                phone: "+46701234567",
+                phone,
                 locale: "sv",
                 pickupDate: tomorrow,
             });
@@ -352,11 +475,24 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
                 .where(eq(outgoingSms.id, result.recordId!));
 
             expect(smsRecord.status).toBe("failed");
-            expect(smsRecord.last_error_message).toContain("Invalid phone");
+            expect(smsRecord.last_error_message).toBe(providerError);
             expect(smsRecord.next_attempt_at).toBeNull();
 
             // Mock was called only once (no retry)
             expect(mockGateway.getCallCount()).toBe(1);
+
+            const logged = JSON.stringify(errorLogSpy.mock.calls);
+            expect(logged).not.toContain(phone);
+            expect(logged).not.toContain(providerError);
+            expect(logged).not.toContain("SENTINEL_CREDENTIAL_JIT");
+            expect(errorLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    smsId: result.recordId,
+                    parcelId: parcel.id,
+                    providerHttpStatus: 400,
+                }),
+                "SMS failed permanently (JIT)",
+            );
         });
     });
 

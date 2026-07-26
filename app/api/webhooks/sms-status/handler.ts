@@ -56,10 +56,7 @@ export async function handleSmsStatusCallback(
         // Extract and validate the status
         const status = body.status;
         if (!isValidStatus(status)) {
-            logger.warn(
-                { messageId, statusType: typeof status },
-                "SMS status callback has invalid status",
-            );
+            logger.warn({ statusType: typeof status }, "SMS status callback has invalid status");
             return NextResponse.json({ error: "Invalid status" }, { status: 400 });
         }
 
@@ -67,32 +64,32 @@ export async function handleSmsStatusCallback(
         const updated = await updateSmsProviderStatus(messageId, status);
 
         if (updated) {
-            logger.info(
-                { messageId, status, callbackRef: body.callbackRef },
-                "SMS provider status updated via callback",
-            );
+            logger.info({ status }, "SMS provider status updated via callback");
         } else {
             // This is not necessarily an error - the message might be old or already processed
             logger.debug(
-                { messageId, status },
+                { status },
                 "SMS status callback for unknown or already processed message",
             );
         }
 
         // Always return 200 for valid payloads to prevent HelloSMS retries
         return NextResponse.json({ received: true }, { status: 200 });
-    } catch (error) {
-        logError("Error processing SMS status callback", error, {
-            method: "POST",
-            path: logPath,
-        });
+    } catch {
+        logger.error(
+            {
+                method: "POST",
+                path: logPath,
+            },
+            "Error processing SMS status callback",
+        );
 
         // Alert to Slack so webhook processing failures are visible.
         // Uses state-transition pattern to avoid flooding Slack during a DB outage.
         import("@/app/utils/notifications/slack")
             .then(({ sendSmsHealthAlert }) =>
                 sendSmsHealthAlert(false, {
-                    error: error instanceof Error ? error.message : String(error),
+                    error: "SMS status callback processing failed",
                     component: "sms-webhook",
                 }),
             )
