@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+# Configure persistent, bounded systemd journal storage on a Matkassen VPS.
+#
+# deploy.sh and update.sh call this as root before replacing Docker containers.
+# It is safe to rerun: unchanged policy avoids a restart, while an interrupted
+# policy update forces the next run to finish loading it.
+#
+# Usage: sudo ./scripts/configure-journald.sh
+#
+# The script verifies the effective policy and a persistent canary. It does not
+# change Docker logging drivers, delete journal records, or export logs off-host.
+
 set -euo pipefail
 
 export LC_ALL=C
@@ -7,6 +18,7 @@ export LC_ALL=C
 readonly CONFIG_DIR="/etc/systemd/journald.conf.d"
 readonly CONFIG_FILE="$CONFIG_DIR/90-matkassen-retention.conf"
 readonly JOURNAL_DIR="/var/log/journal"
+readonly RESTART_REQUIRED_FILE="/run/matkassen-journald-restart-required"
 
 if [[ "$(id -u)" -ne 0 ]]; then
     echo "This script must be run as root (for example with sudo)." >&2
@@ -36,20 +48,8 @@ printf '%s\n' \
     "Storage=persistent" \
     "SystemMaxUse=2G" \
     "SystemKeepFree=5G" \
+    "MaxRetentionSec=0" \
     "Compress=yes" >"$desired_config"
-
-install -d -o root -g root -m 0755 "$CONFIG_DIR"
-
-config_changed=false
-if [[ ! -f "$CONFIG_FILE" ]] ||
-    ! cmp -s "$desired_config" "$CONFIG_FILE" ||
-    [[ "$(stat -c '%u:%g:%a' "$CONFIG_FILE")" != "0:0:644" ]]; then
-    pending_config="$(mktemp "$CONFIG_DIR/.90-matkassen-retention.conf.XXXXXX")"
-    install -o root -g root -m 0644 "$desired_config" "$pending_config"
-    mv -f "$pending_config" "$CONFIG_FILE"
-    pending_config=""
-    config_changed=true
-fi
 
 mkdir -p "$JOURNAL_DIR"
 systemd-tmpfiles --create --prefix "$JOURNAL_DIR"
@@ -69,7 +69,25 @@ if find "$JOURNAL_DIR" -maxdepth 0 -perm -0002 -print -quit | grep -q .; then
     exit 1
 fi
 
-if [[ "$config_changed" == "true" ]]; then
+install -d -o root -g root -m 0755 "$CONFIG_DIR"
+
+config_changed=false
+if [[ ! -f "$CONFIG_FILE" ]] ||
+    ! cmp -s "$desired_config" "$CONFIG_FILE" ||
+    [[ "$(stat -c '%u:%g:%a' "$CONFIG_FILE")" != "0:0:644" ]]; then
+    # Keep this marker until the restarted service is confirmed active. If this
+    # run is interrupted after installing the drop-in, the next run must not
+    # mistake matching file content for a policy already loaded by journald.
+    install -o root -g root -m 0600 /dev/null "$RESTART_REQUIRED_FILE"
+
+    pending_config="$(mktemp "$CONFIG_DIR/.90-matkassen-retention.conf.XXXXXX")"
+    install -o root -g root -m 0644 "$desired_config" "$pending_config"
+    mv -f "$pending_config" "$CONFIG_FILE"
+    pending_config=""
+    config_changed=true
+fi
+
+if [[ "$config_changed" == "true" || -f "$RESTART_REQUIRED_FILE" ]]; then
     echo "Journald retention policy changed; restarting systemd-journald..."
     systemctl restart systemd-journald
 else
@@ -80,6 +98,8 @@ if ! systemctl is-active --quiet systemd-journald; then
     echo "systemd-journald is not active after configuration." >&2
     exit 1
 fi
+
+rm -f "$RESTART_REQUIRED_FILE"
 
 journalctl --flush
 
@@ -123,6 +143,7 @@ assert_effective_value() {
 assert_effective_value "Storage" "persistent"
 assert_effective_value "SystemMaxUse" "2G"
 assert_effective_value "SystemKeepFree" "5G"
+assert_effective_value "MaxRetentionSec" "0"
 assert_effective_value "Compress" "yes"
 
 canary="matkassen-journal-canary-$(date +%s)-$$"
