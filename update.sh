@@ -154,6 +154,9 @@ echo "Validating nginx configuration..."
 sudo nginx -t
 echo "✅ Nginx configuration updated and validated"
 
+echo "Configuring bounded persistent journal storage..."
+sudo "$APP_DIR/scripts/configure-journald.sh"
+
 # Pull and restart the Docker containers
 echo "Pulling latest Docker images from GitHub Container Registry..."
 cd "$APP_DIR"

@@ -323,6 +323,9 @@ sudo systemctl restart nginx
 # Build and run the Docker containers from the app directory
 cd "$APP_DIR"
 
+echo "Configuring bounded persistent journal storage..."
+sudo "$APP_DIR/scripts/configure-journald.sh"
+
 # Stop and remove existing containers to ensure clean state
 echo "Stopping existing containers (if any)..."
 sudo docker compose down || true
