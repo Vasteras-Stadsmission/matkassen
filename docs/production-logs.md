@@ -1,317 +1,306 @@
 # Production Logs Guide
 
-This guide covers viewing and analyzing logs from the production Matkassen instance running on your VPS.
+This guide covers viewing and analyzing logs from the production Matkassen
+instance running on the VPS.
 
-## Overview
+## Where logs live
 
-Matkassen uses [Pino](https://getpino.io/) for structured JSON logging. All server-side operations are logged as JSON for easy parsing and analysis.
+Matkassen uses [Pino](https://getpino.io/) for structured JSON logging.
+Production output from the `web` and `db-backup` containers is stored in the
+host's persistent system journal. PostgreSQL keeps its existing Docker log
+configuration.
 
-**Log format:**
+| Source                   | Best access method                                            | Survives container replacement |
+| ------------------------ | ------------------------------------------------------------- | ------------------------------ |
+| Web, current deployment  | `sudo docker compose logs web`                                | No                             |
+| Web, retained history    | `sudo journalctl CONTAINER_NAME=matkassen-web-1 -o cat`       | Yes                            |
+| Backup, current instance | `./scripts/backup-manage.sh logs`                             | No                             |
+| Backup, retained history | `sudo journalctl CONTAINER_NAME=matkassen-db-backup-1 -o cat` | Yes                            |
+| Nginx                    | `/var/log/nginx/access.log` and `/var/log/nginx/error.log`    | Managed separately             |
+| Deployment workflows     | GitHub Actions                                                | Managed by GitHub              |
+
+`docker compose logs` remains convenient for the currently running container.
+Use `journalctl` whenever an investigation must include earlier deployments or
+deleted container instances.
+
+Application Pino JSON is stored in journald's `MESSAGE` field. The `-o cat`
+option prints that field alone so existing `jq -R` filters continue to work.
+
+## Install or refresh the VPS shortcuts
+
+After this version is deployed, run the installer once on each VPS. Existing
+installations must rerun it to replace the old Docker-only shortcuts:
+
+```bash
+cd /home/ubuntu/matkassen
+bash scripts/setup-vps-aliases.sh
+source ~/.bashrc
+```
+
+The installer backs up `.bashrc` and idempotently replaces only its
+marker-delimited Matkassen block. It also migrates the legacy block installed
+by older versions without changing unrelated shell configuration.
+
+## Common aliases
+
+```bash
+# Retained web history
+logs
+logs-100
+logs-1000
+logs-1h
+logs-today
+
+# Live output
+logs-tail
+
+# Readable or filtered retained history
+logs-simple
+logs-errors-simple
+logs-errors
+logs-warnings
+logs-errors-1h
+
+# Search and aggregate
+logs-search "SMS"
+logs-error-count
+logs-level-count
+logs-sms
+logs-scheduler
+logs-health
+
+# Backup history and journal capacity
+logs-backup-24h
+logs-disk-usage
+
+# Explicitly limited to the current web container
+logs-current
+logs-current-tail
+```
+
+## Manual retained-history commands
+
+```bash
+# All retained web application output
+sudo journalctl CONTAINER_NAME=matkassen-web-1 --no-pager -o cat
+
+# Last seven days
+sudo journalctl CONTAINER_NAME=matkassen-web-1 \
+    --since "7 days ago" --no-pager -o cat
+
+# Live application output
+sudo journalctl CONTAINER_NAME=matkassen-web-1 -f -o cat
+
+# Last 100 entries
+sudo journalctl CONTAINER_NAME=matkassen-web-1 \
+    -n 100 --no-pager -o cat
+
+# A specific interval
+sudo journalctl CONTAINER_NAME=matkassen-web-1 \
+    --since "2026-07-25 18:00:00" \
+    --until "2026-07-25 19:00:00" \
+    --no-pager -o cat
+
+# Backup output from the last 24 hours
+sudo journalctl CONTAINER_NAME=matkassen-db-backup-1 \
+    --since "24 hours ago" --no-pager -o cat
+```
+
+The stable `CONTAINER_NAME` match includes records from both old and new
+instances. Use `CONTAINER_ID_FULL` when an investigation needs one exact
+container:
+
+```bash
+sudo journalctl CONTAINER_NAME=matkassen-web-1 \
+    -o json | jq -r '.CONTAINER_ID_FULL' | sort -u
+
+sudo journalctl CONTAINER_ID_FULL=<full-container-id> --no-pager -o cat
+```
+
+Logs written before the journald driver was enabled are not migrated into the
+journal.
+
+## Current-deployment convenience
+
+These Docker commands read the current container only:
+
+```bash
+sudo docker compose logs web
+sudo docker compose logs -f web
+sudo docker compose logs --tail=100 web
+sudo docker compose logs --since=1h web
+```
+
+For the current backup container:
+
+```bash
+sudo docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.backup.yml \
+    --profile backup logs -f db-backup
+```
+
+## Understanding and filtering Pino output
+
+A typical line is structured JSON:
 
 ```json
 {
     "level": "INFO",
-    "time": "2025-11-07T17:26:57.845Z",
-    "msg": "SMS Test Mode explicitly configured",
-    "testMode": true
+    "time": "2026-07-25T17:26:57.845Z",
+    "msg": "SMS sent successfully",
+    "smsId": "example-id"
 }
 ```
 
-## Quick Setup (One-Time)
+Common fields include:
 
-On your VPS, run this script to install helpful log viewing aliases:
+- `level`: `DEBUG`, `INFO`, `WARN`, `ERROR`, or `FATAL`.
+- `time`: an ISO 8601 UTC timestamp generated by the application.
+- `msg`: the human-readable event.
+- Operational context such as `householdId`, `parcelId`, `smsId`, `intent`,
+  `job`, or `status`.
 
-```bash
-# SSH to your VPS
-ssh your-vps
-
-# Clone/pull the repo if needed, then run:
-cd /path/to/matkassen
-bash scripts/setup-vps-aliases.sh
-```
-
-This adds convenient shortcuts to your `~/.bashrc` for viewing logs.
-
-## Common Commands
-
-### Basic Viewing
+Use raw-input mode because startup output can contain non-JSON lines:
 
 ```bash
-# View all logs
-logs
+# Errors or warnings
+sudo journalctl CONTAINER_NAME=matkassen-web-1 --no-pager -o cat |
+    jq -R 'fromjson? | select(.level == "ERROR" or .level == "WARN")' -C
 
-# Live tail (follow mode)
-logs-tail
+# Compact timestamp, level, and message
+sudo journalctl CONTAINER_NAME=matkassen-web-1 --no-pager -o cat |
+    jq -R -r 'fromjson? | select(. != null) | "\(.time) [\(.level)] \(.msg)"'
 
-# Last 100 lines
-logs-100
+# SMS errors from the last hour
+sudo journalctl CONTAINER_NAME=matkassen-web-1 \
+    --since "1 hour ago" --no-pager -o cat |
+    jq -R 'fromjson? | select(.level == "ERROR" and (.msg | contains("SMS")))'
 
-# Last 1000 lines
-logs-1000
-```
-
-### Filtered Views
-
-```bash
-# Simple readable format (best for browsing)
-logs-simple
-
-# Only errors (clean format)
-logs-errors-simple
-
-# Errors with full JSON context
-logs-errors
-
-# Warnings and errors
-logs-warnings
-
-# Errors from the last hour
-logs-errors-1h
-
-# Logs from today
-logs-today
-```
-
-### Search and Analysis
-
-```bash
-# Search for text with 5 lines of context
-logs-search "SMS"
-logs-search "household"
-logs-search "parcel"
+# One household ID
+sudo journalctl CONTAINER_NAME=matkassen-web-1 --no-pager -o cat |
+    jq -R 'fromjson? | select(.householdId == "abc123")'
 
 # Count errors by message
-logs-error-count
-
-# Count logs by level
-logs-level-count
+sudo journalctl CONTAINER_NAME=matkassen-web-1 --no-pager -o cat |
+    jq -R -r 'fromjson? | select(.level == "ERROR") | .msg' |
+    sort | uniq -c | sort -rn
 ```
 
-### Application-Specific
+`fromjson?` intentionally discards non-JSON lines instead of failing the
+pipeline. Add `-C` to `jq` when color is useful in a terminal.
+
+## Retention and disk safety
+
+The repository-managed host policy configures:
+
+```ini
+[Journal]
+Storage=persistent
+SystemMaxUse=2G
+SystemKeepFree=5G
+MaxRetentionSec=0
+Compress=yes
+```
+
+The 2 GB cap applies to the whole system journal, including important host
+security logs. Production measurements indicate that normal volume should
+comfortably exceed the 30-day troubleshooting target, but 30 days is not a
+hard guarantee. A noisy incident or low free space can shorten the available
+history.
+
+`MaxRetentionSec=0` explicitly disables global time-based deletion because the
+host security records are not retained anywhere else. The database backups
+stored in Swift do not contain these operational or security logs.
+
+Check current usage and effective configuration with:
 
 ```bash
-# SMS-related logs
-logs-sms
-
-# Cron job / scheduler logs
-logs-scheduler
-
-# Health check logs
-logs-health
+sudo journalctl --disk-usage
+sudo systemd-analyze cat-config systemd/journald.conf
 ```
 
-## Manual Commands (No Aliases)
+Do not run journal vacuum commands during normal setup or deployment. Journald
+enforces the configured size and free-space limits itself.
 
-If you don't want to install aliases, use these raw Docker commands:
+## Verify a deployment
+
+Confirm the active logging drivers:
 
 ```bash
-# View all logs
-sudo docker logs matkassen-web-1
+sudo docker inspect \
+    --format '{{.HostConfig.LogConfig.Type}}' \
+    matkassen-web-1
 
-# Live tail
-sudo docker logs -f matkassen-web-1
+sudo docker inspect \
+    --format '{{.HostConfig.LogConfig.Type}}' \
+    matkassen-db-backup-1
 
-# Last 100 lines
-sudo docker logs --tail=100 matkassen-web-1
-
-# Errors only (JSON)
-sudo docker logs matkassen-web-1 | jq -R 'fromjson? | select(.level == "ERROR")' -C
-
-# Simple format
-sudo docker logs matkassen-web-1 | jq -R -r 'fromjson? | select(. != null) | "\(.time) [\(.level)] \(.msg)"'
-
-# Last hour
-sudo docker logs --since=1h matkassen-web-1
-
-# Search with grep
-sudo docker logs matkassen-web-1 | grep -i "SMS" -C 5
+sudo docker inspect \
+    --format '{{.HostConfig.LogConfig.Type}}' \
+    matkassen-db-1
 ```
 
-## Understanding the Output
+The expected results are `journald`, `journald`, and the database's unchanged
+`json-file` driver respectively. The `db-backup` container is disabled on
+staging by policy, so skip that live-container check there; its Compose
+configuration is validated in CI and its active driver is verified during the
+production rollout.
 
-### JSON Fields
+The staging acceptance test must prove history rather than only current
+output:
 
-- **level**: Log severity (DEBUG, INFO, WARN, ERROR, FATAL)
-- **time**: ISO 8601 timestamp in UTC
-- **msg**: Human-readable message
-- **Additional fields**: Context-specific data (householdId, parcelId, etc.)
+1. Identify a unique web log entry and confirm it is visible through
+   `journalctl`.
+2. Record the current full container ID.
+3. Recreate only `web`, then confirm its full ID changed.
+4. Remove the old container if it still exists.
+5. Query the unique entry again by `CONTAINER_NAME`.
+6. Restart `systemd-journald` and confirm new application output continues.
 
-### Log Levels
+Do not approve the production rollout until this test passes on staging.
 
-| Level | Purpose              | Example                               |
-| ----- | -------------------- | ------------------------------------- |
-| DEBUG | Development details  | "SMS queue processing lock acquired"  |
-| INFO  | Normal operations    | "SMS sent successfully"               |
-| WARN  | Warnings, not errors | "SMS test mode enabled in production" |
-| ERROR | Failed operations    | "Failed to send SMS"                  |
-| FATAL | Critical failures    | "Database connection lost"            |
+## Other log sources
 
-### Common Patterns
-
-**SMS Operations:**
-
-```json
-{"level":"INFO","time":"...","intent":"pickup_reminder","msg":"SMS sent successfully"}
-{"level":"ERROR","time":"...","intent":"pickup_reminder","msg":"Failed to send SMS"}
-```
-
-**Cron Jobs:**
-
-```json
-{"level":"INFO","time":"...","job":"anonymization","status":"started","msg":"Cron job started"}
-{"level":"INFO","time":"...","job":"anonymization","status":"completed","anonymized":5}
-```
-
-**Health Checks:**
-
-```json
-{"level":"INFO","time":"...","health":"healthy","msg":"Health check"}
-{"level":"ERROR","time":"...","health":"unhealthy","msg":"Scheduler not running"}
-```
-
-## Using jq for Advanced Queries
-
-### Filter by Multiple Criteria
+Nginx access and error logs are still file-based:
 
 ```bash
-# Errors OR warnings
-sudo docker logs matkassen-web-1 | jq -R 'fromjson? | select(.level == "ERROR" or .level == "WARN")'
-
-# SMS errors only
-sudo docker logs matkassen-web-1 | jq -R 'fromjson? | select(.level == "ERROR" and (.msg | contains("SMS")))'
-
-# Specific household
-sudo docker logs matkassen-web-1 | jq -R 'fromjson? | select(.householdId == "abc123")'
+sudo tail -f /var/log/nginx/access.log
+sudo tail -f /var/log/nginx/error.log
 ```
 
-### Extract Specific Fields
+Deployment and CI logs remain in the relevant GitHub Actions workflow run.
+Neither source is moved into the container journal by this change.
+
+## Privacy
+
+Longer retention increases the impact of accidental over-logging. Never add
+OAuth tokens, session cookies, authorization headers, credentials, database
+URLs, backup passphrases, complete phone numbers, SMS bodies, household
+personal data, or verification answers to application logs.
+
+Operational IDs can be useful for diagnosis, but access to the system journal
+must remain restricted to root and the existing privileged operator accounts.
+
+## Local development and remote analysis
+
+Local Docker development still uses Compose output:
 
 ```bash
-# Just timestamps and messages
-sudo docker logs matkassen-web-1 | jq -R -r 'fromjson? | "\(.time) \(.msg)"'
-
-# Error messages only
-sudo docker logs matkassen-web-1 | jq -R -r 'fromjson? | select(.level == "ERROR") | .msg'
-
-# Custom format
-sudo docker logs matkassen-web-1 | jq -R -r 'fromjson? | "[\(.level)] \(.msg) (household: \(.householdId // "N/A"))"'
+docker compose -f docker-compose.dev.yml logs -f
 ```
 
-### Aggregate and Count
+To analyze retained VPS output locally:
 
 ```bash
-# Count by log level
-sudo docker logs matkassen-web-1 | jq -R -r 'fromjson? | .level' | sort | uniq -c
-
-# Count errors by message
-sudo docker logs matkassen-web-1 | jq -R -r 'fromjson? | select(.level == "ERROR") | .msg' | sort | uniq -c | sort -rn
-
-# Count SMS by intent
-sudo docker logs matkassen-web-1 | jq -R -r 'fromjson? | select(.intent != null) | .intent' | sort | uniq -c
+ssh your-vps \
+    'sudo journalctl CONTAINER_NAME=matkassen-web-1 --since "1 hour ago" -o cat' |
+    jq -R 'fromjson?'
 ```
 
-## Time-Based Filtering
-
-Docker supports time filters with `--since` and `--until`:
-
-```bash
-# Last hour
-sudo docker logs --since=1h matkassen-web-1
-
-# Last 30 minutes
-sudo docker logs --since=30m matkassen-web-1
-
-# Since specific time (UTC)
-sudo docker logs --since=2025-11-07T18:00:00 matkassen-web-1
-
-# Between times
-sudo docker logs --since=2025-11-07T18:00:00 --until=2025-11-07T19:00:00 matkassen-web-1
-
-# Today's logs (UTC)
-sudo docker logs --since=$(date -u +%Y-%m-%dT00:00:00) matkassen-web-1
-```
-
-## Troubleshooting Common Issues
-
-### Non-JSON Lines in Output
-
-**Problem:** Startup messages like "▲ Next.js 15.4.7" break JSON parsing.
-
-**Solution:** Use `jq -R 'fromjson?'` - the `?` suppresses errors for non-JSON lines.
-
-```bash
-# ✅ Works with mixed output
-sudo docker logs matkassen-web-1 | jq -R 'fromjson?' -C
-
-# ❌ Fails on non-JSON
-sudo docker logs matkassen-web-1 | jq
-```
-
-### No Color in Output
-
-**Problem:** JSON output is hard to read without syntax highlighting.
-
-**Solution:** Add `-C` flag to jq for color:
-
-```bash
-sudo docker logs matkassen-web-1 | jq -R 'fromjson?' -C
-```
-
-### Too Much Output
-
-**Problem:** Thousands of log lines make it hard to find issues.
-
-**Solution:** Use filters and limits:
-
-```bash
-# Last 100 errors only
-sudo docker logs --tail=1000 matkassen-web-1 | jq -R 'fromjson? | select(.level == "ERROR")' | head -20
-
-# Errors from last hour
-sudo docker logs --since=1h matkassen-web-1 | jq -R 'fromjson? | select(.level == "ERROR")'
-```
-
-## Local Development
-
-For viewing logs while developing locally:
-
-```bash
-# If using pnpm run dev
-# Logs are automatically pretty-printed in the terminal
-
-# If using Docker locally
-docker compose logs -f app | jq -R 'fromjson?' -C
-```
-
-## Advanced: Piping from Remote to Local
-
-You can pipe VPS logs to your local machine for processing with local tools:
-
-```bash
-# Stream remote logs to local pino-pretty (if you have npm locally)
-ssh your-vps "sudo docker logs -f matkassen-web-1" | npx pino-pretty
-
-# Save remote logs locally for analysis
-ssh your-vps "sudo docker logs matkassen-web-1" > local-logs.json
-cat local-logs.json | jq -R 'fromjson? | select(.level == "ERROR")'
-```
-
-## Log Rotation
-
-Docker automatically rotates logs to prevent disk space issues. The current configuration (set in `docker-compose.yml`):
-
-```yaml
-logging:
-    driver: "json-file"
-    options:
-        max-size: "10m" # Max file size per log file
-        max-file: "3" # Keep 3 files (30MB total)
-```
-
-This keeps approximately 30MB of logs (3 × 10MB) per container.
-
-## Related Documentation
+## Related documentation
 
 - [Deployment Guide](./deployment-guide.md) - VPS deployment process
 - [Dev Guide](./dev-guide.md) - Logging in development
-- [README.md](../README.md) - Project overview
+- [Log Retention Architecture](./log-retention-architecture.md) - architecture and rollout
+- [README](../README.md) - project overview

@@ -39,9 +39,7 @@ services:
             retries: 3
             start_period: 40s
         logging:
-            options:
-                max-size: "10m"
-                max-file: "3"
+            driver: journald
 
     db:
         # Using specific PostgreSQL version for reproducible builds

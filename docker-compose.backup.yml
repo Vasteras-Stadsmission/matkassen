@@ -67,9 +67,7 @@ services:
             timeout: 10s
             retries: 3
         logging:
-            options:
-                max-size: "10m"
-                max-file: "3"
+            driver: journald
 
 networks:
     my_network:
