@@ -432,7 +432,7 @@ Matkassen uses structured JSON logging with Pino. For viewing and analyzing prod
 ### Quick Setup
 
 ```bash
-# On your VPS, run once to install log viewing shortcuts
+# On your VPS, install or refresh retained-history shortcuts
 bash scripts/setup-vps-aliases.sh
 ```
 
@@ -453,7 +453,8 @@ See [docs/production-logs.md](./docs/production-logs.md) for complete documentat
 Note that sudo is needed when executing the commands on the VPS.
 
 - `sudo docker compose ps` – check status of Docker containers
-- `sudo docker logs matkassen-web-1` – view Next.js output logs (raw)
+- `sudo journalctl CONTAINER_NAME=matkassen-web-1 -o cat` – view retained Next.js output across deployments
+- `sudo docker logs matkassen-web-1` – view output from the current Next.js container only
 - `sudo systemctl restart nginx` - restart nginx
 - `sudo docker compose exec web sh` - enter Next.js Docker container
 - `sudo docker compose exec db bash -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB"` - enter Postgres db (uses container's environment)
