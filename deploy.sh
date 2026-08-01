@@ -448,20 +448,33 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   # container (from its own env), not on the host. The host never sees
   # the password in argv, so `ps auxfww` during the exec reveals only
   # the docker command line, not secrets.
-  if sudo docker compose exec -T db bash -c '
+  if ! sudo docker compose exec -T db bash -c '
     PGPASSWORD="${POSTGRES_PASSWORD}" psql \
       -U "${POSTGRES_USER}" \
       -d "${POSTGRES_DB}" \
+      -v ON_ERROR_STOP=1 \
       -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
   ' > /dev/null 2>&1; then
-    echo "✅ CREATEDB granted to $POSTGRES_USER."
-  else
-    echo "⚠️ Failed to grant CREATEDB — nightly validation will fail until this is resolved."
+    echo "❌ Failed to grant CREATEDB. Nightly restore validation cannot run."
+    exit 1
   fi
+  CREATEDB_STATUS=$(sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -tAc "SELECT rolcreatedb FROM pg_roles WHERE rolname = current_user;"
+  ' | tr -d '[:space:]')
+  if [ "$CREATEDB_STATUS" != "t" ]; then
+    echo "❌ Database role does not have CREATEDB after the grant attempt."
+    exit 1
+  fi
+  echo "✅ CREATEDB is present for nightly backup validation."
 fi
 
-# Cleanup old Docker images and containers
-sudo docker system prune -af
+# Remove only disposable Docker data. Tagged immutable releases are retained as
+# local rollback assets; finalization retains the current and previous pair.
+sudo docker container prune -f
+sudo docker image prune -f
 
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
@@ -543,6 +556,18 @@ if [ "${ENV_NAME:-staging}" = "production" ]; then
   echo "Checking canonical www redirects..."
   verify_redirect_host "www.$DOMAIN_NAME" "$DOMAIN_NAME"
 fi
+
+# Initial deployment has no earlier externally verified state to pin. After all
+# built-in HTTP checks pass, initialize the host-side state and run the same
+# exact-image/identity/stability verification used by continuous deployments.
+DEPLOY_SHA="${DEPLOY_SHA:-$(git -C "$APP_DIR" rev-parse HEAD)}"
+chmod +x "$APP_DIR/scripts/deployment-safety.sh"
+sudo install -m 755 -o root -g root \
+  "$APP_DIR/scripts/deployment-safety.sh" \
+  /usr/local/sbin/matkassen-deployment-safety
+/usr/local/sbin/matkassen-deployment-safety prepare "$DEPLOY_SHA" "${ENV_NAME:-staging}"
+/usr/local/sbin/matkassen-deployment-safety verify "$DEPLOY_SHA" "${ENV_NAME:-staging}"
+/usr/local/sbin/matkassen-deployment-safety finalize "$DEPLOY_SHA"
 
 # Clean up any temporary files
 echo "Cleaning up temporary files..."

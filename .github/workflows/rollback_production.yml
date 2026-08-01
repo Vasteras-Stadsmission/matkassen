@@ -1,0 +1,60 @@
+name: Roll back production release
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    rollback-production:
+        runs-on: ubuntu-latest
+        environment:
+            name: production
+            url: https://matcentralen.com
+        concurrency:
+            group: deploy-production
+            cancel-in-progress: false
+        steps:
+            - name: Restore last known good production release
+              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+              with:
+                  host: ${{ secrets.SERVER_HOST_PRODUCTION }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
+                  script: |
+                      set -euo pipefail
+                      cd /home/ubuntu/matkassen
+                      flock -n /tmp/matkassen-deploy.lock \
+                          /usr/local/sbin/matkassen-deployment-safety rollback
+
+            - name: Verify rolled-back production release
+              run: |
+                  set -euo pipefail
+                  health_url="https://matcentralen.com/api/health"
+                  body=""
+
+                  for attempt in $(seq 1 30); do
+                      if body=$(curl -fsS --max-time 10 "$health_url") && \
+                          printf '%s' "$body" | python3 -c '
+                  import json
+                  import sys
+
+                  health = json.load(sys.stdin)
+                  details = health.get("checks", {}).get("schedulerDetails", {})
+                  assert health.get("status") == "healthy"
+                  assert details.get("smsTestMode") is False
+                  assert details.get("orgSyncSchedulerRunning") is True
+                  ';
+                      then
+                          echo "✅ Rolled-back production release is healthy"
+                          exit 0
+                      fi
+                      echo "Waiting for rolled-back release (attempt ${attempt}/30)"
+                      sleep 2
+                  done
+
+                  echo "❌ Rolled-back production release did not become healthy"
+                  echo "Last response: ${body}"
+                  exit 1

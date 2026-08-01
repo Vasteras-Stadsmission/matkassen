@@ -89,6 +89,22 @@ EOF
 
 Workflow: `.github/workflows/continuous_deployment.yml`
 
+Each update keeps root-owned release state in `/var/lib/matkassen-deployment`,
+outside the force-cleaned Git checkout. Before replacement, the deploy pins the
+last verified release, PostgreSQL system identifier, named volume, and migration
+position. The new release is not promoted to current until:
+
+1. web, database, and the production backup service are healthy;
+2. the immutable application and backup image revisions match the workflow SHA;
+3. the database cluster and volume are unchanged;
+4. container IDs remain stable with zero application/backup restarts during a
+   60-second soak; and
+5. the public DNS/TLS/nginx checks pass from the GitHub runner.
+
+The current and previous tagged SHA images are retained locally as rollback
+assets. Cleanup removes stopped containers, dangling layers, and older unused
+Matkassen release tags without using a broad `docker image prune -a`.
+
 ### SSH Host Identity Pinning
 
 Both deployment workflows verify the VPS host key before sending credentials or
@@ -467,9 +483,12 @@ First-time deployment:
 
 Incremental updates:
 
-- Pulls latest code
-- Rebuilds images
-- Graceful restart (zero downtime)
+- pulls the workflow's immutable images;
+- records the last verified release and pins database identity;
+- applies migrations without attempting automatic database rollback;
+- waits for the production backup scheduler to become healthy;
+- verifies exact images and stability before external checks; and
+- finalizes release state only after public verification succeeds.
 
 ## Monitoring & Health Checks
 
@@ -576,37 +595,51 @@ docker compose run --rm certbot renew --force-renewal
 ### Out of Disk Space
 
 ```bash
-# Clean up Docker
-docker system prune -a --volumes
-
-# Clean up old images
-docker image prune -a
-
 # Check disk usage
 df -h
-du -sh /var/lib/docker
+sudo docker system df
+sudo journalctl --disk-usage
+
+# Safe first cleanup: does not delete named volumes or tagged rollback images
+sudo docker container prune
+sudo docker image prune
 ```
+
+Do not use `docker system prune -a --volumes` as a routine recovery command. It
+removes rollback images and can remove unused named volumes. The deployment
+finalizer already retains only the current and previous Matkassen release tags.
+Inspect `sudo docker system df -v` before deleting anything else manually.
 
 ## Rollback Procedure
 
+Use the manually dispatched **Roll back production release** GitHub Actions
+workflow. Production environment approval is required and deployment
+concurrency prevents it from racing a normal release.
+
+The rollback selects its target without requiring a commit to be typed:
+
+- If a deployment failed before external finalization, it restores the recorded
+  last verified release.
+- If the currently verified release later proves faulty, it restores the
+  previous verified release.
+
+The same operation can be run over an existing trusted SSH connection:
+
 ```bash
-# 1. Identify last working commit
-git log --oneline
-
-# 2. SSH into server
-ssh user@your-vps
-
-# 3. Checkout previous commit
-cd /opt/matkassen
-git checkout <commit-hash>
-
-# 4. Rebuild and restart
-docker compose build
-docker compose up -d
-
-# 5. If database schema changed, restore backup
-docker exec -i matkassen-db psql -U matkassen matkassen < /var/backups/matkassen/backup-<date>.sql
+cd /home/ubuntu/matkassen
+flock -n /tmp/matkassen-deploy.lock /usr/local/sbin/matkassen-deployment-safety rollback
 ```
+
+Rollback restores the immutable application and production backup images,
+waits for container health, repeats the 60-second stability soak, persists the
+selected image tags in `.env`, and aligns the host checkout to that release.
+
+**The database is never rolled back automatically.** If migrations are ahead of
+the target application, the command reports that fact and relies on the
+documented N-1 compatibility policy. Every deploy must therefore keep the prior
+application release compatible with the migrated schema through the
+expand → migrate → contract pattern. Restoring a database backup is a separate
+disaster-recovery operation, not a normal release rollback.
 
 ## Performance Tuning
 

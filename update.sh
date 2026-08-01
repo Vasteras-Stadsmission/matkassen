@@ -44,7 +44,7 @@ notify_slack_failure() {
     [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${SLACK_CHANNEL_ID:-}" ] || return 0
     local host
     host=$(hostname)
-    local msg="[matkassen] ❌ Deploy failed (exit ${rc}) on ${host}. Site stays up on previous container; nginx restart attempted by trap. Check GH Actions logs."
+    local msg="[matkassen] ❌ Deploy failed (exit ${rc}) on ${host}. The running release may be old or new; no database rollback was attempted. Check GH Actions logs, then use the production rollback workflow if needed."
     curl -sS https://slack.com/api/chat.postMessage \
         -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
         -H "Content-type: application/json; charset=utf-8" \
@@ -62,6 +62,9 @@ cleanup() {
         sudo systemctl is-active --quiet nginx || sudo systemctl start nginx || true
     fi
     if [ "$rc" -ne 0 ]; then
+        if [ -x /usr/local/sbin/matkassen-deployment-safety ]; then
+            /usr/local/sbin/matkassen-deployment-safety status || true
+        fi
         notify_slack_failure "$rc"
     fi
 }
@@ -76,11 +79,13 @@ GITHUB_ORG=vasteras-stadsmission
 APP_DIR="/home/ubuntu/$PROJECT_NAME"
 
 cleanup_docker_resources() {
-    echo "Cleaning up unused Docker containers and images..."
+    echo "Cleaning up stopped containers and dangling image layers..."
     sudo docker container prune -f
-    sudo docker image prune -af
+    # Keep tagged sha-* release images through verification. Finalization keeps
+    # the current and previous release as the offline-capable rollback pair.
+    sudo docker image prune -f
     sudo docker system df
-    echo "✅ Docker cleanup completed"
+    echo "✅ Safe Docker cleanup completed"
 }
 
 # Idempotently harden the app directory: owner-only access. Without this,
@@ -118,6 +123,13 @@ echo "Creating .env file..."
 # shellcheck source=scripts/write-env.sh
 source "$APP_DIR/scripts/write-env.sh"
 write_env_file "$APP_DIR/.env"
+
+DEPLOY_SHA="${DEPLOY_SHA:-$(git -C "$APP_DIR" rev-parse HEAD)}"
+chmod +x "$APP_DIR/scripts/deployment-safety.sh"
+sudo install -m 755 -o root -g root \
+  "$APP_DIR/scripts/deployment-safety.sh" \
+  /usr/local/sbin/matkassen-deployment-safety
+/usr/local/sbin/matkassen-deployment-safety prepare "$DEPLOY_SHA" "${ENV_NAME:-staging}"
 
 # Check if migration files exist in the repository
 if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
@@ -160,8 +172,8 @@ sudo "$APP_DIR/scripts/configure-journald.sh"
 # Pull and restart the Docker containers
 echo "Pulling latest Docker images from GitHub Container Registry..."
 cd "$APP_DIR"
-# Free old tagged sha-* images before pulling. Waiting until after the pull
-# means a nearly-full host can fail before it reaches the existing cleanup.
+# Remove only disposable Docker data before pulling. Tagged immutable releases
+# remain available locally until verified finalization keeps the newest pair.
 cleanup_docker_resources
 if ! sudo docker compose pull; then
   echo "Failed to pull Docker images from GHCR"
@@ -169,7 +181,7 @@ if ! sudo docker compose pull; then
 fi
 
 echo "Starting Docker containers..."
-timeout 300 sudo docker compose up -d || {
+timeout 300 sudo docker compose up -d --wait --wait-timeout 300 || {
   echo "❌ Docker containers failed to start within 5 minutes"
   sudo docker compose logs
   exit 1
@@ -260,16 +272,27 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   # the password in argv, so `ps auxfww` during the exec reveals only
   # the docker command line, not secrets. The container already has
   # POSTGRES_USER/PASSWORD/DB in its env via docker-compose.yml.
-  if sudo docker compose exec -T db bash -c '
+  if ! sudo docker compose exec -T db bash -c '
     PGPASSWORD="${POSTGRES_PASSWORD}" psql \
       -U "${POSTGRES_USER}" \
       -d "${POSTGRES_DB}" \
+      -v ON_ERROR_STOP=1 \
       -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
   ' > /dev/null 2>&1; then
-    echo "✅ CREATEDB granted to $POSTGRES_USER."
-  else
-    echo "⚠️ Failed to grant CREATEDB — nightly backup validation will fail until this is resolved (run: docker compose exec db psql -U \$POSTGRES_USER -d \$POSTGRES_DB -c 'ALTER USER \"\$POSTGRES_USER\" CREATEDB;')."
+    echo "❌ Failed to grant CREATEDB. Nightly restore validation cannot run."
+    exit 1
   fi
+  CREATEDB_STATUS=$(sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -tAc "SELECT rolcreatedb FROM pg_roles WHERE rolname = current_user;"
+  ' | tr -d '[:space:]')
+  if [ "$CREATEDB_STATUS" != "t" ]; then
+    echo "❌ Database role does not have CREATEDB after the grant attempt."
+    exit 1
+  fi
+  echo "✅ CREATEDB is present for nightly backup validation."
 fi
 
 # Apply the new nginx configuration: reload if running, start if not.
@@ -297,20 +320,17 @@ else
     echo "✅ Nginx started"
 fi
 
-# Cleanup once more after Docker Compose has replaced the old app container,
-# so the image from the previous deploy becomes eligible for pruning.
-cleanup_docker_resources
-
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
   echo "Starting backup service (profile: backup)..."
   # Pull the backup image from GHCR
   sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup pull
-  # Start the backup service (explicitly specify env file location)
-  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d db-backup
-  echo "✅ Backup service started successfully"
-  cleanup_docker_resources
+  # A production update is incomplete until Supercronic stays healthy.
+  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d --wait --wait-timeout 300 db-backup
+  echo "✅ Backup service is healthy"
 fi
 
+/usr/local/sbin/matkassen-deployment-safety verify "$DEPLOY_SHA" "${ENV_NAME:-staging}"
+
 # Output final message
-echo "Update complete. Your Next.js app has been updated with the latest changes and database migrations have been applied."
+echo "Update is internally healthy. External verification must pass before this release is finalized and cleanup runs."

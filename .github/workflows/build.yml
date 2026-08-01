@@ -34,7 +34,7 @@ jobs:
             - name: Validate shell scripts
               run: |
                   echo "Validating shell scripts..."
-                  SCRIPTS=("deploy.sh" "update.sh" "scripts/backup-db.sh" "scripts/backup-restore.sh" "scripts/backup-manage.sh" "scripts/configure-journald.sh" "scripts/setup-vps-aliases.sh")
+                  SCRIPTS=("deploy.sh" "update.sh" "scripts/backup-db.sh" "scripts/backup-restore.sh" "scripts/backup-manage.sh" "scripts/configure-journald.sh" "scripts/deployment-safety.sh" "scripts/setup-vps-aliases.sh")
                   for script in "${SCRIPTS[@]}"; do
                       if [ -f "$script" ]; then
                           echo "Checking $script..."
@@ -45,6 +45,7 @@ jobs:
                           echo "$script syntax OK"
                       fi
                   done
+                  shellcheck --severity=warning scripts/deployment-safety.sh
 
             - name: Validate code (lint, typecheck, format-check)
               run: pnpm run validate
