@@ -47,4 +47,5 @@ RUN chmod +x /usr/local/bin/backup-db.sh && \
 # Switch to non-root user
 USER backupuser
 
-CMD ["supercronic", "/etc/supercronic/crontab"]
+# Keep journald priorities aligned with Supercronic's structured log levels.
+CMD ["supercronic", "-split-logs", "/etc/supercronic/crontab"]
