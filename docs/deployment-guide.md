@@ -89,21 +89,20 @@ EOF
 
 Workflow: `.github/workflows/continuous_deployment.yml`
 
-Each update keeps root-owned release state in `/var/lib/matkassen-deployment`,
-outside the force-cleaned Git checkout. Before replacement, the deploy pins the
-last verified release, PostgreSQL system identifier, named volume, and migration
-position. The new release is not promoted to current until:
+The workflow validates and tests the exact `main` commit before publishing its
+images. Routine updates replace only web and the stateless backup scheduler,
+using immutable SHA tags and `--no-deps` so Compose cannot recreate PostgreSQL.
+The update fails unless the intended image revisions are healthy, restart-free,
+and the PostgreSQL container ID remains unchanged.
 
-1. web, database, and the production backup service are healthy;
-2. the immutable application and backup image revisions match the workflow SHA;
-3. the database cluster and volume are unchanged;
-4. container IDs remain stable with zero application/backup restarts during a
-   60-second soak; and
-5. the public DNS/TLS/nginx checks pass from the GitHub runner.
+Public verification checks health and environment-specific scheduler policy,
+canonical HTTPS routing, HSTS, GitHub provider discovery, protected-page sign-in
+redirects, and unauthenticated admin rejection. Nginx, journald, Docker host
+configuration, and database recovery are deliberately outside routine
+application deployment.
 
-The current and previous tagged SHA images are retained locally as rollback
-assets. Cleanup removes stopped containers, dangling layers, and older unused
-Matkassen release tags without using a broad `docker image prune -a`.
+Cleanup removes stopped containers and dangling layers without `-a`, retaining
+tagged immutable images for the focused image-rollback follow-up.
 
 ### SSH Host Identity Pinning
 
@@ -484,11 +483,14 @@ First-time deployment:
 Incremental updates:
 
 - pulls the workflow's immutable images;
-- records the last verified release and pins database identity;
-- applies migrations without attempting automatic database rollback;
+- applies backward-compatible migrations from the candidate image while the
+  current web container remains available;
+- replaces only web and the production backup scheduler with `--no-deps`;
 - waits for the production backup scheduler to become healthy;
-- verifies exact images and stability before external checks; and
-- finalizes release state only after public verification succeeds.
+- verifies exact images, zero immediate restarts, and an unchanged PostgreSQL
+  container before external checks; and
+- leaves nginx, journald, Docker host configuration, and PostgreSQL lifecycle
+  untouched.
 
 ## Monitoring & Health Checks
 
@@ -606,40 +608,24 @@ sudo docker image prune
 ```
 
 Do not use `docker system prune -a --volumes` as a routine recovery command. It
-removes rollback images and can remove unused named volumes. The deployment
-finalizer already retains only the current and previous Matkassen release tags.
-Inspect `sudo docker system df -v` before deleting anything else manually.
+removes immutable release images and can remove unused named volumes. Inspect
+`sudo docker system df -v` before deleting anything else manually.
 
 ## Rollback Procedure
 
-Use the manually dispatched **Roll back production release** GitHub Actions
-workflow. Production environment approval is required and deployment
-concurrency prevents it from racing a normal release.
+Automated rollback is intentionally not part of the forward-deployment
+hardening. Until the compact image-only rollback workflow is added and rehearsed
+on staging, prefer a forward fix and preserve the exact running and prior image
+tags for diagnosis.
 
-The rollback selects its target without requiring a commit to be typed:
+Routine recovery must never restore a database backup or attempt automatic
+down-migrations. Every normal migration must keep the prior application image
+compatible through the expand → migrate → contract pattern. Database restore is
+a separate disaster-recovery operation.
 
-- If a deployment failed before external finalization, it restores the recorded
-  last verified release.
-- If the currently verified release later proves faulty, it restores the
-  previous verified release.
-
-The same operation can be run over an existing trusted SSH connection:
-
-```bash
-cd /home/ubuntu/matkassen
-flock -n /tmp/matkassen-deploy.lock /usr/local/sbin/matkassen-deployment-safety rollback
-```
-
-Rollback restores the immutable application and production backup images,
-waits for container health, repeats the 60-second stability soak, persists the
-selected image tags in `.env`, and aligns the host checkout to that release.
-
-**The database is never rolled back automatically.** If migrations are ahead of
-the target application, the command reports that fact and relies on the
-documented N-1 compatibility policy. Every deploy must therefore keep the prior
-application release compatible with the migrated schema through the
-expand → migrate → contract pattern. Restoring a database backup is a separate
-disaster-recovery operation, not a normal release rollback.
+Changes to Compose, nginx, PostgreSQL, journald, systemd, certificates, or VPS
+storage are planned infrastructure releases with their own recovery notes; they
+are not ordinary application rollbacks.
 
 ## Performance Tuning
 

@@ -8,7 +8,35 @@ permissions:
     contents: read
 
 jobs:
+    verify-release:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout release commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+            - name: Setup Node.js
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: "pnpm"
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Validate release commit
+              run: pnpm run validate
+
+            - name: Test release commit
+              env:
+                  NODE_ENV: test
+                  TZ: Europe/Stockholm
+              run: pnpm test
+
     publish-images:
+        needs: verify-release
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -164,18 +192,27 @@ jobs:
 
                   require_healthy() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local url="https://${domain}/api/health"
                       local body=""
-                      local health_status=""
 
                       for attempt in $(seq 1 30); do
                           if body=$(curl -fsS --max-time 10 "$url"); then
-                              health_status=$(printf '%s' "$body" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' 2>/dev/null || true)
-                              if [ "$health_status" = "healthy" ]; then
-                                  echo "✅ ${url} is healthy"
+                              if printf '%s' "$body" | python3 -c '
+                  import json
+                  import sys
+
+                  health = json.load(sys.stdin)
+                  details = health.get("checks", {}).get("schedulerDetails", {})
+                  expected_sms_test_mode = sys.argv[1] == "true"
+                  assert health.get("status") == "healthy"
+                  assert details.get("smsTestMode") is expected_sms_test_mode
+                  assert details.get("orgSyncSchedulerRunning") is True
+                  ' "$expected_sms_test_mode" 2>/dev/null; then
+                                  echo "✅ ${url} is healthy with the expected scheduler policy"
                                   return 0
                               fi
-                              echo "Health status for ${url}: ${health_status:-unparseable} (attempt ${attempt}/30)"
+                              echo "Health contract for ${url} is not ready (attempt ${attempt}/30)"
                           else
                               echo "Health request failed for ${url} (attempt ${attempt}/30)"
                           fi
@@ -187,15 +224,46 @@ jobs:
                       return 1
                   }
 
+                  verify_auth_boundaries() {
+                      local base_url="$1"
+                      local providers admin_code protected_code protected_location
+
+                      providers=$(curl -fsS --max-time 10 "${base_url}/api/auth/providers")
+                      printf '%s' "$providers" | python3 -c '
+                  import json
+                  import sys
+
+                  providers = json.load(sys.stdin)
+                  assert providers.get("github", {}).get("id") == "github"
+                  '
+                      echo "✅ GitHub authentication provider is available"
+
+                      admin_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
+                      if [ "$admin_code" != "401" ]; then
+                          echo "❌ Unauthenticated admin request returned ${admin_code}, expected 401"
+                          return 1
+                      fi
+                      echo "✅ Unauthenticated admin API is rejected"
+
+                      protected_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
+                      protected_location=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      if [ "$protected_code" != "307" ] || [ "$protected_location" != "/sv/auth/signin?callbackUrl=%2Fhouseholds" ]; then
+                          echo "❌ Protected page returned ${protected_code} -> ${protected_location}"
+                          return 1
+                      fi
+                      echo "✅ Protected page redirects to the expected sign-in page"
+                  }
+
                   verify_domain() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local base_url="https://${domain}"
                       local root_code
                       local redirect_code
                       local redirect_location
                       local headers
 
-                      require_healthy "$domain"
+                      require_healthy "$domain" "$expected_sms_test_mode"
 
                       root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
                       if [ "$root_code" != "200" ]; then
@@ -218,22 +286,10 @@ jobs:
                           return 1
                       fi
                       echo "✅ HSTS header present for ${domain}"
+                      verify_auth_boundaries "$base_url"
                   }
 
-                  verify_domain "staging.matcentralen.com"
-
-            - name: Finalize verified staging release
-              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-              with:
-                  host: ${{ secrets.SERVER_HOST_STAGING }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
-                  script: |
-                      set -euo pipefail
-                      cd /home/ubuntu/matkassen
-                      flock -n /tmp/matkassen-deploy.lock \
-                          /usr/local/sbin/matkassen-deployment-safety finalize "${{ github.sha }}"
+                  verify_domain "staging.matcentralen.com" "true"
 
     manual-deploy-to-production:
         needs: deploy-to-staging
@@ -367,18 +423,27 @@ jobs:
 
                   require_healthy() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local url="https://${domain}/api/health"
                       local body=""
-                      local health_status=""
 
                       for attempt in $(seq 1 30); do
                           if body=$(curl -fsS --max-time 10 "$url"); then
-                              health_status=$(printf '%s' "$body" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' 2>/dev/null || true)
-                              if [ "$health_status" = "healthy" ]; then
-                                  echo "✅ ${url} is healthy"
+                              if printf '%s' "$body" | python3 -c '
+                  import json
+                  import sys
+
+                  health = json.load(sys.stdin)
+                  details = health.get("checks", {}).get("schedulerDetails", {})
+                  expected_sms_test_mode = sys.argv[1] == "true"
+                  assert health.get("status") == "healthy"
+                  assert details.get("smsTestMode") is expected_sms_test_mode
+                  assert details.get("orgSyncSchedulerRunning") is True
+                  ' "$expected_sms_test_mode" 2>/dev/null; then
+                                  echo "✅ ${url} is healthy with the expected scheduler policy"
                                   return 0
                               fi
-                              echo "Health status for ${url}: ${health_status:-unparseable} (attempt ${attempt}/30)"
+                              echo "Health contract for ${url} is not ready (attempt ${attempt}/30)"
                           else
                               echo "Health request failed for ${url} (attempt ${attempt}/30)"
                           fi
@@ -390,15 +455,46 @@ jobs:
                       return 1
                   }
 
+                  verify_auth_boundaries() {
+                      local base_url="$1"
+                      local providers admin_code protected_code protected_location
+
+                      providers=$(curl -fsS --max-time 10 "${base_url}/api/auth/providers")
+                      printf '%s' "$providers" | python3 -c '
+                  import json
+                  import sys
+
+                  providers = json.load(sys.stdin)
+                  assert providers.get("github", {}).get("id") == "github"
+                  '
+                      echo "✅ GitHub authentication provider is available"
+
+                      admin_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
+                      if [ "$admin_code" != "401" ]; then
+                          echo "❌ Unauthenticated admin request returned ${admin_code}, expected 401"
+                          return 1
+                      fi
+                      echo "✅ Unauthenticated admin API is rejected"
+
+                      protected_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
+                      protected_location=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      if [ "$protected_code" != "307" ] || [ "$protected_location" != "/sv/auth/signin?callbackUrl=%2Fhouseholds" ]; then
+                          echo "❌ Protected page returned ${protected_code} -> ${protected_location}"
+                          return 1
+                      fi
+                      echo "✅ Protected page redirects to the expected sign-in page"
+                  }
+
                   verify_domain() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local base_url="https://${domain}"
                       local root_code
                       local redirect_code
                       local redirect_location
                       local headers
 
-                      require_healthy "$domain"
+                      require_healthy "$domain" "$expected_sms_test_mode"
 
                       root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
                       if [ "$root_code" != "200" ]; then
@@ -421,6 +517,7 @@ jobs:
                           return 1
                       fi
                       echo "✅ HSTS header present for ${domain}"
+                      verify_auth_boundaries "$base_url"
                   }
 
                   verify_redirect_host() {
@@ -451,18 +548,5 @@ jobs:
                       echo "✅ HSTS header present for ${domain}"
                   }
 
-                  verify_domain "matcentralen.com"
+                  verify_domain "matcentralen.com" "false"
                   verify_redirect_host "www.matcentralen.com" "matcentralen.com"
-
-            - name: Finalize verified production release
-              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-              with:
-                  host: ${{ secrets.SERVER_HOST_PRODUCTION }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
-                  script: |
-                      set -euo pipefail
-                      cd /home/ubuntu/matkassen
-                      flock -n /tmp/matkassen-deploy.lock \
-                          /usr/local/sbin/matkassen-deployment-safety finalize "${{ github.sha }}"

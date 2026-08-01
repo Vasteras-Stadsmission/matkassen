@@ -471,8 +471,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   echo "✅ CREATEDB is present for nightly backup validation."
 fi
 
-# Remove only disposable Docker data. Tagged immutable releases are retained as
-# local rollback assets; finalization retains the current and previous pair.
+# Remove only disposable Docker data. Deliberately keep tagged immutable images.
 sudo docker container prune -f
 sudo docker image prune -f
 
@@ -482,7 +481,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   # A production init is incomplete without a working backup service. Pull and
   # wait for health so missing images, credentials, or scheduler startup fail
   # the workflow instead of reporting a successful deployment without backups.
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull db-backup
   SWIFT_PREFIX="$SWIFT_PREFIX" \
   OS_AUTH_TYPE="$OS_AUTH_TYPE" \
   OS_AUTH_URL="$OS_AUTH_URL" \
@@ -501,11 +500,11 @@ check_url() {
   local url="$1"
   local description="$2"
 
-  if curl -sf "$url" > /dev/null; then
+  if curl -fsS --max-time 20 "$url" > /dev/null; then
     echo "✅ $description is accessible."
     return 0
   else
-    echo "⚠️ Warning: $description may not be accessible."
+    echo "❌ $description is not accessible."
     return 1
   fi
 }
@@ -541,33 +540,16 @@ verify_redirect_host() {
 # Perform final checks
 echo "Performing final deployment checks..."
 
-# Check if the website is accessible
-echo "Checking if the website is accessible..."
-if ! check_url "https://$DOMAIN_NAME" "Website"; then
-  echo "Checking health endpoint as fallback..."
-  if check_url "https://$DOMAIN_NAME/api/health" "Health endpoint"; then
-    echo "Website should be functional."
-  else
-    echo "Please check the application logs and Nginx configuration."
-  fi
-fi
+# Initial deployment is incomplete unless both the public application and its
+# health endpoint are reachable. These checks used to warn and continue.
+echo "Checking public application and health endpoint..."
+check_url "https://$DOMAIN_NAME" "Website"
+check_url "https://$DOMAIN_NAME/api/health" "Health endpoint"
 
 if [ "${ENV_NAME:-staging}" = "production" ]; then
   echo "Checking canonical www redirects..."
   verify_redirect_host "www.$DOMAIN_NAME" "$DOMAIN_NAME"
 fi
-
-# Initial deployment has no earlier externally verified state to pin. After all
-# built-in HTTP checks pass, initialize the host-side state and run the same
-# exact-image/identity/stability verification used by continuous deployments.
-DEPLOY_SHA="${DEPLOY_SHA:-$(git -C "$APP_DIR" rev-parse HEAD)}"
-chmod +x "$APP_DIR/scripts/deployment-safety.sh"
-sudo install -m 755 -o root -g root \
-  "$APP_DIR/scripts/deployment-safety.sh" \
-  /usr/local/sbin/matkassen-deployment-safety
-/usr/local/sbin/matkassen-deployment-safety prepare "$DEPLOY_SHA" "${ENV_NAME:-staging}"
-/usr/local/sbin/matkassen-deployment-safety verify "$DEPLOY_SHA" "${ENV_NAME:-staging}"
-/usr/local/sbin/matkassen-deployment-safety finalize "$DEPLOY_SHA"
 
 # Clean up any temporary files
 echo "Cleaning up temporary files..."
