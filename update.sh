@@ -1,20 +1,7 @@
 #!/bin/bash
 
-# Ensure software-properties-common is installed (needed for add-apt-repository)
-if ! command -v add-apt-repository >/dev/null 2>&1; then
-  echo "Installing software-properties-common..."
-  sudo apt-get update
-  sudo apt-get install -y software-properties-common
-fi
-
-# Ensure GPG is installed for encrypted backups
-if ! command -v gpg >/dev/null 2>&1; then
-  echo "⚠️ GPG not found, installing..."
-  sudo apt-get update
-  sudo apt-get install -y gnupg
-fi
-
-# This script updates the Next.js app, rebuilding the Docker containers and restarting them.
+# This script updates the immutable application-service images while leaving
+# PostgreSQL, nginx, journald, and other host configuration untouched.
 # It assumes that the app is already set up with Docker and Docker Compose
 # Note: The git repository is already up to date (handled by CI/CD workflow).
 # It also assumes that the .env file is already created and contains the necessary environment variables.
@@ -30,12 +17,6 @@ if ! flock -n 200; then
 fi
 echo "🔒 Deployment lock acquired"
 
-# Capture nginx state so the EXIT trap can restore it if the deploy aborts.
-# Without this, a failed deploy (e.g. healthcheck timeout, migration error)
-# leaves nginx stopped and the site fully down until manual recovery.
-NGINX_WAS_ACTIVE=0
-sudo systemctl is-active --quiet nginx && NGINX_WAS_ACTIVE=1
-
 # Notify Slack on deploy failure. Token is only exported by the
 # production workflow, so this no-ops on staging and on hosts where
 # the env vars aren't set.
@@ -44,7 +25,7 @@ notify_slack_failure() {
     [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${SLACK_CHANNEL_ID:-}" ] || return 0
     local host
     host=$(hostname)
-    local msg="[matkassen] ❌ Deploy failed (exit ${rc}) on ${host}. Site stays up on previous container; nginx restart attempted by trap. Check GH Actions logs."
+    local msg="[matkassen] ❌ Deploy failed (exit ${rc}) on ${host}. The running web release may be old or new; PostgreSQL and host configuration were not rolled back. Check GitHub Actions logs."
     curl -sS https://slack.com/api/chat.postMessage \
         -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
         -H "Content-type: application/json; charset=utf-8" \
@@ -55,12 +36,6 @@ notify_slack_failure() {
 cleanup() {
     local rc=$?
     echo "🔓 Releasing deployment lock"
-    # Use ${VAR:-0} defensively in case an early abort fires the trap
-    # before NGINX_WAS_ACTIVE is initialized (set -u would otherwise
-    # error inside the trap and mask the real exit code).
-    if [ "${NGINX_WAS_ACTIVE:-0}" -eq 1 ]; then
-        sudo systemctl is-active --quiet nginx || sudo systemctl start nginx || true
-    fi
     if [ "$rc" -ne 0 ]; then
         notify_slack_failure "$rc"
     fi
@@ -76,12 +51,68 @@ GITHUB_ORG=vasteras-stadsmission
 APP_DIR="/home/ubuntu/$PROJECT_NAME"
 
 cleanup_docker_resources() {
-    echo "Cleaning up unused Docker containers and images..."
+    echo "Cleaning up stopped containers and dangling image layers..."
     sudo docker container prune -f
-    sudo docker image prune -af
+    # Deliberately omit -a: tagged immutable releases remain available for the
+    # focused image rollback added in the next release-safety phase.
+    sudo docker image prune -f
     sudo docker system df
-    echo "✅ Docker cleanup completed"
+    echo "✅ Safe Docker cleanup completed"
 }
+
+assert_full_sha() {
+    [[ "$1" =~ ^[0-9a-f]{40}$ ]] || {
+        echo "❌ DEPLOY_SHA must be a full lowercase 40-character Git SHA."
+        exit 1
+    }
+}
+
+container_revision() {
+    local container=$1
+    local image_id
+    image_id=$(sudo docker inspect --format '{{.Image}}' "$container")
+    sudo docker image inspect \
+        --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+        "$image_id"
+}
+
+assert_release_container() {
+    local name=$1
+    local container=$2
+    local expected_image=$3
+    local health revision image_reference restarts
+
+    [ -n "$container" ] || { echo "❌ $name container is not running."; exit 1; }
+    health=$(sudo docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")
+    revision=$(container_revision "$container")
+    image_reference=$(sudo docker inspect --format '{{.Config.Image}}' "$container")
+    restarts=$(sudo docker inspect --format '{{.RestartCount}}' "$container")
+
+    [ "$health" = "healthy" ] || { echo "❌ $name container is $health."; exit 1; }
+    [ "$revision" = "$DEPLOY_SHA" ] || { echo "❌ $name revision is $revision, expected $DEPLOY_SHA."; exit 1; }
+    [ "$image_reference" = "$expected_image" ] || { echo "❌ $name image is $image_reference, expected $expected_image."; exit 1; }
+    [ "$restarts" = "0" ] || { echo "❌ $name container restarted $restarts time(s)."; exit 1; }
+    echo "✅ $name is healthy on $revision with zero restarts."
+}
+
+DEPLOY_SHA="${DEPLOY_SHA:-$(git -C "$APP_DIR" rev-parse HEAD)}"
+assert_full_sha "$DEPLOY_SHA"
+export APP_IMAGE_TAG="${APP_IMAGE_TAG:-sha-$DEPLOY_SHA}"
+export DB_BACKUP_IMAGE_TAG="${DB_BACKUP_IMAGE_TAG:-sha-$DEPLOY_SHA}"
+EXPECTED_APP_IMAGE="ghcr.io/vasteras-stadsmission/matkassen:sha-$DEPLOY_SHA"
+EXPECTED_BACKUP_IMAGE="ghcr.io/vasteras-stadsmission/matkassen-db-backup:sha-$DEPLOY_SHA"
+
+sudo systemctl is-active --quiet docker || { echo "❌ Docker is not active."; exit 1; }
+sudo systemctl is-active --quiet nginx || { echo "❌ Nginx is not active."; exit 1; }
+
+AVAILABLE_ROOT_KB=$(df -Pk / | awk 'NR == 2 { print $4 }')
+MIN_ROOT_KB=$((5 * 1024 * 1024))
+if [ -z "$AVAILABLE_ROOT_KB" ] || [ "$AVAILABLE_ROOT_KB" -lt "$MIN_ROOT_KB" ]; then
+    echo "❌ Less than 5 GiB is available on the root filesystem."
+    df -h /
+    exit 1
+fi
+echo "✅ Root filesystem has at least 5 GiB available."
 
 # Idempotently harden the app directory: owner-only access. Without this,
 # a reset of the directory (e.g. a fresh init_deploy re-run) would leave
@@ -119,6 +150,42 @@ echo "Creating .env file..."
 source "$APP_DIR/scripts/write-env.sh"
 write_env_file "$APP_DIR/.env"
 
+cd "$APP_DIR"
+DB_CONTAINER_BEFORE=$(sudo docker compose ps -q db)
+[ -n "$DB_CONTAINER_BEFORE" ] || { echo "❌ PostgreSQL container is not running."; exit 1; }
+[ "$(sudo docker inspect --format '{{.State.Health.Status}}' "$DB_CONTAINER_BEFORE")" = "healthy" ] || {
+    echo "❌ PostgreSQL container is not healthy before deployment."
+    exit 1
+}
+echo "✅ PostgreSQL is healthy and will not be included in Compose replacement."
+
+# Validate this production backup prerequisite before replacing any application
+# service. The role change is idempotent and does not alter application data.
+if [ "${ENV_NAME:-}" = "production" ]; then
+  echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
+  if ! sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -v ON_ERROR_STOP=1 \
+      -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
+  ' > /dev/null 2>&1; then
+    echo "❌ Failed to grant CREATEDB. Nightly restore validation cannot run."
+    exit 1
+  fi
+  CREATEDB_STATUS=$(sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -tAc "SELECT rolcreatedb FROM pg_roles WHERE rolname = current_user;"
+  ' | tr -d '[:space:]')
+  if [ "$CREATEDB_STATUS" != "t" ]; then
+    echo "❌ Database role does not have CREATEDB after the grant attempt."
+    exit 1
+  fi
+  echo "✅ CREATEDB is present for nightly backup validation."
+fi
+
 # Check if migration files exist in the repository
 if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
   echo "No migration files found in the repository. This is unexpected as migrations should be checked in."
@@ -126,191 +193,85 @@ if [ -z "$(ls -A "$APP_DIR/migrations" 2>/dev/null)" ]; then
   exit 1
 fi
 
-# Generate nginx configuration from template.
-# Nginx stays running throughout the deploy so the site doesn't go fully
-# dark on failure: it keeps serving the old web container (or returns
-# brief 502s during the container recreate window) instead of refusing
-# connections. Files are written in place; nginx picks them up via
-# `systemctl reload` after migrations succeed.
-echo "Updating nginx configuration..."
+# Routine application deploys deliberately leave nginx, journald, Docker host
+# configuration, and PostgreSQL untouched. Changes to those are planned
+# infrastructure releases with their own recovery notes.
+echo "Pulling the immutable application image from GitHub Container Registry..."
 cd "$APP_DIR"
-chmod +x nginx/generate-nginx-config.sh
-
-# Write the new sites-available config first (always complete on disk),
-# then atomically point sites-enabled at it via `ln -sfn`. The replace
-# is a single rename(2) call — no window where sites-enabled is empty,
-# so an unrelated nginx reload during this section can't pick up an
-# empty config. The active nginx process keeps its previous config in
-# memory until the explicit reload further below.
-./nginx/generate-nginx-config.sh production "$DOMAIN_NAME www.$DOMAIN_NAME" "$DOMAIN_NAME" \
-    | sudo tee /etc/nginx/sites-available/default > /dev/null
-sudo cp nginx/shared.conf /etc/nginx/shared.conf
-sudo ln -sfn /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-
-# Drop legacy config from earlier deploy patterns (no-op once retired).
-sudo rm -f /etc/nginx/conf.d/matkassen-http.conf
-
-echo "Validating nginx configuration..."
-sudo nginx -t
-echo "✅ Nginx configuration updated and validated"
-
-echo "Configuring bounded persistent journal storage..."
-sudo "$APP_DIR/scripts/configure-journald.sh"
-
-# Pull and restart the Docker containers
-echo "Pulling latest Docker images from GitHub Container Registry..."
-cd "$APP_DIR"
-# Free old tagged sha-* images before pulling. Waiting until after the pull
-# means a nearly-full host can fail before it reaches the existing cleanup.
 cleanup_docker_resources
-if ! sudo docker compose pull; then
-  echo "Failed to pull Docker images from GHCR"
+if ! sudo docker compose pull web; then
+  echo "Failed to pull the application image from GHCR"
   exit 1
 fi
 
-echo "Starting Docker containers..."
-timeout 300 sudo docker compose up -d || {
-  echo "❌ Docker containers failed to start within 5 minutes"
-  sudo docker compose logs
-  exit 1
-}
-
-echo "Checking if Docker containers started correctly..."
-# Check if Docker Compose started correctly
-if ! sudo docker compose ps | grep "Up"; then
-  echo "Docker containers failed to start. Check logs with 'docker compose logs'."
-  sudo docker compose logs
-  exit 1
-fi
-
-# Wait for containers to be fully healthy before starting nginx
-echo "Waiting for Docker containers to be healthy..."
-if ! timeout 60 bash -c '
-  while true; do
-    # Count total containers and healthy containers
-    TOTAL=$(sudo docker compose ps --format json 2>/dev/null | jq -s "length" || echo "0")
-    HEALTHY=$(sudo docker compose ps --format json 2>/dev/null | jq -s "[.[] | select(.Health==\"healthy\")] | length" || echo "0")
-
-    # Fail if no containers found (deployment issue)
-    if [[ "$TOTAL" -eq 0 ]]; then
-      echo "❌ No containers found - docker compose may have failed"
-      exit 1
-    fi
-
-    # Success: all containers are healthy
-    if [[ "$TOTAL" -eq "$HEALTHY" ]]; then
-      echo "✅ All $TOTAL containers are healthy"
-      break
-    fi
-
-    echo "Waiting for health checks... ($HEALTHY/$TOTAL healthy)"
-    sleep 2
-  done
-'; then
-    echo "❌ Health check failed or timed out after 60 seconds."
-    sudo docker compose ps
-    sudo docker compose logs
-    exit 1
-fi
-
-# Run migrations now that containers are healthy. Nginx has been serving
-# traffic throughout this deploy (to keep the site up on failure), which
-# means there is a window where the NEW web container code runs against
-# the OLD schema — for as long as the migration takes (up to the 300s
-# timeout on the docker exec below). New code reading a column that
-# doesn't exist yet returns 5xx for those routes during that window.
-#
-# Rule: schema migrations must be compatible with code that can run during
-# the deploy window. In this deploy flow that mainly means new code may run
-# against the old schema until migrations finish. Destructive migrations can
-# still break rollback to older code, so split them into expand → migrate →
-# contract when rollback safety or parallel old/new serving matters.
-# See docs/database-guide.md for the full rule.
+# The current web container remains live while the candidate image applies its
+# migrations in a one-off container. Normal migrations must therefore remain
+# compatible with the current and candidate application images through the
+# expand → migrate → contract pattern documented in docs/database-guide.md.
 echo "Waiting for database to be ready..."
 cd "$APP_DIR"
-timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"
-if [ $? -ne 0 ]; then
+if ! timeout 60 sudo docker compose exec -T db bash -c "while ! pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do echo 'Waiting for DB...'; sleep 1; done"; then
   echo "❌ Database did not become ready within 60 seconds."
   sudo docker compose logs db
   exit 1
 fi
 
-# Run migrations from within the container (stable, reliable approach)
-# Timeout matches other deployment steps — prevents a hung migration (e.g. lock wait)
-# from keeping nginx down indefinitely.
-echo "Running database migrations..."
-timeout 300 sudo docker compose exec -T web pnpm run db:migrate
-if [ $? -ne 0 ]; then
+# Run migrations from the exact candidate image without replacing web or
+# starting/reconciling its PostgreSQL dependency.
+echo "Running database migrations from the candidate image..."
+if ! timeout 300 sudo docker compose run --rm --no-deps -T web pnpm run db:migrate; then
   echo "❌ Migration failed or timed out. See error messages above."
+  exit 1
+fi
+echo "✅ Database migrations completed successfully."
+
+echo "Starting the candidate web image without touching PostgreSQL..."
+if ! timeout 330 sudo docker compose up -d --no-deps --wait --wait-timeout 300 web; then
+  echo "❌ Web container failed to become healthy within 5 minutes."
   sudo docker compose logs web
   exit 1
-else
-  echo "✅ Database migrations completed successfully."
 fi
-
-# Grant CREATEDB to the app user on production so the nightly backup
-# validation in scripts/backup-db.sh can create and drop its scratch DB
-# (matkassen_nightly_validate). Idempotent — ALTER USER is a no-op if
-# the attribute is already set. Skipped on staging because the backup
-# profile never runs there.
-if [ "${ENV_NAME:-}" = "production" ]; then
-  echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
-  # Single-quoted bash -c so $POSTGRES_PASSWORD expands inside the db
-  # container (from its own env), not on the host. The host never sees
-  # the password in argv, so `ps auxfww` during the exec reveals only
-  # the docker command line, not secrets. The container already has
-  # POSTGRES_USER/PASSWORD/DB in its env via docker-compose.yml.
-  if sudo docker compose exec -T db bash -c '
-    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
-      -U "${POSTGRES_USER}" \
-      -d "${POSTGRES_DB}" \
-      -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
-  ' > /dev/null 2>&1; then
-    echo "✅ CREATEDB granted to $POSTGRES_USER."
-  else
-    echo "⚠️ Failed to grant CREATEDB — nightly backup validation will fail until this is resolved (run: docker compose exec db psql -U \$POSTGRES_USER -d \$POSTGRES_DB -c 'ALTER USER \"\$POSTGRES_USER\" CREATEDB;')."
-  fi
-fi
-
-# Apply the new nginx configuration: reload if running, start if not.
-# Reload swaps config atomically with no dropped connections. Start (with
-# enable) is the bootstrap path — first ever deploy or recovery from an
-# unexpected stop. On reload failure, dump the journal so the cause is
-# visible in CI logs (old workers keep serving the previous config).
-echo "Applying nginx configuration..."
-if sudo systemctl is-active --quiet nginx; then
-    if ! sudo systemctl reload nginx; then
-        echo "❌ Nginx reload failed — recent journal entries:"
-        sudo journalctl -u nginx -n 20 --no-pager
-        exit 1
-    fi
-    echo "✅ Nginx reloaded with new configuration"
-else
-    if ! sudo systemctl start nginx; then
-        echo "❌ Nginx start failed — processes listening on ports 80/443:"
-        sudo ss -ltnp "( sport = :80 or sport = :443 )" || true
-        echo "Recent nginx logs:"
-        sudo journalctl -u nginx -n 20 --no-pager || true
-        exit 1
-    fi
-    sudo systemctl enable nginx
-    echo "✅ Nginx started"
-fi
-
-# Cleanup once more after Docker Compose has replaced the old app container,
-# so the image from the previous deploy becomes eligible for pruning.
-cleanup_docker_resources
+WEB_CONTAINER=$(sudo docker compose ps -q web)
+assert_release_container "web" "$WEB_CONTAINER" "$EXPECTED_APP_IMAGE"
 
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
-  echo "Starting backup service (profile: backup)..."
-  # Pull the backup image from GHCR
-  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup pull
-  # Start the backup service (explicitly specify env file location)
-  sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup up -d db-backup
-  echo "✅ Backup service started successfully"
-  cleanup_docker_resources
+  BACKUP_COMPOSE=(sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup)
+  echo "Pulling and starting the candidate backup image without touching PostgreSQL..."
+  "${BACKUP_COMPOSE[@]}" pull db-backup
+  if ! timeout 330 "${BACKUP_COMPOSE[@]}" up -d --no-deps --wait --wait-timeout 300 db-backup; then
+    echo "❌ Backup container failed to become healthy within 5 minutes."
+    "${BACKUP_COMPOSE[@]}" logs db-backup
+    exit 1
+  fi
+  BACKUP_CONTAINER=$("${BACKUP_COMPOSE[@]}" ps -q db-backup)
+  assert_release_container "backup" "$BACKUP_CONTAINER" "$EXPECTED_BACKUP_IMAGE"
+  if [ "$(sudo docker inspect --format '{{json .Config.Cmd}}' "$BACKUP_CONTAINER")" != '["supercronic","-split-logs","/etc/supercronic/crontab"]' ]; then
+    echo "❌ Backup container is not running the expected Supercronic command."
+    exit 1
+  fi
+  echo "✅ Backup scheduler command is correct."
 fi
 
+DB_CONTAINER_AFTER=$(sudo docker compose ps -q db)
+if [ "$DB_CONTAINER_AFTER" != "$DB_CONTAINER_BEFORE" ]; then
+  echo "❌ PostgreSQL container changed during application deployment."
+  exit 1
+fi
+
+echo "Checking once more for immediate restart loops..."
+sleep 15
+WEB_CONTAINER_AFTER=$(sudo docker compose ps -q web)
+[ "$WEB_CONTAINER_AFTER" = "$WEB_CONTAINER" ] || { echo "❌ Web container changed during the stability check."; exit 1; }
+assert_release_container "web" "$WEB_CONTAINER_AFTER" "$EXPECTED_APP_IMAGE"
+if [ "${ENV_NAME:-}" = "production" ]; then
+  BACKUP_CONTAINER_AFTER=$("${BACKUP_COMPOSE[@]}" ps -q db-backup)
+  [ "$BACKUP_CONTAINER_AFTER" = "$BACKUP_CONTAINER" ] || { echo "❌ Backup container changed during the stability check."; exit 1; }
+  assert_release_container "backup" "$BACKUP_CONTAINER_AFTER" "$EXPECTED_BACKUP_IMAGE"
+fi
+[ "$(sudo docker compose ps -q db)" = "$DB_CONTAINER_BEFORE" ] || { echo "❌ PostgreSQL container changed during the stability check."; exit 1; }
+
+cleanup_docker_resources
+
 # Output final message
-echo "Update complete. Your Next.js app has been updated with the latest changes and database migrations have been applied."
+echo "Update is internally healthy. GitHub Actions will now run the public verification gate."
