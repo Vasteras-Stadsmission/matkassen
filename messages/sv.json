@@ -1152,7 +1152,7 @@
                     "expired": "Utgången",
                     "outOfCredits": "Slut på saldo"
                 },
-                "deliveryStatusAt": "Leveransstatus kl"
+                "deliveryStatusAt": "Leveransstatus uppdaterad"
             }
         },
         "smsDashboard": {

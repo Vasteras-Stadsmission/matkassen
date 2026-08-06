@@ -44,9 +44,11 @@ const mockQueuePickupUpdatedSms = vi.fn(async (_parcelId: string) => ({
     success: true,
     skipped: true,
 }));
+const mockCreateSmsRecord = vi.fn(async (_data: unknown) => "sms-id");
 const mockRecomputeOutsideHoursCount = vi.fn(async (_locationId: string) => 0);
 
 vi.mock("@/app/utils/sms/sms-service", () => ({
+    createSmsRecord: (data: unknown) => mockCreateSmsRecord(data),
     queuePickupUpdatedSms: (parcelId: string) => mockQueuePickupUpdatedSms(parcelId),
 }));
 
@@ -135,6 +137,7 @@ describe("Household parcel scheduling integration", () => {
         resetHouseholdCounter();
         resetLocationCounter();
         resetUserCounter();
+        mockCreateSmsRecord.mockClear();
         mockQueuePickupUpdatedSms.mockClear();
         mockRecomputeOutsideHoursCount.mockClear();
         await createTestUser({
@@ -212,6 +215,13 @@ describe("Household parcel scheduling integration", () => {
             after: "+46700009999",
         });
         expect(JSON.stringify(details)).not.toContain("comments");
+        expect(mockCreateSmsRecord).toHaveBeenCalledWith(
+            expect.objectContaining({
+                intent: "enrolment",
+                householdId: household.id,
+                toE164: "+46700009999",
+            }),
+        );
     });
 
     it("adds a new parcel through the parcel management dialog action", async () => {
