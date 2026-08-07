@@ -30,6 +30,9 @@ import {
 } from "../../factories";
 import { getTestDb } from "../../db/test-db";
 import { foodParcels, households, pickupLocations } from "@/app/db/schema";
+import { createSmsRecord } from "@/app/utils/sms/sms-service";
+import { formatEnrolmentSms } from "@/app/utils/sms/templates";
+import { logError } from "@/app/utils/logger";
 
 // Mock auth to always succeed - we're testing DB behavior, not auth
 type MockSession = { user: { githubUsername: string; name: string; role: "admin" } };
@@ -106,6 +109,8 @@ vi.mock("@/app/utils/sms/sms-service", () => ({
 }));
 
 beforeEach(async () => {
+    vi.mocked(createSmsRecord).mockReset().mockResolvedValue("sms-id");
+    vi.mocked(logError).mockClear();
     resetHouseholdCounter();
     resetLocationCounter();
     resetSmsCounter();
@@ -818,6 +823,78 @@ describe("Primary handout location - Server-side validation", () => {
             .from(households)
             .where(eq(households.id, household.id));
         expect(stored.phoneNumber).toBe("+46701111111");
+        expect(createSmsRecord).not.toHaveBeenCalled();
+    });
+
+    it("should queue a localized enrollment SMS when the phone number changes", async () => {
+        const household = await createTestHousehold({
+            phone_number: "+46701111111",
+            locale: "sv",
+        });
+        const { updateHousehold } = await import("@/app/[locale]/households/[id]/edit/actions");
+
+        const result = await updateHousehold(household.id, {
+            household: {
+                first_name: household.first_name,
+                last_name: household.last_name,
+                phone_number: "0702222222",
+                locale: "en",
+                sms_consent: true,
+                primary_pickup_location_id: household.primary_pickup_location_id,
+                responsible_user_id: household.responsible_user_id,
+            },
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: { pickupLocationId: "", parcels: [] },
+            comments: [],
+        });
+
+        expect(result.success).toBe(true);
+        expect(createSmsRecord).toHaveBeenCalledOnce();
+        expect(createSmsRecord).toHaveBeenCalledWith({
+            intent: "enrolment",
+            householdId: household.id,
+            toE164: "+46702222222",
+            text: formatEnrolmentSms("en"),
+        });
+    });
+
+    it("should keep the household update successful when the enrollment SMS cannot be queued", async () => {
+        vi.mocked(createSmsRecord).mockRejectedValueOnce(new Error("SMS queue unavailable"));
+        const household = await createTestHousehold({
+            phone_number: "+46701111111",
+        });
+        const { updateHousehold } = await import("@/app/[locale]/households/[id]/edit/actions");
+
+        const result = await updateHousehold(household.id, {
+            household: {
+                first_name: household.first_name,
+                last_name: household.last_name,
+                phone_number: "0702222222",
+                locale: household.locale,
+                sms_consent: true,
+                primary_pickup_location_id: household.primary_pickup_location_id,
+                responsible_user_id: household.responsible_user_id,
+            },
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: { pickupLocationId: "", parcels: [] },
+            comments: [],
+        });
+
+        expect(result.success).toBe(true);
+        expect(logError).toHaveBeenCalledWith(
+            "Failed to queue enrollment SMS after phone change",
+            expect.any(Error),
+            {
+                householdId: household.id,
+                action: "updateHousehold",
+            },
+        );
     });
 
     it("should allow update to change primary location to a valid one", async () => {

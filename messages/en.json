@@ -1152,7 +1152,7 @@
                     "expired": "Expired",
                     "outOfCredits": "Out of credits"
                 },
-                "deliveryStatusAt": "Delivery status at"
+                "deliveryStatusAt": "Status updated"
             }
         },
         "smsDashboard": {

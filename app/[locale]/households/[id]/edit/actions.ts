@@ -41,6 +41,9 @@ import {
 } from "@/app/utils/parcels/apply-parcel-schedule-changes";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
+import { createSmsRecord } from "@/app/utils/sms/sms-service";
+import { formatEnrolmentSms } from "@/app/utils/sms/templates";
+import type { SupportedLocale } from "@/app/utils/locale-detection";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -752,6 +755,29 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     householdId: household.id,
                     logError,
                 });
+            }
+
+            if (phoneChanged) {
+                try {
+                    const locale = data.household.locale as SupportedLocale;
+                    await createSmsRecord({
+                        intent: "enrolment",
+                        householdId: household.id,
+                        toE164: newPhoneE164,
+                        text: formatEnrolmentSms(locale),
+                    });
+
+                    logger.debug(
+                        { householdId: household.id },
+                        "Enrollment SMS queued after phone change",
+                    );
+                } catch (error) {
+                    logError("Failed to queue enrollment SMS after phone change", error, {
+                        householdId: household.id,
+                        action: "updateHousehold",
+                    });
+                    // Non-fatal: The household update remains valid and the failure is logged.
+                }
             }
 
             return success({ householdId: household.id });
