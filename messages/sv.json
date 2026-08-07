@@ -1148,11 +1148,14 @@
                     "failed": "Misslyckades",
                     "notDelivered": "Ej levererat",
                     "awaiting": "Inväntar bekräftelse",
+                    "stale": "Ingen leveransbekräftelse",
                     "waiting": "Väntar på leverans",
                     "expired": "Utgången",
-                    "outOfCredits": "Slut på saldo"
+                    "outOfCredits": "Slut på saldo",
+                    "unexpected": "Oväntad leveransstatus"
                 },
-                "deliveryStatusAt": "Leveransstatus kl"
+                "deliveryStatusAt": "Leveransstatus kl",
+                "sentAt": "Skickat {date}"
             }
         },
         "smsDashboard": {
@@ -1185,7 +1188,8 @@
                 "pickup_reminder": "Påminnelse",
                 "pickup_updated": "Uppdatering",
                 "pickup_cancelled": "Avbruten",
-                "enrolment": "Inskrivning"
+                "enrolment": "Inskrivning",
+                "food_parcels_ended": "Mathjälp avslutad"
             },
             "dateGroups": {
                 "today": "IDAG",

@@ -41,6 +41,12 @@ import { Time } from "@/app/utils/time-provider";
 import { modals } from "@mantine/modals";
 import { formatPhoneForDisplay } from "@/app/utils/validation/phone-validation";
 import { notifications } from "@mantine/notifications";
+import {
+    getSmsStatusDisplay,
+    shouldShowSmsIntentLabels,
+    type SmsInternalStatus,
+    type SmsProviderStatus,
+} from "./sms-status-display";
 
 interface ParcelAdminDialogProps {
     parcelId: string | null;
@@ -51,17 +57,10 @@ interface ParcelAdminDialogProps {
 
 interface SmsRecord {
     id: string;
-    status: "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
+    status: SmsInternalStatus;
     intent: string;
     nextAttemptAt?: string; // ISO date string for retry scheduling
-    providerStatus?:
-        | "delivered"
-        | "failed"
-        | "not delivered"
-        | "waiting"
-        | "expired"
-        | "out_of_credits"
-        | null;
+    providerStatus?: SmsProviderStatus;
     providerStatusUpdatedAt?: string;
     sentAt?: string;
     createdAt: string;
@@ -92,6 +91,8 @@ export function ParcelAdminDialog({
         submitting: false,
         smsRecords: [],
     });
+    const showSmsIntentLabels = shouldShowSmsIntentLabels(state.smsRecords);
+    const smsStatusDisplayTime = Time.now().toUTC().getTime();
 
     const fetchParcelDetails = useCallback(async () => {
         if (!parcelId) return;
@@ -872,77 +873,67 @@ export function ParcelAdminDialog({
                                             size="sm"
                                         />
                                     </Group>
-                                    {state.smsRecords.map(sms => (
-                                        <Stack key={sms.id} gap="xs">
-                                            <Group justify="space-between" wrap="nowrap">
-                                                <Group gap="xs" wrap="nowrap">
-                                                    {/* Internal status badge */}
-                                                    <Badge
-                                                        color={
-                                                            sms.status === "sent"
-                                                                ? "green"
-                                                                : sms.status === "failed"
-                                                                  ? "red"
-                                                                  : sms.status === "queued"
-                                                                    ? "blue"
-                                                                    : "gray"
-                                                        }
-                                                        size="sm"
-                                                    >
-                                                        {t(
-                                                            `admin.smsDashboard.status.${sms.status}`,
-                                                        )}
-                                                    </Badge>
-                                                    {/* Provider status badge (only when sent) */}
-                                                    {sms.status === "sent" && (
+                                    {state.smsRecords.map(sms => {
+                                        const statusDisplay = getSmsStatusDisplay(
+                                            sms,
+                                            smsStatusDisplayTime,
+                                        );
+
+                                        return (
+                                            <Stack key={sms.id} gap="xs">
+                                                <Group justify="space-between" wrap="wrap">
+                                                    <Group gap="xs" wrap="wrap">
                                                         <Badge
-                                                            color={
-                                                                sms.providerStatus === "delivered"
-                                                                    ? "green"
-                                                                    : sms.providerStatus ===
-                                                                        "failed"
-                                                                      ? "red"
-                                                                      : sms.providerStatus ===
-                                                                          "not delivered"
-                                                                        ? "orange"
-                                                                        : "gray"
+                                                            color={statusDisplay.color}
+                                                            variant={
+                                                                statusDisplay.source === "provider"
+                                                                    ? "light"
+                                                                    : "filled"
                                                             }
-                                                            variant="outline"
                                                             size="sm"
                                                         >
-                                                            {sms.providerStatus
+                                                            {statusDisplay.source === "provider"
                                                                 ? t(
-                                                                      `admin.parcelDialog.smsStatus.provider.${sms.providerStatus === "not delivered" ? "notDelivered" : sms.providerStatus}`,
+                                                                      `admin.parcelDialog.smsStatus.provider.${statusDisplay.key}`,
                                                                   )
                                                                 : t(
-                                                                      "admin.parcelDialog.smsStatus.provider.awaiting",
+                                                                      `admin.smsDashboard.status.${statusDisplay.key}`,
                                                                   )}
                                                         </Badge>
-                                                    )}
-                                                    <Text size="sm" c="dimmed">
-                                                        {t(
-                                                            `admin.smsDashboard.intent.${sms.intent}`,
+                                                        {showSmsIntentLabels && (
+                                                            <Text size="sm" c="dimmed">
+                                                                {t(
+                                                                    `admin.smsDashboard.intent.${sms.intent}`,
+                                                                )}
+                                                            </Text>
                                                         )}
+                                                    </Group>
+                                                    <Text size="xs" c="dimmed">
+                                                        {sms.sentAt
+                                                            ? t(
+                                                                  "admin.parcelDialog.smsStatus.sentAt",
+                                                                  {
+                                                                      date: formatDateTime(
+                                                                          sms.sentAt,
+                                                                      ),
+                                                                  },
+                                                              )
+                                                            : formatDateTime(sms.createdAt)}
                                                     </Text>
                                                 </Group>
-                                                {/* Timestamp */}
-                                                <Text size="xs" c="dimmed">
-                                                    {sms.sentAt
-                                                        ? formatDateTime(sms.sentAt)
-                                                        : formatDateTime(sms.createdAt)}
-                                                </Text>
-                                            </Group>
-                                            {/* Provider status update time */}
-                                            {sms.providerStatusUpdatedAt && (
-                                                <Text size="xs" c="dimmed" ml="xs">
-                                                    {t(
-                                                        "admin.parcelDialog.smsStatus.deliveryStatusAt",
-                                                    )}{" "}
-                                                    {formatDateTime(sms.providerStatusUpdatedAt)}
-                                                </Text>
-                                            )}
-                                        </Stack>
-                                    ))}
+                                                {sms.providerStatusUpdatedAt && (
+                                                    <Text size="xs" c="dimmed" ml="xs">
+                                                        {t(
+                                                            "admin.parcelDialog.smsStatus.deliveryStatusAt",
+                                                        )}{" "}
+                                                        {formatDateTime(
+                                                            sms.providerStatusUpdatedAt,
+                                                        )}
+                                                    </Text>
+                                                )}
+                                            </Stack>
+                                        );
+                                    })}
                                 </Stack>
                             </Card>
                         )}
