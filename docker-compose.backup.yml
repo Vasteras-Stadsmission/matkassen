@@ -64,6 +64,8 @@ services:
         healthcheck:
             test: ["CMD", "pgrep", "supercronic"]
             interval: 60s
+            start_period: 10s
+            start_interval: 2s
             timeout: 10s
             retries: 3
         logging:
