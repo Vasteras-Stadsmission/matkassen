@@ -448,20 +448,32 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   # container (from its own env), not on the host. The host never sees
   # the password in argv, so `ps auxfww` during the exec reveals only
   # the docker command line, not secrets.
-  if sudo docker compose exec -T db bash -c '
+  if ! sudo docker compose exec -T db bash -c '
     PGPASSWORD="${POSTGRES_PASSWORD}" psql \
       -U "${POSTGRES_USER}" \
       -d "${POSTGRES_DB}" \
+      -v ON_ERROR_STOP=1 \
       -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
   ' > /dev/null 2>&1; then
-    echo "✅ CREATEDB granted to $POSTGRES_USER."
-  else
-    echo "⚠️ Failed to grant CREATEDB — nightly validation will fail until this is resolved."
+    echo "❌ Failed to grant CREATEDB. Nightly restore validation cannot run."
+    exit 1
   fi
+  CREATEDB_STATUS=$(sudo docker compose exec -T db bash -c '
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -tAc "SELECT rolcreatedb FROM pg_roles WHERE rolname = current_user;"
+  ' | tr -d '[:space:]')
+  if [ "$CREATEDB_STATUS" != "t" ]; then
+    echo "❌ Database role does not have CREATEDB after the grant attempt."
+    exit 1
+  fi
+  echo "✅ CREATEDB is present for nightly backup validation."
 fi
 
-# Cleanup old Docker images and containers
-sudo docker system prune -af
+# Remove only disposable Docker data. Deliberately keep tagged immutable images.
+sudo docker container prune -f
+sudo docker image prune -f
 
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
@@ -469,7 +481,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   # A production init is incomplete without a working backup service. Pull and
   # wait for health so missing images, credentials, or scheduler startup fail
   # the workflow instead of reporting a successful deployment without backups.
-  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull
+  sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup pull db-backup
   SWIFT_PREFIX="$SWIFT_PREFIX" \
   OS_AUTH_TYPE="$OS_AUTH_TYPE" \
   OS_AUTH_URL="$OS_AUTH_URL" \
@@ -488,11 +500,11 @@ check_url() {
   local url="$1"
   local description="$2"
 
-  if curl -sf "$url" > /dev/null; then
+  if curl -fsS --max-time 20 "$url" > /dev/null; then
     echo "✅ $description is accessible."
     return 0
   else
-    echo "⚠️ Warning: $description may not be accessible."
+    echo "❌ $description is not accessible."
     return 1
   fi
 }
@@ -528,16 +540,11 @@ verify_redirect_host() {
 # Perform final checks
 echo "Performing final deployment checks..."
 
-# Check if the website is accessible
-echo "Checking if the website is accessible..."
-if ! check_url "https://$DOMAIN_NAME" "Website"; then
-  echo "Checking health endpoint as fallback..."
-  if check_url "https://$DOMAIN_NAME/api/health" "Health endpoint"; then
-    echo "Website should be functional."
-  else
-    echo "Please check the application logs and Nginx configuration."
-  fi
-fi
+# Initial deployment is incomplete unless both the public application and its
+# health endpoint are reachable. These checks used to warn and continue.
+echo "Checking public application and health endpoint..."
+check_url "https://$DOMAIN_NAME" "Website"
+check_url "https://$DOMAIN_NAME/api/health" "Health endpoint"
 
 if [ "${ENV_NAME:-staging}" = "production" ]; then
   echo "Checking canonical www redirects..."
