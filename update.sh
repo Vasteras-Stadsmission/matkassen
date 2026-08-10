@@ -97,8 +97,8 @@ assert_release_container() {
 
 DEPLOY_SHA="${DEPLOY_SHA:-$(git -C "$APP_DIR" rev-parse HEAD)}"
 assert_full_sha "$DEPLOY_SHA"
-export APP_IMAGE_TAG="${APP_IMAGE_TAG:-sha-$DEPLOY_SHA}"
-export DB_BACKUP_IMAGE_TAG="${DB_BACKUP_IMAGE_TAG:-sha-$DEPLOY_SHA}"
+export APP_IMAGE_TAG="sha-$DEPLOY_SHA"
+export DB_BACKUP_IMAGE_TAG="sha-$DEPLOY_SHA"
 EXPECTED_APP_IMAGE="ghcr.io/vasteras-stadsmission/matkassen:sha-$DEPLOY_SHA"
 EXPECTED_BACKUP_IMAGE="ghcr.io/vasteras-stadsmission/matkassen-db-backup:sha-$DEPLOY_SHA"
 
@@ -157,22 +157,14 @@ DB_CONTAINER_BEFORE=$(sudo docker compose ps -q db)
     echo "❌ PostgreSQL container is not healthy before deployment."
     exit 1
 }
+DB_RESTARTS_BEFORE=$(sudo docker inspect --format '{{.RestartCount}}' "$DB_CONTAINER_BEFORE")
 echo "✅ PostgreSQL is healthy and will not be included in Compose replacement."
 
 # Validate this production backup prerequisite before replacing any application
-# service. The role change is idempotent and does not alter application data.
+# service. Initial deployment owns role configuration; routine updates only
+# verify it so application releases do not modify PostgreSQL roles.
 if [ "${ENV_NAME:-}" = "production" ]; then
-  echo "Granting CREATEDB to $POSTGRES_USER for nightly backup validation..."
-  if ! sudo docker compose exec -T db bash -c '
-    PGPASSWORD="${POSTGRES_PASSWORD}" psql \
-      -U "${POSTGRES_USER}" \
-      -d "${POSTGRES_DB}" \
-      -v ON_ERROR_STOP=1 \
-      -c "ALTER USER \"${POSTGRES_USER}\" CREATEDB;"
-  ' > /dev/null 2>&1; then
-    echo "❌ Failed to grant CREATEDB. Nightly restore validation cannot run."
-    exit 1
-  fi
+  echo "Verifying CREATEDB for nightly backup validation..."
   CREATEDB_STATUS=$(sudo docker compose exec -T db bash -c '
     PGPASSWORD="${POSTGRES_PASSWORD}" psql \
       -U "${POSTGRES_USER}" \
@@ -180,7 +172,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
       -tAc "SELECT rolcreatedb FROM pg_roles WHERE rolname = current_user;"
   ' | tr -d '[:space:]')
   if [ "$CREATEDB_STATUS" != "t" ]; then
-    echo "❌ Database role does not have CREATEDB after the grant attempt."
+    echo "❌ Database role does not have CREATEDB. Repair the initial deployment prerequisite before deploying."
     exit 1
   fi
   echo "✅ CREATEDB is present for nightly backup validation."
@@ -196,12 +188,19 @@ fi
 # Routine application deploys deliberately leave nginx, journald, Docker host
 # configuration, and PostgreSQL untouched. Changes to those are planned
 # infrastructure releases with their own recovery notes.
-echo "Pulling the immutable application image from GitHub Container Registry..."
+echo "Pulling immutable application images from GitHub Container Registry..."
 cd "$APP_DIR"
 cleanup_docker_resources
 if ! sudo docker compose pull web; then
   echo "Failed to pull the application image from GHCR"
   exit 1
+fi
+if [ "${ENV_NAME:-}" = "production" ]; then
+  BACKUP_COMPOSE=(sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup)
+  if ! "${BACKUP_COMPOSE[@]}" pull db-backup; then
+    echo "Failed to pull the backup image from GHCR"
+    exit 1
+  fi
 fi
 
 # The current web container remains live while the candidate image applies its
@@ -236,9 +235,7 @@ assert_release_container "web" "$WEB_CONTAINER" "$EXPECTED_APP_IMAGE"
 
 # Start backup service automatically on production
 if [ "${ENV_NAME:-}" = "production" ]; then
-  BACKUP_COMPOSE=(sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup)
-  echo "Pulling and starting the candidate backup image without touching PostgreSQL..."
-  "${BACKUP_COMPOSE[@]}" pull db-backup
+  echo "Starting the candidate backup image without touching PostgreSQL..."
   if ! timeout 330 "${BACKUP_COMPOSE[@]}" up -d --no-deps --wait --wait-timeout 300 db-backup; then
     echo "❌ Backup container failed to become healthy within 5 minutes."
     "${BACKUP_COMPOSE[@]}" logs db-backup
@@ -269,7 +266,12 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   [ "$BACKUP_CONTAINER_AFTER" = "$BACKUP_CONTAINER" ] || { echo "❌ Backup container changed during the stability check."; exit 1; }
   assert_release_container "backup" "$BACKUP_CONTAINER_AFTER" "$EXPECTED_BACKUP_IMAGE"
 fi
-[ "$(sudo docker compose ps -q db)" = "$DB_CONTAINER_BEFORE" ] || { echo "❌ PostgreSQL container changed during the stability check."; exit 1; }
+DB_CONTAINER_FINAL=$(sudo docker compose ps -q db)
+[ "$DB_CONTAINER_FINAL" = "$DB_CONTAINER_BEFORE" ] || { echo "❌ PostgreSQL container changed during the stability check."; exit 1; }
+[ "$(sudo docker inspect --format '{{.State.Health.Status}}' "$DB_CONTAINER_FINAL")" = "healthy" ] || { echo "❌ PostgreSQL is not healthy after the stability check."; exit 1; }
+DB_RESTARTS_AFTER=$(sudo docker inspect --format '{{.RestartCount}}' "$DB_CONTAINER_FINAL")
+[ "$DB_RESTARTS_AFTER" = "$DB_RESTARTS_BEFORE" ] || { echo "❌ PostgreSQL restarted during application deployment."; exit 1; }
+echo "✅ PostgreSQL remained healthy without replacement or restarts."
 
 cleanup_docker_resources
 

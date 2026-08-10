@@ -190,6 +190,10 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  curl_read() {
+                      curl --retry 2 --retry-delay 1 --retry-all-errors "$@"
+                  }
+
                   require_healthy() {
                       local domain="$1"
                       local expected_sms_test_mode="$2"
@@ -228,7 +232,7 @@ jobs:
                       local base_url="$1"
                       local providers admin_code protected_code protected_location
 
-                      providers=$(curl -fsS --max-time 10 "${base_url}/api/auth/providers")
+                      providers=$(curl_read -fsS --max-time 10 "${base_url}/api/auth/providers")
                       printf '%s' "$providers" | python3 -c '
                   import json
                   import sys
@@ -238,15 +242,15 @@ jobs:
                   '
                       echo "✅ GitHub authentication provider is available"
 
-                      admin_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
+                      admin_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
                       if [ "$admin_code" != "401" ]; then
                           echo "❌ Unauthenticated admin request returned ${admin_code}, expected 401"
                           return 1
                       fi
                       echo "✅ Unauthenticated admin API is rejected"
 
-                      protected_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
-                      protected_location=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      protected_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
+                      protected_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                       if [ "$protected_code" != "307" ] || [ "$protected_location" != "/sv/auth/signin?callbackUrl=%2Fhouseholds" ]; then
                           echo "❌ Protected page returned ${protected_code} -> ${protected_location}"
                           return 1
@@ -265,22 +269,22 @@ jobs:
 
                       require_healthy "$domain" "$expected_sms_test_mode"
 
-                      root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
+                      root_code=$(curl_read -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
                       if [ "$root_code" != "200" ]; then
                           echo "❌ ${base_url} returned ${root_code}, expected 200"
                           return 1
                       fi
                       echo "✅ ${base_url} resolves with 200"
 
-                      redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
-                      redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      redirect_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
+                      redirect_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                       if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "https://${domain}/api/health" ]; then
                           echo "❌ HTTP redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
                           return 1
                       fi
                       echo "✅ HTTP redirect for ${domain} is correct"
 
-                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
+                      headers=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
                       if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
                           echo "❌ Missing HSTS header for ${domain}"
                           return 1
@@ -421,6 +425,10 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  curl_read() {
+                      curl --retry 2 --retry-delay 1 --retry-all-errors "$@"
+                  }
+
                   require_healthy() {
                       local domain="$1"
                       local expected_sms_test_mode="$2"
@@ -459,7 +467,7 @@ jobs:
                       local base_url="$1"
                       local providers admin_code protected_code protected_location
 
-                      providers=$(curl -fsS --max-time 10 "${base_url}/api/auth/providers")
+                      providers=$(curl_read -fsS --max-time 10 "${base_url}/api/auth/providers")
                       printf '%s' "$providers" | python3 -c '
                   import json
                   import sys
@@ -469,15 +477,15 @@ jobs:
                   '
                       echo "✅ GitHub authentication provider is available"
 
-                      admin_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
+                      admin_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
                       if [ "$admin_code" != "401" ]; then
                           echo "❌ Unauthenticated admin request returned ${admin_code}, expected 401"
                           return 1
                       fi
                       echo "✅ Unauthenticated admin API is rejected"
 
-                      protected_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
-                      protected_location=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      protected_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
+                      protected_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                       if [ "$protected_code" != "307" ] || [ "$protected_location" != "/sv/auth/signin?callbackUrl=%2Fhouseholds" ]; then
                           echo "❌ Protected page returned ${protected_code} -> ${protected_location}"
                           return 1
@@ -496,22 +504,22 @@ jobs:
 
                       require_healthy "$domain" "$expected_sms_test_mode"
 
-                      root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
+                      root_code=$(curl_read -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
                       if [ "$root_code" != "200" ]; then
                           echo "❌ ${base_url} returned ${root_code}, expected 200"
                           return 1
                       fi
                       echo "✅ ${base_url} resolves with 200"
 
-                      redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
-                      redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      redirect_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
+                      redirect_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                       if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "https://${domain}/api/health" ]; then
                           echo "❌ HTTP redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
                           return 1
                       fi
                       echo "✅ HTTP redirect for ${domain} is correct"
 
-                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
+                      headers=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
                       if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
                           echo "❌ Missing HSTS header for ${domain}"
                           return 1
@@ -531,8 +539,8 @@ jobs:
                       local headers
 
                       for scheme in http https; do
-                          redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${scheme}://${domain}${path}")
-                          redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "${scheme}://${domain}${path}" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                          redirect_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${scheme}://${domain}${path}")
+                          redirect_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "${scheme}://${domain}${path}" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                           if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "$expected_location" ]; then
                               echo "❌ ${scheme} redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
                               return 1
@@ -540,7 +548,7 @@ jobs:
                           echo "✅ ${scheme} redirect for ${domain} is correct"
                       done
 
-                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "https://${domain}${path}")
+                      headers=$(curl_read -sS -D - -o /dev/null --max-time 10 "https://${domain}${path}")
                       if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
                           echo "❌ Missing HSTS header for ${domain}"
                           return 1
