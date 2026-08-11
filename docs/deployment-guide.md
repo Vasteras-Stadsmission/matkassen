@@ -89,6 +89,21 @@ EOF
 
 Workflow: `.github/workflows/continuous_deployment.yml`
 
+The workflow validates and tests the exact `main` commit before publishing its
+images. Routine updates replace only web and the stateless backup scheduler,
+using immutable SHA tags and `--no-deps` so Compose cannot recreate PostgreSQL.
+The update fails unless the intended image revisions are healthy, restart-free,
+and the PostgreSQL container ID remains unchanged.
+
+Public verification checks health and environment-specific scheduler policy,
+canonical HTTPS routing, HSTS, GitHub provider discovery, protected-page sign-in
+redirects, and unauthenticated admin rejection. Nginx, journald, Docker host
+configuration, and database recovery are deliberately outside routine
+application deployment.
+
+Cleanup removes stopped containers and dangling layers without `-a`, retaining
+tagged immutable images for the focused image-rollback follow-up.
+
 ### SSH Host Identity Pinning
 
 Both deployment workflows verify the VPS host key before sending credentials or
@@ -467,9 +482,15 @@ First-time deployment:
 
 Incremental updates:
 
-- Pulls latest code
-- Rebuilds images
-- Graceful restart (zero downtime)
+- pulls the workflow's immutable images;
+- applies backward-compatible migrations from the candidate image while the
+  current web container remains available;
+- replaces only web and the production backup scheduler with `--no-deps`;
+- waits for the production backup scheduler to become healthy;
+- verifies exact images, zero immediate restarts, and an unchanged PostgreSQL
+  container before external checks; and
+- leaves nginx, journald, Docker host configuration, and PostgreSQL lifecycle
+  untouched.
 
 ## Monitoring & Health Checks
 
@@ -576,37 +597,35 @@ docker compose run --rm certbot renew --force-renewal
 ### Out of Disk Space
 
 ```bash
-# Clean up Docker
-docker system prune -a --volumes
-
-# Clean up old images
-docker image prune -a
-
 # Check disk usage
 df -h
-du -sh /var/lib/docker
+sudo docker system df
+sudo journalctl --disk-usage
+
+# Safe first cleanup: does not delete named volumes or tagged rollback images
+sudo docker container prune
+sudo docker image prune
 ```
+
+Do not use `docker system prune -a --volumes` as a routine recovery command. It
+removes immutable release images and can remove unused named volumes. Inspect
+`sudo docker system df -v` before deleting anything else manually.
 
 ## Rollback Procedure
 
-```bash
-# 1. Identify last working commit
-git log --oneline
+Automated rollback is intentionally not part of the forward-deployment
+hardening. Until the compact image-only rollback workflow is added and rehearsed
+on staging, prefer a forward fix and preserve the exact running and prior image
+tags for diagnosis.
 
-# 2. SSH into server
-ssh user@your-vps
+Routine recovery must never restore a database backup or attempt automatic
+down-migrations. Every normal migration must keep the prior application image
+compatible through the expand → migrate → contract pattern. Database restore is
+a separate disaster-recovery operation.
 
-# 3. Checkout previous commit
-cd /opt/matkassen
-git checkout <commit-hash>
-
-# 4. Rebuild and restart
-docker compose build
-docker compose up -d
-
-# 5. If database schema changed, restore backup
-docker exec -i matkassen-db psql -U matkassen matkassen < /var/backups/matkassen/backup-<date>.sql
-```
+Changes to Compose, nginx, PostgreSQL, journald, systemd, certificates, or VPS
+storage are planned infrastructure releases with their own recovery notes; they
+are not ordinary application rollbacks.
 
 ## Performance Tuning
 

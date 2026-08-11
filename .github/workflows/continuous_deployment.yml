@@ -8,6 +8,8 @@ permissions:
     contents: read
 
 jobs:
+    # Pull requests must pass the main branch's required CI checks before merge.
+    # CD starts by publishing immutable images for that protected merge commit.
     publish-images:
         runs-on: ubuntu-latest
         permissions:
@@ -162,20 +164,33 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  curl_read() {
+                      curl --retry 2 --retry-delay 1 --retry-all-errors "$@"
+                  }
+
                   require_healthy() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local url="https://${domain}/api/health"
                       local body=""
-                      local health_status=""
 
                       for attempt in $(seq 1 30); do
                           if body=$(curl -fsS --max-time 10 "$url"); then
-                              health_status=$(printf '%s' "$body" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' 2>/dev/null || true)
-                              if [ "$health_status" = "healthy" ]; then
-                                  echo "✅ ${url} is healthy"
+                              if printf '%s' "$body" | python3 -c '
+                  import json
+                  import sys
+
+                  health = json.load(sys.stdin)
+                  details = health.get("checks", {}).get("schedulerDetails", {})
+                  expected_sms_test_mode = sys.argv[1] == "true"
+                  assert health.get("status") == "healthy"
+                  assert details.get("smsTestMode") is expected_sms_test_mode
+                  assert details.get("orgSyncSchedulerRunning") is True
+                  ' "$expected_sms_test_mode" 2>/dev/null; then
+                                  echo "✅ ${url} is healthy with the expected scheduler policy"
                                   return 0
                               fi
-                              echo "Health status for ${url}: ${health_status:-unparseable} (attempt ${attempt}/30)"
+                              echo "Health contract for ${url} is not ready (attempt ${attempt}/30)"
                           else
                               echo "Health request failed for ${url} (attempt ${attempt}/30)"
                           fi
@@ -187,40 +202,72 @@ jobs:
                       return 1
                   }
 
+                  verify_auth_boundaries() {
+                      local base_url="$1"
+                      local providers admin_code protected_code protected_location
+
+                      providers=$(curl_read -fsS --max-time 10 "${base_url}/api/auth/providers")
+                      printf '%s' "$providers" | python3 -c '
+                  import json
+                  import sys
+
+                  providers = json.load(sys.stdin)
+                  assert providers.get("github", {}).get("id") == "github"
+                  '
+                      echo "✅ GitHub authentication provider is available"
+
+                      admin_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
+                      if [ "$admin_code" != "401" ]; then
+                          echo "❌ Unauthenticated admin request returned ${admin_code}, expected 401"
+                          return 1
+                      fi
+                      echo "✅ Unauthenticated admin API is rejected"
+
+                      protected_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
+                      protected_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      if [ "$protected_code" != "307" ] || [ "$protected_location" != "/sv/auth/signin?callbackUrl=%2Fhouseholds" ]; then
+                          echo "❌ Protected page returned ${protected_code} -> ${protected_location}"
+                          return 1
+                      fi
+                      echo "✅ Protected page redirects to the expected sign-in page"
+                  }
+
                   verify_domain() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local base_url="https://${domain}"
                       local root_code
                       local redirect_code
                       local redirect_location
                       local headers
 
-                      require_healthy "$domain"
+                      require_healthy "$domain" "$expected_sms_test_mode"
 
-                      root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
+                      root_code=$(curl_read -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
                       if [ "$root_code" != "200" ]; then
                           echo "❌ ${base_url} returned ${root_code}, expected 200"
                           return 1
                       fi
                       echo "✅ ${base_url} resolves with 200"
 
-                      redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
-                      redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      redirect_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
+                      redirect_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                       if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "https://${domain}/api/health" ]; then
                           echo "❌ HTTP redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
                           return 1
                       fi
                       echo "✅ HTTP redirect for ${domain} is correct"
 
-                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
+                      headers=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
                       if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
                           echo "❌ Missing HSTS header for ${domain}"
                           return 1
                       fi
                       echo "✅ HSTS header present for ${domain}"
+                      verify_auth_boundaries "$base_url"
                   }
 
-                  verify_domain "staging.matcentralen.com"
+                  verify_domain "staging.matcentralen.com" "true"
 
     manual-deploy-to-production:
         needs: deploy-to-staging
@@ -352,20 +399,33 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  curl_read() {
+                      curl --retry 2 --retry-delay 1 --retry-all-errors "$@"
+                  }
+
                   require_healthy() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local url="https://${domain}/api/health"
                       local body=""
-                      local health_status=""
 
                       for attempt in $(seq 1 30); do
                           if body=$(curl -fsS --max-time 10 "$url"); then
-                              health_status=$(printf '%s' "$body" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' 2>/dev/null || true)
-                              if [ "$health_status" = "healthy" ]; then
-                                  echo "✅ ${url} is healthy"
+                              if printf '%s' "$body" | python3 -c '
+                  import json
+                  import sys
+
+                  health = json.load(sys.stdin)
+                  details = health.get("checks", {}).get("schedulerDetails", {})
+                  expected_sms_test_mode = sys.argv[1] == "true"
+                  assert health.get("status") == "healthy"
+                  assert details.get("smsTestMode") is expected_sms_test_mode
+                  assert details.get("orgSyncSchedulerRunning") is True
+                  ' "$expected_sms_test_mode" 2>/dev/null; then
+                                  echo "✅ ${url} is healthy with the expected scheduler policy"
                                   return 0
                               fi
-                              echo "Health status for ${url}: ${health_status:-unparseable} (attempt ${attempt}/30)"
+                              echo "Health contract for ${url} is not ready (attempt ${attempt}/30)"
                           else
                               echo "Health request failed for ${url} (attempt ${attempt}/30)"
                           fi
@@ -377,37 +437,69 @@ jobs:
                       return 1
                   }
 
+                  verify_auth_boundaries() {
+                      local base_url="$1"
+                      local providers admin_code protected_code protected_location
+
+                      providers=$(curl_read -fsS --max-time 10 "${base_url}/api/auth/providers")
+                      printf '%s' "$providers" | python3 -c '
+                  import json
+                  import sys
+
+                  providers = json.load(sys.stdin)
+                  assert providers.get("github", {}).get("id") == "github"
+                  '
+                      echo "✅ GitHub authentication provider is available"
+
+                      admin_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/api/admin/auth-check")
+                      if [ "$admin_code" != "401" ]; then
+                          echo "❌ Unauthenticated admin request returned ${admin_code}, expected 401"
+                          return 1
+                      fi
+                      echo "✅ Unauthenticated admin API is rejected"
+
+                      protected_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base_url}/households")
+                      protected_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/households" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      if [ "$protected_code" != "307" ] || [ "$protected_location" != "/sv/auth/signin?callbackUrl=%2Fhouseholds" ]; then
+                          echo "❌ Protected page returned ${protected_code} -> ${protected_location}"
+                          return 1
+                      fi
+                      echo "✅ Protected page redirects to the expected sign-in page"
+                  }
+
                   verify_domain() {
                       local domain="$1"
+                      local expected_sms_test_mode="$2"
                       local base_url="https://${domain}"
                       local root_code
                       local redirect_code
                       local redirect_location
                       local headers
 
-                      require_healthy "$domain"
+                      require_healthy "$domain" "$expected_sms_test_mode"
 
-                      root_code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
+                      root_code=$(curl_read -fsSL -o /dev/null -w '%{http_code}' --max-time 20 "$base_url")
                       if [ "$root_code" != "200" ]; then
                           echo "❌ ${base_url} returned ${root_code}, expected 200"
                           return 1
                       fi
                       echo "✅ ${base_url} resolves with 200"
 
-                      redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
-                      redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                      redirect_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://${domain}/api/health")
+                      redirect_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "http://${domain}/api/health" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                       if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "https://${domain}/api/health" ]; then
                           echo "❌ HTTP redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
                           return 1
                       fi
                       echo "✅ HTTP redirect for ${domain} is correct"
 
-                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
+                      headers=$(curl_read -sS -D - -o /dev/null --max-time 10 "${base_url}/api/health")
                       if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
                           echo "❌ Missing HSTS header for ${domain}"
                           return 1
                       fi
                       echo "✅ HSTS header present for ${domain}"
+                      verify_auth_boundaries "$base_url"
                   }
 
                   verify_redirect_host() {
@@ -421,8 +513,8 @@ jobs:
                       local headers
 
                       for scheme in http https; do
-                          redirect_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${scheme}://${domain}${path}")
-                          redirect_location=$(curl -sS -D - -o /dev/null --max-time 10 "${scheme}://${domain}${path}" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
+                          redirect_code=$(curl_read -sS -o /dev/null -w '%{http_code}' --max-time 10 "${scheme}://${domain}${path}")
+                          redirect_location=$(curl_read -sS -D - -o /dev/null --max-time 10 "${scheme}://${domain}${path}" | awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print $2; exit }' | tr -d '\r')
                           if [ "$redirect_code" != "301" ] || [ "$redirect_location" != "$expected_location" ]; then
                               echo "❌ ${scheme} redirect for ${domain} returned ${redirect_code} -> ${redirect_location}"
                               return 1
@@ -430,7 +522,7 @@ jobs:
                           echo "✅ ${scheme} redirect for ${domain} is correct"
                       done
 
-                      headers=$(curl -sS -D - -o /dev/null --max-time 10 "https://${domain}${path}")
+                      headers=$(curl_read -sS -D - -o /dev/null --max-time 10 "https://${domain}${path}")
                       if ! printf '%s\n' "$headers" | grep -qi '^Strict-Transport-Security: '; then
                           echo "❌ Missing HSTS header for ${domain}"
                           return 1
@@ -438,5 +530,5 @@ jobs:
                       echo "✅ HSTS header present for ${domain}"
                   }
 
-                  verify_domain "matcentralen.com"
+                  verify_domain "matcentralen.com" "false"
                   verify_redirect_host "www.matcentralen.com" "matcentralen.com"
