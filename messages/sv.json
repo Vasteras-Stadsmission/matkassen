@@ -775,7 +775,8 @@
             "phoneDuplicateWithInfo": "Detta telefonnummer tillhör: {name} - {phone} (ID: {id})",
             "pickupLocation": "Välj en hämtplats",
             "verificationIncomplete": "Alla obligatoriska verifieringar måste vara markerade innan du kan fortsätta",
-            "smsConsentRequired": "SMS-samtycke krävs för att fortsätta"
+            "smsConsentRequired": "SMS-samtycke krävs för att fortsätta",
+            "unsupportedLocale": "Välj ett språk som stöds"
         },
         "similarNameDialog": {
             "title": "Liknande hushåll hittades",
@@ -1154,7 +1155,7 @@
                     "outOfCredits": "Slut på saldo",
                     "unexpected": "Oväntad leveransstatus"
                 },
-                "deliveryStatusAt": "Leveransstatus kl",
+                "deliveryStatusAt": "Leveransstatus uppdaterad",
                 "sentAt": "Skickat {date}"
             }
         },

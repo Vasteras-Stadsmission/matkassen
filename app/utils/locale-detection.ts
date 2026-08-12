@@ -28,7 +28,7 @@ export const SUPPORTED_LOCALES = [
 ] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
-function toSupportedLocale(locale?: string | null): SupportedLocale | undefined {
+export function toSupportedLocale(locale?: string | null): SupportedLocale | undefined {
     if (!locale) {
         return undefined;
     }

@@ -775,7 +775,8 @@
             "phoneDuplicateWithInfo": "This phone number belongs to: {name} - {phone} (ID: {id})",
             "pickupLocation": "Select a pickup location",
             "verificationIncomplete": "All required verifications must be checked before proceeding",
-            "smsConsentRequired": "SMS consent is required to proceed"
+            "smsConsentRequired": "SMS consent is required to proceed",
+            "unsupportedLocale": "Select a supported language"
         },
         "similarNameDialog": {
             "title": "Similar Household Found",
@@ -1154,7 +1155,7 @@
                     "outOfCredits": "Out of credits",
                     "unexpected": "Unexpected delivery status"
                 },
-                "deliveryStatusAt": "Delivery status at",
+                "deliveryStatusAt": "Status updated",
                 "sentAt": "Sent {date}"
             }
         },

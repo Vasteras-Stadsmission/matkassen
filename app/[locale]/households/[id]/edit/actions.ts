@@ -41,6 +41,9 @@ import {
 } from "@/app/utils/parcels/apply-parcel-schedule-changes";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
+import { createSmsRecord } from "@/app/utils/sms/sms-service";
+import { formatEnrolmentSms } from "@/app/utils/sms/templates";
+import { toSupportedLocale } from "@/app/utils/locale-detection";
 
 export interface HouseholdUpdateResult {
     success: boolean;
@@ -460,6 +463,15 @@ export const updateHousehold = protectedAdminHouseholdAction(
                 });
             }
 
+            const locale = toSupportedLocale(data.household.locale);
+            if (!locale) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "validation.unsupportedLocale",
+                    field: "locale",
+                });
+            }
+
             // Check if phone number changed and validate no duplicates
             const newPhoneE164 = normalizePhoneToE164(data.household.phone_number);
 
@@ -576,7 +588,7 @@ export const updateHousehold = protectedAdminHouseholdAction(
                         first_name: firstName.value,
                         last_name: lastName.value,
                         phone_number: newPhoneE164,
-                        locale: data.household.locale,
+                        locale,
                         primary_pickup_location_id: primaryLocationId,
                         responsible_user_id: responsibleUserId,
                     })
@@ -709,7 +721,7 @@ export const updateHousehold = protectedAdminHouseholdAction(
                         first_name: firstName.value,
                         last_name: lastName.value,
                         phone_number: newPhoneE164,
-                        locale: data.household.locale,
+                        locale,
                         primary_pickup_location_id: primaryLocationId,
                         responsible_user_id: responsibleUserId,
                         members: normalizedMembersForAudit(data.members),
@@ -752,6 +764,28 @@ export const updateHousehold = protectedAdminHouseholdAction(
                     householdId: household.id,
                     logError,
                 });
+            }
+
+            if (phoneChanged) {
+                try {
+                    await createSmsRecord({
+                        intent: "enrolment",
+                        householdId: household.id,
+                        toE164: newPhoneE164,
+                        text: formatEnrolmentSms(locale),
+                    });
+
+                    logger.debug(
+                        { householdId: household.id },
+                        "Enrollment SMS record ensured after phone change",
+                    );
+                } catch (error) {
+                    logError("Failed to queue enrollment SMS after phone change", error, {
+                        householdId: household.id,
+                        action: "updateHousehold",
+                    });
+                    // Non-fatal: The household update remains valid and the failure is logged.
+                }
             }
 
             return success({ householdId: household.id });
