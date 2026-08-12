@@ -332,4 +332,39 @@ describe("SMS Resend - Integration Tests", () => {
             expect(allSms).toHaveLength(1);
         });
     });
+
+    describe("Enrollment SMS deduplication", () => {
+        it("should keep one enrollment SMS per household and phone number", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+
+            const firstSmsId = await createSmsRecord({
+                intent: "enrolment",
+                householdId: household.id,
+                toE164: "+46701111111",
+                text: "First enrollment message",
+            });
+            const repeatedSmsId = await createSmsRecord({
+                intent: "enrolment",
+                householdId: household.id,
+                toE164: "+46701111111",
+                text: "Repeated enrollment message",
+            });
+            const changedPhoneSmsId = await createSmsRecord({
+                intent: "enrolment",
+                householdId: household.id,
+                toE164: "+46702222222",
+                text: "Enrollment message for changed phone",
+            });
+
+            expect(repeatedSmsId).toBe(firstSmsId);
+            expect(changedPhoneSmsId).not.toBe(firstSmsId);
+
+            const records = await db
+                .select({ id: outgoingSms.id })
+                .from(outgoingSms)
+                .where(eq(outgoingSms.household_id, household.id));
+            expect(records).toHaveLength(2);
+        });
+    });
 });

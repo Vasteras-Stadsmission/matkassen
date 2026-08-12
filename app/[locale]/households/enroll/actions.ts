@@ -35,7 +35,7 @@ import { createSmsRecord } from "@/app/utils/sms/sms-service";
 import { formatEnrolmentSms } from "@/app/utils/sms/templates";
 import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outside-hours-count";
 import { validateParcelAssignmentsForForm } from "@/app/utils/validation/parcel-assignment";
-import type { SupportedLocale } from "@/app/utils/locale-detection";
+import { toSupportedLocale } from "@/app/utils/locale-detection";
 import { normalizePersonName } from "@/app/utils/person-name";
 
 import {
@@ -217,6 +217,15 @@ export const enrollHousehold = protectedAdminAction(
                 });
             }
 
+            const locale = toSupportedLocale(data.headOfHousehold.locale || "sv");
+            if (!locale) {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "validation.unsupportedLocale",
+                    field: "locale",
+                });
+            }
+
             // Store locationId for recompute after transaction
             const locationId = data.foodParcels?.pickupLocationId;
 
@@ -251,7 +260,7 @@ export const enrollHousehold = protectedAdminAction(
                         first_name: firstName.value,
                         last_name: lastName.value,
                         phone_number: normalizePhoneToE164(data.headOfHousehold.phoneNumber),
-                        locale: data.headOfHousehold.locale || "sv",
+                        locale,
                         created_by: session.user?.githubUsername ?? null,
                         primary_pickup_location_id: primaryLocationId,
                         responsible_user_id: responsibleUserId,
@@ -416,7 +425,6 @@ export const enrollHousehold = protectedAdminAction(
             }
 
             try {
-                const locale = (data.headOfHousehold.locale || "sv") as SupportedLocale;
                 const smsText = formatEnrolmentSms(locale);
                 const phoneE164 = normalizePhoneToE164(data.headOfHousehold.phoneNumber);
 
