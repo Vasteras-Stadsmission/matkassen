@@ -9,7 +9,6 @@ interface ParcelManagementClientProps {
     householdName: string;
     initialData?: FoodParcels;
     warningData?: {
-        shouldWarn: boolean;
         parcelCount: number;
         threshold: number | null;
     };

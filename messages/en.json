@@ -1549,8 +1549,8 @@
     "parcelWarning": {
         "modal": {
             "title": "High Parcel Count Warning",
-            "message": "{householdName} has received {count} food parcels (threshold: {threshold}).",
-            "explanation": "This household has exceeded the parcel limit threshold. Please verify that they have received appropriate support and assistance. You can still add more parcels, but this requires acknowledgment.",
+            "message": "This change means the household will have {count} registered food parcels (warning threshold: {threshold}).",
+            "explanation": "The household will exceed the food parcel warning threshold. Please verify that they have received appropriate support and assistance before saving this change.",
             "acknowledgmentLabel": "I acknowledge this household may need additional review or support",
             "confirmButton": "Continue Adding Parcels",
             "cancelButton": "Cancel"
