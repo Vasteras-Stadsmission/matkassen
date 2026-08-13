@@ -1553,8 +1553,8 @@
     "parcelWarning": {
         "modal": {
             "title": "Varning för högt antal matkassar",
-            "message": "{householdName} har mottagit {count} matkassar (gräns: {threshold}).",
-            "explanation": "Detta hushåll har överskridit varningsgränsen för matkassar. Vänligen verifiera att de har fått lämpligt stöd och hjälp. Du kan fortfarande lägga till fler kassar, men detta kräver bekräftelse.",
+            "message": "Ändringen innebär att hushållet kommer att ha {count} registrerade matkassar (varningsgräns: {threshold}).",
+            "explanation": "Hushållet kommer att överskrida varningsgränsen för matkassar. Kontrollera att de har fått lämpligt stöd och hjälp innan du sparar ändringen.",
             "acknowledgmentLabel": "Jag bekräftar att detta hushåll kan behöva ytterligare genomgång eller stöd",
             "confirmButton": "Fortsätt lägga till matkassar",
             "cancelButton": "Avbryt"

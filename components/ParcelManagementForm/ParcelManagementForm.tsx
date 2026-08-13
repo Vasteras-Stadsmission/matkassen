@@ -18,7 +18,6 @@ interface ParcelManagementFormProps {
     isLoading?: boolean;
     loadError?: string | null;
     warningData?: {
-        shouldWarn: boolean;
         parcelCount: number;
         threshold: number | null;
     };
@@ -47,7 +46,7 @@ export function ParcelManagementForm({
     >([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showWarningModal, setShowWarningModal] = useState(false);
-    const [warningAcknowledged, setWarningAcknowledged] = useState(false);
+    const [acknowledgedParcelCount, setAcknowledgedParcelCount] = useState<number | null>(null);
 
     // Initialize form data with defaults
     const [formData, setFormData] = useState<FoodParcels>(
@@ -56,6 +55,16 @@ export function ParcelManagementForm({
             parcels: [],
         },
     );
+
+    const initialParcelCount = initialData?.parcels.length ?? 0;
+    const projectedParcelCount = warningData
+        ? warningData.parcelCount + formData.parcels.length - initialParcelCount
+        : formData.parcels.length;
+    const requiresWarningAcknowledgment =
+        warningData?.threshold !== null &&
+        warningData?.threshold !== undefined &&
+        projectedParcelCount > warningData.threshold &&
+        projectedParcelCount > warningData.parcelCount;
 
     // Handle form data updates
     const updateFormData = useCallback((data: FoodParcels) => {
@@ -66,9 +75,9 @@ export function ParcelManagementForm({
 
     // Handle warning modal confirmation
     const handleWarningConfirm = useCallback(() => {
-        setWarningAcknowledged(true);
+        setAcknowledgedParcelCount(projectedParcelCount);
         setShowWarningModal(false);
-    }, []);
+    }, [projectedParcelCount]);
 
     // Handle form submission
     const handleSubmit = async () => {
@@ -88,8 +97,8 @@ export function ParcelManagementForm({
             return;
         }
 
-        // Check if we need to show warning modal (only if not already acknowledged this session)
-        if (warningData?.shouldWarn && !warningAcknowledged) {
+        // Only require confirmation when this change increases the count above the threshold.
+        if (requiresWarningAcknowledgment && acknowledgedParcelCount !== projectedParcelCount) {
             setShowWarningModal(true);
             return;
         }
@@ -206,14 +215,13 @@ export function ParcelManagementForm({
     return (
         <Container size="lg" py="md">
             {/* Warning Modal */}
-            {warningData?.shouldWarn && warningData.threshold !== null && (
+            {requiresWarningAcknowledgment && warningData?.threshold !== null && (
                 <ParcelWarningModal
                     opened={showWarningModal}
                     onClose={() => setShowWarningModal(false)}
                     onConfirm={handleWarningConfirm}
-                    parcelCount={warningData.parcelCount}
+                    projectedParcelCount={projectedParcelCount}
                     threshold={warningData.threshold}
-                    householdName={householdName}
                 />
             )}
 
