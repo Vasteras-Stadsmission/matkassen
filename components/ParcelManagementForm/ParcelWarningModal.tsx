@@ -9,18 +9,16 @@ interface ParcelWarningModalProps {
     opened: boolean;
     onClose: () => void;
     onConfirm: () => void;
-    parcelCount: number;
+    projectedParcelCount: number;
     threshold: number;
-    householdName: string;
 }
 
 export function ParcelWarningModal({
     opened,
     onClose,
     onConfirm,
-    parcelCount,
+    projectedParcelCount,
     threshold,
-    householdName,
 }: ParcelWarningModalProps) {
     const t = useTranslations("parcelWarning");
     const [acknowledged, setAcknowledged] = useState(false);
@@ -48,8 +46,7 @@ export function ParcelWarningModal({
                 <Alert icon={<IconAlertTriangle />} color="orange" variant="light">
                     <Text size="sm">
                         {t("modal.message", {
-                            householdName,
-                            count: String(parcelCount),
+                            count: String(projectedParcelCount),
                             threshold: String(threshold),
                         })}
                     </Text>
