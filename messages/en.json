@@ -1149,11 +1149,14 @@
                     "failed": "Failed",
                     "notDelivered": "Not Delivered",
                     "awaiting": "Awaiting confirmation",
+                    "stale": "No delivery confirmation",
                     "waiting": "Queued for delivery",
                     "expired": "Expired",
-                    "outOfCredits": "Out of credits"
+                    "outOfCredits": "Out of credits",
+                    "unexpected": "Unexpected delivery status"
                 },
-                "deliveryStatusAt": "Status updated"
+                "deliveryStatusAt": "Status updated",
+                "sentAt": "Sent {date}"
             }
         },
         "smsDashboard": {
@@ -1186,7 +1189,8 @@
                 "pickup_reminder": "Reminder",
                 "pickup_updated": "Update",
                 "pickup_cancelled": "Cancelled",
-                "enrolment": "Enrolment"
+                "enrolment": "Enrolment",
+                "food_parcels_ended": "Food support ended"
             },
             "dateGroups": {
                 "today": "TODAY",
