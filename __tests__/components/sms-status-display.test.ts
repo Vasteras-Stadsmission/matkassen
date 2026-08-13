@@ -83,6 +83,14 @@ describe("getSmsStatusDisplay", () => {
     it("keeps a malformed sent record without a sent time awaiting confirmation", () => {
         expect(getSmsStatusDisplay(sentRecord({ sentAt: undefined }), NOW).key).toBe("awaiting");
     });
+
+    it("warns about an unknown provider status instead of showing it as awaiting", () => {
+        expect(getSmsStatusDisplay(sentRecord({ providerStatus: "future_status" }), NOW)).toEqual({
+            source: "provider",
+            key: "unexpected",
+            color: "orange",
+        });
+    });
 });
 
 describe("shouldShowSmsIntentLabels", () => {

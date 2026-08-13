@@ -1,14 +1,6 @@
 export type SmsInternalStatus = "queued" | "sending" | "sent" | "retrying" | "failed" | "cancelled";
 
-export type SmsProviderStatus =
-    | "delivered"
-    | "failed"
-    | "not delivered"
-    | "waiting"
-    | "expired"
-    | "out_of_credits"
-    | "received"
-    | null;
+export type SmsProviderStatus = string | null;
 
 export interface SmsStatusDisplayRecord {
     status: SmsInternalStatus;
@@ -71,6 +63,9 @@ export function getSmsStatusDisplay(record: SmsStatusDisplayRecord, now: number)
     }
 
     switch (record.providerStatus) {
+        case null:
+        case undefined:
+            return { source: "provider", key: "awaiting", color: "gray" };
         case "delivered":
             return { source: "provider", key: "delivered", color: "green" };
         case "failed":
@@ -86,7 +81,7 @@ export function getSmsStatusDisplay(record: SmsStatusDisplayRecord, now: number)
         case "received":
             return { source: "provider", key: "unexpected", color: "orange" };
         default:
-            return { source: "provider", key: "awaiting", color: "gray" };
+            return { source: "provider", key: "unexpected", color: "orange" };
     }
 }
 
