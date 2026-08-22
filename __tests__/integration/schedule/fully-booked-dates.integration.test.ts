@@ -21,6 +21,7 @@ import {
     resetLocationCounter,
 } from "../../factories";
 import { daysFromTestNow } from "../../test-time";
+import { pickupLocationDailyLimits } from "@/app/db/schema";
 
 // Mock auth to inject session
 type MockSession = { user: { githubUsername: string; name: string; role: "admin" } };
@@ -235,6 +236,34 @@ describe("Fully Booked Dates - Integration Tests", () => {
             expect(result).toHaveLength(0);
         });
 
+        it("uses a date override when the location default is null", async () => {
+            const db = await getTestDb();
+            const { location } = await createTestLocationWithSchedule({
+                parcels_max_per_day: null,
+            });
+            const household = await createTestHousehold();
+            const monday = nextMonday10am();
+
+            await db.insert(pickupLocationDailyLimits).values({
+                pickup_location_id: location.id,
+                date: "2024-06-17",
+                max_parcels: 1,
+            });
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: monday,
+            });
+
+            const result = await getFullyBookedDates(
+                location.id,
+                daysFromTestNow(1),
+                daysFromTestNow(10),
+            );
+
+            expect(result).toEqual(["2024-06-17"]);
+        });
+
         it("should handle multiple dates with mixed capacity", async () => {
             const { location } = await createTestLocationWithSchedule({
                 parcels_max_per_day: 1,
@@ -390,6 +419,34 @@ describe("Fully Booked Dates - Integration Tests", () => {
 
             expect(result["10:00"]).toBe(1);
             expect(result["10:15"]).toBeUndefined();
+        });
+
+        it("counts a longer pickup window in every overlapping slot", async () => {
+            const { location } = await createTestLocationWithSchedule({
+                default_slot_duration_minutes: 30,
+            });
+            const household = await createTestHousehold();
+            const start = nextMonday10am();
+            start.setHours(9, 0, 0, 0);
+            const end = new Date(start);
+            end.setHours(11, 0, 0, 0);
+
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: start,
+                pickup_date_time_latest: end,
+            });
+
+            const result = await getTimeslotCounts(location.id, start);
+
+            expect(result).toMatchObject({
+                "09:00": 1,
+                "09:30": 1,
+                "10:00": 1,
+                "10:30": 1,
+            });
+            expect(result["11:00"]).toBeUndefined();
         });
     });
 

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/app/db/drizzle";
 import { pickupLocationSchedules } from "@/app/db/schema";
 import { ScheduleInput } from "@/app/[locale]/handout-locations/types";
+import type { DbOrTransaction } from "@/app/db/types";
 
 // Define types for the database query results
 interface ExistingSchedule {
@@ -23,12 +24,13 @@ export async function validateScheduleOverlap(
     scheduleData: ScheduleInput,
     locationId: string,
     excludeScheduleId?: string,
+    database: DbOrTransaction = db,
 ): Promise<void> {
     // Import validation functions
     const { findOverlappingSchedule } = await import("@/app/utils/schedule/schedule-validation");
 
     // Get existing schedules for this location to check for overlaps
-    const existingSchedules = await db
+    const existingSchedules = await database
         .select({
             id: pickupLocationSchedules.id,
             start_date: pickupLocationSchedules.start_date,

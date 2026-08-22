@@ -5,10 +5,11 @@ import {
     pickupLocations,
     pickupLocationSchedules,
     pickupLocationScheduleDays,
+    pickupLocationDailyLimits,
     scheduleAuditLog,
     foodParcels,
 } from "@/app/db/schema";
-import { eq } from "drizzle-orm";
+import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { protectedAdminAction } from "@/app/utils/auth/protected-action";
@@ -18,11 +19,27 @@ import {
     PickupLocationWithAllData,
     ScheduleInput,
     PickupLocationScheduleWithDays,
+    LocationLimitsInput,
+    LimitMutationResult,
+    DailyLimitConflict,
 } from "./types";
 import { logError } from "@/app/utils/logger";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outside-hours-count";
+import { notDeleted } from "@/app/db/query-helpers";
+import { getStockholmDayUtcRange } from "@/app/utils/date-utils";
+import {
+    dateKeyToStockholmDate,
+    loadBookedCountsByDate,
+    loadDailyLimitMonthData,
+    loadLocationLimitContext,
+    loadOpenDateKeys,
+    lockPickupLocationsForCapacity,
+    normalizeDateKeys,
+    stockholmTodayKey,
+    type DailyLimitMonthData,
+} from "@/app/utils/capacity/daily-limits";
 
 // Get all locations with their schedules
 export const getLocations = protectedAdminAction(
@@ -84,6 +101,13 @@ export const createLocation = protectedAdminAction(
         locationData: LocationFormInput,
     ): Promise<ActionResult<PickupLocationWithAllData>> => {
         // Auth already verified by protectedAdminAction wrapper
+
+        if (
+            !isPositiveIntegerOrNull(locationData.parcels_max_per_day) ||
+            !isPositiveIntegerOrNull(locationData.max_parcels_per_slot)
+        ) {
+            return failure({ code: "INVALID_LIMIT", message: "Limits must be positive integers" });
+        }
 
         try {
             // Process email to ensure it's either null or a valid format
@@ -148,20 +172,19 @@ export const updateLocation = protectedAdminAction(
                 name: locationData.name,
                 street_address: locationData.street_address,
                 postal_code: locationData.postal_code,
-                parcels_max_per_day: locationData.parcels_max_per_day,
-                max_parcels_per_slot: locationData.max_parcels_per_slot,
                 contact_name: locationData.contact_name,
                 contact_email: contact_email, // Use processed email value
                 contact_phone_number: locationData.contact_phone_number,
-                default_slot_duration_minutes: locationData.default_slot_duration_minutes,
             };
             await db.transaction(async tx => {
                 const [existingLocation] = await tx
                     .select({
-                        parcels_max_per_day: pickupLocations.parcels_max_per_day,
-                        max_parcels_per_slot: pickupLocations.max_parcels_per_slot,
-                        default_slot_duration_minutes:
-                            pickupLocations.default_slot_duration_minutes,
+                        name: pickupLocations.name,
+                        street_address: pickupLocations.street_address,
+                        postal_code: pickupLocations.postal_code,
+                        contact_name: pickupLocations.contact_name,
+                        contact_email: pickupLocations.contact_email,
+                        contact_phone_number: pickupLocations.contact_phone_number,
                     })
                     .from(pickupLocations)
                     .where(eq(pickupLocations.id, id))
@@ -173,20 +196,7 @@ export const updateLocation = protectedAdminAction(
                     .where(eq(pickupLocations.id, id));
 
                 if (existingLocation) {
-                    const changes = buildChanges(
-                        {
-                            parcels_max_per_day: existingLocation.parcels_max_per_day,
-                            max_parcels_per_slot: existingLocation.max_parcels_per_slot,
-                            default_slot_duration_minutes:
-                                existingLocation.default_slot_duration_minutes,
-                        },
-                        {
-                            parcels_max_per_day: locationData.parcels_max_per_day,
-                            max_parcels_per_slot: locationData.max_parcels_per_slot,
-                            default_slot_duration_minutes:
-                                locationData.default_slot_duration_minutes,
-                        },
-                    );
+                    const changes = buildChanges(existingLocation, locationValues);
 
                     if (Object.keys(changes).length > 0) {
                         await recordAuditEvent(tx, {
@@ -194,7 +204,7 @@ export const updateLocation = protectedAdminAction(
                             entityType: "pickup_location",
                             entityId: id,
                             action: "updated",
-                            summary: "Updated pickup location capacity settings",
+                            summary: "Updated pickup location general information",
                             details: auditDetailsForChanges(changes),
                         });
                     }
@@ -215,6 +225,421 @@ export const updateLocation = protectedAdminAction(
             return failure({
                 code: "DATABASE_ERROR",
                 message: `Failed to update location: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        }
+    },
+);
+
+function isPositiveIntegerOrNull(value: number | null): boolean {
+    return value === null || (Number.isInteger(value) && value > 0);
+}
+
+async function revalidateLocationSettings(): Promise<void> {
+    const locale = (await headers()).get("x-locale") || "en";
+    revalidatePath(`/${locale}/settings/locations`, "page");
+}
+
+async function getDefaultLimitConflicts(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    locationId: string,
+    resultingDefault: number | null,
+): Promise<DailyLimitConflict[]> {
+    if (resultingDefault === null) return [];
+
+    const today = stockholmTodayKey();
+    const { startUtc } = getStockholmDayUtcRange(dateKeyToStockholmDate(today));
+    const rows = await tx
+        .select({
+            date: sql<string>`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
+            booked: count(),
+        })
+        .from(foodParcels)
+        .where(
+            and(
+                eq(foodParcels.pickup_location_id, locationId),
+                gte(foodParcels.pickup_date_time_earliest, startUtc),
+                notDeleted(),
+            ),
+        )
+        .groupBy(
+            sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
+        );
+
+    if (rows.length === 0) return [];
+    const context = await loadLocationLimitContext(
+        tx,
+        locationId,
+        rows.map(row => row.date),
+    );
+
+    return rows
+        .filter(row => context.overrides[row.date] === undefined && row.booked > resultingDefault)
+        .map(row => ({ date: row.date, booked: row.booked, resultingLimit: resultingDefault }));
+}
+
+export const getDailyLimitMonthData = protectedAdminAction(
+    async (
+        _session,
+        locationId: string,
+        dateKeys: string[],
+    ): Promise<ActionResult<DailyLimitMonthData>> => {
+        try {
+            const normalizedDateKeys = normalizeDateKeys(dateKeys);
+            return success(await loadDailyLimitMonthData(db, locationId, normalizedDateKeys));
+        } catch (error) {
+            logError("Error loading daily parcel limits", error, {
+                action: "getDailyLimitMonthData",
+                locationId,
+            });
+            return failure({
+                code: error instanceof Error ? error.message : "DATABASE_ERROR",
+                message: "Failed to load daily parcel limits",
+            });
+        }
+    },
+);
+
+export const updateLocationLimits = protectedAdminAction(
+    async (
+        session,
+        locationId: string,
+        values: LocationLimitsInput,
+        acknowledgedConflictDates: string[] = [],
+    ): Promise<ActionResult<LimitMutationResult>> => {
+        if (
+            !isPositiveIntegerOrNull(values.parcels_max_per_day) ||
+            !isPositiveIntegerOrNull(values.max_parcels_per_slot)
+        ) {
+            return failure({ code: "INVALID_LIMIT", message: "Limits must be positive integers" });
+        }
+
+        try {
+            const result = await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx, [locationId]);
+                const current = await loadLocationLimitContext(tx, locationId, []);
+                const changed =
+                    current.defaultDailyLimit !== values.parcels_max_per_day ||
+                    current.explicitSlotLimit !== values.max_parcels_per_slot;
+
+                if (!changed) {
+                    return {
+                        status: "updated" as const,
+                        changedDates: [],
+                        conflicts: [],
+                    };
+                }
+
+                const lowersDailyDefault =
+                    values.parcels_max_per_day !== null &&
+                    (current.defaultDailyLimit === null ||
+                        values.parcels_max_per_day < current.defaultDailyLimit);
+                const conflicts = lowersDailyDefault
+                    ? await getDefaultLimitConflicts(tx, locationId, values.parcels_max_per_day)
+                    : [];
+                const acknowledged = new Set(acknowledgedConflictDates);
+                if (
+                    conflicts.length > 0 &&
+                    conflicts.some(conflict => !acknowledged.has(conflict.date))
+                ) {
+                    return {
+                        status: "confirmation_required" as const,
+                        changedDates: [],
+                        conflicts,
+                    };
+                }
+
+                await tx
+                    .update(pickupLocations)
+                    .set({
+                        parcels_max_per_day: values.parcels_max_per_day,
+                        max_parcels_per_slot: values.max_parcels_per_slot,
+                    })
+                    .where(eq(pickupLocations.id, locationId));
+
+                await recordAuditEvent(tx, {
+                    session,
+                    entityType: "pickup_location",
+                    entityId: locationId,
+                    action: "updated",
+                    summary: "Updated pickup location parcel limits",
+                    details: auditDetailsForChanges(
+                        buildChanges(
+                            {
+                                parcels_max_per_day: current.defaultDailyLimit,
+                                max_parcels_per_slot: current.explicitSlotLimit,
+                            },
+                            {
+                                parcels_max_per_day: values.parcels_max_per_day,
+                                max_parcels_per_slot: values.max_parcels_per_slot,
+                            },
+                        ),
+                    ),
+                });
+
+                return {
+                    status: "updated" as const,
+                    changedDates: [],
+                    conflicts,
+                };
+            });
+
+            if (result.status === "updated") await revalidateLocationSettings();
+            return success(result);
+        } catch (error) {
+            logError("Error updating location parcel limits", error, {
+                action: "updateLocationLimits",
+                locationId,
+            });
+            return failure({
+                code: error instanceof Error ? error.message : "DATABASE_ERROR",
+                message: "Failed to update location parcel limits",
+            });
+        }
+    },
+);
+
+export const applyDailyParcelLimits = protectedAdminAction(
+    async (
+        session,
+        locationId: string,
+        dateKeys: string[],
+        maxParcels: number,
+        acknowledgedConflictDates: string[] = [],
+    ): Promise<ActionResult<LimitMutationResult>> => {
+        if (!Number.isInteger(maxParcels) || maxParcels <= 0) {
+            return failure({ code: "INVALID_LIMIT", message: "Limit must be a positive integer" });
+        }
+
+        try {
+            const normalizedDateKeys = normalizeDateKeys(dateKeys);
+            if (normalizedDateKeys.some(dateKey => dateKey < stockholmTodayKey())) {
+                return failure({ code: "PAST_DATE", message: "Past dates cannot be changed" });
+            }
+
+            const result = await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx, [locationId]);
+                const [context, openDates, bookedCounts] = await Promise.all([
+                    loadLocationLimitContext(tx, locationId, normalizedDateKeys),
+                    loadOpenDateKeys(tx, locationId, normalizedDateKeys),
+                    loadBookedCountsByDate(tx, locationId, normalizedDateKeys),
+                ]);
+
+                const invalidClosedDates = normalizedDateKeys.filter(
+                    dateKey => !openDates.has(dateKey) && context.overrides[dateKey] === undefined,
+                );
+                if (invalidClosedDates.length > 0) {
+                    throw new Error("CLOSED_DATE");
+                }
+
+                const changedDates = normalizedDateKeys.filter(
+                    dateKey => context.overrides[dateKey] !== maxParcels,
+                );
+                const conflicts = changedDates
+                    .filter(dateKey => (bookedCounts[dateKey] ?? 0) > maxParcels)
+                    .map(dateKey => ({
+                        date: dateKey,
+                        booked: bookedCounts[dateKey] ?? 0,
+                        resultingLimit: maxParcels,
+                    }));
+
+                const acknowledged = new Set(acknowledgedConflictDates);
+                if (
+                    conflicts.length > 0 &&
+                    conflicts.some(conflict => !acknowledged.has(conflict.date))
+                ) {
+                    return { status: "confirmation_required" as const, changedDates, conflicts };
+                }
+                if (changedDates.length === 0) {
+                    return { status: "updated" as const, changedDates, conflicts: [] };
+                }
+
+                await tx
+                    .insert(pickupLocationDailyLimits)
+                    .values(
+                        changedDates.map(dateKey => ({
+                            pickup_location_id: locationId,
+                            date: dateKey,
+                            max_parcels: maxParcels,
+                        })),
+                    )
+                    .onConflictDoUpdate({
+                        target: [
+                            pickupLocationDailyLimits.pickup_location_id,
+                            pickupLocationDailyLimits.date,
+                        ],
+                        set: { max_parcels: maxParcels },
+                    });
+
+                await recordAuditEvent(tx, {
+                    session,
+                    entityType: "pickup_location",
+                    entityId: locationId,
+                    action: "daily_limits_updated",
+                    summary: `Updated parcel limits for ${changedDates.length} date(s)`,
+                    details: {
+                        dates: changedDates,
+                        max_parcels: maxParcels,
+                    },
+                });
+
+                return { status: "updated" as const, changedDates, conflicts };
+            });
+
+            if (result.status === "updated") await revalidateLocationSettings();
+            return success(result);
+        } catch (error) {
+            logError("Error applying daily parcel limits", error, {
+                action: "applyDailyParcelLimits",
+                locationId,
+            });
+            return failure({
+                code: error instanceof Error ? error.message : "DATABASE_ERROR",
+                message: "Failed to apply daily parcel limits",
+            });
+        }
+    },
+);
+
+export const resetDailyParcelLimits = protectedAdminAction(
+    async (
+        session,
+        locationId: string,
+        dateKeys: string[],
+        acknowledgedConflictDates: string[] = [],
+    ): Promise<ActionResult<LimitMutationResult>> => {
+        try {
+            const normalizedDateKeys = normalizeDateKeys(dateKeys);
+            if (normalizedDateKeys.some(dateKey => dateKey < stockholmTodayKey())) {
+                return failure({ code: "PAST_DATE", message: "Past dates cannot be changed" });
+            }
+
+            const result = await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx, [locationId]);
+                const [context, bookedCounts] = await Promise.all([
+                    loadLocationLimitContext(tx, locationId, normalizedDateKeys),
+                    loadBookedCountsByDate(tx, locationId, normalizedDateKeys),
+                ]);
+                const changedDates = normalizedDateKeys.filter(
+                    dateKey => context.overrides[dateKey] !== undefined,
+                );
+                const conflicts =
+                    context.defaultDailyLimit === null
+                        ? []
+                        : changedDates
+                              .filter(
+                                  dateKey =>
+                                      (bookedCounts[dateKey] ?? 0) > context.defaultDailyLimit!,
+                              )
+                              .map(dateKey => ({
+                                  date: dateKey,
+                                  booked: bookedCounts[dateKey] ?? 0,
+                                  resultingLimit: context.defaultDailyLimit!,
+                              }));
+
+                const acknowledged = new Set(acknowledgedConflictDates);
+                if (
+                    conflicts.length > 0 &&
+                    conflicts.some(conflict => !acknowledged.has(conflict.date))
+                ) {
+                    return { status: "confirmation_required" as const, changedDates, conflicts };
+                }
+                if (changedDates.length === 0) {
+                    return { status: "updated" as const, changedDates, conflicts: [] };
+                }
+
+                await tx
+                    .delete(pickupLocationDailyLimits)
+                    .where(
+                        and(
+                            eq(pickupLocationDailyLimits.pickup_location_id, locationId),
+                            inArray(pickupLocationDailyLimits.date, changedDates),
+                        ),
+                    );
+
+                await recordAuditEvent(tx, {
+                    session,
+                    entityType: "pickup_location",
+                    entityId: locationId,
+                    action: "daily_limits_reset",
+                    summary: `Reset parcel limits for ${changedDates.length} date(s)`,
+                    details: { dates: changedDates },
+                });
+
+                return { status: "updated" as const, changedDates, conflicts };
+            });
+
+            if (result.status === "updated") await revalidateLocationSettings();
+            return success(result);
+        } catch (error) {
+            logError("Error resetting daily parcel limits", error, {
+                action: "resetDailyParcelLimits",
+                locationId,
+            });
+            return failure({
+                code: error instanceof Error ? error.message : "DATABASE_ERROR",
+                message: "Failed to reset daily parcel limits",
+            });
+        }
+    },
+);
+
+export const updateLocationSlotDuration = protectedAdminAction(
+    async (
+        session,
+        locationId: string,
+        slotDurationMinutes: number,
+    ): Promise<ActionResult<number>> => {
+        if (
+            !Number.isInteger(slotDurationMinutes) ||
+            slotDurationMinutes <= 0 ||
+            slotDurationMinutes > 240 ||
+            slotDurationMinutes % 15 !== 0
+        ) {
+            return failure({
+                code: "INVALID_SLOT_DURATION",
+                message: "Slot duration must be a 15-minute increment between 15 and 240",
+            });
+        }
+
+        try {
+            await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx, [locationId]);
+                const [current] = await tx
+                    .select({ value: pickupLocations.default_slot_duration_minutes })
+                    .from(pickupLocations)
+                    .where(eq(pickupLocations.id, locationId))
+                    .limit(1);
+                if (!current) throw new Error("PICKUP_LOCATION_NOT_FOUND");
+                if (current.value === slotDurationMinutes) return;
+
+                await tx
+                    .update(pickupLocations)
+                    .set({ default_slot_duration_minutes: slotDurationMinutes })
+                    .where(eq(pickupLocations.id, locationId));
+                await recordAuditEvent(tx, {
+                    session,
+                    entityType: "pickup_location",
+                    entityId: locationId,
+                    action: "updated",
+                    summary: "Updated pickup location slot duration",
+                    details: auditDetailsForChanges(
+                        buildChanges(
+                            { default_slot_duration_minutes: current.value },
+                            { default_slot_duration_minutes: slotDurationMinutes },
+                        ),
+                    ),
+                });
+            });
+            await revalidateLocationSettings();
+            return success(slotDurationMinutes);
+        } catch (error) {
+            logError("Error updating location slot duration", error, {
+                action: "updateLocationSlotDuration",
+                locationId,
+            });
+            return failure({
+                code: error instanceof Error ? error.message : "DATABASE_ERROR",
+                message: "Failed to update slot duration",
             });
         }
     },
@@ -273,15 +698,15 @@ export const createSchedule = protectedAdminAction(
         const username = session.user?.githubUsername ?? "unknown";
 
         try {
-            // Validate schedule overlap using shared utility
-            const { validateScheduleOverlap } =
-                await import("@/app/utils/schedule/overlap-validation");
-            await validateScheduleOverlap(scheduleData, locationId);
-
             let createdSchedule: PickupLocationScheduleWithDays;
 
             // Begin a transaction
             await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx, [locationId]);
+                const { validateScheduleOverlap } =
+                    await import("@/app/utils/schedule/overlap-validation");
+                await validateScheduleOverlap(scheduleData, locationId, undefined, tx);
+
                 // Insert the schedule
                 const [schedule] = await tx
                     .insert(pickupLocationSchedules)
@@ -412,21 +837,28 @@ export const updateSchedule = protectedAdminAction(
 
             const locationId = currentScheduleRows[0].pickup_location_id;
 
-            // Fetch old days BEFORE update for change diff
-            const oldDays = await db
-                .select()
-                .from(pickupLocationScheduleDays)
-                .where(eq(pickupLocationScheduleDays.schedule_id, scheduleId));
-
-            // Validate schedule overlap using shared utility (excluding current schedule)
-            const { validateScheduleOverlap } =
-                await import("@/app/utils/schedule/overlap-validation");
-            await validateScheduleOverlap(scheduleData, locationId, scheduleId);
-
             let updatedSchedule: PickupLocationScheduleWithDays;
 
             // Begin a transaction
             await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx, [locationId]);
+                const [lockedSchedule] = await tx
+                    .select()
+                    .from(pickupLocationSchedules)
+                    .where(eq(pickupLocationSchedules.id, scheduleId))
+                    .limit(1)
+                    .for("update");
+                if (!lockedSchedule || lockedSchedule.pickup_location_id !== locationId) {
+                    throw new Error("SCHEDULE_CHANGED");
+                }
+                const oldDays = await tx
+                    .select()
+                    .from(pickupLocationScheduleDays)
+                    .where(eq(pickupLocationScheduleDays.schedule_id, scheduleId));
+                const { validateScheduleOverlap } =
+                    await import("@/app/utils/schedule/overlap-validation");
+                await validateScheduleOverlap(scheduleData, locationId, scheduleId, tx);
+
                 // Update the schedule
                 const [schedule] = await tx
                     .update(pickupLocationSchedules)
@@ -576,12 +1008,28 @@ export const deleteSchedule = protectedAdminAction(
             // Audit log + delete in a single transaction for atomicity
             await db.transaction(async tx => {
                 if (scheduleRow) {
+                    await lockPickupLocationsForCapacity(tx, [scheduleRow.pickup_location_id]);
+                    const [lockedSchedule] = await tx
+                        .select({
+                            pickup_location_id: pickupLocationSchedules.pickup_location_id,
+                            name: pickupLocationSchedules.name,
+                        })
+                        .from(pickupLocationSchedules)
+                        .where(eq(pickupLocationSchedules.id, scheduleId))
+                        .limit(1)
+                        .for("update");
+                    if (
+                        !lockedSchedule ||
+                        lockedSchedule.pickup_location_id !== scheduleRow.pickup_location_id
+                    ) {
+                        throw new Error("SCHEDULE_CHANGED");
+                    }
                     await tx.insert(scheduleAuditLog).values({
                         schedule_id: scheduleId,
-                        pickup_location_id: scheduleRow.pickup_location_id,
+                        pickup_location_id: lockedSchedule.pickup_location_id,
                         action: "deleted",
                         changed_by: username,
-                        changes_summary: `Deleted schedule "${scheduleRow.name}"`,
+                        changes_summary: `Deleted schedule "${lockedSchedule.name}"`,
                     });
 
                     await recordAuditEvent(tx, {
@@ -591,7 +1039,7 @@ export const deleteSchedule = protectedAdminAction(
                         action: "updated",
                         summary: "Updated pickup location opening hours",
                         details: {
-                            pickup_location_id: scheduleRow.pickup_location_id,
+                            pickup_location_id: lockedSchedule.pickup_location_id,
                             schedule_action: "deleted",
                         },
                     });

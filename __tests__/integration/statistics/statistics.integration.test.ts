@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getTestDb } from "../../db/test-db";
-import { households } from "@/app/db/schema";
+import { households, pickupLocationDailyLimits } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import {
     createTestHousehold,
@@ -26,6 +26,7 @@ import {
     createTestQueuedSms,
 } from "../../factories/sms.factory";
 import { daysFromTestNow } from "../../test-time";
+import { stockholmDateKey } from "@/app/utils/capacity/daily-limits";
 
 // Import the actions - must use dynamic import after mock setup
 // The mock is set up in __tests__/integration/setup.ts
@@ -618,6 +619,45 @@ describe("Statistics Actions", () => {
                 expect(tomorrowCapacity?.scheduled).toBe(3);
                 expect(tomorrowCapacity?.max).toBe(10);
                 expect(tomorrowCapacity?.usagePercent).toBe(30); // 3/10 * 100 = 30%
+            });
+
+            it("should use a date-specific limit in capacity usage", async () => {
+                const db = await getTestDb();
+                const location = await createTestPickupLocation({
+                    name: "Override Capacity",
+                    parcels_max_per_day: 10,
+                });
+                const tomorrow = daysFromTestNow(1);
+                const tomorrowKey = stockholmDateKey(tomorrow);
+                await db.insert(pickupLocationDailyLimits).values({
+                    pickup_location_id: location.id,
+                    date: tomorrowKey,
+                    max_parcels: 4,
+                });
+
+                for (let i = 0; i < 2; i++) {
+                    const household = await createTestHousehold();
+                    await createTestParcel({
+                        household_id: household.id,
+                        pickup_location_id: location.id,
+                        pickup_date_time_earliest: tomorrow,
+                    });
+                }
+
+                const { getAllStatistics } = await getActions();
+                const result = await getAllStatistics("7d");
+
+                expect(result.success).toBe(true);
+                if (!result.success) return;
+                const tomorrowCapacity = result.data.locations.capacityUsage.find(
+                    entry =>
+                        entry.locationName === "Override Capacity" && entry.date === tomorrowKey,
+                );
+                expect(tomorrowCapacity).toMatchObject({
+                    scheduled: 2,
+                    max: 4,
+                    usagePercent: 50,
+                });
             });
 
             it("should identify near-capacity alerts (>= 80%)", async () => {

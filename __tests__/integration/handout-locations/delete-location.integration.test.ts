@@ -14,6 +14,7 @@ import {
     pickupLocations,
     pickupLocationScheduleDays,
     pickupLocationSchedules,
+    pickupLocationDailyLimits,
     scheduleAuditLog,
 } from "@/app/db/schema";
 
@@ -56,6 +57,11 @@ describe("deleteLocation", () => {
             changed_by: "location-delete-test",
             changes_summary: "Audit row should survive location deletion",
         });
+        await db.insert(pickupLocationDailyLimits).values({
+            pickup_location_id: location.id,
+            date: "2027-01-15",
+            max_parcels: 10,
+        });
 
         const result = await deleteLocation(location.id);
 
@@ -78,6 +84,12 @@ describe("deleteLocation", () => {
             .from(pickupLocationScheduleDays)
             .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
         expect(remainingDays).toHaveLength(0);
+
+        const remainingDailyLimits = await db
+            .select()
+            .from(pickupLocationDailyLimits)
+            .where(eq(pickupLocationDailyLimits.pickup_location_id, location.id));
+        expect(remainingDailyLimits).toHaveLength(0);
 
         const auditRows = await db
             .select()

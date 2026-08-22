@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Stack, Paper, Text, LoadingOverlay } from "@mantine/core";
+import { Stack, Paper, Text, LoadingOverlay, Select, Button, Group } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { notifications } from "@mantine/notifications";
 import type { ActionResult } from "@/app/utils/auth/action-result";
@@ -10,7 +10,12 @@ import {
     ScheduleInput,
     PickupLocationScheduleWithDays,
 } from "../../types";
-import { createSchedule, updateSchedule, deleteSchedule } from "../../actions";
+import {
+    createSchedule,
+    updateSchedule,
+    deleteSchedule,
+    updateLocationSlotDuration,
+} from "../../actions";
 import { SchedulesList } from "./SchedulesList";
 import { objectsEqual } from "../../../../utils/deep-equal";
 
@@ -27,6 +32,10 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
     );
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [slotDuration, setSlotDuration] = useState(
+        String(location.default_slot_duration_minutes),
+    );
+    const [savingSlotDuration, setSavingSlotDuration] = useState(false);
 
     // Sync with server state when location changes, but only if schedules actually changed
     // This prevents overwriting optimistic updates when the location object is re-created
@@ -40,6 +49,31 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
             return prevSchedules;
         });
     }, [location.schedules]);
+
+    useEffect(() => {
+        setSlotDuration(String(location.default_slot_duration_minutes));
+    }, [location.default_slot_duration_minutes]);
+
+    const saveSlotDuration = async () => {
+        setSavingSlotDuration(true);
+        const value = Number(slotDuration);
+        const result = await updateLocationSlotDuration(location.id, value);
+        setSavingSlotDuration(false);
+        if (!result.success) {
+            notifications.show({
+                title: t("slotDurationSaveErrorTitle"),
+                message: t("slotDurationSaveErrorMessage"),
+                color: "red",
+            });
+            return;
+        }
+        onLocationUpdated?.(location.id, { default_slot_duration_minutes: result.data });
+        notifications.show({
+            title: t("locationUpdated"),
+            message: t("slotDurationSaved"),
+            color: "green",
+        });
+    };
 
     // Helper function to handle common operation pattern: loading state, server action, state update, and callbacks
     const handleScheduleOperation = async <T,>(
@@ -157,6 +191,45 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
                     <Text c="red">{error}</Text>
                 </Paper>
             )}
+
+            <Paper withBorder p="md">
+                <Stack>
+                    <div>
+                        <Text fw={600}>{t("slotDuration")}</Text>
+                        <Text size="sm" c="dimmed">
+                            {t("slotDurationDescription")}
+                        </Text>
+                    </div>
+                    <Select
+                        label={t("slotDuration")}
+                        value={slotDuration}
+                        onChange={value => setSlotDuration(value ?? "15")}
+                        data={[
+                            { value: "15", label: "15 min" },
+                            { value: "30", label: "30 min" },
+                            { value: "45", label: "45 min" },
+                            { value: "60", label: "1 h" },
+                            { value: "75", label: "1 h 15 min" },
+                            { value: "90", label: "1 h 30 min" },
+                            { value: "105", label: "1 h 45 min" },
+                            { value: "120", label: "2 h" },
+                            { value: "150", label: "2 h 30 min" },
+                            { value: "180", label: "3 h" },
+                            { value: "210", label: "3 h 30 min" },
+                            { value: "240", label: "4 h" },
+                        ]}
+                    />
+                    <Group justify="flex-end">
+                        <Button
+                            type="button"
+                            loading={savingSlotDuration}
+                            onClick={() => void saveSlotDuration()}
+                        >
+                            {t("saveSlotDuration")}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Paper>
 
             <SchedulesList
                 schedules={schedules}

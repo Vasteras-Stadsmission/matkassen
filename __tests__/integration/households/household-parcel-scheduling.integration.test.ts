@@ -13,9 +13,10 @@ import {
     resetLocationCounter,
     resetUserCounter,
 } from "../../factories";
-import { auditLog, foodParcels } from "@/app/db/schema";
+import { auditLog, foodParcels, pickupLocationDailyLimits } from "@/app/db/schema";
 import type { FormData } from "@/app/[locale]/households/enroll/types";
 import { stripSwedishPrefix } from "@/app/utils/validation/phone-validation";
+import { getStockholmDateKey } from "@/app/utils/date-utils";
 
 vi.mock("@/app/utils/auth/server-action-auth", () => ({
     verifyServerActionAuth: vi.fn(async () => ({
@@ -180,6 +181,46 @@ describe("Household parcel scheduling integration", () => {
         expect(activeParcels[0].pickup_date_time_earliest).toEqual(slot.start);
         expect(activeParcels[0].pickup_date_time_latest).toEqual(slot.end);
         expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
+    });
+
+    it("rejects a forged zero-duration slot in a full household edit", async () => {
+        const db = await getTestDb();
+        const { location } = await createTestLocationWithSchedule(
+            {
+                parcels_max_per_day: null,
+                max_parcels_per_slot: 1,
+                default_slot_duration_minutes: 15,
+            },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const household = await createTestHousehold({
+            primary_pickup_location_id: location.id,
+        });
+        const start = atHour(daysFromNow(5), 10);
+
+        const result = await updateHousehold(
+            household.id,
+            buildUpdateData(household, location.id, [
+                {
+                    pickupDate: start,
+                    pickupEarliestTime: start,
+                    pickupLatestTime: new Date(start),
+                },
+            ]),
+        );
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.validationErrors?.map(error => error.code)).toContain(
+                "INVALID_TIME_SLOT",
+            );
+        }
+
+        const activeParcels = await db
+            .select()
+            .from(foodParcels)
+            .where(and(eq(foodParcels.household_id, household.id), isNull(foodParcels.deleted_at)));
+        expect(activeParcels).toHaveLength(0);
     });
 
     it("writes household edit audit details with only the fields that changed", async () => {
@@ -612,6 +653,56 @@ describe("Household parcel scheduling integration", () => {
         expect(unchangedParcel.pickup_date_time_latest).toEqual(originalSlot.end);
         expect(unchangedParcel.deleted_at).toBeNull();
         expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
+    });
+
+    it("rejects an incoming move when a date-specific limit is full", async () => {
+        const db = await getTestDb();
+        const { location } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 10, max_parcels_per_slot: 10 },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const household = await createTestHousehold({
+            primary_pickup_location_id: location.id,
+        });
+        const otherHousehold = await createTestHousehold();
+        const originalSlot = withEnd(atHour(daysFromNow(2), 10));
+        const targetSlot = withEnd(atHour(daysFromNow(3), 11));
+        const parcel = await createTestParcel({
+            household_id: household.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: originalSlot.start,
+            pickup_date_time_latest: originalSlot.end,
+        });
+        await createTestParcel({
+            household_id: otherHousehold.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: targetSlot.start,
+            pickup_date_time_latest: targetSlot.end,
+        });
+        await db.insert(pickupLocationDailyLimits).values({
+            pickup_location_id: location.id,
+            date: getStockholmDateKey(targetSlot.start),
+            max_parcels: 1,
+        });
+
+        const result = await updateHousehold(
+            household.id,
+            buildUpdateData(household, location.id, [
+                {
+                    id: parcel.id,
+                    pickupDate: targetSlot.start,
+                    pickupEarliestTime: targetSlot.start,
+                    pickupLatestTime: targetSlot.end,
+                },
+            ]),
+        );
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.validationErrors?.map(error => error.code)).toContain(
+                "MAX_DAILY_CAPACITY_REACHED",
+            );
+        }
     });
 
     it("allows adding a parcel when an unchanged future date is already over daily capacity", async () => {
@@ -1662,6 +1753,48 @@ describe("Household parcel scheduling integration", () => {
         expect(unchangedParcel.pickup_date_time_latest).toEqual(passedSameDaySlot.end);
         expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
         expect(mockRecomputeOutsideHoursCount).not.toHaveBeenCalled();
+    });
+
+    it("counts an earlier same-day parcel when adding a later parcel at a full location", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-05-06T12:00:00Z"));
+
+        const { location } = await createTestLocationWithSchedule(
+            { parcels_max_per_day: 1, max_parcels_per_slot: null },
+            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
+        );
+        const household = await createTestHousehold({
+            primary_pickup_location_id: location.id,
+        });
+        const earlierHousehold = await createTestHousehold();
+        await createTestParcel({
+            household_id: earlierHousehold.id,
+            pickup_location_id: location.id,
+            pickup_date_time_earliest: new Date("2026-05-06T09:00:00Z"),
+            pickup_date_time_latest: new Date("2026-05-06T10:00:00Z"),
+        });
+
+        const laterSlot = {
+            start: new Date("2026-05-06T15:00:00Z"),
+            end: new Date("2026-05-06T15:15:00Z"),
+        };
+        const result = await updateHousehold(
+            household.id,
+            buildUpdateData(household, location.id, [
+                {
+                    pickupDate: laterSlot.start,
+                    pickupEarliestTime: laterSlot.start,
+                    pickupLatestTime: laterSlot.end,
+                },
+            ]),
+        );
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.validationErrors?.map(error => error.code)).toContain(
+                "MAX_DAILY_CAPACITY_REACHED",
+            );
+        }
     });
 
     it("returns location validation instead of opening-hours validation for a bogus pickup location", async () => {

@@ -666,6 +666,122 @@ describe("Primary handout location - Server-side validation", () => {
         expect(storedParcels[1].pickupLocationId).toBe(alternateLocation.id);
     });
 
+    it("should reject enrollment parcels outside opening hours", async () => {
+        const { location } = await createTestLocationWithSchedule(
+            { name: "Morning-only Location" },
+            {
+                weekdays: [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ],
+                openingTime: "09:00",
+                closingTime: "12:00",
+            },
+        );
+        const outsideStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        outsideStart.setUTCHours(14, 0, 0, 0);
+        const outsideEnd = new Date(outsideStart.getTime() + 15 * 60 * 1000);
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
+
+        const result = await enrollHousehold({
+            headOfHousehold: {
+                firstName: "Outside",
+                lastName: "Hours",
+                phoneNumber: "0701234584",
+                locale: "sv",
+            },
+            smsConsent: true,
+            primaryPickupLocationId: location.id,
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: {
+                pickupLocationId: location.id,
+                parcels: [
+                    {
+                        pickupLocationId: location.id,
+                        pickupEarliestTime: outsideStart,
+                        pickupLatestTime: outsideEnd,
+                    },
+                ],
+            },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.validationErrors).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ code: "OUTSIDE_OPERATING_HOURS" }),
+                ]),
+            );
+        }
+    });
+
+    it("rejects a forged zero-duration enrollment slot before slot-capacity checks", async () => {
+        const { location } = await createTestLocationWithSchedule(
+            {
+                name: "Strict Slot Duration Location",
+                parcels_max_per_day: null,
+                max_parcels_per_slot: 1,
+                default_slot_duration_minutes: 15,
+            },
+            {
+                weekdays: [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ],
+                openingTime: "09:00",
+                closingTime: "17:00",
+            },
+        );
+        const start = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        start.setUTCHours(10, 0, 0, 0);
+        const { enrollHousehold } = await import("@/app/[locale]/households/enroll/actions");
+
+        const result = await enrollHousehold({
+            headOfHousehold: {
+                firstName: "Forged",
+                lastName: "Duration",
+                phoneNumber: "0701234583",
+                locale: "sv",
+            },
+            smsConsent: true,
+            primaryPickupLocationId: location.id,
+            members: [],
+            dietaryRestrictions: [],
+            additionalNeeds: [],
+            pets: [],
+            foodParcels: {
+                pickupLocationId: location.id,
+                parcels: [
+                    {
+                        pickupLocationId: location.id,
+                        pickupEarliestTime: start,
+                        pickupLatestTime: new Date(start),
+                    },
+                ],
+            },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.validationErrors).toEqual(
+                expect.arrayContaining([expect.objectContaining({ code: "INVALID_TIME_SLOT" })]),
+            );
+        }
+    });
+
     it("should use the form-level pickup location for enrollment parcels without row location", async () => {
         const { location } = await createTestLocationWithSchedule(
             { name: "Fallback Parcel Location" },

@@ -55,12 +55,8 @@ export async function getPickupLocationCapacityForRangeAction(
     locationId: string,
     startDate: Date,
     endDate: Date,
-): Promise<LocationCapacity | null> {
-    try {
-        return getPickupLocationCapacityForRange(locationId, startDate, endDate);
-    } catch {
-        return null;
-    }
+): Promise<LocationCapacity> {
+    return getPickupLocationCapacityForRange(locationId, startDate, endDate);
 }
 
 /**

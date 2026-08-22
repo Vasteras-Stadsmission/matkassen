@@ -124,7 +124,7 @@ export async function getLocationSlotConfigAction(
         return await getLocationSlotConfig(locationId);
     } catch (error) {
         logError("Error fetching location slot config", error, { locationId });
-        return { slotDuration: 15, maxParcelsPerSlot: null };
+        throw error;
     }
 }
 
@@ -154,7 +154,7 @@ export async function getFullyBookedDatesAction(
         return await getFullyBookedDates(locationId, startDate, endDate, excludeParcelId);
     } catch (error) {
         logError("Error fetching fully booked dates", error, { locationId });
-        return [];
+        throw error;
     }
 }
 
@@ -171,7 +171,7 @@ export async function getTimeslotCountsAction(
         return await getTimeslotCounts(locationId, date, excludeParcelId);
     } catch (error) {
         logError("Error fetching timeslot counts", error, { locationId });
-        return {};
+        throw error;
     }
 }
 

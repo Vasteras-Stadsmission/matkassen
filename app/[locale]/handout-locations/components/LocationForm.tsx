@@ -1,25 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import {
-    Paper,
-    TextInput,
-    NumberInput,
-    Button,
-    Group,
-    Tabs,
-    Text,
-    Stack,
-    SimpleGrid,
-    Select,
-} from "@mantine/core";
+import { Paper, TextInput, Button, Group, Tabs, Text, Stack, SimpleGrid } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useTranslations } from "next-intl";
 import { notifications } from "@mantine/notifications";
-import { IconBuilding, IconCalendar } from "@tabler/icons-react";
 import { PickupLocationWithAllData, LocationFormInput } from "../types";
 import { createLocation, updateLocation } from "../actions";
 import { SchedulesTab } from "./schedules/SchedulesTab";
+import { LimitsTab } from "./limits/LimitsTab";
 
 interface LocationFormProps {
     location?: PickupLocationWithAllData | null;
@@ -83,6 +72,14 @@ export function LocationForm({
                 if (numValue % 15 !== 0) return t("slotDurationIncrement");
                 return null;
             },
+            parcels_max_per_day: value => {
+                if (value === null || value === undefined) return null;
+                const numValue = Number(value);
+                if (!Number.isInteger(numValue) || numValue <= 0) {
+                    return t("maxParcelsPerDayPositive");
+                }
+                return null;
+            },
             max_parcels_per_slot: value => {
                 if (value === null || value === undefined) return null;
                 const numValue = Number(value);
@@ -108,7 +105,16 @@ export function LocationForm({
 
                 if (location) {
                     // Update existing location
-                    const result = await updateLocation(location.id, values);
+                    const valuesWithCurrentOperationalSettings = {
+                        ...values,
+                        parcels_max_per_day: location.parcels_max_per_day,
+                        max_parcels_per_slot: location.max_parcels_per_slot,
+                        default_slot_duration_minutes: location.default_slot_duration_minutes,
+                    };
+                    const result = await updateLocation(
+                        location.id,
+                        valuesWithCurrentOperationalSettings,
+                    );
 
                     if (!result.success) {
                         throw new Error(result.error.message);
@@ -123,7 +129,7 @@ export function LocationForm({
 
                     // Call onLocationUpdated callback if provided
                     if (onLocationUpdated) {
-                        onLocationUpdated(location.id, values);
+                        onLocationUpdated(location.id, valuesWithCurrentOperationalSettings);
                     }
                 } else {
                     // Create new location
@@ -219,15 +225,10 @@ export function LocationForm({
         <Paper p="md" radius="md" withBorder={!isModal}>
             <form onSubmit={form.onSubmit(values => handleSubmit(values))}>
                 <Tabs value={activeTab} onChange={handleTabChange}>
-                    <Tabs.List mb="md">
-                        <Tabs.Tab value="general" leftSection={<IconBuilding size={16} />}>
-                            {t("generalInfo")}
-                        </Tabs.Tab>
-                        {location && (
-                            <Tabs.Tab value="schedules" leftSection={<IconCalendar size={16} />}>
-                                {t("schedules")}
-                            </Tabs.Tab>
-                        )}
+                    <Tabs.List mb="md" grow>
+                        <Tabs.Tab value="general">{t("generalInfo")}</Tabs.Tab>
+                        {location && <Tabs.Tab value="schedules">{t("openingHours")}</Tabs.Tab>}
+                        {location && <Tabs.Tab value="limits">{t("limits.tab")}</Tabs.Tab>}
                     </Tabs.List>
 
                     {/* General Information Tab */}
@@ -254,56 +255,6 @@ export function LocationForm({
                                 required
                                 {...form.getInputProps("street_address")}
                             />
-
-                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                                <NumberInput
-                                    label={t("maxParcelsPerDay")}
-                                    placeholder={t("maxParcelsPlaceholder")}
-                                    min={0}
-                                    allowDecimal={false}
-                                    allowNegative={false}
-                                    {...form.getInputProps("parcels_max_per_day")}
-                                />
-                                <NumberInput
-                                    label={t("maxParcelsPerSlot")}
-                                    placeholder="4"
-                                    description={t("maxParcelsPerSlotDescription")}
-                                    min={1}
-                                    allowDecimal={false}
-                                    allowNegative={false}
-                                    {...form.getInputProps("max_parcels_per_slot")}
-                                />
-                            </SimpleGrid>
-
-                            <SimpleGrid cols={{ base: 1, sm: 1 }}>
-                                <Select
-                                    label={t("slotDuration")}
-                                    description={t("slotDurationDescription")}
-                                    placeholder="15"
-                                    required
-                                    data={[
-                                        { value: "15", label: "15 min" },
-                                        { value: "30", label: "30 min" },
-                                        { value: "45", label: "45 min" },
-                                        { value: "60", label: "1 h" },
-                                        { value: "75", label: "1 h 15 min" },
-                                        { value: "90", label: "1 h 30 min" },
-                                        { value: "105", label: "1 h 45 min" },
-                                        { value: "120", label: "2 h" },
-                                        { value: "150", label: "2 h 30 min" },
-                                        { value: "180", label: "3 h" },
-                                        { value: "210", label: "3 h 30 min" },
-                                        { value: "240", label: "4 h" },
-                                    ]}
-                                    value={form.values.default_slot_duration_minutes?.toString()}
-                                    onChange={value =>
-                                        form.setFieldValue(
-                                            "default_slot_duration_minutes",
-                                            value ? parseInt(value) : 15,
-                                        )
-                                    }
-                                />
-                            </SimpleGrid>
 
                             <Text fw={600} mt="md">
                                 {t("contactInfo")}
@@ -342,6 +293,12 @@ export function LocationForm({
                             <Text c="dimmed" ta="center" py="md">
                                 {t("saveLocationFirst")}
                             </Text>
+                        )}
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="limits">
+                        {location && (
+                            <LimitsTab location={location} onLocationUpdated={onLocationUpdated} />
                         )}
                     </Tabs.Panel>
                 </Tabs>

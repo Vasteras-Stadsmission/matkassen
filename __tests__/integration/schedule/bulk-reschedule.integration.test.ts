@@ -17,9 +17,10 @@ import {
     resetHouseholdCounter,
     resetLocationCounter,
 } from "../../factories";
-import { foodParcels, pickupLocations } from "@/app/db/schema";
+import { foodParcels, pickupLocationDailyLimits, pickupLocations } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { TEST_NOW, daysFromTestNow } from "../../test-time";
+import { stockholmDateKey } from "@/app/utils/capacity/daily-limits";
 
 // Mock auth to inject session
 type MockSession = { user: { githubUsername: string; name: string; role: "admin" } };
@@ -62,7 +63,7 @@ vi.mock("@/app/utils/sms/sms-service", () => ({
 }));
 
 // Import after mocks
-import { bulkRescheduleParcels } from "@/app/[locale]/schedule/actions";
+import { bulkRescheduleParcels, updateFoodParcelSchedule } from "@/app/[locale]/schedule/actions";
 
 describe("bulkRescheduleParcels - Integration Tests", () => {
     beforeEach(() => {
@@ -342,6 +343,39 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
 
             expect(result.success).toBe(true);
         });
+
+        it("should count an existing parcel whose time overlaps the target slot", async () => {
+            const existingHousehold = await createTestHousehold();
+            const movingHousehold = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule({
+                max_parcels_per_slot: 1,
+            });
+            const targetTime = nextMonday10am();
+            const overlapStart = new Date(targetTime.getTime() - 10 * 60 * 1000);
+            const overlapEnd = new Date(targetTime.getTime() + 5 * 60 * 1000);
+            await createTestParcel({
+                household_id: existingHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: overlapStart,
+                pickup_date_time_latest: overlapEnd,
+            });
+            const sourceTime = daysFromTestNow(3);
+            sourceTime.setHours(10, 0, 0, 0);
+            const toMove = await createTestParcel({
+                household_id: movingHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sourceTime,
+            });
+
+            const result = await bulkRescheduleParcels([toMove.id], {
+                startTime: targetTime,
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                error: expect.objectContaining({ code: "CAPACITY_EXCEEDED" }),
+            });
+        });
     });
 
     describe("Daily capacity", () => {
@@ -392,9 +426,161 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
                 error: expect.objectContaining({ code: "CAPACITY_EXCEEDED" }),
             });
         });
+
+        it("allows a single time-only move on an already over-capacity date", async () => {
+            const db = await getTestDb();
+            const movingHousehold = await createTestHousehold();
+            const otherHousehold = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule({
+                parcels_max_per_day: 1,
+                max_parcels_per_slot: null,
+            });
+            const originalTime = nextMonday10am();
+            const parcel = await createTestParcel({
+                household_id: movingHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: originalTime,
+                pickup_date_time_latest: new Date(originalTime.getTime() + 15 * 60 * 1000),
+            });
+            const otherTime = new Date(originalTime);
+            otherTime.setHours(9, 0, 0, 0);
+            await createTestParcel({
+                household_id: otherHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: otherTime,
+                pickup_date_time_latest: new Date(otherTime.getTime() + 15 * 60 * 1000),
+            });
+            const targetTime = new Date(originalTime);
+            targetTime.setHours(11, 0, 0, 0);
+
+            const result = await updateFoodParcelSchedule(parcel.id, {
+                date: targetTime,
+                startTime: targetTime,
+                endTime: new Date(targetTime.getTime() + 15 * 60 * 1000),
+            });
+
+            expect(result.success).toBe(true);
+            const [updated] = await db
+                .select()
+                .from(foodParcels)
+                .where(eq(foodParcels.id, parcel.id));
+            expect(updated.pickup_date_time_earliest).toEqual(targetTime);
+        });
+
+        it("allows a bulk time-only move on an already over-capacity date", async () => {
+            const db = await getTestDb();
+            const firstHousehold = await createTestHousehold();
+            const secondHousehold = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule({
+                parcels_max_per_day: 1,
+                max_parcels_per_slot: null,
+            });
+            const originalTime = nextMonday10am();
+            const firstParcel = await createTestParcel({
+                household_id: firstHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: originalTime,
+                pickup_date_time_latest: new Date(originalTime.getTime() + 15 * 60 * 1000),
+            });
+            const secondTime = new Date(originalTime);
+            secondTime.setHours(9, 0, 0, 0);
+            const secondParcel = await createTestParcel({
+                household_id: secondHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: secondTime,
+                pickup_date_time_latest: new Date(secondTime.getTime() + 15 * 60 * 1000),
+            });
+            const targetTime = new Date(originalTime);
+            targetTime.setHours(11, 0, 0, 0);
+
+            const result = await bulkRescheduleParcels([firstParcel.id, secondParcel.id], {
+                startTime: targetTime,
+            });
+
+            expect(result).toMatchObject({ success: true, data: { count: 2 } });
+            const updated = await db
+                .select()
+                .from(foodParcels)
+                .where(eq(foodParcels.pickup_location_id, location.id));
+            expect(updated).toHaveLength(2);
+            expect(
+                updated.every(
+                    parcel => parcel.pickup_date_time_earliest.getTime() === targetTime.getTime(),
+                ),
+            ).toBe(true);
+        });
+
+        it("should use a date-specific limit instead of the location default", async () => {
+            const db = await getTestDb();
+            const h1 = await createTestHousehold();
+            const h2 = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule({
+                parcels_max_per_day: 10,
+                max_parcels_per_slot: null,
+            });
+            const targetTime = nextMonday10am();
+
+            await db.insert(pickupLocationDailyLimits).values({
+                pickup_location_id: location.id,
+                date: stockholmDateKey(targetTime),
+                max_parcels: 1,
+            });
+            await createTestParcel({
+                household_id: h1.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: targetTime,
+                pickup_date_time_latest: new Date(targetTime.getTime() + 15 * 60 * 1000),
+            });
+
+            const sourceTime = daysFromTestNow(3);
+            sourceTime.setHours(10, 0, 0, 0);
+            const toMove = await createTestParcel({
+                household_id: h2.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sourceTime,
+            });
+
+            const result = await bulkRescheduleParcels([toMove.id], {
+                startTime: targetTime,
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                error: expect.objectContaining({ code: "CAPACITY_EXCEEDED" }),
+            });
+        });
     });
 
     describe("Opening hours validation", () => {
+        it("should reject a single reschedule outside opening hours", async () => {
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule(
+                {},
+                { openingTime: "09:00", closingTime: "12:00" },
+            );
+            const sourceTime = daysFromTestNow(3);
+            sourceTime.setHours(10, 0, 0, 0);
+            const parcel = await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sourceTime,
+                pickup_date_time_latest: new Date(sourceTime.getTime() + 15 * 60 * 1000),
+            });
+            const outsideTime = nextMonday10am();
+            outsideTime.setHours(14, 0, 0, 0);
+
+            const result = await updateFoodParcelSchedule(parcel.id, {
+                date: outsideTime,
+                startTime: outsideTime,
+                endTime: new Date(outsideTime.getTime() + 15 * 60 * 1000),
+            });
+
+            expect(result.success).toBe(false);
+            expect(result).toMatchObject({
+                error: expect.objectContaining({ code: "OUTSIDE_OPERATING_HOURS" }),
+            });
+        });
+
         it("should reject when target time is outside opening hours", async () => {
             const h1 = await createTestHousehold();
             // Location open Mon-Fri 9:00-12:00

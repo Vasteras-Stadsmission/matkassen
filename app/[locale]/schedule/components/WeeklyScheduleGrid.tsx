@@ -101,7 +101,7 @@ interface WeeklyScheduleGridProps {
     weekDates: Date[];
     foodParcels: FoodParcel[];
     outsideHoursParcels: FoodParcel[];
-    maxParcelsPerDay: number;
+    dailyLimitsByDate: Record<string, number | null> | null;
     /** Maximum parcels per slot. null = no limit, undefined = use default (3) */
     maxParcelsPerSlot?: number | null;
     onParcelRescheduled: () => void;
@@ -116,7 +116,7 @@ export default function WeeklyScheduleGrid({
     weekDates,
     foodParcels,
     outsideHoursParcels,
-    maxParcelsPerDay,
+    dailyLimitsByDate,
     maxParcelsPerSlot,
     onParcelRescheduled,
     locationId,
@@ -715,10 +715,12 @@ export default function WeeklyScheduleGrid({
                 targetSlotParcels.length >= effectiveMaxParcelsPerSlot;
             // Same-day moves don't change the daily total, so skip the day check
             const isSameDay = parcelDateYMD === targetDateYMD;
+            const targetDailyLimit = dailyLimitsByDate?.[targetDateYMD] ?? null;
             const dayAtCapacity =
                 !isSameDay &&
-                maxParcelsPerDay > 0 &&
-                (parcelCountByDate[targetDateYMD] || 0) >= maxParcelsPerDay;
+                (dailyLimitsByDate === null ||
+                    (targetDailyLimit !== null &&
+                        (parcelCountByDate[targetDateYMD] || 0) >= targetDailyLimit));
 
             if (slotAtCapacity || dayAtCapacity) {
                 showNotification({
@@ -1235,7 +1237,12 @@ export default function WeeklyScheduleGrid({
                                                             {parcelCountByDate[
                                                                 formatDateToYMD(date)
                                                             ] || 0}
-                                                            /{maxParcelsPerDay || "∞"}
+                                                            /
+                                                            {dailyLimitsByDate === null
+                                                                ? "?"
+                                                                : (dailyLimitsByDate[
+                                                                      formatDateToYMD(date)
+                                                                  ] ?? "∞")}
                                                         </Text>
                                                     )}
 
@@ -1326,11 +1333,14 @@ export default function WeeklyScheduleGrid({
                                                             formatDateToYMD(
                                                                 activeDragParcel.pickupDate,
                                                             ) === dateKey;
+                                                        const dailyLimit =
+                                                            dailyLimitsByDate?.[dateKey] ?? null;
                                                         const isDayAtCapacity =
                                                             !isDraggingSameDay &&
-                                                            maxParcelsPerDay > 0 &&
-                                                            (parcelCountByDate[dateKey] || 0) >=
-                                                                maxParcelsPerDay;
+                                                            (dailyLimitsByDate === null ||
+                                                                (dailyLimit !== null &&
+                                                                    (parcelCountByDate[dateKey] ||
+                                                                        0) >= dailyLimit));
                                                         const isAtCapacity =
                                                             isSlotAtCapacity || isDayAtCapacity;
 

@@ -29,6 +29,7 @@ import {
 } from "@tabler/icons-react";
 import {
     getFoodParcelsForWeek,
+    getEffectiveDailyLimitsForDateRange,
     getPickupLocations,
     getSummaryStatsForDate,
 } from "../../../actions";
@@ -64,8 +65,13 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
 
     // State for food parcels
     const [foodParcels, setFoodParcels] = useState<FoodParcel[]>([]);
+    const [dailyLimitsByDate, setDailyLimitsByDate] = useState<Record<
+        string,
+        number | null
+    > | null>(null);
     const [outsideHoursParcels, setOutsideHoursParcels] = useState<FoodParcel[]>([]);
     const lastParcelsRequestRef = useRef<string | null>(null);
+    const parcelsRequestGenerationRef = useRef(0);
     const [summaryStats, setSummaryStats] = useState<TodaySummaryStats | null>(null);
     const [isLoadingSummary, setIsLoadingSummary] = useState(false);
     const [selectedDateIsAvailable, setSelectedDateIsAvailable] = useState<boolean | null>(null);
@@ -108,15 +114,27 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
 
             setIsLoadingParcels(true);
             lastParcelsRequestRef.current = requestKey;
+            const requestGeneration = ++parcelsRequestGenerationRef.current;
 
             try {
-                const parcels = await getFoodParcelsForWeek(locationId, dates[0], dates[6]);
-                setFoodParcels(parcels);
+                const [parcels, limits] = await Promise.all([
+                    getFoodParcelsForWeek(locationId, dates[0], dates[6]),
+                    getEffectiveDailyLimitsForDateRange(locationId, dates[0], dates[6]),
+                ]);
+                if (parcelsRequestGenerationRef.current === requestGeneration) {
+                    setFoodParcels(parcels);
+                    setDailyLimitsByDate(limits);
+                }
             } catch {
-                // Error boundary will handle display
-                setFoodParcels([]);
+                if (parcelsRequestGenerationRef.current === requestGeneration) {
+                    // Error boundary will handle display
+                    setFoodParcels([]);
+                    setDailyLimitsByDate(null);
+                }
             } finally {
-                setIsLoadingParcels(false);
+                if (parcelsRequestGenerationRef.current === requestGeneration) {
+                    setIsLoadingParcels(false);
+                }
             }
         },
         [],
@@ -308,11 +326,6 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
         closeAdminDialog();
     }, [handleParcelRescheduled, closeAdminDialog]);
 
-    // Helper function to get max parcels per day
-    const getMaxParcelsPerDay = useCallback(() => {
-        return currentLocation?.maxParcelsPerDay || 50;
-    }, [currentLocation]);
-
     // Helper function to get max parcels per slot
     // Returns null for "no limit", undefined when no location loaded
     const getMaxParcelsPerSlot = useCallback((): number | null | undefined => {
@@ -487,7 +500,7 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
                             weekDates={weekDates}
                             foodParcels={foodParcels}
                             outsideHoursParcels={outsideHoursParcels}
-                            maxParcelsPerDay={getMaxParcelsPerDay()}
+                            dailyLimitsByDate={dailyLimitsByDate}
                             maxParcelsPerSlot={getMaxParcelsPerSlot()}
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={currentLocation.id}

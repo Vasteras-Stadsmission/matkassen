@@ -1,9 +1,20 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Group, Button, Paper, Text, Tabs, ActionIcon, Modal, Stack, Flex } from "@mantine/core";
+import {
+    Group,
+    Button,
+    Paper,
+    Text,
+    Tabs,
+    ActionIcon,
+    Modal,
+    Stack,
+    Flex,
+    Select,
+} from "@mantine/core";
 import { useTranslations } from "next-intl";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { LocationForm } from "./LocationForm";
 import { deleteLocation } from "../actions";
@@ -23,6 +34,8 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
         null,
     );
     const [opened, { open, close }] = useDisclosure(false);
+    const compactLocationPicker = useMediaQuery("(max-width: 62rem)");
+    const activeLocation = locations.find(location => location.id === activeTab) ?? null;
 
     // Pre-cache all translation strings that might be used in callbacks
     const locationDeletedTitle = t("locationDeleted");
@@ -130,25 +143,54 @@ export function HandoutLocationsContent({ initialLocations }: Props) {
                 </Paper>
             ) : (
                 <Tabs value={activeTab} onChange={handleTabChange}>
-                    <Tabs.List>
-                        {locations.map(location => (
-                            <Flex key={location.id} align="center" gap={4}>
-                                <Tabs.Tab value={location.id}>{location.name}</Tabs.Tab>
-                                <ActionIcon
-                                    size="sm"
-                                    variant="subtle"
-                                    color="red"
-                                    onClick={(e: MouseEvent) => {
-                                        e.stopPropagation();
-                                        handleDeleteLocation(location.id);
-                                    }}
-                                    aria-label={t("deleteLocationAriaLabel")}
-                                >
-                                    <IconTrash size={16} />
-                                </ActionIcon>
-                            </Flex>
-                        ))}
-                    </Tabs.List>
+                    {compactLocationPicker ? (
+                        <Stack mb="md">
+                            <Select
+                                label={t("locationsList")}
+                                data={locations.map(location => ({
+                                    value: location.id,
+                                    label: location.name,
+                                }))}
+                                value={activeTab}
+                                onChange={handleTabChange}
+                                allowDeselect={false}
+                            />
+                            <Button
+                                type="button"
+                                fullWidth
+                                variant="light"
+                                color="red"
+                                leftSection={<IconTrash size={18} />}
+                                disabled={!activeLocation}
+                                onClick={() => {
+                                    if (activeLocation)
+                                        void handleDeleteLocation(activeLocation.id);
+                                }}
+                            >
+                                {t("deleteSelectedLocation")}
+                            </Button>
+                        </Stack>
+                    ) : (
+                        <Tabs.List>
+                            {locations.map(location => (
+                                <Flex key={location.id} align="center" gap={4}>
+                                    <Tabs.Tab value={location.id}>{location.name}</Tabs.Tab>
+                                    <ActionIcon
+                                        size="lg"
+                                        variant="subtle"
+                                        color="red"
+                                        onClick={(e: MouseEvent) => {
+                                            e.stopPropagation();
+                                            handleDeleteLocation(location.id);
+                                        }}
+                                        aria-label={t("deleteLocationAriaLabel")}
+                                    >
+                                        <IconTrash size={18} />
+                                    </ActionIcon>
+                                </Flex>
+                            ))}
+                        </Tabs.List>
+                    )}
 
                     {locations.map(location => (
                         <Tabs.Panel key={location.id} value={location.id} pt="xs">
