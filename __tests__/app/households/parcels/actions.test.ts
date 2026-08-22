@@ -22,6 +22,7 @@ vi.mock("@/app/db/drizzle", () => {
     const queryResult = (value: any[]) =>
         Object.assign(Promise.resolve(value), {
             limit: vi.fn(() => Promise.resolve(value.slice(0, 1))),
+            for: vi.fn(() => Promise.resolve(value)),
         });
 
     const mockDb = {
@@ -118,6 +119,20 @@ vi.mock("@/app/db/drizzle", () => {
 
     return {
         db: mockDb,
+    };
+});
+
+vi.mock("@/app/utils/capacity/daily-limits", async importOriginal => {
+    const actual = await importOriginal<typeof import("@/app/utils/capacity/daily-limits")>();
+    return {
+        ...actual,
+        lockPickupLocationsForCapacity: vi.fn(async () => {}),
+        loadLocationLimitContext: vi.fn(async (_db, _locationId, dateKeys: string[]) => ({
+            defaultDailyLimit: 15,
+            explicitSlotLimit: 15,
+            effectiveDailyLimits: Object.fromEntries(dateKeys.map(dateKey => [dateKey, 15])),
+            overrides: {},
+        })),
     };
 });
 

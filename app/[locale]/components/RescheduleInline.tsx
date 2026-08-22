@@ -58,6 +58,7 @@ export default function RescheduleInline({
     const [isLoading, setIsLoading] = useState(false);
     const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
     const [maxDate, setMaxDate] = useState<Date | undefined>(undefined);
+    const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
 
     // Fetch location schedules, slot duration, and fully booked dates when expanded
     useEffect(() => {
@@ -70,41 +71,31 @@ export default function RescheduleInline({
         setFullyBookedDates(new Set());
         setMaxDate(undefined);
         setMaxParcelsPerSlot(null);
+        setAvailabilityLoaded(false);
 
         let cancelled = false;
 
         async function fetchLocationData() {
             setIsLoading(true);
             try {
-                const [schedules, config] = await Promise.all([
+                const now = new Date();
+                const threeMonthsLater = new Date(now);
+                threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+                const [schedules, config, dates] = await Promise.all([
                     getPickupLocationSchedulesAction(locationId),
                     getLocationSlotConfigAction(locationId),
+                    getFullyBookedDatesAction(locationId, now, threeMonthsLater, parcelId),
                 ]);
                 if (!cancelled) {
                     setLocationSchedules(schedules);
                     setSlotDuration(config.slotDuration);
                     setMaxParcelsPerSlot(config.maxParcelsPerSlot);
+                    setFullyBookedDates(new Set(dates));
+                    setMaxDate(threeMonthsLater);
+                    setAvailabilityLoaded(true);
                 }
             } catch {
                 if (!cancelled) setError(t("reschedule.loadError"));
-            }
-
-            try {
-                const now = new Date();
-                const threeMonthsLater = new Date(now);
-                threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
-                const dates = await getFullyBookedDatesAction(
-                    locationId,
-                    now,
-                    threeMonthsLater,
-                    parcelId,
-                );
-                if (!cancelled) {
-                    setFullyBookedDates(new Set(dates));
-                    setMaxDate(threeMonthsLater);
-                }
-            } catch {
-                // On error, don't block any dates
             } finally {
                 if (!cancelled) setIsLoading(false);
             }
@@ -172,8 +163,10 @@ export default function RescheduleInline({
                 };
             });
 
-        // Set slots immediately with schedule-only data (empty counts), then refine with capacity data
-        setAvailableTimes(buildSlots({}));
+        // Keep slots disabled until capacity data succeeds.
+        const pendingSlots = buildSlots({}).map(slot => ({ ...slot, disabled: true }));
+        setAvailableTimes(pendingSlots);
+        setSelectedTime(null);
 
         let cancelled = false;
 
@@ -192,7 +185,11 @@ export default function RescheduleInline({
                 }
             })
             .catch(() => {
-                // On error, keep schedule-only slots without capacity data
+                if (!cancelled) {
+                    setAvailableTimes(pendingSlots);
+                    setSelectedTime(null);
+                    setError(t("reschedule.loadError"));
+                }
             });
 
         return () => {
@@ -202,7 +199,7 @@ export default function RescheduleInline({
     }, [selectedDate, locationSchedules, slotDuration, maxParcelsPerSlot, locationId]);
 
     const isDateAvailableForPickup = (date: Date): boolean => {
-        if (!locationSchedules) return true;
+        if (!availabilityLoaded || !locationSchedules) return false;
         if (!isDateAvailable(date, locationSchedules).isAvailable) return false;
         const dateStr = formatDateToYMD(date);
         if (fullyBookedDates.has(dateStr)) return false;

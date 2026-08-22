@@ -28,7 +28,7 @@ import {
     resetSmsCounter,
 } from "../../factories";
 import { TEST_NOW, daysFromTestNow } from "../../test-time";
-import { households } from "@/app/db/schema";
+import { foodParcels, households, pickupLocationDailyLimits } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import {
     MockTimeProvider,
@@ -36,6 +36,7 @@ import {
     getTimeProvider,
     type ITimeProvider,
 } from "@/app/utils/time-provider";
+import { getStockholmDateKey } from "@/app/utils/date-utils";
 
 // Store original time provider
 let originalTimeProvider: ITimeProvider;
@@ -499,6 +500,287 @@ describe("Issues API - Integration Tests", () => {
         });
     });
 
+    describe("Over-capacity dates", () => {
+        const allWeekdays = [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ] as const;
+
+        it("returns one issue per location/date with every affected parcel", async () => {
+            const householdsForDate = [];
+            for (const [index, firstName] of ["First", "Second", "Third"].entries()) {
+                householdsForDate.push(
+                    await createTestHousehold({
+                        first_name: firstName,
+                        phone_number: "+4681888000" + index,
+                    }),
+                );
+            }
+            const { location } = await createTestLocationWithSchedule(
+                { name: "Capacity Kitchen", parcels_max_per_day: 1 },
+                { weekdays: [...allWeekdays] },
+            );
+            const pickupDate = daysFromTestNow(2);
+
+            for (const [index, household] of householdsForDate.entries()) {
+                await createTestParcel({
+                    household_id: household.id,
+                    pickup_location_id: location.id,
+                    pickup_date_time_earliest: new Date(
+                        pickupDate.getTime() + index * 30 * 60 * 1000,
+                    ),
+                });
+            }
+
+            const response = await GET();
+            const data = await response.json();
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+
+            expect(data.overCapacityDates).toHaveLength(1);
+            expect(data.overCapacityDates[0]).toMatchObject({
+                locationId: location.id,
+                locationName: "Capacity Kitchen",
+                date: getStockholmDateKey(pickupDate),
+                booked: 3,
+                limit: 1,
+                excess: 2,
+                hasOverride: false,
+            });
+            expect(data.overCapacityDates[0].parcels).toHaveLength(3);
+            expect(data.overCapacityDates[0].parcels[0]).toMatchObject({
+                isPickedUp: false,
+                noShowAt: null,
+            });
+            expect(
+                data.overCapacityDates[0].parcels.map(
+                    (parcel: { householdFirstName: string }) => parcel.householdFirstName,
+                ),
+            ).toEqual(["First", "Second", "Third"]);
+            expect(data.counts.overCapacityDates).toBe(1);
+            expect(countData.overCapacityDates).toBe(1);
+        });
+
+        it("does not flag dates that are exactly full, unlimited, deleted, or past", async () => {
+            const householdRows = [];
+            for (const index of [1, 2, 3, 4, 5]) {
+                householdRows.push(
+                    await createTestHousehold({
+                        first_name: "Boundary" + index,
+                        phone_number: "+4681999000" + index,
+                    }),
+                );
+            }
+            const { location: exactLocation } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 2 },
+                { weekdays: [...allWeekdays] },
+            );
+            const { location: unlimitedLocation } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: null },
+                { weekdays: [...allWeekdays] },
+            );
+            const futureDate = daysFromTestNow(2);
+
+            await createTestParcel({
+                household_id: householdRows[0].id,
+                pickup_location_id: exactLocation.id,
+                pickup_date_time_earliest: futureDate,
+            });
+            await createTestParcel({
+                household_id: householdRows[1].id,
+                pickup_location_id: exactLocation.id,
+                pickup_date_time_earliest: new Date(futureDate.getTime() + 30 * 60 * 1000),
+            });
+            await createTestParcel({
+                household_id: householdRows[2].id,
+                pickup_location_id: unlimitedLocation.id,
+                pickup_date_time_earliest: futureDate,
+            });
+            await createTestParcel({
+                household_id: householdRows[3].id,
+                pickup_location_id: exactLocation.id,
+                pickup_date_time_earliest: new Date(futureDate.getTime() + 60 * 60 * 1000),
+                deleted_at: TEST_NOW,
+            });
+            await createTestParcel({
+                household_id: householdRows[4].id,
+                pickup_location_id: exactLocation.id,
+                pickup_date_time_earliest: daysFromTestNow(-1),
+            });
+
+            const response = await GET();
+            const data = await response.json();
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+
+            expect(data.overCapacityDates).toHaveLength(0);
+            expect(data.counts.overCapacityDates).toBe(0);
+            expect(countData.overCapacityDates).toBe(0);
+        });
+
+        it("uses a date override and disappears when the effective max is raised", async () => {
+            const db = await getTestDb();
+            const first = await createTestHousehold({ first_name: "OverrideOne" });
+            const second = await createTestHousehold({ first_name: "OverrideTwo" });
+            const { location } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 5 },
+                { weekdays: [...allWeekdays] },
+            );
+            const pickupDate = daysFromTestNow(2);
+            const dateKey = getStockholmDateKey(pickupDate);
+
+            await createTestParcel({
+                household_id: first.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: pickupDate,
+            });
+            await createTestParcel({
+                household_id: second.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: new Date(pickupDate.getTime() + 30 * 60 * 1000),
+            });
+            await db.insert(pickupLocationDailyLimits).values({
+                pickup_location_id: location.id,
+                date: dateKey,
+                max_parcels: 1,
+            });
+
+            let response = await GET();
+            let data = await response.json();
+            expect(data.overCapacityDates[0]).toMatchObject({
+                date: dateKey,
+                booked: 2,
+                limit: 1,
+                excess: 1,
+                hasOverride: true,
+            });
+
+            await db
+                .update(pickupLocationDailyLimits)
+                .set({ max_parcels: 2 })
+                .where(eq(pickupLocationDailyLimits.pickup_location_id, location.id));
+
+            response = await GET();
+            data = await response.json();
+            expect(data.overCapacityDates).toHaveLength(0);
+        });
+
+        it("disappears after enough parcels are moved or cancelled", async () => {
+            const db = await getTestDb();
+            const first = await createTestHousehold({ first_name: "ResolveOne" });
+            const second = await createTestHousehold({ first_name: "ResolveTwo" });
+            const { location } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 1 },
+                { weekdays: [...allWeekdays] },
+            );
+            const pickupDate = daysFromTestNow(2);
+            await createTestParcel({
+                household_id: first.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: pickupDate,
+            });
+            const parcelToCancel = await createTestParcel({
+                household_id: second.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: new Date(pickupDate.getTime() + 30 * 60 * 1000),
+            });
+
+            let response = await GET();
+            let data = await response.json();
+            expect(data.overCapacityDates).toHaveLength(1);
+
+            await db
+                .update(foodParcels)
+                .set({ deleted_at: TEST_NOW })
+                .where(eq(foodParcels.id, parcelToCancel.id));
+
+            response = await GET();
+            data = await response.json();
+            expect(data.overCapacityDates).toHaveLength(0);
+            expect(data.counts.overCapacityDates).toBe(0);
+        });
+
+        it("does not expose parcels belonging to anonymized households", async () => {
+            const db = await getTestDb();
+            const visibleHousehold = await createTestHousehold({ first_name: "Visible" });
+            const anonymizedHousehold = await createTestHousehold({ first_name: "Anonymous" });
+            const { location } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 1 },
+                { weekdays: [...allWeekdays] },
+            );
+            const pickupDate = daysFromTestNow(2);
+
+            await createTestParcel({
+                household_id: visibleHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: pickupDate,
+            });
+            await createTestParcel({
+                household_id: anonymizedHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: new Date(pickupDate.getTime() + 30 * 60 * 1000),
+            });
+            await db
+                .update(households)
+                .set({ anonymized_at: TEST_NOW })
+                .where(eq(households.id, anonymizedHousehold.id));
+
+            const response = await GET();
+            const data = await response.json();
+            const countResponse = await GET_COUNT();
+            const countData = await countResponse.json();
+
+            expect(data.overCapacityDates).toHaveLength(0);
+            expect(data.counts.overCapacityDates).toBe(0);
+            expect(countData.overCapacityDates).toBe(0);
+        });
+
+        it("returns handed-out and no-show status for terminal drawer rows", async () => {
+            const pickedUpHousehold = await createTestHousehold({ first_name: "PickedUp" });
+            const noShowHousehold = await createTestHousehold({ first_name: "NoShow" });
+            const { location } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 1 },
+                { weekdays: [...allWeekdays] },
+            );
+            const pickupDate = daysFromTestNow(2);
+
+            await createTestPickedUpParcel({
+                household_id: pickedUpHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: pickupDate,
+            });
+            await createTestNoShowParcel({
+                household_id: noShowHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: new Date(pickupDate.getTime() + 30 * 60 * 1000),
+            });
+
+            const response = await GET();
+            const data = await response.json();
+
+            expect(data.overCapacityDates).toHaveLength(1);
+            expect(data.overCapacityDates[0].parcels).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        householdFirstName: "PickedUp",
+                        isPickedUp: true,
+                        noShowAt: null,
+                    }),
+                    expect.objectContaining({
+                        householdFirstName: "NoShow",
+                        isPickedUp: false,
+                        noShowAt: expect.any(String),
+                    }),
+                ]),
+            );
+        });
+    });
+
     describe("Counts", () => {
         it("should return counts larger than the 100-item display limit", async () => {
             const household = await createTestHousehold({ first_name: "Count" });
@@ -583,6 +865,7 @@ describe("Issues API - Integration Tests", () => {
                 outsideHours: mainData.counts.outsideHours,
                 failedSms: mainData.counts.failedSms,
                 noShowFollowups: mainData.counts.noShowFollowups,
+                overCapacityDates: mainData.counts.overCapacityDates,
             });
         });
     });
@@ -730,10 +1013,12 @@ describe("Issues API - Integration Tests", () => {
             expect(data).toHaveProperty("unresolvedHandouts");
             expect(data).toHaveProperty("outsideHours");
             expect(data).toHaveProperty("failedSms");
+            expect(data).toHaveProperty("overCapacityDates");
             expect(data).toHaveProperty("counts");
             expect(Array.isArray(data.unresolvedHandouts)).toBe(true);
             expect(Array.isArray(data.outsideHours)).toBe(true);
             expect(Array.isArray(data.failedSms)).toBe(true);
+            expect(Array.isArray(data.overCapacityDates)).toBe(true);
         });
 
         it("should include no-store Cache-Control header for fresh data", async () => {

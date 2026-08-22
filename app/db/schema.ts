@@ -180,8 +180,30 @@ export const pickupLocations = pgTable(
                 "pickup_locations_max_parcels_per_slot_check",
                 sql`${table.max_parcels_per_slot} IS NULL OR ${table.max_parcels_per_slot} > 0`,
             ),
+            check(
+                "pickup_locations_parcels_max_per_day_check",
+                sql`${table.parcels_max_per_day} IS NULL OR ${table.parcels_max_per_day} > 0`,
+            ),
         ];
     },
+);
+
+export const pickupLocationDailyLimits = pgTable(
+    "pickup_location_daily_limits",
+    {
+        pickup_location_id: text("pickup_location_id")
+            .notNull()
+            .references(() => pickupLocations.id, { onDelete: "cascade" }),
+        date: date("date").notNull(),
+        max_parcels: integer("max_parcels").notNull(),
+    },
+    table => [
+        primaryKey({
+            columns: [table.pickup_location_id, table.date],
+            name: "pickup_location_daily_limits_pk",
+        }),
+        check("pickup_location_daily_limits_max_parcels_check", sql`${table.max_parcels} > 0`),
+    ],
 );
 
 export const pickupLocationSchedules = pgTable(

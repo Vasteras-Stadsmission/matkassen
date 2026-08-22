@@ -62,6 +62,7 @@ export default function ReschedulePickupModal({
     const [maxParcelsPerSlot, setMaxParcelsPerSlot] = useState<number | null>(null);
     const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
     const [maxDate, setMaxDate] = useState<Date | undefined>(undefined);
+    const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
 
     // Derive stable values from foodParcel to avoid re-running effects on object reference changes
     const parcelId = foodParcel?.id;
@@ -79,6 +80,7 @@ export default function ReschedulePickupModal({
         setFullyBookedDates(new Set());
         setMaxDate(undefined);
         setMaxParcelsPerSlot(null);
+        setAvailabilityLoaded(false);
 
         let cancelled = false;
 
@@ -87,20 +89,19 @@ export default function ReschedulePickupModal({
             const threeMonthsLater = new Date(now);
             threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
 
-            const [configResult, datesResult] = await Promise.allSettled([
-                getLocationSlotConfigAction(parcelLocationId!),
-                getFullyBookedDatesAction(parcelLocationId!, now, threeMonthsLater, parcelId),
-            ]);
-
-            if (cancelled) return;
-
-            if (configResult.status === "fulfilled") {
-                setSlotDuration(configResult.value.slotDuration);
-                setMaxParcelsPerSlot(configResult.value.maxParcelsPerSlot);
-            }
-            if (datesResult.status === "fulfilled") {
-                setFullyBookedDates(new Set(datesResult.value));
+            try {
+                const [config, dates] = await Promise.all([
+                    getLocationSlotConfigAction(parcelLocationId!),
+                    getFullyBookedDatesAction(parcelLocationId!, now, threeMonthsLater, parcelId),
+                ]);
+                if (cancelled) return;
+                setSlotDuration(config.slotDuration);
+                setMaxParcelsPerSlot(config.maxParcelsPerSlot);
+                setFullyBookedDates(new Set(dates));
                 setMaxDate(threeMonthsLater);
+                setAvailabilityLoaded(true);
+            } catch {
+                if (!cancelled) setError(t("reschedule.loadError"));
             }
         }
 
@@ -109,6 +110,7 @@ export default function ReschedulePickupModal({
         return () => {
             cancelled = true;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- t is not referentially stable, intentionally excluded
     }, [opened, parcelId, parcelLocationId]);
 
     // Prepare available time slots based on location schedule and slot capacity
@@ -163,8 +165,10 @@ export default function ReschedulePickupModal({
                 };
             });
 
-        // Set slots immediately with schedule-only data (empty counts), then refine with capacity data
-        setAvailableTimes(buildSlots({}));
+        // Keep slots disabled until capacity data succeeds.
+        const pendingSlots = buildSlots({}).map(slot => ({ ...slot, disabled: true }));
+        setAvailableTimes(pendingSlots);
+        setSelectedTime(null);
 
         let cancelled = false;
 
@@ -185,15 +189,15 @@ export default function ReschedulePickupModal({
                     }
                 })
                 .catch(() => {
-                    // On error, keep schedule-only slots without capacity data
+                    if (!cancelled) {
+                        setAvailableTimes(pendingSlots);
+                        setSelectedTime(null);
+                        setError(t("reschedule.loadError"));
+                    }
                 });
         } else {
-            const firstAvailable = buildSlots({}).find(slot => !slot.disabled);
-            if (firstAvailable && !selectedTimeRef.current) {
-                setSelectedTime(firstAvailable.value);
-            } else if (!firstAvailable) {
-                setError(t("reschedule.noTimesAvailable"));
-            }
+            setAvailableTimes(pendingSlots);
+            setError(t("reschedule.loadError"));
         }
 
         return () => {
@@ -249,7 +253,7 @@ export default function ReschedulePickupModal({
 
     // Check if a date is available according to the location schedule and capacity
     const isDateAvailableForPickup = (date: Date): boolean => {
-        if (!locationSchedules) return true; // If no schedule info, assume available
+        if (!availabilityLoaded || !locationSchedules) return false;
         if (!isDateAvailable(date, locationSchedules).isAvailable) return false;
 
         // Check if the date is fully booked (daily capacity reached)

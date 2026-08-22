@@ -16,7 +16,9 @@ import {
     Chip,
     ThemeIcon,
     Tooltip,
+    Drawer,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { modals } from "@mantine/modals";
 import {
@@ -27,9 +29,11 @@ import {
     IconMessage,
     IconX,
     IconUserExclamation,
+    IconAlertTriangle,
 } from "@tabler/icons-react";
 import { Link } from "@/app/i18n/navigation";
 import { adminFetch } from "@/app/utils/auth/redirect-on-auth-error";
+import { createLocationSlug } from "@/app/[locale]/schedule/utils/location-slugs";
 import RescheduleInline from "./RescheduleInline";
 
 // Issue types from the API
@@ -86,21 +90,49 @@ interface NoShowFollowup {
     triggerType: "consecutive" | "total" | "both";
 }
 
+interface OverCapacityDate {
+    locationId: string;
+    locationName: string;
+    date: string;
+    booked: number;
+    limit: number;
+    excess: number;
+    hasOverride: boolean;
+    parcels: {
+        parcelId: string;
+        householdId: string;
+        householdFirstName: string;
+        householdLastName: string;
+        pickupDateEarliest: string;
+        pickupDateLatest: string;
+        isPickedUp: boolean;
+        noShowAt: string | null;
+    }[];
+}
+
 interface IssuesData {
     unresolvedHandouts: UnresolvedHandout[];
     outsideHours: OutsideHoursParcel[];
     failedSms: FailedSms[];
     noShowFollowups: NoShowFollowup[];
+    overCapacityDates: OverCapacityDate[];
     counts: {
         total: number;
         unresolvedHandouts: number;
         outsideHours: number;
         failedSms: number;
         noShowFollowups: number;
+        overCapacityDates: number;
     };
 }
 
-type FilterType = "all" | "unresolvedHandouts" | "outsideHours" | "failedSms" | "noShowFollowups";
+type FilterType =
+    | "all"
+    | "overCapacityDates"
+    | "unresolvedHandouts"
+    | "outsideHours"
+    | "failedSms"
+    | "noShowFollowups";
 
 export default function IssuesPageClient() {
     const t = useTranslations("issues");
@@ -113,6 +145,8 @@ export default function IssuesPageClient() {
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [rescheduleParcelId, setRescheduleParcelId] = useState<string | null>(null);
     const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
+    const [capacityDrawerKey, setCapacityDrawerKey] = useState<string | null>(null);
+    const compactCapacityDrawer = useMediaQuery("(max-width: 48rem)");
 
     // Helper to get translated error message from API response
     // Uses error code if available, falls back to generic error
@@ -282,6 +316,15 @@ export default function IssuesPageClient() {
 
         return `${dateStr}, ${startTime} - ${endTime}`;
     };
+
+    const formatDate = (dateKey: string) =>
+        new Date(dateKey + "T12:00:00Z").toLocaleDateString(locale, {
+            weekday: "short",
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            timeZone: "Europe/Stockholm",
+        });
 
     // Action handler: Mark parcel as handed out (picked up)
     const handleHandedOut = async (parcelId: string) => {
@@ -586,12 +629,17 @@ export default function IssuesPageClient() {
         );
     }
 
+    const showOverCapacityDates = activeFilter === "all" || activeFilter === "overCapacityDates";
     const showUnresolvedHandouts = activeFilter === "all" || activeFilter === "unresolvedHandouts";
     const showOutsideHours = activeFilter === "all" || activeFilter === "outsideHours";
     const showFailedSms = activeFilter === "all" || activeFilter === "failedSms";
     const showNoShowFollowups = activeFilter === "all" || activeFilter === "noShowFollowups";
 
     const hasNoIssues = issues && issues.counts.total === 0;
+    const selectedCapacityIssue =
+        issues?.overCapacityDates.find(
+            item => item.locationId + ":" + item.date === capacityDrawerKey,
+        ) ?? null;
 
     return (
         <Container size="lg" py="xl">
@@ -608,6 +656,11 @@ export default function IssuesPageClient() {
                             <Chip value="all" variant="filled">
                                 {t("filters.all")} ({issues?.counts.total ?? 0})
                             </Chip>
+                            {(issues?.counts.overCapacityDates ?? 0) > 0 && (
+                                <Chip value="overCapacityDates" variant="filled">
+                                    {t("filters.overCapacity")} ({issues?.counts.overCapacityDates})
+                                </Chip>
+                            )}
                             {(issues?.counts.unresolvedHandouts ?? 0) > 0 && (
                                 <Chip value="unresolvedHandouts" variant="filled">
                                     {t("filters.unresolvedHandouts")} (
@@ -658,6 +711,75 @@ export default function IssuesPageClient() {
                 {/* Unified issue list */}
                 {issues && !hasNoIssues && (
                     <Stack gap="sm">
+                        {/* Over-capacity dates */}
+                        {showOverCapacityDates &&
+                            issues.overCapacityDates.map(item => (
+                                <Paper
+                                    key={item.locationId + ":" + item.date}
+                                    p="sm"
+                                    withBorder
+                                    style={{
+                                        borderLeft: "3px solid var(--mantine-color-red-6)",
+                                    }}
+                                    data-testid="over-capacity-issue"
+                                >
+                                    <Stack gap={4}>
+                                        <Group gap={6}>
+                                            <IconAlertTriangle
+                                                size={16}
+                                                color="var(--mantine-color-red-6)"
+                                            />
+                                            <Text size="sm" c="red.8" fw={600}>
+                                                {t("cardType.overCapacity")}
+                                            </Text>
+                                        </Group>
+                                        <Text fw={600}>{item.locationName}</Text>
+                                        <Text size="sm" c="dark.4">
+                                            {formatDate(item.date)} ·{" "}
+                                            {t("overCapacity.summary", {
+                                                booked: String(item.booked),
+                                                limit: String(item.limit),
+                                            })}
+                                        </Text>
+                                        <Text size="sm" c="dimmed">
+                                            {t("overCapacity.resolveHint", {
+                                                excess: String(item.excess),
+                                            })}
+                                        </Text>
+                                        <Group gap="xs" wrap="wrap">
+                                            <Button
+                                                type="button"
+                                                variant="light"
+                                                color="blue"
+                                                size="sm"
+                                                onClick={() =>
+                                                    setCapacityDrawerKey(
+                                                        item.locationId + ":" + item.date,
+                                                    )
+                                                }
+                                            >
+                                                {t("overCapacity.resolve", {
+                                                    count: String(item.parcels.length),
+                                                })}
+                                            </Button>
+                                            <Button
+                                                component={Link}
+                                                href={
+                                                    "/schedule/" +
+                                                    createLocationSlug(item.locationName) +
+                                                    "/weekly?date=" +
+                                                    item.date
+                                                }
+                                                variant="default"
+                                                size="sm"
+                                            >
+                                                {t("actions.viewWeek")}
+                                            </Button>
+                                        </Group>
+                                    </Stack>
+                                </Paper>
+                            ))}
+
                         {/* Unresolved Handouts */}
                         {showUnresolvedHandouts &&
                             issues.unresolvedHandouts.map(parcel => (
@@ -1120,6 +1242,134 @@ export default function IssuesPageClient() {
                     </Stack>
                 )}
             </Stack>
+
+            <Drawer
+                opened={selectedCapacityIssue !== null}
+                onClose={() => {
+                    setCapacityDrawerKey(null);
+                    setRescheduleParcelId(null);
+                }}
+                position={compactCapacityDrawer ? "bottom" : "right"}
+                size={compactCapacityDrawer ? "90%" : "lg"}
+                title={
+                    selectedCapacityIssue ? (
+                        <Stack gap={1}>
+                            <Text fw={600}>{t("cardType.overCapacity")}</Text>
+                            <Text size="sm">
+                                {selectedCapacityIssue.locationName} ·{" "}
+                                {formatDate(selectedCapacityIssue.date)}
+                            </Text>
+                            <Text size="sm" c="red.7" fw={600}>
+                                {t("overCapacity.summary", {
+                                    booked: String(selectedCapacityIssue.booked),
+                                    limit: String(selectedCapacityIssue.limit),
+                                })}
+                            </Text>
+                        </Stack>
+                    ) : null
+                }
+                data-testid="over-capacity-drawer"
+            >
+                {selectedCapacityIssue && (
+                    <Stack gap="sm">
+                        <Alert color="red" icon={<IconAlertTriangle size={18} />}>
+                            {t("overCapacity.resolveHint", {
+                                excess: String(selectedCapacityIssue.excess),
+                            })}
+                        </Alert>
+                        <Text size="sm" fw={600}>
+                            {t("overCapacity.allBookings")}
+                        </Text>
+                        <Stack gap="xs">
+                            {selectedCapacityIssue.parcels.map(parcel => (
+                                <Paper
+                                    key={parcel.parcelId}
+                                    p="sm"
+                                    withBorder
+                                    data-testid="over-capacity-parcel"
+                                >
+                                    <Stack gap="xs">
+                                        <div>
+                                            <Text
+                                                fw={600}
+                                                component={Link}
+                                                href={"/households/" + parcel.householdId}
+                                                style={{ textDecoration: "none" }}
+                                                c="inherit"
+                                            >
+                                                {parcel.householdFirstName}{" "}
+                                                {parcel.householdLastName}
+                                            </Text>
+                                            <Text size="sm" c="dimmed">
+                                                {formatPickupTime(
+                                                    parcel.pickupDateEarliest,
+                                                    parcel.pickupDateLatest,
+                                                )}
+                                            </Text>
+                                            <Text size="sm" c="dimmed">
+                                                {selectedCapacityIssue.locationName}
+                                            </Text>
+                                            {parcel.isPickedUp && (
+                                                <Text size="sm" c="dimmed" fw={500}>
+                                                    {t("errorCodes.ALREADY_PICKED_UP")}
+                                                </Text>
+                                            )}
+                                            {!parcel.isPickedUp && parcel.noShowAt && (
+                                                <Text size="sm" c="dimmed" fw={500}>
+                                                    {t("errorCodes.ALREADY_NO_SHOW")}
+                                                </Text>
+                                            )}
+                                        </div>
+                                        <Group gap="xs" wrap="wrap">
+                                            <Button
+                                                component={Link}
+                                                href={"/households/" + parcel.householdId}
+                                                variant="default"
+                                                size="sm"
+                                            >
+                                                {t("actions.viewHousehold")}
+                                            </Button>
+                                            {!parcel.isPickedUp &&
+                                                !parcel.noShowAt &&
+                                                rescheduleParcelId !== parcel.parcelId && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="light"
+                                                        color="blue"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            setRescheduleParcelId(parcel.parcelId)
+                                                        }
+                                                    >
+                                                        {t("actions.reschedule")}
+                                                    </Button>
+                                                )}
+                                        </Group>
+                                        {!parcel.isPickedUp && !parcel.noShowAt && (
+                                            <RescheduleInline
+                                                parcelId={parcel.parcelId}
+                                                locationId={selectedCapacityIssue.locationId}
+                                                isExpanded={rescheduleParcelId === parcel.parcelId}
+                                                onCancel={() => setRescheduleParcelId(null)}
+                                                onSuccess={() => {
+                                                    setRescheduleParcelId(null);
+                                                    notifications.show({
+                                                        title: t("toast.success"),
+                                                        message: t("toast.rescheduled"),
+                                                        color: "green",
+                                                        icon: <IconCheck size="1rem" />,
+                                                    });
+                                                    void fetchData();
+                                                }}
+                                            />
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            ))}
+                        </Stack>
+                    </Stack>
+                )}
+            </Drawer>
         </Container>
     );
 }

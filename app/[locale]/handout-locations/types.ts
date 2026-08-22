@@ -44,6 +44,29 @@ export interface LocationFormInput {
     default_slot_duration_minutes: number;
 }
 
+export interface LocationLimitsInput {
+    parcels_max_per_day: number | null;
+    max_parcels_per_slot: number | null;
+}
+
+export interface DailyLimitConflict {
+    date: string;
+    booked: number;
+    resultingLimit: number;
+}
+
+export type LimitMutationResult =
+    | {
+          status: "updated";
+          changedDates: string[];
+          conflicts: DailyLimitConflict[];
+      }
+    | {
+          status: "confirmation_required";
+          changedDates: string[];
+          conflicts: DailyLimitConflict[];
+      };
+
 // New input types for schedule-based approach
 export interface ScheduleInput {
     name: string;

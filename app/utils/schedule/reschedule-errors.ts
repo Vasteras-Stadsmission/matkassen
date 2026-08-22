@@ -13,6 +13,8 @@ const ERROR_CODE_TO_I18N_KEY: Record<string, string> = {
     HOUSEHOLD_DOUBLE_BOOKING: "reschedule.doubleBookingError",
     OUTSIDE_OPERATING_HOURS: "reschedule.operatingHoursError",
     PAST_TIME_SLOT: "reschedule.pastError",
+    ALREADY_PICKED_UP: "reschedule.alreadyPickedUpError",
+    ALREADY_NO_SHOW: "reschedule.alreadyNoShowError",
     // Map codes that shouldn't normally reach the UI to the generic error
     PARCEL_NOT_FOUND: "reschedule.genericError",
     LOCATION_NOT_FOUND: "reschedule.genericError",
