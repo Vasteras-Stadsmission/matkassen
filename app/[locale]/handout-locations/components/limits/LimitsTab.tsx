@@ -286,26 +286,6 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
             }).format(new Date()),
         [],
     );
-    const selectedOverCapacityDates = useMemo(
-        () =>
-            selectedDates.flatMap(dateKey => {
-                const loadedCapacity = loadedCapacityByDate[dateKey];
-                if (!loadedCapacity) return [];
-                const capacity = getDailyCapacityState(loadedCapacity.booked, loadedCapacity.limit);
-                return capacity.isOverCapacity
-                    ? [
-                          {
-                              dateKey,
-                              booked: loadedCapacity.booked,
-                              limit: loadedCapacity.limit!,
-                              excess: capacity.excess,
-                          },
-                      ]
-                    : [];
-            }),
-        [loadedCapacityByDate, selectedDates],
-    );
-
     return (
         <Stack gap="lg">
             <div>
@@ -478,33 +458,6 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                                     </div>
                                     <IconCalendarStats size={28} aria-hidden="true" />
                                 </Group>
-                                {selectedOverCapacityDates.length > 0 && (
-                                    <Alert
-                                        color="red"
-                                        icon={<IconAlertTriangle size={18} />}
-                                        title={t("selectedOverCapacityTitle")}
-                                    >
-                                        <Stack gap={4}>
-                                            {selectedOverCapacityDates.map(item => (
-                                                <Text key={item.dateKey} size="sm">
-                                                    {t("selectedOverCapacityLine", {
-                                                        date: new Intl.DateTimeFormat(
-                                                            locale === "sv" ? "sv-SE" : "en-GB",
-                                                            {
-                                                                dateStyle: "medium",
-                                                                timeZone: "UTC",
-                                                            },
-                                                        ).format(
-                                                            new Date(item.dateKey + "T12:00:00Z"),
-                                                        ),
-                                                        booked: String(item.booked),
-                                                        limit: String(item.limit),
-                                                    })}
-                                                </Text>
-                                            ))}
-                                        </Stack>
-                                    </Alert>
-                                )}
                                 <NumberInput
                                     label={t("selectedLimitLabel")}
                                     placeholder={t("selectedLimitPlaceholder")}
@@ -571,27 +524,62 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                             <Text fw={600} tt="capitalize">
                                 {group.label}
                             </Text>
-                            {group.dates.map(dateKey => (
-                                <Group key={dateKey} justify="space-between" wrap="nowrap">
-                                    <Text>
-                                        {new Intl.DateTimeFormat(
-                                            locale === "sv" ? "sv-SE" : "en-GB",
-                                            { dateStyle: "long", timeZone: "UTC" },
-                                        ).format(new Date(`${dateKey}T12:00:00Z`))}
-                                    </Text>
-                                    <Button
-                                        type="button"
-                                        variant="subtle"
-                                        onClick={() =>
-                                            setSelectedDates(current =>
-                                                current.filter(value => value !== dateKey),
-                                            )
-                                        }
+                            {group.dates.map(dateKey => {
+                                const loadedCapacity = loadedCapacityByDate[dateKey];
+                                const formattedDate = new Intl.DateTimeFormat(
+                                    locale === "sv" ? "sv-SE" : "en-GB",
+                                    { dateStyle: "long", timeZone: "UTC" },
+                                ).format(new Date(`${dateKey}T12:00:00Z`));
+                                const capacity = loadedCapacity
+                                    ? getDailyCapacityState(
+                                          loadedCapacity.booked,
+                                          loadedCapacity.limit,
+                                      )
+                                    : null;
+
+                                return (
+                                    <Group
+                                        key={dateKey}
+                                        justify="space-between"
+                                        align="flex-start"
+                                        wrap="nowrap"
                                     >
-                                        {t("removeDate")}
-                                    </Button>
-                                </Group>
-                            ))}
+                                        <Stack gap={2}>
+                                            <Text>{formattedDate}</Text>
+                                            {loadedCapacity && (
+                                                <Text
+                                                    size="sm"
+                                                    c={capacity?.isOverCapacity ? "red" : "dimmed"}
+                                                    fw={capacity?.isOverCapacity ? 600 : undefined}
+                                                >
+                                                    {loadedCapacity.limit === null
+                                                        ? t("reviewDateCapacityWithoutLimit", {
+                                                              booked: String(loadedCapacity.booked),
+                                                          })
+                                                        : t("reviewDateCapacity", {
+                                                              booked: String(loadedCapacity.booked),
+                                                              limit: String(loadedCapacity.limit),
+                                                          })}
+                                                </Text>
+                                            )}
+                                        </Stack>
+                                        <Button
+                                            type="button"
+                                            variant="subtle"
+                                            aria-label={t("removeDateAria", {
+                                                date: formattedDate,
+                                            })}
+                                            onClick={() =>
+                                                setSelectedDates(current =>
+                                                    current.filter(value => value !== dateKey),
+                                                )
+                                            }
+                                        >
+                                            {t("removeDate")}
+                                        </Button>
+                                    </Group>
+                                );
+                            })}
                             <Divider />
                         </Stack>
                     ))}

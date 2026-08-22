@@ -31,6 +31,10 @@ const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown
         specificDatesTitle: "Specific dates",
         specificDatesDescription: "Override selected dates",
         reviewDates: "Review dates",
+        confirmTitle: "Existing bookings exceed the new limit",
+        confirmDescription: "Existing bookings remain scheduled",
+        confirmApply: "Apply anyway",
+        cancel: "Cancel",
         selectedLimitLabel: "Selected limit",
         selectedLimitPlaceholder: "Enter limit",
         applySelected: "Apply to selected dates",
@@ -41,12 +45,15 @@ const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown
         legendOverride: "Override",
         legendClosed: "Closed",
         legendOverCapacity: "Over capacity",
-        selectedOverCapacityTitle: "Selected dates over capacity",
     };
     if (key === "selectedCount") return `${params?.count} dates selected`;
-    if (key === "selectedOverCapacityLine") {
-        return `${params?.date}: ${params?.booked}/${params?.limit} booked`;
+    if (key === "reviewDateCapacity") {
+        return `${params?.booked} booked · current max ${params?.limit}`;
     }
+    if (key === "reviewDateCapacityWithoutLimit") {
+        return `${params?.booked} booked · no current daily max`;
+    }
+    if (key === "removeDateAria") return `Remove ${params?.date}`;
     return labels[key] ?? key;
 });
 
@@ -167,6 +174,7 @@ describe("LimitsTab", () => {
                 [],
             ),
         );
+        expect(screen.queryByText("Existing bookings exceed the new limit")).toBeNull();
     });
 
     it("ignores a stale month response after rapid navigation", async () => {
@@ -195,7 +203,7 @@ describe("LimitsTab", () => {
         expect(screen.getByTestId("rendered-day").textContent).not.toContain("8");
     });
 
-    it("shows booked/max details when an over-capacity date is selected", async () => {
+    it("keeps the editor compact and shows booked/max details in the review drawer", async () => {
         const data = monthData("2026-08", 8);
         data.data.bookedCounts["2026-08-05"] = 10;
         mockGetDailyLimitMonthData.mockResolvedValue(data);
@@ -210,8 +218,73 @@ describe("LimitsTab", () => {
         expect(screen.getByTestId("rendered-day").textContent).toContain("!");
         fireEvent.click(screen.getByRole("button", { name: "Select shown date" }));
 
-        expect(screen.getByText("Selected dates over capacity")).toBeTruthy();
-        expect(screen.getByText(/10\/8 booked/)).toBeTruthy();
+        expect(screen.queryByText(/10 booked · current max 8/)).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Review dates" }));
+
+        await waitFor(() => expect(screen.getByText(/10 booked · current max 8/)).toBeTruthy());
+        expect(screen.getByRole("button", { name: /Remove .*5 August 2026/ })).toBeTruthy();
+    });
+
+    it("shows unlimited current capacity in the review drawer", async () => {
+        const data = monthData("2026-08", 8);
+        data.data.bookedCounts["2026-08-05"] = 3;
+        const unlimitedData = {
+            ...data,
+            data: {
+                ...data.data,
+                effectiveDailyLimits: { "2026-08-05": null },
+            },
+        };
+        mockGetDailyLimitMonthData.mockResolvedValue(unlimitedData);
+
+        render(
+            <MantineProvider>
+                <LimitsTab location={location} />
+            </MantineProvider>,
+        );
+        await waitFor(() => expect(mockGetDailyLimitMonthData).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "Select shown date" }));
+        fireEvent.click(screen.getByRole("button", { name: "Review dates" }));
+
+        await waitFor(() =>
+            expect(screen.getByText("3 booked · no current daily max")).toBeTruthy(),
+        );
+    });
+
+    it("opens confirmation only when applying a limit would create conflicts", async () => {
+        mockApplyDailyParcelLimits.mockResolvedValueOnce({
+            success: true,
+            data: {
+                status: "confirmation_required",
+                changedDates: [],
+                conflicts: [{ date: "2026-08-04", booked: 9, resultingLimit: 7 }],
+            },
+        });
+
+        render(
+            <MantineProvider>
+                <LimitsTab location={location} />
+            </MantineProvider>,
+        );
+        await waitFor(() => expect(mockGetDailyLimitMonthData).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "Select two dates" }));
+        fireEvent.change(screen.getByLabelText("Selected limit"), { target: { value: "7" } });
+        fireEvent.click(screen.getByRole("button", { name: "Apply to selected dates" }));
+
+        await waitFor(() =>
+            expect(screen.getByText("Existing bookings exceed the new limit")).toBeTruthy(),
+        );
+        expect(mockApplyDailyParcelLimits).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole("button", { name: "Apply anyway" }));
+        await waitFor(() =>
+            expect(mockApplyDailyParcelLimits).toHaveBeenLastCalledWith(
+                location.id,
+                ["2026-08-04", "2026-08-11"],
+                7,
+                ["2026-08-04"],
+            ),
+        );
     });
 
     it("keeps warnings for selected over-capacity dates across months", async () => {
@@ -236,8 +309,11 @@ describe("LimitsTab", () => {
         );
         await waitFor(() => expect(screen.getByTestId("rendered-day").textContent).toContain("9"));
         fireEvent.click(screen.getByRole("button", { name: "Add shown date" }));
+        fireEvent.click(screen.getByRole("button", { name: "Review dates" }));
 
-        expect(screen.getByText(/10\/8 booked/)).toBeTruthy();
-        expect(screen.getByText(/12\/9 booked/)).toBeTruthy();
+        await waitFor(() => {
+            expect(screen.getByText(/10 booked · current max 8/)).toBeTruthy();
+            expect(screen.getByText(/12 booked · current max 9/)).toBeTruthy();
+        });
     });
 });
