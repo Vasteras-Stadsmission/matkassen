@@ -53,6 +53,7 @@ import {
 } from "@/app/utils/schedule/reschedule-errors";
 import { useTranslations } from "next-intl";
 import { TranslationFunction } from "../../types";
+import { getDailyCapacityState } from "@/app/utils/capacity/daily-capacity";
 
 // Type for time gaps
 interface TimeGap {
@@ -1130,6 +1131,16 @@ export default function WeeklyScheduleGrid({
                                     const isPast = isPastDate(date);
                                     const weekdayLabel = t(`days.${getWeekdayName(date)}`);
                                     const formattedDate = formatDate(date);
+                                    const dateKey = formatDateToYMD(date);
+                                    const booked = parcelCountByDate[dateKey] ?? 0;
+                                    const dailyLimit =
+                                        dailyLimitsByDate === null
+                                            ? undefined
+                                            : (dailyLimitsByDate[dateKey] ?? null);
+                                    const capacity =
+                                        dailyLimit === undefined
+                                            ? null
+                                            : getDailyCapacityState(booked, dailyLimit);
 
                                     // Check if this day is available in the location schedule
                                     const isDateUnavailable = locationSchedules
@@ -1144,6 +1155,7 @@ export default function WeeklyScheduleGrid({
                                     // Determine background color for day header
                                     const getBgColor = () => {
                                         if (isDateUnavailable) return "gray.1";
+                                        if (capacity?.isOverCapacity) return "red.8";
                                         if (isPast) return "gray.7";
                                         return "blue.7";
                                     };
@@ -1226,23 +1238,40 @@ export default function WeeklyScheduleGrid({
                                                     {!isDateUnavailable && (
                                                         <Text
                                                             size="xs"
-                                                            c="gray.2"
+                                                            c={
+                                                                capacity?.isOverCapacity
+                                                                    ? "white"
+                                                                    : "gray.2"
+                                                            }
+                                                            fw={
+                                                                capacity?.isOverCapacity
+                                                                    ? 700
+                                                                    : undefined
+                                                            }
                                                             style={{
                                                                 position: "absolute",
                                                                 top: 4,
                                                                 right: 4,
                                                             }}
                                                             data-testid="capacity-indicator"
+                                                            aria-label={
+                                                                capacity?.isOverCapacity
+                                                                    ? t(
+                                                                          "capacity.overCapacityAria",
+                                                                          {
+                                                                              booked,
+                                                                              limit: dailyLimit,
+                                                                              excess: capacity.excess,
+                                                                          },
+                                                                      )
+                                                                    : undefined
+                                                            }
                                                         >
-                                                            {parcelCountByDate[
-                                                                formatDateToYMD(date)
-                                                            ] || 0}
-                                                            /
+                                                            {booked}/
                                                             {dailyLimitsByDate === null
                                                                 ? "?"
-                                                                : (dailyLimitsByDate[
-                                                                      formatDateToYMD(date)
-                                                                  ] ?? "∞")}
+                                                                : (dailyLimitsByDate[dateKey] ??
+                                                                  "∞")}
                                                         </Text>
                                                     )}
 

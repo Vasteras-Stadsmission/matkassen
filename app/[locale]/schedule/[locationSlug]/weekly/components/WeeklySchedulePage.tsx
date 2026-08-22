@@ -45,9 +45,16 @@ import type { FoodParcel, PickupLocation, TodaySummaryStats } from "../../../typ
 
 interface WeeklySchedulePageProps {
     locationSlug: string;
+    initialDateKey?: string;
 }
 
-export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
+function initialScheduleDate(dateKey?: string): Date {
+    if (!dateKey) return new Date();
+    const parsed = new Date(dateKey + "T12:00:00Z");
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+export function WeeklySchedulePage({ locationSlug, initialDateKey }: WeeklySchedulePageProps) {
     const router = useRouter();
     const locale = useLocale();
     const t = useTranslations();
@@ -57,11 +64,13 @@ export function WeeklySchedulePage({ locationSlug }: WeeklySchedulePageProps) {
     const [locationError, setLocationError] = useState<string | null>(null);
 
     // State for selected week
-    const [currentDate, setCurrentDate] = useState<Date>(new Date());
+    const [currentDate, setCurrentDate] = useState<Date>(() => initialScheduleDate(initialDateKey));
     const [weekDates, setWeekDates] = useState<Date[]>([]);
     const [weekNumber, setWeekNumber] = useState<number>(0);
     const [year, setYear] = useState<number>(0);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(() =>
+        initialScheduleDate(initialDateKey),
+    );
 
     // State for food parcels
     const [foodParcels, setFoodParcels] = useState<FoodParcel[]>([]);

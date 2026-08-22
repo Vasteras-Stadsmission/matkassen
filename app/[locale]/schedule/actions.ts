@@ -52,6 +52,7 @@ import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outs
 import { validateParcelAssignmentsForForm } from "@/app/utils/validation/parcel-assignment";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
+import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
     enumerateDateKeys,
     loadLocationLimitContext,
@@ -714,6 +715,8 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                         locationId: foodParcels.pickup_location_id,
                         pickupEarliest: foodParcels.pickup_date_time_earliest,
                         pickupLatest: foodParcels.pickup_date_time_latest,
+                        isPickedUp: foodParcels.is_picked_up,
+                        noShowAt: foodParcels.no_show_at,
                     })
                     .from(foodParcels)
                     .where(and(eq(foodParcels.id, parcelId), notDeleted()))
@@ -725,6 +728,15 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                 }
                 if (parcel.locationId !== locationId) {
                     throw new Error("PARCEL_LOCATION_CHANGED");
+                }
+                if (parcel.isPickedUp || parcel.noShowAt) {
+                    const code = parcel.isPickedUp ? "ALREADY_PICKED_UP" : "ALREADY_NO_SHOW";
+                    const message = parcel.isPickedUp
+                        ? "This parcel has already been handed out"
+                        : "This parcel is already marked as no-show";
+                    throw new ParcelValidationError(message, [
+                        { field: "parcelId", code, message },
+                    ]);
                 }
 
                 // Get the location's slot duration to calculate proper end time
@@ -759,9 +771,6 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                     // Return the first error for display
                     const errors = validationResult.errors || [];
                     const primaryError = errors[0];
-                    const { ParcelValidationError } =
-                        await import("@/app/utils/errors/validation-errors");
-
                     throw new ParcelValidationError(
                         primaryError?.message ?? "Validation failed",
                         errors,
@@ -833,7 +842,6 @@ export const updateFoodParcelSchedule = protectedAdminAction(
             return success(undefined);
         } catch (error) {
             // Preserve validation error codes for i18n on the client
-            const { ParcelValidationError } = await import("@/app/utils/errors/validation-errors");
             if (error instanceof ParcelValidationError) {
                 const primaryError = error.validationErrors[0];
                 return failure({
@@ -1700,6 +1708,7 @@ export const bulkRescheduleParcels = protectedAdminAction(
                         id: foodParcels.id,
                         locationId: foodParcels.pickup_location_id,
                         isPickedUp: foodParcels.is_picked_up,
+                        noShowAt: foodParcels.no_show_at,
                         pickupEarliest: foodParcels.pickup_date_time_earliest,
                         pickupLatest: foodParcels.pickup_date_time_latest,
                     })
@@ -1710,7 +1719,10 @@ export const bulkRescheduleParcels = protectedAdminAction(
                 if (
                     lockedParcels.length !== parcelIds.length ||
                     lockedParcels.some(
-                        parcel => parcel.locationId !== locationId || parcel.isPickedUp,
+                        parcel =>
+                            parcel.locationId !== locationId ||
+                            parcel.isPickedUp ||
+                            parcel.noShowAt !== null,
                     )
                 ) {
                     throw new Error("BULK_SELECTION_CHANGED");

@@ -13,6 +13,7 @@ import {
     createTestLocationWithSchedule,
     createTestParcel,
     createTestPickedUpParcel,
+    createTestNoShowParcel,
     createTestDeletedParcel,
     resetHouseholdCounter,
     resetLocationCounter,
@@ -187,6 +188,88 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
             expect(result).toMatchObject({
                 error: expect.objectContaining({ code: "VALIDATION_ERROR" }),
             });
+        });
+
+        it("should reject if any parcel is already marked as no-show", async () => {
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+            const sourceTime = daysFromTestNow(3);
+            sourceTime.setHours(10, 0, 0, 0);
+            const noShow = await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sourceTime,
+            });
+
+            const result = await bulkRescheduleParcels([noShow.id], {
+                startTime: nextMonday10am(),
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                error: expect.objectContaining({ code: "VALIDATION_ERROR" }),
+            });
+            expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
+        });
+
+        it("rejects a single reschedule after the parcel has been handed out", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+            const sourceTime = daysFromTestNow(3);
+            sourceTime.setHours(10, 0, 0, 0);
+            const pickedUp = await createTestPickedUpParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sourceTime,
+            });
+
+            const result = await updateFoodParcelSchedule(pickedUp.id, {
+                date: nextMonday10am(),
+                startTime: nextMonday10am(),
+                endTime: new Date(nextMonday10am().getTime() + 15 * 60 * 1000),
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                error: expect.objectContaining({ code: "ALREADY_PICKED_UP" }),
+            });
+            const [unchanged] = await db
+                .select()
+                .from(foodParcels)
+                .where(eq(foodParcels.id, pickedUp.id));
+            expect(unchanged.pickup_date_time_earliest).toEqual(sourceTime);
+            expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
+        });
+
+        it("rejects a single reschedule after the parcel is marked as no-show", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule();
+            const sourceTime = daysFromTestNow(3);
+            sourceTime.setHours(10, 0, 0, 0);
+            const noShow = await createTestNoShowParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: sourceTime,
+            });
+
+            const result = await updateFoodParcelSchedule(noShow.id, {
+                date: nextMonday10am(),
+                startTime: nextMonday10am(),
+                endTime: new Date(nextMonday10am().getTime() + 15 * 60 * 1000),
+            });
+
+            expect(result).toMatchObject({
+                success: false,
+                error: expect.objectContaining({ code: "ALREADY_NO_SHOW" }),
+            });
+            const [unchanged] = await db
+                .select()
+                .from(foodParcels)
+                .where(eq(foodParcels.id, noShow.id));
+            expect(unchanged.pickup_date_time_earliest).toEqual(sourceTime);
+            expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
         });
 
         it("should reject if parcels belong to different locations", async () => {

@@ -35,6 +35,7 @@ import type {
     PickupLocationWithAllData,
 } from "../../types";
 import type { DailyLimitMonthData } from "@/app/utils/capacity/daily-limits";
+import { getDailyCapacityState } from "@/app/utils/capacity/daily-capacity";
 
 interface LimitsTabProps {
     location: PickupLocationWithAllData;
@@ -70,6 +71,9 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
     const compact = useMediaQuery("(max-width: 62rem)");
     const [visibleMonth, setVisibleMonth] = useState(`${currentMonthKey()}-01`);
     const [monthData, setMonthData] = useState<DailyLimitMonthData | null>(null);
+    const [loadedCapacityByDate, setLoadedCapacityByDate] = useState<
+        Record<string, { booked: number; limit: number | null }>
+    >({});
     const [loadingMonth, setLoadingMonth] = useState(false);
     const [selectedDates, setSelectedDates] = useState<string[]>([]);
     const [dailyLimit, setDailyLimit] = useState<number | string>("");
@@ -94,6 +98,16 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
         if (requestId !== monthRequestId.current) return;
         if (result.success) {
             setMonthData(result.data);
+            setLoadedCapacityByDate(current => {
+                const next = { ...current };
+                for (const [dateKey, limit] of Object.entries(result.data.effectiveDailyLimits)) {
+                    next[dateKey] = {
+                        booked: result.data.bookedCounts[dateKey] ?? 0,
+                        limit,
+                    };
+                }
+                return next;
+            });
         } else {
             setMonthData(null);
             notifications.show({
@@ -113,6 +127,7 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
         setDefaultDailyLimit(location.parcels_max_per_day ?? "");
         setSlotLimit(location.max_parcels_per_slot ?? "");
         setSelectedDates([]);
+        setLoadedCapacityByDate({});
     }, [location.id, location.max_parcels_per_slot, location.parcels_max_per_day]);
 
     const groupedSelection = useMemo(() => {
@@ -271,6 +286,25 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
             }).format(new Date()),
         [],
     );
+    const selectedOverCapacityDates = useMemo(
+        () =>
+            selectedDates.flatMap(dateKey => {
+                const loadedCapacity = loadedCapacityByDate[dateKey];
+                if (!loadedCapacity) return [];
+                const capacity = getDailyCapacityState(loadedCapacity.booked, loadedCapacity.limit);
+                return capacity.isOverCapacity
+                    ? [
+                          {
+                              dateKey,
+                              booked: loadedCapacity.booked,
+                              limit: loadedCapacity.limit!,
+                              excess: capacity.excess,
+                          },
+                      ]
+                    : [];
+            }),
+        [loadedCapacityByDate, selectedDates],
+    );
 
     return (
         <Stack gap="lg">
@@ -365,7 +399,9 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                                     const booked = monthData?.bookedCounts[dateKey] ?? 0;
                                     const closed = monthData ? !openDateSet.has(dateKey) : false;
                                     const overCapacity =
-                                        effectiveLimit != null && booked > effectiveLimit;
+                                        effectiveLimit !== undefined &&
+                                        getDailyCapacityState(booked, effectiveLimit)
+                                            .isOverCapacity;
 
                                     return (
                                         <Stack gap={0} align="center">
@@ -442,6 +478,33 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                                     </div>
                                     <IconCalendarStats size={28} aria-hidden="true" />
                                 </Group>
+                                {selectedOverCapacityDates.length > 0 && (
+                                    <Alert
+                                        color="red"
+                                        icon={<IconAlertTriangle size={18} />}
+                                        title={t("selectedOverCapacityTitle")}
+                                    >
+                                        <Stack gap={4}>
+                                            {selectedOverCapacityDates.map(item => (
+                                                <Text key={item.dateKey} size="sm">
+                                                    {t("selectedOverCapacityLine", {
+                                                        date: new Intl.DateTimeFormat(
+                                                            locale === "sv" ? "sv-SE" : "en-GB",
+                                                            {
+                                                                dateStyle: "medium",
+                                                                timeZone: "UTC",
+                                                            },
+                                                        ).format(
+                                                            new Date(item.dateKey + "T12:00:00Z"),
+                                                        ),
+                                                        booked: String(item.booked),
+                                                        limit: String(item.limit),
+                                                    })}
+                                                </Text>
+                                            ))}
+                                        </Stack>
+                                    </Alert>
+                                )}
                                 <NumberInput
                                     label={t("selectedLimitLabel")}
                                     placeholder={t("selectedLimitPlaceholder")}

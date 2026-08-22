@@ -41,8 +41,12 @@ const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown
         legendOverride: "Override",
         legendClosed: "Closed",
         legendOverCapacity: "Over capacity",
+        selectedOverCapacityTitle: "Selected dates over capacity",
     };
     if (key === "selectedCount") return `${params?.count} dates selected`;
+    if (key === "selectedOverCapacityLine") {
+        return `${params?.date}: ${params?.booked}/${params?.limit} booked`;
+    }
     return labels[key] ?? key;
 });
 
@@ -61,7 +65,7 @@ vi.mock("@/app/[locale]/handout-locations/actions", () => ({
 }));
 
 vi.mock("@mantine/dates", () => ({
-    DatePicker: ({ date, onChange, onDateChange, renderDay }: any) => {
+    DatePicker: ({ date, value, onChange, onDateChange, renderDay }: any) => {
         const monthKey = String(date).slice(0, 7);
         const probeDate = `${monthKey}-05`;
         return (
@@ -73,6 +77,12 @@ vi.mock("@mantine/dates", () => ({
                     onClick={() => onChange([`${monthKey}-04`, `${monthKey}-11`])}
                 >
                     Select two dates
+                </button>
+                <button type="button" onClick={() => onChange([probeDate])}>
+                    Select shown date
+                </button>
+                <button type="button" onClick={() => onChange([...value, probeDate])}>
+                    Add shown date
                 </button>
                 <button type="button" onClick={() => onDateChange("2026-09-01")}>
                     Next month
@@ -183,5 +193,51 @@ describe("LimitsTab", () => {
         expect(screen.getByTestId("visible-month").textContent).toBe("2026-09");
         expect(screen.getByTestId("rendered-day").textContent).toContain("9");
         expect(screen.getByTestId("rendered-day").textContent).not.toContain("8");
+    });
+
+    it("shows booked/max details when an over-capacity date is selected", async () => {
+        const data = monthData("2026-08", 8);
+        data.data.bookedCounts["2026-08-05"] = 10;
+        mockGetDailyLimitMonthData.mockResolvedValue(data);
+
+        render(
+            <MantineProvider>
+                <LimitsTab location={location} />
+            </MantineProvider>,
+        );
+        await waitFor(() => expect(mockGetDailyLimitMonthData).toHaveBeenCalled());
+
+        expect(screen.getByTestId("rendered-day").textContent).toContain("!");
+        fireEvent.click(screen.getByRole("button", { name: "Select shown date" }));
+
+        expect(screen.getByText("Selected dates over capacity")).toBeTruthy();
+        expect(screen.getByText(/10\/8 booked/)).toBeTruthy();
+    });
+
+    it("keeps warnings for selected over-capacity dates across months", async () => {
+        const august = monthData("2026-08", 8);
+        august.data.bookedCounts["2026-08-05"] = 10;
+        const september = monthData("2026-09", 9);
+        september.data.bookedCounts["2026-09-05"] = 12;
+        mockGetDailyLimitMonthData.mockImplementation((_locationId: string, dateKeys: string[]) =>
+            Promise.resolve(dateKeys[0].startsWith("2026-08") ? august : september),
+        );
+
+        render(
+            <MantineProvider>
+                <LimitsTab location={location} />
+            </MantineProvider>,
+        );
+        await waitFor(() => expect(mockGetDailyLimitMonthData).toHaveBeenCalledTimes(1));
+        fireEvent.click(screen.getByRole("button", { name: "Add shown date" }));
+        fireEvent.click(screen.getByRole("button", { name: "Next month" }));
+        await waitFor(() =>
+            expect(screen.getByTestId("visible-month").textContent).toBe("2026-09"),
+        );
+        await waitFor(() => expect(screen.getByTestId("rendered-day").textContent).toContain("9"));
+        fireEvent.click(screen.getByRole("button", { name: "Add shown date" }));
+
+        expect(screen.getByText(/10\/8 booked/)).toBeTruthy();
+        expect(screen.getByText(/12\/9 booked/)).toBeTruthy();
     });
 });

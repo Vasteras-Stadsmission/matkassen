@@ -12,6 +12,7 @@ import {
 } from "@/app/utils/schedule/outside-hours-filter";
 import { getLocationSchedulesMap } from "@/app/utils/schedule/location-schedules-map";
 import { getNoShowFollowupConfig, countNoShowFollowups } from "@/app/db/queries/noshow-followups";
+import { loadOverCapacityDates } from "@/app/utils/capacity/daily-limits";
 
 // 24 hours in milliseconds - threshold for stale SMS
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -32,72 +33,79 @@ export async function GET() {
         const staleThreshold = new Date(now.getTime() - TWENTY_FOUR_HOURS_MS);
 
         // Run independent queries in parallel
-        const [unresolvedCount, failedSmsCount, futureParcels, locationSchedulesMap, noShowConfig] =
-            await Promise.all([
-                db
-                    .select({ count: sql<number>`count(*)::int` })
-                    .from(foodParcels)
-                    .innerJoin(households, eq(foodParcels.household_id, households.id))
-                    .where(
-                        and(
-                            notDeleted(),
-                            eq(foodParcels.is_picked_up, false),
-                            isNull(foodParcels.no_show_at),
-                            isNull(households.anonymized_at),
-                            sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < ${todayStockholm}::date`,
-                        ),
-                    )
-                    .then(rows => rows[0]),
-                db
-                    .select({ count: sql<number>`count(*)::int` })
-                    .from(outgoingSms)
-                    .innerJoin(households, eq(outgoingSms.household_id, households.id))
-                    .where(
-                        and(
-                            isNull(outgoingSms.dismissed_at),
-                            isNull(households.anonymized_at),
-                            eq(outgoingSms.balance_failure, false),
-                            or(
-                                eq(outgoingSms.status, "failed"),
-                                and(
-                                    eq(outgoingSms.status, "sent"),
-                                    or(
-                                        eq(outgoingSms.provider_status, "failed"),
-                                        eq(outgoingSms.provider_status, "not delivered"),
-                                        eq(outgoingSms.provider_status, "expired"),
-                                        eq(outgoingSms.provider_status, "out_of_credits"),
-                                    ),
-                                ),
-                                and(
-                                    eq(outgoingSms.status, "sent"),
-                                    isNull(outgoingSms.provider_status),
-                                    lt(outgoingSms.sent_at, staleThreshold),
+        const [
+            unresolvedCount,
+            failedSmsCount,
+            futureParcels,
+            locationSchedulesMap,
+            noShowConfig,
+            overCapacityDates,
+        ] = await Promise.all([
+            db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(foodParcels)
+                .innerJoin(households, eq(foodParcels.household_id, households.id))
+                .where(
+                    and(
+                        notDeleted(),
+                        eq(foodParcels.is_picked_up, false),
+                        isNull(foodParcels.no_show_at),
+                        isNull(households.anonymized_at),
+                        sql`(${foodParcels.pickup_date_time_latest} AT TIME ZONE 'Europe/Stockholm')::date < ${todayStockholm}::date`,
+                    ),
+                )
+                .then(rows => rows[0]),
+            db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(outgoingSms)
+                .innerJoin(households, eq(outgoingSms.household_id, households.id))
+                .where(
+                    and(
+                        isNull(outgoingSms.dismissed_at),
+                        isNull(households.anonymized_at),
+                        eq(outgoingSms.balance_failure, false),
+                        or(
+                            eq(outgoingSms.status, "failed"),
+                            and(
+                                eq(outgoingSms.status, "sent"),
+                                or(
+                                    eq(outgoingSms.provider_status, "failed"),
+                                    eq(outgoingSms.provider_status, "not delivered"),
+                                    eq(outgoingSms.provider_status, "expired"),
+                                    eq(outgoingSms.provider_status, "out_of_credits"),
                                 ),
                             ),
-                        ),
-                    )
-                    .then(rows => rows[0]),
-                db
-                    .select({
-                        id: foodParcels.id,
-                        locationId: foodParcels.pickup_location_id,
-                        pickupEarliest: foodParcels.pickup_date_time_earliest,
-                        pickupLatest: foodParcels.pickup_date_time_latest,
-                        isPickedUp: foodParcels.is_picked_up,
-                    })
-                    .from(foodParcels)
-                    .innerJoin(households, eq(foodParcels.household_id, households.id))
-                    .where(
-                        and(
-                            notDeleted(),
-                            eq(foodParcels.is_picked_up, false),
-                            isNull(households.anonymized_at),
-                            gte(foodParcels.pickup_date_time_earliest, now),
+                            and(
+                                eq(outgoingSms.status, "sent"),
+                                isNull(outgoingSms.provider_status),
+                                lt(outgoingSms.sent_at, staleThreshold),
+                            ),
                         ),
                     ),
-                getLocationSchedulesMap(),
-                getNoShowFollowupConfig(),
-            ]);
+                )
+                .then(rows => rows[0]),
+            db
+                .select({
+                    id: foodParcels.id,
+                    locationId: foodParcels.pickup_location_id,
+                    pickupEarliest: foodParcels.pickup_date_time_earliest,
+                    pickupLatest: foodParcels.pickup_date_time_latest,
+                    isPickedUp: foodParcels.is_picked_up,
+                })
+                .from(foodParcels)
+                .innerJoin(households, eq(foodParcels.household_id, households.id))
+                .where(
+                    and(
+                        notDeleted(),
+                        eq(foodParcels.is_picked_up, false),
+                        isNull(households.anonymized_at),
+                        gte(foodParcels.pickup_date_time_earliest, now),
+                    ),
+                ),
+            getLocationSchedulesMap(),
+            getNoShowFollowupConfig(),
+            loadOverCapacityDates(db, todayStockholm),
+        ]);
 
         // Count parcels outside opening hours
         let outsideHoursCount = 0;
@@ -134,7 +142,8 @@ export async function GET() {
             (unresolvedCount?.count ?? 0) +
             outsideHoursCount +
             (failedSmsCount?.count ?? 0) +
-            noShowFollowupsCount;
+            noShowFollowupsCount +
+            overCapacityDates.length;
 
         return NextResponse.json(
             {
@@ -143,6 +152,7 @@ export async function GET() {
                 outsideHours: outsideHoursCount,
                 failedSms: failedSmsCount?.count ?? 0,
                 noShowFollowups: noShowFollowupsCount,
+                overCapacityDates: overCapacityDates.length,
             },
             {
                 headers: {

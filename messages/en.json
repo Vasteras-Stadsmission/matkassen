@@ -482,6 +482,10 @@
             "allDone": {
                 "title": "All households addressed",
                 "description": "Every household has a status set for today. Nothing more to do."
+            },
+            "overCapacity": {
+                "title": "Food parcel limit exceeded today",
+                "summary": "{booked}/{limit} booked"
             }
         },
         "currentWeek": "Current Week",
@@ -496,6 +500,9 @@
             "dayHeaderAction": "View summary",
             "dayHeaderSelected": "Selected",
             "dayHeaderAriaLabel": "View packing summary for {date}"
+        },
+        "capacity": {
+            "overCapacityAria": "Food parcel limit exceeded: {booked} booked, max {limit}, {excess} more than max"
         },
         "loading": "Loading schedule...",
         "noFoodSupport": "No food support scheduled this week",
@@ -564,6 +571,8 @@
             "slotCapacityError": "This time slot is fully booked. Please select a different time.",
             "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
             "operatingHoursError": "The selected time is outside the location's operating hours.",
+            "alreadyPickedUpError": "This food parcel has already been handed out and cannot be rescheduled.",
+            "alreadyNoShowError": "This food parcel is marked as no-show and cannot be rescheduled.",
             "genericError": "An unexpected error occurred.",
             "loadError": "Failed to load availability. Please try again.",
             "full": "full",
@@ -915,7 +924,7 @@
         "slotDurationSaveErrorTitle": "Could not save slot duration",
         "slotDurationSaveErrorMessage": "Please try again.",
         "limits": {
-            "tab": "Limits",
+            "tab": "Food parcel limits",
             "title": "Food parcel limits",
             "description": "Set the usual limits for this location, then adjust individual dates when needed.",
             "defaultsTitle": "Default limits",
@@ -946,6 +955,8 @@
             "overrideAria": "Specific limit: {limit}",
             "closedAria": "Closed date",
             "overCapacityAria": "Over capacity: {booked} booked, limit {limit}",
+            "selectedOverCapacityTitle": "Selected dates over capacity",
+            "selectedOverCapacityLine": "{date}: {booked}/{limit} booked",
             "previousMonth": "Previous month",
             "nextMonth": "Next month",
             "loadErrorTitle": "Could not load limits",
@@ -1625,6 +1636,7 @@
         "accessDenied": "Access denied. You don't have permission to view issues.",
         "filters": {
             "all": "All",
+            "overCapacity": "Food parcel limit",
             "unresolvedHandouts": "Unresolved handouts",
             "outsideOpeningHours": "Outside opening hours",
             "failedSms": "Failed SMS",
@@ -1636,6 +1648,7 @@
             "failedSms": "Failed SMS"
         },
         "cardType": {
+            "overCapacity": "Food parcel limit exceeded",
             "unresolvedHandout": "Unresolved handout",
             "outsideHours": "Outside opening hours",
             "failedSms": "SMS delivery failed",
@@ -1649,6 +1662,7 @@
             "noShowFollowup": "No-show follow-up needed"
         },
         "actions": {
+            "viewWeek": "View week",
             "handedOut": "Mark as handed out",
             "noShow": "Mark as no-show",
             "cancelParcel": "Cancel parcel",
@@ -1663,6 +1677,12 @@
         },
         "openingHours": "Open {hours}",
         "closedThisDay": "Closed this day",
+        "overCapacity": {
+            "summary": "{booked}/{limit} booked",
+            "resolveHint": "Move or cancel at least {excess} food parcels.",
+            "resolve": "Resolve · {count} parcels",
+            "allBookings": "All bookings for this date"
+        },
         "smsIntent": {
             "pickup_reminder": "Pickup reminder",
             "pickup_updated": "Pickup time changed",
@@ -1703,8 +1723,8 @@
         "errorCodes": {
             "NOT_FOUND": "Could not find the item. It may have been deleted.",
             "ALREADY_CANCELLED": "This parcel has already been cancelled.",
-            "ALREADY_PICKED_UP": "This parcel has already been handed out.",
-            "ALREADY_NO_SHOW": "This parcel is already marked as no-show.",
+            "ALREADY_PICKED_UP": "This food parcel has already been handed out and cannot be rescheduled.",
+            "ALREADY_NO_SHOW": "This food parcel is marked as no-show and cannot be rescheduled.",
             "FUTURE_PARCEL": "Cannot mark a future parcel as no-show.",
             "ALREADY_DELETED": "This parcel has already been deleted.",
             "PAST_PARCEL": "Cannot cancel a past parcel.",
@@ -1749,6 +1769,8 @@
             "slotCapacityError": "This time slot is fully booked. Please select a different time.",
             "doubleBookingError": "This household already has a parcel scheduled for the selected date.",
             "operatingHoursError": "The selected time is outside the location's operating hours.",
+            "alreadyPickedUpError": "This food parcel has already been handed out and cannot be rescheduled.",
+            "alreadyNoShowError": "This food parcel is marked as no-show and cannot be rescheduled.",
             "pastError": "Cannot schedule food support in the past.",
             "full": "full"
         }

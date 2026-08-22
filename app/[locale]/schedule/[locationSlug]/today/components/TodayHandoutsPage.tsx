@@ -43,6 +43,7 @@ import {
     getPickupLocations,
     getParcelById,
     getTodaysSummaryStats,
+    getEffectiveDailyLimitsForDateRange,
 } from "../../../actions";
 import { TodaySummaryCard } from "./TodaySummaryCard";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
@@ -56,6 +57,8 @@ import type {
     TodaySummaryStats,
 } from "../../../types";
 import type { TranslationFunction } from "../../../../types";
+import { formatDateToYMD } from "@/app/utils/date-utils";
+import { getDailyCapacityState } from "@/app/utils/capacity/daily-capacity";
 
 // Enhanced type for today's view with additional computed fields
 interface TodayParcel extends FoodParcel {
@@ -79,6 +82,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     // State
     const [parcels, setParcels] = useState<TodayParcel[]>([]);
     const [summaryStats, setSummaryStats] = useState<TodaySummaryStats | null>(null);
+    const [dailyLimit, setDailyLimit] = useState<number | null | undefined>(undefined);
     const [currentLocation, setCurrentLocation] = useState<PickupLocation | null>(null);
     const [loading, setLoading] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
@@ -133,12 +137,20 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
             setCurrentLocation(location);
 
             // Load today's parcels (with phone numbers for search) and summary stats in parallel
-            const [parcelsData, stats] = await Promise.all([
+            const capacityDate = new Date();
+            const capacityDateKey = formatDateToYMD(capacityDate);
+            const [parcelsData, stats, limitsResult] = await Promise.all([
                 getTodaysParcelsWithPhone(location.id),
                 getTodaysSummaryStats(location.id),
+                getEffectiveDailyLimitsForDateRange(location.id, capacityDate, capacityDate)
+                    .then(limits => ({ success: true as const, limits }))
+                    .catch(() => ({ success: false as const })),
             ]);
 
             setSummaryStats(stats);
+            setDailyLimit(
+                limitsResult.success ? (limitsResult.limits[capacityDateKey] ?? null) : undefined,
+            );
 
             // Check if we need to fetch a specific parcel to get its location (but don't add it to the list)
             const parcelId = searchParams.get("parcel");
@@ -287,6 +299,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const completedParcels = parcels.filter(
         p => p.status === "pickedUp" || p.status === "noShow",
     ).length;
+    const capacity =
+        dailyLimit === undefined ? null : getDailyCapacityState(totalParcels, dailyLimit);
 
     const filteredParcels = filterParcelsByQuery(parcels, searchQuery);
 
@@ -464,6 +478,28 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                     {/* No upcoming schedule warning */}
                     {currentLocation && !currentLocation.hasUpcomingSchedule && (
                         <NoUpcomingScheduleAlert />
+                    )}
+
+                    {capacity?.isOverCapacity && dailyLimit !== null && (
+                        <Alert
+                            variant="light"
+                            color="red"
+                            icon={<IconExclamationCircle size={20} />}
+                            p="sm"
+                            radius="md"
+                            title={t("todayHandouts.overCapacity.title")}
+                            data-testid="today-over-capacity"
+                        >
+                            <Stack gap="xs">
+                                <Text size="sm">
+                                    {t("todayHandouts.overCapacity.summary", {
+                                        booked: String(totalParcels),
+                                        limit: String(dailyLimit),
+                                        excess: String(capacity.excess),
+                                    })}
+                                </Text>
+                            </Stack>
+                        </Alert>
                     )}
 
                     {/* Summary card — only shown when there are parcels */}

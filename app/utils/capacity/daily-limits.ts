@@ -1,8 +1,9 @@
-import { and, asc, between, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, between, count, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/app/db/drizzle";
 import {
     foodParcels,
+    households,
     pickupLocationDailyLimits,
     pickupLocations,
     pickupLocationScheduleDays,
@@ -26,6 +27,16 @@ export interface LocationLimitContext {
 export interface DailyLimitMonthData extends LocationLimitContext {
     bookedCounts: Record<string, number>;
     openDates: string[];
+}
+
+export interface OverCapacityDate {
+    locationId: string;
+    locationName: string;
+    date: string;
+    booked: number;
+    limit: number;
+    excess: number;
+    hasOverride: boolean;
 }
 
 export type CapacityTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -272,4 +283,65 @@ export async function loadDailyLimitMonthData(
         openDates: [...openDates],
         bookedCounts,
     };
+}
+
+/**
+ * Returns one row per location and Stockholm-local date where active bookings
+ * exceed that date's effective daily limit. Dates at the limit are full, not
+ * over capacity, and unlimited dates are omitted.
+ */
+export async function loadOverCapacityDates(
+    dbInstance: DbOrTransaction,
+    startDateKey: string,
+    endDateKey?: string,
+): Promise<OverCapacityDate[]> {
+    if (!isValidDateKey(startDateKey) || (endDateKey && !isValidDateKey(endDateKey))) {
+        throw new Error("INVALID_DATE");
+    }
+    if (endDateKey && startDateKey > endDateKey) throw new Error("INVALID_DATE_RANGE");
+
+    const parcelDate = sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`;
+    const effectiveLimit = sql`coalesce(${pickupLocationDailyLimits.max_parcels}, ${pickupLocations.parcels_max_per_day})`;
+    const dateConditions = [sql`${parcelDate} >= ${startDateKey}::date`];
+    if (endDateKey) dateConditions.push(sql`${parcelDate} <= ${endDateKey}::date`);
+
+    const rows = await dbInstance
+        .select({
+            locationId: pickupLocations.id,
+            locationName: pickupLocations.name,
+            date: sql<string>`${parcelDate}`,
+            booked: sql<number>`count(*)::int`,
+            limit: sql<number>`${effectiveLimit}::int`,
+            overrideLimit: pickupLocationDailyLimits.max_parcels,
+        })
+        .from(foodParcels)
+        .innerJoin(households, eq(foodParcels.household_id, households.id))
+        .innerJoin(pickupLocations, eq(foodParcels.pickup_location_id, pickupLocations.id))
+        .leftJoin(
+            pickupLocationDailyLimits,
+            and(
+                eq(pickupLocationDailyLimits.pickup_location_id, foodParcels.pickup_location_id),
+                sql`${pickupLocationDailyLimits.date} = ${parcelDate}`,
+            ),
+        )
+        .where(and(notDeleted(), isNull(households.anonymized_at), ...dateConditions))
+        .groupBy(
+            pickupLocations.id,
+            pickupLocations.name,
+            pickupLocations.parcels_max_per_day,
+            pickupLocationDailyLimits.max_parcels,
+            parcelDate,
+        )
+        .having(sql`${effectiveLimit} is not null and count(*) > ${effectiveLimit}`)
+        .orderBy(parcelDate, asc(pickupLocations.name));
+
+    return rows.map(row => ({
+        locationId: row.locationId,
+        locationName: row.locationName,
+        date: row.date,
+        booked: row.booked,
+        limit: row.limit,
+        excess: row.booked - row.limit,
+        hasOverride: row.overrideLimit !== null,
+    }));
 }
