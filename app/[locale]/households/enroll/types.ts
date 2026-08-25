@@ -75,6 +75,7 @@ export interface ResponsibleStaffOption {
 export interface LocationCapacity {
     hasLimit: boolean;
     maxPerDay: number | null;
+    dateLimits: Record<string, number | null>;
     dateCapacities: Record<string, number>;
 }
 

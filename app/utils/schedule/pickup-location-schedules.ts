@@ -4,6 +4,7 @@ import { pickupLocationScheduleDays, pickupLocationSchedules } from "@/app/db/sc
 import type { LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 import { Time } from "@/app/utils/time-provider";
 import { logError } from "@/app/utils/logger";
+import type { DbOrTransaction } from "@/app/db/types";
 
 /**
  * Fetch pickup location schedules without relying on Next.js server features.
@@ -11,12 +12,13 @@ import { logError } from "@/app/utils/logger";
  */
 export async function fetchPickupLocationSchedules(
     locationId: string,
+    database: DbOrTransaction = db,
 ): Promise<LocationScheduleInfo> {
     try {
         // Use localized date to align with Stockholm schedule boundaries
         const currentDateStr = Time.now().toDateString();
 
-        const schedules = await db
+        const schedules = await database
             .select({
                 id: pickupLocationSchedules.id,
                 name: pickupLocationSchedules.name,
@@ -31,24 +33,23 @@ export async function fetchPickupLocationSchedules(
                 ),
             );
 
-        const schedulesWithDays = await Promise.all(
-            schedules.map(async schedule => {
-                const days = await db
-                    .select({
-                        weekday: pickupLocationScheduleDays.weekday,
-                        isOpen: pickupLocationScheduleDays.is_open,
-                        openingTime: pickupLocationScheduleDays.opening_time,
-                        closingTime: pickupLocationScheduleDays.closing_time,
-                    })
-                    .from(pickupLocationScheduleDays)
-                    .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
+        const schedulesWithDays = [];
+        for (const schedule of schedules) {
+            const days = await database
+                .select({
+                    weekday: pickupLocationScheduleDays.weekday,
+                    isOpen: pickupLocationScheduleDays.is_open,
+                    openingTime: pickupLocationScheduleDays.opening_time,
+                    closingTime: pickupLocationScheduleDays.closing_time,
+                })
+                .from(pickupLocationScheduleDays)
+                .where(eq(pickupLocationScheduleDays.schedule_id, schedule.id));
 
-                return {
-                    ...schedule,
-                    days,
-                };
-            }),
-        );
+            schedulesWithDays.push({
+                ...schedule,
+                days,
+            });
+        }
 
         return {
             schedules: schedulesWithDays,

@@ -37,6 +37,11 @@ import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outs
 import { validateParcelAssignmentsForForm } from "@/app/utils/validation/parcel-assignment";
 import { toSupportedLocale } from "@/app/utils/locale-detection";
 import { normalizePersonName } from "@/app/utils/person-name";
+import {
+    enumerateDateKeys,
+    loadLocationLimitContext,
+    stockholmDateKey,
+} from "@/app/utils/capacity/daily-limits";
 
 import {
     HouseholdCreateData,
@@ -622,15 +627,11 @@ async function fetchPickupLocationCapacity(
     excludeHouseholdId?: string,
 ) {
     try {
-        // Get the location to check if it has a max parcels per day limit
-        const [location] = await db
-            .select()
-            .from(pickupLocationsTable)
-            .where(eq(pickupLocationsTable.id, locationId))
-            .limit(1);
+        const dateKey = stockholmDateKey(date);
+        const limitContext = await loadLocationLimitContext(db, locationId, [dateKey]);
+        const effectiveLimit = limitContext.effectiveDailyLimits[dateKey];
 
-        // If location doesn't exist or has no limit, return available
-        if (!location || location.parcels_max_per_day === null) {
+        if (effectiveLimit === null) {
             return {
                 isAvailable: true,
                 currentCount: 0,
@@ -662,16 +663,16 @@ async function fetchPickupLocationCapacity(
             .where(and(...whereConditions));
 
         const parcelCount = result?.count ?? 0;
-        const isAvailable = parcelCount < location.parcels_max_per_day;
+        const isAvailable = parcelCount < effectiveLimit;
 
         // Return availability info
         return {
             isAvailable,
             currentCount: parcelCount,
-            maxCount: location.parcels_max_per_day,
+            maxCount: effectiveLimit,
             message: isAvailable
-                ? `${parcelCount} av ${location.parcels_max_per_day} bokade`
-                : `Max antal (${location.parcels_max_per_day}) matkassar bokade för detta datum`,
+                ? `${parcelCount} av ${effectiveLimit} bokade`
+                : `Max antal (${effectiveLimit}) matkassar bokade för detta datum`,
         };
     } catch (error) {
         logError("Error checking pickup location capacity", error, {
@@ -679,9 +680,8 @@ async function fetchPickupLocationCapacity(
             locationId,
             date: date?.toISOString(),
         });
-        // Default to available in case of error, with a warning message
         return {
-            isAvailable: true,
+            isAvailable: false,
             currentCount: 0,
             maxCount: null,
             message: "Kunde inte kontrollera kapacitet",
@@ -707,21 +707,8 @@ async function fetchPickupLocationCapacityForRange(
     endDate: Date,
 ) {
     try {
-        // Get the location to check if it has a max parcels per day limit
-        const [location] = await db
-            .select()
-            .from(pickupLocationsTable)
-            .where(eq(pickupLocationsTable.id, locationId))
-            .limit(1);
-
-        // If location doesn't exist or has no limit, return null
-        if (!location || location.parcels_max_per_day === null) {
-            return {
-                hasLimit: false,
-                maxPerDay: null,
-                dateCapacities: {},
-            };
-        }
+        const dateKeys = enumerateDateKeys(stockholmDateKey(startDate), stockholmDateKey(endDate));
+        const limitContext = await loadLocationLimitContext(db, locationId, dateKeys);
 
         // Get Stockholm day boundaries in UTC for consistent timezone handling
         const { startUtc } = getStockholmDayUtcRange(startDate);
@@ -758,8 +745,11 @@ async function fetchPickupLocationCapacityForRange(
 
         // Return capacity info for all dates
         return {
-            hasLimit: true,
-            maxPerDay: location.parcels_max_per_day,
+            hasLimit: Object.values(limitContext.effectiveDailyLimits).some(
+                limit => limit !== null,
+            ),
+            maxPerDay: limitContext.defaultDailyLimit,
+            dateLimits: limitContext.effectiveDailyLimits,
             dateCapacities: dateCountMap,
         };
     } catch (error) {
@@ -769,11 +759,7 @@ async function fetchPickupLocationCapacityForRange(
             startDate: startDate?.toISOString(),
             endDate: endDate?.toISOString(),
         });
-        return {
-            hasLimit: false,
-            maxPerDay: null,
-            dateCapacities: {},
-        };
+        throw error;
     }
 }
 

@@ -9,6 +9,7 @@ import {
     between,
     ne,
     gt,
+    lt,
     count,
     countDistinct,
     inArray,
@@ -51,6 +52,14 @@ import { recomputeOutsideHoursCountForLocation } from "@/app/utils/schedule/outs
 import { validateParcelAssignmentsForForm } from "@/app/utils/validation/parcel-assignment";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
+import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
+import {
+    enumerateDateKeys,
+    loadLocationLimitContext,
+    lockPickupLocationsForCapacity,
+    stockholmDateKey,
+    type CapacityTransaction,
+} from "@/app/utils/capacity/daily-limits";
 
 import { type DbOrTransaction } from "@/app/db/types";
 // Import types for use within this server action file
@@ -539,7 +548,8 @@ export const getTimeslotCounts = protectedReadAction(
             // Build WHERE conditions
             const conditions = [
                 eq(foodParcels.pickup_location_id, locationId),
-                between(foodParcels.pickup_date_time_earliest, startDate, endDate),
+                lt(foodParcels.pickup_date_time_earliest, endDate),
+                gt(foodParcels.pickup_date_time_latest, startDate),
                 notDeleted(),
             ];
 
@@ -552,35 +562,35 @@ export const getTimeslotCounts = protectedReadAction(
             const parcels = await db
                 .select({
                     pickupEarliestTime: foodParcels.pickup_date_time_earliest,
+                    pickupLatestTime: foodParcels.pickup_date_time_latest,
                 })
                 .from(foodParcels)
                 .where(and(...conditions));
 
-            // Count parcels by time slot using the location's slot duration
+            // Count interval overlap for every slot. This mirrors hard-cap enforcement and also
+            // handles supported pickup windows that are longer than one configured slot.
             const timeslotCounts: Record<string, number> = {};
-
-            parcels.forEach(parcel => {
-                const time = Time.fromDate(new Date(parcel.pickupEarliestTime));
-                const hour = parseInt(time.format("HH"), 10);
-
-                // Round to the nearest slot based on the location's slot duration
-                const totalMinutes = parseInt(time.format("mm"), 10);
-                const slotIndex = Math.floor(totalMinutes / slotDurationMinutes);
-                const minutes = slotIndex * slotDurationMinutes;
-
-                const key = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-
-                if (!timeslotCounts[key]) {
-                    timeslotCounts[key] = 0;
+            const slotDurationMs = slotDurationMinutes * 60_000;
+            for (
+                let slotStartMs = startDate.getTime();
+                slotStartMs < endDate.getTime();
+                slotStartMs += slotDurationMs
+            ) {
+                const slotStart = new Date(slotStartMs);
+                const slotEnd = new Date(slotStartMs + slotDurationMs);
+                const count = parcels.filter(
+                    parcel =>
+                        parcel.pickupEarliestTime < slotEnd && parcel.pickupLatestTime > slotStart,
+                ).length;
+                if (count > 0) {
+                    timeslotCounts[Time.fromDate(slotStart).toTimeString()] = count;
                 }
-
-                timeslotCounts[key] += 1;
-            });
+            }
 
             return timeslotCounts;
         } catch (error) {
             logError("Error fetching timeslot counts", error, { locationId });
-            return {};
+            throw error;
         }
     },
 );
@@ -599,22 +609,6 @@ export const getFullyBookedDates = protectedReadAction(
         excludeParcelId?: string,
     ): Promise<string[]> => {
         try {
-            // Get location's daily capacity
-            const [location] = await db
-                .select({
-                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-                })
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, locationId))
-                .limit(1);
-
-            // If no daily limit is set (null or <= 0), no dates are fully booked
-            if (!location || !location.maxParcelsPerDay || location.maxParcelsPerDay <= 0) {
-                return [];
-            }
-
-            const maxPerDay = location.maxParcelsPerDay;
-
             // Convert date range to Stockholm timezone boundaries
             const rangeStart = Time.fromDate(startDate).startOfDay().toUTC();
             const rangeEnd = Time.fromDate(endDate).endOfDay().toUTC();
@@ -644,12 +638,36 @@ export const getFullyBookedDates = protectedReadAction(
                     sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm')`,
                 );
 
-            // Filter to only dates at or over capacity
-            return results.filter(row => row.count >= maxPerDay).map(row => row.date);
+            if (results.length === 0) return [];
+            const context = await loadLocationLimitContext(
+                db,
+                locationId,
+                results.map(row => row.date),
+            );
+
+            return results
+                .filter(row => {
+                    const limit = context.effectiveDailyLimits[row.date];
+                    return limit !== null && row.count >= limit;
+                })
+                .map(row => row.date);
         } catch (error) {
             logError("Error fetching fully booked dates", error, { locationId });
-            return [];
+            throw error;
         }
+    },
+);
+
+export const getEffectiveDailyLimitsForDateRange = protectedReadAction(
+    async (
+        _session,
+        locationId: string,
+        startDate: Date,
+        endDate: Date,
+    ): Promise<Record<string, number | null>> => {
+        const dateKeys = enumerateDateKeys(stockholmDateKey(startDate), stockholmDateKey(endDate));
+        const context = await loadLocationLimitContext(db, locationId, dateKeys);
+        return context.effectiveDailyLimits;
     },
 );
 
@@ -690,19 +708,35 @@ export const updateFoodParcelSchedule = protectedAdminAction(
             // We'll use a transaction to make the capacity check and update atomic
             // This prevents race conditions where two parallel operations could both pass the capacity check
             await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx as CapacityTransaction, [locationId]);
                 // Get parcel information again within transaction (for consistency)
                 const [parcel] = await tx
                     .select({
                         locationId: foodParcels.pickup_location_id,
                         pickupEarliest: foodParcels.pickup_date_time_earliest,
                         pickupLatest: foodParcels.pickup_date_time_latest,
+                        isPickedUp: foodParcels.is_picked_up,
+                        noShowAt: foodParcels.no_show_at,
                     })
                     .from(foodParcels)
                     .where(and(eq(foodParcels.id, parcelId), notDeleted()))
-                    .limit(1);
+                    .limit(1)
+                    .for("update");
 
                 if (!parcel) {
                     throw new Error("Food parcel not found");
+                }
+                if (parcel.locationId !== locationId) {
+                    throw new Error("PARCEL_LOCATION_CHANGED");
+                }
+                if (parcel.isPickedUp || parcel.noShowAt) {
+                    const code = parcel.isPickedUp ? "ALREADY_PICKED_UP" : "ALREADY_NO_SHOW";
+                    const message = parcel.isPickedUp
+                        ? "This parcel has already been handed out"
+                        : "This parcel is already marked as no-show";
+                    throw new ParcelValidationError(message, [
+                        { field: "parcelId", code, message },
+                    ]);
                 }
 
                 // Get the location's slot duration to calculate proper end time
@@ -729,7 +763,7 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                         startTime: newTimeslot.startTime,
                         endTime, // Use calculated end time
                     },
-                    newDate: newTimeslot.startTime.toISOString().split("T")[0],
+                    newDate: stockholmDateKey(newTimeslot.startTime),
                     tx,
                 });
 
@@ -737,9 +771,6 @@ export const updateFoodParcelSchedule = protectedAdminAction(
                     // Return the first error for display
                     const errors = validationResult.errors || [];
                     const primaryError = errors[0];
-                    const { ParcelValidationError } =
-                        await import("@/app/utils/errors/validation-errors");
-
                     throw new ParcelValidationError(
                         primaryError?.message ?? "Validation failed",
                         errors,
@@ -811,7 +842,6 @@ export const updateFoodParcelSchedule = protectedAdminAction(
             return success(undefined);
         } catch (error) {
             // Preserve validation error codes for i18n on the client
-            const { ParcelValidationError } = await import("@/app/utils/errors/validation-errors");
             if (error instanceof ParcelValidationError) {
                 const primaryError = error.validationErrors[0];
                 return failure({
@@ -1111,7 +1141,7 @@ export const getLocationSlotConfig = protectedReadAction(
             };
         } catch (error) {
             logError("Error fetching location slot config", error, { locationId });
-            return { slotDuration: 15, maxParcelsPerSlot: null };
+            throw error;
         }
     },
 );
@@ -1639,8 +1669,6 @@ export const bulkRescheduleParcels = protectedAdminAction(
             const [location] = await db
                 .select({
                     slotDuration: pickupLocations.default_slot_duration_minutes,
-                    maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
-                    maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                 })
                 .from(pickupLocations)
                 .where(eq(pickupLocations.id, locationId))
@@ -1673,16 +1701,76 @@ export const bulkRescheduleParcels = protectedAdminAction(
 
             // Capacity check + update in a single transaction to prevent race conditions
             await db.transaction(async tx => {
+                await lockPickupLocationsForCapacity(tx as CapacityTransaction, [locationId]);
+
+                const lockedParcels = await tx
+                    .select({
+                        id: foodParcels.id,
+                        locationId: foodParcels.pickup_location_id,
+                        isPickedUp: foodParcels.is_picked_up,
+                        noShowAt: foodParcels.no_show_at,
+                        pickupEarliest: foodParcels.pickup_date_time_earliest,
+                        pickupLatest: foodParcels.pickup_date_time_latest,
+                    })
+                    .from(foodParcels)
+                    .where(and(inArray(foodParcels.id, parcelIds), notDeleted()))
+                    .for("update");
+
+                if (
+                    lockedParcels.length !== parcelIds.length ||
+                    lockedParcels.some(
+                        parcel =>
+                            parcel.locationId !== locationId ||
+                            parcel.isPickedUp ||
+                            parcel.noShowAt !== null,
+                    )
+                ) {
+                    throw new Error("BULK_SELECTION_CHANGED");
+                }
+
+                const [lockedLocation] = await tx
+                    .select({ slotDuration: pickupLocations.default_slot_duration_minutes })
+                    .from(pickupLocations)
+                    .where(eq(pickupLocations.id, locationId))
+                    .limit(1);
+                const lockedEndTime = new Date(newTimeslot.startTime);
+                lockedEndTime.setMinutes(
+                    lockedEndTime.getMinutes() + (lockedLocation?.slotDuration ?? 15),
+                );
+
+                const lockedSchedules = await fetchPickupLocationSchedules(locationId, tx);
+                if (
+                    lockedSchedules &&
+                    isParcelOutsideOpeningHours(
+                        {
+                            id: "bulk-locked-check",
+                            pickupEarliestTime: newTimeslot.startTime,
+                            pickupLatestTime: lockedEndTime,
+                            isPickedUp: false,
+                        },
+                        lockedSchedules,
+                        { onError: "return-true" },
+                    )
+                ) {
+                    throw new Error("OUTSIDE_OPENING_HOURS");
+                }
+
+                const targetDateKey = stockholmDateKey(newTimeslot.startTime);
+                const limitContext = await loadLocationLimitContext(tx, locationId, [
+                    targetDateKey,
+                ]);
+                const effectiveDailyLimit = limitContext.effectiveDailyLimits[targetDateKey];
+
                 // Slot capacity check
-                if (location?.maxParcelsPerSlot != null) {
+                if (limitContext.explicitSlotLimit != null) {
                     const existingInSlot = await tx
                         .select({ count: count() })
                         .from(foodParcels)
                         .where(
                             and(
                                 eq(foodParcels.pickup_location_id, locationId),
-                                eq(foodParcels.pickup_date_time_earliest, newTimeslot.startTime),
-                                eq(foodParcels.pickup_date_time_latest, endTime),
+                                lt(foodParcels.pickup_date_time_earliest, lockedEndTime),
+                                gt(foodParcels.pickup_date_time_latest, newTimeslot.startTime),
                                 notDeleted(),
                                 sql`${foodParcels.id} NOT IN (${sql.join(
                                     parcelIds.map(id => sql`${id}`),
@@ -1692,20 +1780,17 @@ export const bulkRescheduleParcels = protectedAdminAction(
                         );
 
                     const existingCount = existingInSlot[0]?.count ?? 0;
-                    if (existingCount + parcelIds.length > location.maxParcelsPerSlot) {
+                    if (existingCount + parcelIds.length > limitContext.explicitSlotLimit) {
                         throw new Error(
-                            `CAPACITY_EXCEEDED:${existingCount}:${location.maxParcelsPerSlot}`,
+                            `CAPACITY_EXCEEDED:${existingCount}:${limitContext.explicitSlotLimit}`,
                         );
                     }
                 }
 
                 // Daily capacity check
-                if (location?.maxParcelsPerDay != null) {
-                    const targetDate = newTimeslot.startTime;
-                    const dayStart = new Date(targetDate);
-                    dayStart.setHours(0, 0, 0, 0);
-                    const dayEnd = new Date(targetDate);
-                    dayEnd.setHours(23, 59, 59, 999);
+                if (effectiveDailyLimit != null) {
+                    const dayStart = Time.fromDate(newTimeslot.startTime).startOfDay().toUTC();
+                    const dayEnd = Time.fromDate(newTimeslot.startTime).endOfDay().toUTC();
 
                     const existingOnDay = await tx
                         .select({ count: count() })
@@ -1724,7 +1809,12 @@ export const bulkRescheduleParcels = protectedAdminAction(
                         );
 
                     const dailyCount = existingOnDay[0]?.count ?? 0;
-                    if (dailyCount + parcelIds.length > location.maxParcelsPerDay) {
+                    const selectedAlreadyOnTargetDate = lockedParcels.filter(
+                        parcel => stockholmDateKey(parcel.pickupEarliest) === targetDateKey,
+                    ).length;
+                    const finalCount = dailyCount + parcelIds.length;
+                    const preMutationTargetCount = dailyCount + selectedAlreadyOnTargetDate;
+                    if (finalCount > effectiveDailyLimit && finalCount > preMutationTargetCount) {
                         throw new Error("DAILY_CAPACITY_EXCEEDED");
                     }
                 }
@@ -1733,11 +1823,11 @@ export const bulkRescheduleParcels = protectedAdminAction(
                     .update(foodParcels)
                     .set({
                         pickup_date_time_earliest: newTimeslot.startTime,
-                        pickup_date_time_latest: endTime,
+                        pickup_date_time_latest: lockedEndTime,
                     })
                     .where(inArray(foodParcels.id, parcelIds));
 
-                for (const parcel of parcels) {
+                for (const parcel of lockedParcels) {
                     const changes = buildChanges(
                         {
                             pickup_date_time_earliest: parcel.pickupEarliest.toISOString(),
@@ -1745,7 +1835,7 @@ export const bulkRescheduleParcels = protectedAdminAction(
                         },
                         {
                             pickup_date_time_earliest: newTimeslot.startTime.toISOString(),
-                            pickup_date_time_latest: endTime.toISOString(),
+                            pickup_date_time_latest: lockedEndTime.toISOString(),
                         },
                     );
 
@@ -1793,6 +1883,18 @@ export const bulkRescheduleParcels = protectedAdminAction(
                 return failure({
                     code: "CAPACITY_EXCEEDED",
                     message: "Daily capacity would be exceeded",
+                });
+            }
+            if (error instanceof Error && error.message === "BULK_SELECTION_CHANGED") {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "The selected parcels changed. Refresh and try again.",
+                });
+            }
+            if (error instanceof Error && error.message === "OUTSIDE_OPENING_HOURS") {
+                return failure({
+                    code: "VALIDATION_ERROR",
+                    message: "Target time is outside opening hours",
                 });
             }
             logError("Error in bulk reschedule", error, { parcelIds });

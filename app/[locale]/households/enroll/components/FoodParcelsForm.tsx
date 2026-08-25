@@ -20,6 +20,7 @@ import {
     Alert,
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
+import { useMediaQuery } from "@mantine/hooks";
 import { toStockholmTime, minutesToHHmm, subtractMinutesFromHHmm } from "@/app/utils/date-utils";
 import {
     IconClock,
@@ -80,6 +81,7 @@ export default function FoodParcelsForm({
     const t = useTranslations("foodParcels") as TranslationFunction;
     const tCommon = useTranslations("handoutLocations");
     const locale = useLocale();
+    const compactCalendar = useMediaQuery("(max-width: 62rem)");
 
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
     const [locationError, setLocationError] = useState<string | null>(null);
@@ -100,13 +102,10 @@ export default function FoodParcelsForm({
         return new Map(pickupLocations.map(location => [location.value, location.label]));
     }, [pickupLocations]);
 
-    const dateKey = (date: Date): string => {
-        const localDate = new Date(date);
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, "0");
-        const day = String(localDate.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-    };
+    const dateKey = (date: Date): string => Time.fromDate(date).toDateString();
+
+    const scheduleDateKey = (value: string | Date): string =>
+        typeof value === "string" ? value.slice(0, 10) : Time.fromDate(value).toDateString();
 
     const sameCalendarDay = (left: Date, right: Date): boolean => dateKey(left) === dateKey(right);
 
@@ -115,32 +114,20 @@ export default function FoodParcelsForm({
         (date: Date): OpeningHoursRange | null => {
             if (!locationSchedules) return null;
 
-            const dateOnly = new Date(date);
-            dateOnly.setHours(0, 0, 0, 0);
+            const targetDateKey = dateKey(date);
 
-            // Aggregate regular schedules covering this date
-            // Note: Sunday is 0, Saturday is 6
-            const weekdayNames = [
-                "sunday",
-                "monday",
-                "tuesday",
-                "wednesday",
-                "thursday",
-                "friday",
-                "saturday",
-            ];
-            const weekday = weekdayNames[dateOnly.getDay()];
+            // Aggregate regular schedules covering this date.
+            const weekday = Time.fromDate(date).getWeekdayName();
 
             let earliest: string | null = null;
             let latest: string | null = null;
 
             for (const schedule of locationSchedules.schedules) {
-                const start = new Date(schedule.startDate);
-                const end = new Date(schedule.endDate);
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
-
-                if (dateOnly < start || dateOnly > end) continue;
+                if (
+                    targetDateKey < scheduleDateKey(schedule.startDate) ||
+                    targetDateKey > scheduleDateKey(schedule.endDate)
+                )
+                    continue;
 
                 const day = schedule.days.find((d: LocationScheduleDay) => d.weekday === weekday);
                 if (!day || !day.isOpen || !day.openingTime || !day.closingTime) continue;
@@ -169,10 +156,20 @@ export default function FoodParcelsForm({
     const [capacityData, setCapacityData] = useState<{
         hasLimit: boolean;
         maxPerDay: number | null;
+        dateLimits: Record<string, number | null>;
         dateCapacities: Record<string, number>;
     } | null>(null);
     const [loadingCapacityData, setLoadingCapacityData] = useState(false);
+    const [capacityLoadFailed, setCapacityLoadFailed] = useState(false);
     const activeLocationRequestRef = useRef(0);
+    const capacityLocationRef = useRef<string | null>(null);
+    const [visibleCalendarMonth, setVisibleCalendarMonth] = useState(
+        () => `${Time.now().toDateString().slice(0, 7)}-01`,
+    );
+    const handleVisibleCalendarMonthChange = useCallback((month: string) => {
+        setLoadingCapacityData(true);
+        setVisibleCalendarMonth(month);
+    }, []);
 
     // State for time selection modal
     const [timeModalOpened, setTimeModalOpened] = useState(false);
@@ -469,27 +466,31 @@ export default function FoodParcelsForm({
         activeLocationRequestRef.current = requestId;
 
         if (!locationId) {
+            capacityLocationRef.current = null;
             setCapacityData(null);
             setLocationSchedules(null);
             setSlotDuration(15);
             setLoadingCapacityData(false);
+            setCapacityLoadFailed(false);
             return;
         }
 
         let cancelled = false;
-        setCapacityData(null);
-        setLocationSchedules(null);
+        const locationChanged = capacityLocationRef.current !== locationId;
+        capacityLocationRef.current = locationId;
+        if (locationChanged) {
+            setCapacityData(null);
+            setLocationSchedules(null);
+        }
         setLoadingCapacityData(true);
+        setCapacityLoadFailed(false);
 
         async function fetchActiveLocationData() {
             try {
-                // Set the date range for capacity check (current month + next month)
-                const today = Time.now().toDate();
-                const startDate = new Date(today);
-                startDate.setDate(1); // First day of current month
-
-                const endDate = new Date(today);
-                endDate.setMonth(endDate.getMonth() + 2, 0); // Last day of next month
+                // Load the two months currently visible in the booking calendar.
+                const [year, month] = visibleCalendarMonth.split("-").map(Number);
+                const startDate = new Date(Date.UTC(year, month - 1, 1, 12));
+                const endDate = new Date(Date.UTC(year, month + 1, 0, 12));
 
                 const [capacity, schedules, duration] = await Promise.all([
                     getPickupLocationCapacityForRangeAction(locationId, startDate, endDate),
@@ -499,7 +500,23 @@ export default function FoodParcelsForm({
 
                 if (cancelled || activeLocationRequestRef.current !== requestId) return;
 
-                setCapacityData(capacity);
+                if (!capacity) throw new Error("CAPACITY_DATA_UNAVAILABLE");
+
+                setCapacityData(current => {
+                    if (!current || locationChanged) return capacity;
+
+                    const dateCapacities = { ...current.dateCapacities };
+                    for (const dateKey of Object.keys(capacity.dateLimits ?? {})) {
+                        dateCapacities[dateKey] = capacity.dateCapacities[dateKey] ?? 0;
+                    }
+
+                    return {
+                        ...capacity,
+                        dateLimits: { ...current.dateLimits, ...(capacity.dateLimits ?? {}) },
+                        dateCapacities,
+                    };
+                });
+                setCapacityLoadFailed(false);
                 setLocationSchedules(schedules);
                 setLocationSchedulesById(prev => ({
                     ...prev,
@@ -514,10 +531,12 @@ export default function FoodParcelsForm({
                 if (cancelled || activeLocationRequestRef.current !== requestId) return;
 
                 setCapacityData({
-                    hasLimit: false,
+                    hasLimit: true,
                     maxPerDay: null,
+                    dateLimits: {},
                     dateCapacities: {},
                 });
+                setCapacityLoadFailed(true);
                 setLocationSchedules(null);
                 setLocationSchedulesById(prev => ({
                     ...prev,
@@ -540,7 +559,7 @@ export default function FoodParcelsForm({
         return () => {
             cancelled = true;
         };
-    }, [formState.pickupLocationId]);
+    }, [formState.pickupLocationId, visibleCalendarMonth]);
 
     useEffect(() => {
         const locationIds = Array.from(
@@ -576,55 +595,41 @@ export default function FoodParcelsForm({
 
     const isDateExcluded = (date: Date): boolean => {
         const localDate = new Date(date);
-        const dateForComparison = new Date(localDate);
-        dateForComparison.setHours(0, 0, 0, 0);
+        const targetDateKey = dateKey(localDate);
 
         // Always allow dates that are already selected - this is critical for deselection
-        const isAlreadySelected = selectedDatesForCurrentLocation.some(selectedDate => {
-            const selected = new Date(selectedDate);
-            selected.setHours(0, 0, 0, 0);
-            return selected.getTime() === dateForComparison.getTime();
-        });
+        const isAlreadySelected = selectedDatesForCurrentLocation.some(
+            selectedDate => dateKey(selectedDate) === targetDateKey,
+        );
 
         if (isAlreadySelected) {
             return false; // Never exclude dates that are already selected
         }
 
+        if (capacityLoadFailed) return true;
+
         if (!activeLocationDataReady) {
             return true;
         }
 
-        if (selectedDateKeysForOtherLocations.has(dateKey(dateForComparison))) {
+        if (selectedDateKeysForOtherLocations.has(targetDateKey)) {
             return true;
         }
 
         // Check against location schedule
         if (locationSchedules) {
             // Check if this day falls within any schedule and is an open day
-            const dayOfWeek = localDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            // Convert JavaScript day of week to our weekday enum format
-            const weekdayNames = [
-                "sunday",
-                "monday",
-                "tuesday",
-                "wednesday",
-                "thursday",
-                "friday",
-                "saturday",
-            ];
-            const weekday = weekdayNames[dayOfWeek];
+            const weekday = Time.fromDate(localDate).getWeekdayName();
 
             // Check all schedules
             let isOpenOnThisDay = false;
 
             for (const schedule of locationSchedules.schedules) {
                 // Check if date is within schedule's date range
-                const startDate = new Date(schedule.startDate);
-                const endDate = new Date(schedule.endDate);
-                startDate.setHours(0, 0, 0, 0);
-                endDate.setHours(23, 59, 59, 999);
-
-                if (dateForComparison >= startDate && dateForComparison <= endDate) {
+                if (
+                    targetDateKey >= scheduleDateKey(schedule.startDate) &&
+                    targetDateKey <= scheduleDateKey(schedule.endDate)
+                ) {
                     // Check if this weekday is open in this schedule
                     const dayConfig = schedule.days.find(
                         (day: LocationScheduleDay) => day.weekday === weekday,
@@ -643,44 +648,48 @@ export default function FoodParcelsForm({
         }
 
         // Check if this is today and all opening hours have passed
-        const now = Time.now().toDate();
-        const today = new Date(now);
-        today.setHours(0, 0, 0, 0);
-        if (dateForComparison.getTime() === today.getTime()) {
+        const now = Time.now();
+        if (targetDateKey === now.toDateString()) {
             // Get opening hours for today
             const openingHours = getOpeningHoursForDate(localDate);
             if (openingHours) {
                 const [closeHour, closeMinute] = openingHours.closingTime
                     .split(":")
                     .map(n => parseInt(n, 10));
-                const closingTime = new Date(localDate);
-                closingTime.setHours(closeHour, closeMinute, 0, 0);
+                const closingTime = Time.parseTime(
+                    `${String(closeHour).padStart(2, "0")}:${String(closeMinute).padStart(2, "0")}`,
+                    Time.fromString(`${targetDateKey}T12:00:00Z`),
+                );
 
                 // If current time is past closing time, exclude today
-                if (now >= closingTime) {
+                if (now.getTime() >= closingTime.getTime()) {
                     return true; // Exclude today - all opening hours have passed
                 }
             }
         }
 
         // For unselected dates, perform the capacity check
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, "0");
-        const day = String(localDate.getDate()).padStart(2, "0");
-        const capacityDateKey = `${year}-${month}-${day}`;
-        const dateString = localDate.toDateString();
+        const capacityDateKey = targetDateKey;
+
+        if (
+            !capacityData ||
+            !Object.prototype.hasOwnProperty.call(capacityData.dateLimits ?? {}, capacityDateKey)
+        ) {
+            return true;
+        }
 
         // Count parcels from database
         const dbParcelCount = capacityData?.dateCapacities?.[capacityDateKey] || 0;
 
         // Count selected dates for this same day in the current session
         const selectedDateCount = selectedDatesForCurrentLocation.filter(
-            selectedDate => new Date(selectedDate).toDateString() === dateString,
+            selectedDate => dateKey(selectedDate) === capacityDateKey,
         ).length;
 
         // Calculate total count (database + selected in current session)
         const totalCount = dbParcelCount + selectedDateCount;
-        const maxPerDay = capacityData?.maxPerDay || null;
+        const maxPerDay =
+            capacityData?.dateLimits?.[capacityDateKey] ?? capacityData?.maxPerDay ?? null;
 
         // Exclude unselected dates that would exceed capacity
         return maxPerDay !== null && totalCount >= maxPerDay;
@@ -689,40 +698,31 @@ export default function FoodParcelsForm({
     const renderDay = (date: Date) => {
         const localDate = new Date(date);
 
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, "0");
-        const day = String(localDate.getDate()).padStart(2, "0");
-        const capacityDateKey = `${year}-${month}-${day}`;
-        const dateString = localDate.toDateString();
+        const capacityDateKey = dateKey(localDate);
 
         // Count parcels from database
         const dbParcelCount = capacityData?.dateCapacities?.[capacityDateKey] || 0;
 
         // Count selected dates for this same day in the current session (excluding the current date if it's selected)
         const selectedDateCount = selectedDatesForCurrentLocation.filter(
-            selectedDate => new Date(selectedDate).toDateString() === dateString,
+            selectedDate => dateKey(selectedDate) === capacityDateKey,
         ).length;
 
         // Calculate total count (database + selected in current session)
         const totalCount = dbParcelCount + selectedDateCount;
-        const maxPerDay = capacityData?.maxPerDay || null;
+        const maxPerDay =
+            capacityData?.dateLimits?.[capacityDateKey] ?? capacityData?.maxPerDay ?? null;
 
         const isFullyBooked = maxPerDay !== null && totalCount >= maxPerDay;
 
-        const dayOfWeek = localDate.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const weekday = Time.fromDate(localDate).getWeekdayName();
+        const isWeekend = weekday === "sunday" || weekday === "saturday";
 
-        const today = Time.now().toDate();
-        today.setHours(0, 0, 0, 0);
-        const dateForComparison = new Date(localDate);
-        dateForComparison.setHours(0, 0, 0, 0);
-        const isToday = dateForComparison.getTime() === today.getTime();
+        const isToday = capacityDateKey === Time.now().toDateString();
 
-        const isSelected = selectedDatesForCurrentLocation.some(selectedDate => {
-            const selected = new Date(selectedDate);
-            selected.setHours(0, 0, 0, 0);
-            return selected.getTime() === dateForComparison.getTime();
-        });
+        const isSelected = selectedDatesForCurrentLocation.some(
+            selectedDate => dateKey(selectedDate) === capacityDateKey,
+        );
 
         // Check if the date is unavailable due to location schedule
         let isUnavailableDueToSchedule = false;
@@ -730,28 +730,15 @@ export default function FoodParcelsForm({
             // Check regular schedules
             // Check if this day falls within any schedule and is an open day
             {
-                const weekdayNames = [
-                    "sunday",
-                    "monday",
-                    "tuesday",
-                    "wednesday",
-                    "thursday",
-                    "friday",
-                    "saturday",
-                ];
-                const weekday = weekdayNames[dayOfWeek];
-
                 // Assume unavailable unless we find an open schedule
                 isUnavailableDueToSchedule = true;
 
                 for (const schedule of locationSchedules.schedules) {
                     // Check if date is within schedule's date range
-                    const startDate = new Date(schedule.startDate);
-                    const endDate = new Date(schedule.endDate);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate.setHours(23, 59, 59, 999);
-
-                    if (dateForComparison >= startDate && dateForComparison <= endDate) {
+                    if (
+                        capacityDateKey >= scheduleDateKey(schedule.startDate) &&
+                        capacityDateKey <= scheduleDateKey(schedule.endDate)
+                    ) {
                         // Check if this weekday is open in this schedule
                         const dayConfig = schedule.days.find(
                             (day: LocationScheduleDay) => day.weekday === weekday,
@@ -776,7 +763,7 @@ export default function FoodParcelsForm({
                         fontWeight: 500,
                     }}
                 >
-                    {localDate.getDate()}
+                    {Number(capacityDateKey.slice(-2))}
                 </div>
             );
         }
@@ -820,7 +807,7 @@ export default function FoodParcelsForm({
             };
         }
 
-        return <div style={dayStyle}>{localDate.getDate()}</div>;
+        return <div style={dayStyle}>{Number(capacityDateKey.slice(-2))}</div>;
     };
 
     const handleLocationChange = (value: string | null) => {
@@ -989,10 +976,18 @@ export default function FoodParcelsForm({
                     return;
                 }
 
-                const year = localDate.getFullYear();
-                const month = String(localDate.getMonth() + 1).padStart(2, "0");
-                const day = String(localDate.getDate()).padStart(2, "0");
-                const addedDateKey = `${year}-${month}-${day}`;
+                const addedDateKey = dateKey(localDate);
+
+                if (
+                    !capacityData ||
+                    !Object.prototype.hasOwnProperty.call(
+                        capacityData.dateLimits ?? {},
+                        addedDateKey,
+                    )
+                ) {
+                    showSelectionNotification(localDate, t("locationDataLoading"));
+                    return;
+                }
 
                 // Count parcels from database
                 const dbParcelCount = capacityData?.dateCapacities?.[addedDateKey] || 0;
@@ -1004,7 +999,8 @@ export default function FoodParcelsForm({
 
                 // Total count including the new date being added (+1)
                 const totalCount = dbParcelCount + existingDateCount + 1;
-                const maxPerDay = capacityData?.maxPerDay || null;
+                const maxPerDay =
+                    capacityData?.dateLimits?.[addedDateKey] ?? capacityData?.maxPerDay ?? null;
                 const isAvailable = maxPerDay === null || totalCount <= maxPerDay;
 
                 // If the date is unavailable (at or over capacity), don't add it
@@ -1378,19 +1374,21 @@ export default function FoodParcelsForm({
 
                     <Box
                         style={{
-                            height: "290px",
+                            minHeight: compactCalendar ? "320px" : "290px",
                             overflow: "hidden",
                             position: "relative",
                         }}
                     >
                         <DatePicker
                             type="multiple"
-                            value={selectedDatesForCurrentLocation.map(
-                                date => date.toISOString().split("T")[0],
+                            value={selectedDatesForCurrentLocation.map(date =>
+                                Time.fromDate(date).toDateString(),
                             )}
                             onChange={handleDatesChange}
+                            date={visibleCalendarMonth}
+                            onDateChange={handleVisibleCalendarMonthChange}
                             minDate={Time.now().toDate()}
-                            numberOfColumns={2}
+                            numberOfColumns={compactCalendar ? 1 : 2}
                             renderDay={dateString => renderDay(new Date(dateString))}
                             excludeDate={dateString => isDateExcluded(new Date(dateString))}
                             withWeekNumbers

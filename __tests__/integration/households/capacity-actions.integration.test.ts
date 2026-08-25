@@ -24,7 +24,7 @@ import {
     resetLocationCounter,
 } from "../../factories";
 import { TEST_NOW, daysFromTestNow, minutesFromTestNow } from "../../test-time";
-import { foodParcels } from "@/app/db/schema";
+import { foodParcels, pickupLocationDailyLimits } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
 vi.mock("@/app/utils/auth/protected-action", () => ({
@@ -43,7 +43,11 @@ import {
     checkPickupLocationCapacity,
     getPickupLocationCapacityForRange,
 } from "@/app/[locale]/households/enroll/actions";
-import { formatDateToISOString } from "@/app/utils/date-utils";
+import { formatDateToISOString, getStockholmDateKey } from "@/app/utils/date-utils";
+import {
+    validateBulkParcelAssignments,
+    validateParcelAssignmentsForForm,
+} from "@/app/utils/validation/parcel-assignment";
 
 describe("Capacity Action Functions - Integration Tests", () => {
     beforeEach(() => {
@@ -64,11 +68,10 @@ describe("Capacity Action Functions - Integration Tests", () => {
             expect(result.message).toContain("Ingen gräns");
         });
 
-        it("should return available when location does not exist", async () => {
+        it("should fail closed when location does not exist", async () => {
             const result = await checkPickupLocationCapacity("non-existent-location-id", TEST_NOW);
 
-            // When location not found, should return available with no limit
-            expect(result.isAvailable).toBe(true);
+            expect(result.isAvailable).toBe(false);
             expect(result.maxCount).toBeNull();
         });
 
@@ -243,7 +246,39 @@ describe("Capacity Action Functions - Integration Tests", () => {
 
             expect(result.hasLimit).toBe(false);
             expect(result.maxPerDay).toBeNull();
+            expect(result.dateLimits).toEqual(
+                expect.objectContaining({ [formatDateToISOString(startDate)]: null }),
+            );
             expect(result.dateCapacities).toEqual({});
+        });
+
+        it("returns and enforces a date-specific limit", async () => {
+            const db = await getTestDb();
+            const household = await createTestHousehold();
+            const { location } = await createTestLocationWithSchedule({
+                parcels_max_per_day: 5,
+            });
+            const testDate = daysFromTestNow(1);
+            const dateKey = getStockholmDateKey(testDate);
+
+            await db.insert(pickupLocationDailyLimits).values({
+                pickup_location_id: location.id,
+                date: dateKey,
+                max_parcels: 1,
+            });
+            await createTestParcel({
+                household_id: household.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: testDate,
+            });
+
+            const single = await checkPickupLocationCapacity(location.id, testDate);
+            const range = await getPickupLocationCapacityForRange(location.id, testDate, testDate);
+
+            expect(single.isAvailable).toBe(false);
+            expect(single.maxCount).toBe(1);
+            expect(range.maxPerDay).toBe(5);
+            expect(range.dateLimits[dateKey]).toBe(1);
         });
 
         it("should bucket parcels by date correctly", async () => {
@@ -408,6 +443,118 @@ describe("Capacity Action Functions - Integration Tests", () => {
             // Both should report 2 parcels
             expect(singleResult.currentCount).toBe(2);
             expect(dateCapacities[testDateKey]).toBe(2);
+        });
+    });
+
+    describe("multi-row capacity validation", () => {
+        it("counts every new row in the request against the remaining capacity", async () => {
+            const existingHousehold = await createTestHousehold();
+            const firstIncomingHousehold = await createTestHousehold();
+            const secondIncomingHousehold = await createTestHousehold();
+            const start = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+            start.setUTCHours(10, 0, 0, 0);
+            const end = new Date(start.getTime() + 15 * 60 * 1000);
+            const { location } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 2, max_parcels_per_slot: null },
+                {
+                    startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                    weekdays: [
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                        "sunday",
+                    ],
+                },
+            );
+            await createTestParcel({
+                household_id: existingHousehold.id,
+                pickup_location_id: location.id,
+                pickup_date_time_earliest: start,
+                pickup_date_time_latest: end,
+            });
+
+            const result = await validateBulkParcelAssignments(
+                [firstIncomingHousehold, secondIncomingHousehold].map((household, index) => ({
+                    parcelId: `new-${index}`,
+                    householdId: household.id,
+                    isNewParcel: true,
+                    timeslot: {
+                        date: getStockholmDateKey(start),
+                        startTime: new Date(start.getTime() + index * 30 * 60 * 1000),
+                        endTime: new Date(end.getTime() + index * 30 * 60 * 1000),
+                    },
+                })),
+                location.id,
+            );
+
+            expect(result.success).toBe(false);
+            expect(result.errors?.map(error => error.code)).toContain("MAX_DAILY_CAPACITY_REACHED");
+        });
+
+        it("validates each row against its own pickup location", async () => {
+            const household = await createTestHousehold();
+            const blockingHousehold = await createTestHousehold();
+            const firstDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+            firstDate.setUTCHours(10, 0, 0, 0);
+            const secondDate = new Date(firstDate.getTime() + 24 * 60 * 60 * 1000);
+            const scheduleOptions = {
+                startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                weekdays: [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                ] as const,
+            };
+            const { location: availableLocation } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 5, max_parcels_per_slot: null },
+                { ...scheduleOptions, weekdays: [...scheduleOptions.weekdays] },
+            );
+            const { location: fullLocation } = await createTestLocationWithSchedule(
+                { parcels_max_per_day: 1, max_parcels_per_slot: null },
+                { ...scheduleOptions, weekdays: [...scheduleOptions.weekdays] },
+            );
+            await createTestParcel({
+                household_id: blockingHousehold.id,
+                pickup_location_id: fullLocation.id,
+                pickup_date_time_earliest: secondDate,
+                pickup_date_time_latest: new Date(secondDate.getTime() + 15 * 60 * 1000),
+            });
+
+            const result = await validateParcelAssignmentsForForm([
+                {
+                    householdId: household.id,
+                    locationId: availableLocation.id,
+                    pickupDate: firstDate,
+                    pickupStartTime: firstDate,
+                    pickupEndTime: new Date(firstDate.getTime() + 15 * 60 * 1000),
+                },
+                {
+                    householdId: household.id,
+                    locationId: fullLocation.id,
+                    pickupDate: secondDate,
+                    pickupStartTime: secondDate,
+                    pickupEndTime: new Date(secondDate.getTime() + 15 * 60 * 1000),
+                },
+            ]);
+
+            expect(result.success).toBe(false);
+            expect(result.errors).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        code: "MAX_DAILY_CAPACITY_REACHED",
+                        details: expect.objectContaining({ locationId: fullLocation.id }),
+                    }),
+                ]),
+            );
         });
     });
 });

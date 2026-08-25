@@ -134,7 +134,15 @@ vi.mock("@mantine/core", () => {
 });
 
 vi.mock("@mantine/dates", () => ({
-    DatePicker: ({ value, onChange, excludeDate, disabled }: any) => (
+    DatePicker: ({
+        value,
+        onChange,
+        excludeDate,
+        disabled,
+        date,
+        onDateChange,
+        renderDay,
+    }: any) => (
         <div data-testid="date-picker">
             <input
                 type="date"
@@ -150,6 +158,20 @@ vi.mock("@mantine/dates", () => ({
                 data-testid="date-input"
             />
             <div data-testid="selected-dates">{(value || []).join(",")}</div>
+            <div data-testid="visible-calendar-month">{date}</div>
+            <button
+                data-testid="navigate-to-october-2026"
+                onClick={() => onDateChange?.("2026-10-01")}
+            >
+                Navigate to October 2026
+            </button>
+            <button
+                data-testid="calendar-date-2026-10-08"
+                disabled={disabled || excludeDate?.("2026-10-08")}
+                onClick={() => onChange?.([...(value || []), "2026-10-08"])}
+            >
+                {renderDay?.("2026-10-08") ?? "8"}
+            </button>
             {(value || []).map((selectedDate: string) => (
                 <button
                     key={selectedDate}
@@ -300,15 +322,28 @@ describe("FoodParcelsForm Business Logic Tests", () => {
             }),
         );
 
-        (mockGetPickupLocationCapacity as any).mockImplementation?.(() =>
-            Promise.resolve({
-                maxPerDay: 5,
-                dateCapacities: {
-                    "2025-05-02": 4,
-                    "2025-05-05": 5,
-                    "2025-05-06": 2,
-                },
-            }),
+        (mockGetPickupLocationCapacity as any).mockImplementation?.(
+            (_locationId: string, startDate: Date, endDate: Date) => {
+                const dateLimits: Record<string, number> = {};
+                for (
+                    let cursor = new Date(startDate);
+                    cursor <= endDate;
+                    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
+                ) {
+                    dateLimits[cursor.toISOString().slice(0, 10)] = 5;
+                }
+
+                return Promise.resolve({
+                    hasLimit: true,
+                    maxPerDay: 5,
+                    dateLimits,
+                    dateCapacities: {
+                        "2025-05-02": 4,
+                        "2025-05-05": 5,
+                        "2025-05-06": 2,
+                    },
+                });
+            },
         );
 
         (mockGetLocationSlotDuration as any).mockImplementation?.((locationId: string) =>
@@ -373,6 +408,63 @@ describe("FoodParcelsForm Business Logic Tests", () => {
                 expect(isExcluded).toBe(false);
             }
         }
+    });
+
+    it("reloads capacity when navigating and disables a full future date", async () => {
+        (mockGetPickupLocationSchedules as any).mockResolvedValue({
+            schedules: [
+                {
+                    id: "schedule-2026",
+                    location_id: "location-1",
+                    name: "2026 schedule",
+                    startDate: new Date("2026-01-01T12:00:00Z"),
+                    endDate: new Date("2026-12-31T12:00:00Z"),
+                    days: [
+                        {
+                            weekday: "thursday",
+                            isOpen: true,
+                            openingTime: "09:00",
+                            closingTime: "17:00",
+                        },
+                    ],
+                },
+            ],
+        });
+        (mockGetPickupLocationCapacity as any).mockImplementation(
+            (_locationId: string, startDate: Date) => {
+                const octoberVisible = startDate.toISOString().startsWith("2026-10");
+                return Promise.resolve({
+                    hasLimit: true,
+                    maxPerDay: 5,
+                    dateLimits: octoberVisible ? { "2026-10-08": 5 } : {},
+                    dateCapacities: octoberVisible ? { "2026-10-08": 5 } : {},
+                });
+            },
+        );
+
+        render(
+            <FoodParcelsForm
+                data={createMockFormData({ pickupLocationId: "location-1" })}
+                updateData={mockUpdateData}
+                error={null}
+            />,
+        );
+
+        await waitFor(() => expect(mockGetPickupLocationCapacity).toHaveBeenCalledTimes(1));
+        fireEvent.click(screen.getByTestId("navigate-to-october-2026"));
+
+        await waitFor(() => {
+            expect(mockGetPickupLocationCapacity).toHaveBeenLastCalledWith(
+                "location-1",
+                new Date("2026-10-01T12:00:00.000Z"),
+                new Date("2026-11-30T12:00:00.000Z"),
+            );
+        });
+        const fullDate = await screen.findByTestId("calendar-date-2026-10-08");
+        await waitFor(() => expect((fullDate as HTMLButtonElement).disabled).toBe(true));
+        expect((fullDate.firstElementChild as HTMLElement).style.textDecoration).toBe(
+            "line-through",
+        );
     });
 
     /**

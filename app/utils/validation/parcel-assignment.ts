@@ -23,10 +23,14 @@ import { notDeleted } from "@/app/db/query-helpers";
 import { type DbOrTransaction } from "@/app/db/types";
 import { Time } from "@/app/utils/time-provider";
 import { logError } from "@/app/utils/logger";
-
-// Configuration constants
-/** Default maximum number of parcels allowed in a single time slot (used when location has no limit set) */
-const DEFAULT_MAX_PARCELS_PER_SLOT = 4;
+import {
+    loadLocationLimitContext,
+    lockPickupLocationsForCapacity,
+    stockholmDateKey,
+    type CapacityTransaction,
+} from "@/app/utils/capacity/daily-limits";
+import { fetchPickupLocationSchedules } from "@/app/utils/schedule/pickup-location-schedules";
+import { isParcelOutsideOpeningHours } from "@/app/utils/schedule/outside-hours-filter";
 
 // Structured error types for validation
 export interface ValidationError {
@@ -88,6 +92,10 @@ interface ParcelAssignmentParams {
     householdId?: string;
 }
 
+export function hasPositiveSlotDuration(startTime: Date, endTime: Date): boolean {
+    return endTime.getTime() > startTime.getTime();
+}
+
 /**
  * Comprehensive validation for parcel assignment/rescheduling.
  *
@@ -147,8 +155,16 @@ export async function validateParcelAssignment({
     const errors: ValidationError[] = [];
 
     try {
+        if (tx) {
+            await lockPickupLocationsForCapacity(tx as CapacityTransaction, [newLocationId]);
+        }
+
         // 1. Verify parcel exists and get its details (skip for new parcels)
         let householdId: string;
+        let existingParcelLocationId: string | null = null;
+        let existingParcelDateKey: string | null = null;
+        let existingParcelStart: Date | null = null;
+        let existingParcelEnd: Date | null = null;
 
         if (isNewParcel) {
             // For new parcels, use the provided household ID
@@ -169,6 +185,8 @@ export async function validateParcelAssignment({
                     id: foodParcels.id,
                     householdId: foodParcels.household_id,
                     locationId: foodParcels.pickup_location_id,
+                    pickupEarliest: foodParcels.pickup_date_time_earliest,
+                    pickupLatest: foodParcels.pickup_date_time_latest,
                 })
                 .from(foodParcels)
                 .where(and(eq(foodParcels.id, parcelId), notDeleted()))
@@ -184,13 +202,16 @@ export async function validateParcelAssignment({
                 return { success: false, errors };
             }
             householdId = parcel.householdId;
+            existingParcelLocationId = parcel.locationId;
+            existingParcelDateKey = stockholmDateKey(parcel.pickupEarliest);
+            existingParcelStart = parcel.pickupEarliest;
+            existingParcelEnd = parcel.pickupLatest;
         }
 
         // 2. Get location information using the newLocationId
         const [location] = await dbInstance
             .select({
                 id: pickupLocations.id,
-                maxParcelsPerDay: pickupLocations.parcels_max_per_day,
                 maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 slotDuration: pickupLocations.default_slot_duration_minutes,
                 name: pickupLocations.name,
@@ -207,6 +228,58 @@ export async function validateParcelAssignment({
                 details: { locationId: newLocationId },
             });
             return { success: false, errors };
+        }
+
+        const timeSlotChanged =
+            isNewParcel ||
+            existingParcelStart?.getTime() !== newTimeslot.startTime.getTime() ||
+            existingParcelEnd?.getTime() !== newTimeslot.endTime.getTime();
+        if (
+            timeSlotChanged &&
+            !hasPositiveSlotDuration(newTimeslot.startTime, newTimeslot.endTime)
+        ) {
+            errors.push({
+                field: "timeSlot",
+                code: ValidationErrorCodes.INVALID_TIME_SLOT,
+                message: "Pickup time slot has an invalid duration",
+                details: {
+                    configuredDurationMinutes: location.slotDuration,
+                    startTime: newTimeslot.startTime.toISOString(),
+                    endTime: newTimeslot.endTime.toISOString(),
+                    locationId: newLocationId,
+                },
+            });
+        }
+
+        const capacityDateKey = stockholmDateKey(newTimeslot.startTime);
+        const limitContext = await loadLocationLimitContext(dbInstance, newLocationId, [
+            capacityDateKey,
+        ]);
+        const effectiveDailyLimit = limitContext.effectiveDailyLimits[capacityDateKey];
+
+        const schedules = await fetchPickupLocationSchedules(newLocationId, dbInstance);
+        if (
+            isParcelOutsideOpeningHours(
+                {
+                    id: parcelId,
+                    pickupEarliestTime: newTimeslot.startTime,
+                    pickupLatestTime: newTimeslot.endTime,
+                    isPickedUp: false,
+                },
+                schedules,
+                { onError: "return-true" },
+            )
+        ) {
+            errors.push({
+                field: "timeSlot",
+                code: ValidationErrorCodes.OUTSIDE_OPERATING_HOURS,
+                message: "Selected time is outside operating hours",
+                details: {
+                    date: capacityDateKey,
+                    timeSlot: `${newTimeslot.startTime.toISOString()}-${newTimeslot.endTime.toISOString()}`,
+                    locationId: newLocationId,
+                } as ScheduleValidationDetails,
+            });
         }
 
         // 3. Validate time slot is not in the past (only for NEW parcels)
@@ -227,9 +300,9 @@ export async function validateParcelAssignment({
             }
         }
 
-        // 4. Validate daily capacity if set
-        if (location.maxParcelsPerDay !== null) {
-            const dateInStockholm = Time.fromDate(new Date(newDate));
+        // 4. Validate the effective daily capacity for this specific Stockholm date.
+        if (effectiveDailyLimit !== null) {
+            const dateInStockholm = Time.fromDate(newTimeslot.startTime);
             const startTimeStockholm = dateInStockholm.startOfDay();
             const endTimeStockholm = dateInStockholm.endOfDay();
 
@@ -250,18 +323,20 @@ export async function validateParcelAssignment({
                 )
                 .execute();
 
-            if (count >= location.maxParcelsPerDay) {
+            const increasesDailyCount =
+                isNewParcel ||
+                existingParcelLocationId !== newLocationId ||
+                existingParcelDateKey !== capacityDateKey;
+
+            if (increasesDailyCount && count >= effectiveDailyLimit) {
                 errors.push({
                     field: "capacity",
                     code: ValidationErrorCodes.MAX_DAILY_CAPACITY_REACHED,
-                    message: `Maximum daily capacity (${location.maxParcelsPerDay}) reached for this date`,
+                    message: `Maximum daily capacity (${effectiveDailyLimit}) reached for this date`,
                     details: {
                         current: count,
-                        maximum: location.maxParcelsPerDay,
-                        date:
-                            typeof newDate === "string"
-                                ? newDate
-                                : new Date(newDate).toISOString().split("T")[0],
+                        maximum: effectiveDailyLimit,
+                        date: capacityDateKey,
                         locationId: newLocationId,
                     } as CapacityValidationDetails,
                 });
@@ -269,7 +344,7 @@ export async function validateParcelAssignment({
         }
 
         // 5. Validate against household double booking on the same day
-        const dateInStockholm = Time.fromDate(new Date(newDate));
+        const dateInStockholm = Time.fromDate(newTimeslot.startTime);
         const startTimeStockholm = dateInStockholm.startOfDay();
         const endTimeStockholm = dateInStockholm.endOfDay();
         // Use toUTC() to get clean Date objects for database queries (DB stores timestamps in UTC)
@@ -302,22 +377,16 @@ export async function validateParcelAssignment({
                     conflictingParcelId: conflictingParcel.id,
                     householdId: householdId,
                     timeSlot: startTimeStr,
-                    date:
-                        typeof newDate === "string"
-                            ? newDate
-                            : new Date(newDate).toISOString().split("T")[0],
+                    date: capacityDateKey,
                     locationId: newLocationId,
                 } as ConflictValidationDetails,
             });
         }
 
         // 6. Validate slot-level capacity (parcels in the same time slot)
-        // Only validate if location has a slot limit configured (null = no limit)
-        // Use default only when undefined (shouldn't happen with schema default, but safe fallback)
-        const maxParcelsPerSlot =
-            location.maxParcelsPerSlot === undefined
-                ? DEFAULT_MAX_PARCELS_PER_SLOT
-                : location.maxParcelsPerSlot;
+        // A null slot limit means there is no tighter independent slot ceiling.
+        // The effective daily limit above still caps how many parcels can occupy any one slot.
+        const maxParcelsPerSlot = location.maxParcelsPerSlot;
 
         if (maxParcelsPerSlot !== null) {
             const slotStartUTC = new Date(newTimeslot.startTime);
@@ -348,10 +417,7 @@ export async function validateParcelAssignment({
                     details: {
                         current: slotCount,
                         maximum: maxParcelsPerSlot,
-                        date:
-                            typeof newDate === "string"
-                                ? newDate
-                                : new Date(newDate).toISOString().split("T")[0],
+                        date: capacityDateKey,
                         locationId: newLocationId,
                         timeSlot: startTimeStr,
                     } as CapacityValidationDetails,
@@ -464,10 +530,107 @@ export async function validateBulkParcelAssignments(
         }
     }
 
+    // Individual validation sees only committed rows. Include all new rows from this request in
+    // the final daily and overlapping-slot totals so one bulk request cannot claim the same last
+    // place more than once.
+    const newAssignments = assignments.filter(assignment => assignment.isNewParcel);
+    const dateKeys = [
+        ...new Set(
+            newAssignments.map(assignment => stockholmDateKey(assignment.timeslot.startTime)),
+        ),
+    ];
+
+    if (newAssignments.length > 0) {
+        const limitContext = await loadLocationLimitContext(
+            dbInstanceFor(tx),
+            locationId,
+            dateKeys,
+        );
+
+        for (const dateKey of dateKeys) {
+            const assignmentsOnDate = newAssignments.filter(
+                assignment => stockholmDateKey(assignment.timeslot.startTime) === dateKey,
+            );
+            const effectiveLimit = limitContext.effectiveDailyLimits[dateKey];
+            if (effectiveLimit === null) continue;
+
+            const dateInStockholm = Time.fromDate(assignmentsOnDate[0].timeslot.startTime);
+            const [{ count }] = await dbInstanceFor(tx)
+                .select({ count: sql<number>`count(*)` })
+                .from(foodParcels)
+                .where(
+                    and(
+                        eq(foodParcels.pickup_location_id, locationId),
+                        between(
+                            foodParcels.pickup_date_time_earliest,
+                            dateInStockholm.startOfDay().toUTC(),
+                            dateInStockholm.endOfDay().toUTC(),
+                        ),
+                        notDeleted(),
+                    ),
+                )
+                .execute();
+
+            if (count + assignmentsOnDate.length > effectiveLimit) {
+                allErrors.push({
+                    field: `location_${locationId}_capacity`,
+                    code: ValidationErrorCodes.MAX_DAILY_CAPACITY_REACHED,
+                    message: `Maximum daily capacity (${effectiveLimit}) reached for this date`,
+                    details: {
+                        current: count + assignmentsOnDate.length,
+                        maximum: effectiveLimit,
+                        date: dateKey,
+                        locationId,
+                    },
+                });
+            }
+        }
+
+        if (limitContext.explicitSlotLimit !== null) {
+            for (const assignment of newAssignments) {
+                const [{ slotCount }] = await dbInstanceFor(tx)
+                    .select({ slotCount: sql<number>`count(*)` })
+                    .from(foodParcels)
+                    .where(
+                        and(
+                            eq(foodParcels.pickup_location_id, locationId),
+                            lt(foodParcels.pickup_date_time_earliest, assignment.timeslot.endTime),
+                            gt(foodParcels.pickup_date_time_latest, assignment.timeslot.startTime),
+                            notDeleted(),
+                        ),
+                    )
+                    .execute();
+                const incomingOverlapCount = newAssignments.filter(
+                    candidate =>
+                        candidate.timeslot.startTime < assignment.timeslot.endTime &&
+                        candidate.timeslot.endTime > assignment.timeslot.startTime,
+                ).length;
+
+                if (slotCount + incomingOverlapCount > limitContext.explicitSlotLimit) {
+                    allErrors.push({
+                        field: `parcel_${assignment.parcelId}_timeSlot`,
+                        code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
+                        message: `Maximum capacity (${limitContext.explicitSlotLimit}) reached for this time slot`,
+                        details: {
+                            current: slotCount + incomingOverlapCount,
+                            maximum: limitContext.explicitSlotLimit,
+                            date: stockholmDateKey(assignment.timeslot.startTime),
+                            locationId,
+                        },
+                    });
+                }
+            }
+        }
+    }
+
     return {
         success: allErrors.length === 0,
         ...(allErrors.length > 0 && { errors: allErrors }),
     };
+}
+
+function dbInstanceFor(tx?: DbOrTransaction): DbOrTransaction {
+    return tx ?? db;
 }
 
 export interface ParcelAssignmentFormInput {
@@ -493,30 +656,52 @@ export async function validateParcelAssignmentsForForm(
             return { success: true, errors: [] };
         }
 
-        // Form submissions validate one pickup location at a time.
-        const locationId = parcels[0].locationId;
+        const locationIds = [...new Set(parcels.map(parcel => parcel.locationId))].sort();
 
-        const assignments = parcels.map(parcel => {
-            const isNewParcel = !parcel.id;
-            const dateString = parcel.pickupDate.toISOString().split("T")[0];
+        if (tx) {
+            await lockPickupLocationsForCapacity(tx as CapacityTransaction, locationIds);
+        }
 
-            return {
-                parcelId: parcel.id || `temp_${Math.random()}`,
-                timeslot: {
-                    date: dateString,
-                    startTime: parcel.pickupStartTime,
-                    endTime: parcel.pickupEndTime,
-                },
-                isNewParcel,
-                householdId: isNewParcel ? parcel.householdId : undefined,
-            };
-        });
+        const errors: ValidationError[] = [];
+        for (const locationId of locationIds) {
+            const assignments = parcels
+                .map((parcel, index) => ({ parcel, index }))
+                .filter(({ parcel }) => parcel.locationId === locationId)
+                .map(({ parcel, index }) => {
+                    const isNewParcel = !parcel.id;
+                    return {
+                        parcelId: parcel.id || `temp_${index}`,
+                        timeslot: {
+                            date: stockholmDateKey(parcel.pickupStartTime),
+                            startTime: parcel.pickupStartTime,
+                            endTime: parcel.pickupEndTime,
+                        },
+                        isNewParcel,
+                        householdId: isNewParcel ? parcel.householdId : undefined,
+                    };
+                });
+            const result = await validateBulkParcelAssignments(assignments, locationId, tx);
+            errors.push(...(result.errors ?? []));
+        }
 
-        const validationResult = await validateBulkParcelAssignments(assignments, locationId, tx);
+        const householdDateCounts = new Map<string, number>();
+        for (const parcel of parcels) {
+            const key = `${parcel.householdId}-${stockholmDateKey(parcel.pickupStartTime)}`;
+            householdDateCounts.set(key, (householdDateCounts.get(key) ?? 0) + 1);
+        }
+        for (const [key, count] of householdDateCounts) {
+            if (count <= 1) continue;
+            errors.push({
+                field: "timeSlot",
+                code: ValidationErrorCodes.HOUSEHOLD_DOUBLE_BOOKING,
+                message: "Household already has a parcel scheduled for this date",
+                details: { key },
+            });
+        }
 
         return {
-            success: validationResult.success,
-            errors: validationResult.errors || [],
+            success: errors.length === 0,
+            errors,
         };
     } catch (error) {
         logError("Error validating parcel assignments", error, {

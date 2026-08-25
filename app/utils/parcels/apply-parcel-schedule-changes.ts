@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import {
     foodParcels,
     pickupLocations,
@@ -18,9 +18,15 @@ import { Time } from "@/app/utils/time-provider";
 import { recordAuditEvent } from "@/app/utils/audit/log";
 import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes";
 import {
+    hasPositiveSlotDuration,
     type ValidationError,
     ValidationErrorCodes,
 } from "@/app/utils/validation/parcel-assignment";
+import {
+    loadLocationLimitContext,
+    lockPickupLocationsForCapacity,
+    type CapacityTransaction,
+} from "@/app/utils/capacity/daily-limits";
 
 export interface ApplyHouseholdParcelScheduleChangesArgs {
     householdId: string;
@@ -91,6 +97,18 @@ function buildTerminalParcelValidationError(parcelId: string): ParcelValidationE
             details: { parcelId },
         },
     ]);
+}
+
+function buildMissingLocationValidationError(locationIds: string[]): ParcelValidationError {
+    return new ParcelValidationError(
+        "Parcel validation failed",
+        locationIds.map(locationId => ({
+            field: "locationId",
+            code: ValidationErrorCodes.LOCATION_NOT_FOUND,
+            message: "Pickup location not found",
+            details: { locationId },
+        })),
+    );
 }
 
 function stockholmDate(date: Date): string {
@@ -226,7 +244,6 @@ async function validateFinalState(
     existingFutureParcels: ExistingFutureParcel[],
     desiredFutureParcels: FoodParcel[],
     changedFutureParcels: FoodParcel[],
-    now: Date,
 ): Promise<ValidationError[]> {
     if (changedFutureParcels.length === 0) {
         return [];
@@ -239,7 +256,6 @@ async function validateFinalState(
     const locations = await tx
         .select({
             id: pickupLocations.id,
-            maxParcelsPerDay: pickupLocations.parcels_max_per_day,
             maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
         })
         .from(pickupLocations)
@@ -264,6 +280,22 @@ async function validateFinalState(
         return errors;
     }
 
+    for (const parcel of changedFutureParcels) {
+        const locationId = targetLocationId(parcel, args.pickupLocationId);
+        if (!hasPositiveSlotDuration(parcel.pickupEarliestTime, parcel.pickupLatestTime)) {
+            addUniqueError(errors, {
+                field: `parcel_${parcel.id ?? parcel.pickupEarliestTime.toISOString()}_timeSlot`,
+                code: ValidationErrorCodes.INVALID_TIME_SLOT,
+                message: "Pickup time slot has an invalid duration",
+                details: {
+                    startTime: parcel.pickupEarliestTime.toISOString(),
+                    endTime: parcel.pickupLatestTime.toISOString(),
+                    locationId,
+                },
+            });
+        }
+    }
+
     for (const locationId of targetLocationIds) {
         const locationParcels = changedFutureParcels.filter(
             parcel => targetLocationId(parcel, args.pickupLocationId) === locationId,
@@ -277,6 +309,10 @@ async function validateFinalState(
     const existingHouseholdFutureIds = new Set(existingFutureParcels.map(parcel => parcel.id));
     const existingFutureById = new Map(existingFutureParcels.map(parcel => [parcel.id, parcel]));
 
+    const earliestChangedDayStart = changedFutureParcels.reduce<Date | null>((earliest, parcel) => {
+        const start = Time.fromDate(parcel.pickupEarliestTime).startOfDay().toUTC();
+        return !earliest || start < earliest ? start : earliest;
+    }, null);
     const targetLocationActiveParcels = await tx
         .select({
             id: foodParcels.id,
@@ -289,7 +325,9 @@ async function validateFinalState(
         .where(
             and(
                 inArray(foodParcels.pickup_location_id, targetLocationIds),
-                gt(foodParcels.pickup_date_time_latest, now),
+                earliestChangedDayStart
+                    ? gte(foodParcels.pickup_date_time_earliest, earliestChangedDayStart)
+                    : undefined,
                 notDeleted(),
             ),
         );
@@ -321,6 +359,23 @@ async function validateFinalState(
 
     const finalRows = [...retainedRows, ...desiredRows];
     const changedDates = new Set(changedRows.map(parcel => stockholmDate(parcel.earliest)));
+    const limitContextByLocation = new Map(
+        await Promise.all(
+            targetLocationIds.map(async locationId => {
+                const dateKeys = [
+                    ...new Set(
+                        finalRows
+                            .filter(parcel => parcel.locationId === locationId)
+                            .map(parcel => stockholmDate(parcel.earliest)),
+                    ),
+                ];
+                return [
+                    locationId,
+                    await loadLocationLimitContext(tx, locationId, dateKeys),
+                ] as const;
+            }),
+        ),
+    );
     const dailyCapacityChecks = new Map<string, { locationId: string; date: string }>();
 
     for (const parcel of changedFutureParcels) {
@@ -356,22 +411,23 @@ async function validateFinalState(
     }
 
     for (const { locationId, date } of dailyCapacityChecks.values()) {
-        const location = locationById.get(locationId)!;
+        const effectiveDailyLimit =
+            limitContextByLocation.get(locationId)!.effectiveDailyLimits[date];
 
-        if (location.maxParcelsPerDay !== null) {
+        if (effectiveDailyLimit !== null) {
             const locationRowsOnDate = finalRows.filter(
                 parcel =>
                     parcel.locationId === locationId && stockholmDate(parcel.earliest) === date,
             );
 
-            if (locationRowsOnDate.length > location.maxParcelsPerDay) {
+            if (locationRowsOnDate.length > effectiveDailyLimit) {
                 addUniqueError(errors, {
                     field: "capacity",
                     code: ValidationErrorCodes.MAX_DAILY_CAPACITY_REACHED,
-                    message: `Maximum daily capacity (${location.maxParcelsPerDay}) reached for this date`,
+                    message: `Maximum daily capacity (${effectiveDailyLimit}) reached for this date`,
                     details: {
                         current: locationRowsOnDate.length,
-                        maximum: location.maxParcelsPerDay,
+                        maximum: effectiveDailyLimit,
                         date,
                         locationId,
                     },
@@ -431,6 +487,32 @@ export async function applyHouseholdParcelScheduleChanges(
 
     const desiredFutureParcels = args.parcels.filter(parcel => parcel.pickupLatestTime > now);
 
+    const targetLocationIds = uniqueIds(
+        desiredFutureParcels.map(parcel => targetLocationId(parcel, args.pickupLocationId)),
+    );
+    const discoveredExistingFutureParcels = await tx
+        .select({ id: foodParcels.id, locationId: foodParcels.pickup_location_id })
+        .from(foodParcels)
+        .where(
+            and(
+                eq(foodParcels.household_id, args.householdId),
+                gt(foodParcels.pickup_date_time_latest, now),
+                notDeleted(),
+            ),
+        );
+    const lockedLocationIds = uniqueIds([
+        ...targetLocationIds,
+        ...discoveredExistingFutureParcels.map(parcel => parcel.locationId),
+    ]);
+    try {
+        await lockPickupLocationsForCapacity(tx as CapacityTransaction, lockedLocationIds);
+    } catch (error) {
+        if (error instanceof Error && error.message === "PICKUP_LOCATION_NOT_FOUND") {
+            throw buildMissingLocationValidationError(targetLocationIds);
+        }
+        throw error;
+    }
+
     const existingFutureParcels = await tx
         .select({
             id: foodParcels.id,
@@ -447,7 +529,18 @@ export async function applyHouseholdParcelScheduleChanges(
                 gt(foodParcels.pickup_date_time_latest, now),
                 notDeleted(),
             ),
-        );
+        )
+        .for("update");
+
+    if (existingFutureParcels.some(parcel => !lockedLocationIds.includes(parcel.locationId))) {
+        throw new ParcelValidationError("Parcel locations changed; refresh and try again", [
+            {
+                field: "locationId",
+                code: "PARCEL_LOCATION_CHANGED",
+                message: "A parcel changed pickup location; refresh and try again",
+            },
+        ]);
+    }
 
     const existingFutureById = new Map(existingFutureParcels.map(parcel => [parcel.id, parcel]));
     const mutableExistingFutureParcels = existingFutureParcels.filter(
@@ -503,7 +596,6 @@ export async function applyHouseholdParcelScheduleChanges(
         existingFutureParcels,
         desiredFutureParcels,
         parcelsToChange,
-        now,
     );
     if (finalStateErrors.length > 0) {
         throw new ParcelValidationError("Parcel validation failed", finalStateErrors);

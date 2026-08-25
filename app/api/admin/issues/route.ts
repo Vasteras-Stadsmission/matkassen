@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, outgoingSms, households, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
-import { eq, and, gte, lt, asc, isNull, or, sql } from "drizzle-orm";
+import { eq, and, gte, lt, asc, isNull, or, sql, inArray } from "drizzle-orm";
 import { authenticateAdminRequest } from "@/app/utils/auth/api-auth";
 import { logError } from "@/app/utils/logger";
 import { Time } from "@/app/utils/time-provider";
@@ -12,6 +12,7 @@ import {
 } from "@/app/utils/schedule/outside-hours-filter";
 import { getLocationSchedulesMap } from "@/app/utils/schedule/location-schedules-map";
 import { getNoShowFollowupConfig, queryNoShowFollowups } from "@/app/db/queries/noshow-followups";
+import { loadOverCapacityDates } from "@/app/utils/capacity/daily-limits";
 
 // 24 hours in milliseconds - threshold for stale SMS
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -75,6 +76,7 @@ function getFailureType(
  * - unresolvedHandouts: parcels where pickup DATE has passed, no outcome set
  * - outsideHours: future parcels scheduled outside opening hours
  * - failedSms: ALL SMS failures (not just upcoming parcels)
+ * - overCapacityDates: today and future dates with bookings above the effective daily limit
  */
 export async function GET() {
     try {
@@ -86,6 +88,80 @@ export async function GET() {
         const now = Time.now().toUTC();
         const todayStockholm = Time.now().toDateString(); // YYYY-MM-DD for testability
         const staleThreshold = new Date(now.getTime() - TWENTY_FOUR_HOURS_MS);
+        const overCapacityDates = await loadOverCapacityDates(db, todayStockholm);
+        const visibleOverCapacityDates = overCapacityDates.slice(0, 100);
+        const overCapacityLocationIds = [
+            ...new Set(visibleOverCapacityDates.map(item => item.locationId)),
+        ];
+        const lastOverCapacityDate = visibleOverCapacityDates.at(-1)?.date;
+        const overCapacityParcelRows =
+            overCapacityLocationIds.length > 0 && lastOverCapacityDate
+                ? await db
+                      .select({
+                          parcelId: foodParcels.id,
+                          householdId: foodParcels.household_id,
+                          householdFirstName: households.first_name,
+                          householdLastName: households.last_name,
+                          pickupDateEarliest: foodParcels.pickup_date_time_earliest,
+                          pickupDateLatest: foodParcels.pickup_date_time_latest,
+                          locationId: foodParcels.pickup_location_id,
+                          isPickedUp: foodParcels.is_picked_up,
+                          noShowAt: foodParcels.no_show_at,
+                      })
+                      .from(foodParcels)
+                      .innerJoin(households, eq(foodParcels.household_id, households.id))
+                      .where(
+                          and(
+                              notDeleted(),
+                              isNull(households.anonymized_at),
+                              inArray(foodParcels.pickup_location_id, overCapacityLocationIds),
+                              sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm') >= ${todayStockholm}::date`,
+                              sql`date(${foodParcels.pickup_date_time_earliest} AT TIME ZONE 'Europe/Stockholm') <= ${lastOverCapacityDate}::date`,
+                          ),
+                      )
+                      .orderBy(
+                          asc(foodParcels.pickup_date_time_earliest),
+                          asc(households.last_name),
+                          asc(households.first_name),
+                      )
+                : [];
+        const overCapacityKeys = new Set(
+            visibleOverCapacityDates.map(item => item.locationId + ":" + item.date),
+        );
+        const overCapacityParcelsByKey = new Map<
+            string,
+            {
+                parcelId: string;
+                householdId: string;
+                householdFirstName: string;
+                householdLastName: string;
+                pickupDateEarliest: string;
+                pickupDateLatest: string;
+                isPickedUp: boolean;
+                noShowAt: string | null;
+            }[]
+        >();
+        for (const parcel of overCapacityParcelRows) {
+            const date = Time.fromDate(parcel.pickupDateEarliest).toDateString();
+            const key = parcel.locationId + ":" + date;
+            if (!overCapacityKeys.has(key)) continue;
+            const current = overCapacityParcelsByKey.get(key) ?? [];
+            current.push({
+                parcelId: parcel.parcelId,
+                householdId: parcel.householdId,
+                householdFirstName: parcel.householdFirstName,
+                householdLastName: parcel.householdLastName,
+                pickupDateEarliest: parcel.pickupDateEarliest.toISOString(),
+                pickupDateLatest: parcel.pickupDateLatest.toISOString(),
+                isPickedUp: parcel.isPickedUp,
+                noShowAt: parcel.noShowAt?.toISOString() ?? null,
+            });
+            overCapacityParcelsByKey.set(key, current);
+        }
+        const overCapacityDateDetails = visibleOverCapacityDates.map(item => ({
+            ...item,
+            parcels: overCapacityParcelsByKey.get(item.locationId + ":" + item.date) ?? [],
+        }));
 
         // Run count queries first (without limits) for accurate badge counts
         const [unresolvedHandoutsCount] = await db
@@ -406,7 +482,8 @@ export async function GET() {
             (unresolvedHandoutsCount?.count ?? 0) +
             outsideHoursCount +
             (failedSmsCount?.count ?? 0) +
-            noShowFollowupsCount;
+            noShowFollowupsCount +
+            overCapacityDates.length;
 
         return NextResponse.json(
             {
@@ -414,12 +491,14 @@ export async function GET() {
                 outsideHours,
                 failedSms,
                 noShowFollowups,
+                overCapacityDates: overCapacityDateDetails,
                 counts: {
                     total: totalCount,
                     unresolvedHandouts: unresolvedHandoutsCount?.count ?? 0,
                     outsideHours: outsideHoursCount,
                     failedSms: failedSmsCount?.count ?? 0,
                     noShowFollowups: noShowFollowupsCount,
+                    overCapacityDates: overCapacityDates.length,
                 },
             },
             {

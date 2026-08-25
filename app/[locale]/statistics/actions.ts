@@ -21,6 +21,7 @@ import { success, failure, type ActionResult } from "@/app/utils/auth/action-res
 import { logError } from "@/app/utils/logger";
 import { setToStartOfDay, toStockholmTime } from "@/app/utils/date-utils";
 import { addDays } from "date-fns";
+import { loadLocationLimitContext } from "@/app/utils/capacity/daily-limits";
 
 export interface LocationOption {
     id: string;
@@ -631,14 +632,27 @@ async function getLocationStats(
         day: "2-digit",
     });
     const now = new Date();
-    for (let i = 0; i < 7; i++) {
+    const capacityDateKeys = Array.from({ length: 7 }, (_, index) => {
         const date = new Date(now);
-        date.setDate(date.getDate() + i);
-        const dateStr = stockholmFormatter.format(date);
+        date.setDate(date.getDate() + index);
+        return stockholmFormatter.format(date);
+    });
+    const limitContexts = new Map(
+        await Promise.all(
+            locations.map(
+                async location =>
+                    [
+                        location.id,
+                        await loadLocationLimitContext(db, location.id, capacityDateKeys),
+                    ] as const,
+            ),
+        ),
+    );
 
+    for (const dateStr of capacityDateKeys) {
         for (const location of locations) {
             const scheduled = capacityMap.get(location.id)?.get(dateStr) ?? 0;
-            const max = location.parcels_max_per_day;
+            const max = limitContexts.get(location.id)!.effectiveDailyLimits[dateStr];
             const usagePercent = max ? (scheduled / max) * 100 : null;
 
             capacityUsage.push({
