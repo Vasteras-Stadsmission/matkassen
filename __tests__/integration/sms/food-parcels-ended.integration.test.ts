@@ -499,6 +499,10 @@ describe("Food Parcels Ended SMS - Integration Tests", () => {
 
             // Verify mock was called exactly once
             expect(mockGateway.getCallCount()).toBe(1);
+            expect(mockGateway.getLastCall()?.request).toMatchObject({
+                callbackRef: result.recordId,
+                subject: `Matkassen ${result.recordId}`,
+            });
         });
 
         it("does not log the provider message ID when persisting success fails", async () => {
