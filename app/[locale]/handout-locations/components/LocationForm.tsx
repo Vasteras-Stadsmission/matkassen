@@ -46,7 +46,6 @@ export function LocationForm({
             street_address: location?.street_address || "",
             postal_code: location?.postal_code || "",
             parcels_max_per_day: location?.parcels_max_per_day ?? null,
-            max_parcels_per_slot: location?.max_parcels_per_slot ?? null,
             contact_name: location?.contact_name || "",
             contact_email: location?.contact_email || "",
             contact_phone_number: location?.contact_phone_number || "",
@@ -80,18 +79,11 @@ export function LocationForm({
                 }
                 return null;
             },
-            max_parcels_per_slot: value => {
-                if (value === null || value === undefined) return null;
-                const numValue = Number(value);
-                if (numValue <= 0) return t("maxParcelsPerSlotPositive");
-                return null;
-            },
         },
         transformValues: (values): LocationFormInput => ({
             ...values,
             contact_email: values.contact_email?.trim() || "",
             parcels_max_per_day: values.parcels_max_per_day || null,
-            max_parcels_per_slot: values.max_parcels_per_slot || null,
         }),
     });
 
@@ -108,7 +100,6 @@ export function LocationForm({
                     const valuesWithCurrentOperationalSettings = {
                         ...values,
                         parcels_max_per_day: location.parcels_max_per_day,
-                        max_parcels_per_slot: location.max_parcels_per_slot,
                         default_slot_duration_minutes: location.default_slot_duration_minutes,
                     };
                     const result = await updateLocation(
@@ -205,7 +196,6 @@ export function LocationForm({
                 street_address: location.street_address || "",
                 postal_code: location.postal_code || "",
                 parcels_max_per_day: location.parcels_max_per_day ?? null,
-                max_parcels_per_slot: location.max_parcels_per_slot ?? null,
                 contact_name: location.contact_name || "",
                 contact_email: location.contact_email || "",
                 contact_phone_number: location.contact_phone_number || "",

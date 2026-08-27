@@ -1202,26 +1202,6 @@ export default function FoodParcelsForm({
         }
 
         if (
-            (error.code === "MAX_SLOT_CAPACITY_REACHED" ||
-                error.code === "SLOT_CAPACITY_REACHED") &&
-            date &&
-            timeSlot &&
-            current !== null &&
-            maximum !== null
-        ) {
-            return t("validationErrors.slotCapacityReachedDetailed", {
-                date,
-                timeSlot,
-                current,
-                maximum,
-            });
-        }
-
-        if (error.code === "MAX_SLOT_CAPACITY_REACHED" || error.code === "SLOT_CAPACITY_REACHED") {
-            return t("validationErrors.slotCapacityReached");
-        }
-
-        if (
             (error.code === "HOUSEHOLD_DOUBLE_BOOKING" ||
                 error.code === "DOUBLE_BOOKING" ||
                 error.code === "TIME_SLOT_CONFLICT") &&

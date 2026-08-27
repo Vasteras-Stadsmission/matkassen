@@ -60,17 +60,14 @@ vi.mock("@/app/db/drizzle", () => {
                             {
                                 id: "test-location",
                                 maxParcelsPerDay: 15,
-                                maxParcelsPerSlot: 15,
                             },
                             {
                                 id: "location-a-456",
                                 maxParcelsPerDay: 15,
-                                maxParcelsPerSlot: 15,
                             },
                             {
                                 id: "location-b-789",
                                 maxParcelsPerDay: 15,
-                                maxParcelsPerSlot: 15,
                             },
                         ]);
                     }
@@ -146,7 +143,6 @@ vi.mock("@/app/utils/capacity/daily-limits", async importOriginal => {
         lockPickupLocationsForCapacity: vi.fn(async () => {}),
         loadLocationLimitContext: vi.fn(async (_db, _locationId, dateKeys: string[]) => ({
             defaultDailyLimit: 15,
-            explicitSlotLimit: 15,
             effectiveDailyLimits: Object.fromEntries(dateKeys.map(dateKey => [dateKey, 15])),
             overrides: {},
         })),

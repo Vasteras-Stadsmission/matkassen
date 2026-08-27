@@ -8,7 +8,6 @@
  * Key validations:
  * - Location and parcel existence
  * - Daily capacity limits (location-specific)
- * - Time slot capacity limits (configurable per location, defaults to 4)
  * - Double booking prevention (one parcel per household per day)
  * - Operating hours validation
  * - Past date prevention
@@ -16,7 +15,7 @@
  * @module validation/parcel-assignment
  */
 
-import { and, eq, sql, between, ne, lt, gt } from "drizzle-orm";
+import { and, eq, sql, between, ne } from "drizzle-orm";
 import { db } from "@/app/db/drizzle";
 import { foodParcels, pickupLocations } from "@/app/db/schema";
 import { notDeleted } from "@/app/db/query-helpers";
@@ -72,7 +71,6 @@ export const ValidationErrorCodes = {
     PARCEL_NOT_FOUND: "PARCEL_NOT_FOUND",
     LOCATION_NOT_FOUND: "LOCATION_NOT_FOUND",
     MAX_DAILY_CAPACITY_REACHED: "MAX_DAILY_CAPACITY_REACHED",
-    MAX_SLOT_CAPACITY_REACHED: "MAX_SLOT_CAPACITY_REACHED",
     TIME_SLOT_CONFLICT: "TIME_SLOT_CONFLICT",
     OUTSIDE_OPERATING_HOURS: "OUTSIDE_OPERATING_HOURS",
     PAST_TIME_SLOT: "PAST_TIME_SLOT",
@@ -104,8 +102,7 @@ export function hasPositiveSlotDuration(startTime: Date, endTime: Date): boolean
  * 1. Parcel and location existence (skipped for new parcels)
  * 2. Time slot is not in the past
  * 3. Daily capacity at the location
- * 4. Time slot capacity (concurrent parcels)
- * 5. Household double booking prevention
+ * 4. Household double booking prevention
  *
  * @param params - Validation parameters
  * @param params.parcelId - ID of the parcel to validate (can be temporary for new parcels)
@@ -212,7 +209,6 @@ export async function validateParcelAssignment({
         const [location] = await dbInstance
             .select({
                 id: pickupLocations.id,
-                maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                 slotDuration: pickupLocations.default_slot_duration_minutes,
                 name: pickupLocations.name,
             })
@@ -383,48 +379,6 @@ export async function validateParcelAssignment({
             });
         }
 
-        // 6. Validate slot-level capacity (parcels in the same time slot)
-        // A null slot limit means there is no tighter independent slot ceiling.
-        // The effective daily limit above still caps how many parcels can occupy any one slot.
-        const maxParcelsPerSlot = location.maxParcelsPerSlot;
-
-        if (maxParcelsPerSlot !== null) {
-            const slotStartUTC = new Date(newTimeslot.startTime);
-            const slotEndUTC = new Date(newTimeslot.endTime);
-
-            const [{ slotCount }] = await dbInstance
-                .select({ slotCount: sql<number>`count(*)` })
-                .from(foodParcels)
-                .where(
-                    and(
-                        eq(foodParcels.pickup_location_id, newLocationId),
-                        // Check for overlapping time slots using UTC comparisons
-                        lt(foodParcels.pickup_date_time_earliest, slotEndUTC),
-                        gt(foodParcels.pickup_date_time_latest, slotStartUTC),
-                        ne(foodParcels.id, parcelId), // Exclude current parcel
-                        notDeleted(),
-                    ),
-                )
-                .execute();
-
-            // Allow up to maxParcelsPerSlot parcels per time slot
-            if (slotCount >= maxParcelsPerSlot) {
-                const startTimeStr = Time.fromDate(newTimeslot.startTime).toTimeString();
-                errors.push({
-                    field: "timeSlot",
-                    code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
-                    message: `Maximum capacity (${maxParcelsPerSlot}) reached for this time slot`,
-                    details: {
-                        current: slotCount,
-                        maximum: maxParcelsPerSlot,
-                        date: capacityDateKey,
-                        locationId: newLocationId,
-                        timeSlot: startTimeStr,
-                    } as CapacityValidationDetails,
-                });
-            }
-        }
-
         return {
             success: errors.length === 0,
             ...(errors.length > 0 && { errors }),
@@ -467,9 +421,6 @@ export function formatValidationError(error: ValidationError, locationName?: str
         case ValidationErrorCodes.MAX_DAILY_CAPACITY_REACHED:
             const capacityDetails = error.details as CapacityValidationDetails;
             return `${locationName || "This location"} has reached its maximum capacity of ${capacityDetails.maximum} parcels for ${capacityDetails.date}`;
-
-        case ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED:
-            return `This time slot is fully booked. Please select a different time.`;
 
         case ValidationErrorCodes.HOUSEHOLD_DOUBLE_BOOKING:
             const conflictDetails = error.details as ConflictValidationDetails;
@@ -583,42 +534,6 @@ export async function validateBulkParcelAssignments(
                         locationId,
                     },
                 });
-            }
-        }
-
-        if (limitContext.explicitSlotLimit !== null) {
-            for (const assignment of newAssignments) {
-                const [{ slotCount }] = await dbInstanceFor(tx)
-                    .select({ slotCount: sql<number>`count(*)` })
-                    .from(foodParcels)
-                    .where(
-                        and(
-                            eq(foodParcels.pickup_location_id, locationId),
-                            lt(foodParcels.pickup_date_time_earliest, assignment.timeslot.endTime),
-                            gt(foodParcels.pickup_date_time_latest, assignment.timeslot.startTime),
-                            notDeleted(),
-                        ),
-                    )
-                    .execute();
-                const incomingOverlapCount = newAssignments.filter(
-                    candidate =>
-                        candidate.timeslot.startTime < assignment.timeslot.endTime &&
-                        candidate.timeslot.endTime > assignment.timeslot.startTime,
-                ).length;
-
-                if (slotCount + incomingOverlapCount > limitContext.explicitSlotLimit) {
-                    allErrors.push({
-                        field: `parcel_${assignment.parcelId}_timeSlot`,
-                        code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
-                        message: `Maximum capacity (${limitContext.explicitSlotLimit}) reached for this time slot`,
-                        details: {
-                            current: slotCount + incomingOverlapCount,
-                            maximum: limitContext.explicitSlotLimit,
-                            date: stockholmDateKey(assignment.timeslot.startTime),
-                            locationId,
-                        },
-                    });
-                }
             }
         }
     }

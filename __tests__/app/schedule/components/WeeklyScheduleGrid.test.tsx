@@ -52,7 +52,6 @@ interface WeeklyScheduleGridProps {
     weekDates: Date[];
     foodParcels: FoodParcel[];
     maxParcelsPerDay: number;
-    maxParcelsPerSlot?: number;
     onParcelRescheduled: () => void;
 }
 
@@ -60,7 +59,6 @@ const TestableWeeklyScheduleGrid = ({
     weekDates,
     foodParcels,
     maxParcelsPerDay,
-    maxParcelsPerSlot = 3,
     onParcelRescheduled,
 }: WeeklyScheduleGridProps) => {
     // Function to be called when a drag event happens
@@ -307,7 +305,6 @@ describe("WeeklyScheduleGrid Component", () => {
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
-                maxParcelsPerSlot={3}
                 onParcelRescheduled={mockOnRescheduled}
             />,
         );
@@ -338,7 +335,6 @@ describe("WeeklyScheduleGrid Component", () => {
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
-                maxParcelsPerSlot={3}
                 onParcelRescheduled={mockOnRescheduled}
             />,
         );
@@ -389,7 +385,6 @@ describe("WeeklyScheduleGrid Component", () => {
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
-                maxParcelsPerSlot={3}
                 onParcelRescheduled={mockOnRescheduled}
             />,
         );
@@ -434,7 +429,6 @@ describe("WeeklyScheduleGrid Component", () => {
                 weekDates={mockWeekDates}
                 foodParcels={allParcels}
                 maxParcelsPerDay={10}
-                maxParcelsPerSlot={3}
                 onParcelRescheduled={mockOnRescheduled}
             />,
         );
@@ -459,7 +453,6 @@ describe("WeeklyScheduleGrid Component", () => {
                 weekDates={mockWeekDates}
                 foodParcels={mockFoodParcels}
                 maxParcelsPerDay={10}
-                maxParcelsPerSlot={3}
                 onParcelRescheduled={mockOnRescheduled}
             />,
         );
@@ -512,7 +505,6 @@ describe("WeeklyScheduleGrid Component", () => {
                     weekDates={mockWeekDates}
                     foodParcels={mockFoodParcels}
                     maxParcelsPerDay={10}
-                    maxParcelsPerSlot={3}
                     onParcelRescheduled={mockOnRescheduled}
                 />,
             );

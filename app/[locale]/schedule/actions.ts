@@ -9,7 +9,6 @@ import {
     between,
     ne,
     gt,
-    lt,
     count,
     countDistinct,
     inArray,
@@ -183,7 +182,6 @@ export const getPickupLocations = protectedReadAction(
                     name: pickupLocations.name,
                     street_address: pickupLocations.street_address,
                     maxParcelsPerDay: pickupLocations.parcels_max_per_day,
-                    maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
                     outsideHoursCount: pickupLocations.outside_hours_count,
                     // Avoid correlated subqueries here; some drivers/dialects can mis-handle outer column references.
                     // Instead, join upcoming schedules + open days and count matches.
@@ -209,7 +207,6 @@ export const getPickupLocations = protectedReadAction(
                     pickupLocations.name,
                     pickupLocations.street_address,
                     pickupLocations.parcels_max_per_day,
-                    pickupLocations.max_parcels_per_slot,
                     pickupLocations.outside_hours_count,
                 );
 
@@ -509,88 +506,6 @@ export const getFoodParcelsForWeek = protectedAdminAgreementReadAction(
         } catch (error) {
             logError("Error fetching food parcels for week", error, { locationId });
             return [];
-        }
-    },
-);
-
-/**
- * Get the number of food parcels for each timeslot on a specific date
- */
-export const getTimeslotCounts = protectedReadAction(
-    async (
-        _session,
-        locationId: string,
-        date: Date,
-        excludeParcelId?: string,
-    ): Promise<Record<string, number>> => {
-        try {
-            // Get start and end of the date in Stockholm timezone, then convert to UTC for DB query
-            const dateInStockholm = Time.fromDate(date);
-            const startTimeStockholm = dateInStockholm.startOfDay();
-            const endTimeStockholm = dateInStockholm.endOfDay();
-
-            // Convert to UTC for database query
-            const startDate = startTimeStockholm.toUTC();
-            const endDate = endTimeStockholm.toUTC();
-
-            // Fetch the location settings to get the slot duration
-            const [locationSettings] = await db
-                .select({
-                    slotDuration: pickupLocations.default_slot_duration_minutes,
-                })
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, locationId))
-                .limit(1);
-
-            // Default to 30 minutes if setting is not found
-            const slotDurationMinutes = locationSettings?.slotDuration ?? 30;
-
-            // Build WHERE conditions
-            const conditions = [
-                eq(foodParcels.pickup_location_id, locationId),
-                lt(foodParcels.pickup_date_time_earliest, endDate),
-                gt(foodParcels.pickup_date_time_latest, startDate),
-                notDeleted(),
-            ];
-
-            // Exclude the parcel being rescheduled from the count
-            if (excludeParcelId) {
-                conditions.push(ne(foodParcels.id, excludeParcelId));
-            }
-
-            // Query food parcels for this location and date
-            const parcels = await db
-                .select({
-                    pickupEarliestTime: foodParcels.pickup_date_time_earliest,
-                    pickupLatestTime: foodParcels.pickup_date_time_latest,
-                })
-                .from(foodParcels)
-                .where(and(...conditions));
-
-            // Count interval overlap for every slot. This mirrors hard-cap enforcement and also
-            // handles supported pickup windows that are longer than one configured slot.
-            const timeslotCounts: Record<string, number> = {};
-            const slotDurationMs = slotDurationMinutes * 60_000;
-            for (
-                let slotStartMs = startDate.getTime();
-                slotStartMs < endDate.getTime();
-                slotStartMs += slotDurationMs
-            ) {
-                const slotStart = new Date(slotStartMs);
-                const slotEnd = new Date(slotStartMs + slotDurationMs);
-                const count = parcels.filter(
-                    parcel =>
-                        parcel.pickupEarliestTime < slotEnd && parcel.pickupLatestTime > slotStart,
-                ).length;
-                if (count > 0) {
-                    timeslotCounts[Time.fromDate(slotStart).toTimeString()] = count;
-                }
-            }
-
-            return timeslotCounts;
-        } catch (error) {
-            logError("Error fetching timeslot counts", error, { locationId });
-            throw error;
         }
     },
 );
@@ -1112,36 +1027,6 @@ export const getLocationSlotDuration = protectedReadAction(
             logError("Error fetching location slot duration", error, { locationId });
             // Default to 15 minutes in case of error
             return 15;
-        }
-    },
-);
-
-/**
- * Get slot configuration for a pickup location (duration and max per slot).
- * Requires authentication.
- */
-export const getLocationSlotConfig = protectedReadAction(
-    async (
-        _session,
-        locationId: string,
-    ): Promise<{ slotDuration: number; maxParcelsPerSlot: number | null }> => {
-        try {
-            const [settings] = await db
-                .select({
-                    slotDuration: pickupLocations.default_slot_duration_minutes,
-                    maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
-                })
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, locationId))
-                .limit(1);
-
-            return {
-                slotDuration: settings?.slotDuration ?? 15,
-                maxParcelsPerSlot: settings?.maxParcelsPerSlot ?? null,
-            };
-        } catch (error) {
-            logError("Error fetching location slot config", error, { locationId });
-            throw error;
         }
     },
 );
@@ -1761,32 +1646,6 @@ export const bulkRescheduleParcels = protectedAdminAction(
                 ]);
                 const effectiveDailyLimit = limitContext.effectiveDailyLimits[targetDateKey];
 
-                // Slot capacity check
-                if (limitContext.explicitSlotLimit != null) {
-                    const existingInSlot = await tx
-                        .select({ count: count() })
-                        .from(foodParcels)
-                        .where(
-                            and(
-                                eq(foodParcels.pickup_location_id, locationId),
-                                lt(foodParcels.pickup_date_time_earliest, lockedEndTime),
-                                gt(foodParcels.pickup_date_time_latest, newTimeslot.startTime),
-                                notDeleted(),
-                                sql`${foodParcels.id} NOT IN (${sql.join(
-                                    parcelIds.map(id => sql`${id}`),
-                                    sql`, `,
-                                )})`,
-                            ),
-                        );
-
-                    const existingCount = existingInSlot[0]?.count ?? 0;
-                    if (existingCount + parcelIds.length > limitContext.explicitSlotLimit) {
-                        throw new Error(
-                            `CAPACITY_EXCEEDED:${existingCount}:${limitContext.explicitSlotLimit}`,
-                        );
-                    }
-                }
-
                 // Daily capacity check
                 if (effectiveDailyLimit != null) {
                     const dayStart = Time.fromDate(newTimeslot.startTime).startOfDay().toUTC();
@@ -1872,13 +1731,6 @@ export const bulkRescheduleParcels = protectedAdminAction(
 
             return success({ count: parcelIds.length });
         } catch (error) {
-            // Handle capacity exceeded from transaction
-            if (error instanceof Error && error.message.startsWith("CAPACITY_EXCEEDED:")) {
-                return failure({
-                    code: "CAPACITY_EXCEEDED",
-                    message: "Slot capacity would be exceeded",
-                });
-            }
             if (error instanceof Error && error.message === "DAILY_CAPACITY_EXCEEDED") {
                 return failure({
                     code: "CAPACITY_EXCEEDED",

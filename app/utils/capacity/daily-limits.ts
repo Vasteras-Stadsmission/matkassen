@@ -19,7 +19,6 @@ export const MAX_DAILY_LIMIT_DATES_PER_MUTATION = 366;
 
 export interface LocationLimitContext {
     defaultDailyLimit: number | null;
-    explicitSlotLimit: number | null;
     effectiveDailyLimits: Record<string, number | null>;
     overrides: Record<string, number>;
 }
@@ -142,7 +141,6 @@ export async function loadLocationLimitContext(
     const [location] = await dbInstance
         .select({
             defaultDailyLimit: pickupLocations.parcels_max_per_day,
-            explicitSlotLimit: pickupLocations.max_parcels_per_slot,
         })
         .from(pickupLocations)
         .where(eq(pickupLocations.id, locationId))
@@ -176,7 +174,6 @@ export async function loadLocationLimitContext(
 
     return {
         defaultDailyLimit: location.defaultDailyLimit,
-        explicitSlotLimit: location.explicitSlotLimit,
         effectiveDailyLimits,
         overrides,
     };

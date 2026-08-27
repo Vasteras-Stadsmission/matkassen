@@ -119,10 +119,6 @@ function timeSlotLabel(earliest: Date, latest: Date): string {
     return `${Time.fromDate(earliest).toTimeString()}-${Time.fromDate(latest).toTimeString()}`;
 }
 
-function overlaps(a: FinalStateParcel, b: Pick<FinalStateParcel, "earliest" | "latest">): boolean {
-    return a.earliest < b.latest && a.latest > b.earliest;
-}
-
 function hasDesiredParcelChanged(
     existing: ExistingFutureParcel,
     desired: FoodParcel,
@@ -256,7 +252,6 @@ async function validateFinalState(
     const locations = await tx
         .select({
             id: pickupLocations.id,
-            maxParcelsPerSlot: pickupLocations.max_parcels_per_slot,
         })
         .from(pickupLocations)
         .where(inArray(pickupLocations.id, targetLocationIds));
@@ -433,36 +428,6 @@ async function validateFinalState(
                     },
                 });
             }
-        }
-    }
-
-    const checkedSlots = new Set<string>();
-
-    for (const desired of changedRows) {
-        const location = locationById.get(desired.locationId)!;
-        if (location.maxParcelsPerSlot === null) continue;
-
-        const slotKey = `${desired.locationId}-${desired.earliest.toISOString()}-${desired.latest.toISOString()}`;
-        if (checkedSlots.has(slotKey)) continue;
-        checkedSlots.add(slotKey);
-
-        const overlappingRows = finalRows.filter(
-            parcel => parcel.locationId === desired.locationId && overlaps(parcel, desired),
-        );
-
-        if (overlappingRows.length > location.maxParcelsPerSlot) {
-            addUniqueError(errors, {
-                field: "timeSlot",
-                code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
-                message: `Maximum capacity (${location.maxParcelsPerSlot}) reached for this time slot`,
-                details: {
-                    current: overlappingRows.length,
-                    maximum: location.maxParcelsPerSlot,
-                    date: stockholmDate(desired.earliest),
-                    locationId: desired.locationId,
-                    timeSlot: timeSlotLabel(desired.earliest, desired.latest),
-                },
-            });
         }
     }
 
