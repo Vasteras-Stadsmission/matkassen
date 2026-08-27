@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24.18.0-alpine3.23 AS base
+FROM node:26.7.0-alpine3.23 AS base
 
 LABEL org.opencontainers.image.source=https://github.com/Vasteras-Stadsmission/matkassen
 
