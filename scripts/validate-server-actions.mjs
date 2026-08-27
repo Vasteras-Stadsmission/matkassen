@@ -3,9 +3,6 @@
 /**
  * Validation script to ensure all server actions use protectedAction wrapper
  * This runs in CI/CD to enforce security at build time
- *
- * EXCEPTION: app/db/actions.ts contains storeCspViolationAction which is intentionally
- * public because CSP reports are sent automatically by browsers without authentication.
  */
 
 // Helper functions that are called from other protected actions, not directly from clients.
@@ -68,27 +65,6 @@ function getAllFiles(dir, fileList = []) {
 function checkFile(filePath) {
     const content = readFileSync(filePath, "utf-8");
     const relativePath = relative(rootDir, filePath);
-
-    // Special case: app/db/actions.ts contains intentionally public CSP violation handler
-    if (relativePath === "app/db/actions.ts") {
-        // Verify it only contains storeCspViolationAction (no other unprotected actions)
-        const hasOtherActions =
-            content.includes("export async function") &&
-            !content.match(/export async function storeCspViolationAction/);
-
-        if (hasOtherActions) {
-            violations.push({
-                file: relativePath,
-                type: "UNEXPECTED_PUBLIC_ACTION",
-                message: `File contains public server actions other than storeCspViolationAction. Only CSP handler should be public.`,
-            });
-            hasErrors = true;
-        }
-        console.log(
-            `${colors.dim}Skipping (CSP handler):${colors.reset} ${relativePath} - storeCspViolationAction is intentionally public`,
-        );
-        return;
-    }
 
     // Only check files with "use server" directive
     if (!content.includes('"use server"') && !content.includes("'use server'")) {
