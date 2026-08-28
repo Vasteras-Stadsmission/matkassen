@@ -566,6 +566,24 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
 });
 
 describe("Restore script argument handling", () => {
+    const testRoot = path.join(os.tmpdir(), `backup-restore-arguments-${Date.now()}`);
+    const mockBin = path.join(testRoot, "bin");
+    const dockerLog = path.join(testRoot, "docker.log");
+
+    beforeAll(() => {
+        fs.mkdirSync(mockBin, { recursive: true });
+        fs.writeFileSync(
+            path.join(mockBin, "docker"),
+            `#!/bin/bash\nprintf 'called\\n' >> "\${DOCKER_LOG}"\nexit 0\n`,
+        );
+        fs.chmodSync(path.join(mockBin, "docker"), 0o755);
+        fs.writeFileSync(dockerLog, "");
+    });
+
+    afterAll(() => {
+        fs.rmSync(testRoot, { recursive: true, force: true });
+    });
+
     it("rejects filenames that don't end in .dump.gpg", () => {
         const restoreScript = path.join(process.cwd(), "scripts/backup-restore.sh");
         let exitCode = 0;
@@ -577,6 +595,8 @@ describe("Restore script argument handling", () => {
                     ENV_NAME: "production",
                     DB_BACKUP_PASSPHRASE: "anything",
                     SWIFT_CONTAINER: "x",
+                    PATH: `${mockBin}:${process.env.PATH}`,
+                    DOCKER_LOG: dockerLog,
                 },
                 stdio: "pipe",
             });
@@ -586,6 +606,7 @@ describe("Restore script argument handling", () => {
         }
         expect(exitCode).not.toBe(0);
         expect(stderr).toMatch(/must end in \.dump\.gpg/);
+        expect(fs.readFileSync(dockerLog, "utf-8")).toBe("");
     });
 
     it("refuses to run outside ENV_NAME=production", () => {
@@ -599,6 +620,8 @@ describe("Restore script argument handling", () => {
                     ENV_NAME: "staging",
                     DB_BACKUP_PASSPHRASE: "anything",
                     SWIFT_CONTAINER: "x",
+                    PATH: `${mockBin}:${process.env.PATH}`,
+                    DOCKER_LOG: dockerLog,
                 },
                 stdio: "pipe",
             });
@@ -608,6 +631,7 @@ describe("Restore script argument handling", () => {
         }
         expect(exitCode).not.toBe(0);
         expect(stderr).toMatch(/ENV_NAME=production/);
+        expect(fs.readFileSync(dockerLog, "utf-8")).toBe("");
     });
 });
 
