@@ -20,7 +20,7 @@ import {
     resetHouseholdCounter,
     resetLocationCounter,
 } from "../../factories";
-import { foodParcels, pickupLocations } from "@/app/db/schema";
+import { foodParcels } from "@/app/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 
 describe("Pickup Location Capacity - Integration Tests", () => {
@@ -237,31 +237,14 @@ describe("Pickup Location Capacity - Integration Tests", () => {
         });
     });
 
-    describe("Location Max Parcels Per Day", () => {
-        it("should respect max_parcels_per_slot setting", async () => {
-            const db = await getTestDb();
-            const { location } = await createTestLocationWithSchedule({
-                max_parcels_per_slot: 2, // Only 2 per slot
-            });
-
-            // Query location to verify setting
-            const [loc] = await db
-                .select()
-                .from(pickupLocations)
-                .where(eq(pickupLocations.id, location.id));
-
-            expect(loc.max_parcels_per_slot).toBe(2);
-        });
-    });
-
-    describe("Multiple Households Same Slot", () => {
-        it("should allow different households to book same slot up to capacity", async () => {
+    describe("Multiple households at the same pickup time", () => {
+        it("allows all parcels when the shared pickup time is within daily capacity", async () => {
             const db = await getTestDb();
             const household1 = await createTestHousehold();
             const household2 = await createTestHousehold();
             const household3 = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule({
-                max_parcels_per_slot: 3,
+                parcels_max_per_day: 3,
             });
 
             const pickupDate = new Date();
@@ -269,7 +252,7 @@ describe("Pickup Location Capacity - Integration Tests", () => {
             pickupDate.setHours(10, 0, 0, 0);
             const endTime = new Date(pickupDate.getTime() + 30 * 60 * 1000);
 
-            // All 3 households book the same slot
+            // Sharing a pickup time does not introduce a separate capacity limit.
             await createTestParcel({
                 household_id: household1.id,
                 pickup_location_id: location.id,
@@ -289,7 +272,6 @@ describe("Pickup Location Capacity - Integration Tests", () => {
                 pickup_date_time_latest: endTime,
             });
 
-            // All 3 should be active
             const activeParcels = await db
                 .select()
                 .from(foodParcels)

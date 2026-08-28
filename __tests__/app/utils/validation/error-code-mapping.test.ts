@@ -15,7 +15,6 @@ describe("Validation Error Code Mapping", () => {
         PAST_TIME_SLOT: "validationErrors.pastTimeSlot",
         PAST_PICKUP_TIME: "validationErrors.pastTimeSlot",
         CAPACITY_REACHED: "validationErrors.capacityReached",
-        SLOT_CAPACITY_REACHED: "validationErrors.slotCapacityReached",
         DOUBLE_BOOKING: "validationErrors.doubleBooking",
         OUTSIDE_OPENING_HOURS: "validationErrors.outsideOperatingHours",
     };
@@ -38,13 +37,6 @@ describe("Validation Error Code Mapping", () => {
         it("should map CAPACITY_REACHED to capacityReached i18n key", () => {
             const errorCode = "CAPACITY_REACHED";
             const expectedKey = "validationErrors.capacityReached";
-
-            expect(errorCodeMap[errorCode]).toBe(expectedKey);
-        });
-
-        it("should map SLOT_CAPACITY_REACHED to slotCapacityReached i18n key", () => {
-            const errorCode = "SLOT_CAPACITY_REACHED";
-            const expectedKey = "validationErrors.slotCapacityReached";
 
             expect(errorCodeMap[errorCode]).toBe(expectedKey);
         });
@@ -146,10 +138,6 @@ describe("Validation Error Messages (i18n verification)", () => {
         "foodParcels.validationErrors.capacityReached": {
             sv: "Platsens kapacitet överskriden för valt datum",
             en: "Location capacity exceeded for selected date",
-        },
-        "foodParcels.validationErrors.slotCapacityReached": {
-            sv: "Tidssloten är fullbokad",
-            en: "Time slot is fully booked",
         },
         "foodParcels.validationErrors.doubleBooking": {
             sv: "Hushållet har redan en matkasse schemalagd för detta datum",

@@ -2,7 +2,7 @@
  * Integration tests for bulk reschedule functionality.
  *
  * Tests the bulkRescheduleParcels server action against a real (PGlite) database.
- * Covers: happy path, picked-up rejection, slot capacity, daily capacity,
+ * Covers: happy path, picked-up rejection, daily capacity,
  * opening hours validation, and outside_hours_count recomputation.
  */
 
@@ -82,11 +82,13 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
     }
 
     describe("Happy path", () => {
-        it("should reschedule multiple parcels to a new time slot", async () => {
+        it("reschedules multiple parcels to the same pickup time within daily capacity", async () => {
             const db = await getTestDb();
             const h1 = await createTestHousehold();
             const h2 = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule();
+            const { location } = await createTestLocationWithSchedule({
+                parcels_max_per_day: 2,
+            });
 
             // Create 2 parcels at Tuesday 10:00
             const tue = daysFromTestNow(3);
@@ -349,118 +351,6 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
         });
     });
 
-    describe("Slot capacity", () => {
-        it("should reject when slot capacity would be exceeded", async () => {
-            const h1 = await createTestHousehold();
-            const h2 = await createTestHousehold();
-            const h3 = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule({
-                max_parcels_per_slot: 2,
-            });
-
-            const targetTime = nextMonday10am();
-            const slotEnd = new Date(targetTime.getTime() + 15 * 60 * 1000);
-
-            // Pre-fill target slot with 2 parcels (at capacity)
-            await createTestParcel({
-                household_id: h1.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: targetTime,
-                pickup_date_time_latest: slotEnd,
-            });
-            await createTestParcel({
-                household_id: h2.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: targetTime,
-                pickup_date_time_latest: slotEnd,
-            });
-
-            // Try to move another parcel into that slot
-            const tue = daysFromTestNow(3);
-            tue.setHours(10, 0, 0, 0);
-            const toMove = await createTestParcel({
-                household_id: h3.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: tue,
-            });
-
-            const result = await bulkRescheduleParcels([toMove.id], {
-                startTime: targetTime,
-            });
-
-            expect(result.success).toBe(false);
-            expect(result).toMatchObject({
-                error: expect.objectContaining({ code: "CAPACITY_EXCEEDED" }),
-            });
-        });
-
-        it("should exclude parcels being moved from capacity count", async () => {
-            const h1 = await createTestHousehold();
-            const h2 = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule({
-                max_parcels_per_slot: 2,
-            });
-
-            const targetTime = nextMonday10am();
-            const slotEnd = new Date(targetTime.getTime() + 15 * 60 * 1000);
-
-            // Create 2 parcels already in the target slot
-            const p1 = await createTestParcel({
-                household_id: h1.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: targetTime,
-                pickup_date_time_latest: slotEnd,
-            });
-            const p2 = await createTestParcel({
-                household_id: h2.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: targetTime,
-                pickup_date_time_latest: slotEnd,
-            });
-
-            // Moving the same parcels to the same slot should succeed
-            // (they are excluded from capacity count)
-            const result = await bulkRescheduleParcels([p1.id, p2.id], {
-                startTime: targetTime,
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("should count an existing parcel whose time overlaps the target slot", async () => {
-            const existingHousehold = await createTestHousehold();
-            const movingHousehold = await createTestHousehold();
-            const { location } = await createTestLocationWithSchedule({
-                max_parcels_per_slot: 1,
-            });
-            const targetTime = nextMonday10am();
-            const overlapStart = new Date(targetTime.getTime() - 10 * 60 * 1000);
-            const overlapEnd = new Date(targetTime.getTime() + 5 * 60 * 1000);
-            await createTestParcel({
-                household_id: existingHousehold.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: overlapStart,
-                pickup_date_time_latest: overlapEnd,
-            });
-            const sourceTime = daysFromTestNow(3);
-            sourceTime.setHours(10, 0, 0, 0);
-            const toMove = await createTestParcel({
-                household_id: movingHousehold.id,
-                pickup_location_id: location.id,
-                pickup_date_time_earliest: sourceTime,
-            });
-
-            const result = await bulkRescheduleParcels([toMove.id], {
-                startTime: targetTime,
-            });
-
-            expect(result).toMatchObject({
-                success: false,
-                error: expect.objectContaining({ code: "CAPACITY_EXCEEDED" }),
-            });
-        });
-    });
-
     describe("Daily capacity", () => {
         it("should reject when daily capacity would be exceeded", async () => {
             const h1 = await createTestHousehold();
@@ -468,7 +358,6 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
             const h3 = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule({
                 parcels_max_per_day: 2,
-                max_parcels_per_slot: 10, // High slot cap so only daily cap matters
             });
 
             const targetTime = nextMonday10am();
@@ -516,7 +405,6 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
             const otherHousehold = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule({
                 parcels_max_per_day: 1,
-                max_parcels_per_slot: null,
             });
             const originalTime = nextMonday10am();
             const parcel = await createTestParcel({
@@ -556,7 +444,6 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
             const secondHousehold = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule({
                 parcels_max_per_day: 1,
-                max_parcels_per_slot: null,
             });
             const originalTime = nextMonday10am();
             const firstParcel = await createTestParcel({
@@ -599,7 +486,6 @@ describe("bulkRescheduleParcels - Integration Tests", () => {
             const h2 = await createTestHousehold();
             const { location } = await createTestLocationWithSchedule({
                 parcels_max_per_day: 10,
-                max_parcels_per_slot: null,
             });
             const targetTime = nextMonday10am();
 

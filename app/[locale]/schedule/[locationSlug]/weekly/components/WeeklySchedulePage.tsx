@@ -335,14 +335,6 @@ export function WeeklySchedulePage({ locationSlug, initialDateKey }: WeeklySched
         closeAdminDialog();
     }, [handleParcelRescheduled, closeAdminDialog]);
 
-    // Helper function to get max parcels per slot
-    // Returns null for "no limit", undefined when no location loaded
-    const getMaxParcelsPerSlot = useCallback((): number | null | undefined => {
-        // Return undefined if location not loaded, otherwise return the location's value
-        // (which may be null for "no limit" or a number for an explicit limit)
-        return currentLocation?.maxParcelsPerSlot;
-    }, [currentLocation]);
-
     const selectedDateLabel = selectedDate.toLocaleDateString(locale === "sv" ? "sv-SE" : "en-GB", {
         weekday: "long",
         day: "numeric",
@@ -510,7 +502,6 @@ export function WeeklySchedulePage({ locationSlug, initialDateKey }: WeeklySched
                             foodParcels={foodParcels}
                             outsideHoursParcels={outsideHoursParcels}
                             dailyLimitsByDate={dailyLimitsByDate}
-                            maxParcelsPerSlot={getMaxParcelsPerSlot()}
                             onParcelRescheduled={handleParcelRescheduled}
                             locationId={currentLocation.id}
                             selectedDate={selectedDate}
