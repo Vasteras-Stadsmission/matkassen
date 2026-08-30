@@ -190,6 +190,8 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResponse>
             message: request.text,
             from: request.from || config.from,
             sendApiCallback: true,
+            callbackRef: request.callbackRef,
+            subject: request.subject,
         };
 
         const response = await fetch(config.apiUrl, {

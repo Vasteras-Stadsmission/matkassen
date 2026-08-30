@@ -54,6 +54,8 @@ export interface SendSmsRequest {
     to: string; // E.164 format phone number
     text: string;
     from?: string;
+    callbackRef?: string; // Matkassen record ID returned unchanged in delivery callbacks
+    subject?: string; // Internal HelloSMS reference shown in its dashboard
 }
 
 export interface SendSmsResponse {
