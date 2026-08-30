@@ -12,26 +12,6 @@ vi.mock("../../../../app/db/drizzle", () => ({
     },
 }));
 
-// This is a local implementation of getTimeslotCounts for testing
-function getTimeslotCountsImpl(parcels: Array<{ pickupEarliestTime: Date }>) {
-    const timeslotCounts: Record<string, number> = {};
-
-    parcels.forEach(parcel => {
-        const time = parcel.pickupEarliestTime;
-        const hour = time.getHours();
-        const minutes = time.getMinutes() < 30 ? 0 : 30;
-        const key = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-
-        if (!timeslotCounts[key]) {
-            timeslotCounts[key] = 0;
-        }
-
-        timeslotCounts[key] += 1;
-    });
-
-    return timeslotCounts;
-}
-
 // Tests for schedule utility functions that don't involve React components
 describe("Schedule Utilities", () => {
     let RealDate: DateConstructor;
@@ -91,47 +71,6 @@ describe("Schedule Utilities", () => {
     afterEach(() => {
         // Restore the original Date
         global.Date = RealDate;
-    });
-
-    describe("getTimeslotCounts", () => {
-        it("counts parcels correctly by 30-minute time slots", () => {
-            const parcels = [
-                { pickupEarliestTime: new Date("2025-04-16T10:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T10:15:00") }, // Should be counted in 10:00 slot
-                { pickupEarliestTime: new Date("2025-04-16T10:30:00") }, // Should be counted in 10:30 slot
-                { pickupEarliestTime: new Date("2025-04-16T10:45:00") }, // Should be counted in 10:30 slot
-                { pickupEarliestTime: new Date("2025-04-16T11:00:00") }, // Should be counted in 11:00 slot
-            ];
-
-            const counts = getTimeslotCountsImpl(parcels);
-
-            expect(counts["10:00"]).toBe(2);
-            expect(counts["10:30"]).toBe(2);
-            expect(counts["11:00"]).toBe(1);
-            expect(Object.keys(counts).length).toBe(3);
-        });
-
-        it("handles empty parcels list", () => {
-            const counts = getTimeslotCountsImpl([]);
-            expect(Object.keys(counts).length).toBe(0);
-        });
-
-        it("handles parcels spanning multiple hours", () => {
-            const parcels = [
-                { pickupEarliestTime: new Date("2025-04-16T09:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T10:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T11:00:00") },
-                { pickupEarliestTime: new Date("2025-04-16T12:00:00") },
-            ];
-
-            const counts = getTimeslotCountsImpl(parcels);
-
-            expect(counts["09:00"]).toBe(1);
-            expect(counts["10:00"]).toBe(1);
-            expect(counts["11:00"]).toBe(1);
-            expect(counts["12:00"]).toBe(1);
-            expect(Object.keys(counts).length).toBe(4);
-        });
     });
 
     // Other utility functions that don't depend on React components

@@ -90,7 +90,6 @@ describe("WeeklyScheduleGrid daily capacity", () => {
                     foodParcels={[parcel("1", date), parcel("2", laterParcelDate)]}
                     outsideHoursParcels={[]}
                     dailyLimitsByDate={{ [formatDateToYMD(date)]: 1 }}
-                    maxParcelsPerSlot={2}
                     onParcelRescheduled={vi.fn()}
                     locationId="location-1"
                 />

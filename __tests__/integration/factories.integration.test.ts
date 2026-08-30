@@ -102,7 +102,6 @@ describe("Test Data Factories", () => {
             expect(location.street_address).toBe("Test Street 1");
             expect(location.postal_code).toBe("72345");
             expect(location.default_slot_duration_minutes).toBe(15);
-            expect(location.max_parcels_per_slot).toBe(4);
         });
 
         it("should create location with schedule and weekday hours", async () => {

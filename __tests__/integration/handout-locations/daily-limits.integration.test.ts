@@ -220,7 +220,6 @@ describe("date-specific parcel limit actions", () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule({
             parcels_max_per_day: 20,
-            max_parcels_per_slot: 4,
             default_slot_duration_minutes: 15,
         });
 
@@ -232,8 +231,7 @@ describe("date-specific parcel limit actions", () => {
             contact_email: location.contact_email,
             contact_phone_number: location.contact_phone_number ?? "",
             parcels_max_per_day: 999,
-            max_parcels_per_slot: 999,
-            default_slot_duration_minutes: 999,
+            default_slot_duration_minutes: 30,
         });
 
         expect(result).toMatchObject({ success: true });
@@ -244,16 +242,15 @@ describe("date-specific parcel limit actions", () => {
         expect(updated).toMatchObject({
             name: "Updated location name",
             parcels_max_per_day: 20,
-            max_parcels_per_slot: 4,
             default_slot_duration_minutes: 15,
         });
     });
 
-    it("does not show an unrelated daily warning when only the slot limit changes", async () => {
+    it("requires confirmation when the default daily limit is below existing bookings", async () => {
         const firstHousehold = await createTestHousehold({ phone_number: "+46810000201" });
         const secondHousehold = await createTestHousehold({ phone_number: "+46810000202" });
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: 4 },
+            { parcels_max_per_day: 20 },
             { weekdays: [...allWeekdays] },
         );
         const date = daysFromTestNow(1);
@@ -270,12 +267,14 @@ describe("date-specific parcel limit actions", () => {
 
         const result = await updateLocationLimits(location.id, {
             parcels_max_per_day: 1,
-            max_parcels_per_slot: 3,
         });
 
         expect(result).toMatchObject({
             success: true,
-            data: { status: "updated", conflicts: [] },
+            data: {
+                status: "confirmation_required",
+                conflicts: [expect.objectContaining({ booked: 2, resultingLimit: 1 })],
+            },
         });
     });
 });

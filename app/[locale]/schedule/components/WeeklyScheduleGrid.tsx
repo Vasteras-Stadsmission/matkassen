@@ -103,8 +103,6 @@ interface WeeklyScheduleGridProps {
     foodParcels: FoodParcel[];
     outsideHoursParcels: FoodParcel[];
     dailyLimitsByDate: Record<string, number | null> | null;
-    /** Maximum parcels per slot. null = no limit, undefined = use default (3) */
-    maxParcelsPerSlot?: number | null;
     onParcelRescheduled: () => void;
     locationId?: string | null;
     onOpenAdminDialog?: (parcelId: string) => void;
@@ -118,7 +116,6 @@ export default function WeeklyScheduleGrid({
     foodParcels,
     outsideHoursParcels,
     dailyLimitsByDate,
-    maxParcelsPerSlot,
     onParcelRescheduled,
     locationId,
     onOpenAdminDialog,
@@ -126,8 +123,6 @@ export default function WeeklyScheduleGrid({
     onSelectDate,
     onSelectedDateAvailabilityChange,
 }: WeeklyScheduleGridProps) {
-    // null = no limit (from database), undefined = use default of 3
-    const effectiveMaxParcelsPerSlot = maxParcelsPerSlot === null ? null : (maxParcelsPerSlot ?? 3);
     const t = useTranslations("schedule") as TranslationFunction;
 
     // State to store the location's slot duration
@@ -709,12 +704,7 @@ export default function WeeklyScheduleGrid({
                 return;
             }
 
-            // Check if target slot or day is at capacity
-            const targetSlotParcels = parcelsBySlot[targetDateYMD]?.[timeStr] || [];
-            const slotAtCapacity =
-                effectiveMaxParcelsPerSlot !== null &&
-                targetSlotParcels.length >= effectiveMaxParcelsPerSlot;
-            // Same-day moves don't change the daily total, so skip the day check
+            // Same-day moves don't change the daily total, so skip the capacity check
             const isSameDay = parcelDateYMD === targetDateYMD;
             const targetDailyLimit = dailyLimitsByDate?.[targetDateYMD] ?? null;
             const dayAtCapacity =
@@ -723,12 +713,10 @@ export default function WeeklyScheduleGrid({
                     (targetDailyLimit !== null &&
                         (parcelCountByDate[targetDateYMD] || 0) >= targetDailyLimit));
 
-            if (slotAtCapacity || dayAtCapacity) {
+            if (dayAtCapacity) {
                 showNotification({
                     title: t("reschedule.error", {}),
-                    message: slotAtCapacity
-                        ? t("reschedule.slotCapacityError", {})
-                        : t("reschedule.capacityError", {}),
+                    message: t("reschedule.capacityError", {}),
                     color: "red",
                 });
                 return;
@@ -1345,17 +1333,6 @@ export default function WeeklyScheduleGrid({
                                                         const parcelsInSlot =
                                                             parcelsBySlot[dateKey]?.[timeSlot] ||
                                                             [];
-                                                        // null = no limit, so never over capacity
-                                                        const isOverCapacity =
-                                                            effectiveMaxParcelsPerSlot !== null &&
-                                                            parcelsInSlot.length >
-                                                                effectiveMaxParcelsPerSlot;
-
-                                                        // At capacity: slot is full (>=) or day is full
-                                                        const isSlotAtCapacity =
-                                                            effectiveMaxParcelsPerSlot !== null &&
-                                                            parcelsInSlot.length >=
-                                                                effectiveMaxParcelsPerSlot;
                                                         // Same-day moves don't change daily total, so skip day check when dragging within the same day
                                                         const isDraggingSameDay =
                                                             activeDragParcel &&
@@ -1370,9 +1347,6 @@ export default function WeeklyScheduleGrid({
                                                                 (dailyLimit !== null &&
                                                                     (parcelCountByDate[dateKey] ||
                                                                         0) >= dailyLimit));
-                                                        const isAtCapacity =
-                                                            isSlotAtCapacity || isDayAtCapacity;
-
                                                         // Check if this specific time slot is unavailable
                                                         const isSlotUnavailable =
                                                             isSlotUnavailableForDay(date, timeSlot);
@@ -1425,22 +1399,13 @@ export default function WeeklyScheduleGrid({
                                                                             ),
                                                                         }),
                                                                     )}
-                                                                    maxParcelsPerSlot={
-                                                                        effectiveMaxParcelsPerSlot
-                                                                    }
-                                                                    isOverCapacity={isOverCapacity}
-                                                                    isAtCapacity={isAtCapacity}
+                                                                    isAtCapacity={isDayAtCapacity}
                                                                     capacityReason={
-                                                                        isAtCapacity
-                                                                            ? isSlotAtCapacity
-                                                                                ? t(
-                                                                                      "reschedule.slotCapacityError",
-                                                                                      {},
-                                                                                  )
-                                                                                : t(
-                                                                                      "reschedule.capacityError",
-                                                                                      {},
-                                                                                  )
+                                                                        isDayAtCapacity
+                                                                            ? t(
+                                                                                  "reschedule.capacityError",
+                                                                                  {},
+                                                                              )
                                                                             : undefined
                                                                     }
                                                                     dayIndex={dayIndex}

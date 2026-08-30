@@ -455,7 +455,7 @@ describe("Capacity Action Functions - Integration Tests", () => {
             start.setUTCHours(10, 0, 0, 0);
             const end = new Date(start.getTime() + 15 * 60 * 1000);
             const { location } = await createTestLocationWithSchedule(
-                { parcels_max_per_day: 2, max_parcels_per_slot: null },
+                { parcels_max_per_day: 2 },
                 {
                     startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
                     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -515,11 +515,11 @@ describe("Capacity Action Functions - Integration Tests", () => {
                 ] as const,
             };
             const { location: availableLocation } = await createTestLocationWithSchedule(
-                { parcels_max_per_day: 5, max_parcels_per_slot: null },
+                { parcels_max_per_day: 5 },
                 { ...scheduleOptions, weekdays: [...scheduleOptions.weekdays] },
             );
             const { location: fullLocation } = await createTestLocationWithSchedule(
-                { parcels_max_per_day: 1, max_parcels_per_slot: null },
+                { parcels_max_per_day: 1 },
                 { ...scheduleOptions, weekdays: [...scheduleOptions.weekdays] },
             );
             await createTestParcel({
