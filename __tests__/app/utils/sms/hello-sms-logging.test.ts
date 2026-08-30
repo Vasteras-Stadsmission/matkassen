@@ -67,7 +67,12 @@ describe("HelloSMS privacy-safe logging", () => {
         vi.stubGlobal("fetch", fetchMock);
 
         const { sendSms } = await import("@/app/utils/sms/hello-sms");
-        const result = await sendSms({ to: phone, text: smsBody });
+        const result = await sendSms({
+            to: phone,
+            text: smsBody,
+            callbackRef: "sms-record-123",
+            subject: "Matkassen sms-record-123",
+        });
 
         expect(result).toMatchObject({
             success: false,
@@ -78,7 +83,12 @@ describe("HelloSMS privacy-safe logging", () => {
 
         const [, fetchOptions] = fetchMock.mock.calls[0];
         const requestBody = JSON.parse(fetchOptions.body as string);
-        expect(requestBody).toMatchObject({ to: phone, message: smsBody });
+        expect(requestBody).toMatchObject({
+            to: phone,
+            message: smsBody,
+            callbackRef: "sms-record-123",
+            subject: "Matkassen sms-record-123",
+        });
         const authorization = fetchOptions.headers.Authorization as string;
         expect(authorization).toContain("Basic ");
 

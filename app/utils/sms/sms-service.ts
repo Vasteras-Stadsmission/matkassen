@@ -717,6 +717,8 @@ export async function sendSmsRecord(record: SmsRecord): Promise<boolean> {
         const result: SendSmsResponse = await sendSmsViaGateway({
             to: record.toE164,
             text: record.text,
+            callbackRef: record.id,
+            subject: `Matkassen ${record.id}`,
         });
 
         if (result.success) {
@@ -1102,6 +1104,8 @@ export async function sendReminderForParcel(parcel: {
         const result = await sendSmsViaGateway({
             to: phoneToUse,
             text: textToUse,
+            callbackRef: id,
+            subject: `Matkassen ${id}`,
         });
         providerCallCompleted = true;
         providerReturnedFailure = !result.success;
@@ -1787,6 +1791,8 @@ export async function sendEndedSmsForHousehold(household: {
         const result = await sendSmsViaGateway({
             to: phoneToUse,
             text: textToUse,
+            callbackRef: id,
+            subject: `Matkassen ${id}`,
         });
         providerCallCompleted = true;
         providerReturnedFailure = !result.success;
@@ -2186,13 +2192,14 @@ const RECONCILABLE_STATUSES = ALL_PROVIDER_STATUSES.filter(s => s !== "received"
 export async function reconcileStaleMessages(): Promise<{
     reconciled: number;
     checked: number;
+    stillWaiting: number;
     errors: string[];
 }> {
     const { getHelloSmsConfig } = await import("./hello-sms");
 
     // Skip in test mode
     if (getHelloSmsConfig().testMode) {
-        return { reconciled: 0, checked: 0, errors: [] };
+        return { reconciled: 0, checked: 0, stillWaiting: 0, errors: [] };
     }
 
     const now = Time.now().toUTC();
@@ -2224,7 +2231,7 @@ export async function reconcileStaleMessages(): Promise<{
         .limit(100);
 
     if (staleRecords.length === 0) {
-        return { reconciled: 0, checked: 0, errors: [] };
+        return { reconciled: 0, checked: 0, stillWaiting: 0, errors: [] };
     }
 
     // Group by phone number
@@ -2236,6 +2243,7 @@ export async function reconcileStaleMessages(): Promise<{
     }
 
     let reconciled = 0;
+    let stillWaiting = 0;
     const errors: string[] = [];
 
     for (const [phone, records] of byPhone) {
@@ -2300,11 +2308,19 @@ export async function reconcileStaleMessages(): Promise<{
                     .returning({ id: outgoingSms.id });
 
                 if (updated.length > 0) {
-                    reconciled++;
-                    logger.info(
-                        { smsId: record.id, providerStatus: normalizedStatus },
-                        "SMS delivery status reconciled via conversation API (callback was missing)",
-                    );
+                    if (normalizedStatus === "waiting") {
+                        stillWaiting++;
+                        logger.debug(
+                            { smsId: record.id },
+                            "SMS reconciliation confirmed message is still waiting",
+                        );
+                    } else {
+                        reconciled++;
+                        logger.info(
+                            { smsId: record.id, providerStatus: normalizedStatus },
+                            "SMS delivery status reconciled via conversation API (callback was missing)",
+                        );
+                    }
                 } else {
                     logger.debug(
                         { smsId: record.id },
@@ -2327,13 +2343,14 @@ export async function reconcileStaleMessages(): Promise<{
         {
             reconciled,
             checked: staleRecords.length,
+            stillWaiting,
             phonesQueried: byPhone.size,
             errors: errors.length,
         },
         "SMS reconciliation completed",
     );
 
-    return { reconciled, checked: staleRecords.length, errors };
+    return { reconciled, checked: staleRecords.length, stillWaiting, errors };
 }
 
 export async function sendBalanceSlackAlert(credits: number): Promise<void> {

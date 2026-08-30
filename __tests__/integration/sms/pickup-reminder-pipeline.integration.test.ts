@@ -96,6 +96,8 @@ describe("Pickup Reminder SMS Pipeline - Integration Tests", () => {
             const lastCall = mockGateway.getLastCall();
             expect(lastCall?.request.to).toBe("+46701234567");
             expect(lastCall?.request.text).toContain("Matpaket");
+            expect(lastCall?.request.callbackRef).toBe(result.recordId);
+            expect(lastCall?.request.subject).toBe(`Matkassen ${result.recordId}`);
         });
 
         it("refreshes SMS text when pickup time changed after eligibility lookup", async () => {
