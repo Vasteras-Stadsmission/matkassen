@@ -28,7 +28,6 @@ export async function createTestPickupLocation(
         street_address: `Test Street ${locationCounter}`,
         postal_code: "72345",
         default_slot_duration_minutes: 15,
-        max_parcels_per_slot: 4,
     };
 
     const [location] = await db

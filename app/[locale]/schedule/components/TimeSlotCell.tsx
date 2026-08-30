@@ -18,9 +18,6 @@ interface TimeSlotCellProps {
               [key: string]: unknown;
           }
     )[];
-    /** Maximum parcels per slot. null = no limit */
-    maxParcelsPerSlot: number | null;
-    isOverCapacity?: boolean;
     /** Slot or day is at capacity — no more drops allowed */
     isAtCapacity?: boolean;
     /** Tooltip text explaining why the slot is at capacity */
@@ -35,8 +32,6 @@ function TimeSlotCell({
     date,
     time,
     parcels,
-    maxParcelsPerSlot,
-    isOverCapacity = false,
     isAtCapacity = false,
     capacityReason,
     dayIndex = 0,
@@ -62,21 +57,9 @@ function TimeSlotCell({
     const bgColor = useMemo(() => {
         if (isPast || isUnavailable) return "gray.2";
         if (isOver) return "blue.1"; // Slightly more noticeable drop zone
-        if (isOverCapacity) return "red.0";
         if (isAtCapacity) return "orange.0"; // At capacity — no more drops
-        // null = no limit, so never show approaching-capacity warning
-        if (maxParcelsPerSlot !== null && parcels.length >= maxParcelsPerSlot * 0.75)
-            return "yellow.0";
         return "white";
-    }, [
-        isPast,
-        isUnavailable,
-        isOver,
-        isOverCapacity,
-        isAtCapacity,
-        parcels.length,
-        maxParcelsPerSlot,
-    ]);
+    }, [isPast, isUnavailable, isOver, isAtCapacity]);
 
     // Create the cell content
     const cellContent = (

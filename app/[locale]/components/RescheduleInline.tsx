@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button, Group, Text, Select, Stack, Collapse } from "@mantine/core";
 import { IconCalendar, IconClock, IconCheck } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
@@ -9,9 +9,8 @@ import { TranslationFunction } from "@/app/[locale]/types";
 import {
     updateFoodParcelScheduleAction,
     getPickupLocationSchedulesAction,
-    getLocationSlotConfigAction,
+    getLocationSlotDurationAction,
     getFullyBookedDatesAction,
-    getTimeslotCountsAction,
 } from "@/app/[locale]/schedule/client-actions";
 import type { LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 import { toStockholmDate, formatDateToYMD, generateTimeSlotsBetween } from "@/app/utils/date-utils";
@@ -45,15 +44,12 @@ export default function RescheduleInline({
 
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
-    const selectedTimeRef = useRef(selectedTime);
-    selectedTimeRef.current = selectedTime;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [availableTimes, setAvailableTimes] = useState<
         { value: string; label: string; disabled: boolean }[]
     >([]);
     const [error, setError] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(15);
-    const [maxParcelsPerSlot, setMaxParcelsPerSlot] = useState<number | null>(null);
     const [locationSchedules, setLocationSchedules] = useState<LocationScheduleInfo | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
@@ -70,7 +66,6 @@ export default function RescheduleInline({
         setError(null);
         setFullyBookedDates(new Set());
         setMaxDate(undefined);
-        setMaxParcelsPerSlot(null);
         setAvailabilityLoaded(false);
 
         let cancelled = false;
@@ -81,15 +76,14 @@ export default function RescheduleInline({
                 const now = new Date();
                 const threeMonthsLater = new Date(now);
                 threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
-                const [schedules, config, dates] = await Promise.all([
+                const [schedules, duration, dates] = await Promise.all([
                     getPickupLocationSchedulesAction(locationId),
-                    getLocationSlotConfigAction(locationId),
+                    getLocationSlotDurationAction(locationId),
                     getFullyBookedDatesAction(locationId, now, threeMonthsLater, parcelId),
                 ]);
                 if (!cancelled) {
                     setLocationSchedules(schedules);
-                    setSlotDuration(config.slotDuration);
-                    setMaxParcelsPerSlot(config.maxParcelsPerSlot);
+                    setSlotDuration(duration);
                     setFullyBookedDates(new Set(dates));
                     setMaxDate(threeMonthsLater);
                     setAvailabilityLoaded(true);
@@ -109,7 +103,7 @@ export default function RescheduleInline({
         // eslint-disable-next-line react-hooks/exhaustive-deps -- t is not referentially stable, intentionally excluded
     }, [isExpanded, locationId, parcelId]);
 
-    // Update available times when date changes, including slot capacity checks
+    // Update available times when date changes
     useEffect(() => {
         if (!selectedDate || !locationSchedules) {
             setAvailableTimes([]);
@@ -147,56 +141,23 @@ export default function RescheduleInline({
             true,
         );
 
-        const buildSlots = (counts: Record<string, number>) =>
-            allTimes.map(timeString => {
-                const timeAvailability = isTimeAvailable(
-                    selectedDate,
-                    timeString,
-                    locationSchedules,
-                );
-                const slotCount = counts[timeString] || 0;
-                const slotFull = maxParcelsPerSlot !== null && slotCount >= maxParcelsPerSlot;
-                return {
-                    value: timeString,
-                    label: slotFull ? `${timeString} (${t("reschedule.full")})` : timeString,
-                    disabled: !timeAvailability.isAvailable || slotFull,
-                };
-            });
+        const slots = allTimes.map(timeString => {
+            const timeAvailability = isTimeAvailable(selectedDate, timeString, locationSchedules);
+            return {
+                value: timeString,
+                label: timeString,
+                disabled: !timeAvailability.isAvailable,
+            };
+        });
+        setAvailableTimes(slots);
 
-        // Keep slots disabled until capacity data succeeds.
-        const pendingSlots = buildSlots({}).map(slot => ({ ...slot, disabled: true }));
-        setAvailableTimes(pendingSlots);
-        setSelectedTime(null);
-
-        let cancelled = false;
-
-        getTimeslotCountsAction(locationId, selectedDate, parcelId)
-            .then(counts => {
-                if (!cancelled) {
-                    const slots = buildSlots(counts);
-                    setAvailableTimes(slots);
-
-                    const firstAvailable = slots.find(slot => !slot.disabled);
-                    if (firstAvailable && !selectedTimeRef.current) {
-                        setSelectedTime(firstAvailable.value);
-                    } else if (!firstAvailable) {
-                        setError(t("reschedule.noTimesAvailable"));
-                    }
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setAvailableTimes(pendingSlots);
-                    setSelectedTime(null);
-                    setError(t("reschedule.loadError"));
-                }
-            });
-
-        return () => {
-            cancelled = true;
-        };
+        const firstAvailable = slots.find(slot => !slot.disabled);
+        setSelectedTime(firstAvailable?.value ?? null);
+        if (!firstAvailable) {
+            setError(t("reschedule.noTimesAvailable"));
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- t and selectedTime are intentionally excluded
-    }, [selectedDate, locationSchedules, slotDuration, maxParcelsPerSlot, locationId]);
+    }, [selectedDate, locationSchedules, slotDuration]);
 
     const isDateAvailableForPickup = (date: Date): boolean => {
         if (!availabilityLoaded || !locationSchedules) return false;

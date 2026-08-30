@@ -102,10 +102,7 @@ export const createLocation = protectedAdminAction(
     ): Promise<ActionResult<PickupLocationWithAllData>> => {
         // Auth already verified by protectedAdminAction wrapper
 
-        if (
-            !isPositiveIntegerOrNull(locationData.parcels_max_per_day) ||
-            !isPositiveIntegerOrNull(locationData.max_parcels_per_slot)
-        ) {
+        if (!isPositiveIntegerOrNull(locationData.parcels_max_per_day)) {
             return failure({ code: "INVALID_LIMIT", message: "Limits must be positive integers" });
         }
 
@@ -121,7 +118,6 @@ export const createLocation = protectedAdminAction(
                 street_address: locationData.street_address,
                 postal_code: locationData.postal_code,
                 parcels_max_per_day: locationData.parcels_max_per_day,
-                max_parcels_per_slot: locationData.max_parcels_per_slot,
                 contact_name: locationData.contact_name,
                 contact_email: contact_email, // Use processed email value
                 contact_phone_number: locationData.contact_phone_number,
@@ -306,10 +302,7 @@ export const updateLocationLimits = protectedAdminAction(
         values: LocationLimitsInput,
         acknowledgedConflictDates: string[] = [],
     ): Promise<ActionResult<LimitMutationResult>> => {
-        if (
-            !isPositiveIntegerOrNull(values.parcels_max_per_day) ||
-            !isPositiveIntegerOrNull(values.max_parcels_per_slot)
-        ) {
+        if (!isPositiveIntegerOrNull(values.parcels_max_per_day)) {
             return failure({ code: "INVALID_LIMIT", message: "Limits must be positive integers" });
         }
 
@@ -317,9 +310,7 @@ export const updateLocationLimits = protectedAdminAction(
             const result = await db.transaction(async tx => {
                 await lockPickupLocationsForCapacity(tx, [locationId]);
                 const current = await loadLocationLimitContext(tx, locationId, []);
-                const changed =
-                    current.defaultDailyLimit !== values.parcels_max_per_day ||
-                    current.explicitSlotLimit !== values.max_parcels_per_slot;
+                const changed = current.defaultDailyLimit !== values.parcels_max_per_day;
 
                 if (!changed) {
                     return {
@@ -352,7 +343,6 @@ export const updateLocationLimits = protectedAdminAction(
                     .update(pickupLocations)
                     .set({
                         parcels_max_per_day: values.parcels_max_per_day,
-                        max_parcels_per_slot: values.max_parcels_per_slot,
                     })
                     .where(eq(pickupLocations.id, locationId));
 
@@ -366,11 +356,9 @@ export const updateLocationLimits = protectedAdminAction(
                         buildChanges(
                             {
                                 parcels_max_per_day: current.defaultDailyLimit,
-                                max_parcels_per_slot: current.explicitSlotLimit,
                             },
                             {
                                 parcels_max_per_day: values.parcels_max_per_day,
-                                max_parcels_per_slot: values.max_parcels_per_slot,
                             },
                         ),
                     ),

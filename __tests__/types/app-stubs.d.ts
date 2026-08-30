@@ -62,8 +62,8 @@ declare module "../../../../app/[locale]/households/[id]/edit/actions" {
     export function updateHousehold(id: string, data: any): Promise<any>;
 }
 
-declare module "../../../app/db/actions" {
-    export function logCspReport(report: any): Promise<void>;
+declare module "../../../app/db/csp-violations" {
+    export function storeCspViolation(report: any): Promise<boolean>;
 }
 
 declare module "../../../app/schedule/actions" {

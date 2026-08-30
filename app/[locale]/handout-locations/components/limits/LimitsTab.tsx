@@ -80,9 +80,6 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
     const [defaultDailyLimit, setDefaultDailyLimit] = useState<number | string>(
         location.parcels_max_per_day ?? "",
     );
-    const [slotLimit, setSlotLimit] = useState<number | string>(
-        location.max_parcels_per_slot ?? "",
-    );
     const [savingDefaults, setSavingDefaults] = useState(false);
     const [savingDates, setSavingDates] = useState(false);
     const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation>(null);
@@ -125,10 +122,9 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
 
     useEffect(() => {
         setDefaultDailyLimit(location.parcels_max_per_day ?? "");
-        setSlotLimit(location.max_parcels_per_slot ?? "");
         setSelectedDates([]);
         setLoadedCapacityByDate({});
-    }, [location.id, location.max_parcels_per_slot, location.parcels_max_per_day]);
+    }, [location.id, location.parcels_max_per_day]);
 
     const groupedSelection = useMemo(() => {
         const formatter = new Intl.DateTimeFormat(locale === "sv" ? "sv-SE" : "en-GB", {
@@ -168,7 +164,6 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
             const values: LocationLimitsInput = {
                 parcels_max_per_day:
                     typeof defaultDailyLimit === "number" ? defaultDailyLimit : null,
-                max_parcels_per_slot: typeof slotLimit === "number" ? slotLimit : null,
             };
             setSavingDefaults(true);
             const result = await updateLocationLimits(
@@ -192,7 +187,7 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
             onLocationUpdated?.(location.id, values);
             await finishMutation("defaultsSaved");
         },
-        [defaultDailyLimit, finishMutation, location.id, onLocationUpdated, slotLimit, t],
+        [defaultDailyLimit, finishMutation, location.id, onLocationUpdated, t],
     );
 
     const applyLimits = useCallback(
@@ -303,27 +298,15 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                             {t("defaultsDescription")}
                         </Text>
                     </div>
-                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                        <NumberInput
-                            label={t("defaultDailyLabel")}
-                            placeholder={t("defaultDailyPlaceholder")}
-                            min={1}
-                            allowDecimal={false}
-                            allowNegative={false}
-                            value={defaultDailyLimit}
-                            onChange={setDefaultDailyLimit}
-                        />
-                        <NumberInput
-                            label={t("slotLimitLabel")}
-                            description={t("slotLimitDescription")}
-                            placeholder={t("slotLimitPlaceholder")}
-                            min={1}
-                            allowDecimal={false}
-                            allowNegative={false}
-                            value={slotLimit}
-                            onChange={setSlotLimit}
-                        />
-                    </SimpleGrid>
+                    <NumberInput
+                        label={t("defaultDailyLabel")}
+                        placeholder={t("defaultDailyPlaceholder")}
+                        min={1}
+                        allowDecimal={false}
+                        allowNegative={false}
+                        value={defaultDailyLimit}
+                        onChange={setDefaultDailyLimit}
+                    />
                     <Group justify="flex-end">
                         <Button
                             type="button"

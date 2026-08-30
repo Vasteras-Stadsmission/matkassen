@@ -33,9 +33,6 @@ vi.mock("next-intl", () => ({
         if (key === "validationErrors.capacityReachedDetailed") {
             return `Location capacity is full on ${params.date}: ${params.current} of ${params.maximum} parcels are already booked`;
         }
-        if (key === "validationErrors.slotCapacityReachedDetailed") {
-            return `Time slot ${params.timeSlot} is full on ${params.date}: ${params.current} of ${params.maximum} parcels are already booked`;
-        }
         if (key === "validationErrors.doubleBookingDetailed") {
             return `Household already has a parcel scheduled on ${params.date}`;
         }
@@ -828,17 +825,6 @@ describe("FoodParcelsForm Business Logic Tests", () => {
                     },
                     {
                         field: "timeSlot",
-                        code: "MAX_SLOT_CAPACITY_REACHED",
-                        message: "Maximum slot capacity reached",
-                        details: {
-                            date: "2026-05-15",
-                            timeSlot: "10:00",
-                            current: 16,
-                            maximum: 15,
-                        },
-                    },
-                    {
-                        field: "timeSlot",
                         code: "HOUSEHOLD_DOUBLE_BOOKING",
                         message: "Household already has a parcel scheduled for this date",
                         details: {
@@ -875,11 +861,6 @@ describe("FoodParcelsForm Business Logic Tests", () => {
                 /Location capacity is full on 2026-05-15: 16 of 15 parcels are already booked/,
             ).textContent,
         ).toContain("(2 times)");
-        expect(
-            screen.getByText(
-                /Time slot 10:00 is full on 2026-05-15: 16 of 15 parcels are already booked/,
-            ),
-        ).not.toBeNull();
         expect(
             screen.getByText(/Household already has a parcel scheduled on 2026-05-16/),
         ).not.toBeNull();

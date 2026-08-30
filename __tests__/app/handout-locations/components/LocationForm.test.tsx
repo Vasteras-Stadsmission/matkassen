@@ -39,7 +39,6 @@ const location: PickupLocationWithAllData = {
     street_address: "Main Street 1",
     postal_code: "72100",
     parcels_max_per_day: 20,
-    max_parcels_per_slot: 4,
     contact_name: null,
     contact_email: null,
     contact_phone_number: null,

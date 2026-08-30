@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storeCspViolationAction } from "@/app/db/actions";
+import { storeCspViolation } from "@/app/db/csp-violations";
 import { logError } from "@/app/utils/logger";
 import { checkRateLimit } from "@/app/utils/rate-limit";
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         };
 
         // Store the violation in the database (but don't fail if storage fails)
-        await storeCspViolationAction(violationData);
+        await storeCspViolation(violationData);
 
         // Always return success to the browser to avoid retry loops
         return NextResponse.json(

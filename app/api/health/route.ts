@@ -11,8 +11,91 @@ import {
 import { promises as fs } from "fs";
 import { join } from "path";
 import { logger, logError } from "@/app/utils/logger";
+import { checkRateLimit } from "@/app/utils/rate-limit";
+
+const HEALTH_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
+const HEALTH_CACHE_TTL_MS = 2_000;
+
+interface HealthResult {
+    body: Record<string, unknown>;
+    status: number;
+}
+
+let cachedHealthResult: (HealthResult & { expiresAt: number }) | null = null;
+let healthCheckInFlight: Promise<HealthResult> | null = null;
+
+function createHealthResponse(result: HealthResult): NextResponse {
+    return new NextResponse(JSON.stringify(result.body), {
+        status: result.status,
+        headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+    });
+}
+
+function sanitizePublicDetails(details: Record<string, unknown>): Record<string, unknown> {
+    if (process.env.NODE_ENV !== "production") return details;
+
+    // Preserve the intentional operational contract while keeping raw
+    // exception messages in server logs where they belong.
+    const publicDetails = { ...details };
+    delete publicDetails.error;
+    delete publicDetails.recoveryError;
+    return publicDetails;
+}
 
 export async function GET(request: NextRequest) {
+    const ip = request.headers.get("x-real-ip") ?? "unknown";
+    const rateLimit = checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT);
+
+    if (!rateLimit.allowed) {
+        return NextResponse.json(
+            { status: "rate_limited", timestamp: new Date().toISOString() },
+            {
+                status: 429,
+                headers: {
+                    "Cache-Control": "no-store, no-cache, must-revalidate",
+                    "Retry-After": Math.max(
+                        1,
+                        Math.ceil((rateLimit.resetTime - Date.now()) / 1000),
+                    ).toString(),
+                },
+            },
+        );
+    }
+
+    // Keep development and tests request-specific. Production responses do
+    // not contain request metadata and can safely share a short-lived result.
+    if (process.env.NODE_ENV !== "production") {
+        return createHealthResponse(await runHealthCheck(request));
+    }
+
+    const now = Date.now();
+    if (cachedHealthResult && cachedHealthResult.expiresAt > now) {
+        return createHealthResponse(cachedHealthResult);
+    }
+
+    if (!healthCheckInFlight) {
+        healthCheckInFlight = runHealthCheck(request);
+    }
+
+    const currentCheck = healthCheckInFlight;
+    try {
+        const result = await currentCheck;
+        cachedHealthResult = {
+            ...result,
+            expiresAt: Date.now() + HEALTH_CACHE_TTL_MS,
+        };
+        return createHealthResponse(result);
+    } finally {
+        if (healthCheckInFlight === currentCheck) {
+            healthCheckInFlight = null;
+        }
+    }
+}
+
+async function runHealthCheck(request: NextRequest): Promise<HealthResult> {
     const timestamp = new Date().toISOString();
 
     try {
@@ -41,13 +124,10 @@ export async function GET(request: NextRequest) {
                     nextUrl: request.nextUrl.href,
                 },
             };
-            return new NextResponse(JSON.stringify(body), {
+            return {
+                body,
                 status: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Cache-Control": "no-store, no-cache, must-revalidate",
-                },
-            });
+            };
         }
 
         // Test database connectivity
@@ -192,9 +272,11 @@ export async function GET(request: NextRequest) {
                 database: dbStatus,
                 scheduler: schedulerStatus,
                 diskSpace: diskStatus,
-                ...(dbError && { databaseError: dbError }),
-                ...(schedulerDetails && { schedulerDetails }),
-                ...(diskDetails && { diskDetails }),
+                ...(process.env.NODE_ENV !== "production" && dbError && { databaseError: dbError }),
+                ...(schedulerDetails && {
+                    schedulerDetails: sanitizePublicDetails(schedulerDetails),
+                }),
+                ...(diskDetails && { diskDetails: sanitizePublicDetails(diskDetails) }),
             },
             // Debug info only in local development (not staging or production)
             ...(process.env.NODE_ENV === "development" && {
@@ -211,21 +293,18 @@ export async function GET(request: NextRequest) {
             }),
         };
 
-        return new NextResponse(JSON.stringify(response), {
+        return {
+            body: response,
             status: httpStatus,
-            headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-            },
-        });
+        };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logError("Health check failed", error);
 
-        return NextResponse.json(
-            {
+        return {
+            body: {
                 status: "unhealthy",
-                error: errorMessage,
+                ...(process.env.NODE_ENV !== "production" && { error: errorMessage }),
                 timestamp,
                 service: "matkassen-web",
                 checks: {
@@ -235,7 +314,7 @@ export async function GET(request: NextRequest) {
                     diskSpace: "unknown",
                 },
             },
-            { status: 500 },
-        );
+            status: 500,
+        };
     }
 }
