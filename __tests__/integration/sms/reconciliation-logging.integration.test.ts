@@ -64,7 +64,7 @@ describe("SMS reconciliation privacy-safe logging", () => {
 
         const result = await reconcileStaleMessages();
 
-        expect(result).toMatchObject({ reconciled: 1, checked: 1, errors: [] });
+        expect(result).toMatchObject({ reconciled: 1, checked: 1, stillWaiting: 0, errors: [] });
         const logged = JSON.stringify(infoLogSpy.mock.calls);
         expect(logged).not.toContain(phone);
         expect(logged).not.toContain(smsBody);
@@ -74,6 +74,41 @@ describe("SMS reconciliation privacy-safe logging", () => {
                 providerStatus: "delivered",
             },
             "SMS delivery status reconciled via conversation API (callback was missing)",
+        );
+    });
+
+    it("reports a matched waiting message as unresolved", async () => {
+        const phone = "+46709990015";
+        const smsBody = "SENTINEL_WAITING_SMS_BODY";
+        const sentAt = hoursFromTestNow(-2);
+        const household = await createTestHousehold({ phone_number: phone });
+        const sms = await createTestSms({
+            household_id: household.id,
+            to_e164: phone,
+            text: smsBody,
+            status: "sent",
+            sent_at: sentAt,
+            provider_message_id: "provider-message-waiting",
+        });
+        setSmsGateway(
+            new MockSmsGateway().mockConversation([
+                {
+                    ts: sentAt.getTime() / 1000,
+                    subject: "",
+                    text: smsBody,
+                    direction: "out",
+                    status: "waiting",
+                },
+            ]),
+        );
+        const debugLogSpy = vi.spyOn(logger, "debug").mockImplementation(() => logger);
+
+        const result = await reconcileStaleMessages();
+
+        expect(result).toMatchObject({ reconciled: 0, checked: 1, stillWaiting: 1, errors: [] });
+        expect(debugLogSpy).toHaveBeenCalledWith(
+            { smsId: sms.id },
+            "SMS reconciliation confirmed message is still waiting",
         );
     });
 

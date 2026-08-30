@@ -595,25 +595,26 @@ async function runSmsReconciliation(): Promise<void> {
         if (result.errors.length > 0) {
             logCron("sms-reconciliation", "completed", {
                 reconciled: result.reconciled,
+                stillWaiting: result.stillWaiting,
                 checked: result.checked,
                 errors: result.errors.length,
             });
             schedulerState.lastSmsReconciliationStatus = "error";
 
-            // Slack alert in production when reconciliation has errors
-            // (e.g., HelloSMS API key expired, conversation endpoint unreachable)
             if (process.env.NODE_ENV === "production") {
                 import("@/app/utils/notifications/slack")
                     .then(({ sendSlackAlert }) =>
                         sendSlackAlert({
-                            title: "SMS Reconciliation Errors",
-                            message: `Reconciled ${result.reconciled} of ${result.checked} stale SMS, but ${result.errors.length} phone(s) failed.`,
+                            title: "SMS Status Check Failed",
+                            message:
+                                `The fallback delivery-status check had ${result.errors.length} error(s). ` +
+                                "This does not mean SMS sending failed. The hourly job will try again.",
                             status: "error",
                             details: {
-                                Reconciled: result.reconciled.toString(),
-                                Checked: result.checked.toString(),
-                                Errors: result.errors.slice(0, 5).join("\n"),
-                                Timestamp: new Date().toISOString(),
+                                "Resolved": result.reconciled.toString(),
+                                "Still Waiting": result.stillWaiting.toString(),
+                                "Checked": result.checked.toString(),
+                                "Errors": result.errors.slice(0, 5).join("\n"),
                             },
                         }),
                     )
@@ -622,6 +623,7 @@ async function runSmsReconciliation(): Promise<void> {
         } else {
             logCron("sms-reconciliation", "completed", {
                 reconciled: result.reconciled,
+                stillWaiting: result.stillWaiting,
                 checked: result.checked,
             });
             schedulerState.lastSmsReconciliationStatus = "success";

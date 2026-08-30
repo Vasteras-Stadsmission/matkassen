@@ -93,6 +93,10 @@ describe("SMS Queue Processing (sendSmsRecord) - Integration Tests", () => {
 
             // Verify mock was called
             expect(mockGateway.getCallCount()).toBe(1);
+            expect(mockGateway.getLastCall()?.request).toMatchObject({
+                callbackRef: sms.id,
+                subject: `Matkassen ${sms.id}`,
+            });
         });
 
         it("retrying record sends successfully on retry", async () => {

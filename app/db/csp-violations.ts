@@ -1,26 +1,10 @@
-"use server";
+import "server-only";
 
 import { db } from "./drizzle";
 import { cspViolations } from "./schema";
 import { logError } from "@/app/utils/logger";
 
-/**
- * Store a Content Security Policy (CSP) violation report in the database.
- *
- * NOTE: This action is intentionally PUBLIC and does NOT use protectedAction wrapper.
- * CSP violation reports are sent automatically by browsers via the CSP report-uri/report-to
- * directive and do not include user authentication.
- *
- * Security considerations:
- * - No sensitive data is exposed through this endpoint
- * - Database writes are limited to violation reports only
- * - API endpoint (app/api/csp-report/route.ts) implements rate limiting
- * - Input data is sanitized and validated before storage
- * - Reports help identify security issues and improve application security posture
- *
- * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
- */
-export async function storeCspViolationAction(violationData: {
+export interface CspViolationInput {
     blockedUri?: string;
     violatedDirective: string;
     effectiveDirective?: string;
@@ -32,9 +16,17 @@ export async function storeCspViolationAction(violationData: {
     columnNumber?: number;
     userAgent?: string;
     scriptSample?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}
+
+/**
+ * Persist a CSP violation received by the public, rate-limited route handler.
+ *
+ * This is deliberately a server-only utility rather than a Server Action. The
+ * route handler is the sole public entry point and owns request size limits,
+ * rate limiting, and parsing.
+ */
+export async function storeCspViolation(violationData: CspViolationInput): Promise<boolean> {
     try {
-        // Map the camelCase input params to snake_case for Drizzle schema
         await db.insert(cspViolations).values({
             blocked_uri: violationData.blockedUri,
             violated_directive: violationData.violatedDirective,
@@ -49,15 +41,12 @@ export async function storeCspViolationAction(violationData: {
             script_sample: violationData.scriptSample,
         });
 
-        return { success: true };
+        return true;
     } catch (error) {
         logError("Error storing CSP violation", error, {
             violatedDirective: violationData.violatedDirective,
             blockedUri: violationData.blockedUri,
         });
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
-        };
+        return false;
     }
 }

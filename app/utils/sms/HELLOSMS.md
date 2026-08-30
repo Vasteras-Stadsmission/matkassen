@@ -13,7 +13,14 @@ All API calls use HTTP Basic Auth (`HELLO_SMS_USERNAME` / `HELLO_SMS_PASSWORD`).
 Request body:
 
 ```json
-{ "to": "+46700000000", "message": "...", "from": "Matkassen", "sendApiCallback": true }
+{
+    "to": "+46700000000",
+    "message": "...",
+    "from": "Matkassen",
+    "subject": "Matkassen <sms-id>",
+    "sendApiCallback": true,
+    "callbackRef": "<sms-id>"
+}
 ```
 
 Response:
@@ -53,6 +60,10 @@ Returns `{ "credits": 1234 }`. We check this before sending to detect low balanc
 HelloSMS calls our webhook when delivery status changes. The callback URL is
 **configured at account level** by contacting HelloSMS support — it's not set
 per-request.
+
+Matkassen sends its own outgoing SMS ID as both `callbackRef` and part of the
+internal HelloSMS `subject`. This makes a record directly searchable in the
+HelloSMS dashboard while `apiMessageId` remains the authoritative callback key.
 
 Our endpoint: `/api/webhooks/sms-status/[SMS_CALLBACK_SECRET]`
 
