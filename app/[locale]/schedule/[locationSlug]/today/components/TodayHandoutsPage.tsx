@@ -77,9 +77,8 @@ function getStatusColor(status: ParcelDisplayStatus): "blue" | "green" | "orange
     return "blue";
 }
 
-function getRestingCardBackground(status: ParcelDisplayStatus): string {
-    const color = getStatusColor(status);
-    return `color-mix(in srgb, var(--mantine-color-${color}-0) 25%, var(--mantine-color-body))`;
+function getCardBackground(status: ParcelDisplayStatus, shade: 0 | 1): string {
+    return `var(--mantine-color-${getStatusColor(status)}-${shade})`;
 }
 
 export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
@@ -566,24 +565,22 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                         withBorder
                                         radius="md"
                                         style={{
-                                            backgroundColor: getRestingCardBackground(
-                                                parcel.status,
-                                            ),
+                                            backgroundColor: getCardBackground(parcel.status, 0),
                                             cursor: "pointer",
                                             transition: "all 0.2s ease",
                                             minHeight: "48px", // Slightly reduced for mobile
                                         }}
                                         onClick={() => handleParcelClick(parcel)}
                                         onMouseEnter={e => {
-                                            const color = getStatusColor(parcel.status);
-                                            e.currentTarget.style.backgroundColor = `var(--mantine-color-${color}-0)`;
+                                            e.currentTarget.style.backgroundColor =
+                                                getCardBackground(parcel.status, 1);
                                             e.currentTarget.style.transform = "translateY(-1px)";
                                             e.currentTarget.style.boxShadow =
                                                 "var(--mantine-shadow-sm)";
                                         }}
                                         onMouseLeave={e => {
                                             e.currentTarget.style.backgroundColor =
-                                                getRestingCardBackground(parcel.status);
+                                                getCardBackground(parcel.status, 0);
                                             e.currentTarget.style.transform = "translateY(0)";
                                             e.currentTarget.style.boxShadow = "none";
                                         }}
