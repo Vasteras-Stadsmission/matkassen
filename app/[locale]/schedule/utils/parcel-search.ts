@@ -1,4 +1,43 @@
-import type { FoodParcel } from "../types";
+import { normalizePersonNameForComparison } from "@/app/utils/person-name";
+import type { FoodParcel, ParcelDisplayStatus } from "../types";
+
+const TODAY_STATUS_ORDER: Record<ParcelDisplayStatus, number> = {
+    upcoming: 0,
+    notPickedUp: 1,
+    noShow: 1,
+    cancelled: 1,
+    pickedUp: 2,
+};
+
+/**
+ * Orders today's handout list as a lightweight work queue.
+ *
+ * Active parcels come first, followed by no-shows and picked-up parcels. Pickup time only
+ * affects the order when the list actually contains more than one start time; otherwise the
+ * displayed household name determines the order directly.
+ */
+export function sortTodaysParcels<T extends FoodParcel & { status: ParcelDisplayStatus }>(
+    parcels: T[],
+): T[] {
+    const hasMultiplePickupTimes =
+        new Set(parcels.map(parcel => new Date(parcel.pickupEarliestTime).getTime())).size > 1;
+
+    return [...parcels].sort((a, b) => {
+        const statusDifference = TODAY_STATUS_ORDER[a.status] - TODAY_STATUS_ORDER[b.status];
+        if (statusDifference !== 0) return statusDifference;
+
+        if (hasMultiplePickupTimes) {
+            const timeDifference =
+                new Date(a.pickupEarliestTime).getTime() - new Date(b.pickupEarliestTime).getTime();
+            if (timeDifference !== 0) return timeDifference;
+        }
+
+        return normalizePersonNameForComparison(a.householdName).localeCompare(
+            normalizePersonNameForComparison(b.householdName),
+            "sv",
+        );
+    });
+}
 
 /**
  * Filters parcels by a search query matching household name or phone number.

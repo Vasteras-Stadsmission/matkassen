@@ -49,7 +49,7 @@ import { TodaySummaryCard } from "./TodaySummaryCard";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
 import { findLocationBySlug } from "../../../utils/location-slugs";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
-import { filterParcelsByQuery } from "../../../utils/parcel-search";
+import { filterParcelsByQuery, sortTodaysParcels } from "../../../utils/parcel-search";
 import type {
     FoodParcel,
     PickupLocation,
@@ -64,11 +64,22 @@ import { getDailyCapacityState } from "@/app/utils/capacity/daily-capacity";
 interface TodayParcel extends FoodParcel {
     locationName?: string;
     timeSlot?: string;
-    status?: ParcelDisplayStatus;
+    status: ParcelDisplayStatus;
 }
 
 interface TodayHandoutsPageProps {
     locationSlug: string;
+}
+
+function getStatusColor(status: ParcelDisplayStatus): "blue" | "green" | "orange" {
+    if (status === "pickedUp") return "green";
+    if (status === "noShow") return "orange";
+    return "blue";
+}
+
+function getRestingCardBackground(status: ParcelDisplayStatus): string {
+    const color = getStatusColor(status);
+    return `color-mix(in srgb, var(--mantine-color-${color}-0) 25%, var(--mantine-color-body))`;
 }
 
 export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
@@ -180,7 +191,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                 };
             });
 
-            setParcels(enhancedParcels);
+            setParcels(sortTodaysParcels(enhancedParcels));
         } catch {
             // Error boundary will handle display
             setLocationError("Failed to load data");
@@ -555,24 +566,24 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                         withBorder
                                         radius="md"
                                         style={{
+                                            backgroundColor: getRestingCardBackground(
+                                                parcel.status,
+                                            ),
                                             cursor: "pointer",
                                             transition: "all 0.2s ease",
                                             minHeight: "48px", // Slightly reduced for mobile
                                         }}
                                         onClick={() => handleParcelClick(parcel)}
                                         onMouseEnter={e => {
-                                            e.currentTarget.style.backgroundColor =
-                                                parcel.status === "pickedUp"
-                                                    ? "var(--mantine-color-green-0)"
-                                                    : parcel.status === "noShow"
-                                                      ? "var(--mantine-color-orange-0)"
-                                                      : "var(--mantine-color-blue-0)";
+                                            const color = getStatusColor(parcel.status);
+                                            e.currentTarget.style.backgroundColor = `var(--mantine-color-${color}-0)`;
                                             e.currentTarget.style.transform = "translateY(-1px)";
                                             e.currentTarget.style.boxShadow =
                                                 "var(--mantine-shadow-sm)";
                                         }}
                                         onMouseLeave={e => {
-                                            e.currentTarget.style.backgroundColor = "transparent";
+                                            e.currentTarget.style.backgroundColor =
+                                                getRestingCardBackground(parcel.status);
                                             e.currentTarget.style.transform = "translateY(0)";
                                             e.currentTarget.style.boxShadow = "none";
                                         }}
