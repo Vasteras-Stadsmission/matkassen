@@ -65,7 +65,6 @@ const location = {
     name: "Central Kitchen",
     street_address: "Main Street",
     maxParcelsPerDay: 1,
-    maxParcelsPerSlot: 1,
     outsideHoursCount: 0,
     hasUpcomingSchedule: true,
 };

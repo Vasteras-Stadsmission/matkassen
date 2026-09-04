@@ -9,7 +9,6 @@ const AGREEMENT_CODES = new Set(["AGREEMENT_REQUIRED", "AGREEMENT_CHECK_FAILED"]
 
 const ERROR_CODE_TO_I18N_KEY: Record<string, string> = {
     MAX_DAILY_CAPACITY_REACHED: "reschedule.capacityError",
-    MAX_SLOT_CAPACITY_REACHED: "reschedule.slotCapacityError",
     HOUSEHOLD_DOUBLE_BOOKING: "reschedule.doubleBookingError",
     OUTSIDE_OPERATING_HOURS: "reschedule.operatingHoursError",
     PAST_TIME_SLOT: "reschedule.pastError",

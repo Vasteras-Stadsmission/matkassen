@@ -150,7 +150,7 @@ describe("Household parcel scheduling integration", () => {
     it("adds a new parcel through full household edit when the selected date has capacity", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -188,7 +188,6 @@ describe("Household parcel scheduling integration", () => {
         const { location } = await createTestLocationWithSchedule(
             {
                 parcels_max_per_day: null,
-                max_parcels_per_slot: 1,
                 default_slot_duration_minutes: 15,
             },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
@@ -268,7 +267,7 @@ describe("Household parcel scheduling integration", () => {
     it("adds a new parcel through the parcel management dialog action", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -303,15 +302,15 @@ describe("Household parcel scheduling integration", () => {
     it("preserves unchanged future parcels at multiple pickup locations during full household edit", async () => {
         const db = await getTestDb();
         const { location: firstLocation } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const { location: secondLocation } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const { location: newParcelLocation } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -385,15 +384,15 @@ describe("Household parcel scheduling integration", () => {
     it("preserves unchanged future parcels at multiple pickup locations through the parcel dialog action", async () => {
         const db = await getTestDb();
         const { location: firstLocation } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const { location: secondLocation } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const { location: newParcelLocation } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -600,7 +599,7 @@ describe("Household parcel scheduling integration", () => {
     it("rejects full household edit when the changed parcel would exceed daily capacity", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: 10 },
+            { parcels_max_per_day: 1 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -658,7 +657,7 @@ describe("Household parcel scheduling integration", () => {
     it("rejects an incoming move when a date-specific limit is full", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 10, max_parcels_per_slot: 10 },
+            { parcels_max_per_day: 10 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -708,7 +707,7 @@ describe("Household parcel scheduling integration", () => {
     it("allows adding a parcel when an unchanged future date is already over daily capacity", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: 10 },
+            { parcels_max_per_day: 1 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -716,12 +715,12 @@ describe("Household parcel scheduling integration", () => {
         });
         const otherHousehold = await createTestHousehold();
 
-        const overCapacitySlot = withEnd(atHour(daysFromNow(2), 10));
+        const overCapacityPickup = withEnd(atHour(daysFromNow(2), 10));
         const existingParcel = await createTestParcel({
             household_id: household.id,
             pickup_location_id: location.id,
-            pickup_date_time_earliest: overCapacitySlot.start,
-            pickup_date_time_latest: overCapacitySlot.end,
+            pickup_date_time_earliest: overCapacityPickup.start,
+            pickup_date_time_latest: overCapacityPickup.end,
         });
         await createTestParcel({
             household_id: otherHousehold.id,
@@ -736,9 +735,9 @@ describe("Household parcel scheduling integration", () => {
             buildUpdateData(household, location.id, [
                 {
                     id: existingParcel.id,
-                    pickupDate: overCapacitySlot.start,
-                    pickupEarliestTime: overCapacitySlot.start,
-                    pickupLatestTime: overCapacitySlot.end,
+                    pickupDate: overCapacityPickup.start,
+                    pickupEarliestTime: overCapacityPickup.start,
+                    pickupLatestTime: overCapacityPickup.end,
                 },
                 {
                     pickupDate: newSlot.start,
@@ -767,7 +766,7 @@ describe("Household parcel scheduling integration", () => {
     it("allows parcel dialog add when an unchanged future date is already over daily capacity", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: 10 },
+            { parcels_max_per_day: 1 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -775,12 +774,12 @@ describe("Household parcel scheduling integration", () => {
         });
         const otherHousehold = await createTestHousehold();
 
-        const overCapacitySlot = withEnd(atHour(daysFromNow(2), 10));
+        const overCapacityPickup = withEnd(atHour(daysFromNow(2), 10));
         const existingParcel = await createTestParcel({
             household_id: household.id,
             pickup_location_id: location.id,
-            pickup_date_time_earliest: overCapacitySlot.start,
-            pickup_date_time_latest: overCapacitySlot.end,
+            pickup_date_time_earliest: overCapacityPickup.start,
+            pickup_date_time_latest: overCapacityPickup.end,
         });
         const otherSlot = withEnd(atHour(daysFromNow(2), 11));
         await createTestParcel({
@@ -797,9 +796,9 @@ describe("Household parcel scheduling integration", () => {
                 {
                     id: existingParcel.id,
                     pickupLocationId: location.id,
-                    pickupDate: overCapacitySlot.start,
-                    pickupEarliestTime: overCapacitySlot.start,
-                    pickupLatestTime: overCapacitySlot.end,
+                    pickupDate: overCapacityPickup.start,
+                    pickupEarliestTime: overCapacityPickup.start,
+                    pickupLatestTime: overCapacityPickup.end,
                 },
                 {
                     pickupLocationId: location.id,
@@ -829,7 +828,7 @@ describe("Household parcel scheduling integration", () => {
     it("allows moving a parcel within an over-capacity date when daily count does not increase", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: 10 },
+            { parcels_max_per_day: 1 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -881,7 +880,7 @@ describe("Household parcel scheduling integration", () => {
     it("rejects full household edit when two new parcels in the same submission double-book the household", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 15 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -922,67 +921,10 @@ describe("Household parcel scheduling integration", () => {
         expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
     });
 
-    it("rejects full household edit when the changed parcel would exceed slot capacity", async () => {
-        const db = await getTestDb();
-        const { location } = await createTestLocationWithSchedule(
-            { max_parcels_per_slot: 1, parcels_max_per_day: 10 },
-            { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
-        );
-        const household = await createTestHousehold({
-            primary_pickup_location_id: location.id,
-        });
-        const otherHousehold = await createTestHousehold();
-
-        const originalSlot = withEnd(atHour(daysFromNow(2), 10));
-        const parcel = await createTestParcel({
-            household_id: household.id,
-            pickup_location_id: location.id,
-            pickup_date_time_earliest: originalSlot.start,
-            pickup_date_time_latest: originalSlot.end,
-        });
-
-        const fullSlot = withEnd(atHour(daysFromNow(3), 11));
-        await createTestParcel({
-            household_id: otherHousehold.id,
-            pickup_location_id: location.id,
-            pickup_date_time_earliest: fullSlot.start,
-            pickup_date_time_latest: fullSlot.end,
-        });
-
-        const result = await updateHousehold(
-            household.id,
-            buildUpdateData(household, location.id, [
-                {
-                    id: parcel.id,
-                    pickupDate: fullSlot.start,
-                    pickupEarliestTime: fullSlot.start,
-                    pickupLatestTime: fullSlot.end,
-                },
-            ]),
-        );
-
-        expect(result.success).toBe(false);
-        if (!result.success) {
-            expect(result.error.validationErrors?.map(error => error.code)).toContain(
-                "MAX_SLOT_CAPACITY_REACHED",
-            );
-        }
-
-        const [unchangedParcel] = await db
-            .select()
-            .from(foodParcels)
-            .where(eq(foodParcels.id, parcel.id));
-
-        expect(unchangedParcel.pickup_date_time_earliest).toEqual(originalSlot.start);
-        expect(unchangedParcel.pickup_date_time_latest).toEqual(originalSlot.end);
-        expect(unchangedParcel.deleted_at).toBeNull();
-        expect(mockQueuePickupUpdatedSms).not.toHaveBeenCalled();
-    });
-
     it("rolls back updates and deletions when final-state validation fails", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: 1 },
+            { parcels_max_per_day: 1 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -1379,7 +1321,7 @@ describe("Household parcel scheduling integration", () => {
     it("allows moving one parcel into a date and slot freed by another moved parcel", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 15, max_parcels_per_slot: 1 },
+            { parcels_max_per_day: 15 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -1447,7 +1389,7 @@ describe("Household parcel scheduling integration", () => {
     it("allows moving one parcel into a date freed by removing another parcel", async () => {
         const db = await getTestDb();
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: 1 },
+            { parcels_max_per_day: 1 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({
@@ -1760,7 +1702,7 @@ describe("Household parcel scheduling integration", () => {
         vi.setSystemTime(new Date("2026-05-06T12:00:00Z"));
 
         const { location } = await createTestLocationWithSchedule(
-            { parcels_max_per_day: 1, max_parcels_per_slot: null },
+            { parcels_max_per_day: 1 },
             { startDate: daysFromNow(-1), endDate: daysFromNow(30), weekdays: [...allWeekdays] },
         );
         const household = await createTestHousehold({

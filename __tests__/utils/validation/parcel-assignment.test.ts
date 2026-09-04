@@ -9,7 +9,6 @@ describe("Validation Error Codes", () => {
         expect(ValidationErrorCodes.PARCEL_NOT_FOUND).toBe("PARCEL_NOT_FOUND");
         expect(ValidationErrorCodes.LOCATION_NOT_FOUND).toBe("LOCATION_NOT_FOUND");
         expect(ValidationErrorCodes.MAX_DAILY_CAPACITY_REACHED).toBe("MAX_DAILY_CAPACITY_REACHED");
-        expect(ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED).toBe("MAX_SLOT_CAPACITY_REACHED");
         expect(ValidationErrorCodes.TIME_SLOT_CONFLICT).toBe("TIME_SLOT_CONFLICT");
         expect(ValidationErrorCodes.OUTSIDE_OPERATING_HOURS).toBe("OUTSIDE_OPERATING_HOURS");
         expect(ValidationErrorCodes.PAST_TIME_SLOT).toBe("PAST_TIME_SLOT");
@@ -34,20 +33,6 @@ describe("Validation Error Codes", () => {
         expect(formattedMessage).toContain("Test Location");
         expect(formattedMessage).toContain("maximum capacity of 5");
         expect(formattedMessage).toContain("2025-10-01");
-    });
-
-    test("should handle slot capacity errors", () => {
-        const slotError = {
-            field: "timeSlot",
-            code: ValidationErrorCodes.MAX_SLOT_CAPACITY_REACHED,
-            message: "Slot full",
-            details: {},
-        };
-
-        const formattedMessage = formatValidationError(slotError);
-        expect(formattedMessage).toBe(
-            "This time slot is fully booked. Please select a different time.",
-        );
     });
 
     test("should handle double booking errors", () => {

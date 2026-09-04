@@ -60,3 +60,15 @@ updates:
               update-types:
                   - "minor"
                   - "patch"
+      # Mantine majors require coordinated updates across the full component
+      # suite and its DataTable integration, followed by broad visual regression
+      # testing. Keep routine v8 minor/patch updates flowing, but schedule the
+      # eventual v9 migration explicitly instead of accepting isolated majors.
+      # update-types ignore rules apply to version updates, not security updates.
+      ignore:
+          - dependency-name: "@mantine/*"
+            update-types:
+                - "version-update:semver-major"
+          - dependency-name: "mantine-datatable"
+            update-types:
+                - "version-update:semver-major"

@@ -723,12 +723,11 @@ describe("Primary handout location - Server-side validation", () => {
         }
     });
 
-    it("rejects a forged zero-duration enrollment slot before slot-capacity checks", async () => {
+    it("rejects a forged zero-duration enrollment slot before capacity checks", async () => {
         const { location } = await createTestLocationWithSchedule(
             {
                 name: "Strict Slot Duration Location",
                 parcels_max_per_day: null,
-                max_parcels_per_slot: 1,
                 default_slot_duration_minutes: 15,
             },
             {

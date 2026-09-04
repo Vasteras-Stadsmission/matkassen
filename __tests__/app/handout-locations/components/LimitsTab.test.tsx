@@ -24,9 +24,6 @@ const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown
         defaultsDescription: "Default limits",
         defaultDailyLabel: "Default parcels per day",
         defaultDailyPlaceholder: "No default",
-        slotLimitLabel: "Parcels per time slot",
-        slotLimitDescription: "Leave empty to use the daily limit",
-        slotLimitPlaceholder: "Use daily limit",
         saveDefaults: "Save defaults",
         specificDatesTitle: "Specific dates",
         specificDatesDescription: "Override selected dates",
@@ -105,7 +102,6 @@ const location: PickupLocationWithAllData = {
     street_address: "Main Street 1",
     postal_code: "72100",
     parcels_max_per_day: 20,
-    max_parcels_per_slot: null,
     contact_name: null,
     contact_email: null,
     contact_phone_number: null,
@@ -149,6 +145,28 @@ describe("LimitsTab", () => {
 
     afterEach(() => {
         vi.useRealTimers();
+    });
+
+    it("saves the default daily limit as the only capacity setting", async () => {
+        render(
+            <MantineProvider>
+                <LimitsTab location={location} />
+            </MantineProvider>,
+        );
+        await waitFor(() => expect(mockGetDailyLimitMonthData).toHaveBeenCalled());
+
+        fireEvent.change(screen.getByLabelText("Default parcels per day"), {
+            target: { value: "17" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Save defaults" }));
+
+        await waitFor(() =>
+            expect(mockUpdateLocationLimits).toHaveBeenCalledWith(
+                location.id,
+                { parcels_max_per_day: 17 },
+                [],
+            ),
+        );
     });
 
     it("shows only a selection count and applies one value to independent dates", async () => {

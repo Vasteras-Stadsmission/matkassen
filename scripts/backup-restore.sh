@@ -16,10 +16,12 @@ set +x
 
 COMPOSE_FILES="-f docker-compose.yml -f docker-compose.backup.yml"
 COMPOSE_CMD="docker compose"
-if ! docker compose version >/dev/null 2>&1; then
-    echo "Error: docker compose (v2) is required. Please install Docker Compose v2 and use 'docker compose', not 'docker-compose'."
-    exit 1
-fi
+require_docker_compose() {
+    if ! docker compose version >/dev/null 2>&1; then
+        echo "Error: docker compose (v2) is required. Please install Docker Compose v2 and use 'docker compose', not 'docker-compose'."
+        exit 1
+    fi
+}
 
 ENV_NAME=${ENV_NAME:-}
 require_prod() {
@@ -36,6 +38,7 @@ if [ $# -ne 1 ]; then
     echo "Example: $0 matkassen_backup_20250830_020000.dump.gpg"
     echo ""
     echo "Available backups:"
+    require_docker_compose
     $COMPOSE_CMD $COMPOSE_FILES --profile backup exec db-backup \
         rclone lsf "elastx:$SWIFT_CONTAINER/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg" | tail -20 || true
     exit 1
@@ -52,6 +55,8 @@ if [[ "$BACKUP_FILENAME" != *.dump.gpg ]]; then
     echo "Encrypted backups produced by backup-db.sh have the .dump.gpg extension."
     exit 1
 fi
+
+require_docker_compose
 
 # Note: the outer shell does NOT need DB_BACKUP_PASSPHRASE — the db-backup
 # container has it in its ambient env via docker-compose.backup.yml. The
