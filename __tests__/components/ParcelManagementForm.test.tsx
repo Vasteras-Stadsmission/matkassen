@@ -1,6 +1,6 @@
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import type { FoodParcel, FoodParcels } from "@/app/[locale]/households/enroll/types";
 import { ParcelManagementForm } from "@/components/ParcelManagementForm/ParcelManagementForm";
@@ -143,6 +143,14 @@ function renderForm({
 describe("ParcelManagementForm threshold warning", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+        // Unmount before clearing the Save button's pending Mantine transition timers.
+        cleanup();
+        vi.clearAllTimers();
+        vi.useRealTimers();
     });
 
     it("submits a reduction without warning even when the projected count remains above the threshold", async () => {
