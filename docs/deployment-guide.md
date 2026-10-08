@@ -151,24 +151,37 @@ Before any downtime the script refuses when:
 - the `db` service differs from the running container in anything but its
   image (it compares Compose's configuration hash and the resolved volume and
   network names), because recreating would apply that change too;
+- Compose's dry-run plan contains anything besides recreating the `db`
+  container. A changed network definition, for example, would make Compose
+  stop `db` and then fail to replace a network that web still uses;
+- the new image changes glibc, whose collation orders text indexes (a new
+  Debian base can silently invalidate them; that needs a planned `REINDEX`);
 - production cannot take and validate the backup, the host's configured image
   differs from what staging applied, or a deploy holds the host lock.
 
-Afterwards it verifies the new image, server version, data volume, application
-schema, web health and restart counts, and the backup container's connection.
+The restart runs in its own session with its output in a file, so a dropped
+SSH connection or cancelled run cannot stop Compose between removing the old
+container and starting the new one. Afterwards the script verifies the new
+image, server version, data volume, application schema, web health and restart
+counts, and the backup container's connection. Re-running the workflow when
+PostgreSQL already runs the target image repeats that verification without a
+restart, so it is the way to finish an interrupted run.
+
 Before restarting it tags the running image as
 `matkassen-postgres-rollback:previous`, which no cleanup removes. If the
 restart or verification fails, it prints the database logs and a command that
 recreates PostgreSQL on that image, which works because minor versions share
-the on-disk format. The script never rolls back by itself.
+the on-disk format. The command first waits for the host lock, so it cannot
+overlap a restart that is still running. The script never rolls back by itself.
 
 A restart can interrupt an SMS that is being sent. Such rows stay in `sending`:
 reminders recover automatically after 10 minutes, while enrollment and
 cancellation messages wait for manual review (`docs/business-logic.md`). The
 script warns when it finds any.
 
-Because major versions need `pg_upgrade` or dump/restore, Dependabot is
-configured not to propose them; plan a major upgrade as its own migration.
+A major version (for example a Dependabot PR for PostgreSQL 18) needs
+`pg_upgrade` or dump/restore and is planned as its own migration; do not merge
+such a bump as a routine update.
 
 ### SSH Host Identity Pinning
 

@@ -16,13 +16,18 @@
 # - anything else in the db service configuration, or the volume and network
 #   it resolves to, differs from the running container, because recreating
 #   the container would apply that change too;
+# - Compose plans anything besides recreating the db container (for example
+#   replacing a network whose options changed);
+# - the image changes glibc, whose collations order text indexes;
 # - production cannot first take and validate a fresh encrypted backup.
 #
 # Downtime is one PostgreSQL fast shutdown and start, normally seconds. The
-# replaced image is tagged matkassen-postgres-rollback:previous so no cleanup
-# removes it. If anything fails after the restart begins, the script prints
-# the database logs and the command that recreates the container on that
-# image. It never rolls back on its own.
+# restart itself cannot be interrupted by a dropped SSH session or cancelled
+# run. The replaced image is tagged matkassen-postgres-rollback:previous so no
+# cleanup removes it. If anything fails after the restart begins, the script
+# prints the database logs and the command that recreates the container on
+# that image. It never rolls back on its own. A re-run when PostgreSQL already
+# runs the target image repeats the verification instead of restarting.
 #
 # Optional environment:
 #   ENV_NAME                  must match ENV_NAME in .env when set
@@ -151,6 +156,96 @@ sys.exit(0 if ok else 1)
 ' 2>/dev/null
 }
 
+# glibc version of an image. Text indexes use the libc collation, so a new
+# glibc can change sort order and silently invalidate them.
+glibc_version() {
+    sudo docker run --rm --network none --entrypoint ldd "$1" --version | awk 'NR == 1 { print $NF }'
+}
+
+# Asks Compose what recreating db would do, without doing it. Compose also
+# reconciles the networks and volumes db uses: for a network whose options
+# changed it would stop db and then fail to replace the network that web still
+# uses, leaving PostgreSQL down. Only a plan that recreates the db container
+# and nothing else passes. Compose v5 reports the action in "text", v2 in
+# "status".
+compose_plans_db_recreate_only() {
+    local plan
+    if ! plan=$(sudo docker compose --progress json --dry-run up -d --no-deps --force-recreate --pull never db 2>&1); then
+        printf '%s\n' "$plan"
+        return 1
+    fi
+    if ! printf '%s\n' "$plan" | python3 -c '
+import json, re, sys
+container = re.compile(r"Container (?:[0-9a-f]+_)?%s$" % re.escape(sys.argv[1]))
+allowed = {"Recreate", "Recreated", "Starting", "Started"}
+recreate = False
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        event = json.loads(line)
+    except ValueError:
+        event = None
+    if not isinstance(event, dict):
+        sys.exit("unexpected output: " + line)
+    if event.get("level") == "warning":
+        continue
+    action = event.get("text") or event.get("status")
+    if not container.match(event.get("id", "")) or action not in allowed:
+        sys.exit("unexpected step: %s %s" % (event.get("id"), action))
+    recreate = recreate or action == "Recreate"
+if not recreate:
+    sys.exit("the plan does not recreate the db container")
+' "$DB_CONTAINER_NAME"; then
+        printf '%s\n' "$plan"
+        return 1
+    fi
+}
+
+# Checks that PostgreSQL in the given container runs the target image on the
+# existing data. Used after a restart and when a re-run finds nothing to do.
+verify_db_serves_target() {
+    local container=$1
+    local version
+    [ "$(sudo docker inspect --format '{{.Config.Image}}' "$container")" = "$TARGET_IMAGE" ] \
+        || fail "The db container does not use $TARGET_IMAGE."
+    [ "$(sudo docker inspect --format '{{.Image}}' "$container")" = "$TARGET_IMAGE_ID" ] \
+        || fail "The db container does not run image $TARGET_IMAGE_ID."
+    [ "$(sudo docker inspect --format '{{.State.Health.Status}}' "$container")" = "healthy" ] \
+        || fail "PostgreSQL is not healthy."
+    [ "$(container_storage "$container")" = "$RUNNING_STORAGE" ] \
+        || fail "The db container does not use the same data volume and network."
+    [ "$(db_data_major)" = "$DATA_MAJOR" ] || fail "The data directory major version changed."
+    version=$(db_server_version)
+    [ "$version" = "$TARGET_VERSION" ] || fail "PostgreSQL reports $version, expected $TARGET_VERSION."
+    [ "$(db_sql 30 "SELECT to_regclass('public.households') IS NOT NULL")" = "t" ] \
+        || fail "The application schema (households table) is missing."
+    echo "✅ PostgreSQL $version serves the existing data volume and application schema."
+}
+
+# Checks that web and, on production, the backup scheduler reach PostgreSQL.
+verify_clients() {
+    local attempt backup_container
+    echo "Waiting for web to report a healthy database connection..."
+    for attempt in $(seq 1 30); do
+        if web_is_healthy; then
+            break
+        fi
+        [ "$attempt" -lt 30 ] || fail "Web did not report healthy within 90 seconds."
+        sleep 3
+    done
+    echo "✅ Web reports a healthy database connection."
+    if [ "$HOST_ENV_NAME" = "production" ]; then
+        backup_container=$("${BACKUP_COMPOSE[@]}" ps -q db-backup)
+        [ -n "$backup_container" ] || fail "The db-backup container is not running."
+        # shellcheck disable=SC2016 # Variables expand inside the backup container.
+        "${BACKUP_COMPOSE[@]}" exec -T db-backup sh -c 'pg_isready -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+            || fail "The backup container cannot reach PostgreSQL."
+        echo "✅ The backup container reaches PostgreSQL."
+    fi
+}
+
 cd "$APP_DIR"
 BACKUP_COMPOSE=(sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup)
 
@@ -176,6 +271,8 @@ WEB_CONTAINER=$(sudo docker compose ps -q web)
 web_is_healthy || fail "Web is not healthy before the update; fix that first so the result can be verified."
 WEB_RESTARTS_BEFORE=$(sudo docker inspect --format '{{.RestartCount}}' "$WEB_CONTAINER")
 
+DB_CONTAINER_NAME=$(sudo docker inspect --format '{{.Name}}' "$DB_CONTAINER")
+DB_CONTAINER_NAME=${DB_CONTAINER_NAME#/}
 RUNNING_IMAGE=$(sudo docker inspect --format '{{.Config.Image}}' "$DB_CONTAINER")
 RUNNING_IMAGE_ID=$(sudo docker inspect --format '{{.Image}}' "$DB_CONTAINER")
 RUNNING_STORAGE=$(container_storage "$DB_CONTAINER")
@@ -257,10 +354,28 @@ if [ "${TARGET_VERSION#*.}" -lt "${RUNNING_VERSION#*.}" ] 2>/dev/null; then
 fi
 
 if [ "$RUNNING_IMAGE" = "$TARGET_IMAGE" ] && [ "$RUNNING_IMAGE_ID" = "$TARGET_IMAGE_ID" ]; then
-    echo "✅ PostgreSQL already runs $TARGET_IMAGE ($TARGET_DIGEST). Nothing to do."
+    # Also the path a re-run takes after an interrupted or failed run, so the
+    # result is only reported once everything checks out again.
+    echo "PostgreSQL already runs $TARGET_IMAGE; verifying instead of restarting."
+    verify_db_serves_target "$DB_CONTAINER"
+    verify_clients
+    echo "✅ PostgreSQL already runs $TARGET_IMAGE ($TARGET_DIGEST). Nothing to restart."
     echo "POSTGRES_IMAGE_RESULT image=$TARGET_IMAGE digest=$TARGET_DIGEST"
     exit 0
 fi
+
+RUNNING_GLIBC=$(glibc_version "$RUNNING_IMAGE_ID")
+TARGET_GLIBC=$(glibc_version "$TARGET_IMAGE")
+[ -n "$RUNNING_GLIBC" ] && [ -n "$TARGET_GLIBC" ] || fail "Could not determine the images' glibc versions."
+if [ "$RUNNING_GLIBC" != "$TARGET_GLIBC" ]; then
+    fail "The target image changes glibc from $RUNNING_GLIBC to $TARGET_GLIBC, which can change text sort order and invalidate indexes. Plan that with a REINDEX instead."
+fi
+echo "✅ glibc stays at $TARGET_GLIBC, so text collation is unchanged."
+
+if ! compose_plans_db_recreate_only; then
+    fail "Compose would change more than the db container (see its plan above); refusing."
+fi
+echo "✅ Compose plans to recreate only the db container."
 
 if [ "$HOST_ENV_NAME" = "production" ]; then
     echo "=== Fresh backup before the restart ==="
@@ -281,7 +396,9 @@ fi
 # Pulling a rebuilt tag can leave the running image untagged, and the next
 # dangling-image prune would delete it once it stops. Pin it first.
 sudo docker tag "$RUNNING_IMAGE_ID" "$ROLLBACK_IMAGE"
-ROLLBACK_COMMAND="echo 'services: {db: {image: \"$ROLLBACK_IMAGE\"}}' | sudo docker compose -f docker-compose.yml -f - up -d --no-deps --force-recreate --pull never --wait db"
+# The recovery command waits for the host lock, which a restart still running
+# after this script died keeps holding, and allows the same shutdown time.
+ROLLBACK_COMMAND="echo 'services: {db: {image: \"$ROLLBACK_IMAGE\"}}' | flock $LOCK_FILE sudo docker compose -f docker-compose.yml -f - up -d --no-deps --force-recreate --pull never --wait --timeout 60 db"
 echo "=== Restarting PostgreSQL on $TARGET_IMAGE ==="
 echo "Previous image $RUNNING_IMAGE ($RUNNING_IMAGE_ID) is kept as $ROLLBACK_IMAGE."
 echo "Recovery command if needed: $ROLLBACK_COMMAND"
@@ -292,53 +409,39 @@ if ! db_sql 60 "CHECKPOINT" >/dev/null; then
     echo "⚠️ CHECKPOINT failed or timed out; continuing (shutdown will checkpoint)."
 fi
 
+# Compose stops the old container before it starts the new one. If it died in
+# between (a broken pipe when the SSH session drops or the run is cancelled,
+# or a hangup when an interactive terminal closes), the new container would
+# stay "Created" and PostgreSQL would stay down. So it runs in its own session
+# with its output in a file, and always finishes; the output is shown after.
+# There is deliberately no outer timeout to kill it halfway either: Compose
+# bounds the shutdown (--timeout) and the health wait (--wait-timeout) itself.
+RESTART_LOG=$(mktemp)
 RESTART_STARTED=1
 RESTART_STARTED_AT=$(date +%s)
-if ! timeout 330 sudo docker compose up -d --no-deps --force-recreate --pull never \
-    --wait --wait-timeout 240 --timeout 60 db; then
-    fail "PostgreSQL did not become healthy on $TARGET_IMAGE."
-fi
+RESTART_OK=1
+setsid --wait sudo docker compose up -d --no-deps --force-recreate --pull never \
+    --wait --wait-timeout 240 --timeout 60 db >"$RESTART_LOG" 2>&1 || RESTART_OK=0
+cat "$RESTART_LOG"
+rm -f "$RESTART_LOG"
+[ "$RESTART_OK" -eq 1 ] || fail "PostgreSQL did not become healthy on $TARGET_IMAGE."
 echo "✅ PostgreSQL is healthy again after $(($(date +%s) - RESTART_STARTED_AT))s."
 
 echo "=== Verification ==="
 NEW_DB_CONTAINER=$(sudo docker compose ps -q db)
 [ -n "$NEW_DB_CONTAINER" ] && [ "$NEW_DB_CONTAINER" != "$DB_CONTAINER" ] \
     || fail "The db container was not recreated."
-[ "$(sudo docker inspect --format '{{.Config.Image}}' "$NEW_DB_CONTAINER")" = "$TARGET_IMAGE" ] \
-    || fail "The new db container does not use $TARGET_IMAGE."
-[ "$(sudo docker inspect --format '{{.Image}}' "$NEW_DB_CONTAINER")" = "$TARGET_IMAGE_ID" ] \
-    || fail "The new db container does not run image $TARGET_IMAGE_ID."
-[ "$(container_storage "$NEW_DB_CONTAINER")" = "$RUNNING_STORAGE" ] \
-    || fail "The new db container does not use the same data volume and network."
-[ "$(db_data_major)" = "$DATA_MAJOR" ] || fail "The data directory major version changed."
-NEW_VERSION=$(db_server_version)
-[ "$NEW_VERSION" = "$TARGET_VERSION" ] || fail "PostgreSQL reports $NEW_VERSION, expected $TARGET_VERSION."
-[ "$(db_sql 30 "SELECT to_regclass('public.households') IS NOT NULL")" = "t" ] \
-    || fail "The application schema (households table) is missing after the restart."
-echo "✅ PostgreSQL $NEW_VERSION serves the existing data volume and application schema."
-
-echo "Waiting for web to report a healthy database connection..."
-for attempt in $(seq 1 30); do
-    if web_is_healthy; then
-        break
-    fi
-    [ "$attempt" -lt 30 ] || fail "Web did not report healthy within 90 seconds."
-    sleep 3
-done
+verify_db_serves_target "$NEW_DB_CONTAINER"
+verify_clients
 [ "$(sudo docker compose ps -q web)" = "$WEB_CONTAINER" ] || fail "The web container changed during the update."
 WEB_RESTARTS_AFTER=$(sudo docker inspect --format '{{.RestartCount}}' "$WEB_CONTAINER")
 [ "$WEB_RESTARTS_AFTER" = "$WEB_RESTARTS_BEFORE" ] \
     || fail "The web container restarted during the update ($WEB_RESTARTS_BEFORE -> $WEB_RESTARTS_AFTER)."
-echo "✅ Web reconnected without restarting."
-
 if [ "$HOST_ENV_NAME" = "production" ]; then
     [ "$("${BACKUP_COMPOSE[@]}" ps -q db-backup)" = "$BACKUP_CONTAINER" ] \
         || fail "The db-backup container changed during the update."
-    # shellcheck disable=SC2016 # Variables expand inside the backup container.
-    "${BACKUP_COMPOSE[@]}" exec -T db-backup sh -c 'pg_isready -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
-        || fail "The backup container cannot reach PostgreSQL."
-    echo "✅ The backup container reaches PostgreSQL."
 fi
+echo "✅ Web and the backup scheduler kept running through the restart."
 
 echo "Checking once more for restart loops..."
 sleep 15

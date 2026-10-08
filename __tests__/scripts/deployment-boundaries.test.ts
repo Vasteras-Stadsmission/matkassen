@@ -138,6 +138,8 @@ describe("PostgreSQL image update", () => {
         const majorCheck = indexOf("Refusing a major version change");
         const configHashCheck = indexOf("config --hash db");
         const storageCheck = indexOf('"$(configured_storage)" != "$RUNNING_STORAGE"');
+        const glibcCheck = indexOf('"$RUNNING_GLIBC" != "$TARGET_GLIBC"');
+        const planCheck = indexOf("if ! compose_plans_db_recreate_only; then");
         const backup = indexOf("exec -T db-backup /usr/local/bin/backup-db.sh");
         const rollbackTag = indexOf('sudo docker tag "$RUNNING_IMAGE_ID" "$ROLLBACK_IMAGE"');
         const recreate = indexOf(
@@ -147,6 +149,8 @@ describe("PostgreSQL image update", () => {
         expect(majorCheck).toBeLessThan(backup);
         expect(configHashCheck).toBeLessThan(backup);
         expect(storageCheck).toBeLessThan(backup);
+        expect(glibcCheck).toBeLessThan(backup);
+        expect(planCheck).toBeLessThan(backup);
         expect(backup).toBeLessThan(rollbackTag);
         expect(rollbackTag).toBeLessThan(recreate);
         expect(indexOf("RESTART_STARTED=1")).toBeLessThan(recreate);
@@ -159,7 +163,14 @@ describe("PostgreSQL image update", () => {
         expect(updateSource).toContain('LOCK_FILE="/tmp/matkassen-deploy.lock"');
         expect(postgresScriptSource.match(/docker compose up/g)).toHaveLength(1);
         expect(postgresScriptSource).toContain("docker compose up -d --no-deps --force-recreate");
-        expect(postgresScriptSource).toContain("--wait --wait-timeout 240 --timeout 60 db; then");
+        // A dropped SSH session must not kill Compose between stopping the old
+        // container and starting the new one.
+        expect(postgresScriptSource).toContain(
+            "setsid --wait sudo docker compose up -d --no-deps --force-recreate",
+        );
+        expect(postgresScriptSource).toContain(
+            '--wait --wait-timeout 240 --timeout 60 db >"$RESTART_LOG" 2>&1 || RESTART_OK=0',
+        );
         expect(postgresScriptSource).not.toMatch(/docker compose (?:down|restart|stop)/);
         expect(postgresScriptSource).not.toMatch(/docker (?:[a-z]+ )?prune/);
     });

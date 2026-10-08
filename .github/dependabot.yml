@@ -37,19 +37,11 @@ updates:
 
     # Docker Compose: monitor static service images such as PostgreSQL across
     # the root compose files. Keep this separate from Dockerfile updates so a
-    # database image change can be reviewed and staged independently. Merged
-    # PostgreSQL minor bumps reach the servers through the "PostgreSQL image
-    # update" workflow. A major version needs pg_upgrade or dump/restore,
-    # which that workflow refuses, so it is planned explicitly instead of
-    # arriving as a routine PR that would leave docker-compose.yml unappliable.
+    # database image change can be reviewed and staged independently.
     - package-ecosystem: "docker-compose"
       directory: "/"
       schedule:
           interval: "monthly"
-      ignore:
-          - dependency-name: "postgres"
-            update-types:
-                - "version-update:semver-major"
 
     # npm: large dependency tree. Handle updates in two paths so easier
     # bumps are reviewed together and risky ones get focused review:
