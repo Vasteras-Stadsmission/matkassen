@@ -42,6 +42,8 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
+                  # The action's default is 10m; pulls alone may take 15m.
+                  command_timeout: 30m
                   capture_stdout: true
                   script: |
                       set -euo pipefail
@@ -77,10 +79,11 @@ jobs:
     production:
         needs: staging
         runs-on: ubuntu-latest
-        # Shared with continuous_deployment.yml. While this job waits for
-        # approval it holds the group, so a production deploy queues behind it;
-        # reject this run if a deploy must go first. A newer pending job in the
-        # group replaces an older pending one, so re-run if this is cancelled.
+        # Shared with continuous_deployment.yml. A job waiting for approval
+        # holds the group, so a production deploy queues behind this job (and
+        # this job behind a deploy awaiting approval); reject whichever should
+        # not go first. A newer queued job replaces an older queued one, so
+        # re-run this workflow if it is cancelled that way.
         concurrency:
             group: deploy-production
             cancel-in-progress: false
@@ -95,6 +98,9 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
+                  # Covers the pull (15m) and backup (30m) limits plus the
+                  # restart and verification; the action's default is 10m.
+                  command_timeout: 60m
                   # Both values were validated by the staging job's result step.
                   script: |
                       set -euo pipefail

@@ -137,14 +137,18 @@ describe("PostgreSQL image update", () => {
     it("refuses major versions and other db changes before backup or downtime", () => {
         const majorCheck = indexOf("Refusing a major version change");
         const configHashCheck = indexOf("config --hash db");
+        const storageCheck = indexOf('"$(configured_storage)" != "$RUNNING_STORAGE"');
         const backup = indexOf("exec -T db-backup /usr/local/bin/backup-db.sh");
+        const rollbackTag = indexOf('sudo docker tag "$RUNNING_IMAGE_ID" "$ROLLBACK_IMAGE"');
         const recreate = indexOf(
             "docker compose up -d --no-deps --force-recreate --pull never \\\n    --wait --wait-timeout 240 --timeout 60 db",
         );
 
         expect(majorCheck).toBeLessThan(backup);
         expect(configHashCheck).toBeLessThan(backup);
-        expect(backup).toBeLessThan(recreate);
+        expect(storageCheck).toBeLessThan(backup);
+        expect(backup).toBeLessThan(rollbackTag);
+        expect(rollbackTag).toBeLessThan(recreate);
         expect(indexOf("RESTART_STARTED=1")).toBeLessThan(recreate);
     });
 
@@ -157,7 +161,7 @@ describe("PostgreSQL image update", () => {
         expect(postgresScriptSource).toContain("docker compose up -d --no-deps --force-recreate");
         expect(postgresScriptSource).toContain("--wait --wait-timeout 240 --timeout 60 db; then");
         expect(postgresScriptSource).not.toMatch(/docker compose (?:down|restart|stop)/);
-        expect(postgresScriptSource).not.toMatch(/prune/);
+        expect(postgresScriptSource).not.toMatch(/docker (?:[a-z]+ )?prune/);
     });
 
     it("is a manual workflow that applies staging's tested digest to production after approval", () => {
@@ -170,5 +174,7 @@ describe("PostgreSQL image update", () => {
             'export EXPECTED_DB_IMAGE_DIGEST="${{ needs.staging.outputs.digest }}"',
         );
         expect(postgresWorkflowSource.match(/cancel-in-progress: false/g)).toHaveLength(2);
+        // The ssh-action default of 10 minutes is shorter than the backup limit.
+        expect(postgresWorkflowSource).toContain("command_timeout: 60m");
     });
 });

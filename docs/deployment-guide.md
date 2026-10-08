@@ -109,13 +109,15 @@ Before pulling, and again after a successful deploy, it keeps per repository:
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
 | `matkassen`, `matkassen-db-backup` | the 3 newest releases, the release this deploy replaces, and anything a container uses |
 | `postgres`                         | the 2 newest images (current and previous minor version) and anything a container uses |
+| `matkassen-postgres-rollback`      | `:previous`, the image the last PostgreSQL image update replaced (never pruned)        |
 
 "Newest" is the image's `org.opencontainers.image.created` label (the CI run
 time), not Docker's `Created` field, which keeps an old timestamp when a build
 is a GHA cache hit. Older `sha-*` tags stay in GHCR and can be pulled again.
 Cleanup runs before the 5 GiB free-space check, so a disk filled by old
-releases recovers on the next deploy instead of blocking it. It never uses
-`-f` or `-a` and never prunes a stopped PostgreSQL container.
+releases recovers on the next deploy instead of blocking it. Cleanup never
+force-removes an image, never prunes all unused images (`-a`), and never
+prunes a stopped PostgreSQL container.
 
 ### PostgreSQL Image Updates
 
@@ -133,9 +135,10 @@ environments:
    exact image digest staging now runs. Staging keeps no backups by policy, so
    it does not rehearse production's backup step.
 2. The production job waits for environment approval. Approve it outside
-   food-parcel handout hours. Approval starts a queued job, not necessarily
-   that very second, and a production deploy waiting in the same
-   `deploy-production` concurrency group goes first.
+   food-parcel handout hours. It shares the `deploy-production` concurrency
+   group with production deploys: a job waiting for approval holds the group,
+   so a deploy queues behind it and vice versa, and a newer queued job
+   replaces an older queued one (re-run the workflow if it was cancelled).
 3. On production the script takes a fresh encrypted backup with the nightly
    `backup-db.sh` (upload plus full restore validation), then pulls the
    staging-tested digest and restarts PostgreSQL on it. Downtime is one fast
@@ -146,25 +149,26 @@ Before any downtime the script refuses when:
 - the target is another PostgreSQL major version (that needs `pg_upgrade` or
   dump/restore and is a planned migration);
 - the `db` service differs from the running container in anything but its
-  image (it compares Compose's configuration hash), because recreating would
-  apply that change too;
+  image (it compares Compose's configuration hash and the resolved volume and
+  network names), because recreating would apply that change too;
 - production cannot take and validate the backup, the host's configured image
   differs from what staging applied, or a deploy holds the host lock.
 
 Afterwards it verifies the new image, server version, data volume, application
 schema, web health and restart counts, and the backup container's connection.
-If the restart or verification fails, it prints the database logs and a
-command that recreates PostgreSQL on the previous image. That works because
-minor versions share the on-disk format; the previous image stays on disk
-under the retention rules above. The script never rolls back by itself.
+Before restarting it tags the running image as
+`matkassen-postgres-rollback:previous`, which no cleanup removes. If the
+restart or verification fails, it prints the database logs and a command that
+recreates PostgreSQL on that image, which works because minor versions share
+the on-disk format. The script never rolls back by itself.
 
 A restart can interrupt an SMS that is being sent. Such rows stay in `sending`:
 reminders recover automatically after 10 minutes, while enrollment and
 cancellation messages wait for manual review (`docs/business-logic.md`). The
 script warns when it finds any.
 
-Dependabot does not propose PostgreSQL major versions for the same reason.
-Plan a major upgrade separately.
+Because major versions need `pg_upgrade` or dump/restore, Dependabot is
+configured not to propose them; plan a major upgrade as its own migration.
 
 ### SSH Host Identity Pinning
 

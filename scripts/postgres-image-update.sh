@@ -13,14 +13,16 @@
 # downtime, when:
 # - the target is another PostgreSQL major version (that needs pg_upgrade or
 #   dump/restore and is a planned migration, never automatic);
-# - anything else in the db service configuration differs from the running
-#   container, because recreating the container would apply that change too;
+# - anything else in the db service configuration, or the volume and network
+#   it resolves to, differs from the running container, because recreating
+#   the container would apply that change too;
 # - production cannot first take and validate a fresh encrypted backup.
 #
-# Downtime is one PostgreSQL fast shutdown and start, normally seconds. If
-# anything fails after the restart begins, the script prints the database
-# logs and the command that recreates the container on the previous image.
-# It never rolls back on its own.
+# Downtime is one PostgreSQL fast shutdown and start, normally seconds. The
+# replaced image is tagged matkassen-postgres-rollback:previous so no cleanup
+# removes it. If anything fails after the restart begins, the script prints
+# the database logs and the command that recreates the container on that
+# image. It never rolls back on its own.
 #
 # Optional environment:
 #   ENV_NAME                  must match ENV_NAME in .env when set
@@ -41,6 +43,9 @@ LOCK_FILE="${LOCK_FILE:-/tmp/matkassen-deploy.lock}"
 MIN_ROOT_KB=$((5 * 1024 * 1024))
 IMAGE_PATTERN='^[a-z0-9][a-z0-9._/-]*:[A-Za-z0-9_][A-Za-z0-9._-]*$'
 DIGEST_PATTERN='^[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$'
+# Local-only tag outside the postgres repository, so neither update.sh's
+# retention nor the dangling-image prune can remove the image to go back to.
+ROLLBACK_IMAGE="matkassen-postgres-rollback:previous"
 
 # Shares update.sh's lock so a deploy and a database update never overlap.
 exec 200>"$LOCK_FILE"
@@ -67,8 +72,8 @@ on_exit() {
         sudo docker compose ps -a db || true
         sudo docker compose logs --tail 100 db || true
         echo ""
-        echo "The previous image is still on disk. If PostgreSQL does not recover,"
-        echo "recreate it on the previous image (same major version and data volume)"
+        echo "The previous image is kept as $ROLLBACK_IMAGE. If PostgreSQL does not"
+        echo "recover, recreate it on that image (same major version and data volume)"
         echo "from $APP_DIR with:"
         echo "  $ROLLBACK_COMMAND"
         echo "Then check https://<domain>/api/health and the web container."
@@ -104,8 +109,34 @@ db_server_version() {
     db_sql 30 "SHOW server_version" | awk '{ print $1 }'
 }
 
-container_mounts() {
-    sudo docker inspect --format '{{range .Mounts}}{{.Type}} {{.Name}} {{.Destination}}{{println}}{{end}}' "$1"
+# Volumes (by resolved name), bind mounts and networks of a container, or of
+# the db service as docker-compose.yml would create it now. The service hash
+# does not cover top-level volume or network names, so a renamed volume would
+# otherwise pass preflight and start PostgreSQL on an empty data directory.
+container_storage() {
+    sudo docker inspect --format '{{range .Mounts}}{{.Type}} {{if eq .Type "volume"}}{{.Name}}{{else}}{{.Source}}{{end}} {{.Destination}}{{println}}{{end}}{{range $name, $_ := .NetworkSettings.Networks}}network {{$name}}{{println}}{{end}}' "$1" \
+        | sed '/^$/d' | sort
+}
+
+# The rendered configuration holds credentials; only names and paths leave
+# the Python filter.
+configured_storage() {
+    sudo docker compose config --format json db | python3 -c '
+import json, sys
+config = json.load(sys.stdin)
+db = config["services"]["db"]
+volumes = config.get("volumes") or {}
+networks = config.get("networks") or {}
+lines = []
+for mount in db.get("volumes") or []:
+    source = mount.get("source", "")
+    if mount.get("type") == "volume":
+        source = (volumes.get(source) or {}).get("name") or source
+    lines.append("%s %s %s" % (mount.get("type"), source, mount.get("target")))
+for network in db.get("networks") or {}:
+    lines.append("network %s" % ((networks.get(network) or {}).get("name") or network))
+print("\n".join(sorted(lines)))
+'
 }
 
 web_is_healthy() {
@@ -147,7 +178,7 @@ WEB_RESTARTS_BEFORE=$(sudo docker inspect --format '{{.RestartCount}}' "$WEB_CON
 
 RUNNING_IMAGE=$(sudo docker inspect --format '{{.Config.Image}}' "$DB_CONTAINER")
 RUNNING_IMAGE_ID=$(sudo docker inspect --format '{{.Image}}' "$DB_CONTAINER")
-RUNNING_MOUNTS=$(container_mounts "$DB_CONTAINER")
+RUNNING_STORAGE=$(container_storage "$DB_CONTAINER")
 TARGET_IMAGE=$(sudo docker compose config --images db)
 [[ "$RUNNING_IMAGE" =~ $IMAGE_PATTERN ]] || fail "Unexpected running image reference: $RUNNING_IMAGE"
 [[ "$TARGET_IMAGE" =~ $IMAGE_PATTERN ]] \
@@ -169,6 +200,9 @@ CONFIG_HASH_WITH_RUNNING_IMAGE=$(printf 'services: {db: {image: "%s"}}\n' "$RUNN
 if [ -z "$RUNNING_CONFIG_HASH" ] || [ "$RUNNING_CONFIG_HASH" != "$CONFIG_HASH_WITH_RUNNING_IMAGE" ]; then
     fail "The db service configuration differs from the running container in more than its image (volumes, environment, ports, healthcheck, ...). Recreating it would apply those changes too; plan that as an infrastructure change instead."
 fi
+if [ -z "$RUNNING_STORAGE" ] || [ "$(configured_storage)" != "$RUNNING_STORAGE" ]; then
+    fail "The db service would use a different volume or network than the running container. Recreating it could start PostgreSQL on an empty data directory; refusing."
+fi
 echo "✅ The image is the only pending change to the db service."
 
 AVAILABLE_ROOT_KB=$(df -Pk / | awk 'NR == 2 { print $4 }')
@@ -183,10 +217,10 @@ if [ -n "${EXPECTED_DB_IMAGE_DIGEST:-}" ]; then
         || fail "EXPECTED_DB_IMAGE_DIGEST is not a repository@sha256 digest."
     [ "${EXPECTED_DB_IMAGE_DIGEST%@*}" = "$TARGET_REPOSITORY" ] \
         || fail "EXPECTED_DB_IMAGE_DIGEST is for another repository than $TARGET_REPOSITORY."
-    sudo docker pull "$EXPECTED_DB_IMAGE_DIGEST"
+    timeout 900 sudo docker pull "$EXPECTED_DB_IMAGE_DIGEST"
     sudo docker tag "$EXPECTED_DB_IMAGE_DIGEST" "$TARGET_IMAGE"
 else
-    sudo docker compose pull db
+    timeout 900 sudo docker compose pull db
 fi
 TARGET_IMAGE_ID=$(sudo docker image inspect --format '{{.Id}}' "$TARGET_IMAGE")
 TARGET_DIGESTS=$(sudo docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$TARGET_IMAGE")
@@ -244,9 +278,12 @@ else
     echo "ℹ️ Staging keeps no database backups by policy; continuing without one."
 fi
 
-ROLLBACK_COMMAND="echo 'services: {db: {image: \"$RUNNING_IMAGE_ID\"}}' | sudo docker compose -f docker-compose.yml -f - up -d --no-deps --force-recreate --pull never --wait db"
+# Pulling a rebuilt tag can leave the running image untagged, and the next
+# dangling-image prune would delete it once it stops. Pin it first.
+sudo docker tag "$RUNNING_IMAGE_ID" "$ROLLBACK_IMAGE"
+ROLLBACK_COMMAND="echo 'services: {db: {image: \"$ROLLBACK_IMAGE\"}}' | sudo docker compose -f docker-compose.yml -f - up -d --no-deps --force-recreate --pull never --wait db"
 echo "=== Restarting PostgreSQL on $TARGET_IMAGE ==="
-echo "Previous image for manual recovery: $RUNNING_IMAGE ($RUNNING_IMAGE_ID)"
+echo "Previous image $RUNNING_IMAGE ($RUNNING_IMAGE_ID) is kept as $ROLLBACK_IMAGE."
 echo "Recovery command if needed: $ROLLBACK_COMMAND"
 
 # A checkpoint now leaves little for the shutdown checkpoint to flush, which
@@ -271,8 +308,8 @@ NEW_DB_CONTAINER=$(sudo docker compose ps -q db)
     || fail "The new db container does not use $TARGET_IMAGE."
 [ "$(sudo docker inspect --format '{{.Image}}' "$NEW_DB_CONTAINER")" = "$TARGET_IMAGE_ID" ] \
     || fail "The new db container does not run image $TARGET_IMAGE_ID."
-[ "$(container_mounts "$NEW_DB_CONTAINER")" = "$RUNNING_MOUNTS" ] \
-    || fail "The new db container does not mount the same data volume."
+[ "$(container_storage "$NEW_DB_CONTAINER")" = "$RUNNING_STORAGE" ] \
+    || fail "The new db container does not use the same data volume and network."
 [ "$(db_data_major)" = "$DATA_MAJOR" ] || fail "The data directory major version changed."
 NEW_VERSION=$(db_server_version)
 [ "$NEW_VERSION" = "$TARGET_VERSION" ] || fail "PostgreSQL reports $NEW_VERSION, expected $TARGET_VERSION."
