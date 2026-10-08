@@ -50,14 +50,29 @@ GITHUB_ORG=vasteras-stadsmission
 # user's home. The deploy user is always `ubuntu` per the SSH workflow.
 APP_DIR="/home/ubuntu/$PROJECT_NAME"
 
+# Bounded image retention. Every deploy pulls a new immutable sha-* image, so
+# unbounded tagged images eventually fail the free-space check below. Keep the
+# three newest releases per repository: the running release, the previous one
+# for an image-only rollback, and room for one failed or abandoned candidate.
+# The release that was running before this deploy is protected explicitly, so
+# failed candidates can never push it out. Older sha-* tags stay in GHCR and
+# can be pulled again. Two PostgreSQL images keep the previous minor version
+# for a quick same-major rollback after a database image update.
+RELEASE_IMAGES_TO_KEEP=3
+POSTGRES_IMAGES_TO_KEEP=2
+# shellcheck source=scripts/release-image-retention.sh
+source "$APP_DIR/scripts/release-image-retention.sh"
+
 cleanup_docker_resources() {
-    echo "Cleaning up stopped containers and dangling image layers..."
-    sudo docker container prune -f
-    # Deliberately omit -a: tagged immutable releases remain available for the
-    # focused image rollback added in the next release-safety phase.
+    echo "Cleaning up stopped containers, old release images and dangling layers..."
+    # Never prune a stopped PostgreSQL container: its logs live with it.
+    sudo docker container prune -f --filter "label!=com.docker.compose.service=db"
+    prune_release_images ghcr.io/vasteras-stadsmission/matkassen "$RELEASE_IMAGES_TO_KEEP" ${OUTGOING_WEB_IMAGE:+"$OUTGOING_WEB_IMAGE"}
+    prune_release_images ghcr.io/vasteras-stadsmission/matkassen-db-backup "$RELEASE_IMAGES_TO_KEEP" ${OUTGOING_BACKUP_IMAGE:+"$OUTGOING_BACKUP_IMAGE"}
+    prune_release_images postgres "$POSTGRES_IMAGES_TO_KEEP"
     sudo docker image prune -f
     sudo docker system df
-    echo "✅ Safe Docker cleanup completed"
+    echo "✅ Docker cleanup completed"
 }
 
 assert_full_sha() {
@@ -105,15 +120,6 @@ EXPECTED_BACKUP_IMAGE="ghcr.io/vasteras-stadsmission/matkassen-db-backup:sha-$DE
 sudo systemctl is-active --quiet docker || { echo "❌ Docker is not active."; exit 1; }
 sudo systemctl is-active --quiet nginx || { echo "❌ Nginx is not active."; exit 1; }
 
-AVAILABLE_ROOT_KB=$(df -Pk / | awk 'NR == 2 { print $4 }')
-MIN_ROOT_KB=$((5 * 1024 * 1024))
-if [ -z "$AVAILABLE_ROOT_KB" ] || [ "$AVAILABLE_ROOT_KB" -lt "$MIN_ROOT_KB" ]; then
-    echo "❌ Less than 5 GiB is available on the root filesystem."
-    df -h /
-    exit 1
-fi
-echo "✅ Root filesystem has at least 5 GiB available."
-
 # Idempotently harden the app directory: owner-only access. Without this,
 # a reset of the directory (e.g. a fresh init_deploy re-run) would leave
 # the parent at default 755, which lets anyone in the ubuntu group
@@ -160,6 +166,14 @@ DB_CONTAINER_BEFORE=$(sudo docker compose ps -q db)
 DB_RESTARTS_BEFORE=$(sudo docker inspect --format '{{.RestartCount}}' "$DB_CONTAINER_BEFORE")
 echo "✅ PostgreSQL is healthy and will not be included in Compose replacement."
 
+# Routine deploys never restart PostgreSQL, so a db image change in
+# docker-compose.yml waits for the separate, approval-gated workflow. Say so
+# on every deploy until it has been applied.
+RUNNING_DB_IMAGE=$(sudo docker inspect --format '{{.Config.Image}}' "$DB_CONTAINER_BEFORE")
+if CONFIGURED_DB_IMAGE=$(sudo docker compose config --images db) && [ "$CONFIGURED_DB_IMAGE" != "$RUNNING_DB_IMAGE" ]; then
+  echo "::warning title=PostgreSQL image not applied::PostgreSQL runs $RUNNING_DB_IMAGE but docker-compose.yml specifies $CONFIGURED_DB_IMAGE. Routine deploys leave PostgreSQL untouched; run the 'PostgreSQL image update' workflow at a quiet time (docs/deployment-guide.md)."
+fi
+
 # Validate this production backup prerequisite before replacing any application
 # service. Initial deployment owns role configuration; routine updates only
 # verify it so application releases do not modify PostgreSQL roles.
@@ -188,15 +202,44 @@ fi
 # Routine application deploys deliberately leave nginx, journald, Docker host
 # configuration, and PostgreSQL untouched. Changes to those are planned
 # infrastructure releases with their own recovery notes.
-echo "Pulling immutable application images from GitHub Container Registry..."
 cd "$APP_DIR"
+if [ "${ENV_NAME:-}" = "production" ]; then
+  BACKUP_COMPOSE=(sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup)
+fi
+
+# The release running before this deploy stays on disk after it, whatever
+# happens to newer candidates, so an image-only rollback never needs GHCR.
+OUTGOING_WEB_IMAGE=""
+OUTGOING_BACKUP_IMAGE=""
+WEB_CONTAINER_BEFORE=$(sudo docker compose ps -q web)
+if [ -n "$WEB_CONTAINER_BEFORE" ]; then
+  OUTGOING_WEB_IMAGE=$(sudo docker inspect --format '{{.Image}}' "$WEB_CONTAINER_BEFORE")
+fi
+if [ "${ENV_NAME:-}" = "production" ]; then
+  BACKUP_CONTAINER_BEFORE=$("${BACKUP_COMPOSE[@]}" ps -q db-backup)
+  if [ -n "$BACKUP_CONTAINER_BEFORE" ]; then
+    OUTGOING_BACKUP_IMAGE=$(sudo docker inspect --format '{{.Image}}' "$BACKUP_CONTAINER_BEFORE")
+  fi
+fi
+
+# Clean up before checking free space, so a disk filled by old releases heals
+# itself instead of failing the deploy.
 cleanup_docker_resources
+AVAILABLE_ROOT_KB=$(df -Pk / | awk 'NR == 2 { print $4 }')
+MIN_ROOT_KB=$((5 * 1024 * 1024))
+if [ -z "$AVAILABLE_ROOT_KB" ] || [ "$AVAILABLE_ROOT_KB" -lt "$MIN_ROOT_KB" ]; then
+    echo "❌ Less than 5 GiB is available on the root filesystem after cleanup."
+    df -h /
+    exit 1
+fi
+echo "✅ Root filesystem has at least 5 GiB available."
+
+echo "Pulling immutable application images from GitHub Container Registry..."
 if ! sudo docker compose pull web; then
   echo "Failed to pull the application image from GHCR"
   exit 1
 fi
 if [ "${ENV_NAME:-}" = "production" ]; then
-  BACKUP_COMPOSE=(sudo docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.backup.yml" --profile backup)
   if ! "${BACKUP_COMPOSE[@]}" pull db-backup; then
     echo "Failed to pull the backup image from GHCR"
     exit 1
