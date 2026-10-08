@@ -101,8 +101,87 @@ redirects, and unauthenticated admin rejection. Nginx, journald, Docker host
 configuration, and database recovery are deliberately outside routine
 application deployment.
 
-Cleanup removes stopped containers and dangling layers without `-a`, retaining
-tagged immutable images for the focused image-rollback follow-up.
+Each deploy pulls new immutable `sha-*` images (about 1.5 GB for the app and
+0.36 GB for the backup scheduler), so `update.sh` bounds what stays on disk.
+Before pulling, and again after a successful deploy, it keeps per repository:
+
+| Repository                         | Kept locally                                                                           |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `matkassen`, `matkassen-db-backup` | the 3 newest releases, the release this deploy replaces, and anything a container uses |
+| `postgres`                         | the 2 newest images (current and previous minor version) and anything a container uses |
+| `matkassen-postgres-rollback`      | `:previous`, the image the last PostgreSQL image update replaced (never pruned)        |
+
+"Newest" is the image's `org.opencontainers.image.created` label (the CI run
+time), not Docker's `Created` field, which keeps an old timestamp when a build
+is a GHA cache hit. Older `sha-*` tags stay in GHCR and can be pulled again.
+Cleanup runs before the 5 GiB free-space check, so a disk filled by old
+releases recovers on the next deploy instead of blocking it. Cleanup never
+force-removes an image, never prunes all unused images (`-a`), and never
+prunes a stopped PostgreSQL container.
+
+### PostgreSQL Image Updates
+
+Routine deploys never recreate or restart PostgreSQL, so changing the `db`
+image in `docker-compose.yml` (for example a Dependabot minor bump) does not
+reach the servers by itself. Every deploy prints a "PostgreSQL image not
+applied" warning while the running image differs from the configured one.
+
+Apply it with the **PostgreSQL image update** workflow
+(`.github/workflows/postgres_image_update.yml`, run manually from the Actions
+tab) after the release containing the change has been deployed to both
+environments:
+
+1. The staging job runs `scripts/postgres-image-update.sh` and records the
+   exact image digest staging now runs. Staging keeps no backups by policy, so
+   it does not rehearse production's backup step.
+2. The production job waits for environment approval. Approve it outside
+   food-parcel handout hours. It shares the `deploy-production` concurrency
+   group with production deploys: a job waiting for approval holds the group,
+   so a deploy queues behind it and vice versa, and a newer queued job
+   replaces an older queued one (re-run the workflow if it was cancelled).
+3. On production the script takes a fresh encrypted backup with the nightly
+   `backup-db.sh` (upload plus full restore validation), then pulls the
+   staging-tested digest and restarts PostgreSQL on it. Downtime is one fast
+   shutdown and start, normally a few seconds, during which web requests fail.
+
+Before any downtime the script refuses when:
+
+- the target is another PostgreSQL major version (that needs `pg_upgrade` or
+  dump/restore and is a planned migration);
+- the `db` service differs from the running container in anything but its
+  image (it compares Compose's configuration hash and the resolved volume and
+  network names), because recreating would apply that change too;
+- Compose's dry-run plan contains anything besides recreating the `db`
+  container. A changed network definition, for example, would make Compose
+  stop `db` and then fail to replace a network that web still uses;
+- the new image changes glibc, whose collation orders text indexes (a new
+  Debian base can silently invalidate them; that needs a planned `REINDEX`);
+- production cannot take and validate the backup, the host's configured image
+  differs from what staging applied, or a deploy holds the host lock.
+
+The restart runs in its own session with its output in a file, so a dropped
+SSH connection or cancelled run cannot stop Compose between removing the old
+container and starting the new one. Afterwards the script verifies the new
+image, server version, data volume, application schema, web health and restart
+counts, and the backup container's connection. Re-running the workflow when
+PostgreSQL already runs the target image repeats that verification without a
+restart, so it is the way to finish an interrupted run.
+
+Before restarting it tags the running image as
+`matkassen-postgres-rollback:previous`, which no cleanup removes. If the
+restart or verification fails, it prints the database logs and a command that
+recreates PostgreSQL on that image, which works because minor versions share
+the on-disk format. The command first waits for the host lock, so it cannot
+overlap a restart that is still running. The script never rolls back by itself.
+
+A restart can interrupt an SMS that is being sent. Such rows stay in `sending`:
+reminders recover automatically after 10 minutes, while enrollment and
+cancellation messages wait for manual review (`docs/business-logic.md`). The
+script warns when it finds any.
+
+A major version (for example a Dependabot PR for PostgreSQL 18) needs
+`pg_upgrade` or dump/restore and is planned as its own migration; do not merge
+such a bump as a routine update.
 
 ### SSH Host Identity Pinning
 
@@ -216,7 +295,7 @@ Production backups run automatically via `Dockerfile.db-backup`, which runs `scr
 4. Full-restore validates the upload: creates `matkassen_nightly_validate`, streams `gpg --decrypt | pg_restore --exit-on-error` into it, runs a sentinel query (`SELECT to_regclass('public.households') IS NOT NULL`), drops the scratch DB. A wrong passphrase, corrupted upload, DDL incompatibility, or broken COPY stream fails the same night.
 5. Reports success/failure to Slack.
 
-**Cluster-level requirement**: the backup user needs `CREATEDB` to create and drop the scratch database. `deploy.sh` and `update.sh` apply this grant automatically on production. The widened privilege is cluster-level (the role can now create/drop databases), not app-level (it already owned every table in the app schema).
+**Cluster-level requirement**: the backup user needs `CREATEDB` to create and drop the scratch database. `deploy.sh` grants it on production; `update.sh` only verifies it and refuses to deploy without it. The widened privilege is cluster-level (the role can now create/drop databases), not app-level (it already owned every table in the app schema).
 
 #### Encryption Details
 
@@ -422,7 +501,7 @@ sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml \
 
 Match the log output to one of these:
 
-- `could not create scratch DB` and a hint mentioning `CREATEDB` → the backup role is missing the `CREATEDB` grant. `deploy.sh` and `update.sh` apply it on production, but both soft-fail (warning, not error). Fix manually: `docker compose exec -T db bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" CREATEDB;"'`.
+- `could not create scratch DB` and a hint mentioning `CREATEDB` → the backup role is missing the `CREATEDB` grant. `deploy.sh` grants it on production and `update.sh` refuses to deploy without it, so this usually means the role was changed by hand. Fix manually: `docker compose exec -T db bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" CREATEDB;"'`.
 - `pg_restore errored` → the decrypted dump didn't apply cleanly. Usually a DDL version skew between the dumping and restoring Postgres (both are the same instance, so this only happens if someone bumped the image tag mid-flight). Look for the `pg_restore:` error line just above.
 - `sentinel query returned 'f'` → the `households` table didn't survive the restore. Most commonly an empty or truncated dump; rarer: the schema was renamed and the sentinel check needs updating.
 - `decryption failed` → passphrase mismatch between encrypt and decrypt. Shouldn't happen (same env var in one run) — but check for stray edits and whether the container was restarted mid-run.
@@ -488,7 +567,11 @@ Incremental updates:
 - replaces only web and the production backup scheduler with `--no-deps`;
 - waits for the production backup scheduler to become healthy;
 - verifies exact images, zero immediate restarts, and an unchanged PostgreSQL
-  container before external checks; and
+  container before external checks;
+- removes release images beyond the retention limits before checking free
+  space and again after a successful deploy;
+- warns when the running PostgreSQL image differs from `docker-compose.yml`;
+  and
 - leaves nginx, journald, Docker host configuration, and PostgreSQL lifecycle
   untouched.
 
@@ -607,16 +690,21 @@ sudo docker container prune
 sudo docker image prune
 ```
 
-Do not use `docker system prune -a --volumes` as a routine recovery command. It
-removes immutable release images and can remove unused named volumes. Inspect
-`sudo docker system df -v` before deleting anything else manually.
+Old release images are removed by every deploy (see Continuous Deployment), so
+re-running the latest deployment frees space too. Do not use
+`docker system prune -a --volumes` as a routine recovery command. It removes
+every unused image, including the previous release, and can remove unused
+named volumes. Inspect `sudo docker system df -v` before deleting anything else
+manually.
 
 ## Rollback Procedure
 
 Automated rollback is intentionally not part of the forward-deployment
 hardening. Until the compact image-only rollback workflow is added and rehearsed
-on staging, prefer a forward fix and preserve the exact running and prior image
-tags for diagnosis.
+on staging, prefer a forward fix. A deploy never removes the release it
+replaced, so that image stays on disk at least until the next deploy, and
+normally longer as one of the three newest (see Continuous Deployment). Any
+older `sha-*` image can be pulled from GHCR again.
 
 Routine recovery must never restore a database backup or attempt automatic
 down-migrations. Every normal migration must keep the prior application image
@@ -625,7 +713,8 @@ a separate disaster-recovery operation.
 
 Changes to Compose, nginx, PostgreSQL, journald, systemd, certificates, or VPS
 storage are planned infrastructure releases with their own recovery notes; they
-are not ordinary application rollbacks.
+are not ordinary application rollbacks. PostgreSQL minor image updates have
+their own workflow and recovery command (see PostgreSQL Image Updates).
 
 ## Performance Tuning
 

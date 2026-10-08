@@ -1,0 +1,125 @@
+name: PostgreSQL image update
+
+# Applies a PostgreSQL minor/patch image change from docker-compose.yml to the
+# running database. Routine deploys never restart PostgreSQL, so this is the
+# deliberate, scheduled step that does (docs/deployment-guide.md, "PostgreSQL
+# image updates").
+#
+# Staging runs first and reports the exact image digest it now runs. The
+# production job waits for environment approval and then applies that same
+# digest after taking a fresh, restore-validated backup. Approve it outside
+# food-parcel handout hours: PostgreSQL restarts, which normally takes
+# seconds. scripts/postgres-image-update.sh refuses major version changes and
+# any db service change other than the image, before any downtime.
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    staging:
+        runs-on: ubuntu-latest
+        # Shared with continuous_deployment.yml so a deploy and a database
+        # update never run on the same host at once (the host lock in the
+        # script is the second line of defence).
+        concurrency:
+            group: deploy-staging
+            cancel-in-progress: false
+        environment:
+            name: staging
+            url: https://staging.matcentralen.com
+        outputs:
+            image: ${{ steps.result.outputs.image }}
+            digest: ${{ steps.result.outputs.digest }}
+        steps:
+            - name: Update PostgreSQL image on staging
+              id: update
+              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+              with:
+                  host: ${{ secrets.SERVER_HOST_STAGING }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
+                  # The action's default is 10m; pulls alone may take 15m.
+                  command_timeout: 30m
+                  capture_stdout: true
+                  script: |
+                      set -euo pipefail
+                      export ENV_NAME="staging"
+                      bash /home/ubuntu/matkassen/scripts/postgres-image-update.sh
+
+            - name: Record the image staging now runs
+              id: result
+              env:
+                  UPDATE_STDOUT: ${{ steps.update.outputs.stdout }}
+              run: |
+                  set -euo pipefail
+                  result=$(printf '%s\n' "$UPDATE_STDOUT" | sed -n 's/^POSTGRES_IMAGE_RESULT \(image=[^ ]* digest=[^ ]*\)$/\1/p' | tail -n 1)
+                  image=$(printf '%s' "$result" | sed -n 's/^image=\([^ ]*\) .*$/\1/p')
+                  digest=$(printf '%s' "$result" | sed -n 's/^.* digest=\([^ ]*\)$/\1/p')
+                  if ! [[ "$image" =~ ^[a-z0-9][a-z0-9._/-]*:[A-Za-z0-9_][A-Za-z0-9._-]*$ ]] \
+                      || ! [[ "$digest" =~ ^[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$ ]]; then
+                      echo "❌ Staging did not report the PostgreSQL image it runs."
+                      exit 1
+                  fi
+                  echo "image=$image" >> "$GITHUB_OUTPUT"
+                  echo "digest=$digest" >> "$GITHUB_OUTPUT"
+                  {
+                      echo "### PostgreSQL image verified on staging"
+                      echo ""
+                      echo "| Image | Digest |"
+                      echo "| --- | --- |"
+                      echo "| \`$image\` | \`$digest\` |"
+                      echo ""
+                      echo "Approving production restarts its PostgreSQL on this digest after a fresh backup. Approve outside handout hours."
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+    production:
+        needs: staging
+        runs-on: ubuntu-latest
+        # Shared with continuous_deployment.yml. A job waiting for approval
+        # holds the group, so a production deploy queues behind this job (and
+        # this job behind a deploy awaiting approval); reject whichever should
+        # not go first. A newer queued job replaces an older queued one, so
+        # re-run this workflow if it is cancelled that way.
+        concurrency:
+            group: deploy-production
+            cancel-in-progress: false
+        environment:
+            name: production
+            url: https://matcentralen.com
+        steps:
+            - name: Update PostgreSQL image on production
+              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+              with:
+                  host: ${{ secrets.SERVER_HOST_PRODUCTION }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
+                  # Covers the pull (15m) and backup (30m) limits plus the
+                  # restart and verification; the action's default is 10m.
+                  command_timeout: 60m
+                  # Both values were validated by the staging job's result step.
+                  script: |
+                      set -euo pipefail
+                      export ENV_NAME="production"
+                      export EXPECTED_DB_IMAGE="${{ needs.staging.outputs.image }}"
+                      export EXPECTED_DB_IMAGE_DIGEST="${{ needs.staging.outputs.digest }}"
+                      bash /home/ubuntu/matkassen/scripts/postgres-image-update.sh
+
+            - name: Verify production after the update
+              run: |
+                  set -euo pipefail
+                  for attempt in $(seq 1 30); do
+                      if curl -fsS --max-time 10 https://matcentralen.com/api/health \
+                          | python3 -c 'import json, sys; h = json.load(sys.stdin); sys.exit(0 if h.get("status") == "healthy" and h.get("checks", {}).get("database") == "ok" else 1)'; then
+                          echo "✅ https://matcentralen.com/api/health is healthy"
+                          exit 0
+                      fi
+                      echo "Health check not ready (attempt ${attempt}/30)"
+                      sleep 2
+                  done
+                  echo "❌ https://matcentralen.com/api/health did not become healthy"
+                  exit 1
