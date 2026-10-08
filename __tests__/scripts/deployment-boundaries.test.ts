@@ -156,6 +156,22 @@ describe("PostgreSQL image update", () => {
         expect(indexOf("RESTART_STARTED=1")).toBeLessThan(recreate);
     });
 
+    it("verifies fully before reporting a result, also when nothing needs a restart", () => {
+        const results = [...postgresScriptSource.matchAll(/echo "POSTGRES_IMAGE_RESULT /g)].map(
+            m => m.index!,
+        );
+        const stableChecks = [...postgresScriptSource.matchAll(/^\s*verify_db_stable "\$/gm)].map(
+            m => m.index!,
+        );
+        const noRestartBranch = indexOf("verifying instead of restarting");
+
+        expect(results).toHaveLength(2);
+        expect(stableChecks).toHaveLength(2);
+        expect(stableChecks[0]).toBeGreaterThan(noRestartBranch);
+        expect(stableChecks[0]).toBeLessThan(results[0]!);
+        expect(stableChecks[1]).toBeLessThan(results[1]!);
+    });
+
     it("shares the deployment lock and recreates nothing but db", () => {
         expect(postgresScriptSource).toContain(
             'LOCK_FILE="${LOCK_FILE:-/tmp/matkassen-deploy.lock}"',

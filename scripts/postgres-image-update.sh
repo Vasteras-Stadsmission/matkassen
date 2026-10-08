@@ -224,6 +224,23 @@ verify_db_serves_target() {
     echo "✅ PostgreSQL $version serves the existing data volume and application schema."
 }
 
+# Watches the db container for a short while: it must stay the same healthy
+# container without restarting. Both paths run this before reporting success,
+# so an intermittently restarting database cannot pass on a lucky re-run.
+verify_db_stable() {
+    local container=$1
+    local restarts
+    restarts=$(sudo docker inspect --format '{{.RestartCount}}' "$container")
+    echo "Checking once more for restart loops..."
+    sleep 15
+    [ "$(sudo docker compose ps -q db)" = "$container" ] || fail "The db container changed during the stability check."
+    [ "$(sudo docker inspect --format '{{.State.Health.Status}}' "$container")" = "healthy" ] \
+        || fail "PostgreSQL is not healthy after the stability check."
+    [ "$(sudo docker inspect --format '{{.RestartCount}}' "$container")" = "$restarts" ] \
+        || fail "PostgreSQL restarted during the stability check."
+    echo "✅ PostgreSQL stayed up and healthy."
+}
+
 # Checks that web and, on production, the backup scheduler reach PostgreSQL.
 verify_clients() {
     local attempt backup_container
@@ -359,6 +376,7 @@ if [ "$RUNNING_IMAGE" = "$TARGET_IMAGE" ] && [ "$RUNNING_IMAGE_ID" = "$TARGET_IM
     echo "PostgreSQL already runs $TARGET_IMAGE; verifying instead of restarting."
     verify_db_serves_target "$DB_CONTAINER"
     verify_clients
+    verify_db_stable "$DB_CONTAINER"
     echo "✅ PostgreSQL already runs $TARGET_IMAGE ($TARGET_DIGEST). Nothing to restart."
     echo "POSTGRES_IMAGE_RESULT image=$TARGET_IMAGE digest=$TARGET_DIGEST"
     exit 0
@@ -443,13 +461,9 @@ if [ "$HOST_ENV_NAME" = "production" ]; then
 fi
 echo "✅ Web and the backup scheduler kept running through the restart."
 
-echo "Checking once more for restart loops..."
-sleep 15
-[ "$(sudo docker compose ps -q db)" = "$NEW_DB_CONTAINER" ] || fail "The db container changed during the stability check."
-[ "$(sudo docker inspect --format '{{.State.Health.Status}}' "$NEW_DB_CONTAINER")" = "healthy" ] \
-    || fail "PostgreSQL is not healthy after the stability check."
 [ "$(sudo docker inspect --format '{{.RestartCount}}' "$NEW_DB_CONTAINER")" = "0" ] \
-    || fail "PostgreSQL restarted during the stability check."
+    || fail "PostgreSQL restarted after the update."
+verify_db_stable "$NEW_DB_CONTAINER"
 SUCCEEDED=1
 
 # An SMS claimed just before the restart may be left in 'sending'. Reminders
