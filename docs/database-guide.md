@@ -341,7 +341,7 @@ await db.execute(sql`SELECT pg_advisory_unlock(123456)`);
 
 ```bash
 # .env
-DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+DATABASE_URL=postgresql://user:password@localhost:5433/dbname
 ```
 
 Required in:

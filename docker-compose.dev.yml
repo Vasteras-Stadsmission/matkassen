@@ -21,7 +21,7 @@ services:
         environment:
             - NODE_ENV=development # Enables hot reloading
             - AUTH_URL=http://localhost:3000/api/auth # Development auth URL
-            - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB} # Connect to DB on host
+            - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB} # Connect to the db service on the Compose network
             - NEXT_PUBLIC_BASE_URL=http://localhost:3000 # Development base URL
             - NEXT_PUBLIC_BRAND_NAME=${NEXT_PUBLIC_BRAND_NAME:-DevApp} # Optional: Brand name (defaults to DevApp)
             - HELLO_SMS_API_URL=https://api.hellosms.se/api/v1/sms/send # HelloSMS API endpoint
@@ -37,7 +37,7 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB}
         ports:
-            - "5432:5432"
+            - "5433:5432" # 5433 on the host, so it can run next to other local Postgres instances on 5432
         volumes:
             - postgres_data:/var/lib/postgresql/data
         networks:
