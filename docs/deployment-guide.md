@@ -108,7 +108,8 @@ Before pulling, and again after a successful deploy, it keeps per repository:
 | Repository                         | Kept locally                                                                           |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
 | `matkassen`, `matkassen-db-backup` | the 3 newest releases, the release this deploy replaces, and anything a container uses |
-| `postgres`                         | the 2 newest images (current and previous minor version) and anything a container uses |
+| `postgres`                         | the newest image and anything a container uses                                         |
+| `matkassen-postgres-rollback`      | `:previous`, the image the last PostgreSQL image update replaced (never pruned)        |
 
 "Newest" is the image's `org.opencontainers.image.created` label (the CI run
 time), not Docker's `Created` field, which keeps an old timestamp when a build
@@ -124,8 +125,49 @@ Routine deploys never recreate or restart PostgreSQL, so changing the `db`
 image in `docker-compose.yml` (for example a Dependabot minor bump) does not
 reach the servers by itself. Every deploy prints a "PostgreSQL image not
 applied" warning while the running image differs from the configured one.
-Applying it means restarting PostgreSQL, which is a separately scheduled step
-outside food-parcel handout hours.
+
+Apply it with the **PostgreSQL image update** workflow (run manually from the
+Actions tab) once the release containing the change is deployed to both
+environments. It runs `scripts/postgres-image-update.sh` on staging, then waits
+for production approval. Approve it outside food-parcel handout hours: on
+production the script first takes a fresh backup with the nightly
+`backup-db.sh` (upload plus full restore validation), then restarts PostgreSQL
+on the new image. Downtime is one fast shutdown and start, normally a few
+seconds, during which web requests fail. Staging keeps no backups by policy.
+
+Before any downtime the script refuses when:
+
+- the image is another PostgreSQL major version (that needs `pg_upgrade` or
+  dump/restore and is planned as its own migration);
+- anything other than the image would change: the `db` service definition
+  (compared via Compose's configuration hash), the volume and network it
+  resolves to, or anything else in Compose's dry-run plan;
+- the image ships a different glibc, which can reorder text indexes (that
+  needs a planned `REINDEX`);
+- the production backup fails, or a deploy holds the host lock.
+
+Afterwards it checks the image, health, the `households` table and web's
+`/api/health`. Re-running the workflow when PostgreSQL already runs the image
+the tag points to only repeats these checks. If Docker Hub rebuilt the tag in
+the meantime, the re-run treats it as a new image: backup and restart again.
+
+Before restarting, the script tags the old image as
+`matkassen-postgres-rollback:previous` and prints the command that goes back to
+it. The restart runs in its own session, so a dropped SSH connection or a
+cancelled run cannot stop it halfway, and its output always goes to
+`/tmp/matkassen-postgres-restart.log`. The script never rolls back on its own.
+If PostgreSQL does not come back, run this in `/home/ubuntu/matkassen`; going
+back is safe because minor versions share the on-disk format, and the command
+waits for any restart that is still running:
+
+```bash
+echo 'services: {db: {image: "matkassen-postgres-rollback:previous"}}' | flock /tmp/matkassen-deploy.lock sudo docker compose -f docker-compose.yml -f - up -d --no-deps --force-recreate --pull never --wait --timeout 60 db
+```
+
+A restart can interrupt an SMS being sent. Such rows stay in `sending`:
+pickup reminders and "parcels ended" messages are recovered automatically after
+10 minutes, but enrollment and cancellation messages wait for manual review
+(`recoverStaleSendingRecords` in `app/utils/sms/sms-service.ts`).
 
 ### SSH Host Identity Pinning
 
@@ -657,7 +699,8 @@ a separate disaster-recovery operation.
 
 Changes to Compose, nginx, PostgreSQL, journald, systemd, certificates, or VPS
 storage are planned infrastructure releases with their own recovery notes; they
-are not ordinary application rollbacks.
+are not ordinary application rollbacks. PostgreSQL minor image updates have
+their own workflow and recovery command (see PostgreSQL Image Updates).
 
 ## Performance Tuning
 

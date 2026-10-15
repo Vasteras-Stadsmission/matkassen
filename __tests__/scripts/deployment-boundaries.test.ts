@@ -8,6 +8,14 @@ const workflowSource = readFileSync(
     resolve(process.cwd(), ".github/workflows/continuous_deployment.yml"),
     "utf8",
 );
+const postgresScriptSource = readFileSync(
+    resolve(process.cwd(), "scripts/postgres-image-update.sh"),
+    "utf8",
+);
+const postgresWorkflowSource = readFileSync(
+    resolve(process.cwd(), ".github/workflows/postgres_image_update.yml"),
+    "utf8",
+);
 
 describe("routine deployment boundaries", () => {
     it("replaces only application services without Compose dependencies", () => {
@@ -114,5 +122,41 @@ describe("routine deployment boundaries", () => {
         expect(workflowSource.match(/--retry 2 --retry-delay 1 --retry-all-errors/g)).toHaveLength(
             2,
         );
+    });
+});
+
+describe("PostgreSQL image update", () => {
+    it("refuses everything but an image change before the backup and the restart", () => {
+        const at = (text: string) => {
+            const index = postgresScriptSource.indexOf(text);
+            expect(index, text).toBeGreaterThan(-1);
+            return index;
+        };
+        const backup = at("exec -T db-backup /usr/local/bin/backup-db.sh");
+        const restart = at("setsid --wait sudo docker compose up -d --no-deps --force-recreate");
+
+        for (const check of [
+            "config --hash db",
+            '"$(configured_storage)" = "$RUNNING_STORAGE"',
+            "Refusing a major version change",
+            '"$TARGET_GLIBC" = "$RUNNING_GLIBC"',
+            "plan_only_recreates_db || fail",
+        ]) {
+            expect(at(check), check).toBeLessThan(backup);
+        }
+        expect(at('sudo docker tag "$RUNNING_IMAGE_ID" "$ROLLBACK_IMAGE"')).toBeLessThan(restart);
+        expect(backup).toBeLessThan(restart);
+        expect(postgresScriptSource.match(/docker compose up/g)).toHaveLength(1);
+        expect(postgresScriptSource).not.toMatch(/docker (?:[a-z]+ )?prune/);
+    });
+
+    it("runs manually on staging, then on production after approval", () => {
+        expect(postgresWorkflowSource).toMatch(/^on:\n {4}workflow_dispatch:\n\n/m);
+        expect(postgresWorkflowSource).toContain("needs: staging");
+        expect(postgresWorkflowSource).toMatch(/environment:\n\s+name: production/);
+        expect(postgresWorkflowSource).toContain("group: deploy-staging");
+        expect(postgresWorkflowSource).toContain("group: deploy-production");
+        expect(updateSource).not.toContain("postgres-image-update.sh");
+        expect(workflowSource).not.toContain("postgres-image-update.sh");
     });
 });

@@ -56,10 +56,10 @@ APP_DIR="/home/ubuntu/$PROJECT_NAME"
 # for an image-only rollback, and room for one failed or abandoned candidate.
 # The release that was running before this deploy is protected explicitly, so
 # failed candidates can never push it out. Older sha-* tags stay in GHCR and
-# can be pulled again. Two PostgreSQL images keep the previous minor version
-# for a quick same-major rollback after a database image update.
+# can be pulled again. Only the current PostgreSQL image is kept; the PostgreSQL
+# image update keeps the previous one as matkassen-postgres-rollback:previous.
 RELEASE_IMAGES_TO_KEEP=3
-POSTGRES_IMAGES_TO_KEEP=2
+POSTGRES_IMAGES_TO_KEEP=1
 # shellcheck source=scripts/release-image-retention.sh
 source "$APP_DIR/scripts/release-image-retention.sh"
 
@@ -167,11 +167,11 @@ DB_RESTARTS_BEFORE=$(sudo docker inspect --format '{{.RestartCount}}' "$DB_CONTA
 echo "✅ PostgreSQL is healthy and will not be included in Compose replacement."
 
 # Routine deploys never restart PostgreSQL, so a db image change in
-# docker-compose.yml waits for a separately scheduled restart. Say so on every
-# deploy until it has been applied.
+# docker-compose.yml waits for the separate PostgreSQL image update workflow.
+# Say so on every deploy until it has been applied.
 RUNNING_DB_IMAGE=$(sudo docker inspect --format '{{.Config.Image}}' "$DB_CONTAINER_BEFORE")
 if CONFIGURED_DB_IMAGE=$(sudo docker compose config --images db) && [ "$CONFIGURED_DB_IMAGE" != "$RUNNING_DB_IMAGE" ]; then
-  echo "::warning title=PostgreSQL image not applied::PostgreSQL runs $RUNNING_DB_IMAGE but docker-compose.yml specifies $CONFIGURED_DB_IMAGE. Routine deploys leave PostgreSQL untouched; recreating it on the new image is a separately scheduled step (docs/deployment-guide.md)."
+  echo "::warning title=PostgreSQL image not applied::PostgreSQL runs $RUNNING_DB_IMAGE but docker-compose.yml specifies $CONFIGURED_DB_IMAGE. Routine deploys leave PostgreSQL untouched; run the 'PostgreSQL image update' workflow at a quiet time (docs/deployment-guide.md)."
 fi
 
 # Validate this production backup prerequisite before replacing any application
