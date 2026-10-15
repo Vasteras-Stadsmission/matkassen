@@ -65,6 +65,42 @@ describe("routine deployment boundaries", () => {
         expect(deploySource).not.toMatch(/docker (?:system|image) prune[^\n]*-a/);
     });
 
+    it("bounds release images before the free-space check and after the deploy", () => {
+        const cleanupCalls = [...updateSource.matchAll(/^cleanup_docker_resources$/gm)].map(
+            m => m.index,
+        );
+        const freeSpaceIndex = updateSource.indexOf("df -Pk / | awk");
+        const dbHealthIndex = updateSource.indexOf(
+            "DB_CONTAINER_BEFORE=$(sudo docker compose ps -q db)",
+        );
+        const pullIndex = updateSource.indexOf("docker compose pull web");
+        const replacementIndex = updateSource.indexOf(
+            "docker compose up -d --no-deps --wait --wait-timeout 300 web",
+        );
+
+        expect(updateSource).toContain('source "$APP_DIR/scripts/release-image-retention.sh"');
+        expect(updateSource).toContain("RELEASE_IMAGES_TO_KEEP=3");
+        expect(updateSource).toContain(
+            'prune_release_images ghcr.io/vasteras-stadsmission/matkassen "$RELEASE_IMAGES_TO_KEEP" ${OUTGOING_WEB_IMAGE:+"$OUTGOING_WEB_IMAGE"}',
+        );
+        expect(updateSource).toContain(
+            'prune_release_images ghcr.io/vasteras-stadsmission/matkassen-db-backup "$RELEASE_IMAGES_TO_KEEP" ${OUTGOING_BACKUP_IMAGE:+"$OUTGOING_BACKUP_IMAGE"}',
+        );
+        expect(updateSource).toContain(
+            'docker container prune -f --filter "label!=com.docker.compose.service=db"',
+        );
+        expect(cleanupCalls).toHaveLength(2);
+        expect(cleanupCalls[0]).toBeGreaterThan(dbHealthIndex);
+        expect(freeSpaceIndex).toBeGreaterThan(cleanupCalls[0]!);
+        expect(pullIndex).toBeGreaterThan(freeSpaceIndex);
+        expect(cleanupCalls[1]).toBeGreaterThan(replacementIndex);
+    });
+
+    it("reports an unapplied PostgreSQL image instead of recreating PostgreSQL", () => {
+        expect(updateSource).toContain("docker compose config --images db");
+        expect(updateSource).toContain("::warning title=PostgreSQL image not applied::");
+    });
+
     it("treats initial public reachability checks as fatal", () => {
         expect(deploySource).toContain('check_url "https://$DOMAIN_NAME" "Website"');
         expect(deploySource).toContain(

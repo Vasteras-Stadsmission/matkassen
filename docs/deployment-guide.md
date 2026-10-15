@@ -101,8 +101,31 @@ redirects, and unauthenticated admin rejection. Nginx, journald, Docker host
 configuration, and database recovery are deliberately outside routine
 application deployment.
 
-Cleanup removes stopped containers and dangling layers without `-a`, retaining
-tagged immutable images for the focused image-rollback follow-up.
+Each deploy pulls new immutable `sha-*` images (about 1.5 GB for the app and
+0.36 GB for the backup scheduler), so `update.sh` bounds what stays on disk.
+Before pulling, and again after a successful deploy, it keeps per repository:
+
+| Repository                         | Kept locally                                                                           |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `matkassen`, `matkassen-db-backup` | the 3 newest releases, the release this deploy replaces, and anything a container uses |
+| `postgres`                         | the 2 newest images (current and previous minor version) and anything a container uses |
+
+"Newest" is the image's `org.opencontainers.image.created` label (the CI run
+time), not Docker's `Created` field, which keeps an old timestamp when a build
+is a GHA cache hit. Older `sha-*` tags stay in GHCR and can be pulled again.
+Cleanup runs before the 5 GiB free-space check, so a disk filled by old
+releases recovers on the next deploy instead of blocking it. Cleanup never
+force-removes an image, never prunes all unused images (`-a`), and never
+prunes a stopped PostgreSQL container.
+
+### PostgreSQL Image Updates
+
+Routine deploys never recreate or restart PostgreSQL, so changing the `db`
+image in `docker-compose.yml` (for example a Dependabot minor bump) does not
+reach the servers by itself. Every deploy prints a "PostgreSQL image not
+applied" warning while the running image differs from the configured one.
+Applying it means restarting PostgreSQL, which is a separately scheduled step
+outside food-parcel handout hours.
 
 ### SSH Host Identity Pinning
 
@@ -216,7 +239,7 @@ Production backups run automatically via `Dockerfile.db-backup`, which runs `scr
 4. Full-restore validates the upload: creates `matkassen_nightly_validate`, streams `gpg --decrypt | pg_restore --exit-on-error` into it, runs a sentinel query (`SELECT to_regclass('public.households') IS NOT NULL`), drops the scratch DB. A wrong passphrase, corrupted upload, DDL incompatibility, or broken COPY stream fails the same night.
 5. Reports success/failure to Slack.
 
-**Cluster-level requirement**: the backup user needs `CREATEDB` to create and drop the scratch database. `deploy.sh` and `update.sh` apply this grant automatically on production. The widened privilege is cluster-level (the role can now create/drop databases), not app-level (it already owned every table in the app schema).
+**Cluster-level requirement**: the backup user needs `CREATEDB` to create and drop the scratch database. `deploy.sh` grants it on production; `update.sh` only verifies it and refuses to deploy without it. The widened privilege is cluster-level (the role can now create/drop databases), not app-level (it already owned every table in the app schema).
 
 #### Encryption Details
 
@@ -422,7 +445,7 @@ sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml \
 
 Match the log output to one of these:
 
-- `could not create scratch DB` and a hint mentioning `CREATEDB` → the backup role is missing the `CREATEDB` grant. `deploy.sh` and `update.sh` apply it on production, but both soft-fail (warning, not error). Fix manually: `docker compose exec -T db bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" CREATEDB;"'`.
+- `could not create scratch DB` and a hint mentioning `CREATEDB` → the backup role is missing the `CREATEDB` grant. `deploy.sh` grants it on production and `update.sh` refuses to deploy without it, so this usually means the role was changed by hand. Fix manually: `docker compose exec -T db bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" CREATEDB;"'`.
 - `pg_restore errored` → the decrypted dump didn't apply cleanly. Usually a DDL version skew between the dumping and restoring Postgres (both are the same instance, so this only happens if someone bumped the image tag mid-flight). Look for the `pg_restore:` error line just above.
 - `sentinel query returned 'f'` → the `households` table didn't survive the restore. Most commonly an empty or truncated dump; rarer: the schema was renamed and the sentinel check needs updating.
 - `decryption failed` → passphrase mismatch between encrypt and decrypt. Shouldn't happen (same env var in one run) — but check for stray edits and whether the container was restarted mid-run.
@@ -488,7 +511,11 @@ Incremental updates:
 - replaces only web and the production backup scheduler with `--no-deps`;
 - waits for the production backup scheduler to become healthy;
 - verifies exact images, zero immediate restarts, and an unchanged PostgreSQL
-  container before external checks; and
+  container before external checks;
+- removes release images beyond the retention limits before checking free
+  space and again after a successful deploy;
+- warns when the running PostgreSQL image differs from `docker-compose.yml`;
+  and
 - leaves nginx, journald, Docker host configuration, and PostgreSQL lifecycle
   untouched.
 
@@ -607,16 +634,21 @@ sudo docker container prune
 sudo docker image prune
 ```
 
-Do not use `docker system prune -a --volumes` as a routine recovery command. It
-removes immutable release images and can remove unused named volumes. Inspect
-`sudo docker system df -v` before deleting anything else manually.
+Old release images are removed by every deploy (see Continuous Deployment), so
+re-running the latest deployment frees space too. Do not use
+`docker system prune -a --volumes` as a routine recovery command. It removes
+every unused image, including the previous release, and can remove unused
+named volumes. Inspect `sudo docker system df -v` before deleting anything else
+manually.
 
 ## Rollback Procedure
 
 Automated rollback is intentionally not part of the forward-deployment
 hardening. Until the compact image-only rollback workflow is added and rehearsed
-on staging, prefer a forward fix and preserve the exact running and prior image
-tags for diagnosis.
+on staging, prefer a forward fix. A deploy never removes the release it
+replaced, so that image stays on disk at least until the next deploy, and
+normally longer as one of the three newest (see Continuous Deployment). Any
+older `sha-*` image can be pulled from GHCR again.
 
 Routine recovery must never restore a database backup or attempt automatic
 down-migrations. Every normal migration must keep the prior application image
