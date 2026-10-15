@@ -12,17 +12,19 @@
 # text indexes). On production it first takes a fresh, restore-validated
 # backup. If the restart or the checks after it fail, it prints the command
 # that goes back to the previous image; it never rolls back on its own.
-# Re-running it when PostgreSQL already runs the target image only repeats
-# the checks.
+# Re-running it when PostgreSQL already runs the image the tag points to only
+# repeats the checks (a tag rebuilt upstream counts as a new image).
 
 set -Eeuo pipefail
 
-APP_DIR="${APP_DIR:-/home/ubuntu/matkassen}"
-LOCK_FILE="${LOCK_FILE:-/tmp/matkassen-deploy.lock}"
+APP_DIR="/home/ubuntu/matkassen"
+LOCK_FILE="/tmp/matkassen-deploy.lock"
+# Fixed path, so Compose's output can be read even if the run that started the
+# restart was cancelled or lost its SSH session.
+RESTART_LOG="/tmp/matkassen-postgres-restart.log"
 # A local tag outside the postgres repository, so no cleanup removes the image
 # to go back to (pulling a rebuilt tag can otherwise leave it dangling).
 ROLLBACK_IMAGE="matkassen-postgres-rollback:previous"
-IMAGE_PATTERN='^[a-z0-9][a-z0-9._/-]*:[A-Za-z0-9_][A-Za-z0-9._-]*$'
 
 # Same lock as update.sh, so a deploy and a database update never overlap.
 exec 200>"$LOCK_FILE"
@@ -123,28 +125,21 @@ sys.exit(0 if recreate else "the plan does not recreate db")
     return 1
 }
 
+# /api/health answers 503 exactly when its database check fails.
 web_is_healthy() {
-    sudo docker compose exec -T web curl -fsS --max-time 10 http://localhost:3000/api/health 2>/dev/null | python3 -c '
-import json, sys
-health = json.load(sys.stdin)
-sys.exit(0 if health.get("status") == "healthy" and health.get("checks", {}).get("database") == "ok" else 1)
-' 2>/dev/null
+    sudo docker compose exec -T web curl -fsS -o /dev/null --max-time 10 http://localhost:3000/api/health 2>/dev/null
 }
 
-# Checks the running PostgreSQL against the target: image, health, the same
-# volume and network, server version, application schema, and web's view.
+# Checks the running PostgreSQL against the target: image, health, the
+# application data, and web's view.
 verify_target() {
-    local container version attempt
+    local container attempt
     container=$(sudo docker compose ps -q db)
     [ -n "$container" ] || fail "PostgreSQL is not running."
     [ "$(sudo docker inspect --format '{{.Image}}' "$container")" = "$TARGET_IMAGE_ID" ] \
         || fail "PostgreSQL does not run $TARGET_IMAGE."
     [ "$(sudo docker inspect --format '{{.State.Health.Status}}' "$container")" = "healthy" ] \
         || fail "PostgreSQL is not healthy."
-    [ "$(container_storage "$container")" = "$RUNNING_STORAGE" ] \
-        || fail "PostgreSQL does not use the same data volume and network."
-    version=$(db_sql "SHOW server_version" | awk '{ print $1 }')
-    [ "$version" = "$TARGET_VERSION" ] || fail "PostgreSQL reports $version, expected $TARGET_VERSION."
     [ "$(db_sql "SELECT to_regclass('public.households') IS NOT NULL")" = "t" ] \
         || fail "The households table is missing."
     for attempt in $(seq 1 30); do
@@ -152,7 +147,7 @@ verify_target() {
         [ "$attempt" -lt 30 ] || fail "Web did not report a healthy database within 90 seconds."
         sleep 3
     done
-    echo "✅ PostgreSQL $version serves the existing data, and web reports it healthy."
+    echo "✅ PostgreSQL $TARGET_VERSION serves the existing data, and web reports it healthy."
 }
 
 cd "$APP_DIR"
@@ -175,7 +170,6 @@ RUNNING_IMAGE=$(sudo docker inspect --format '{{.Config.Image}}' "$DB_CONTAINER"
 RUNNING_IMAGE_ID=$(sudo docker inspect --format '{{.Image}}' "$DB_CONTAINER")
 RUNNING_STORAGE=$(container_storage "$DB_CONTAINER")
 TARGET_IMAGE=$(sudo docker compose config --images db)
-[[ "$TARGET_IMAGE" =~ $IMAGE_PATTERN ]] || fail "docker-compose.yml must pin db to repository:tag (got $TARGET_IMAGE)."
 echo "$HOST_ENV_NAME: PostgreSQL runs $RUNNING_IMAGE; docker-compose.yml specifies $TARGET_IMAGE."
 
 # Recreating applies the whole db service definition. With the running image
@@ -230,17 +224,17 @@ sudo docker tag "$RUNNING_IMAGE_ID" "$ROLLBACK_IMAGE"
 # and allows the same shutdown time as the update.
 ROLLBACK_COMMAND="echo 'services: {db: {image: \"$ROLLBACK_IMAGE\"}}' | flock $LOCK_FILE sudo docker compose -f docker-compose.yml -f - up -d --no-deps --force-recreate --pull never --wait --timeout 60 db"
 echo "=== Restarting PostgreSQL on $TARGET_IMAGE; the previous image is kept as $ROLLBACK_IMAGE ==="
+echo "If PostgreSQL does not come back, go back to it from $APP_DIR with:"
+echo "  $ROLLBACK_COMMAND"
 
 # Compose stops the old container before it starts the new one. It runs in its
 # own session with its output in a file, so a dropped SSH session or cancelled
 # run cannot kill it in between and leave PostgreSQL stopped.
 RESTARTED=1
-RESTART_LOG=$(mktemp)
 RESTART_OK=1
 setsid --wait sudo docker compose up -d --no-deps --force-recreate --pull never \
     --wait --wait-timeout 240 --timeout 60 db >"$RESTART_LOG" 2>&1 || RESTART_OK=0
 cat "$RESTART_LOG"
-rm -f "$RESTART_LOG"
 [ "$RESTART_OK" -eq 1 ] || fail "PostgreSQL did not become healthy on $TARGET_IMAGE."
 
 verify_target

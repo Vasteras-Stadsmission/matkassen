@@ -108,7 +108,7 @@ Before pulling, and again after a successful deploy, it keeps per repository:
 | Repository                         | Kept locally                                                                           |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
 | `matkassen`, `matkassen-db-backup` | the 3 newest releases, the release this deploy replaces, and anything a container uses |
-| `postgres`                         | the 2 newest images (current and previous minor version) and anything a container uses |
+| `postgres`                         | the newest image and anything a container uses                                         |
 | `matkassen-postgres-rollback`      | `:previous`, the image the last PostgreSQL image update replaced (never pruned)        |
 
 "Newest" is the image's `org.opencontainers.image.created` label (the CI run
@@ -146,20 +146,28 @@ Before any downtime the script refuses when:
   needs a planned `REINDEX`);
 - the production backup fails, or a deploy holds the host lock.
 
-Afterwards it checks the image, health, data volume, server version, the
-`households` table and web's `/api/health`. Re-running the workflow when
-PostgreSQL already runs the target image only repeats these checks.
+Afterwards it checks the image, health, the `households` table and web's
+`/api/health`. Re-running the workflow when PostgreSQL already runs the image
+the tag points to only repeats these checks. If Docker Hub rebuilt the tag in
+the meantime, the re-run treats it as a new image: backup and restart again.
 
 Before restarting, the script tags the old image as
-`matkassen-postgres-rollback:previous`. If the restart or the checks fail, it
-prints the database logs and a command that recreates PostgreSQL on that image,
-which is safe because minor versions share the on-disk format. It never rolls
-back on its own. The restart runs in its own session, so a dropped SSH
-connection or cancelled run cannot leave PostgreSQL stopped halfway.
+`matkassen-postgres-rollback:previous` and prints the command that goes back to
+it. The restart runs in its own session, so a dropped SSH connection or a
+cancelled run cannot stop it halfway, and its output always goes to
+`/tmp/matkassen-postgres-restart.log`. The script never rolls back on its own.
+If PostgreSQL does not come back, run this in `/home/ubuntu/matkassen`; going
+back is safe because minor versions share the on-disk format, and the command
+waits for any restart that is still running:
+
+```bash
+echo 'services: {db: {image: "matkassen-postgres-rollback:previous"}}' | flock /tmp/matkassen-deploy.lock sudo docker compose -f docker-compose.yml -f - up -d --no-deps --force-recreate --pull never --wait --timeout 60 db
+```
 
 A restart can interrupt an SMS being sent. Such rows stay in `sending`:
-reminders recover after 10 minutes, but enrollment and cancellation messages
-need manual review (`docs/business-logic.md`).
+pickup reminders and "parcels ended" messages are recovered automatically after
+10 minutes, but enrollment and cancellation messages wait for manual review
+(`recoverStaleSendingRecords` in `app/utils/sms/sms-service.ts`).
 
 ### SSH Host Identity Pinning
 

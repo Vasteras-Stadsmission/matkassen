@@ -56,10 +56,10 @@ APP_DIR="/home/ubuntu/$PROJECT_NAME"
 # for an image-only rollback, and room for one failed or abandoned candidate.
 # The release that was running before this deploy is protected explicitly, so
 # failed candidates can never push it out. Older sha-* tags stay in GHCR and
-# can be pulled again. Two PostgreSQL images keep the previous minor version
-# for a quick same-major rollback after a database image update.
+# can be pulled again. Only the current PostgreSQL image is kept; the PostgreSQL
+# image update keeps the previous one as matkassen-postgres-rollback:previous.
 RELEASE_IMAGES_TO_KEEP=3
-POSTGRES_IMAGES_TO_KEEP=2
+POSTGRES_IMAGES_TO_KEEP=1
 # shellcheck source=scripts/release-image-retention.sh
 source "$APP_DIR/scripts/release-image-retention.sh"
 
