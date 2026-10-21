@@ -13,15 +13,15 @@ import { resetSmsGateway } from "@/app/utils/sms/sms-gateway";
  * production mock. This allows integration tests to call real action functions
  * that import `db` from @/app/db/drizzle.
  *
- * KEY: We call vi.useFakeTimers() and vi.setSystemTime() once, at module load,
- * to freeze time at TEST_NOW for deterministic time-based testing. This mocks
- * Date, Date.now(), and all timer functions globally. Nothing restores the
- * clock between tests: a file that moves it or calls vi.useRealTimers() must
- * reset it itself (e.g. vi.setSystemTime(TEST_NOW) in afterEach), or later
- * tests in that file run on the real date.
+ * KEY: We call vi.useFakeTimers() and vi.setSystemTime() when this file loads
+ * (once per test file) to freeze time at TEST_NOW for deterministic time-based
+ * testing. This mocks Date, Date.now() and the timer functions. Nothing resets
+ * the clock between tests: a file that moves it or calls vi.useRealTimers()
+ * must restore it itself (vi.useFakeTimers() + vi.setSystemTime(TEST_NOW)),
+ * or its later tests run on the moved or the real date.
  *
  * Lifecycle:
- * - module load: Freeze fake timers at TEST_NOW
+ * - file load: Freeze fake timers at TEST_NOW
  * - beforeAll: Initialize PGlite, run migrations
  * - afterEach: Reset SMS gateway, truncate tables
  * - afterAll: Close PGlite connection
