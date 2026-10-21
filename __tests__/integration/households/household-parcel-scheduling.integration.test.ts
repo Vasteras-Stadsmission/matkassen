@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { and, eq, isNull } from "drizzle-orm";
+import { fromZonedTime } from "date-fns-tz";
 import { getTestDb } from "../../db/test-db";
 import {
     createTestHousehold,
@@ -83,6 +84,13 @@ function atHour(date: Date, hour: number): Date {
     const next = new Date(date);
     next.setUTCHours(hour, 0, 0, 0);
     return next;
+}
+
+// Stockholm wall-clock time on the UTC calendar date that weekdayName uses,
+// so opening-hour tests hold on both sides of a DST change.
+function atStockholmHour(date: Date, hour: number): Date {
+    const day = date.toISOString().slice(0, 10);
+    return fromZonedTime(`${day}T${String(hour).padStart(2, "0")}:00:00`, "Europe/Stockholm");
 }
 
 function withEnd(start: Date, minutes = 15): { start: Date; end: Date } {
@@ -1130,8 +1138,8 @@ describe("Household parcel scheduling integration", () => {
             primary_pickup_location_id: location.id,
         });
 
-        const start = atHour(slotDate, 7);
-        const end = atHour(slotDate, 15);
+        const start = atStockholmHour(slotDate, 9);
+        const end = atStockholmHour(slotDate, 17);
         const result = await updateHousehold(
             household.id,
             buildUpdateData(household, location.id, [
@@ -1179,7 +1187,7 @@ describe("Household parcel scheduling integration", () => {
             pickup_date_time_earliest: originalSlot.start,
             pickup_date_time_latest: originalSlot.end,
         });
-        const crossingStart = atHour(slotDate, 14);
+        const crossingStart = atStockholmHour(slotDate, 16);
         const crossingEnd = new Date(crossingStart.getTime() + 75 * 60 * 1000);
 
         const result = await updateHousehold(
