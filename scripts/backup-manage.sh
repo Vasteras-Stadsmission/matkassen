@@ -26,7 +26,10 @@ case "${1:-}" in
     start)
         echo "Starting database backup service..."
     require_prod
-    $COMPOSE_CMD $COMPOSE_FILES --profile backup up -d db-backup
+    # Compose takes the image tag from .env, which each deploy pins to its
+    # sha-* image. --no-deps keeps a pending PostgreSQL image change in
+    # docker-compose.yml from restarting db (see postgres-image-update.sh).
+    $COMPOSE_CMD $COMPOSE_FILES --profile backup up -d --no-deps db-backup
         echo "Backup service started. It will run nightly at 2:00 AM."
         ;;
 
@@ -50,8 +53,12 @@ case "${1:-}" in
     test)
         echo "Running test backup..."
     require_prod
-    # Ensure the backup image is up-to-date and container recreated
-    $COMPOSE_CMD $COMPOSE_FILES --profile backup up -d --build db-backup
+    # Run the nightly job's script in the running container, with its image,
+    # user and environment. Never recreate the container here.
+    if [ -z "$($COMPOSE_CMD $COMPOSE_FILES --profile backup ps -q --status running db-backup)" ]; then
+        echo "Error: the db-backup container is not running. Start it with: $0 start"
+        exit 1
+    fi
     $COMPOSE_CMD $COMPOSE_FILES --profile backup exec db-backup /usr/local/bin/backup-db.sh
         ;;
 
@@ -78,7 +85,7 @@ case "${1:-}" in
         echo "  stop   - Stop the backup service"
         echo "  status - Show service status"
         echo "  logs   - Show service logs"
-        echo "  test   - Run a test backup immediately"
+        echo "  test   - Run a backup now in the running service"
         echo "  config - Show backup configuration"
         exit 1
         ;;
