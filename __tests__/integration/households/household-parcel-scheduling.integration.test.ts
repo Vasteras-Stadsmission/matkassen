@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { and, eq, isNull } from "drizzle-orm";
 import { getTestDb } from "../../db/test-db";
+import { TEST_NOW } from "../../test-time";
 import {
     createTestHousehold,
     createTestLocationWithCustomSchedule,
@@ -464,7 +465,9 @@ describe("Household parcel scheduling integration", () => {
     });
 
     afterEach(() => {
-        vi.useRealTimers();
+        // Return to the frozen clock from setup.ts, not real time: tests below
+        // build slots from "now" and must not depend on the run date.
+        vi.setSystemTime(TEST_NOW);
     });
 
     it("preserves the parcel id when full household edit moves a parcel to another date and location", async () => {

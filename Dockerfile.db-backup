@@ -9,12 +9,14 @@ ENV TZ=Europe/Stockholm
 ARG SUPERCRONIC_VERSION=v0.2.41
 ARG SUPERCRONIC_SHA256=798d0f6cf11cb74109b6408c50b1222cdd7678e8e70895dcfa9c2701b4bd03d5
 
+# ca-certificates 20261020 drops the root behind the leaked eMudhra CA keys
+# (Oct 2026). The minimum also busts CI's layer cache so pip re-fetches certifi.
 RUN apk add --no-cache \
       postgresql17-client \
       rclone \
       bash \
       tzdata \
-      ca-certificates \
+      'ca-certificates>=20261020-r0' \
       curl \
       python3 \
       py3-pip \
