@@ -2,7 +2,10 @@
 set -e
 
 staged=$(git diff --cached --name-only --diff-filter=d -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.css' '*.scss' '*.md' '*.yml' '*.yaml')
-[ -z "$staged" ] && exit 0
+# Skip partially staged files: adding them back would also stage their
+# unstaged changes. The pre-push format check still covers them.
+files=$(echo "$staged" | grep -vxF "$(git diff --name-only)" || true)
+[ -z "$files" ] && exit 0
 
-echo "$staged" | xargs pnpm exec prettier --write --ignore-unknown
-echo "$staged" | xargs git add
+echo "$files" | xargs pnpm exec prettier --write --ignore-unknown
+echo "$files" | xargs git add
