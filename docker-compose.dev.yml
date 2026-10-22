@@ -37,7 +37,7 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB}
         ports:
-            - "5433:5432" # 5433 on the host, so it can run next to other local Postgres instances on 5432
+            - "5440:5432" # 5440 on the host: 5432-5434 are taken by other local databases and SSH tunnels
         volumes:
             - postgres_data:/var/lib/postgresql/data
         networks:

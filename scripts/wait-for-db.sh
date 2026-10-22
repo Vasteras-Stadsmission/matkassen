@@ -11,7 +11,7 @@ DELAY=1
 echo "Waiting for database to be ready..."
 for i in $(seq 1 $MAX_ATTEMPTS); do
     # Try to connect to the database using pg_isready
-    if pg_isready -h localhost -p 5433 -U "$POSTGRES_USER" -d "$POSTGRES_DB" &>/dev/null; then
+    if pg_isready -h localhost -p 5440 -U "$POSTGRES_USER" -d "$POSTGRES_DB" &>/dev/null; then
         echo "Database is ready! Continuing..."
         exit 0
     fi
