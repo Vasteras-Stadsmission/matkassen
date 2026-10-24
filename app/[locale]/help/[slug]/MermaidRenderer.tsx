@@ -22,7 +22,18 @@ export function MermaidRenderer() {
                 // in labels, which matches the sanitisation posture of
                 // markdown-to-html.ts.
                 securityLevel: "strict",
+                // Mermaid 12 changed the flowchart defaults (ELK layout,
+                // `neo` look, `redux-color` theme, narrower text wrapping
+                // and a minimum node width). Our manuals only use
+                // flowcharts, so pin the Mermaid 11 rendering to keep
+                // their diagrams laid out as before.
                 theme: "default",
+                layout: "dagre",
+                look: "classic",
+                flowchart: {
+                    wrappingWidth: 200,
+                    minNodeWidth: 0,
+                },
             });
 
             try {
