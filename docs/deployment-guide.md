@@ -325,7 +325,7 @@ export ENV_NAME=production   # backup-manage.sh refuses to run without this
 ./scripts/backup-manage.sh test
 ```
 
-This rebuilds the backup image (if needed) and execs the cron script inside the running `db-backup` container. The same encryption, upload, and validation steps run as for an automatic nightly backup.
+This runs the nightly script inside the running `db-backup` container, with that container's image, user and environment, so the same encryption, upload, and validation steps run as at 02:00. It never recreates the container or changes its image. If the container isn't running, it stops and points to `./scripts/backup-manage.sh start`.
 
 #### Restoring Encrypted Backups
 

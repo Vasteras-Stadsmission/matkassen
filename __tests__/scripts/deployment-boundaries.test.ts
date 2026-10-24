@@ -12,6 +12,7 @@ const postgresScriptSource = readFileSync(
     resolve(process.cwd(), "scripts/postgres-image-update.sh"),
     "utf8",
 );
+const backupManageSource = readFileSync(resolve(process.cwd(), "scripts/backup-manage.sh"), "utf8");
 const postgresWorkflowSource = readFileSync(
     resolve(process.cwd(), ".github/workflows/postgres_image_update.yml"),
     "utf8",
@@ -102,6 +103,13 @@ describe("routine deployment boundaries", () => {
         expect(freeSpaceIndex).toBeGreaterThan(cleanupCalls[0]!);
         expect(pullIndex).toBeGreaterThan(freeSpaceIndex);
         expect(cleanupCalls[1]).toBeGreaterThan(replacementIndex);
+    });
+
+    it("starts the backup service without PostgreSQL and runs manual backups by exec", () => {
+        expect(backupManageSource.match(/\bup -d\b.*/g)).toEqual(["up -d --no-deps db-backup"]);
+        expect(backupManageSource).toContain(
+            "--profile backup exec db-backup /usr/local/bin/backup-db.sh",
+        );
     });
 
     it("reports an unapplied PostgreSQL image instead of recreating PostgreSQL", () => {
