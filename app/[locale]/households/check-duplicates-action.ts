@@ -122,7 +122,6 @@ export const checkHouseholdDuplicates = protectedAgreementAction(
         } catch (error) {
             logError("Error checking household duplicates", error, {
                 action: "checkHouseholdDuplicates",
-                data,
             });
             return failure({
                 code: "DATABASE_ERROR",

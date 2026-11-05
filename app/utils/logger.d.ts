@@ -47,6 +47,11 @@ export function logCron(
 ): void;
 
 /**
+ * pino's error serializer without the values of failed Drizzle queries
+ */
+export function serializeError(err: unknown): unknown;
+
+/**
  * Logger type re-export for convenience
  */
 export type Logger = PinoLogger;
