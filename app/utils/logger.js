@@ -10,6 +10,26 @@ const pino = require("pino");
 const isDevelopment = process.env.NODE_ENV === "development";
 const isServer = typeof window === "undefined";
 
+/**
+ * pino's error serializer without the values of failed Drizzle queries. Drizzle puts
+ * them (names, phone numbers) in the message, stack and params of its error, also when
+ * that error is the cause of another. The query text keeps its $1 placeholders.
+ */
+function serializeError(err) {
+    const serialized = pino.stdSerializers.err(err);
+    const seen = new Set();
+    for (let e = err; e instanceof Error && !seen.has(e); e = e.cause) {
+        seen.add(e);
+        if (Array.isArray(e.params)) {
+            const values = `\nparams: ${e.params}`;
+            serialized.message = serialized.message.replace(values, "");
+            serialized.stack = serialized.stack.replace(values, "");
+            if (e === err) delete serialized.params;
+        }
+    }
+    return serialized;
+}
+
 // Create base logger
 let baseLogger;
 
@@ -24,7 +44,7 @@ if (isServer) {
             },
         },
         serializers: {
-            err: pino.stdSerializers.err,
+            err: serializeError,
         },
         timestamp: pino.stdTimeFunctions.isoTime,
     };
@@ -140,4 +160,5 @@ module.exports = {
     logCritical,
     logHealth,
     logCron,
+    serializeError,
 };
