@@ -8,6 +8,12 @@ services:
             - backup
         image: ghcr.io/vasteras-stadsmission/matkassen-db-backup:${DB_BACKUP_IMAGE_TAG:-latest}
         restart: unless-stopped
+        # Backup-only secrets (DB_BACKUP_PASSPHRASE, Swift credentials,
+        # SWIFT_CONTAINER, SWIFT_PREFIX), written by scripts/write-env.sh on
+        # production. They live outside .env because the web container loads
+        # all of .env; an app compromise must not be able to read them.
+        env_file:
+            - .env.backup
         environment:
             - POSTGRES_USER=${POSTGRES_USER}
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -15,7 +21,6 @@ services:
             - POSTGRES_HOST=db
             - ENV_NAME=${ENV_NAME}
             - TZ=Europe/Stockholm
-            - SWIFT_PREFIX=${SWIFT_PREFIX:-backups}
             # Elastx OpenStack Object Store (hardcoded non-sensitive)
             - RCLONE_CONFIG_ELASTX_TYPE=swift
             - RCLONE_CONFIG_ELASTX_ENV_AUTH=true
@@ -25,16 +30,8 @@ services:
             - OS_INTERFACE=public
             - OS_REGION_NAME=se-sto
             - BACKUP_RETENTION_DAYS=14
-            # Sensitive credentials (from secrets/env)
-            - OS_APPLICATION_CREDENTIAL_ID=${OS_APPLICATION_CREDENTIAL_ID}
-            - OS_APPLICATION_CREDENTIAL_SECRET=${OS_APPLICATION_CREDENTIAL_SECRET}
-            - SWIFT_CONTAINER=${SWIFT_CONTAINER}
             - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
             - SLACK_CHANNEL_ID=${SLACK_CHANNEL_ID:-}
-            # Symmetric encryption passphrase for backups (required).
-            # Sourced from host .env, written by deploy.sh / update.sh from
-            # the GitHub Secret of the same name. backup-db.sh aborts if unset.
-            - DB_BACKUP_PASSPHRASE=${DB_BACKUP_PASSPHRASE}
             # gpg normally creates and writes state files (keyring, random
             # seed, socket dir) in ~/.gnupg. With read_only: true that
             # directory is unwritable and gpg aborts with

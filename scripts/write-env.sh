@@ -7,12 +7,13 @@
 #     write_env_file "$APP_DIR/.env"
 #
 # Design notes:
-# - Helper writes the full .env. Both deploy.sh and update.sh produce
-#   identical .env content for a given (ENV_NAME, exported-vars) input.
+# - Helper writes the full .env and, on production, <target>.backup with
+#   the backup-only secrets. Both deploy.sh and update.sh produce
+#   identical content for a given (ENV_NAME, exported-vars) input.
 #   Previously deploy.sh silently omitted Swift/OS vars on production;
 #   that was a latent bug that only surfaced if the backup container
 #   restarted between init_deploy and the first subsequent update.sh.
-# - Uses atomic temp-file + `install -m 600` so .env is never briefly
+# - Uses temp-file + `install -m 600` so neither file is ever briefly
 #   readable by anyone other than its owner during the write.
 # - Validates vars required by the .env contract up front. Callers keep
 #   their script-specific validation (Slack optionality, rotation
@@ -29,6 +30,22 @@ _write_env_require() {
         echo "ERROR (write_env_file): $name is required but is unset or empty" >&2
         return 1
     fi
+}
+
+_write_env_install() {
+    # Writes stdin to the named file with mode 600 via a temp file, so the
+    # file is never briefly readable by anyone other than its owner.
+    local target=$1 tmp rc=0
+    tmp=$(mktemp) || {
+        echo "ERROR (write_env_file): mktemp failed" >&2
+        return 1
+    }
+    cat > "$tmp" || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        install -m 600 "$tmp" "$target" || rc=$?
+    fi
+    rm -f "$tmp"
+    return "$rc"
 }
 
 write_env_file() {
@@ -99,11 +116,27 @@ write_env_file() {
         esac
     fi
 
-    local tmp rc=0
-    tmp=$(mktemp) || {
-        echo "ERROR (write_env_file): mktemp failed" >&2
-        return 1
-    }
+    # Production-only: backup encryption + Swift/OpenStack credentials go to
+    # a separate file that only the db-backup container reads
+    # (docker-compose.backup.yml). The web container loads all of .env, so
+    # keeping them out of it means an app compromise cannot download and
+    # decrypt the backups. Bundled together because the backup container
+    # needs all of them to start. Written before .env, so an interrupted
+    # write never leaves the backup credentials missing from both files.
+    if [ "$env_name" = "production" ]; then
+        {
+            printf 'DB_BACKUP_PASSPHRASE="%s"\n' "$DB_BACKUP_PASSPHRASE"
+            printf 'OS_AUTH_TYPE="%s"\n' "$OS_AUTH_TYPE"
+            printf 'OS_AUTH_URL="%s"\n' "$OS_AUTH_URL"
+            printf 'OS_REGION_NAME="%s"\n' "$OS_REGION_NAME"
+            printf 'OS_INTERFACE="%s"\n' "$OS_INTERFACE"
+            printf 'OS_IDENTITY_API_VERSION="%s"\n' "$OS_IDENTITY_API_VERSION"
+            printf 'OS_APPLICATION_CREDENTIAL_ID="%s"\n' "$OS_APPLICATION_CREDENTIAL_ID"
+            printf 'OS_APPLICATION_CREDENTIAL_SECRET="%s"\n' "$OS_APPLICATION_CREDENTIAL_SECRET"
+            printf 'SWIFT_CONTAINER="%s"\n' "$SWIFT_CONTAINER"
+            printf 'SWIFT_PREFIX="%s"\n' "$SWIFT_PREFIX"
+        } | _write_env_install "${target}.backup" || return 1
+    fi
 
     {
         printf 'AUTH_GITHUB_ID="%s"\n' "$AUTH_GITHUB_ID"
@@ -169,28 +202,5 @@ write_env_file() {
         if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
             printf 'SLACK_CHANNEL_ID="%s"\n' "$SLACK_CHANNEL_ID"
         fi
-        # Production-only: backup encryption + Swift/OpenStack credentials.
-        # Bundled together because the backup container needs all of them
-        # to start; omitting any one leaves the container unable to
-        # authenticate to Elastx after a restart.
-        if [ "$env_name" = "production" ]; then
-            printf 'DB_BACKUP_PASSPHRASE="%s"\n' "$DB_BACKUP_PASSPHRASE"
-            printf 'OS_AUTH_TYPE="%s"\n' "$OS_AUTH_TYPE"
-            printf 'OS_AUTH_URL="%s"\n' "$OS_AUTH_URL"
-            printf 'OS_REGION_NAME="%s"\n' "$OS_REGION_NAME"
-            printf 'OS_INTERFACE="%s"\n' "$OS_INTERFACE"
-            printf 'OS_IDENTITY_API_VERSION="%s"\n' "$OS_IDENTITY_API_VERSION"
-            printf 'OS_APPLICATION_CREDENTIAL_ID="%s"\n' "$OS_APPLICATION_CREDENTIAL_ID"
-            printf 'OS_APPLICATION_CREDENTIAL_SECRET="%s"\n' "$OS_APPLICATION_CREDENTIAL_SECRET"
-            printf 'SWIFT_CONTAINER="%s"\n' "$SWIFT_CONTAINER"
-            printf 'SWIFT_PREFIX="%s"\n' "$SWIFT_PREFIX"
-        fi
-    } > "$tmp" || rc=$?
-
-    if [ "$rc" -eq 0 ]; then
-        install -m 600 "$tmp" "$target" || rc=$?
-    fi
-
-    rm -f "$tmp"
-    return "$rc"
+    } | _write_env_install "$target"
 }

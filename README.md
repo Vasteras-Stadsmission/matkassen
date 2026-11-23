@@ -413,8 +413,8 @@ The system includes automated nightly PostgreSQL backups to Elastx Object Store:
 
 1. Generate a strong passphrase (`openssl rand -base64 32`) and store it as the `DB_BACKUP_PASSPHRASE` GitHub Secret. Backups cannot be restored without it.
 2. Create Application Credentials in Elastx Dashboard (Identity → Application Credentials).
-3. Add to `.env`: `OS_APPLICATION_CREDENTIAL_ID`, `OS_APPLICATION_CREDENTIAL_SECRET`, `SWIFT_CONTAINER`.
-4. Deploy — `deploy.sh` / `update.sh` writes the passphrase into the host `.env` and `docker-compose.backup.yml` injects it into the backup container.
+3. Store `OS_APPLICATION_CREDENTIAL_ID`, `OS_APPLICATION_CREDENTIAL_SECRET` and `SWIFT_CONTAINER` as GitHub Secrets.
+4. Deploy — `deploy.sh` / `update.sh` writes these secrets into the host `.env.backup`, which only the backup container reads (`docker-compose.backup.yml`). They stay out of `.env` because the web container loads all of it.
 
 ### Management
 
