@@ -311,8 +311,6 @@ async function notifyAnonymizationError(result: {
     try {
         const { sendSlackAlert } = await import("@/app/utils/notifications/slack");
 
-        const errorList = result.errors.map(e => `• ${e}`).join("\n");
-
         await sendSlackAlert({
             title: "🚨 GDPR Anonymization Error",
             message:
@@ -322,7 +320,6 @@ async function notifyAnonymizationError(result: {
             details: {
                 "Success Count": result.anonymized.toString(),
                 "Failure Count": result.errors.length.toString(),
-                "Errors": errorList || "Unknown error",
                 "Timestamp": new Date().toISOString(),
             },
         });
@@ -472,7 +469,7 @@ async function runOrgMembershipSync(): Promise<{
                 { toDeactivate: toDeactivate.length, totalActive: activeUsers.length, pct },
                 "Org sync aborted: too many deactivations, possible misconfiguration",
             );
-            // Prepend so it's never truncated by errors.slice(0, 5) in Slack notification
+            // Prepend so the abort reason comes first in the returned errors
             errors.unshift(
                 `Aborted: ${toDeactivate.length}/${activeUsers.length} (${pct}%) users would be deactivated — possible GITHUB_ORG misconfiguration`,
             );
@@ -525,7 +522,7 @@ async function runOrgMembershipSync(): Promise<{
  * Send Slack alert when SMS processing loop throws an exception.
  * Uses state-transition pattern to avoid spamming on repeated failures.
  */
-async function notifySmsProcessingError(error: unknown): Promise<void> {
+async function notifySmsProcessingError(): Promise<void> {
     if (process.env.NODE_ENV !== "production") {
         return;
     }
@@ -534,7 +531,6 @@ async function notifySmsProcessingError(error: unknown): Promise<void> {
     await sendSmsHealthAlert(false, {
         schedulerRunning: schedulerState.isRunning,
         smsTestMode: getHelloSmsConfig().testMode,
-        error: error instanceof Error ? error.message : String(error),
     });
 }
 
@@ -564,9 +560,6 @@ async function notifyOrgSyncResult(result: {
             details: {
                 Deactivated: result.deactivated.toString(),
                 Errors: result.errors.length.toString(),
-                ...(result.errors.length > 0 && {
-                    "Error Details": result.errors.slice(0, 5).join("\n"),
-                }),
                 Timestamp: new Date().toISOString(),
             },
         });
@@ -614,7 +607,6 @@ async function runSmsReconciliation(): Promise<void> {
                                 "Resolved": result.reconciled.toString(),
                                 "Still Waiting": result.stillWaiting.toString(),
                                 "Checked": result.checked.toString(),
-                                "Errors": result.errors.slice(0, 5).join("\n"),
                             },
                         }),
                     )
@@ -671,7 +663,7 @@ export function startScheduler(): void {
             );
         } catch (error) {
             logError("Error in SMS JIT loop", error);
-            notifySmsProcessingError(error).catch(err =>
+            notifySmsProcessingError().catch(err =>
                 logError("Failed to send SMS processing error Slack alert", err),
             );
         }
@@ -721,7 +713,6 @@ export function startScheduler(): void {
                         status: "error",
                         details: {
                             "Invalid Schedule": ANONYMIZATION_SCHEDULE,
-                            "Error": error instanceof Error ? error.message : "Unknown error",
                             "Expected Format": "Cron syntax (e.g., '0 2 * * 0' for Sunday 2 AM)",
                             "Timestamp": new Date().toISOString(),
                         },

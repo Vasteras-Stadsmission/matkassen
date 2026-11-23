@@ -147,10 +147,7 @@ describe("SMS status callback logging", () => {
             "Error processing SMS status callback",
         );
         await vi.waitFor(() => {
-            expect(mocks.sendSmsHealthAlert).toHaveBeenCalledWith(false, {
-                error: "SMS status callback processing failed",
-                component: "sms-webhook",
-            });
+            expect(mocks.sendSmsHealthAlert).toHaveBeenCalledWith(false, {});
         });
 
         const emitted = JSON.stringify([

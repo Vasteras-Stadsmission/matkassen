@@ -146,7 +146,7 @@ async function runHealthCheck(request: NextRequest): Promise<HealthResult> {
 
         // Send Slack alert for database issues (with state tracking)
         if (process.env.NODE_ENV === "production") {
-            sendDatabaseHealthAlert(dbStatus === "ok", dbError || undefined).catch(err =>
+            sendDatabaseHealthAlert(dbStatus === "ok").catch(err =>
                 logError("Failed to send database health alert", err),
             );
         }
