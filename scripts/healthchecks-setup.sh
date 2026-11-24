@@ -40,8 +40,8 @@ upsert() {
     fi
 }
 
-upsert site '"name": "Site /api/health", "timeout": 900, "grace": 2700,
-    "desc": "GitHub Actions (site-check.yml) checks https://matcentralen.com/api/health every 15 min, 4 tries 30 s apart. Down: site unreachable, or database, scheduler or disk not healthy, or no check for an hour."'
+upsert site '"name": "Site /api/health", "timeout": 300, "grace": 1800,
+    "desc": "The web container fetches https://matcentralen.com/api/health every 5 min and pings when it is healthy. Down for 35 min: site unreachable, or database, scheduler or disk not healthy, or the server is down. Reason: web container logs."'
 upsert backup '"name": "Nightly backup", "schedule": "0 2 * * *", "tz": "Europe/Stockholm", "grace": 3600,
     "desc": "scripts/backup-db.sh. Down: backup or restore validation failed, or it did not run. Reason: logs of the db-backup container."'
 upsert sms-scheduler '"name": "SMS scheduler", "timeout": 300, "grace": 900,
