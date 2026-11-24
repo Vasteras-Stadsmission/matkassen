@@ -13,8 +13,9 @@
 #   Previously deploy.sh silently omitted Swift/OS vars on production;
 #   that was a latent bug that only surfaced if the backup container
 #   restarted between init_deploy and the first subsequent update.sh.
-# - Uses temp-file + `install -m 600` so neither file is ever briefly
-#   readable by anyone other than its owner during the write.
+# - Writes each file to a mode-600 temp file in the same directory and
+#   renames it into place, so neither file is ever readable by others or
+#   left half-written.
 # - Validates vars required by the .env contract up front. Callers keep
 #   their script-specific validation (Slack optionality, rotation
 #   cadence policy, etc.).
@@ -33,19 +34,20 @@ _write_env_require() {
 }
 
 _write_env_install() {
-    # Writes stdin to the named file with mode 600 via a temp file, so the
-    # file is never briefly readable by anyone other than its owner.
-    local target=$1 tmp rc=0
-    tmp=$(mktemp) || {
+    # Writes stdin to the named file via a temp file next to it, then
+    # renames it into place. mktemp creates the file with mode 600, so it
+    # is never readable by anyone but its owner, and the rename means an
+    # interrupted deploy leaves either the old file or the new one.
+    local target=$1 tmp
+    tmp=$(mktemp "${target}.XXXXXX") || {
         echo "ERROR (write_env_file): mktemp failed" >&2
         return 1
     }
-    cat > "$tmp" || rc=$?
-    if [ "$rc" -eq 0 ]; then
-        install -m 600 "$tmp" "$target" || rc=$?
+    if cat > "$tmp" && mv -f "$tmp" "$target"; then
+        return 0
     fi
     rm -f "$tmp"
-    return "$rc"
+    return 1
 }
 
 write_env_file() {

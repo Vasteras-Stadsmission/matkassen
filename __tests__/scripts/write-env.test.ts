@@ -73,6 +73,8 @@ describe("write_env_file", () => {
         const backupFile = path.join(dir, ".env.backup");
         expect(keys(backupFile).sort()).toEqual(Object.keys(backupEnv).sort());
         expect(fs.statSync(backupFile).mode & 0o777).toBe(0o600);
+        expect(fs.statSync(path.join(dir, ".env")).mode & 0o777).toBe(0o600);
+        expect(fs.readdirSync(dir).sort()).toEqual([".env", ".env.backup"]);
     });
 
     it("writes no backup file on staging", () => {

@@ -39,8 +39,10 @@ if [ $# -ne 1 ]; then
     echo ""
     echo "Available backups:"
     require_docker_compose
-    $COMPOSE_CMD $COMPOSE_FILES --profile backup exec db-backup \
-        rclone lsf "elastx:$SWIFT_CONTAINER/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg" | tail -20 || true
+    # Single quotes: SWIFT_CONTAINER and SWIFT_PREFIX exist only inside the
+    # db-backup container (from .env.backup), not in the host shell.
+    $COMPOSE_CMD $COMPOSE_FILES --profile backup exec -T db-backup \
+        sh -c 'rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg"' | tail -20 || true
     exit 1
 fi
 

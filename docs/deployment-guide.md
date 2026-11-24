@@ -404,11 +404,12 @@ export OLD_PASS="old-passphrase-from-secret-history"
 export NEW_PASS="new-passphrase-from-github-secrets"
 export ENV_NAME=production
 
-# List the objects that need rekeying
+# List the objects that need rekeying. Single quotes: the Swift settings
+# exist only inside the db-backup container (from .env.backup).
 docker compose -f docker-compose.yml -f docker-compose.backup.yml \
-    --profile backup exec db-backup \
-    rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
-    --include "matkassen_backup_*.dump.gpg" > /tmp/backups_to_rekey.txt
+    --profile backup exec -T db-backup \
+    sh -c 'rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg"' \
+    > /tmp/backups_to_rekey.txt
 
 # For each, stream-rekey with no intermediate plaintext on disk.
 # Passphrases arrive via process substitution / pipe rather than bash
@@ -463,9 +464,8 @@ After re-encryption, rotate any Swift credentials that shared the compromise win
 
 # List recent backups in Swift (from inside the backup container)
 docker compose -f docker-compose.yml -f docker-compose.backup.yml \
-    --profile backup exec db-backup \
-    rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
-    --include "matkassen_backup_*.dump.gpg"
+    --profile backup exec -T db-backup \
+    sh -c 'rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg"'
 ```
 
 Slack notifications fire on every nightly run (success or failure), with file size, duration, and the validation result. If validation fails the script still uploads the file but flags the run red — investigate before relying on that backup.
