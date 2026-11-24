@@ -1247,7 +1247,7 @@ async function handleJitFailure(
  * Get SMS health statistics for monitoring/alerting
  *
  * Returns counts of SMS by status for the last 24 hours, plus stale unconfirmed SMS.
- * Used by the daily SMS health report to Slack.
+ * Used by the daily SMS delivery check (sms-delivery on healthchecks.io).
  *
  * @returns Statistics object with counts and whether there are any issues
  */
@@ -1265,6 +1265,7 @@ export async function getSmsHealthStats(): Promise<{
 }> {
     const now = Time.now().toUTC();
     const twentyFourHoursAgo = new Date(now.getTime() - TWENTY_FOUR_HOURS_MS);
+    const fortyEightHoursAgo = new Date(now.getTime() - 2 * TWENTY_FOUR_HOURS_MS);
 
     // Query 1: Last 24h stats for sent SMS (based on sent_at)
     // Using gte to include SMS sent exactly at the 24h boundary
@@ -1301,8 +1302,10 @@ export async function getSmsHealthStats(): Promise<{
             ),
         );
 
-    // Query 2: Stale unconfirmed (sent > 24h ago, no provider status or still waiting, not dismissed)
-    // Using lt (strictly older than 24h) so boundary case falls into "awaiting" not "stale"
+    // Query 2: Stale unconfirmed (sent 24-48h ago, no provider status or still waiting, not dismissed)
+    // Using lt (strictly older than 24h) so boundary case falls into "awaiting" not "stale".
+    // Only the day after sending: older ones never clear unless dismissed, and
+    // would keep the daily sms-delivery check down so new issues never alert.
     const staleResult = await db
         .select({
             count: sql<number>`COUNT(*)`,
@@ -1313,6 +1316,7 @@ export async function getSmsHealthStats(): Promise<{
                 eq(outgoingSms.status, "sent"),
                 sql`(${outgoingSms.provider_status} IS NULL OR ${outgoingSms.provider_status} = 'waiting')`,
                 lt(outgoingSms.sent_at, twentyFourHoursAgo),
+                gte(outgoingSms.sent_at, fortyEightHoursAgo),
                 sql`${outgoingSms.dismissed_at} IS NULL`,
             ),
         );
@@ -2155,23 +2159,6 @@ export async function getAvailableCredits(): Promise<number | null> {
 }
 
 /**
- * Send Slack alert when SMS balance is low or depleted.
- * Rate-limited to at most once per 10 minutes to avoid spam when
- * multiple SMS fail in the same batch.
- * Depleted (credits=0) always bypasses the cooldown so it is never
- * suppressed by a prior low-balance warning.
- */
-let lastBalanceAlertAt = 0;
-let lastBalanceAlertWasDepleted = false;
-const BALANCE_ALERT_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
-
-/** Reset Slack alert cooldown. Used by tests. */
-export function resetBalanceAlertCooldown(): void {
-    lastBalanceAlertAt = 0;
-    lastBalanceAlertWasDepleted = false;
-}
-
-/**
  * Reconcile stale SMS delivery statuses via the HelloSMS conversation API.
  *
  * Finds SMS records where we sent successfully but never received a delivery
@@ -2351,46 +2338,4 @@ export async function reconcileStaleMessages(): Promise<{
     );
 
     return { reconciled, checked: staleRecords.length, stillWaiting, errors };
-}
-
-export async function sendBalanceSlackAlert(credits: number): Promise<void> {
-    const now = Date.now();
-    const isDepleted = credits === 0;
-
-    // Depleted alerts always go through — a low-balance warning must never
-    // suppress the more urgent depleted error.
-    if (!isDepleted && now - lastBalanceAlertAt < BALANCE_ALERT_COOLDOWN_MS) {
-        return; // Already alerted recently
-    }
-    // If we already sent a depleted alert, don't send another one within the cooldown
-    if (
-        isDepleted &&
-        lastBalanceAlertWasDepleted &&
-        now - lastBalanceAlertAt < BALANCE_ALERT_COOLDOWN_MS
-    ) {
-        return;
-    }
-    lastBalanceAlertAt = now;
-    lastBalanceAlertWasDepleted = isDepleted;
-
-    const { sendSlackAlert } = await import("@/app/utils/notifications/slack");
-
-    await sendSlackAlert({
-        title: isDepleted ? "SMS Credits Depleted" : "SMS Credits Low",
-        message: isDepleted
-            ? "SMS sending is failing because the HelloSMS account has insufficient credits. " +
-              "The organisation needs to top up the SMS balance. " +
-              "Failed SMS messages can be retried from the admin UI once credits are restored."
-            : `SMS credit balance is low (${credits} remaining). ` +
-              "Top up soon to avoid missed pickup reminders.",
-        status: isDepleted ? "error" : "warning",
-        details: {
-            "Service": "HelloSMS",
-            "Credits Remaining": String(credits),
-            "Issue": isDepleted
-                ? "Insufficient SMS credits (saldo = 0)"
-                : `Low SMS credits (${credits} remaining)`,
-            "Action Required": "Top up SMS credits at hellosms.se",
-        },
-    });
 }

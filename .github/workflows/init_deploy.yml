@@ -105,8 +105,7 @@ jobs:
                         export OS_APPLICATION_CREDENTIAL_ID="${{ secrets.OS_APPLICATION_CREDENTIAL_ID }}"
                         export OS_APPLICATION_CREDENTIAL_SECRET="${{ secrets.OS_APPLICATION_CREDENTIAL_SECRET }}"
                         export SWIFT_CONTAINER="${{ secrets.SWIFT_CONTAINER }}"
-                        export SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}"
-                        export SLACK_CHANNEL_ID="${{ secrets.SLACK_CHANNEL_ID }}"
+                        export HEALTHCHECKS_PING_KEY="${{ secrets.HEALTHCHECKS_PING_KEY }}"
                       else
                         export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_STAGING }}"
                         export DOMAIN_NAME="staging.matcentralen.com"

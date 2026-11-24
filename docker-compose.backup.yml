@@ -30,8 +30,7 @@ services:
             - OS_INTERFACE=public
             - OS_REGION_NAME=se-sto
             - BACKUP_RETENTION_DAYS=14
-            - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
-            - SLACK_CHANNEL_ID=${SLACK_CHANNEL_ID:-}
+            - HEALTHCHECKS_PING_KEY=${HEALTHCHECKS_PING_KEY:-}
             # gpg normally creates and writes state files (keyring, random
             # seed, socket dir) in ~/.gnupg. With read_only: true that
             # directory is unwritable and gpg aborts with

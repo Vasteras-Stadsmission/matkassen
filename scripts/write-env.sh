@@ -17,7 +17,7 @@
 #   renames it into place, so neither file is ever readable by others or
 #   left half-written.
 # - Validates vars required by the .env contract up front. Callers keep
-#   their script-specific validation (Slack optionality, rotation
+#   their script-specific validation (alerting optionality, rotation
 #   cadence policy, etc.).
 # - Does NOT set shell options (`set -e`, `set -u`, ...) or install
 #   EXIT traps — those would leak into the caller's shell and clobber
@@ -197,12 +197,10 @@ write_env_file() {
         printf 'SMS_REPORT_SCHEDULE="%s"\n' "${SMS_REPORT_SCHEDULE:-0 8 * * *}"
         # Org membership sync schedule (daily at 3 AM Stockholm)
         printf 'ORG_SYNC_SCHEDULE="%s"\n' "${ORG_SYNC_SCHEDULE:-0 3 * * *}"
-        # Slack notifications (optional — alerts only sent when ENV_NAME=production)
-        if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
-            printf 'SLACK_BOT_TOKEN="%s"\n' "$SLACK_BOT_TOKEN"
-        fi
-        if [ -n "${SLACK_CHANNEL_ID:-}" ]; then
-            printf 'SLACK_CHANNEL_ID="%s"\n' "$SLACK_CHANNEL_ID"
+        # healthchecks.io ping key (optional — production only). Read by the
+        # web container and passed to db-backup by docker-compose.backup.yml.
+        if [ -n "${HEALTHCHECKS_PING_KEY:-}" ]; then
+            printf 'HEALTHCHECKS_PING_KEY="%s"\n' "$HEALTHCHECKS_PING_KEY"
         fi
     } | _write_env_install "$target"
 }

@@ -5,9 +5,6 @@ const mocks = vi.hoisted(() => ({
     client: vi.fn(),
     schedulerHealthCheck: vi.fn(),
     startScheduler: vi.fn(),
-    sendSmsHealthAlert: vi.fn(),
-    sendDatabaseHealthAlert: vi.fn(),
-    sendDiskSpaceHealthAlert: vi.fn(),
     checkRateLimit: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
@@ -21,12 +18,6 @@ vi.mock("@/app/db/drizzle", () => ({
 vi.mock("@/app/utils/scheduler", () => ({
     schedulerHealthCheck: mocks.schedulerHealthCheck,
     startScheduler: mocks.startScheduler,
-}));
-
-vi.mock("@/app/utils/notifications/slack", () => ({
-    sendSmsHealthAlert: mocks.sendSmsHealthAlert,
-    sendDatabaseHealthAlert: mocks.sendDatabaseHealthAlert,
-    sendDiskSpaceHealthAlert: mocks.sendDiskSpaceHealthAlert,
 }));
 
 vi.mock("@/app/utils/rate-limit", () => ({
@@ -75,9 +66,6 @@ describe("public health route", () => {
             details: { ...healthySchedulerDetails },
         });
         mocks.startScheduler.mockReturnValue(undefined);
-        mocks.sendSmsHealthAlert.mockResolvedValue(undefined);
-        mocks.sendDatabaseHealthAlert.mockResolvedValue(undefined);
-        mocks.sendDiskSpaceHealthAlert.mockResolvedValue(undefined);
         mocks.checkRateLimit.mockReturnValue({
             allowed: true,
             remaining: 119,

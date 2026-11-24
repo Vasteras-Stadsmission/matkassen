@@ -200,13 +200,11 @@ describe("Unified Scheduler", () => {
              *    - Starts anonymization cron task
              *    - Starts health check interval (12 hours)
              *    - Runs SMS JIT immediately
-             *    - Sends Slack notification on first startup (production only)
              *
              * 2. stopScheduler()
              *    - Checks if running (no-op if already stopped)
              *    - Clears all intervals and cron tasks
              *    - Sets isRunning = false
-             *    - Does NOT send Slack notification (silent stop)
              *
              * 3. isSchedulerRunning()
              *    - Returns boolean state
@@ -220,32 +218,11 @@ describe("Unified Scheduler", () => {
             expect(true).toBe(true); // Documentation test
         });
 
-        it("should document Slack notification strategy", () => {
+        it("should document alerting via healthchecks.io", () => {
             /**
-             * SLACK NOTIFICATIONS:
-             *
-             * 1. STARTUP (once per app lifecycle):
-             *    - Sent: On first startScheduler() call only
-             *    - Condition: process.env.NODE_ENV === "production" && isFirstStartup
-             *    - Content: Configuration details (SMS mode, anonymization settings)
-             *    - Purpose: Confirm scheduler started after deployment
-             *
-             * 2. ANONYMIZATION ERRORS (on failure):
-             *    - Sent: When anonymizeInactiveHouseholds() throws or has errors
-             *    - Condition: process.env.NODE_ENV === "production"
-             *    - Content: Error details, success count, failure count
-             *    - Purpose: Alert team to investigate failures
-             *
-             * 3. NOT SENT:
-             *    - ❌ Every scheduled run (too noisy)
-             *    - ❌ Successful anonymization (expected behavior)
-             *    - ❌ SMS enqueue/send (covered by existing SMS alerts)
-             *    - ❌ Staging/local environments (not production)
-             *
-             * WHY MINIMAL:
-             * - Reduces alert fatigue
-             * - Only actionable notifications
-             * - Success is confirmed via logs and health check
+             * Each job pings its own check on healthchecks.io, which emails on
+             * failure or a missed schedule. The checks are listed in
+             * docs/deployment-guide.md ("Alerting").
              */
             expect(true).toBe(true); // Documentation test
         });
@@ -335,7 +312,7 @@ describe("Unified Scheduler", () => {
              * - Calls runAnonymizationSchedule() directly
              * - Uses current environment configuration
              * - Updates lastAnonymizationRun and lastAnonymizationStatus
-             * - Sends Slack notification on error (if production)
+             * - Reports the run to healthchecks.io (anonymization check)
              *
              * NOT IMPLEMENTED IN UI YET:
              * - No admin button to trigger manually
@@ -379,7 +356,7 @@ describe("Unified Scheduler", () => {
              * 1. SMS ENQUEUE ERRORS:
              *    - Logged to console (per parcel)
              *    - Continues processing remaining parcels
-             *    - No Slack notification (transient errors expected)
+             *    - No alert (transient errors expected)
              *
              * 2. SMS SEND ERRORS:
              *    - Logged to console (per SMS)
@@ -388,7 +365,7 @@ describe("Unified Scheduler", () => {
              *
              * 3. ANONYMIZATION ERRORS:
              *    - Logged to console
-             *    - Sends Slack notification (actionable error)
+             *    - Reports a failure to healthchecks.io (actionable error)
              *    - Returns error array (per household)
              *    - Continues processing remaining households
              *
@@ -416,7 +393,7 @@ describe("Unified Scheduler", () => {
              * NON-CRITICAL FAILURES (continue running):
              * - Individual SMS fails to send
              * - Individual household fails to anonymize
-             * - Slack notification fails to send
+             * - A healthchecks.io ping fails to send
              * → Logged, reported, but scheduler continues
              *
              * WHY DISTINGUISH:
@@ -489,19 +466,19 @@ describe("Unified Scheduler", () => {
              * - ANONYMIZATION_SCHEDULE: `0 2 * * 0` (weekly Sunday 2 AM)
              * - ANONYMIZATION_INACTIVE_DURATION: "1 year"
              * - HELLO_SMS_TEST_MODE: false (live SMS)
-             * - Slack notifications: enabled (startup + errors)
+             * - healthchecks.io pings: enabled (HEALTHCHECKS_PING_KEY set)
              *
              * STAGING CONFIGURATION:
              * - ANONYMIZATION_SCHEDULE: `*​/15 * * * *` (every 15 minutes)
              * - ANONYMIZATION_INACTIVE_DURATION: "5 minutes"
              * - HELLO_SMS_TEST_MODE: true (fake SMS)
-             * - Slack notifications: disabled
+             * - healthchecks.io pings: disabled (no ping key)
              *
              * LOCAL DEVELOPMENT:
              * - ANONYMIZATION_SCHEDULE: `*​/1 * * * *` (every 1 minute - configurable)
              * - ANONYMIZATION_INACTIVE_DURATION: "30 seconds"
              * - HELLO_SMS_TEST_MODE: true
-             * - Slack notifications: disabled
+             * - healthchecks.io pings: disabled (no ping key)
              *
              * WHY DIFFERENT:
              * - Production: GDPR compliance, low frequency

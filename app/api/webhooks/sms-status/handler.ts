@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateSmsProviderStatus } from "@/app/utils/sms/sms-service";
 import { ALL_PROVIDER_STATUSES } from "@/app/utils/sms/sms-gateway";
-import { logger, logError } from "@/app/utils/logger";
+import { logger } from "@/app/utils/logger";
 
 // Validate that status is a known HelloSMS status value.
 // Uses ALL_PROVIDER_STATUSES as single source of truth (defined in sms-gateway.ts).
@@ -83,12 +83,6 @@ export async function handleSmsStatusCallback(
             },
             "Error processing SMS status callback",
         );
-
-        // Alert to Slack so webhook processing failures are visible.
-        // Uses state-transition pattern to avoid flooding Slack during a DB outage.
-        import("@/app/utils/notifications/slack")
-            .then(({ sendSmsHealthAlert }) => sendSmsHealthAlert(false, {}))
-            .catch(err => logError("Failed to send webhook error Slack alert", err));
 
         // Return 200 even on errors to prevent HelloSMS from retrying
         return NextResponse.json(

@@ -7,7 +7,7 @@
 #   → rclone copy to Swift → set X-Delete-After expiry header
 #   → download + decrypt + full pg_restore into matkassen_nightly_validate
 #     → sentinel query → drop scratch DB
-#   → Slack notify
+#   → ping healthchecks.io (success or fail)
 #
 # Encryption: symmetric AES256 with DB_BACKUP_PASSPHRASE fed on a pipe
 # (via `builtin printf`) to gpg's --passphrase-fd, never via argv or a
@@ -24,48 +24,21 @@ set -o errtrace
 # Disable command echo to keep the passphrase out of any trace logs
 set +x
 
-notify_slack() {
-        # Sends a Slack message via bot API with readable formatting
-        local status=${1:-"failure"}
-        local msg=${2:-"Database backup failed"}
-        local host=$(hostname)
-        local emoji="❌"; [ "$status" = "success" ] && emoji="✅"
-        local drill_emoji="⏭️"; case "${DRILL_STATUS:-skipped}" in
-            success) drill_emoji="✅";;
-            failure) drill_emoji="❌";;
-        esac
-
-        # Defaults if variables are not set (e.g., early failure)
-        local _file=${BACKUP_FILENAME:-unknown}
-        local _size=${BACKUP_SIZE:-unknown}
-        local _elapsed=${ELAPSED:-unknown}
-        local _drill=${DRILL_STATUS:-skipped}
-
-        if [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${SLACK_CHANNEL_ID:-}" ]; then
-                # Prefer blocks for better readability; fall back to plain text on error
-                local payload
-                payload=$(cat <<EOF
-{\
-    "channel": "${SLACK_CHANNEL_ID}",\
-    "text": "[matkassen] ${msg}",\
-    "blocks": [\
-        {"type":"section","text":{"type":"mrkdwn","text":"*[matkassen]* ${emoji} ${msg}"}},\
-        {"type":"section","fields":[\
-            {"type":"mrkdwn","text":"*File*\\n${_file}"},\
-            {"type":"mrkdwn","text":"*Size*\\n${_size}"},\
-            {"type":"mrkdwn","text":"*Duration*\\n${_elapsed}s"},\
-            {"type":"mrkdwn","text":"*Drill*\\n${drill_emoji} ${_drill}"},\
-            {"type":"mrkdwn","text":"*Host*\\n${host}"}\
-        ]}\
-    ]
-}
-EOF
-)
-                curl -sS https://slack.com/api/chat.postMessage \
-                    -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-                    -H "Content-type: application/json; charset=utf-8" \
-                    --data "$payload" | grep -q '"ok":true' || true
+ping_healthcheck() {
+        # Reports this run to healthchecks.io, which emails when a run fails
+        # or none arrives on schedule, and stays quiet otherwise. The ping
+        # has no body: nothing from the backup leaves the container.
+        if [ -z "${HEALTHCHECKS_PING_KEY:-}" ]; then
+                return 0
         fi
+        local suffix=""
+        if [ "$1" = "fail" ]; then
+                suffix="/fail"
+        fi
+        # URL via stdin (curl -K -), so the key never shows in the process list.
+        printf 'url = "https://hc-ping.com/%s/backup%s"\n' "$HEALTHCHECKS_PING_KEY" "$suffix" \
+                | curl -fsS -m 10 --retry 3 -o /dev/null -X POST -K - \
+                || log "WARNING: healthchecks.io ping failed"
 }
 
 log() {
@@ -140,7 +113,7 @@ cleanup() {
 
 # BACKUP_STAGE is updated before each major step. If set -e aborts the
 # script mid-pipeline (pg_dump/gpg/rclone failure), the ERR trap uses this
-# to report which stage failed to Slack. Without this, a pg_dump or rclone
+# to report which stage failed. Without this, a pg_dump or rclone
 # failure would kill the script silently — no alert, no log summary.
 BACKUP_STAGE="startup"
 FAIL_NOTIFIED=0
@@ -149,16 +122,16 @@ fail() {
     local msg=$1
     log "ERROR: $msg"
     FAIL_NOTIFIED=1
-    notify_slack failure "$msg"
+    ping_healthcheck fail
     exit 1
 }
 
 on_error() {
     local rc=$?
-    # fail() already notified — don't double-post to Slack
+    # fail() already reported the failure
     [ "$FAIL_NOTIFIED" -eq 1 ] && return
     log "ERROR: Backup aborted in stage '$BACKUP_STAGE' (exit $rc)"
-    notify_slack failure "Backup aborted in stage '$BACKUP_STAGE' (exit $rc)"
+    ping_healthcheck fail
 }
 trap 'on_error' ERR
 trap 'cleanup' EXIT
@@ -358,7 +331,7 @@ fi
 rm -f "$VALIDATION_DOWNLOAD"
 
 # Best-effort stats for the log line — don't let a transient rclone failure
-# here prevent the Slack notification from firing.
+# here prevent the healthchecks.io ping from firing.
 BACKUP_COUNT=$(rclone lsf "$RCLONE_REMOTE" --include "matkassen_backup_*.dump.gpg" 2>/dev/null | wc -l) || BACKUP_COUNT="?"
 TOTAL_SIZE_HUMAN=$(rclone size "$RCLONE_REMOTE" --include "matkassen_backup_*.dump.gpg" 2>/dev/null | grep "Total size" | awk '{print $3}') || TOTAL_SIZE_HUMAN="?"
 
@@ -369,13 +342,18 @@ EXPIRY_LABEL="${RETENTION_DAYS}d"
 [ "$EXPIRY_OK" != "yes" ] && EXPIRY_LABEL="FAILED"
 
 if [ "$DRILL_STATUS" = "success" ]; then
-    log "Backup process completed successfully in ${ELAPSED}s"
-    SUMMARY="Encrypted backup success (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${EXPIRY_LABEL}). Validation: ${DRILL_STATUS}."
-    notify_slack success "$SUMMARY"
+    log "Backup process completed successfully in ${ELAPSED}s (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, auto-expiry: ${EXPIRY_LABEL}, validation: ${DRILL_STATUS})"
+    if [ "$EXPIRY_OK" = "yes" ]; then
+        ping_healthcheck success
+    else
+        # The backup is usable, but nothing deletes it after RETENTION_DAYS,
+        # so personal data would outlive the retention period. Alert.
+        log "WARNING: backup has no automatic expiry; delete it by hand after ${RETENTION_DAYS} days"
+        ping_healthcheck fail
+    fi
 else
-    log "Backup uploaded but validation failed in ${ELAPSED}s"
-    SUMMARY="Backup uploaded but validation failed (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, elapsed: ${ELAPSED}s, auto-expiry: ${EXPIRY_LABEL}). Manual verification required."
-    notify_slack failure "$SUMMARY"
+    log "Backup uploaded but validation failed in ${ELAPSED}s (file: $BACKUP_FILENAME, size: $BACKUP_SIZE, auto-expiry: ${EXPIRY_LABEL}). Manual verification required."
+    ping_healthcheck fail
     exit 1
 fi
 

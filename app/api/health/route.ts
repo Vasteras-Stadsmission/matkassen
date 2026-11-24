@@ -3,11 +3,6 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { client } from "@/app/db/drizzle";
 import { schedulerHealthCheck } from "@/app/utils/scheduler";
-import {
-    sendSmsHealthAlert,
-    sendDatabaseHealthAlert,
-    sendDiskSpaceHealthAlert,
-} from "@/app/utils/notifications/slack";
 import { promises as fs } from "fs";
 import { join } from "path";
 import { logger, logError } from "@/app/utils/logger";
@@ -144,17 +139,9 @@ async function runHealthCheck(request: NextRequest): Promise<HealthResult> {
             logError("Database health check failed", error);
         }
 
-        // Send Slack alert for database issues (with state tracking)
-        if (process.env.NODE_ENV === "production") {
-            sendDatabaseHealthAlert(dbStatus === "ok").catch(err =>
-                logError("Failed to send database health alert", err),
-            );
-        }
-
         // Test unified scheduler health (SMS + Anonymization)
         let schedulerStatus = "unknown";
         let schedulerDetails = null;
-        let willAttemptRecovery = false;
 
         try {
             const schedulerHealth = await schedulerHealthCheck();
@@ -166,7 +153,6 @@ async function runHealthCheck(request: NextRequest): Promise<HealthResult> {
                 process.env.NODE_ENV === "production" &&
                 schedulerHealth.details.schedulerRunning === false
             ) {
-                willAttemptRecovery = true;
                 logger.warn("Unified scheduler not running, attempting auto-recovery");
 
                 try {
@@ -195,7 +181,6 @@ async function runHealthCheck(request: NextRequest): Promise<HealthResult> {
                         recoveryError:
                             startError instanceof Error ? startError.message : "Unknown error",
                     };
-                    willAttemptRecovery = false;
                 }
             }
         } catch (error) {
@@ -204,18 +189,6 @@ async function runHealthCheck(request: NextRequest): Promise<HealthResult> {
                 error: error instanceof Error ? error.message : "Scheduler health check failed",
             };
             logError("Scheduler health check failed", error);
-        }
-
-        // Send Slack alert for scheduler issues (with intelligent state tracking)
-        if (process.env.NODE_ENV === "production") {
-            const schedulerIsHealthy = schedulerStatus === "healthy";
-
-            if (!willAttemptRecovery) {
-                // Use SMS health alert for backward compatibility with existing Slack state tracking
-                sendSmsHealthAlert(schedulerIsHealthy, schedulerDetails || {}).catch(err =>
-                    logError("Failed to send scheduler health alert", err),
-                );
-            }
         }
 
         // Test disk space
@@ -240,14 +213,6 @@ async function runHealthCheck(request: NextRequest): Promise<HealthResult> {
                 status: "write_failed",
             };
             logError("Disk space check failed", error);
-        }
-
-        // Send Slack alert for disk space issues (with state tracking)
-        if (process.env.NODE_ENV === "production") {
-            const diskIsHealthy = diskStatus === "ok";
-            sendDiskSpaceHealthAlert(diskIsHealthy).catch(err =>
-                logError("Failed to send disk space health alert", err),
-            );
         }
 
         // Determine overall health status

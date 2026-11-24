@@ -18,7 +18,7 @@ import * as os from "os";
  * SCOPE: this suite is intentionally shell/control-flow coverage only.
  * It verifies that the script invokes the right binaries with the right
  * flags in the right order, that failure paths set the right exit code,
- * and that Slack notifications fire. It does NOT exercise real Postgres
+ * and that healthchecks.io pings fire. It does NOT exercise real Postgres
  * semantics — a pg_restore stub that `cat >/dev/null` and exits 0 will
  * pass even if pg_restore had missing --exit-on-error, bad flag combos,
  * or ownership/extension issues. Real-binary verification is done via
@@ -170,22 +170,25 @@ exit 0
 `,
         );
 
-        // Stub swift: X-Delete-After header set is a no-op.
-        fs.writeFileSync(path.join(mockBin, "swift"), "#!/bin/bash\nexit 0\n");
+        // Stub swift: X-Delete-After header set is a no-op, or fails with FAIL_SWIFT=1.
+        fs.writeFileSync(
+            path.join(mockBin, "swift"),
+            '#!/bin/bash\nif [ -n "${FAIL_SWIFT:-}" ]; then exit 1; fi\nexit 0\n',
+        );
 
-        // Stub curl: record the last --data payload to CURL_LOG so tests
-        // can assert a Slack notification was attempted.
+        // Stub curl: record each URL, from argv or from a "-K -" config on
+        // stdin, to CURL_LOG so tests can assert which healthchecks.io ping
+        // was sent and that the key never appears in argv.
         fs.writeFileSync(
             path.join(mockBin, "curl"),
             `#!/bin/bash
-while [ $# -gt 0 ]; do
-    if [ "$1" = "--data" ]; then
-        shift
-        if [ -n "\${CURL_LOG:-}" ]; then printf '%s\\n' "$1" >> "$CURL_LOG"; fi
-    fi
-    shift
+log=\${CURL_LOG:-/dev/null}
+for arg in "$@"; do
+    case "$arg" in
+        https://*) printf 'argv %s\\n' "$arg" >> "$log" ;;
+        -K) sed -n 's/^url = "\\(.*\\)"$/\\1/p' >> "$log" ;;
+    esac
 done
-echo '{"ok":true}'
 exit 0
 `,
         );
@@ -276,11 +279,20 @@ exit 0
 
             const opsLog = path.join(testRoot, "db-ops.log");
             fs.writeFileSync(opsLog, "");
-            const { stdout, status } = runBackup({ DB_OPS_LOG: opsLog });
+            const curlLog = path.join(testRoot, "curl.log");
+            fs.writeFileSync(curlLog, "");
+            const { stdout, status } = runBackup({
+                DB_OPS_LOG: opsLog,
+                HEALTHCHECKS_PING_KEY: "test-ping-key",
+                CURL_LOG: curlLog,
+            });
 
             expect(status).toBe(0);
             expect(stdout).toContain("Backup process completed successfully");
             expect(stdout).toContain("Validation OK - full restore succeeded");
+            expect(fs.readFileSync(curlLog, "utf-8").trim()).toBe(
+                "https://hc-ping.com/test-ping-key/backup",
+            );
 
             // Verify the DB ops happened in the right order: pre-flight dropdb,
             // then createdb, then pg_restore into the scratch DB, then sentinel
@@ -342,6 +354,31 @@ exit 0
     );
 
     it(
+        "pings failure when the expiry header cannot be set",
+        () => {
+            for (const f of fs.readdirSync(fakeRemote)) {
+                fs.rmSync(path.join(fakeRemote, f));
+            }
+            const curlLog = path.join(testRoot, "curl.log");
+            fs.writeFileSync(curlLog, "");
+
+            const { stdout, status } = runBackup({
+                HEALTHCHECKS_PING_KEY: "test-ping-key",
+                CURL_LOG: curlLog,
+                FAIL_SWIFT: "1",
+            });
+
+            // The backup itself is fine, but it would outlive the retention period.
+            expect(status).toBe(0);
+            expect(stdout).toContain("backup has no automatic expiry");
+            expect(fs.readFileSync(curlLog, "utf-8").trim()).toBe(
+                "https://hc-ping.com/test-ping-key/backup/fail",
+            );
+        },
+        backupTestTimeout,
+    );
+
+    it(
         "decryption fails with the wrong passphrase",
         () => {
             for (const f of fs.readdirSync(fakeRemote)) {
@@ -374,10 +411,10 @@ exit 0
         backupTestTimeout,
     );
 
-    it("notifies Slack when pg_dump fails mid-pipeline", () => {
+    it("pings failure when pg_dump fails mid-pipeline", () => {
         // Regression test for the silent-failure bug: set -e previously
         // killed the script on pg_dump/gpg/rclone failure without ever
-        // calling notify_slack. The ERR trap must now pick up those cases.
+        // reporting a failure. The ERR trap must now pick up those cases.
         for (const f of fs.readdirSync(fakeRemote)) {
             fs.rmSync(path.join(fakeRemote, f));
         }
@@ -393,8 +430,7 @@ exit 0
         fs.writeFileSync(curlLog, "");
 
         const { stdout, status } = runBackup({
-            SLACK_BOT_TOKEN: "xoxb-test",
-            SLACK_CHANNEL_ID: "C_TEST",
+            HEALTHCHECKS_PING_KEY: "test-ping-key",
             CURL_LOG: curlLog,
         });
 
@@ -405,12 +441,11 @@ exit 0
         const notifications = fs.readFileSync(curlLog, "utf-8");
         expect(status).not.toBe(0);
         expect(stdout).toMatch(/Backup aborted in stage '?pg_dump\|gpg/);
-        expect(notifications).toContain("pg_dump|gpg");
-        expect(notifications).toMatch(/"text":\s*"\[matkassen\]/);
+        expect(notifications.trim()).toBe("https://hc-ping.com/test-ping-key/backup/fail");
     });
 
     it(
-        "notifies Slack when rclone upload fails",
+        "pings failure when rclone upload fails",
         () => {
             // The ERR trap also has to catch rclone failures, not just pg_dump.
             for (const f of fs.readdirSync(fakeRemote)) {
@@ -433,8 +468,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             fs.writeFileSync(curlLog, "");
 
             const { stdout, status } = runBackup({
-                SLACK_BOT_TOKEN: "xoxb-test",
-                SLACK_CHANNEL_ID: "C_TEST",
+                HEALTHCHECKS_PING_KEY: "test-ping-key",
                 CURL_LOG: curlLog,
             });
 
@@ -444,7 +478,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             const notifications = fs.readFileSync(curlLog, "utf-8");
             expect(status).not.toBe(0);
             expect(stdout).toMatch(/Backup aborted in stage '?rclone upload/);
-            expect(notifications).toContain("rclone upload");
+            expect(notifications.trim()).toBe("https://hc-ping.com/test-ping-key/backup/fail");
         },
         backupTestTimeout,
     );
@@ -463,8 +497,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             fs.writeFileSync(curlLog, "");
 
             const { stdout, status } = runBackup({
-                SLACK_BOT_TOKEN: "xoxb-test",
-                SLACK_CHANNEL_ID: "C_TEST",
+                HEALTHCHECKS_PING_KEY: "test-ping-key",
                 CURL_LOG: curlLog,
                 SENTINEL_RESULT: "f",
             });
@@ -472,7 +505,8 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             const notifications = fs.readFileSync(curlLog, "utf-8");
             expect(status).not.toBe(0);
             expect(stdout).toContain("sentinel query returned 'f'");
-            expect(notifications).toContain("validation failed");
+            expect(stdout).toContain("validation failed");
+            expect(notifications.trim()).toBe("https://hc-ping.com/test-ping-key/backup/fail");
         },
         backupTestTimeout,
     );
@@ -492,8 +526,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             fs.writeFileSync(curlLog, "");
 
             const { stdout, status } = runBackup({
-                SLACK_BOT_TOKEN: "xoxb-test",
-                SLACK_CHANNEL_ID: "C_TEST",
+                HEALTHCHECKS_PING_KEY: "test-ping-key",
                 CURL_LOG: curlLog,
                 DB_OPS_LOG: opsLog,
                 FAIL_PG_RESTORE: "1",
@@ -537,7 +570,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
     );
 
     it(
-        "alerts Slack when createdb fails (missing CREATEDB grant)",
+        "pings failure when createdb fails (missing CREATEDB grant)",
         () => {
             // The most operationally likely failure: rollout skipped the
             // ALTER USER ... CREATEDB step. The script should fail the run
@@ -549,8 +582,7 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             fs.writeFileSync(curlLog, "");
 
             const { stdout, status } = runBackup({
-                SLACK_BOT_TOKEN: "xoxb-test",
-                SLACK_CHANNEL_ID: "C_TEST",
+                HEALTHCHECKS_PING_KEY: "test-ping-key",
                 CURL_LOG: curlLog,
                 FAIL_CREATEDB: "1",
             });
@@ -559,7 +591,8 @@ ${realRclone.replace(/^#!\/bin\/bash\n/, "")}`,
             expect(stdout).toContain("could not create scratch DB");
             expect(stdout).toContain("CREATEDB");
             const notifications = fs.readFileSync(curlLog, "utf-8");
-            expect(notifications).toContain("validation failed");
+            expect(stdout).toContain("validation failed");
+            expect(notifications.trim()).toBe("https://hc-ping.com/test-ping-key/backup/fail");
         },
         backupTestTimeout,
     );

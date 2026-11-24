@@ -44,7 +44,6 @@ import {
     getSmsRecordsReadyForSending,
     getInsufficientBalanceStatus,
     requeueBalanceFailures,
-    resetBalanceAlertCooldown,
     getAvailableCredits,
     processRemindersJIT,
 } from "@/app/utils/sms/sms-service";
@@ -55,12 +54,10 @@ describe("SMS Balance Failure Handling - Integration Tests", () => {
         resetLocationCounter();
         resetSmsCounter();
         resetSmsGateway();
-        resetBalanceAlertCooldown();
     });
 
     afterEach(() => {
         resetSmsGateway();
-        resetBalanceAlertCooldown();
     });
 
     describe("Send failure handling", () => {
