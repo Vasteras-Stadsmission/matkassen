@@ -287,7 +287,7 @@ Production backups run automatically via `Dockerfile.db-backup`, which runs `scr
 
 - **Method**: Symmetric encryption using GPG (GnuPG)
 - **Algorithm**: AES256
-- **Passphrase**: Stored in GitHub Secrets as `DB_BACKUP_PASSPHRASE`, propagated to the host `.env` by `deploy.sh` / `update.sh`, then injected into the backup container via `docker-compose.backup.yml`
+- **Passphrase**: Stored in GitHub Secrets as `DB_BACKUP_PASSPHRASE`, written to the host `.env.backup` by `deploy.sh` / `update.sh`, which only the backup container reads (`env_file` in `docker-compose.backup.yml`). The web container loads `.env`, so backup secrets never go there
 - **Output filename**: `matkassen_backup_<timestamp>.dump.gpg` (binary GPG, not ASCII-armored — the payload is a PostgreSQL custom-format dump)
 
 #### Setting Up Encrypted Backups
@@ -387,7 +387,7 @@ sudo docker compose restart web
 
 1. Generate a new passphrase (`openssl rand -base64 32`).
 2. Update the `DB_BACKUP_PASSPHRASE` GitHub Secret.
-3. Re-deploy: `deploy.sh` / `update.sh` writes the new value into the host `.env`, and recreating the `db-backup` container picks it up.
+3. Re-deploy: `deploy.sh` / `update.sh` writes the new value into the host `.env.backup`, and recreating the `db-backup` container picks it up.
 4. The next nightly backup will be encrypted with the new passphrase and the full-restore validation will confirm it works end-to-end.
 5. **Old backups in Swift are still encrypted with the old passphrase.** Pick one of the two strategies below.
 
@@ -404,12 +404,18 @@ export OLD_PASS="old-passphrase-from-secret-history"
 export NEW_PASS="new-passphrase-from-github-secrets"
 export ENV_NAME=production
 
-# List the objects that need rekeying
+# List the objects that need rekeying. Single quotes: the Swift settings
+# exist only inside the db-backup container (from .env.backup).
 docker compose -f docker-compose.yml -f docker-compose.backup.yml \
-    --profile backup exec db-backup \
-    rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
-    --include "matkassen_backup_*.dump.gpg" > /tmp/backups_to_rekey.txt
+    --profile backup exec -T db-backup \
+    sh -c 'rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg"' \
+    > /tmp/backups_to_rekey.txt
+wc -l < /tmp/backups_to_rekey.txt
+```
 
+Stop if the listing printed an error or the count is 0: the loop below would then rekey nothing and still finish without an error. Otherwise continue in the same shell:
+
+```bash
 # For each, stream-rekey with no intermediate plaintext on disk.
 # Passphrases arrive via process substitution / pipe rather than bash
 # herestrings, so they never touch the filesystem even briefly.
@@ -463,9 +469,8 @@ After re-encryption, rotate any Swift credentials that shared the compromise win
 
 # List recent backups in Swift (from inside the backup container)
 docker compose -f docker-compose.yml -f docker-compose.backup.yml \
-    --profile backup exec db-backup \
-    rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" \
-    --include "matkassen_backup_*.dump.gpg"
+    --profile backup exec -T db-backup \
+    sh -c 'rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg"'
 ```
 
 Slack notifications fire on every nightly run (success or failure), with file size, duration, and the validation result. If validation fails the script still uploads the file but flags the run red — investigate before relying on that backup.
@@ -474,7 +479,7 @@ Slack notifications fire on every nightly run (success or failure), with file si
 
 **Backup container exits immediately with "DB_BACKUP_PASSPHRASE is not set"**
 
-- The host `.env` does not contain the variable (re-run `deploy.sh` / `update.sh` after confirming the GitHub Secret is set), or the `db-backup` service env block in `docker-compose.backup.yml` is missing the entry.
+- The host `.env.backup` does not contain the variable (re-run `deploy.sh` / `update.sh` after confirming the GitHub Secret is set), or the `db-backup` service in `docker-compose.backup.yml` no longer reads `.env.backup`.
 
 **Slack reports "validation failed" but upload succeeded**
 

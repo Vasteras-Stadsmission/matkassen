@@ -355,7 +355,7 @@ jobs:
                   cleanup() {
                       docker rm -fv "$container_name" >/dev/null 2>&1 || true
                       docker volume rm -f "$volume_name" >/dev/null 2>&1 || true
-                      rm -f .env
+                      rm -f .env .env.backup
                   }
                   trap cleanup EXIT
 
@@ -366,11 +366,13 @@ jobs:
                       'NEXT_PUBLIC_BRAND_NAME=CI' \
                       'NEXT_PUBLIC_BASE_URL=http://localhost' \
                       'ENV_NAME=ci' \
+                      > .env
+                  printf '%s\n' \
                       'DB_BACKUP_PASSPHRASE=ci-only-placeholder' \
                       'OS_APPLICATION_CREDENTIAL_ID=ci-only-placeholder' \
                       'OS_APPLICATION_CREDENTIAL_SECRET=ci-only-placeholder' \
                       'SWIFT_CONTAINER=ci-only-placeholder' \
-                      > .env
+                      > .env.backup
 
                   docker compose --env-file .env -f docker-compose.yml config --quiet
                   docker compose --env-file .env -f docker-compose.dev.yml config --quiet

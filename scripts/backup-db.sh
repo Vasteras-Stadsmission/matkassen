@@ -176,7 +176,7 @@ fi
 # both deploy.sh and update.sh for production; if it's unset here the env
 # wiring into the container is broken (see docker-compose.backup.yml).
 if [ -z "${DB_BACKUP_PASSPHRASE:-}" ]; then
-    fail "Backup aborted - DB_BACKUP_PASSPHRASE missing in container (check docker-compose.backup.yml and host .env)"
+    fail "Backup aborted - DB_BACKUP_PASSPHRASE missing in container (check docker-compose.backup.yml and host .env.backup)"
 fi
 
 if ! command -v gpg >/dev/null 2>&1; then

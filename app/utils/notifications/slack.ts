@@ -92,6 +92,9 @@ function getSlackConfig(): SlackConfig | null {
 
 /**
  * Send notification to Slack (production only)
+ *
+ * Never put error messages in an alert: a failed query's message holds the
+ * SQL and its parameters (names, phone numbers). Errors go to the server logs.
  */
 export async function sendSlackAlert(message: SlackMessage): Promise<boolean> {
     // Only send in production environment (not staging or development)
@@ -233,7 +236,6 @@ export async function sendSmsHealthAlert(
                   "Status": "Unhealthy",
                   "Scheduler Running": String(details.schedulerRunning ?? "unknown"),
                   "Test Mode": String(details.smsTestMode ?? "unknown"),
-                  "Error": String(details.error ?? "Database connectivity issue"),
               },
     };
 
@@ -243,7 +245,7 @@ export async function sendSmsHealthAlert(
 /**
  * Send database health alert
  */
-export async function sendDatabaseHealthAlert(isHealthy: boolean, error?: string): Promise<void> {
+export async function sendDatabaseHealthAlert(isHealthy: boolean): Promise<void> {
     const stateTransition = checkStateTransition("database", isHealthy);
 
     if (!stateTransition.shouldAlert) {
@@ -270,7 +272,6 @@ export async function sendDatabaseHealthAlert(isHealthy: boolean, error?: string
             : {
                   Service: "PostgreSQL Database",
                   Status: "Connection Failed",
-                  ...(error && { Error: error }),
               },
     };
 
