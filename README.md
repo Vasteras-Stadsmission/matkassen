@@ -269,7 +269,7 @@ The SMS system is designed for automatic operation, but includes manual triggers
 - SMS health status available via `/api/health` endpoint
 - Docker health checks curl `/api/health` every 30 seconds
 - Logs include detailed SMS processing information
-- Slack notifications for health alerts in production
+- Email alerts via healthchecks.io in production (see the deployment guide, "Alerting")
 
 **Scaling Considerations**:
 
@@ -406,8 +406,8 @@ The system includes automated nightly PostgreSQL backups to Elastx Object Store:
 - **Encryption**: symmetric AES256 GPG, applied before the dump leaves the host
 - **Format**: `matkassen_backup_<timestamp>.dump.gpg` (encrypted PostgreSQL custom-format dump)
 - **Retention**: 14 days via Swift `X-Delete-After`
-- **Validation**: nightly full-restore drill — re-download, decrypt, `pg_restore` into a throwaway `matkassen_nightly_validate` database, sentinel query, drop. A failed restore alerts Slack; there is no separate manual drill cadence
-- **Notifications**: Slack alerts on success/failure
+- **Validation**: nightly full-restore drill — re-download, decrypt, `pg_restore` into a throwaway `matkassen_nightly_validate` database, sentinel query, drop. A failed restore alerts by email via healthchecks.io; there is no separate manual drill cadence
+- **Notifications**: healthchecks.io emails when a run fails or is missing; nothing on success
 
 ### Setup (Production Only)
 

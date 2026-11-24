@@ -11,9 +11,9 @@ import {
     sendSmsRecord,
     getSmsHealthStats,
     getAvailableCredits,
-    sendBalanceSlackAlert,
     reconcileStaleMessages,
 } from "@/app/utils/sms/sms-service";
+import { pingHealthcheck } from "@/app/utils/notifications/healthchecks";
 import { getHelloSmsConfig } from "@/app/utils/sms/hello-sms";
 import { parseDuration } from "@/app/utils/duration-parser";
 import { anonymizeInactiveHouseholds } from "@/app/utils/anonymization/anonymize-household";
@@ -33,7 +33,7 @@ type SchedulerState = {
     lastAnonymizationRun: Date | null;
     lastAnonymizationStatus: "success" | "error" | null;
     lastSmsReportRun: Date | null;
-    lastSmsReportStatus: "success" | "skipped" | "error" | null;
+    lastSmsReportStatus: "success" | "error" | null;
     lastOrgSyncRun: Date | null;
     lastOrgSyncStatus: "success" | "error" | null;
     lastSmsReconciliationRun: Date | null;
@@ -137,14 +137,15 @@ async function processSmsJIT(): Promise<{ processed: number }> {
     // Check balance once for the entire batch
     const credits = await getAvailableCredits();
 
-    if (credits === 0) {
-        logger.warn("SMS balance is zero - fail-fasting all eligible SMS as balance failures");
-        sendBalanceSlackAlert(0).catch(err => logError("Failed to send balance Slack alert", err));
-    } else if (credits !== null && credits < 100) {
-        logger.warn({ credits }, "SMS balance is low");
-        sendBalanceSlackAlert(credits).catch(err =>
-            logError("Failed to send low balance Slack alert", err),
-        );
+    // sms-credits fails while the organisation needs to top up and recovers
+    // once it has. An unknown balance (credits=null) reports nothing.
+    if (credits !== null) {
+        if (credits === 0) {
+            logger.warn("SMS balance is zero - fail-fasting all eligible SMS as balance failures");
+        } else if (credits < 100) {
+            logger.warn({ credits }, "SMS balance is low");
+        }
+        void pingHealthcheck("sms-credits", credits < 100 ? "fail" : "success");
     }
 
     // Pass credit budget to JIT pipelines
@@ -267,10 +268,7 @@ async function runAnonymizationSchedule(): Promise<{
                 errors: combinedErrors,
             });
             schedulerState.lastAnonymizationStatus = "error";
-            await notifyAnonymizationError({
-                anonymized: combinedAnonymized,
-                errors: combinedErrors,
-            });
+            await pingHealthcheck("anonymization", "fail");
         } else {
             logCron("anonymization", "completed", {
                 anonymized: combinedAnonymized,
@@ -278,6 +276,7 @@ async function runAnonymizationSchedule(): Promise<{
                 usersAnonymized: userResult.anonymized,
             });
             schedulerState.lastAnonymizationStatus = "success";
+            await pingHealthcheck("anonymization");
         }
 
         return { anonymized: combinedAnonymized, errors: combinedErrors };
@@ -285,96 +284,35 @@ async function runAnonymizationSchedule(): Promise<{
         logError("Failed to run scheduled anonymization", error);
         schedulerState.lastAnonymizationStatus = "error";
 
-        const errorResult = {
+        await pingHealthcheck("anonymization", "fail");
+
+        return {
             anonymized: 0,
             errors: [error instanceof Error ? error.message : "Unknown error"],
         };
-
-        // Send Slack notification for critical errors
-        await notifyAnonymizationError(errorResult);
-
-        return errorResult;
     }
 }
 
 /**
- * Send Slack notification for anonymization errors
+ * Daily SMS delivery check: reports a failure to healthchecks.io when
+ * recent SMS show issues (failures, stale unconfirmed, no credits), so
+ * the email says to look at the SMS admin page. Only counts are logged.
  */
-async function notifyAnonymizationError(result: {
-    anonymized: number;
-    errors: string[];
-}): Promise<void> {
-    if (process.env.NODE_ENV !== "production") {
-        return;
-    }
-
-    try {
-        const { sendSlackAlert } = await import("@/app/utils/notifications/slack");
-
-        await sendSlackAlert({
-            title: "🚨 GDPR Anonymization Error",
-            message:
-                `Anonymization task completed with errors.\n` +
-                `Success: ${result.anonymized}, Failed: ${result.errors.length}`,
-            status: "error",
-            details: {
-                "Success Count": result.anonymized.toString(),
-                "Failure Count": result.errors.length.toString(),
-                "Timestamp": new Date().toISOString(),
-            },
-        });
-
-        logger.debug("Anonymization error notification sent to Slack");
-    } catch (error) {
-        logError("Failed to send anonymization Slack notification", error);
-    }
-}
-
-/**
- * Run SMS health report
- * Collects SMS delivery statistics and sends to Slack if there are issues
- */
-async function runSmsHealthReport(): Promise<{
-    sent: boolean;
-    hasIssues: boolean;
-}> {
+async function runSmsHealthReport(): Promise<void> {
     logCron("sms-health-report", "started", {});
     schedulerState.lastSmsReportRun = new Date();
 
+    let hasIssues = true;
     try {
         const stats = await getSmsHealthStats();
-
-        if (!stats.hasIssues) {
-            logCron("sms-health-report", "completed", { skipped: true, reason: "no issues" });
-            schedulerState.lastSmsReportStatus = "skipped";
-            return { sent: false, hasIssues: false };
-        }
-
-        // Send to Slack (only in production)
-        if (process.env.NODE_ENV === "production") {
-            const { sendSmsHealthReport } = await import("@/app/utils/notifications/slack");
-            const sent = await sendSmsHealthReport(stats);
-
-            if (sent) {
-                logCron("sms-health-report", "completed", { sent: true, stats });
-                schedulerState.lastSmsReportStatus = "success";
-            } else {
-                logCron("sms-health-report", "failed", { reason: "Slack send failed" });
-                schedulerState.lastSmsReportStatus = "error";
-            }
-
-            return { sent, hasIssues: true };
-        } else {
-            // Non-production: just log
-            logger.info({ stats }, "SMS health report (non-production mode)");
-            schedulerState.lastSmsReportStatus = "success";
-            return { sent: false, hasIssues: true };
-        }
+        hasIssues = stats.hasIssues;
+        logCron("sms-health-report", "completed", { stats });
+        schedulerState.lastSmsReportStatus = "success";
     } catch (error) {
         logError("Failed to run SMS health report", error);
         schedulerState.lastSmsReportStatus = "error";
-        return { sent: false, hasIssues: false };
     }
+    await pingHealthcheck("sms-delivery", hasIssues ? "fail" : "success");
 }
 
 /**
@@ -491,16 +429,12 @@ async function runOrgMembershipSync(): Promise<{
                 errors: errors.length,
             });
             schedulerState.lastOrgSyncStatus = errors.length > 0 ? "error" : "success";
-
-            // Slack alert in production when anything interesting happened
-            if (process.env.NODE_ENV === "production") {
-                await notifyOrgSyncResult({ deactivated, errors });
-            }
         } else {
             logCron("org-membership-sync", "completed", { deactivated: 0, errors: 0 });
             schedulerState.lastOrgSyncStatus = "success";
         }
 
+        await pingHealthcheck("org-sync", errors.length > 0 ? "fail" : "success");
         return { deactivated, errors };
     } catch (error) {
         const errMsg = error instanceof Error ? error.message : "Unknown error";
@@ -508,63 +442,10 @@ async function runOrgMembershipSync(): Promise<{
         schedulerState.lastOrgSyncStatus = "error";
         errors.push(errMsg);
 
-        if (process.env.NODE_ENV === "production") {
-            await notifyOrgSyncResult({ deactivated, errors });
-        }
-
+        await pingHealthcheck("org-sync", "fail");
         return { deactivated, errors };
     } finally {
         schedulerState.orgSyncInFlight = false;
-    }
-}
-
-/**
- * Send Slack alert when SMS processing loop throws an exception.
- * Uses state-transition pattern to avoid spamming on repeated failures.
- */
-async function notifySmsProcessingError(): Promise<void> {
-    if (process.env.NODE_ENV !== "production") {
-        return;
-    }
-
-    const { sendSmsHealthAlert } = await import("@/app/utils/notifications/slack");
-    await sendSmsHealthAlert(false, {
-        schedulerRunning: schedulerState.isRunning,
-        smsTestMode: getHelloSmsConfig().testMode,
-    });
-}
-
-/**
- * Notify SMS health recovery after a successful processing run.
- * Only sends a Slack alert if state transitions from ALARM → OK.
- */
-async function notifySmsProcessingRecovery(): Promise<void> {
-    if (process.env.NODE_ENV !== "production") {
-        return;
-    }
-
-    const { sendSmsHealthAlert } = await import("@/app/utils/notifications/slack");
-    await sendSmsHealthAlert(true, {});
-}
-
-async function notifyOrgSyncResult(result: {
-    deactivated: number;
-    errors: string[];
-}): Promise<void> {
-    try {
-        const { sendSlackAlert } = await import("@/app/utils/notifications/slack");
-        await sendSlackAlert({
-            title: result.errors.length > 0 ? "⚠️ Org Membership Sync" : "👤 Org Membership Sync",
-            message: `Deactivated: ${result.deactivated} user(s). Errors: ${result.errors.length}.`,
-            status: result.errors.length > 0 ? "error" : "success",
-            details: {
-                Deactivated: result.deactivated.toString(),
-                Errors: result.errors.length.toString(),
-                Timestamp: new Date().toISOString(),
-            },
-        });
-    } catch (error) {
-        logError("Failed to send org sync Slack notification", error);
     }
 }
 
@@ -592,26 +473,9 @@ async function runSmsReconciliation(): Promise<void> {
                 checked: result.checked,
                 errors: result.errors.length,
             });
+            // No ping: the hourly job retries, and healthchecks.io alerts only
+            // when it has gone several hours without a clean run.
             schedulerState.lastSmsReconciliationStatus = "error";
-
-            if (process.env.NODE_ENV === "production") {
-                import("@/app/utils/notifications/slack")
-                    .then(({ sendSlackAlert }) =>
-                        sendSlackAlert({
-                            title: "SMS Status Check Failed",
-                            message:
-                                `The fallback delivery-status check had ${result.errors.length} error(s). ` +
-                                "This does not mean SMS sending failed. The hourly job will try again.",
-                            status: "error",
-                            details: {
-                                "Resolved": result.reconciled.toString(),
-                                "Still Waiting": result.stillWaiting.toString(),
-                                "Checked": result.checked.toString(),
-                            },
-                        }),
-                    )
-                    .catch(err => logError("Failed to send reconciliation Slack alert", err));
-            }
         } else {
             logCron("sms-reconciliation", "completed", {
                 reconciled: result.reconciled,
@@ -619,6 +483,7 @@ async function runSmsReconciliation(): Promise<void> {
                 checked: result.checked,
             });
             schedulerState.lastSmsReconciliationStatus = "success";
+            await pingHealthcheck("sms-reconciliation");
         }
     } catch (error) {
         logError("Failed to run SMS reconciliation", error);
@@ -656,16 +521,15 @@ export function startScheduler(): void {
     // Uses lock to prevent overlapping runs
     schedulerState.smsInterval = setInterval(async () => {
         try {
-            await processSmsJITWithLock();
-            // Reset SMS health state to OK on success (triggers recovery alert if previously in ALARM)
-            notifySmsProcessingRecovery().catch(err =>
-                logError("Failed to send SMS processing recovery Slack alert", err),
-            );
+            const { skipped } = await processSmsJITWithLock();
+            // Only completed runs count: a run stuck holding the lock must not
+            // keep the check green. Failed runs send nothing, so healthchecks.io
+            // alerts once runs have failed or stopped for longer than its grace.
+            if (!skipped) {
+                void pingHealthcheck("sms-scheduler");
+            }
         } catch (error) {
             logError("Error in SMS JIT loop", error);
-            notifySmsProcessingError().catch(err =>
-                logError("Failed to send SMS processing error Slack alert", err),
-            );
         }
     }, SMS_INTERVAL_MS);
 
@@ -701,27 +565,8 @@ export function startScheduler(): void {
             },
         );
 
-        // Send Slack alert in production about configuration error
-        if (process.env.NODE_ENV === "production") {
-            import("@/app/utils/notifications/slack")
-                .then(({ sendSlackAlert }) => {
-                    return sendSlackAlert({
-                        title: "🚨 Anonymization Cron Failed to Start",
-                        message:
-                            `Invalid ANONYMIZATION_SCHEDULE: "${ANONYMIZATION_SCHEDULE}"\n` +
-                            `Health checks will report unhealthy until fixed.`,
-                        status: "error",
-                        details: {
-                            "Invalid Schedule": ANONYMIZATION_SCHEDULE,
-                            "Expected Format": "Cron syntax (e.g., '0 2 * * 0' for Sunday 2 AM)",
-                            "Timestamp": new Date().toISOString(),
-                        },
-                    });
-                })
-                .catch(notifyError => {
-                    logError("Failed to send Slack alert about cron error", notifyError);
-                });
-        }
+        // No alert from here: schedulerHealthCheck() reports unhealthy, which
+        // fails the external /api/health check (.github/workflows/site-check.yml).
     }
 
     // Start SMS health report cron job (daily)
@@ -869,7 +714,7 @@ export async function schedulerHealthCheck(): Promise<{
 }> {
     try {
         // CRITICAL: If anonymization cron failed to start, treat as unhealthy
-        // This catches invalid ANONYMIZATION_SCHEDULE env var before Slack alerts fail
+        // This catches an invalid ANONYMIZATION_SCHEDULE env var
         const anonymizationSchedulerRunning = schedulerState.anonymizationTask !== null;
         const smsReportSchedulerRunning = schedulerState.smsReportTask !== null;
         // SMS report is not critical for health - it's just a reporting task, so we

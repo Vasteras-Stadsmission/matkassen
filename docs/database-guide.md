@@ -452,7 +452,7 @@ docker compose restart web
 
 #### Restore Drill
 
-The nightly backup job restores every backup into a throwaway `matkassen_nightly_validate` database on the same Postgres instance and runs a sentinel query against it. A failed nightly restore is a Slack alert, so there is no separate manual drill cadence — the drill is the job.
+The nightly backup job restores every backup into a throwaway `matkassen_nightly_validate` database on the same Postgres instance and runs a sentinel query against it. A failed nightly restore is an email alert via healthchecks.io, so there is no separate manual drill cadence — the drill is the job.
 
 **Caveat**: this validates "the backup is restorable to this Postgres cluster." It does NOT validate "we can rebuild on a fresh host." A true cross-host DR drill (provision a new VPS, install Postgres, restore from Swift, bring the app up against the restored DB) is a separate exercise that is not automated.
 

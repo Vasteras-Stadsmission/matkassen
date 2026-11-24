@@ -279,7 +279,7 @@ Production backups run automatically via `Dockerfile.db-backup`, which runs `scr
 2. Uploads the `.dump.gpg` file to the Elastx Swift container via `rclone`.
 3. Sets `X-Delete-After` for 14-day automatic expiry as a defense-in-depth retention guarantee.
 4. Full-restore validates the upload: creates `matkassen_nightly_validate`, streams `gpg --decrypt | pg_restore --exit-on-error` into it, runs a sentinel query (`SELECT to_regclass('public.households') IS NOT NULL`), drops the scratch DB. A wrong passphrase, corrupted upload, DDL incompatibility, or broken COPY stream fails the same night.
-5. Reports success/failure to Slack.
+5. Pings the `backup` check on healthchecks.io: success, or `/fail` on any failure. A missing ping also alerts (see [Alerting](#alerting)).
 
 **Cluster-level requirement**: the backup user needs `CREATEDB` to create and drop the scratch database. `deploy.sh` grants it on production; `update.sh` only verifies it and refuses to deploy without it. The widened privilege is cluster-level (the role can now create/drop databases), not app-level (it already owned every table in the app schema).
 
@@ -473,7 +473,7 @@ docker compose -f docker-compose.yml -f docker-compose.backup.yml \
     sh -c 'rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg"'
 ```
 
-Slack notifications fire on every nightly run (success or failure), with file size, duration, and the validation result. If validation fails the script still uploads the file but flags the run red — investigate before relying on that backup.
+A failed or missing nightly run makes healthchecks.io email you; a successful one sends nothing. If validation fails the script still uploads the file but reports a failure — investigate before relying on that backup.
 
 #### Troubleshooting
 
@@ -481,9 +481,9 @@ Slack notifications fire on every nightly run (success or failure), with file si
 
 - The host `.env.backup` does not contain the variable (re-run `deploy.sh` / `update.sh` after confirming the GitHub Secret is set), or the `db-backup` service in `docker-compose.backup.yml` no longer reads `.env.backup`.
 
-**Slack reports "validation failed" but upload succeeded**
+**healthchecks.io reports the `backup` check down**
 
-The Slack alert is a summary; the specific reason is in the backup container logs:
+The email only says that the run failed or did not arrive; the reason is in the backup container logs:
 
 ```bash
 sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml \
@@ -504,7 +504,7 @@ Match the log output to one of these:
 
 **Restore fails with `pg_restore: error: input file does not appear to be a valid archive`**
 
-- Decryption succeeded but the dump payload is corrupted. Try a different backup. If multiple backups in a row are corrupted, the live database may have produced a bad dump and the backup script should fail validation — check Slack history.
+- Decryption succeeded but the dump payload is corrupted. Try a different backup. If multiple backups in a row are corrupted, the live database may have produced a bad dump and the backup script should fail validation — check the `backup` check's history on healthchecks.io.
 
 ### Migrations
 
@@ -600,6 +600,32 @@ healthcheck:
     timeout: 10s
     retries: 3
 ```
+
+### Alerting
+
+Production alerts are emails from [healthchecks.io](https://healthchecks.io). Each job pings its own check there; healthchecks.io emails when a check reports a failure or misses its schedule, and again when it recovers. Nothing is sent while everything works. Pings have no body, so no personal data leaves the server.
+
+| Check                | Pinged by                          | Expected                   | Down means                                                                                                            |
+| -------------------- | ---------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `site`               | `.github/workflows/site-check.yml` | every 15 min, 45 min grace | `/api/health` unreachable or not healthy (database, scheduler or disk) in 4 tries 30 s apart, or no check for an hour |
+| `backup`             | `scripts/backup-db.sh`             | 02:00 daily, 1 h grace     | backup or restore validation failed, no automatic expiry set, or no run                                               |
+| `sms-scheduler`      | SMS loop, after each completed run | every 5 min, 15 min grace  | no completed SMS run for 20 min                                                                                       |
+| `sms-credits`        | SMS loop                           | every 5 min, 1 h grace     | HelloSMS credits below 100 (top up), or balance unreadable                                                            |
+| `sms-delivery`       | daily SMS check                    | 08:00 daily, 1 h grace     | SMS failed in the last 24 h, or sent 24–48 h ago and still unconfirmed (see the SMS admin page)                       |
+| `sms-reconciliation` | hourly status check                | hourly, 3 h grace          | no clean run for 4 hours                                                                                              |
+| `anonymization`      | weekly anonymization               | Sunday 02:00, 2 h grace    | errors, or no run                                                                                                     |
+| `org-sync`           | daily org membership sync          | 03:00 daily, 1 h grace     | errors, or no run                                                                                                     |
+
+Jobs that retry on their own (`sms-scheduler`, `sms-reconciliation`) send nothing when a run fails, so a single transient error stays quiet and only a failure that outlasts the grace period alerts. The other checks report a failure at once. A failed deploy fails its GitHub Actions run, and GitHub emails about that.
+
+**Setup**, in this order:
+
+1. Create a project on healthchecks.io (the free Hobbyist plan is enough) and check that its email integration is on.
+2. Store the project's ping key as the GitHub secret `HEALTHCHECKS_PING_KEY`. The deploy writes it to `.env`; `deploy.sh` and `update.sh` refuse a production deploy without it. Staging has no key, so it sends no pings.
+3. Deploy to production.
+4. Run `./scripts/healthchecks-setup.sh` with a read-write API key from the project settings. It creates the checks above and pings each new one once, since a new check never alerts before its first ping. Re-run it after changing a schedule; it updates the existing checks.
+
+**Handing over**: invite the new maintainer to the project's team on healthchecks.io and change the email integration to their address.
 
 ## Security
 

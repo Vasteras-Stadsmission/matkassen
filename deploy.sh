@@ -52,6 +52,11 @@ if [ "${ENV_NAME:-staging}" = "production" ]; then
     echo "Please set this variable in GitHub Secrets and try again."
     exit 1
   fi
+  if [ -z "${HEALTHCHECKS_PING_KEY:-}" ]; then
+    echo "❌ Error: HEALTHCHECKS_PING_KEY is required for production deployments (alerting)"
+    echo "Please set this variable in GitHub Secrets and try again."
+    exit 1
+  fi
   # For production domains, include www subdomain
   DOMAIN_NAMES="$DOMAIN_NAME www.$DOMAIN_NAME"
   CERTBOT_DOMAINS="-d $DOMAIN_NAME -d www.$DOMAIN_NAME"
@@ -490,8 +495,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
   OS_IDENTITY_API_VERSION="$OS_IDENTITY_API_VERSION" \
   OS_APPLICATION_CREDENTIAL_ID="$OS_APPLICATION_CREDENTIAL_ID" \
   OS_APPLICATION_CREDENTIAL_SECRET="$OS_APPLICATION_CREDENTIAL_SECRET" \
-  SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" \
-  SLACK_CHANNEL_ID="$SLACK_CHANNEL_ID" \
+  HEALTHCHECKS_PING_KEY="$HEALTHCHECKS_PING_KEY" \
   sudo docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile backup up -d --wait --wait-timeout 300 db-backup
 fi
 

@@ -17,28 +17,10 @@ if ! flock -n 200; then
 fi
 echo "🔒 Deployment lock acquired"
 
-# Notify Slack on deploy failure. Token is only exported by the
-# production workflow, so this no-ops on staging and on hosts where
-# the env vars aren't set.
-notify_slack_failure() {
-    local rc=$1
-    [ -n "${SLACK_BOT_TOKEN:-}" ] && [ -n "${SLACK_CHANNEL_ID:-}" ] || return 0
-    local host
-    host=$(hostname)
-    local msg="[matkassen] ❌ Deploy failed (exit ${rc}) on ${host}. The running web release may be old or new; PostgreSQL and host configuration were not rolled back. Check GitHub Actions logs."
-    curl -sS https://slack.com/api/chat.postMessage \
-        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-        -H "Content-type: application/json; charset=utf-8" \
-        --data "{\"channel\":\"${SLACK_CHANNEL_ID}\",\"text\":\"${msg}\"}" \
-        | grep -q '"ok":true' || true
-}
-
+# A failed deploy fails the GitHub Actions run, and GitHub emails about
+# failed runs, so nothing is sent from here.
 cleanup() {
-    local rc=$?
     echo "🔓 Releasing deployment lock"
-    if [ "$rc" -ne 0 ]; then
-        notify_slack_failure "$rc"
-    fi
 }
 trap cleanup EXIT
 
@@ -138,7 +120,7 @@ if [ "${ENV_NAME:-}" = "production" ]; then
     req=(BRAND_NAME DOMAIN_NAME DB_BACKUP_PASSPHRASE \
          OS_AUTH_TYPE OS_AUTH_URL OS_REGION_NAME OS_INTERFACE OS_IDENTITY_API_VERSION \
          OS_APPLICATION_CREDENTIAL_ID OS_APPLICATION_CREDENTIAL_SECRET \
-         SWIFT_CONTAINER SWIFT_PREFIX SLACK_BOT_TOKEN SLACK_CHANNEL_ID)
+         SWIFT_CONTAINER SWIFT_PREFIX HEALTHCHECKS_PING_KEY)
     for k in "${req[@]}"; do
         v="${!k:-}"
         [ -n "$v" ] || { echo "ERROR: $k is required in production but is unset or empty"; exit 1; }
@@ -149,8 +131,8 @@ fi
 # Create the .env file via the shared helper. Atomic write with mode 600.
 # See scripts/write-env.sh for the .env contract and validation logic.
 # The production-only req[] check above is update.sh-specific policy
-# (e.g. "Slack is required in production for this script") — kept here
-# rather than moving into the helper, which treats Slack as optional.
+# (e.g. "alerting is required in production") — kept here rather than
+# moving into the helper, which treats HEALTHCHECKS_PING_KEY as optional.
 echo "Creating .env file..."
 # shellcheck source=scripts/write-env.sh
 source "$APP_DIR/scripts/write-env.sh"

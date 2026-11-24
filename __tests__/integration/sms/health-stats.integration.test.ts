@@ -180,6 +180,23 @@ describe("SMS Health Statistics", () => {
             expect(stats.hasIssues).toBe(true);
         });
 
+        it("does not count SMS unconfirmed for more than 48 hours as stale", async () => {
+            const household = await createTestHousehold();
+
+            // Reported the day after it was sent; older ones would keep the
+            // daily check failing forever, hiding new issues.
+            await createTestSms({
+                household_id: household.id,
+                status: "sent",
+                sent_at: new Date(TEST_NOW.getTime() - 49 * 60 * 60 * 1000),
+            });
+
+            const stats = await getSmsHealthStats();
+
+            expect(stats.staleUnconfirmed).toBe(0);
+            expect(stats.hasIssues).toBe(false);
+        });
+
         it("does not count recently sent SMS without status as stale", async () => {
             const household = await createTestHousehold();
 

@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
     info: vi.fn(),
     warn: vi.fn(),
     logError: vi.fn(),
-    sendSmsHealthAlert: vi.fn(),
 }));
 
 vi.mock("@/app/utils/sms/sms-service", () => ({
@@ -23,10 +22,6 @@ vi.mock("@/app/utils/logger", () => ({
         warn: mocks.warn,
     },
     logError: mocks.logError,
-}));
-
-vi.mock("@/app/utils/notifications/slack", () => ({
-    sendSmsHealthAlert: mocks.sendSmsHealthAlert,
 }));
 
 import { handleSmsStatusCallback } from "@/app/api/webhooks/sms-status/handler";
@@ -119,7 +114,7 @@ describe("SMS status callback logging", () => {
         expect(JSON.stringify(mocks.debug.mock.calls)).not.toContain(messageId);
     });
 
-    it("omits database query parameters from logs and Slack alerts", async () => {
+    it("omits database query parameters from logs", async () => {
         const messageId =
             "SENTINEL_CALLBACK_DB_MESSAGE_ID phone=+46709990012 body=SENTINEL_CALLBACK_DB_BODY";
         const databaseError = new Error(
@@ -146,9 +141,6 @@ describe("SMS status callback logging", () => {
             },
             "Error processing SMS status callback",
         );
-        await vi.waitFor(() => {
-            expect(mocks.sendSmsHealthAlert).toHaveBeenCalledWith(false, {});
-        });
 
         const emitted = JSON.stringify([
             ...mocks.debug.mock.calls,
@@ -156,7 +148,6 @@ describe("SMS status callback logging", () => {
             ...mocks.info.mock.calls,
             ...mocks.warn.mock.calls,
             ...mocks.logError.mock.calls,
-            ...mocks.sendSmsHealthAlert.mock.calls,
         ]);
         expect(emitted).not.toContain(messageId);
         expect(emitted).not.toContain("+46709990012");
