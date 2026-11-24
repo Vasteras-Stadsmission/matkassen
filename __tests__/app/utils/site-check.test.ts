@@ -12,6 +12,7 @@ describe("runSiteCheck", () => {
 
     function answer(httpStatus: number, body: unknown) {
         fetchMock.mockResolvedValue({
+            ok: httpStatus >= 200 && httpStatus < 300,
             status: httpStatus,
             json: async () => body,
         });
@@ -41,7 +42,10 @@ describe("runSiteCheck", () => {
 
     it("sends nothing when /api/health is unhealthy", async () => {
         answer(503, { status: "unhealthy" });
+        await runSiteCheck();
 
+        // A redirect is not followed, even if its body looks healthy
+        answer(301, { status: "healthy" });
         await runSiteCheck();
 
         expect(mocks.pingHealthcheck).not.toHaveBeenCalled();

@@ -515,7 +515,7 @@ export async function runSiteCheck(): Promise<void> {
             signal: AbortSignal.timeout(20_000),
         });
         const { status } = (await response.json()) as { status?: string };
-        if (status === "healthy") {
+        if (response.ok && status === "healthy") {
             await pingHealthcheck("site");
         } else {
             logger.warn({ httpStatus: response.status, status }, "Site check: not healthy");
