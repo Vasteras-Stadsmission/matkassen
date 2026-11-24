@@ -410,7 +410,12 @@ docker compose -f docker-compose.yml -f docker-compose.backup.yml \
     --profile backup exec -T db-backup \
     sh -c 'rclone lsf "elastx:${SWIFT_CONTAINER}/${SWIFT_PREFIX:-backups}" --include "matkassen_backup_*.dump.gpg"' \
     > /tmp/backups_to_rekey.txt
+wc -l < /tmp/backups_to_rekey.txt
+```
 
+Stop if the listing printed an error or the count is 0: the loop below would then rekey nothing and still finish without an error. Otherwise continue in the same shell:
+
+```bash
 # For each, stream-rekey with no intermediate plaintext on disk.
 # Passphrases arrive via process substitution / pipe rather than bash
 # herestrings, so they never touch the filesystem even briefly.

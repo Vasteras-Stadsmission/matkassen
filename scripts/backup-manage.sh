@@ -65,16 +65,6 @@ case "${1:-}" in
     config)
         echo "Backup configuration:"
         echo "- ENV_NAME: ${ENV_NAME:-unset}"
-        # The backup settings live in the db-backup container's environment
-        # (.env.backup and docker-compose.backup.yml), not in this shell.
-        if [ -n "$($COMPOSE_CMD $COMPOSE_FILES --profile backup ps -q --status running db-backup 2>/dev/null)" ]; then
-            $COMPOSE_CMD $COMPOSE_FILES --profile backup exec -T db-backup sh -c '
-                echo "- BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-unset}"
-                echo "- SWIFT_CONTAINER: ${SWIFT_CONTAINER:-unset}"
-                echo "- SWIFT_PREFIX: ${SWIFT_PREFIX:-unset}"'
-        else
-            echo "- (db-backup is not running; start it to see its Swift settings)"
-        fi
         echo ""
         echo "Configuration files:"
         for f in .env .env.backup; do
@@ -84,6 +74,20 @@ case "${1:-}" in
                 echo "✗ $f file missing"
             fi
         done
+        echo ""
+        # The backup settings live in the db-backup container's environment
+        # (.env.backup and docker-compose.backup.yml), not in this shell.
+        # Without || or if, set -e stops here with docker's own error when
+        # Docker or the compose files cannot be read.
+        running=$($COMPOSE_CMD $COMPOSE_FILES --profile backup ps -q --status running db-backup)
+        if [ -n "$running" ]; then
+            $COMPOSE_CMD $COMPOSE_FILES --profile backup exec -T db-backup sh -c '
+                echo "- BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-unset}"
+                echo "- SWIFT_CONTAINER: ${SWIFT_CONTAINER:-unset}"
+                echo "- SWIFT_PREFIX: ${SWIFT_PREFIX:-unset}"'
+        else
+            echo "- (db-backup is not running; start it to see its Swift settings)"
+        fi
         ;;
 
     *)
