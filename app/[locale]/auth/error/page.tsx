@@ -1,14 +1,14 @@
 import ErrorContent from "./ErrorContent";
 
 export interface AuthErrorPageProps {
-    searchParams?: {
+    searchParams: Promise<{
         error?: string;
-    };
+    }>;
 }
 
-export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
+export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
     // The error param can come from the Next.js searchParams
-    const errorType = searchParams?.error;
+    const { error: errorType } = await searchParams;
 
     return <ErrorContent messageKey={errorType} />;
 }
