@@ -26,8 +26,10 @@ vi.mock("next/navigation", () => ({
     },
 }));
 
+// The URL AgreementProtection reads to send the user back after accepting the agreement.
+const request = { url: "/en/households/h1" };
 vi.mock("next/headers", () => ({
-    headers: async () => new Headers({ "x-next-url": "/en/households/h1" }),
+    headers: async () => new Headers({ "x-next-url": request.url }),
 }));
 
 vi.mock("next-intl/server", () => ({
@@ -105,7 +107,9 @@ function householdDetails(anonymizedAt: Date | null = null) {
 
 describe("Household details page access", () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        // Reset, not clear: a test's mockResolvedValue must not leak into the next one.
+        vi.resetAllMocks();
+        request.url = "/en/households/h1";
         agreement.accepted = true;
         mockAuth.mockResolvedValue(createMockSession());
     });
@@ -157,7 +161,9 @@ describe("Household details page access", () => {
 
 describe("Parcel management page access", () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        // Reset, not clear: a test's mockResolvedValue must not leak into the next one.
+        vi.resetAllMocks();
+        request.url = "/en/households/h1/parcels";
         agreement.accepted = true;
         mockAuth.mockResolvedValue(createMockSession());
     });
@@ -183,7 +189,7 @@ describe("Parcel management page access", () => {
             await import("@/app/[locale]/households/[id]/edit/actions");
 
         await expect(renderServerTree(<ParcelManagementPage params={params} />)).rejects.toThrow(
-            "NEXT_REDIRECT /agreement?callbackUrl=%2Fhouseholds%2Fh1",
+            "NEXT_REDIRECT /agreement?callbackUrl=%2Fhouseholds%2Fh1%2Fparcels",
         );
         expect(getHouseholdFormData).not.toHaveBeenCalled();
     });
@@ -197,7 +203,7 @@ describe("Parcel management page access", () => {
             success: true,
             data: {
                 household: { first_name: "Anna", last_name: "Svensson" },
-                foodParcels: { parcels: [] },
+                foodParcels: { pickupLocationId: "loc1", parcels: [{ id: "parcel-1" }] },
             },
         } as unknown as Awaited<ReturnType<typeof getHouseholdFormData>>);
 
@@ -206,6 +212,9 @@ describe("Parcel management page access", () => {
         );
 
         expect(tree).toContain('"householdName":"Anna Svensson"');
+        expect(tree).toContain(
+            '"initialData":{"pickupLocationId":"loc1","parcels":[{"id":"parcel-1"}]}',
+        );
         expect(mockRedirect).not.toHaveBeenCalled();
     });
 });

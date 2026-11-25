@@ -22,8 +22,7 @@ export async function generateMetadata({ params }: HouseholdPageProps) {
 
     // Metadata runs alongside the page, outside AgreementProtection, so the fetch
     // is refused for a user the guard is about to redirect. Fall back to a generic
-    // title: the page repeats the fetch behind the guard, so a real error still
-    // surfaces there.
+    // title; the page body loads the household again behind the guard.
     const householdDetails = await getHouseholdDetails(id).catch(() => undefined);
 
     if (householdDetails === undefined) {
