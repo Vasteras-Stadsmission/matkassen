@@ -6,8 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { isValidElement, type ReactNode } from "react";
-import { createMockSession } from "../../../test-helpers";
+import { createMockSession, renderServerTree } from "../../../test-helpers";
 
 const mockAuth = vi.fn();
 vi.mock("@/auth", () => ({
@@ -85,27 +84,6 @@ vi.mock("@/app/[locale]/households/[id]/parcels/ParcelManagementClient", () => (
         return null;
     },
 }));
-
-/**
- * Render a server component tree the way React does on the server: call each
- * async component and walk into its output, leaving client components unrendered.
- */
-async function renderServerTree(node: ReactNode): Promise<ReactNode> {
-    if (Array.isArray(node)) {
-        return Promise.all(node.map(renderServerTree));
-    }
-    if (!isValidElement<{ children?: ReactNode }>(node)) {
-        return node;
-    }
-    if (typeof node.type === "function" && node.type.constructor.name === "AsyncFunction") {
-        const component = node.type as (props: unknown) => Promise<ReactNode>;
-        return renderServerTree(await component(node.props));
-    }
-    return {
-        ...node,
-        props: { ...node.props, children: await renderServerTree(node.props.children) },
-    };
-}
 
 function staffSession() {
     const session = createMockSession({ githubUsername: "staffuser" });
