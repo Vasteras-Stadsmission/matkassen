@@ -49,9 +49,12 @@ export function SmsBalanceBanner() {
         }
     }, []);
 
+    const isAdmin = session?.user?.role === "admin";
+
     useEffect(() => {
-        // Only poll when user has an active session to avoid 401 errors
-        if (!session) return;
+        // The balance endpoint is admin-only; polling it for handout staff
+        // only produces 403s.
+        if (!isAdmin) return;
 
         let mounted = true;
 
@@ -66,7 +69,7 @@ export function SmsBalanceBanner() {
             mounted = false;
             clearInterval(interval);
         };
-    }, [checkStatus, session]);
+    }, [checkStatus, isAdmin]);
 
     const handleRetry = async () => {
         setRetrying(true);
