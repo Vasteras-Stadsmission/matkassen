@@ -28,6 +28,7 @@ type SchedulerState = {
     smsReportTask: ScheduledTask | null; // Daily SMS health report
     orgSyncTask: ScheduledTask | null; // Daily org membership sync
     healthCheckInterval: NodeJS.Timeout | null;
+    siteCheckInterval: NodeJS.Timeout | null; // Public /api/health check for healthchecks.io
     lastHealthLog: number;
     hasEverStarted: boolean;
     lastAnonymizationRun: Date | null;
@@ -59,6 +60,7 @@ function getSchedulerState(): SchedulerState {
             smsReportTask: null,
             orgSyncTask: null,
             healthCheckInterval: null,
+            siteCheckInterval: null,
             lastHealthLog: 0,
             hasEverStarted: false,
             lastAnonymizationRun: null,
@@ -100,6 +102,7 @@ try {
 }
 
 const HEALTH_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const SITE_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Anonymization Configuration (from env vars)
 const ANONYMIZATION_SCHEDULE = process.env.ANONYMIZATION_SCHEDULE || "0 2 * * 0"; // Sunday 2 AM
@@ -494,6 +497,36 @@ async function runSmsReconciliation(): Promise<void> {
 }
 
 /**
+ * Fetch the public /api/health the way users reach the site (DNS, TLS, nginx)
+ * and ping the `site` check when it is healthy. Nothing is sent otherwise, so
+ * a deploy restart or a single blip stays quiet and healthchecks.io alerts
+ * only when no healthy result has arrived for longer than its grace period.
+ * A dead server or web container alerts the same way.
+ */
+export async function runSiteCheck(): Promise<void> {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl || !process.env.HEALTHCHECKS_PING_KEY) return;
+
+    try {
+        // No redirects: a misconfigured nginx sending us to another host
+        // (staging) must not count as production being healthy.
+        const response = await fetch(`${baseUrl}/api/health`, {
+            redirect: "manual",
+            cache: "no-store", // never a cached "healthy" from Next.js's fetch cache
+            signal: AbortSignal.timeout(20_000),
+        });
+        const { status } = (await response.json()) as { status?: string };
+        if (response.ok && status === "healthy") {
+            await pingHealthcheck("site");
+        } else {
+            logger.warn({ httpStatus: response.status, status }, "Site check: not healthy");
+        }
+    } catch (error) {
+        logError("Site check: /api/health unreachable", error);
+    }
+}
+
+/**
  * Start the unified scheduler
  */
 export function startScheduler(): void {
@@ -565,8 +598,8 @@ export function startScheduler(): void {
             },
         );
 
-        // No alert from here: schedulerHealthCheck() reports unhealthy, which
-        // fails the external /api/health check (.github/workflows/site-check.yml).
+        // No alert from here: schedulerHealthCheck() reports unhealthy, so
+        // runSiteCheck() stops pinging and the `site` check alerts.
     }
 
     // Start SMS health report cron job (daily)
@@ -635,6 +668,13 @@ export function startScheduler(): void {
         }
     }, HEALTH_CHECK_INTERVAL_MS);
 
+    // Check the public /api/health for healthchecks.io, at once and then every
+    // 5 min, so a recovery after a restart reaches healthchecks.io right away
+    void runSiteCheck();
+    schedulerState.siteCheckInterval = setInterval(() => {
+        void runSiteCheck();
+    }, SITE_CHECK_INTERVAL_MS);
+
     // Run SMS JIT once immediately on startup (uses lock)
     processSmsJITWithLock().catch(err => logError("Error in immediate SMS JIT", err));
 
@@ -693,6 +733,11 @@ export function stopScheduler(): void {
     if (schedulerState.healthCheckInterval) {
         clearInterval(schedulerState.healthCheckInterval);
         schedulerState.healthCheckInterval = null;
+    }
+
+    if (schedulerState.siteCheckInterval) {
+        clearInterval(schedulerState.siteCheckInterval);
+        schedulerState.siteCheckInterval = null;
     }
 
     logger.debug("Scheduler stopped");
