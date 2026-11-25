@@ -512,6 +512,7 @@ export async function runSiteCheck(): Promise<void> {
         // (staging) must not count as production being healthy.
         const response = await fetch(`${baseUrl}/api/health`, {
             redirect: "manual",
+            cache: "no-store", // never a cached "healthy" from Next.js's fetch cache
             signal: AbortSignal.timeout(20_000),
         });
         const { status } = (await response.json()) as { status?: string };
