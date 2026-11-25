@@ -24,6 +24,8 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
 
             - name: Display target environment
               run: |
@@ -35,64 +37,70 @@ jobs:
               run: |
                   echo "## 🚀 Deploying to ${{ github.event.inputs.environment }} environment" >> "$GITHUB_STEP_SUMMARY"
 
-            - name: Set server host based on environment
-              id: set-host
-              run: |
-                  if [ "${{ github.event.inputs.environment }}" == "production" ]; then
-                    echo "server_host=${{ secrets.SERVER_HOST_PRODUCTION }}" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "server_host=${{ secrets.SERVER_HOST_STAGING }}" >> "$GITHUB_OUTPUT"
-                  fi
-
             - name: Deploy via SSH
-              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-              with:
-                  host: ${{ steps.set-host.outputs.server_host }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
-                  script: |
+              timeout-minutes: 10
+              env:
+                  TARGET: ${{ github.event.inputs.environment }}
+                  SSH_HOST: ${{ github.event.inputs.environment == 'production' && secrets.SERVER_HOST_PRODUCTION || github.event.inputs.environment == 'staging' && secrets.SERVER_HOST_STAGING || '' }}
+                  SSH_USER: ${{ secrets.SERVER_USER }}
+                  SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+                  POSTGRES_PASSWORD: ${{ github.event.inputs.environment == 'production' && secrets.POSTGRES_PASSWORD_PRODUCTION || github.event.inputs.environment == 'staging' && secrets.POSTGRES_PASSWORD_STAGING || '' }}
+                  POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+                  POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+                  # Optional: set the DATABASE_SSL repo/environment secret to
+                  # "require" or "verify-full" when the DB is managed/external.
+                  # Leave unset for the current trusted-network Docker DB.
+                  DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
+                  DEPLOY_SHA: ${{ github.sha }}
+                  EMAIL: ${{ secrets.EMAIL }}
+                  AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+                  AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+                  AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+                  AUTH_GITHUB_APP_ID: ${{ secrets.AUTH_GITHUB_APP_ID }}
+                  AUTH_GITHUB_APP_PRIVATE_KEY: ${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}
+                  AUTH_GITHUB_APP_INSTALLATION_ID: ${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}
+                  # Production-only secrets are selected here on the runner, so the
+                  # staging server never receives them. A missing production secret
+                  # stays empty instead of falling back to the staging value.
+                  HELLO_SMS_USERNAME: ${{ github.event.inputs.environment == 'production' && secrets.HELLO_SMS_USERNAME || '' }}
+                  HELLO_SMS_PASSWORD: ${{ github.event.inputs.environment == 'production' && secrets.HELLO_SMS_PASSWORD || '' }}
+                  SMS_CALLBACK_SECRET: ${{ github.event.inputs.environment == 'production' && secrets.SMS_CALLBACK_SECRET || '' }}
+                  DB_BACKUP_PASSPHRASE: ${{ github.event.inputs.environment == 'production' && secrets.DB_BACKUP_PASSPHRASE || '' }}
+                  OS_APPLICATION_CREDENTIAL_ID: ${{ github.event.inputs.environment == 'production' && secrets.OS_APPLICATION_CREDENTIAL_ID || '' }}
+                  OS_APPLICATION_CREDENTIAL_SECRET: ${{ github.event.inputs.environment == 'production' && secrets.OS_APPLICATION_CREDENTIAL_SECRET || '' }}
+                  SWIFT_CONTAINER: ${{ github.event.inputs.environment == 'production' && secrets.SWIFT_CONTAINER || '' }}
+                  HEALTHCHECKS_PING_KEY: ${{ github.event.inputs.environment == 'production' && secrets.HEALTHCHECKS_PING_KEY || '' }}
+              run: |
+                  vars="POSTGRES_PASSWORD POSTGRES_USER POSTGRES_DB DATABASE_SSL DEPLOY_SHA EMAIL
+                      AUTH_GITHUB_ID AUTH_GITHUB_SECRET AUTH_SECRET
+                      AUTH_GITHUB_APP_ID AUTH_GITHUB_APP_PRIVATE_KEY AUTH_GITHUB_APP_INSTALLATION_ID"
+                  if [ "$TARGET" = "production" ]; then
+                      vars="$vars HELLO_SMS_USERNAME HELLO_SMS_PASSWORD SMS_CALLBACK_SECRET DB_BACKUP_PASSPHRASE
+                          OS_APPLICATION_CREDENTIAL_ID OS_APPLICATION_CREDENTIAL_SECRET SWIFT_CONTAINER
+                          HEALTHCHECKS_PING_KEY"
+                  fi
+                  # shellcheck disable=SC2086 # $vars is a list of names
+                  .github/scripts/remote-run.sh "$TARGET" TARGET $vars <<'REMOTE'
                       # Fail fast on errors (defense in depth — init_deploy re-clones so
                       # the stale-branch bug doesn't apply, but strict mode is the right
-                      # default for deploy scripts). Assumes the remote login shell is
-                      # bash (`pipefail` is a bashism).
+                      # default for deploy scripts).
                       set -euo pipefail
 
-                      echo "Export GitHub secrets into environment variables"
-                      export POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
-                      export POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
-                      export EMAIL="${{ secrets.EMAIL }}"
-                      export AUTH_GITHUB_ID="${{ secrets.AUTH_GITHUB_ID }}"
-                      export AUTH_GITHUB_SECRET="${{ secrets.AUTH_GITHUB_SECRET }}"
-                      export AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
-                      export AUTH_GITHUB_APP_ID="${{ secrets.AUTH_GITHUB_APP_ID }}"
-                      export AUTH_GITHUB_APP_PRIVATE_KEY="${{ secrets.AUTH_GITHUB_APP_PRIVATE_KEY }}"
-                      export AUTH_GITHUB_APP_INSTALLATION_ID="${{ secrets.AUTH_GITHUB_APP_INSTALLATION_ID }}"
                       export GITHUB_ORG="vasteras-stadsmission"
-                      export ENV_NAME="${{ github.event.inputs.environment }}"
-                      export DEPLOY_SHA="${{ github.sha }}"
+                      export ENV_NAME="$TARGET"
                       export APP_IMAGE_TAG="sha-${DEPLOY_SHA}"
                       export DB_BACKUP_IMAGE_TAG="sha-${DEPLOY_SHA}"
-                      # Optional: set the DATABASE_SSL repo/environment secret to
-                      # "require" or "verify-full" when the DB is managed/external.
-                      # Leave unset for the current trusted-network Docker DB.
-                      export DATABASE_SSL="${{ secrets.DATABASE_SSL }}"
 
-                      if [ "${{ github.event.inputs.environment }}" == "production" ]; then
-                        export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_PRODUCTION }}"
-                        export HELLO_SMS_USERNAME="${{ secrets.HELLO_SMS_USERNAME }}"
-                        export HELLO_SMS_PASSWORD="${{ secrets.HELLO_SMS_PASSWORD }}"
+                      if [ "$ENV_NAME" == "production" ]; then
                         export SMS_SENDER="Matcentral"
                         export HELLO_SMS_TEST_MODE="false"
                         export SMS_SEND_INTERVAL="5 minutes"
-                        export SMS_CALLBACK_SECRET="${{ secrets.SMS_CALLBACK_SECRET }}"
                         export LOG_LEVEL="info"
                         export DOMAIN_NAME="matcentralen.com"
                         export BRAND_NAME="Matcentralen"
                         export ANONYMIZATION_SCHEDULE="0 2 * * 0"
                         export ANONYMIZATION_INACTIVE_DURATION="1 year"
                         export ORG_SYNC_SCHEDULE="0 3 * * *"
-                        export DB_BACKUP_PASSPHRASE="${{ secrets.DB_BACKUP_PASSPHRASE }}"
                         # OpenStack Swift (env_auth) for backups - hardcoded non-sensitive values.
                         # All five hardcoded vars are explicit (not relying on deploy.sh's
                         # defaults) so the workflow is self-documenting and matches
@@ -102,12 +110,7 @@ jobs:
                         export OS_REGION_NAME=se-sto
                         export OS_INTERFACE=public
                         export OS_IDENTITY_API_VERSION=3
-                        export OS_APPLICATION_CREDENTIAL_ID="${{ secrets.OS_APPLICATION_CREDENTIAL_ID }}"
-                        export OS_APPLICATION_CREDENTIAL_SECRET="${{ secrets.OS_APPLICATION_CREDENTIAL_SECRET }}"
-                        export SWIFT_CONTAINER="${{ secrets.SWIFT_CONTAINER }}"
-                        export HEALTHCHECKS_PING_KEY="${{ secrets.HEALTHCHECKS_PING_KEY }}"
                       else
-                        export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD_STAGING }}"
                         export DOMAIN_NAME="staging.matcentralen.com"
                         export BRAND_NAME="Matcentralen"
                         export LOG_LEVEL="debug"
@@ -126,7 +129,7 @@ jobs:
                       # Derive Swift prefix from env name
                       export SWIFT_PREFIX="backups/${ENV_NAME}"
 
-                      # Explicit path rather than `~/matkassen`. The ssh-action runs
+                      # Explicit path rather than `~/matkassen`. The deploy runs
                       # this as the `ubuntu` user so `~` would resolve correctly,
                       # but hardcoding removes the fragility if anyone ever wraps
                       # a command in sudo.
@@ -167,3 +170,4 @@ jobs:
                       # whole script, so the explicit status check is redundant.
                       ./deploy.sh
                       echo "✅ Successfully deployed the application to the VPS."
+                  REMOTE
