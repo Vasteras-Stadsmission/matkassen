@@ -17,7 +17,14 @@ import {
     Alert,
 } from "@mantine/core";
 import { IconMapPin, IconPackage, IconCalendarDue, IconCalendar } from "@tabler/icons-react";
-import { getPickupLocations, getTodaysParcels, getParcelById } from "../actions";
+import {
+    getPickupLocations,
+    getTodaysParcels,
+    getParcelById,
+    getUpcomingHandouts,
+} from "../actions";
+import type { UpcomingHandout } from "@/app/utils/schedule/upcoming-handouts";
+import { UpcomingHandouts } from "./UpcomingHandouts";
 import { createLocationSlug } from "../utils/location-slugs";
 import { NoUpcomingScheduleBadge } from "./NoUpcomingScheduleBadge";
 import { WelcomeBanner } from "./WelcomeBanner";
@@ -29,6 +36,7 @@ interface LocationSummary {
     location: PickupLocation;
     todayParcelCount: number;
     todayCompletedCount: number;
+    upcoming: UpcomingHandout[];
     slug: string;
 }
 
@@ -84,9 +92,10 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
 
             try {
                 // Load locations and today's parcels in parallel
-                const [locationsData, todaysParcels] = await Promise.all([
+                const [locationsData, todaysParcels, upcomingByLocation] = await Promise.all([
                     getPickupLocations(),
                     getTodaysParcels(),
+                    getUpcomingHandouts(),
                 ]);
 
                 // Create summaries for each location
@@ -104,6 +113,7 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                             location,
                             todayParcelCount: locationParcels.length,
                             todayCompletedCount: completedParcels.length,
+                            upcoming: upcomingByLocation[location.id] ?? [],
                             slug: createLocationSlug(location.name),
                         };
                     },
@@ -225,6 +235,13 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                                                 <NoUpcomingScheduleBadge />
                                             )}
                                         </Group>
+
+                                        <UpcomingHandouts
+                                            handouts={summary.upcoming}
+                                            hasUpcomingSchedule={
+                                                summary.location.hasUpcomingSchedule
+                                            }
+                                        />
                                     </div>
 
                                     <div className={styles.rowActions}>

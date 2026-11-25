@@ -61,3 +61,29 @@
         grid-template-columns: 1fr;
     }
 }
+
+.upcoming {
+    min-width: 0;
+    margin-top: 8px;
+    color: var(--mantine-color-gray-6);
+}
+
+.upcoming svg {
+    flex-shrink: 0;
+}
+
+.upcomingList {
+    display: grid;
+    grid-template-columns: max-content max-content 1fr;
+    column-gap: var(--mantine-spacing-md);
+    row-gap: 2px;
+}
+
+.upcomingRow {
+    display: contents;
+}
+
+.upcomingCount {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}

@@ -54,11 +54,19 @@ import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes"
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
     enumerateDateKeys,
+    loadDailyLimitMonthData,
     loadLocationLimitContext,
     lockPickupLocationsForCapacity,
     stockholmDateKey,
+    stockholmTodayKey,
     type CapacityTransaction,
 } from "@/app/utils/capacity/daily-limits";
+import {
+    addDaysToDateKey,
+    pickUpcomingHandouts,
+    UPCOMING_HANDOUT_DAYS_AHEAD,
+    type UpcomingHandout,
+} from "@/app/utils/schedule/upcoming-handouts";
 
 import { type DbOrTransaction } from "@/app/db/types";
 // Import types for use within this server action file
@@ -215,6 +223,29 @@ export const getPickupLocations = protectedReadAction(
             logError("Error fetching pickup locations", error);
             return [];
         }
+    },
+);
+
+/**
+ * The next handout days after today for every pickup location, keyed by
+ * location id, with booked parcels and the day's limit (null = no limit).
+ */
+export const getUpcomingHandouts = protectedReadAction(
+    async (_session): Promise<Record<string, UpcomingHandout[]>> => {
+        const today = stockholmTodayKey();
+        const dateKeys = enumerateDateKeys(
+            addDaysToDateKey(today, 1),
+            addDaysToDateKey(today, UPCOMING_HANDOUT_DAYS_AHEAD),
+        );
+        const locations = await db.select({ id: pickupLocations.id }).from(pickupLocations);
+
+        const entries = await Promise.all(
+            locations.map(async ({ id }) => {
+                const data = await loadDailyLimitMonthData(db, id, dateKeys);
+                return [id, pickUpcomingHandouts(data)] as const;
+            }),
+        );
+        return Object.fromEntries(entries);
     },
 );
 
