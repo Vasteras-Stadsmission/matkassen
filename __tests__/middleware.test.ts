@@ -197,6 +197,33 @@ describe("Middleware API Authentication", () => {
     });
 
     /**
+     * Production keeps 'strict-dynamic'; local dev drops it. Next 15.5 with
+     * Turbopack renders loading.tsx chunk scripts without the nonce, so dev
+     * must allow same-origin scripts through 'self'. Webpack builds (prod)
+     * never render those tags.
+     */
+    it("keeps 'strict-dynamic' in production but not in development", async () => {
+        const cspFor = async (nodeEnv: string) => {
+            vi.stubEnv("NODE_ENV", nodeEnv);
+            try {
+                const response = await middleware(
+                    new NextRequest("http://localhost:3000/api/health", { method: "GET" }),
+                );
+                return response.headers.get("Content-Security-Policy")!;
+            } finally {
+                vi.unstubAllEnvs();
+            }
+        };
+
+        expect(await cspFor("production")).toContain(
+            "script-src 'self' 'nonce-mockedNonce' 'strict-dynamic';",
+        );
+        const devCsp = await cspFor("development");
+        expect(devCsp).toContain("script-src 'self' 'nonce-mockedNonce' 'unsafe-eval';");
+        expect(devCsp).not.toContain("strict-dynamic");
+    });
+
+    /**
      * TEST 6: Regression — /p/<parcel> MUST keep Referrer-Policy: no-referrer
      *
      * These pages contain PII (household name, pickup address) and are reached

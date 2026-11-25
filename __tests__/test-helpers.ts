@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import type { Session } from "next-auth";
+import { isValidElement, type ReactNode } from "react";
 
 /**
  * Test helper functions for mocking dependencies in tests
@@ -74,5 +75,26 @@ export function createMockGitHubProfile(options?: {
         id: 12345,
         node_id: "MDQ6VXNlcjEyMzQ1",
         type: "User",
+    };
+}
+
+/**
+ * Render a server component tree the way React does on the server: call each
+ * async component and walk into its output, leaving client components unrendered.
+ */
+export async function renderServerTree(node: ReactNode): Promise<ReactNode> {
+    if (Array.isArray(node)) {
+        return Promise.all(node.map(renderServerTree));
+    }
+    if (!isValidElement<{ children?: ReactNode }>(node)) {
+        return node;
+    }
+    if (typeof node.type === "function" && node.type.constructor.name === "AsyncFunction") {
+        const component = node.type as (props: unknown) => Promise<ReactNode>;
+        return renderServerTree(await component(node.props));
+    }
+    return {
+        ...node,
+        props: { ...node.props, children: await renderServerTree(node.props.children) },
     };
 }
