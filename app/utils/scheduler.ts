@@ -667,7 +667,9 @@ export function startScheduler(): void {
         }
     }, HEALTH_CHECK_INTERVAL_MS);
 
-    // Check the public /api/health for healthchecks.io
+    // Check the public /api/health for healthchecks.io, at once and then every
+    // 5 min, so a recovery after a restart reaches healthchecks.io right away
+    void runSiteCheck();
     schedulerState.siteCheckInterval = setInterval(() => {
         void runSiteCheck();
     }, SITE_CHECK_INTERVAL_MS);
