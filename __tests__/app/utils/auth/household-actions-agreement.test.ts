@@ -83,6 +83,37 @@ const mutations: Array<[string, () => Promise<unknown>]> = [
     ],
 ];
 
+// The household options page lists, per dietary restriction, pet species and
+// additional need, the households that have it.
+const optionsActions = () => import("@/app/[locale]/settings/options/actions");
+const optionLists = [
+    ["DietaryRestriction", "DietaryRestrictions"],
+    ["PetSpecies", "PetSpecies"],
+    ["AdditionalNeed", "AdditionalNeeds"],
+].flatMap(
+    ([one, many]): Array<[string, () => Promise<unknown>]> => [
+        [`list${many}`, async () => (await optionsActions())[`list${many}` as "listPetSpecies"]()],
+        [
+            `update${one}`,
+            async () =>
+                (await optionsActions())[`update${one}` as "updatePetSpecies"]("o1", { name: "x" }),
+        ],
+        [
+            `set${one}ActiveStatus`,
+            async () =>
+                (await optionsActions())[`set${one}ActiveStatus` as "setPetSpeciesActiveStatus"](
+                    "o1",
+                    false,
+                ),
+        ],
+        [
+            `delete${one}`,
+            async () => (await optionsActions())[`delete${one}` as "deletePetSpecies"]("o1"),
+        ],
+    ],
+);
+mutations.push(...optionLists);
+
 const reads: Array<[string, () => Promise<unknown>]> = [
     ["getParcelById", async () => (await scheduleActions()).getParcelById("p1")],
     ["getTodaysParcels", async () => (await scheduleActions()).getTodaysParcels()],

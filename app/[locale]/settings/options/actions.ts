@@ -1,6 +1,6 @@
 "use server";
 
-import { protectedAdminAction as protectedAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
 import {
@@ -189,7 +189,7 @@ async function listAdditionalNeedsWithUsage(): Promise<OptionWithUsage[]> {
 // Dietary Restrictions
 // ============================================================================
 
-export const listDietaryRestrictions = protectedAction(
+export const listDietaryRestrictions = protectedAdminAgreementAction(
     async (): Promise<ActionResult<OptionWithUsage[]>> => {
         try {
             return success(await listDietaryRestrictionsWithUsage());
@@ -203,7 +203,7 @@ export const listDietaryRestrictions = protectedAction(
     },
 );
 
-export const createDietaryRestriction = protectedAction(
+export const createDietaryRestriction = protectedAdminAgreementAction(
     async (session, data: CreateOptionData): Promise<ActionResult<OptionWithUsage>> => {
         try {
             if (!data.name?.trim()) {
@@ -256,7 +256,7 @@ export const createDietaryRestriction = protectedAction(
     },
 );
 
-export const updateDietaryRestriction = protectedAction(
+export const updateDietaryRestriction = protectedAdminAgreementAction(
     async (session, id: string, data: UpdateOptionData): Promise<ActionResult<OptionWithUsage>> => {
         try {
             if (!data.name?.trim()) {
@@ -319,7 +319,7 @@ export const updateDietaryRestriction = protectedAction(
     },
 );
 
-export const setDietaryRestrictionActiveStatus = protectedAction(
+export const setDietaryRestrictionActiveStatus = protectedAdminAgreementAction(
     async (session, id: string, isActive: boolean): Promise<ActionResult<OptionWithUsage>> => {
         try {
             const [updated] = await db
@@ -361,7 +361,7 @@ export const setDietaryRestrictionActiveStatus = protectedAction(
     },
 );
 
-export const deleteDietaryRestriction = protectedAction(
+export const deleteDietaryRestriction = protectedAdminAgreementAction(
     async (session, id: string): Promise<ActionResult<void>> => {
         try {
             const options = await listDietaryRestrictionsWithUsage();
@@ -420,7 +420,7 @@ export const deleteDietaryRestriction = protectedAction(
 // Pet Species
 // ============================================================================
 
-export const listPetSpecies = protectedAction(
+export const listPetSpecies = protectedAdminAgreementAction(
     async (): Promise<ActionResult<OptionWithUsage[]>> => {
         try {
             return success(await listPetSpeciesWithUsage());
@@ -434,7 +434,7 @@ export const listPetSpecies = protectedAction(
     },
 );
 
-export const createPetSpecies = protectedAction(
+export const createPetSpecies = protectedAdminAgreementAction(
     async (session, data: CreateOptionData): Promise<ActionResult<OptionWithUsage>> => {
         try {
             if (!data.name?.trim()) {
@@ -486,7 +486,7 @@ export const createPetSpecies = protectedAction(
     },
 );
 
-export const updatePetSpecies = protectedAction(
+export const updatePetSpecies = protectedAdminAgreementAction(
     async (session, id: string, data: UpdateOptionData): Promise<ActionResult<OptionWithUsage>> => {
         try {
             if (!data.name?.trim()) {
@@ -546,7 +546,7 @@ export const updatePetSpecies = protectedAction(
     },
 );
 
-export const setPetSpeciesActiveStatus = protectedAction(
+export const setPetSpeciesActiveStatus = protectedAdminAgreementAction(
     async (session, id: string, isActive: boolean): Promise<ActionResult<OptionWithUsage>> => {
         try {
             const [updated] = await db
@@ -588,7 +588,7 @@ export const setPetSpeciesActiveStatus = protectedAction(
     },
 );
 
-export const deletePetSpecies = protectedAction(
+export const deletePetSpecies = protectedAdminAgreementAction(
     async (session, id: string): Promise<ActionResult<void>> => {
         try {
             const options = await listPetSpeciesWithUsage();
@@ -644,7 +644,7 @@ export const deletePetSpecies = protectedAction(
 // Additional Needs
 // ============================================================================
 
-export const listAdditionalNeeds = protectedAction(
+export const listAdditionalNeeds = protectedAdminAgreementAction(
     async (): Promise<ActionResult<OptionWithUsage[]>> => {
         try {
             return success(await listAdditionalNeedsWithUsage());
@@ -658,7 +658,7 @@ export const listAdditionalNeeds = protectedAction(
     },
 );
 
-export const createAdditionalNeed = protectedAction(
+export const createAdditionalNeed = protectedAdminAgreementAction(
     async (session, data: CreateOptionData): Promise<ActionResult<OptionWithUsage>> => {
         try {
             if (!data.name?.trim()) {
@@ -710,7 +710,7 @@ export const createAdditionalNeed = protectedAction(
     },
 );
 
-export const updateAdditionalNeed = protectedAction(
+export const updateAdditionalNeed = protectedAdminAgreementAction(
     async (session, id: string, data: UpdateOptionData): Promise<ActionResult<OptionWithUsage>> => {
         try {
             if (!data.name?.trim()) {
@@ -770,7 +770,7 @@ export const updateAdditionalNeed = protectedAction(
     },
 );
 
-export const setAdditionalNeedActiveStatus = protectedAction(
+export const setAdditionalNeedActiveStatus = protectedAdminAgreementAction(
     async (session, id: string, isActive: boolean): Promise<ActionResult<OptionWithUsage>> => {
         try {
             const [updated] = await db
@@ -812,7 +812,7 @@ export const setAdditionalNeedActiveStatus = protectedAction(
     },
 );
 
-export const deleteAdditionalNeed = protectedAction(
+export const deleteAdditionalNeed = protectedAdminAgreementAction(
     async (session, id: string): Promise<ActionResult<void>> => {
         try {
             const options = await listAdditionalNeedsWithUsage();
