@@ -17,7 +17,8 @@ const STATUS_COLOR: Partial<Record<HandoutCapacityLevel, string>> = {
 };
 
 interface UpcomingHandoutsProps {
-    handouts: UpcomingHandout[];
+    /** Undefined when the look-ahead couldn't be loaded */
+    handouts: UpcomingHandout[] | undefined;
     hasUpcomingSchedule: boolean;
 }
 
@@ -26,6 +27,7 @@ export function UpcomingHandouts({ handouts, hasUpcomingSchedule }: UpcomingHand
     const t = useTranslations("schedule.hub");
     const format = useFormatter();
 
+    if (!handouts) return null;
     // No opening hours at all: NoUpcomingScheduleBadge already says so
     if (!hasUpcomingSchedule && handouts.length === 0) return null;
 

@@ -44,6 +44,13 @@ vi.mock("next/cache", () => ({
     revalidatePath: vi.fn(),
 }));
 
+// Real implementation, wrapped so one test can make it fail
+vi.mock("@/app/utils/capacity/daily-limits", async importOriginal => {
+    const actual = await importOriginal<typeof import("@/app/utils/capacity/daily-limits")>();
+    return { ...actual, loadDailyLimitMonthData: vi.fn(actual.loadDailyLimitMonthData) };
+});
+
+import { loadDailyLimitMonthData } from "@/app/utils/capacity/daily-limits";
 import { getUpcomingHandouts } from "@/app/[locale]/schedule/actions";
 
 // TEST_NOW is Saturday 2024-06-15 10:00 UTC, so tomorrow is Sunday 2024-06-16.
@@ -150,5 +157,29 @@ describe("getUpcomingHandouts", () => {
         const result = await getUpcomingHandouts();
 
         expect(result[location.id]).toEqual([]);
+    });
+
+    it("leaves out a location whose capacity can't be read, and keeps the others", async () => {
+        // The Schedule page loads this together with the location list; a throw
+        // here would leave the page saying there are no locations at all.
+        const { location: first } = await createTestLocationWithSchedule({ name: "A" });
+        const { location: second } = await createTestLocationWithSchedule({ name: "B" });
+        vi.mocked(loadDailyLimitMonthData).mockImplementation(async (dbInstance, id, keys) => {
+            if (id === first.id) throw new Error("db down");
+            return (
+                await vi.importActual<typeof import("@/app/utils/capacity/daily-limits")>(
+                    "@/app/utils/capacity/daily-limits",
+                )
+            ).loadDailyLimitMonthData(dbInstance, id, keys);
+        });
+
+        try {
+            const result = await getUpcomingHandouts();
+
+            expect(result).not.toHaveProperty(first.id);
+            expect(result[second.id]).toHaveLength(2);
+        } finally {
+            vi.mocked(loadDailyLimitMonthData).mockReset();
+        }
     });
 });

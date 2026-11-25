@@ -93,7 +93,8 @@ export function SmsBalanceBanner() {
         }
     };
 
-    if (!status?.hasInsufficientBalance) {
+    // isAdmin: a stale warning must not outlive a role change
+    if (!isAdmin || !status?.hasInsufficientBalance) {
         return null;
     }
 

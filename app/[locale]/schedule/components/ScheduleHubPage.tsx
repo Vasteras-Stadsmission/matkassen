@@ -36,7 +36,8 @@ interface LocationSummary {
     location: PickupLocation;
     todayParcelCount: number;
     todayCompletedCount: number;
-    upcoming: UpcomingHandout[];
+    /** Undefined when the look-ahead couldn't be loaded */
+    upcoming: UpcomingHandout[] | undefined;
     slug: string;
 }
 
@@ -113,7 +114,7 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                             location,
                             todayParcelCount: locationParcels.length,
                             todayCompletedCount: completedParcels.length,
-                            upcoming: upcomingByLocation[location.id] ?? [],
+                            upcoming: upcomingByLocation[location.id],
                             slug: createLocationSlug(location.name),
                         };
                     },

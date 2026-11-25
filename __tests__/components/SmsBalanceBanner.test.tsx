@@ -52,4 +52,27 @@ describe("SmsBalanceBanner", () => {
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(adminFetch).not.toHaveBeenCalled();
     });
+
+    it("hides the warning when the user stops being an admin", async () => {
+        adminFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ hasInsufficientBalance: true, credits: 0, failedCount: 3 }),
+        });
+        session.current = { user: { role: "admin" } };
+        const { rerender, queryByRole, findByRole } = render(
+            <MantineProvider>
+                <SmsBalanceBanner />
+            </MantineProvider>,
+        );
+        await findByRole("alert");
+
+        session.current = { user: { role: "handout_staff" } };
+        rerender(
+            <MantineProvider>
+                <SmsBalanceBanner />
+            </MantineProvider>,
+        );
+
+        expect(queryByRole("alert")).toBeNull();
+    });
 });

@@ -63,4 +63,11 @@ describe("UpcomingHandouts", () => {
         expect(screen.queryByText("noUpcomingHandouts")).toBeNull();
         expect(screen.queryByText("upcoming")).toBeNull();
     });
+
+    it("shows nothing when the look-ahead couldn't be loaded", () => {
+        renderUpcoming({ hasUpcomingSchedule: true, handouts: undefined });
+
+        expect(screen.queryByText("noUpcomingHandouts")).toBeNull();
+        expect(screen.queryByText("upcoming")).toBeNull();
+    });
 });

@@ -232,20 +232,34 @@ export const getPickupLocations = protectedReadAction(
  */
 export const getUpcomingHandouts = protectedReadAction(
     async (_session): Promise<Record<string, UpcomingHandout[]>> => {
-        const today = stockholmTodayKey();
-        const dateKeys = enumerateDateKeys(
-            addDaysToDateKey(today, 1),
-            addDaysToDateKey(today, UPCOMING_HANDOUT_DAYS_AHEAD),
-        );
-        const locations = await db.select({ id: pickupLocations.id }).from(pickupLocations);
+        try {
+            const today = stockholmTodayKey();
+            const dateKeys = enumerateDateKeys(
+                addDaysToDateKey(today, 1),
+                addDaysToDateKey(today, UPCOMING_HANDOUT_DAYS_AHEAD),
+            );
+            const locations = await db.select({ id: pickupLocations.id }).from(pickupLocations);
 
-        const entries = await Promise.all(
-            locations.map(async ({ id }) => {
-                const data = await loadDailyLimitMonthData(db, id, dateKeys);
-                return [id, pickUpcomingHandouts(data)] as const;
-            }),
-        );
-        return Object.fromEntries(entries);
+            // A location that fails is left out, so the hub shows no look-ahead
+            // for it rather than a wrong "no handouts".
+            const entries = await Promise.all(
+                locations.map(async ({ id }) => {
+                    try {
+                        const data = await loadDailyLimitMonthData(db, id, dateKeys);
+                        return [[id, pickUpcomingHandouts(data)] as const];
+                    } catch (error) {
+                        logError("Error fetching upcoming handouts", error, { locationId: id });
+                        return [];
+                    }
+                }),
+            );
+            return Object.fromEntries(entries.flat());
+        } catch (error) {
+            // The hub loads this together with the location list; a throw here
+            // would hide every location, so show no look-ahead instead.
+            logError("Error fetching upcoming handouts", error);
+            return {};
+        }
     },
 );
 
