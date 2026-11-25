@@ -25,19 +25,24 @@ jobs:
             name: staging
             url: https://staging.matcentralen.com
         steps:
-            - name: Update PostgreSQL image on staging
-              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+            - name: Checkout repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  host: ${{ secrets.SERVER_HOST_STAGING }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
-                  # The action's default of 10m is too short for a slow pull.
-                  command_timeout: 30m
-                  script: |
+                  persist-credentials: false
+
+            - name: Update PostgreSQL image on staging
+              # Long enough for a slow image pull.
+              timeout-minutes: 30
+              env:
+                  SSH_HOST: ${{ secrets.SERVER_HOST_STAGING }}
+                  SSH_USER: ${{ secrets.SERVER_USER }}
+                  SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+              run: |
+                  .github/scripts/remote-run.sh staging <<'REMOTE'
                       set -euo pipefail
                       export ENV_NAME="staging"
                       bash /home/ubuntu/matkassen/scripts/postgres-image-update.sh
+                  REMOTE
 
     production:
         needs: staging
@@ -52,16 +57,21 @@ jobs:
             name: production
             url: https://matcentralen.com
         steps:
-            - name: Update PostgreSQL image on production
-              uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+            - name: Checkout repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  host: ${{ secrets.SERVER_HOST_PRODUCTION }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  fingerprint: ${{ vars.SERVER_SSH_FINGERPRINT }}
-                  # Covers the pull and the pre-restart backup; the default is 10m.
-                  command_timeout: 60m
-                  script: |
+                  persist-credentials: false
+
+            - name: Update PostgreSQL image on production
+              # Covers the pull and the pre-restart backup.
+              timeout-minutes: 60
+              env:
+                  SSH_HOST: ${{ secrets.SERVER_HOST_PRODUCTION }}
+                  SSH_USER: ${{ secrets.SERVER_USER }}
+                  SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+              run: |
+                  .github/scripts/remote-run.sh production <<'REMOTE'
                       set -euo pipefail
                       export ENV_NAME="production"
                       bash /home/ubuntu/matkassen/scripts/postgres-image-update.sh
+                  REMOTE
