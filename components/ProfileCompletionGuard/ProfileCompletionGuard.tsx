@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Modal, TextInput, Button, Stack, Text, Title, Group } from "@mantine/core";
+import { Modal, TextInput, Button, Stack, Text, Group } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { signOut, useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -139,7 +139,16 @@ export function ProfileCompletionGuard() {
             withCloseButton={canClose}
             closeOnClickOutside={canClose}
             closeOnEscape={canClose}
-            title={<Title order={3}>{t(isEditing ? "editProfile" : "completeProfile")}</Title>}
+            // Modal renders its title as an <h2>; a <Title> inside it would nest
+            // a heading in a heading (a hydration error). Style it as an h3 instead.
+            title={t(isEditing ? "editProfile" : "completeProfile")}
+            styles={{
+                title: {
+                    fontSize: "var(--mantine-h3-font-size)",
+                    fontWeight: "var(--mantine-h3-font-weight)",
+                    lineHeight: "var(--mantine-h3-line-height)",
+                },
+            }}
             size="md"
         >
             <form

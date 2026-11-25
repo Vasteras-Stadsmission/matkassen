@@ -20,7 +20,11 @@ function createCSP(nonce: string): string {
         // Following Next.js CSP documentation: use nonce + strict-dynamic
         // This allows nonce'd scripts to load other scripts (like Next.js chunks and Mantine)
         isDev
-            ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'` // Dev needs unsafe-eval for hot reloading
+            ? // Dev needs unsafe-eval for hot reloading. It also drops strict-dynamic:
+              // Next 15.5 with Turbopack renders loading.tsx chunk scripts without the
+              // nonce (fixed in Next 16), so dev relies on 'self'. Prod builds with
+              // webpack, which never renders those tags.
+              `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`
             : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
         "style-src 'self' 'unsafe-inline'", // Mantine and Tailwind CSS still need unsafe-inline
         "img-src 'self' data: https://images.unsplash.com https://avatars.githubusercontent.com",

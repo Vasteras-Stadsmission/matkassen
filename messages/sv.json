@@ -412,7 +412,13 @@
             "completed": "slutförda",
             "todayHandouts": "Dagens utlämningar",
             "weeklySchedule": "Veckoschema",
-            "noUpcomingSchedule": "Inga kommande öppettider"
+            "noUpcomingSchedule": "Inga kommande öppettider",
+            "upcoming": "Kommande",
+            "bookedUnlimited": "{booked} bokade",
+            "almostFull": "Nästan fullbokat",
+            "full": "Fullbokat",
+            "overBy": "{excess} för många",
+            "noUpcomingHandouts": "Inga utlämningar de närmaste 14 dagarna"
         },
         "noUpcomingSchedule": {
             "title": "Inga kommande öppettider",

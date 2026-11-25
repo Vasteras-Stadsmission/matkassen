@@ -54,11 +54,19 @@ import { auditDetailsForChanges, buildChanges } from "@/app/utils/audit/changes"
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
     enumerateDateKeys,
+    loadDailyLimitMonthData,
     loadLocationLimitContext,
     lockPickupLocationsForCapacity,
     stockholmDateKey,
+    stockholmTodayKey,
     type CapacityTransaction,
 } from "@/app/utils/capacity/daily-limits";
+import {
+    addDaysToDateKey,
+    pickUpcomingHandouts,
+    UPCOMING_HANDOUT_DAYS_AHEAD,
+    type UpcomingHandout,
+} from "@/app/utils/schedule/upcoming-handouts";
 
 import { type DbOrTransaction } from "@/app/db/types";
 // Import types for use within this server action file
@@ -214,6 +222,43 @@ export const getPickupLocations = protectedReadAction(
         } catch (error) {
             logError("Error fetching pickup locations", error);
             return [];
+        }
+    },
+);
+
+/**
+ * The next handout days after today for every pickup location, keyed by
+ * location id, with booked parcels and the day's limit (null = no limit).
+ */
+export const getUpcomingHandouts = protectedReadAction(
+    async (_session): Promise<Record<string, UpcomingHandout[]>> => {
+        try {
+            const today = stockholmTodayKey();
+            const dateKeys = enumerateDateKeys(
+                addDaysToDateKey(today, 1),
+                addDaysToDateKey(today, UPCOMING_HANDOUT_DAYS_AHEAD),
+            );
+            const locations = await db.select({ id: pickupLocations.id }).from(pickupLocations);
+
+            // A location that fails is left out, so the hub shows no look-ahead
+            // for it rather than a wrong "no handouts".
+            const entries = await Promise.all(
+                locations.map(async ({ id }) => {
+                    try {
+                        const data = await loadDailyLimitMonthData(db, id, dateKeys);
+                        return [[id, pickUpcomingHandouts(data)] as const];
+                    } catch (error) {
+                        logError("Error fetching upcoming handouts", error, { locationId: id });
+                        return [];
+                    }
+                }),
+            );
+            return Object.fromEntries(entries.flat());
+        } catch (error) {
+            // The hub loads this together with the location list; a throw here
+            // would hide every location, so show no look-ahead instead.
+            logError("Error fetching upcoming handouts", error);
+            return {};
         }
     },
 );

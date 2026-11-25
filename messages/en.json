@@ -412,7 +412,13 @@
             "completed": "completed",
             "todayHandouts": "Today's Handouts",
             "weeklySchedule": "Weekly Schedule",
-            "noUpcomingSchedule": "No upcoming opening hours"
+            "noUpcomingSchedule": "No upcoming opening hours",
+            "upcoming": "Upcoming",
+            "bookedUnlimited": "{booked} booked",
+            "almostFull": "Almost full",
+            "full": "Full",
+            "overBy": "{excess} over",
+            "noUpcomingHandouts": "No handouts in the next 14 days"
         },
         "noUpcomingSchedule": {
             "title": "No Upcoming Opening Hours",
