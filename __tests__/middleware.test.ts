@@ -197,12 +197,12 @@ describe("Middleware API Authentication", () => {
     });
 
     /**
-     * Production keeps 'strict-dynamic'; local dev drops it. Next 15.5 with
-     * Turbopack renders loading.tsx chunk scripts without the nonce, so dev
-     * must allow same-origin scripts through 'self'. Webpack builds (prod)
-     * never render those tags.
+     * Dev and production both use 'strict-dynamic', so a script Next renders
+     * without the nonce shows up as a CSP violation in dev too, before it can
+     * reach production. Next 15.5 rendered loading.tsx chunk scripts without
+     * it; Next 16 passes the nonce. Dev adds 'unsafe-eval' for hot reloading.
      */
-    it("keeps 'strict-dynamic' in production but not in development", async () => {
+    it("keeps 'strict-dynamic' in production and development", async () => {
         const cspFor = async (nodeEnv: string) => {
             vi.stubEnv("NODE_ENV", nodeEnv);
             try {
@@ -218,9 +218,9 @@ describe("Middleware API Authentication", () => {
         expect(await cspFor("production")).toContain(
             "script-src 'self' 'nonce-mockedNonce' 'strict-dynamic';",
         );
-        const devCsp = await cspFor("development");
-        expect(devCsp).toContain("script-src 'self' 'nonce-mockedNonce' 'unsafe-eval';");
-        expect(devCsp).not.toContain("strict-dynamic");
+        expect(await cspFor("development")).toContain(
+            "script-src 'self' 'nonce-mockedNonce' 'strict-dynamic' 'unsafe-eval';",
+        );
     });
 
     /**
