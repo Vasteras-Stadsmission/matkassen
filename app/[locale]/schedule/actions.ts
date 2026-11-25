@@ -41,7 +41,7 @@ import {
     protectedReadAction,
     protectedAgreementReadAction,
     protectedAdminAgreementReadAction,
-    protectedAdminAction,
+    protectedAdminAgreementAction,
 } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
@@ -146,7 +146,7 @@ function mapScheduleParcel(
 /**
  * Get a specific parcel by ID, regardless of date
  */
-export const getParcelById = protectedReadAction(
+export const getParcelById = protectedAgreementReadAction(
     async (_session, parcelId: string): Promise<FoodParcel | null> => {
         try {
             const parcelsData = await db
@@ -319,7 +319,7 @@ async function queryTodaysParcels(locationId?: string): Promise<FoodParcel[]> {
  * on the handouts page where staff need phone-based search.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const getTodaysParcels = protectedReadAction(async (_session): Promise<FoodParcel[]> => {
+export const getTodaysParcels = protectedAgreementReadAction(async (): Promise<FoodParcel[]> => {
     try {
         return await queryTodaysParcels();
     } catch (error) {
@@ -634,7 +634,7 @@ export const getEffectiveDailyLimitsForDateRange = protectedReadAction(
 /**
  * Update a food parcel's schedule (used when dragging to a new timeslot)
  */
-export const updateFoodParcelSchedule = protectedAdminAction(
+export const updateFoodParcelSchedule = protectedAdminAgreementAction(
     async (
         session,
         parcelId: string,
@@ -1512,7 +1512,7 @@ async function identifyOutsideHoursParcels(locationId: string): Promise<{
 /**
  * Get all future outside-hours parcels for a specific location
  */
-export const getOutsideHoursParcelsForLocation = protectedReadAction(
+export const getOutsideHoursParcelsForLocation = protectedAgreementReadAction(
     async (_session, locationId: string): Promise<FoodParcel[]> => {
         try {
             const { outsideParcels } = await identifyOutsideHoursParcels(locationId);
@@ -1545,7 +1545,7 @@ export const getTotalOutsideHoursCount = protectedAdminAgreementReadAction(
 /**
  * Bulk reschedule multiple parcels to a new time slot
  */
-export const bulkRescheduleParcels = protectedAdminAction(
+export const bulkRescheduleParcels = protectedAdminAgreementAction(
     async (
         session,
         parcelIds: string[],
