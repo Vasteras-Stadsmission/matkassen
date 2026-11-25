@@ -18,8 +18,18 @@ interface HouseholdPageProps {
 
 export async function generateMetadata({ params }: HouseholdPageProps) {
     const { id } = await params;
-    const householdDetails = await getHouseholdDetails(id);
     const t = await getTranslations("households");
+
+    // Metadata runs alongside the page, outside AgreementProtection, so the fetch
+    // is refused for a user the guard is about to redirect. Fall back to a generic
+    // title; the page body loads the household again behind the guard.
+    const householdDetails = await getHouseholdDetails(id).catch(() => undefined);
+
+    if (householdDetails === undefined) {
+        return {
+            title: t("title"),
+        };
+    }
 
     if (!householdDetails) {
         return {
@@ -43,8 +53,19 @@ export async function generateMetadata({ params }: HouseholdPageProps) {
 
 export default async function HouseholdPage({ params }: HouseholdPageProps) {
     const { id } = await params;
+
+    return (
+        <AgreementProtection>
+            <HouseholdDetails id={id} />
+        </AgreementProtection>
+    );
+}
+
+// Fetches inside AgreementProtection, so it runs only after the sign-in and
+// agreement checks pass: a user who hasn't accepted the agreement is redirected,
+// not shown an error.
+async function HouseholdDetails({ id }: { id: string }) {
     const householdDetails = await getHouseholdDetails(id);
-    const { testMode } = getHelloSmsConfig();
 
     if (!householdDetails) {
         notFound();
@@ -59,19 +80,18 @@ export default async function HouseholdPage({ params }: HouseholdPageProps) {
         );
     }
 
+    const { testMode } = getHelloSmsConfig();
     // Check if we should show parcel warning
     const warningData = await shouldShowParcelWarning(id);
 
     return (
-        <AgreementProtection>
-            <Suspense fallback={<HouseholdDetailsPageSkeleton />}>
-                <HouseholdDetailsPage
-                    householdId={id}
-                    initialData={householdDetails}
-                    testMode={testMode}
-                    warningData={warningData}
-                />
-            </Suspense>
-        </AgreementProtection>
+        <Suspense fallback={<HouseholdDetailsPageSkeleton />}>
+            <HouseholdDetailsPage
+                householdId={id}
+                initialData={householdDetails}
+                testMode={testMode}
+                warningData={warningData}
+            />
+        </Suspense>
     );
 }

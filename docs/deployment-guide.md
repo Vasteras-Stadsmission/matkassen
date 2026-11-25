@@ -605,18 +605,18 @@ healthcheck:
 
 Production alerts are emails from [healthchecks.io](https://healthchecks.io). Each job pings its own check there; healthchecks.io emails when a check reports a failure or misses its schedule, and again when it recovers. Nothing is sent while everything works. Pings have no body, so no personal data leaves the server.
 
-| Check                | Pinged by                          | Expected                   | Down means                                                                                                            |
-| -------------------- | ---------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `site`               | `.github/workflows/site-check.yml` | every 15 min, 45 min grace | `/api/health` unreachable or not healthy (database, scheduler or disk) in 4 tries 30 s apart, or no check for an hour |
-| `backup`             | `scripts/backup-db.sh`             | 02:00 daily, 1 h grace     | backup or restore validation failed, no automatic expiry set, or no run                                               |
-| `sms-scheduler`      | SMS loop, after each completed run | every 5 min, 15 min grace  | no completed SMS run for 20 min                                                                                       |
-| `sms-credits`        | SMS loop                           | every 5 min, 1 h grace     | HelloSMS credits below 100 (top up), or balance unreadable                                                            |
-| `sms-delivery`       | daily SMS check                    | 08:00 daily, 1 h grace     | SMS failed in the last 24 h, or sent 24–48 h ago and still unconfirmed (see the SMS admin page)                       |
-| `sms-reconciliation` | hourly status check                | hourly, 3 h grace          | no clean run for 4 hours                                                                                              |
-| `anonymization`      | weekly anonymization               | Sunday 02:00, 2 h grace    | errors, or no run                                                                                                     |
-| `org-sync`           | daily org membership sync          | 03:00 daily, 1 h grace     | errors, or no run                                                                                                     |
+| Check                | Pinged by                          | Expected                  | Down means                                                                                                                                        |
+| -------------------- | ---------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `site`               | web container, every 5 min         | every 5 min, 30 min grace | `https://matcentralen.com/api/health` unreachable or not healthy (database, scheduler or disk) for 35 min, or the server or web container is down |
+| `backup`             | `scripts/backup-db.sh`             | 02:00 daily, 1 h grace    | backup or restore validation failed, no automatic expiry set, or no run                                                                           |
+| `sms-scheduler`      | SMS loop, after each completed run | every 5 min, 15 min grace | no completed SMS run for 20 min                                                                                                                   |
+| `sms-credits`        | SMS loop                           | every 5 min, 1 h grace    | HelloSMS credits below 100 (top up), or balance unreadable                                                                                        |
+| `sms-delivery`       | daily SMS check                    | 08:00 daily, 1 h grace    | SMS failed in the last 24 h, or sent 24–48 h ago and still unconfirmed (see the SMS admin page)                                                   |
+| `sms-reconciliation` | hourly status check                | hourly, 3 h grace         | no clean run for 4 hours                                                                                                                          |
+| `anonymization`      | weekly anonymization               | Sunday 02:00, 2 h grace   | errors, or no run                                                                                                                                 |
+| `org-sync`           | daily org membership sync          | 03:00 daily, 1 h grace    | errors, or no run                                                                                                                                 |
 
-Jobs that retry on their own (`sms-scheduler`, `sms-reconciliation`) send nothing when a run fails, so a single transient error stays quiet and only a failure that outlasts the grace period alerts. The other checks report a failure at once. A failed deploy fails its GitHub Actions run, and GitHub emails about that.
+Jobs that retry on their own (`site`, `sms-scheduler`, `sms-reconciliation`) send nothing when a run fails, so a single transient error stays quiet and only a failure that outlasts the grace period alerts. The other checks report a failure at once. `site` fetches the public URL through DNS, TLS and nginx, the way users reach the site; it runs on the server itself, so it cannot see a firewall that blocks traffic from outside. A failed deploy fails its GitHub Actions run, and GitHub emails about that.
 
 **Setup**, in this order:
 

@@ -15,6 +15,18 @@ interface ParcelManagementPageProps {
 
 export default async function ParcelManagementPage({ params }: ParcelManagementPageProps) {
     const { id: householdId } = await params;
+
+    return (
+        <AgreementProtection adminOnly>
+            <ParcelManagement householdId={householdId} />
+        </AgreementProtection>
+    );
+}
+
+// Fetches inside AgreementProtection, so it runs only after the admin and
+// agreement checks pass: handout staff and users who haven't accepted the
+// agreement are redirected before any household data is loaded.
+async function ParcelManagement({ householdId }: { householdId: string }) {
     const t = await getTranslations("parcelManagement.error");
 
     // Get household data for the form
@@ -22,16 +34,9 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
 
     if (!result.success) {
         return (
-            <AgreementProtection adminOnly>
-                <Alert
-                    icon={<IconAlertCircle size="1rem" />}
-                    title={t("title")}
-                    color="red"
-                    mt="md"
-                >
-                    {t("householdNotFound")}
-                </Alert>
-            </AgreementProtection>
+            <Alert icon={<IconAlertCircle size="1rem" />} title={t("title")} color="red" mt="md">
+                {t("householdNotFound")}
+            </Alert>
         );
     }
 
@@ -42,13 +47,11 @@ export default async function ParcelManagementPage({ params }: ParcelManagementP
     const warningData = await shouldShowParcelWarning(householdId);
 
     return (
-        <AgreementProtection adminOnly>
-            <ParcelManagementClient
-                householdId={householdId}
-                householdName={householdName}
-                initialData={householdData.foodParcels}
-                warningData={warningData}
-            />
-        </AgreementProtection>
+        <ParcelManagementClient
+            householdId={householdId}
+            householdName={householdName}
+            initialData={householdData.foodParcels}
+            warningData={warningData}
+        />
     );
 }

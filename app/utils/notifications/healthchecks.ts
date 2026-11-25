@@ -11,6 +11,7 @@
 import { logError } from "@/app/utils/logger";
 
 export type HealthcheckSlug =
+    | "site"
     | "sms-scheduler"
     | "sms-credits"
     | "sms-delivery"
