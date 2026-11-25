@@ -72,15 +72,11 @@ export async function AgreementProtection({
 
         const userId = await getUserIdByGithubUsername(githubUsername);
 
-        // If user doesn't exist in DB yet, let them through
-        // User provisioning happens elsewhere (OAuth callback) and must complete
-        // before the agreement can be accepted
-        if (!userId) {
-            return <>{children}</>;
-        }
-
+        // Sign-in creates the user row, so a user without one can't have accepted
+        // the agreement: the same rule the server actions apply.
         // Use the agreement ID we already have to avoid a second getCurrentAgreement() call
-        const hasAccepted = await hasUserAcceptedAgreement(userId, currentAgreement.id);
+        const hasAccepted =
+            userId !== null && (await hasUserAcceptedAgreement(userId, currentAgreement.id));
 
         if (!hasAccepted) {
             const callbackUrl = await getCurrentPathname();
@@ -95,23 +91,24 @@ export async function AgreementProtection({
 }
 
 /**
- * Get the current pathname from request headers.
- * Returns the path portion without locale prefix since next-intl handles that.
+ * Get the current path and query string from request headers, without the
+ * locale prefix since next-intl adds it. The /agreement page sanitizes it
+ * before redirecting back.
  */
 async function getCurrentPathname(): Promise<string | null> {
     try {
         const headersList = await headers();
-        // x-next-url is set by our middleware and contains the full URL path
+        // x-next-url is set by our middleware and contains the path and query string
         const nextUrl = headersList.get("x-next-url") ?? headersList.get("next-url");
         if (nextUrl) {
             const url = new URL(nextUrl, "http://localhost");
-            return stripLocalePrefix(url.pathname);
+            return stripLocalePrefix(url.pathname) + url.search;
         }
         // Fallback: try referer header
         const referer = headersList.get("referer");
         if (referer) {
             const url = new URL(referer);
-            return stripLocalePrefix(url.pathname);
+            return stripLocalePrefix(url.pathname) + url.search;
         }
     } catch {
         // Headers not available (e.g., during static generation)

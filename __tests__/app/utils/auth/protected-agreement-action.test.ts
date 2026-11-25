@@ -259,6 +259,56 @@ describe("Protected Agreement Actions", () => {
         });
     });
 
+    describe("protectedAdminAgreementAction", () => {
+        it("should refuse a user who is not an admin", async () => {
+            const { protectedAdminAgreementAction } =
+                await import("@/app/utils/auth/protected-action");
+
+            const session = createMockSession();
+            session.user!.role = "handout_staff";
+            mockAuth.mockResolvedValue(session);
+
+            const innerAction = vi.fn();
+            const result = await protectedAdminAgreementAction(innerAction)();
+
+            expect(result).toMatchObject({ success: false, error: { code: "FORBIDDEN" } });
+            expect(innerAction).not.toHaveBeenCalled();
+        });
+
+        it("should refuse an admin who has not accepted agreement", async () => {
+            const { protectedAdminAgreementAction } =
+                await import("@/app/utils/auth/protected-action");
+
+            mockAuth.mockResolvedValue(createMockSession());
+            mockGetCurrentAgreement.mockResolvedValue({ id: "agr-1", version: 1 });
+            mockGetUserIdByGithubUsername.mockResolvedValue("user-123");
+            mockHasUserAcceptedAgreement.mockResolvedValue(false);
+
+            const innerAction = vi.fn();
+            const result = await protectedAdminAgreementAction(innerAction)();
+
+            expect(result).toMatchObject({ success: false, error: { code: "AGREEMENT_REQUIRED" } });
+            expect(innerAction).not.toHaveBeenCalled();
+        });
+
+        it("should allow an admin who has accepted agreement", async () => {
+            const { protectedAdminAgreementAction } =
+                await import("@/app/utils/auth/protected-action");
+
+            const session = createMockSession();
+            mockAuth.mockResolvedValue(session);
+            mockGetCurrentAgreement.mockResolvedValue({ id: "agr-1", version: 1 });
+            mockGetUserIdByGithubUsername.mockResolvedValue("user-123");
+            mockHasUserAcceptedAgreement.mockResolvedValue(true);
+
+            const innerAction = vi.fn().mockResolvedValue({ success: true, data: "ok" });
+            const result = await protectedAdminAgreementAction(innerAction)();
+
+            expect(result).toEqual({ success: true, data: "ok" });
+            expect(innerAction).toHaveBeenCalledWith(session);
+        });
+    });
+
     describe("protectedAgreementHouseholdAction", () => {
         it("should block when agreement not accepted, before household check", async () => {
             const { protectedAgreementHouseholdAction } =
