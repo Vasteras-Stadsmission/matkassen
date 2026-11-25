@@ -171,33 +171,27 @@ pickup reminders and "parcels ended" messages are recovered automatically after
 
 ### SSH Host Identity Pinning
 
-Both deployment workflows verify the VPS host key before sending credentials or
-executing remote commands. `SERVER_SSH_FINGERPRINT` is a GitHub environment
-variable, not a secret, and must have the following value in each environment:
+The deployment workflows reach the servers with plain `ssh` through
+`.github/scripts/remote-run.sh`, which only connects when the server's host key
+matches its line in `.github/ssh_known_hosts`:
 
-| Environment  | Expected ECDSA SHA256 fingerprint                    |
+| Environment  | Expected ED25519 SHA256 fingerprint                  |
 | ------------ | ---------------------------------------------------- |
-| `staging`    | `SHA256:2P7G9KgU7IIP/Ty/R19MTKeG2oUn75naY+qw5WhO6Cs` |
-| `production` | `SHA256:92R9clTm9OvzjiTfB/6lkOnEquHgWo324JGWvG6tj9I` |
+| `staging`    | `SHA256:InEd9kBkCx3ay+F0ujwNJhmSWaLz6OFYO9mTP0Eo2bM` |
+| `production` | `SHA256:ujzu+noscaaXjN4IeCkOO7mzs3bkgTdfdrpqdccGLiE` |
 
-The pinned `appleboy/ssh-action` currently negotiates the servers' ECDSA host
-keys. Do not substitute the ED25519 fingerprint merely because a local OpenSSH
-client prefers ED25519; the fingerprint must match the key negotiated by the
-deployment action.
-
-Verify a fingerprint from the VPS provider console or an existing independently
+Verify a key from the VPS provider console or an existing independently
 trusted SSH session:
 
 ```bash
-sudo ssh-keygen -lf /etc/ssh/ssh_host_ecdsa_key.pub -E sha256
+sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256
 ```
 
 Do not establish trust from an unauthenticated `ssh-keyscan` result alone. After
 an intentional VPS rebuild or SSH host-key rotation, verify the new key through
-a trusted channel, update the corresponding GitHub environment variable, and
-run staging before approving production. An unexpected mismatch must be treated
-as a possible wrong-host or man-in-the-middle event until the change is
-explained.
+a trusted channel, update its line in `.github/ssh_known_hosts`, and run staging
+before approving production. An unexpected mismatch must be treated as a
+possible wrong-host or man-in-the-middle event until the change is explained.
 
 ## Docker Services
 
