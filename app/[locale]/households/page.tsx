@@ -8,8 +8,6 @@ import { getHouseholds } from "./actions";
 export default async function HouseholdsPage() {
     const t = await getTranslations("households");
 
-    const households = await getHouseholds();
-
     return (
         <AgreementProtection adminOnly>
             <Container size="xl" py="xl">
@@ -27,9 +25,16 @@ export default async function HouseholdsPage() {
                         </Center>
                     }
                 >
-                    <HouseholdsPageClient initialHouseholds={households} />
+                    <HouseholdsList />
                 </Suspense>
             </Container>
         </AgreementProtection>
     );
+}
+
+// Fetches inside AgreementProtection, so it runs only after the admin and
+// agreement checks pass: a handout_staff user is redirected, not shown an error.
+async function HouseholdsList() {
+    const households = await getHouseholds();
+    return <HouseholdsPageClient initialHouseholds={households} />;
 }
