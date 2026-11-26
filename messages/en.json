@@ -21,6 +21,17 @@
         "help": "Help",
         "helpAria": "Open help manuals"
     },
+    "qrScanner": {
+        "title": "Scan QR code",
+        "scan": "Scan",
+        "hint": "Hold the recipient's QR code inside the frame",
+        "starting": "Starting camera…",
+        "notParcel": "This QR code isn't for a food parcel.",
+        "permissionDenied": "The camera is blocked. Allow the camera for this site in your browser settings and try again.",
+        "noCamera": "No camera found on this device.",
+        "unsupported": "This browser can't use the camera here. Find the parcel in Today's Handouts instead.",
+        "cameraError": "The camera couldn't start. Close other apps using the camera and try again."
+    },
     "auth": {
         "login": "Log in",
         "logout": "Log out",
@@ -418,7 +429,8 @@
             "almostFull": "Almost full",
             "full": "Full",
             "overBy": "{excess} over",
-            "noUpcomingHandouts": "No handouts in the next 14 days"
+            "noUpcomingHandouts": "No handouts in the next 14 days",
+            "parcelNotFound": "The food parcel wasn't found. It may have been deleted – search for the household instead."
         },
         "noUpcomingSchedule": {
             "title": "No Upcoming Opening Hours",

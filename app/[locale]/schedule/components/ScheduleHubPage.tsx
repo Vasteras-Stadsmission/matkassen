@@ -16,6 +16,7 @@ import {
     Button,
     Alert,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconMapPin, IconPackage, IconCalendarDue, IconCalendar } from "@tabler/icons-react";
 import {
     getPickupLocations,
@@ -74,18 +75,18 @@ export function ScheduleHubPage({ testMode: isTestMode, userRole }: ScheduleHubP
                             return;
                         }
                     }
-                    // If we can't find the parcel or location, remove the parcel param and continue
-                    router.replace("/schedule");
                 } catch {
-                    // Remove the parcel param and continue with normal hub view
-                    router.replace("/schedule");
+                    // Handled below like a parcel that doesn't exist
                 }
+                // Parcel or location not found (e.g. deleted): say so, then show the hub
+                notifications.show({ message: t("hub.parcelNotFound"), color: "orange" });
+                router.replace("/schedule");
             }
 
             handleParcelDeepLink();
             return;
         }
-    }, [searchParams, router]);
+    }, [searchParams, router, t]);
 
     useEffect(() => {
         async function loadData() {

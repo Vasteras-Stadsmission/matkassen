@@ -23,11 +23,12 @@ import { LanguageSwitcher } from "../LanguageSwitcher";
 import { AuthDropdown } from "../AuthDropdown/AuthDropdown";
 import { SettingsDropdown } from "../SettingsDropdown";
 import { useTranslations } from "next-intl";
-import { usePathname } from "@/app/i18n/navigation";
+import { usePathname, useRouter } from "@/app/i18n/navigation";
 import type { TranslationFunction } from "@/app/[locale]/types";
 import { IconQrcode, IconHelpCircle } from "@tabler/icons-react";
 import { Link as LocalizedLink } from "@/app/i18n/navigation";
 import { useSession } from "next-auth/react";
+import { QrScannerModal } from "../QrScanner/QrScannerModal";
 
 import classes from "./HeaderSimple.module.css";
 
@@ -36,7 +37,9 @@ const HOME_LINK = "/";
 
 export function HeaderSimple() {
     const pathname = usePathname();
+    const router = useRouter();
     const [opened, { toggle, close }] = useDisclosure(false);
+    const [scannerOpened, { open: openScanner, close: closeScanner }] = useDisclosure(false);
     const t = useTranslations() as TranslationFunction;
     const tCommon = useTranslations() as TranslationFunction;
     const theme = useMantineTheme();
@@ -126,17 +129,19 @@ export function HeaderSimple() {
         setActive(matchingLinks.length > 0 ? matchingLinks[0].link : "");
     }, [pathname, links]);
 
-    // QR Code scanning link component
+    // QR code scanning button; the schedule hub opens the parcel at its location
     const scanQrLabel = t("navigation.scanQrCode");
-    const ScanQRCodeLink = () => {
+    const handleScanClick = () => {
+        close();
+        openScanner();
+    };
+    const handleScan = (parcelId: string) => router.push(`/schedule?parcel=${parcelId}`);
+    const ScanQRCodeButton = () => {
         if (showIconOnlyActions) {
             return (
                 <Tooltip label={scanQrLabel} position="bottom" withArrow>
                     <ActionIcon
-                        component="a"
-                        href="https://scanapp.org/"
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={handleScanClick}
                         variant="outline"
                         aria-label={scanQrLabel}
                         size="lg"
@@ -149,10 +154,7 @@ export function HeaderSimple() {
 
         return (
             <Button
-                component="a"
-                href="https://scanapp.org/"
-                target="_blank"
-                rel="noreferrer"
+                onClick={handleScanClick}
                 variant="outline"
                 leftSection={<IconQrcode size={18} stroke={1.8} />}
             >
@@ -285,7 +287,7 @@ export function HeaderSimple() {
                         <HelpLink />
                         <AuthDropdown />
                         {isAdmin && <SettingsDropdown />}
-                        <ScanQRCodeLink />
+                        <ScanQRCodeButton />
                     </Group>
                     <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
                 </Container>
@@ -305,12 +307,14 @@ export function HeaderSimple() {
                     <div className={classes.mobileActions}>
                         <LanguageSwitcher />
                         <HelpLink />
-                        <ScanQRCodeLink />
+                        <ScanQRCodeButton />
                         {isAdmin && <SettingsDropdown />}
                         <AuthDropdown />
                     </div>
                 </div>
             </Drawer>
+
+            <QrScannerModal opened={scannerOpened} onClose={closeScanner} onScan={handleScan} />
         </>
     );
 }

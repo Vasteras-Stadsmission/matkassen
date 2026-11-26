@@ -72,9 +72,11 @@ Automatiska påminnelser till mottagarna.
 Snabb identifiering av mottagare vid utlämning.
 
 - QR-kod är ett hjälpmedel, inte ett krav; du hittar alltid bokningen via `Dagens utlämningar` och kan välja `Markera utlämnad` där.
-- Snabbast: be mottagaren öppna QR-koden i sitt SMS på sin egen mobil och skanna med din mobilkamera.
-- Alternativ (t.ex. vid laptop): använd QR-scannersidan via länk i navigationen.
-- När du öppnar bokningen: kontrollera uppgifter och välj `Markera utlämnad`.
+- Be mottagaren öppna länken i sitt SMS och visa QR-koden.
+- Tryck `Skanna` bredvid sökfältet i `Dagens utlämningar` (eller `Skanna QR-kod` i menyn) och håll QR-koden inom rutan. Bokningen öppnas direkt. Det fungerar både i mobilen och på en laptop med kamera.
+- Första gången frågar webbläsaren om appen får använda kameran: välj `Tillåt`.
+- Fungerar inte appens kamera kan du skanna med mobilens egen kamera i stället; länken öppnar samma bokning.
+- När bokningen öppnas: kontrollera uppgifter och välj `Markera utlämnad`.
 
 ## Tips under utdelning
 
@@ -91,3 +93,5 @@ Snabb identifiering av mottagare vid utlämning.
 **Mottagaren fick inget SMS** – Kontrollera hushållets SMS-historik via hushållskortet, eller be en administratör titta i `Behöver uppföljning`. Dela annars länken direkt.
 
 **QR-kod skannar inte** – Höj skärmljusstyrkan, testa annan vinkel, eller sök fram bokningen manuellt i `Dagens utlämningar`.
+
+**Kameran är blockerad** – Du har nekat kameran tidigare. Tillåt kameran för sidan i webbläsarens inställningar (ofta via ikonen vid adressfältet) och försök igen, eller skanna med mobilens egen kamera.

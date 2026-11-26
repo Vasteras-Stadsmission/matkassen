@@ -154,6 +154,17 @@
         "help": "Hjälp",
         "helpAria": "Öppna hjälpmanualer"
     },
+    "qrScanner": {
+        "title": "Skanna QR-kod",
+        "scan": "Skanna",
+        "hint": "Håll mottagarens QR-kod inom rutan",
+        "starting": "Startar kameran…",
+        "notParcel": "Den här QR-koden hör inte till en matkasse.",
+        "permissionDenied": "Kameran är blockerad. Tillåt kameran för den här sidan i webbläsarens inställningar och försök igen.",
+        "noCamera": "Hittade ingen kamera på den här enheten.",
+        "unsupported": "Webbläsaren kan inte använda kameran här. Sök fram bokningen i Dagens utlämningar i stället.",
+        "cameraError": "Kameran gick inte att starta. Stäng andra appar som använder kameran och försök igen."
+    },
     "households": {
         "title": "Hushåll",
         "description": "Hantera hushåll och deras information",
@@ -418,7 +429,8 @@
             "almostFull": "Nästan fullbokat",
             "full": "Fullbokat",
             "overBy": "{excess} för många",
-            "noUpcomingHandouts": "Inga utlämningar de närmaste 14 dagarna"
+            "noUpcomingHandouts": "Inga utlämningar de närmaste 14 dagarna",
+            "parcelNotFound": "Matkassen hittades inte. Den kan ha tagits bort – sök fram hushållet i stället."
         },
         "noUpcomingSchedule": {
             "title": "Inga kommande öppettider",
