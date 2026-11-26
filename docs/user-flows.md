@@ -19,8 +19,8 @@ flowchart LR
         MW["Middleware<br/>- locale detection & CSP<br/>- redirects unauthenticated -> signin"]
         SignIn["Sign-in /auth/signin<br/>- GitHub OAuth + org membership check<br/>- redirects to callback"]
         Home["Home /<br/>- admin only (handout staff redirected to /schedule)<br/>- shows Issues Dashboard"]
-        Header["Header + layout<br/>- nav: Schedule (all) + Households / Statistics / Issues (admin only)<br/>- Settings dropdown (admin only) contains Locations, Users, etc.<br/>- LanguageSwitcher + Auth menu + Scan QR link"]
-        ScanQR["Scan QR<br/>- Mobile: Use native Camera app (fastest)<br/>- Laptop: Use scanapp.org<br/>- Opens schedule with parcel dialog"]
+        Header["Header + layout<br/>- nav: Schedule (all) + Households / Statistics / Issues (admin only)<br/>- Settings dropdown (admin only) contains Locations, Users, etc.<br/>- LanguageSwitcher + Auth menu + Scan QR button"]
+        ScanQR["Scan QR (in-app camera scanner)<br/>- Header button and Scan button on Today's Handouts<br/>- Phone and laptop camera<br/>- Opens the parcel dialog"]
         MW -- no session --> SignIn
         MW -- session --> Home
         SignIn --> Home --> Header
