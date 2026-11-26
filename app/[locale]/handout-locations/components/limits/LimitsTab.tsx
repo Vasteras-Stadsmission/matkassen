@@ -362,6 +362,8 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                                 onChange={setSelectedDates}
                                 date={visibleMonth}
                                 onDateChange={month => {
+                                    // Picking the month already shown fetches nothing
+                                    if (month === visibleMonth) return;
                                     setVisibleMonth(month);
                                     setLoadingMonth(true);
                                 }}

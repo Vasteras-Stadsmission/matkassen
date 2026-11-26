@@ -139,9 +139,13 @@ export default function IssuesPageClient() {
     const locale = useLocale();
 
     const [issues, setIssues] = useState<IssuesData | null>(null);
-    // When issues were fetched: "has the pickup passed?" compares against this
-    // rather than reading the clock during render.
-    const [fetchedAt, setFetchedAt] = useState(0);
+    // "Has the pickup passed?" compares against this clock, updated every
+    // minute and on each fetch, rather than reading the clock during render.
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -277,7 +281,7 @@ export default function IssuesPageClient() {
 
             const data = await response.json();
             setIssues(data);
-            setFetchedAt(Date.now());
+            setNow(Date.now());
         } catch (err) {
             if (err instanceof Error && err.name === "AbortError") {
                 return;
@@ -1024,7 +1028,7 @@ export default function IssuesPageClient() {
                                 const pickupPassed =
                                     isParcelRetry &&
                                     (!sms.pickupEarliest ||
-                                        new Date(sms.pickupEarliest).getTime() < fetchedAt);
+                                        new Date(sms.pickupEarliest).getTime() < now);
 
                                 return (
                                     <Paper

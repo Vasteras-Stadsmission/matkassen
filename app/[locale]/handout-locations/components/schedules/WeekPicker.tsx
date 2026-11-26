@@ -169,6 +169,10 @@ export function WeekPicker({
         // Brief delay to show the highlight effect before closing the popover
         setTimeout(() => {
             onChange(newSelection);
+            // Show the chosen week's month next time, even when it was already chosen
+            const { startDate } = getWeekDateRange(year, weekNumber);
+            setSelectedYear(startDate.getFullYear());
+            setSelectedMonth(startDate.getMonth());
             setOpened(false);
 
             // Reset selection state after popover closes

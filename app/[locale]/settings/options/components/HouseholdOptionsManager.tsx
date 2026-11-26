@@ -453,7 +453,9 @@ export function HouseholdOptionsManager() {
                                                             ? t("status.active")
                                                             : t("status.disabled")
                                                     }
-                                                    disabled={togglingOptionId === option.id}
+                                                    disabled={
+                                                        loading || togglingOptionId === option.id
+                                                    }
                                                 />
                                                 <ActionIcon
                                                     variant="subtle"

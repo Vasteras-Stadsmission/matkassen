@@ -40,8 +40,9 @@ export default function RescheduleInline({
     const t = useTranslations("issues") as TranslationFunction;
 
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    // The time the user picked; null means the first available one
-    const [pickedTime, setPickedTime] = useState<string | null>(null);
+    // The time the user picked (null if they cleared it); undefined means the
+    // first available one
+    const [pickedTime, setPickedTime] = useState<string | null | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(15);
@@ -59,7 +60,7 @@ export default function RescheduleInline({
         setResetFor(formKey);
         if (formKey) {
             setSelectedDate(null);
-            setPickedTime(null);
+            setPickedTime(undefined);
             setError(null);
             setFullyBookedDates(new Set());
             setMaxDate(undefined);
@@ -108,7 +109,7 @@ export default function RescheduleInline({
 
     const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, true);
     const availableTimes = timeSlots.slots;
-    const selectedTime = pickedTime ?? timeSlots.firstAvailable;
+    const selectedTime = pickedTime === undefined ? timeSlots.firstAvailable : pickedTime;
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
 
     const isDateAvailableForPickup = (date: Date): boolean => {
@@ -179,7 +180,7 @@ export default function RescheduleInline({
                             value={selectedDate}
                             onChange={value => {
                                 setSelectedDate(value ? new Date(value) : null);
-                                setPickedTime(null);
+                                setPickedTime(undefined);
                                 setError(null);
                             }}
                             leftSection={<IconCalendar size="1rem" />}

@@ -167,7 +167,9 @@ export default function WeeklyScheduleGrid({
     const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(true);
 
     // State for bulk reschedule
-    const [selectedOutsideHoursIds, setSelectedOutsideHoursIds] = useState<Set<string>>(new Set());
+    const [selectedOutsideHoursIds, setSelectedOutsideHoursIds] = useState<Set<string>>(
+        () => new Set(outsideHoursParcels.map(p => p.id)),
+    );
     const [bulkRescheduleOpened, { open: openBulkReschedule, close: closeBulkReschedule }] =
         useDisclosure(false);
 

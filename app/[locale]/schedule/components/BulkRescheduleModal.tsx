@@ -33,8 +33,9 @@ export default function BulkRescheduleModal({
     const t = useTranslations("schedule") as TranslationFunction;
 
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    // The time the user picked; null means the first available one
-    const [pickedTime, setPickedTime] = useState<string | null>(null);
+    // The time the user picked (null if they cleared it); undefined means the
+    // first available one
+    const [pickedTime, setPickedTime] = useState<string | null | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(15);
@@ -45,7 +46,7 @@ export default function BulkRescheduleModal({
         setWasOpened(opened);
         if (opened) {
             setSelectedDate(null);
-            setPickedTime(null);
+            setPickedTime(undefined);
             setError(null);
             setIsSubmitting(false);
         }
@@ -71,7 +72,7 @@ export default function BulkRescheduleModal({
 
     const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, false);
     const availableTimes = timeSlots.slots;
-    const selectedTime = pickedTime ?? timeSlots.firstAvailable;
+    const selectedTime = pickedTime === undefined ? timeSlots.firstAvailable : pickedTime;
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
 
     const handleConfirm = async () => {
@@ -133,7 +134,7 @@ export default function BulkRescheduleModal({
                     value={selectedDate}
                     onChange={value => {
                         setSelectedDate(value ? new Date(value) : null);
-                        setPickedTime(null);
+                        setPickedTime(undefined);
                         setError(null);
                     }}
                     leftSection={<IconCalendar size="1rem" />}

@@ -45,8 +45,9 @@ export default function ReschedulePickupModal({
 
     // State for the form
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    // The time the user picked; null means the first available one
-    const [pickedTime, setPickedTime] = useState<string | null>(null);
+    // The time the user picked (null if they cleared it); undefined means the
+    // first available one
+    const [pickedTime, setPickedTime] = useState<string | null | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
@@ -67,7 +68,7 @@ export default function ReschedulePickupModal({
         setResetFor(formKey);
         if (formKey) {
             setSelectedDate(null);
-            setPickedTime(null);
+            setPickedTime(undefined);
             setError(null);
             setIsSubmitting(false);
             setFullyBookedDates(new Set());
@@ -112,7 +113,7 @@ export default function ReschedulePickupModal({
 
     const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, true);
     const availableTimes = timeSlots.slots;
-    const selectedTime = pickedTime ?? timeSlots.firstAvailable;
+    const selectedTime = pickedTime === undefined ? timeSlots.firstAvailable : pickedTime;
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
 
     const handleConfirm = async () => {
@@ -211,7 +212,7 @@ export default function ReschedulePickupModal({
                                 value={selectedDate}
                                 onChange={value => {
                                     setSelectedDate(value ? new Date(value) : null);
-                                    setPickedTime(null);
+                                    setPickedTime(undefined);
                                     setError(null);
                                 }}
                                 leftSection={<IconCalendar size="1rem" />}

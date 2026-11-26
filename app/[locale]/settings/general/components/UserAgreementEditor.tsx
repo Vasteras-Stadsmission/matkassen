@@ -200,7 +200,7 @@ export function UserAgreementEditor() {
                         <Button
                             onClick={handleSave}
                             loading={saving}
-                            disabled={!hasChanges || !content.trim()}
+                            disabled={loading || !hasChanges || !content.trim()}
                         >
                             {currentAgreement ? t("buttons.publish") : t("buttons.create")}
                         </Button>
