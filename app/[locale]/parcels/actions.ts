@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/app/db/drizzle";
-import { protectedAdminAction as protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { logError } from "@/app/utils/logger";
 import { softDeleteParcel as softDeleteParcelTx } from "@/app/utils/parcels/state-transitions";
@@ -26,7 +26,7 @@ interface SoftDeleteParcelResponse {
  * the helper. This file no longer contains any direct mutation of
  * `food_parcels` — see `state-transitions.ts` for the rationale.
  */
-export const softDeleteParcel = protectedAgreementAction(
+export const softDeleteParcel = protectedAdminAgreementAction(
     async (session, parcelId: string): Promise<ActionResult<SoftDeleteParcelResponse>> => {
         try {
             const result = await db.transaction(async tx =>

@@ -29,6 +29,7 @@ vi.mock("@/app/utils/auth/protected-action", () => {
             fn(mockSession, ...args);
     return {
         protectedAdminAction: passThrough,
+        protectedAdminAgreementAction: passThrough,
         protectedReadAction: passThrough,
         protectedAgreementReadAction: passThrough,
         protectedAdminAgreementReadAction: passThrough,

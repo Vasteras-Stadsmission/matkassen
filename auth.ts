@@ -136,7 +136,9 @@ const authConfig: NextAuthConfig = {
                         });
                 } catch (error) {
                     logger.error({ error, username }, "Failed to update user profile data");
-                    // Don't block login if profile update fails
+                    // Without a user row the agreement can't be accepted and every
+                    // agreement-protected action refuses the user, so don't sign them in.
+                    return `/auth/error?error=user-record`;
                 }
 
                 return true;

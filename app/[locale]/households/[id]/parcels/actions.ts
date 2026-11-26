@@ -2,7 +2,7 @@
 
 import { db } from "@/app/db/drizzle";
 import { FoodParcels } from "@/app/[locale]/households/enroll/types";
-import { protectedAdminHouseholdAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAgreementHouseholdAction } from "@/app/utils/auth/protected-action";
 import { ParcelValidationError } from "@/app/utils/errors/validation-errors";
 import {
     success,
@@ -17,7 +17,7 @@ import {
     type HouseholdParcelScheduleChangeSummary,
 } from "@/app/utils/parcels/apply-parcel-schedule-changes";
 
-export const updateHouseholdParcels = protectedAdminHouseholdAction(
+export const updateHouseholdParcels = protectedAdminAgreementHouseholdAction(
     async (session, household, parcelsData: FoodParcels): Promise<ActionResult<void>> => {
         try {
             let changeSummary: HouseholdParcelScheduleChangeSummary | null = null;

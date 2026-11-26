@@ -17,8 +17,8 @@ import {
 import { eq, and, ne, isNull, inArray } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
 import {
-    protectedAdminAction,
-    protectedAdminHouseholdAction,
+    protectedAdminAgreementAction,
+    protectedAdminAgreementHouseholdAction,
 } from "@/app/utils/auth/protected-action";
 import {
     success,
@@ -201,7 +201,7 @@ async function ensureResponsibleUserIsAssignable(
 }
 
 // Function to format household details from DB format to form format for editing
-export const getHouseholdFormData = protectedAdminAction(
+export const getHouseholdFormData = protectedAdminAgreementAction(
     async (session: AuthSession, householdId: string): Promise<ActionResult<FormData>> => {
         try {
             // Auth already verified by protectedAction wrapper
@@ -425,7 +425,7 @@ async function getHouseholdEditData(householdId: string) {
 }
 
 // Function to update an existing household
-export const updateHousehold = protectedAdminHouseholdAction(
+export const updateHousehold = protectedAdminAgreementHouseholdAction(
     async (session, household, data: FormData): Promise<ActionResult<{ householdId: string }>> => {
         try {
             // Auth and household access already verified by protectedHouseholdAction wrapper
@@ -813,7 +813,7 @@ export const updateHousehold = protectedAdminHouseholdAction(
     },
 );
 
-export const updateResponsibleStaff = protectedAdminHouseholdAction(
+export const updateResponsibleStaff = protectedAdminAgreementHouseholdAction(
     async (
         session,
         household,
@@ -899,7 +899,7 @@ export const updateResponsibleStaff = protectedAdminHouseholdAction(
 );
 
 // Add comment to a household (for edit page)
-export const addComment = protectedAdminHouseholdAction(
+export const addComment = protectedAdminAgreementHouseholdAction(
     async (
         session,
         household,

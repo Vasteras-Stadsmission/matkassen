@@ -576,9 +576,6 @@ import {
     MAX_AGREEMENT_CONTENT_LENGTH,
 } from "@/app/utils/user-agreement";
 
-// Re-export UserAgreement for consumers
-export type { UserAgreement };
-
 export interface UserAgreementWithStats extends UserAgreement {
     acceptanceCount: number;
 }

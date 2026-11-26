@@ -54,7 +54,9 @@ export async function DELETE(
                         ? 409
                         : result.error?.code === "PAST_PARCEL"
                           ? 400
-                          : 500;
+                          : result.error?.code === "AGREEMENT_REQUIRED"
+                            ? 403
+                            : 500;
 
             return NextResponse.json(
                 {

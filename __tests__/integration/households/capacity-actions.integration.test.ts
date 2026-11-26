@@ -36,6 +36,10 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
         (action: (session: unknown, ...args: unknown[]) => unknown) =>
         (...args: unknown[]) =>
             action({ user: { role: "admin" } }, ...args),
+    protectedAdminAgreementAction:
+        (action: (session: unknown, ...args: unknown[]) => unknown) =>
+        (...args: unknown[]) =>
+            action({ user: { role: "admin" } }, ...args),
 }));
 
 // Import the actual functions we're testing
