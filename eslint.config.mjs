@@ -1,0 +1,79 @@
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = [
+    ...nextVitals,
+    ...nextTs,
+    {
+        // Same glob as eslint-config-next, which registers the react-hooks plugin
+        files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
+        rules: {
+            "react/no-unescaped-entities": "off",
+            // Prevent console.* usage - use Pino logger instead
+            "no-console": "error",
+            // Consistently import navigation APIs from `@/app/i18n/navigation`
+            "no-restricted-imports": [
+                "error",
+                {
+                    name: "next/link",
+                    message: "Please import from `@/app/i18n/navigation` instead.",
+                },
+                {
+                    name: "next/navigation",
+                    importNames: ["redirect", "permanentRedirect", "useRouter", "usePathname"],
+                    message: "Please import from `@/app/i18n/navigation` instead.",
+                },
+            ],
+            // eslint-config-next 16 brings the React Compiler rules of
+            // eslint-plugin-react-hooks 7. These six flag existing code; they
+            // warn until that code is fixed, so new violations stay visible
+            // without blocking the Next.js 16 upgrade. The other compiler
+            // rules pass today and stay errors.
+            "react-hooks/set-state-in-effect": "warn",
+            "react-hooks/static-components": "warn",
+            "react-hooks/preserve-manual-memoization": "warn",
+            "react-hooks/refs": "warn",
+            "react-hooks/purity": "warn",
+            "react-hooks/immutability": "warn",
+        },
+    },
+    {
+        // logger.js is CommonJS (it's .js, not .ts) and uses require()
+        // internally for its pino-pretty fallback chain.
+        files: ["app/utils/logger.js"],
+        rules: {
+            "@typescript-eslint/no-require-imports": "off",
+        },
+    },
+    {
+        // Public pages and components need raw Next.js navigation APIs
+        // since they handle internationalization manually outside the main i18n system
+        files: ["app/p/**/*.{js,ts,tsx}", "app/components/PublicLocaleSwitcher.tsx"],
+        rules: {
+            "no-restricted-imports": "off",
+        },
+    },
+    {
+        // Allow console in config files, scripts, critical i18n, client components, client wrappers, and tests
+        files: [
+            "app/config/branding.ts",
+            "app/i18n/request.ts",
+            "app/**/client-actions.ts",
+            "app/**/client.tsx",
+            "app/**/page.tsx",
+            "app/hooks/**/*.{js,ts,tsx}",
+            "app/**/components/**/*.{js,ts,tsx}",
+            "components/**/*.{js,ts,tsx}",
+            "scripts/**/*.{js,mjs,ts}",
+            "__tests__/**/*.{js,ts,tsx}",
+            "**/*.test.{js,ts,tsx}",
+            "**/*.spec.{js,ts,tsx}",
+            "*.config.{js,ts,mjs}",
+        ],
+        rules: {
+            "no-console": "off",
+        },
+    },
+];
+
+export default eslintConfig;
