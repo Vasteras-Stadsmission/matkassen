@@ -35,6 +35,7 @@ import {
     IconSearch,
     IconX,
     IconCircleCheck,
+    IconQrcode,
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -47,6 +48,7 @@ import {
 } from "../../../actions";
 import { TodaySummaryCard } from "./TodaySummaryCard";
 import { ParcelAdminDialog } from "@/components/ParcelAdminDialog";
+import { QrScannerModal } from "@/components/QrScanner/QrScannerModal";
 import { findLocationBySlug } from "../../../utils/location-slugs";
 import { NoUpcomingScheduleAlert } from "../../../components/NoUpcomingScheduleAlert";
 import { filterParcelsByQuery, sortTodaysParcels } from "../../../utils/parcel-search";
@@ -109,6 +111,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("");
+    const [scannerOpened, { open: openScanner, close: closeScanner }] = useDisclosure(false);
+    const tScanner = useTranslations("qrScanner") as TranslationFunction;
 
     const today = new Date();
 
@@ -268,17 +272,27 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
         setCanPull(false);
     }, [isPulling, pullDistance, loadData]);
 
-    // Handle parcel click
-    const handleParcelClick = useCallback(
-        (parcel: TodayParcel) => {
+    // Open a parcel from the list or a QR scan
+    const openParcel = useCallback(
+        (parcelId: string) => {
             // Update URL with parcel parameter to trigger the modal
             const params = new URLSearchParams(searchParams.toString());
-            params.set("parcel", parcel.id);
+            params.set("parcel", parcelId);
             const newUrl = `${pathname}?${params.toString()}`;
             router.replace(newUrl);
         },
         [searchParams, pathname, router],
     );
+
+    // A scanned parcel from another location or day goes via the schedule
+    // hub, which opens it at its own location
+    const handleScan = (parcelId: string) => {
+        if (parcels.some(p => p.id === parcelId)) {
+            openParcel(parcelId);
+        } else {
+            router.push(`/schedule?parcel=${parcelId}`);
+        }
+    };
 
     if (loading) {
         return (
@@ -460,27 +474,39 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                 </Tabs.List>
                             </Tabs>
                             {totalParcels > 0 && (
-                                <TextInput
-                                    placeholder={t("todayHandouts.search.placeholder")}
-                                    leftSection={<IconSearch size={14} />}
-                                    rightSection={
-                                        searchQuery ? (
-                                            <ActionIcon
-                                                size="xs"
-                                                variant="subtle"
-                                                color="gray"
-                                                onClick={() => setSearchQuery("")}
-                                                aria-label={t("todayHandouts.search.clear")}
-                                            >
-                                                <IconX size={12} />
-                                            </ActionIcon>
-                                        ) : null
-                                    }
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.currentTarget.value)}
-                                    size="xs"
-                                    autoComplete="off"
-                                />
+                                <Group gap={6} wrap="nowrap">
+                                    <TextInput
+                                        style={{ flex: 1 }}
+                                        placeholder={t("todayHandouts.search.placeholder")}
+                                        leftSection={<IconSearch size={14} />}
+                                        rightSection={
+                                            searchQuery ? (
+                                                <ActionIcon
+                                                    size="xs"
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    onClick={() => setSearchQuery("")}
+                                                    aria-label={t("todayHandouts.search.clear")}
+                                                >
+                                                    <IconX size={12} />
+                                                </ActionIcon>
+                                            ) : null
+                                        }
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.currentTarget.value)}
+                                        size="xs"
+                                        autoComplete="off"
+                                    />
+                                    <Button
+                                        size="xs"
+                                        variant="outline"
+                                        leftSection={<IconQrcode size={14} />}
+                                        onClick={openScanner}
+                                        data-testid="today-scan-qr"
+                                    >
+                                        {tScanner("scan")}
+                                    </Button>
+                                </Group>
                             )}
                         </Stack>
                     </Paper>
@@ -570,7 +596,7 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                                             transition: "all 0.2s ease",
                                             minHeight: "48px", // Slightly reduced for mobile
                                         }}
-                                        onClick={() => handleParcelClick(parcel)}
+                                        onClick={() => openParcel(parcel.id)}
                                         onMouseEnter={e => {
                                             e.currentTarget.style.backgroundColor =
                                                 getCardBackground(parcel.status, 1);
@@ -702,6 +728,8 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
                         </Stack>
                     )}
                 </Stack>
+
+                <QrScannerModal opened={scannerOpened} onClose={closeScanner} onScan={handleScan} />
 
                 {/* Parcel Admin Dialog */}
                 {selectedParcelId && (

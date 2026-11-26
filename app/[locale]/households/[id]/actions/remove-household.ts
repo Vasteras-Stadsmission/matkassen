@@ -1,6 +1,6 @@
 "use server";
 
-import { protectedAdminAction as protectedAgreementAction } from "@/app/utils/auth/protected-action";
+import { protectedAdminAgreementAction } from "@/app/utils/auth/protected-action";
 import { success, failure, type ActionResult } from "@/app/utils/auth/action-result";
 import { db } from "@/app/db/drizzle";
 import { households } from "@/app/db/schema";
@@ -30,7 +30,7 @@ interface RemoveHouseholdInput {
  * - Last name confirmation (case-insensitive, whitespace-normalized)
  * - No upcoming parcels
  */
-export const removeHouseholdAction = protectedAgreementAction(
+export const removeHouseholdAction = protectedAdminAgreementAction(
     async (session, input: RemoveHouseholdInput): Promise<ActionResult<RemovalResult>> => {
         try {
             const { householdId, lastNameConfirmation, locale: inputLocale } = input;

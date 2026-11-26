@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { HouseholdWizard } from "@/components/household-wizard/HouseholdWizard";
 import { getHouseholdFormData, updateHousehold } from "./actions";
 import { FormData, Comment } from "../../enroll/types";
@@ -8,6 +9,7 @@ import { addHouseholdComment, deleteHouseholdComment } from "../../actions";
 import { isAgreementRequired } from "@/app/utils/auth/action-result";
 
 export default function EditHouseholdClient({ id }: { id: string }) {
+    const t = useTranslations("wizard");
     const [initialData, setInitialData] = useState<FormData | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -131,8 +133,8 @@ export default function EditHouseholdClient({ id }: { id: string }) {
 
     // Build the title based on the loaded data
     const title = initialData
-        ? `Redigera hushåll: ${initialData.household.first_name} ${initialData.household.last_name}`
-        : "Redigera hushåll";
+        ? `${t("editHousehold")}: ${initialData.household.first_name} ${initialData.household.last_name}`
+        : t("editHousehold");
 
     return (
         <HouseholdWizard
@@ -146,7 +148,7 @@ export default function EditHouseholdClient({ id }: { id: string }) {
             isLoading={loading}
             loadError={loadError}
             submitButtonColor="yellow"
-            submitButtonText="Uppdatera hushåll"
+            submitButtonText={t("updateHousehold")}
         />
     );
 }

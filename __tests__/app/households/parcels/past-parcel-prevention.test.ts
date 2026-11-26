@@ -144,7 +144,7 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
             return fn(mockSession, ...args);
         },
     protectedHouseholdAction: mockAdminHouseholdAction,
-    protectedAdminHouseholdAction: mockAdminHouseholdAction,
+    protectedAdminAgreementHouseholdAction: mockAdminHouseholdAction,
     protectedAgreementHouseholdAction: mockAdminHouseholdAction,
 }));
 

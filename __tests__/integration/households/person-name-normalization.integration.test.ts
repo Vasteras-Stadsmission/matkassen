@@ -22,10 +22,13 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
     protectedAdminAction: (fn: (...args: unknown[]) => unknown) => {
         return async (...args: unknown[]) => fn(mockSession, ...args);
     },
+    protectedAdminAgreementAction: (fn: (...args: unknown[]) => unknown) => {
+        return async (...args: unknown[]) => fn(mockSession, ...args);
+    },
     protectedReadAction: (fn: (...args: unknown[]) => unknown) => {
         return async (...args: unknown[]) => fn(mockSession, ...args);
     },
-    protectedAdminHouseholdAction: (fn: (...args: unknown[]) => unknown) => {
+    protectedAdminAgreementHouseholdAction: (fn: (...args: unknown[]) => unknown) => {
         return async (householdId: string, ...args: unknown[]) => {
             const db = await getTestDb();
             const [household] = await db

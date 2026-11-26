@@ -21,7 +21,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import {
-    protectedAdminAction,
+    protectedAdminAgreementAction,
     protectedAdminAgreementReadAction,
     protectedAgreementAction,
     protectedAgreementReadAction,
@@ -139,6 +139,27 @@ async function getHouseholdDetailsData(householdId: string) {
 
         if (!household) {
             return null;
+        }
+
+        // An anonymized household's page shows only when it was removed. Its
+        // remaining data (members, parcels) is kept for statistics, not for this
+        // action, which handout staff can call too.
+        if (household.anonymized_at) {
+            return {
+                household,
+                creatorGithubData: null,
+                responsibleStaffData: null,
+                enrollmentSmsDelivered: false,
+                members: [],
+                dietaryRestrictions: [],
+                additionalNeeds: [],
+                pets: [],
+                foodParcels: { pickupLocationId: "", parcels: [] },
+                deletedParcels: [],
+                pickupLocation: null,
+                primaryPickupLocation: null,
+                comments: [],
+            };
         }
 
         // Get household members
@@ -407,7 +428,8 @@ async function getHouseholdDetailsData(householdId: string) {
             action: "getHouseholdDetails",
             householdId,
         });
-        return null;
+        // Rethrow: a database failure must not look like a missing household.
+        throw error;
     }
 }
 
@@ -490,7 +512,7 @@ export const addHouseholdComment = protectedAgreementAction(
 );
 
 // Function to delete a comment
-export const deleteHouseholdComment = protectedAdminAction(
+export const deleteHouseholdComment = protectedAdminAgreementAction(
     async (session, commentId: string): Promise<ActionResult<boolean>> => {
         try {
             // Auth already verified by protectedAction wrapper

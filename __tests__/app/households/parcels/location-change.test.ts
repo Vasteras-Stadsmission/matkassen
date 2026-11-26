@@ -171,7 +171,7 @@ const mockAdminHouseholdAction = (fn: any) => {
 
 vi.mock("@/app/utils/auth/protected-action", () => ({
     protectedHouseholdAction: mockAdminHouseholdAction,
-    protectedAdminHouseholdAction: mockAdminHouseholdAction,
+    protectedAdminAgreementHouseholdAction: mockAdminHouseholdAction,
     protectedAgreementHouseholdAction: mockAdminHouseholdAction,
 }));
 

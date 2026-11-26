@@ -135,11 +135,11 @@ export function protectedAdminAction<T extends any[], R>(
 }
 
 /**
- * Like protectedAdminAction but also verifies household access.
- * Use this for admin-only household mutations.
+ * Like protectedAdminAction but also requires agreement acceptance and verifies
+ * household access. Use this for admin-only household mutations.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
+export function protectedAdminAgreementHouseholdAction<T extends [string, ...any[]], R>(
     action: (
         session: AuthSession,
         household: HouseholdData,
@@ -159,6 +159,11 @@ export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
             return authError("Admin access required", "FORBIDDEN");
         }
 
+        const agreementCheck = await verifyAgreementAcceptance(authResult.data);
+        if (agreementCheck) {
+            return agreementCheck;
+        }
+
         const householdResult = await verifyHouseholdAccess(householdId as string);
 
         if (!householdResult.success) {
@@ -170,9 +175,9 @@ export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
                 githubUsername: authResult.data.user?.githubUsername,
                 householdId: householdResult.data.id,
                 action: action.name || "anonymous",
-                type: "protected_admin_household_action",
+                type: "protected_admin_agreement_household_action",
             },
-            "Protected admin household action executed",
+            "Protected admin agreement household action executed",
         );
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -388,6 +393,43 @@ export function protectedAgreementAction<T extends any[], R>(
                 type: "protected_agreement_action",
             },
             "Protected agreement action executed",
+        );
+
+        return action(authResult.data, ...args);
+    };
+}
+
+/**
+ * Like protectedAgreementAction but also requires the user to have the admin role.
+ * Use this for admin-only actions that read or change personal data.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function protectedAdminAgreementAction<T extends any[], R>(
+    action: (session: AuthSession, ...args: T) => Promise<ActionResult<R>>,
+): (...args: T) => Promise<ActionResult<R>> {
+    return async (...args: T): Promise<ActionResult<R>> => {
+        const authResult = await verifyServerActionAuth();
+
+        if (!authResult.success) {
+            return authResult;
+        }
+
+        if (authResult.data.user?.role !== "admin") {
+            return authError("Admin access required", "FORBIDDEN");
+        }
+
+        const agreementCheck = await verifyAgreementAcceptance(authResult.data);
+        if (agreementCheck) {
+            return agreementCheck;
+        }
+
+        logger.info(
+            {
+                githubUsername: authResult.data.user?.githubUsername,
+                action: action.name || "anonymous",
+                type: "protected_admin_agreement_action",
+            },
+            "Protected admin agreement action executed",
         );
 
         return action(authResult.data, ...args);
